@@ -143,11 +143,15 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           label: 'Audit Trail',
           icon: History,
         },
-        {
-          id: 'settings',
-          label: 'Settings',
-          icon: Settings,
-        },
+        ...(role === 'SUPER_ADMIN'
+          ? [
+              {
+                id: 'settings',
+                label: 'Settings',
+                icon: Settings,
+              },
+            ]
+          : []),
       ],
     },
   ];
@@ -166,11 +170,15 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             transition={{ type: 'spring', stiffness: 450, damping: 25 }}
             type="button"
             onClick={() => {
-              onSelectTab('settings', 'brand_logo');
+              if (role === 'SUPER_ADMIN') {
+                onSelectTab('settings', 'brand_logo');
+              } else {
+                onSelectTab('dashboard');
+              }
               if (isMobileView) onCloseMobile?.();
             }}
             className="flex items-center gap-3 cursor-pointer text-left min-w-0"
-            title="Brand & Logo Studio (Settings)"
+            title={role === 'SUPER_ADMIN' ? 'Brand & Logo Studio (Settings)' : 'Dashboard'}
           >
             <AppBrandLogo
               logoUrl={appSettings?.customLogoUrl}
@@ -467,7 +475,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     { id: 'branches', label: 'Branch Codes' },
     { id: 'users', label: 'Staff Directory' },
     { id: 'audit_log', label: 'Audit Trail' },
-    { id: 'settings', label: 'Settings' },
+    ...(role === 'SUPER_ADMIN' ? [{ id: 'settings', label: 'Settings' }] : []),
   ];
 
   // Style #2 Locked In as the #1 Permanent Header Style:

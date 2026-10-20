@@ -51,7 +51,7 @@ import { AuditLogTab } from './components/AuditLogTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { motion, AnimatePresence } from 'motion/react';
-import { SendHorizontal } from 'lucide-react';
+import { SendHorizontal, Lock } from 'lucide-react';
 import { isSupabaseConfigured, checkSupabaseConnection } from './lib/supabase';
 import {
   fetchDevicesFromSupabase,
@@ -541,6 +541,10 @@ export function App() {
   >('policy');
 
   const handleSelectTab = (tabId: string, subTab?: string) => {
+    if ((tabId === 'settings' || tabId === 'brand_logo') && role !== 'SUPER_ADMIN') {
+      triggerToast('Access Restricted: Settings is only accessible by Super Admin.');
+      return;
+    }
     if (tabId === 'brand_logo') {
       setSettingsSubTab('brand_logo');
       setActiveTab('settings');
@@ -555,11 +559,13 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeTab === 'brand_logo') {
+    if ((activeTab === 'settings' || activeTab === 'brand_logo') && role !== 'SUPER_ADMIN') {
+      setActiveTab('dashboard');
+    } else if (activeTab === 'brand_logo') {
       setSettingsSubTab('brand_logo');
       setActiveTab('settings');
     }
-  }, [activeTab]);
+  }, [activeTab, role]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeAlertNotif, setActiveAlertNotif] = useState<SystemNotification | null>(null);
 
@@ -3079,7 +3085,7 @@ export function App() {
                     />
                   )}
 
-                  {activeTab === 'settings' && (
+                  {activeTab === 'settings' && role === 'SUPER_ADMIN' && (
                     <SettingsTab
                       settings={appSettings}
                       onUpdateSettings={(newSettings) => {
@@ -3126,6 +3132,27 @@ export function App() {
                       addAuditLog={addAuditLog}
                       onUpdateAppSettings={setAppSettings}
                     />
+                  )}
+
+                  {activeTab === 'settings' && role !== 'SUPER_ADMIN' && (
+                    <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm max-w-lg mx-auto my-12">
+                      <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-3">
+                        <Lock className="w-6 h-6" />
+                      </div>
+                      <h2 className="text-base font-extrabold text-slate-800 dark:text-white">
+                        Access Restricted
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        System configuration and security settings are restricted to Super Admin role only.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('dashboard')}
+                        className="mt-4 px-4 py-2 rounded-xl bg-[#003857] text-white text-xs font-bold hover:bg-[#002a42] transition cursor-pointer"
+                      >
+                        Return to Dashboard
+                      </button>
+                    </div>
                   )}
                   </ErrorBoundary>
                 </motion.div>
