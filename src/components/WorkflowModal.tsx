@@ -395,14 +395,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 12 }}
           transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
-          className={`relative w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden my-6 z-10 border flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
+          className={`relative w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden my-6 z-10 border-0 flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
             isLight
-              ? 'bg-white border-slate-200/90 text-slate-800'
-              : 'bg-[#12151e] border-slate-800 text-slate-100'
+              ? 'bg-white text-slate-800'
+              : 'bg-[#12151e] text-slate-100'
           }`}
         >
           {/* Header */}
-          <div className="navy-header-bar px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10">
+          <div className="navy-header-bar rounded-t-2xl px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10">
             <div className="flex items-center gap-3.5 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-xs text-white">
                 {device.type === 'POS Terminal' ? (

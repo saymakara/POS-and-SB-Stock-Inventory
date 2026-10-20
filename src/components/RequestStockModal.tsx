@@ -130,14 +130,14 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 12 }}
           transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
-          className={`relative w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col z-10 border transform-gpu will-change-gpu gpu-modal-container ${
+          className={`relative w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col z-10 border-0 transform-gpu will-change-gpu gpu-modal-container ${
             isLight
-              ? 'bg-white border-slate-200 text-slate-800'
-              : 'bg-[#11141e] border-slate-800 text-slate-100'
+              ? 'bg-white text-slate-800'
+              : 'bg-[#11141e] text-slate-100'
           }`}
         >
           {/* Header */}
-          <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white border-b border-white/20">
+          <div className="navy-header-bar rounded-t-2xl px-6 py-4 flex items-center justify-between text-white border-b border-white/20">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-white">
                 <SendHorizontal className="w-5 h-5 text-white" />

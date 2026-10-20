@@ -108,10 +108,10 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 12 }}
         transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
-        className="w-full max-w-lg rounded-3xl border shadow-2xl overflow-hidden my-8 bg-white border-slate-200 text-[#002f49] transform-gpu will-change-gpu gpu-modal-container"
+        className="w-full max-w-lg rounded-3xl border-0 shadow-2xl overflow-hidden my-8 bg-white text-[#002f49] transform-gpu will-change-gpu gpu-modal-container"
       >
         {/* Navy Header */}
-        <div className="px-6 py-4.5 bg-[#002f49] text-white flex items-center justify-between">
+        <div className="px-6 py-4.5 bg-[#002f49] rounded-t-3xl text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-emerald-300 shadow-xs">
               <BatteryCharging className="w-5 h-5" />

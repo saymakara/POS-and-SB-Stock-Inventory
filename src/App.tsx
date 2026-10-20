@@ -3095,7 +3095,7 @@ export function App() {
       {/* Branch Code Create/Edit Modal */}
       {isNewBranchModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl bg-white border-slate-200 text-slate-900">
+          <div className="w-full max-w-md rounded-2xl border-0 p-6 shadow-2xl bg-white text-slate-900">
             <h3 className="text-base font-black mb-4 text-[#002f49]">
               {editingBranch
                 ? `Edit Branch Code ${editingBranch.code}`
@@ -3145,13 +3145,13 @@ export function App() {
                 <button
                   type="button"
                   onClick={() => setIsNewBranchModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 text-slate-700 cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 text-slate-700 cursor-pointer hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white text-xs font-extrabold cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-extrabold cursor-pointer transition shadow-xs"
                 >
                   Save Branch Code
                 </button>
@@ -3164,7 +3164,7 @@ export function App() {
       {/* User Account Modal */}
       {isUserModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl bg-white border-slate-200 text-slate-900">
+          <div className="w-full max-w-md rounded-2xl border-0 p-6 shadow-2xl bg-white text-slate-900">
             <h3 className="text-base font-black mb-4 text-slate-900">
               {editingUser ? 'Update IAM Account & Role' : 'Create IAM Account'}
             </h3>
@@ -3255,7 +3255,7 @@ export function App() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white text-xs font-extrabold cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-extrabold cursor-pointer transition shadow-xs"
                 >
                   Save Account
                 </button>

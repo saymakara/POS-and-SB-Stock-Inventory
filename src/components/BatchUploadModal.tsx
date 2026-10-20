@@ -717,8 +717,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   };
 
   const modalBoxClass = isLight
-    ? 'bg-white/95 border-slate-200/80 text-slate-800 backdrop-blur-xl'
-    : 'bg-[#11141e]/95 border-slate-800/80 text-slate-100 backdrop-blur-xl';
+    ? 'bg-white/95 text-slate-800 backdrop-blur-xl'
+    : 'bg-[#11141e]/95 text-slate-100 backdrop-blur-xl';
 
   const inputClass = isLight
     ? 'bg-white border-slate-300 text-slate-900'
@@ -733,10 +733,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.94, y: 14 }}
         transition={{ type: 'spring', damping: 28, stiffness: 350, mass: 0.75 }}
-        className={`${modalBoxClass} border rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] transform-gpu will-change-gpu gpu-modal-container`}
+        className={`${modalBoxClass} border-0 rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] transform-gpu will-change-gpu gpu-modal-container`}
       >
         {/* Header (Signature Navy Bar) */}
-        <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
+        <div className="navy-header-bar rounded-t-3xl px-6 py-4 flex items-center justify-between text-white">
           <div>
             <h3 className="text-base font-bold flex items-center gap-2">
               <FilePlus className="w-5 h-5 text-[#7cc4ed]" />

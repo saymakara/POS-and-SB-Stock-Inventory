@@ -283,14 +283,14 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 12 }}
         transition={{ type: 'spring', damping: 28, stiffness: 350, mass: 0.75 }}
-        className={`w-full max-w-xl rounded-xl overflow-hidden shadow-2xl border transform-gpu will-change-gpu gpu-modal-container ${
+        className={`w-full max-w-xl rounded-xl overflow-hidden shadow-2xl border-0 transform-gpu will-change-gpu gpu-modal-container ${
           isLight
-            ? 'bg-white border-slate-200 text-zinc-900'
-            : 'bg-[#18191e] border-white/10 text-slate-100'
+            ? 'bg-white text-zinc-900'
+            : 'bg-[#18191e] text-slate-100'
         }`}
       >
         {/* Header */}
-        <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
+        <div className="navy-header-bar rounded-t-xl px-6 py-4 flex items-center justify-between text-white">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-white/10 text-[#7cc4ed] border border-white/15 flex items-center justify-center">
               <Download className="w-4 h-4" />
