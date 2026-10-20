@@ -537,6 +537,39 @@ export function App() {
   const [selectedStaffUser, setSelectedStaffUser] = useState<string>('NI Oudomroth (10811)');
   const [activeAdminStaff, setActiveAdminStaff] = useState<string>('SAY Chanmakara (8986)');
   const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [settingsSubTab, setSettingsSubTab] = useState<
+    'policy' | 'branches' | 'brand_logo' | 'hardware' | 'sla' | 'customFields' | 'data' | 'security'
+  >('policy');
+
+  const handleSelectTab = (tabId: string, subTab?: string) => {
+    if (tabId === 'branches') {
+      setSettingsSubTab('branches');
+      setActiveTab('settings');
+      setMobileDrawerOpen(false);
+      return;
+    }
+    if (tabId === 'brand_logo') {
+      setSettingsSubTab('brand_logo');
+      setActiveTab('settings');
+      setMobileDrawerOpen(false);
+      return;
+    }
+    if (tabId === 'settings' && subTab) {
+      setSettingsSubTab(subTab as any);
+    }
+    setActiveTab(tabId);
+    setMobileDrawerOpen(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'branches') {
+      setSettingsSubTab('branches');
+      setActiveTab('settings');
+    } else if (activeTab === 'brand_logo') {
+      setSettingsSubTab('brand_logo');
+      setActiveTab('settings');
+    }
+  }, [activeTab]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeAlertNotif, setActiveAlertNotif] = useState<SystemNotification | null>(null);
 
