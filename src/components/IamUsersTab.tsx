@@ -119,30 +119,31 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
 
   return (
     <div className="space-y-5">
-      <div className="surface-card rounded-2xl p-5 border flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0 bg-[#18191e] border border-white/10">
+      <div className="surface-card shadow-md rounded-2xl p-5 border border-slate-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-[#003857] text-white flex items-center justify-center shadow-sm shrink-0">
             {isSuperAdmin ? (
-              <ShieldAlert className="w-5 h-5" />
+              <ShieldAlert className="w-5 h-5 text-white" />
             ) : (
-              <ShieldCheck className="w-5 h-5" />
+              <ShieldCheck className="w-5 h-5 text-white" />
             )}
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-black tracking-tight text-zinc-900">
+              <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-zinc-900 dark:text-white">
                 IAM Access Control &amp; Role Governance
               </h2>
-              <span className="text-[10px] font-mono font-extrabold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-800 border border-zinc-200">
+              <span className="text-[10px] font-mono font-extrabold px-2.5 py-0.5 rounded-full bg-[#eef5f9] text-[#003857] border border-[#003857]/20 dark:bg-[#003857]/30 dark:text-[#7cc4ed] dark:border-[#003857]/40">
                 {filteredUsers.length} Staff Accounts
               </span>
               {isSuperAdmin && (
-                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                  Super Admin Authority Active
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#eef5f9] text-[#003857] border border-[#003857]/20 dark:bg-[#003857]/30 dark:text-[#7cc4ed] dark:border-[#003857]/40 inline-flex items-center gap-1.5 shadow-2xs">
+                  <ShieldAlert className="w-3 h-3 text-[#003857] dark:text-[#7cc4ed]" />
+                  <span>Super Admin Authority Active</span>
                 </span>
               )}
             </div>
-            <p className="text-xs mt-0.5 text-slate-500">
+            <p className="text-xs mt-0.5 text-slate-500 dark:text-slate-400">
               Super Admin can manage and update all staff accounts, Branch Codes, and privileges except immutable system integrity logs
             </p>
           </div>
@@ -151,7 +152,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
         {isAdminLike && (
           <button
             onClick={() => onOpenUserModal()}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white text-xs font-extrabold shadow-sm transition cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-extrabold shadow-sm transition cursor-pointer border border-[#002840]/30"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Staff / Admin Account</span>
@@ -301,12 +302,12 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                     </td>
                     <td className="py-3 px-3">
                       {u.accessRole === 'SUPER_ADMIN' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black bg-[#18191e] border border-white/10 text-white">
-                          <ShieldAlert className="w-3 h-3" /> SUPER ADMIN
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black bg-[#003857] text-white shadow-2xs">
+                          <ShieldAlert className="w-3 h-3 text-sky-300" /> SUPER ADMIN
                         </span>
                       ) : u.accessRole === 'ADMIN' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black bg-zinc-100 text-zinc-800 border border-zinc-200">
-                          <ShieldCheck className="w-3 h-3" /> ADMIN HQ
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black bg-[#eef5f9] text-[#003857] border border-[#003857]/20">
+                          <ShieldCheck className="w-3 h-3 text-[#003857]" /> ADMIN HQ
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
