@@ -492,6 +492,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           {/* Clean Grey Text-Only Role Authority Badge (No Logo) */}
           <div className="flex items-center px-3 py-1.5 rounded-xl border border-slate-200/90 bg-slate-100/90 shadow-2xs shrink-0 select-none">
             <span className="text-xs font-bold tracking-tight text-slate-800">
+              <span className="text-slate-500 font-medium mr-1.5">Role:</span>
               {role === 'SUPER_ADMIN'
                 ? 'Super Admin'
                 : role === 'ADMIN'
