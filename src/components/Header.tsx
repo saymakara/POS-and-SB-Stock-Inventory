@@ -494,7 +494,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               whileTap={{ scale: 0.92 }}
               type="button"
               onClick={onToggleSidebar}
-              className="p-2 rounded-xl cursor-pointer border bg-[#004953]/10 hover:bg-[#004953]/20 text-[#004953] border-[#004953]/30 backdrop-blur-md transition shrink-0"
+              className="p-2 rounded-xl cursor-pointer border bg-[#003857]/10 hover:bg-[#003857]/20 text-[#003857] border-[#003857]/30 backdrop-blur-md transition shrink-0"
               title="Toggle Sidebar"
             >
               <Menu className="w-4 h-4" />
@@ -502,48 +502,36 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           )}
 
           {/* Locked Role Authority Badge Based on Super Admin Assignment */}
-          <div className="px-3 py-1.5 rounded-xl border bg-slate-50 border-slate-200/90 text-slate-900 flex items-center gap-2 shadow-2xs shrink-0 select-none">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#003857] text-white shadow-xs shrink-0 select-none">
             {role === 'SUPER_ADMIN' ? (
               <>
-                <div className="w-5 h-5 rounded-md bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                  <ShieldAlert className="w-3.5 h-3.5 text-sky-300" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-black tracking-tight text-[#003857] uppercase leading-none">
-                    Super Admin
-                  </span>
-                  <span className="text-[9px] font-semibold text-slate-500 leading-none mt-0.5">
-                    Full Authority
-                  </span>
-                </div>
+                <ShieldAlert className="w-3.5 h-3.5 text-sky-300 shrink-0" />
+                <span className="text-xs font-black tracking-tight uppercase">
+                  Super Admin
+                </span>
+                <span className="text-[10px] font-semibold text-sky-200/80 font-mono border-l border-white/20 pl-2">
+                  Full Authority
+                </span>
               </>
             ) : role === 'ADMIN' ? (
               <>
-                <div className="w-5 h-5 rounded-md bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-black tracking-tight text-[#003857] uppercase leading-none">
-                    Admin HQ
-                  </span>
-                  <span className="text-[9px] font-semibold text-slate-500 leading-none mt-0.5">
-                    Head Office Stock (Code 100)
-                  </span>
-                </div>
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+                <span className="text-xs font-black tracking-tight uppercase">
+                  Admin HQ
+                </span>
+                <span className="text-[10px] font-semibold text-sky-200/80 font-mono border-l border-white/20 pl-2">
+                  Head Office
+                </span>
               </>
             ) : (
               <>
-                <div className="w-5 h-5 rounded-md bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                  <Building2 className="w-3.5 h-3.5 text-amber-300" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-black tracking-tight text-[#003857] uppercase leading-none">
-                    Branch Staff
-                  </span>
-                  <span className="text-[9px] font-semibold text-slate-500 leading-none mt-0.5">
-                    Branch Code {activeBranchId}
-                  </span>
-                </div>
+                <Building2 className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                <span className="text-xs font-black tracking-tight uppercase">
+                  Branch Staff
+                </span>
+                <span className="text-[10px] font-semibold text-amber-200/80 font-mono border-l border-white/20 pl-2">
+                  Code {activeBranchId}
+                </span>
               </>
             )}
           </div>
