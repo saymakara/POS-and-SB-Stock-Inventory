@@ -1,0 +1,27 @@
+{
+  "name": "POS & Sound Box Stock Inventory",
+  "short_name": "POS Stock",
+  "description": "Enterprise Hardware Stock Control, Multi-Branch Lifecycle & Inventory Management",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#003857",
+  "icons": [
+    {
+      "src": "./pwa-192x192.png?v=4",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./pwa-512x512.png?v=4",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./apple-touch-icon.png?v=4",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
