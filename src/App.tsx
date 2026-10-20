@@ -542,12 +542,6 @@ export function App() {
   >('policy');
 
   const handleSelectTab = (tabId: string, subTab?: string) => {
-    if (tabId === 'branches') {
-      setSettingsSubTab('branches');
-      setActiveTab('settings');
-      setMobileDrawerOpen(false);
-      return;
-    }
     if (tabId === 'brand_logo') {
       setSettingsSubTab('brand_logo');
       setActiveTab('settings');
@@ -562,10 +556,7 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeTab === 'branches') {
-      setSettingsSubTab('branches');
-      setActiveTab('settings');
-    } else if (activeTab === 'brand_logo') {
+    if (activeTab === 'brand_logo') {
       setSettingsSubTab('brand_logo');
       setActiveTab('settings');
     }

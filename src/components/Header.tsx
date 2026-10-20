@@ -130,6 +130,12 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           count: pendingReqs,
         },
         {
+          id: 'branches',
+          label: 'Branch Codes',
+          icon: Building2,
+          count: totalBranches,
+        },
+        {
           id: 'users',
           label: 'Staff Directory',
           icon: UserCog,
@@ -460,6 +466,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     { id: 'mobile_sync', label: 'Mobile Sync' },
     { id: 'inventory', label: 'Stock Inventory' },
     { id: 'requisitions', label: 'Stock Requests', redPoint: unreadCount > 0 },
+    { id: 'branches', label: 'Branch Codes' },
     { id: 'users', label: 'Staff Directory' },
     { id: 'audit_log', label: 'Audit Trail' },
     { id: 'settings', label: 'Settings' },

@@ -51,7 +51,6 @@ import {
 
 export type SettingsSubTab =
   | 'policy'
-  | 'branches'
   | 'brand_logo'
   | 'hardware'
   | 'sla'
@@ -319,9 +318,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       <div className="surface-card shadow-md p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-start sm:items-center gap-3.5">
           <div className="w-11 h-11 rounded-xl bg-[#003857] flex items-center justify-center text-white shadow-sm shrink-0">
-            {activeSubTab === 'branches' ? (
-              <Building2 className="w-5 h-5 text-sky-300" />
-            ) : activeSubTab === 'brand_logo' ? (
+            {activeSubTab === 'brand_logo' ? (
               <Sparkles className="w-5 h-5 text-amber-300" />
             ) : (
               <Settings className="w-5 h-5 text-sky-300" />
@@ -330,31 +327,25 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
               <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-zinc-900">
-                {activeSubTab === 'branches'
-                  ? 'Branch Codes & Network Directory'
-                  : activeSubTab === 'brand_logo'
+                {activeSubTab === 'brand_logo'
                   ? 'Brand & Logo Studio'
                   : 'System & Policy Settings'}
               </h2>
               <span className="text-xs font-mono font-bold text-slate-500">
-                {activeSubTab === 'branches'
-                  ? `· ${branches.length} Branch Operations Connected`
-                  : activeSubTab === 'brand_logo'
+                {activeSubTab === 'brand_logo'
                   ? '· Portal Branding, Logos & Live Mockups'
                   : '· FinTech Acquiring & Terminal Governance'}
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              {activeSubTab === 'branches'
-                ? 'Manage branch codes, physical locations, branch staff directory, and hardware serial reserves.'
-                : activeSubTab === 'brand_logo'
+              {activeSubTab === 'brand_logo'
                 ? 'Select brand presets, upload custom logos, configure institution titles, and review responsive application mockups.'
                 : 'Configure 15-digit MID validation, 24-month POS battery lifecycle policies, operational SLA targets, hardware serial numbering standards, and data backup controls.'}
             </p>
           </div>
         </div>
 
-        {activeSubTab !== 'branches' && activeSubTab !== 'brand_logo' && (
+        {activeSubTab !== 'brand_logo' && (
           <div className="flex items-center gap-2.5">
             {savedSuccess && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold animate-in fade-in">
@@ -388,28 +379,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         >
           <ShieldCheck className="w-4 h-4" />
           <span>MID &amp; Battery Policy</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSubTabSelect('branches')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'branches'
-              ? 'bg-[#003857] text-white shadow-xs'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-          }`}
-        >
-          <Building2 className="w-4 h-4 text-sky-500" />
-          <span>Branch Codes</span>
-          <span
-            className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-              activeSubTab === 'branches'
-                ? 'bg-white/20 text-white'
-                : 'bg-slate-100 text-slate-700 border border-slate-200'
-            }`}
-          >
-            {branches.length}
-          </span>
         </button>
 
         <button
@@ -502,23 +471,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       {/* Main Settings Sections */}
       <div className="space-y-6">
-        {/* SUBTAB: Branch Codes */}
-        {activeSubTab === 'branches' && (
-          <div className="space-y-6">
-            <BranchesTab
-              branches={branches}
-              devices={devices}
-              users={users}
-              role={role}
-              theme={theme}
-              onSelectBranchFilter={onSelectBranchFilter || (() => {})}
-              onOpenNewBranchModal={onOpenNewBranchModal || (() => {})}
-              onOpenEditBranchModal={onOpenEditBranchModal || (() => {})}
-              onSelectDevice={onSelectDevice}
-            />
-          </div>
-        )}
-
         {/* SUBTAB: Brand & Logo Studio */}
         {activeSubTab === 'brand_logo' && (
           <div className="space-y-6">
