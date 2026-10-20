@@ -332,15 +332,9 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         <Cpu className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                          <span>POS Terminal</span>
-                          <span className="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/40 text-[#1e5b88] dark:text-sky-300 border border-[#1e5b88]/20">
-                            Wizar POS Q2
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5 font-medium truncate">
-                          PCI-PTS 5.x · 24-Month Battery Telemetry
-                        </div>
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                          POS Terminal
+                        </span>
                       </div>
                     </div>
 
@@ -392,15 +386,9 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         <Volume2 className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                          <span>Sound Box</span>
-                          <span className="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80">
-                            SB-Pro
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5 font-medium truncate">
-                          KHQR Audio Broadcast · Real-Time Speaker
-                        </div>
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                          Sound Box
+                        </span>
                       </div>
                     </div>
 
