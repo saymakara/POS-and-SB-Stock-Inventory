@@ -51,7 +51,7 @@ import { AuditLogTab } from './components/AuditLogTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShieldAlert, ShieldCheck, Building2, SendHorizontal, CheckCircle2, Database, Zap } from 'lucide-react';
+import { SendHorizontal } from 'lucide-react';
 import { isSupabaseConfigured, checkSupabaseConnection } from './lib/supabase';
 import {
   fetchDevicesFromSupabase,
@@ -3299,71 +3299,6 @@ export function App() {
           </div>
         </div>
       )}
-
-      {/* Apple-Style Optimistic Cloud Sync Status Pill (Zero-Latency Perception & Ticker) */}
-      <AnimatePresence>
-        {(optimisticSyncState.isSyncing || optimisticSyncState.lastSyncedTime || isSupabaseConfigured) && (
-          <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.94 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.94 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 28, mass: 0.7 }}
-            className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-slate-100 shadow-2xl select-none transform-gpu will-change-gpu"
-          >
-            {optimisticSyncState.isSyncing ? (
-              <>
-                <div className="relative flex items-center justify-center w-6 h-6 shrink-0">
-                  <span className="absolute w-full h-full rounded-full bg-emerald-500/20 animate-ping opacity-75" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#004953] dark:bg-emerald-400 shadow-xs" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                    <span className="odometer-pop">
-                      {optimisticSyncState.pendingCount} item{optimisticSyncState.pendingCount === 1 ? '' : 's'}
-                    </span>
-                    <span className="text-slate-400 font-normal">•</span>
-                    <span className="text-[#004953] dark:text-emerald-400">
-                      {isSupabaseConfigured ? 'Syncing to Supabase Cloud' : 'Syncing to Cloud Ledger'}
-                    </span>
-                  </div>
-                  {optimisticSyncState.lastActionText && (
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate max-w-[240px]">
-                      {optimisticSyncState.lastActionText}
-                    </span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-2xs">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">
-                      {isSupabaseConfigured && supabaseConnected
-                        ? 'Supabase Live · 60fps'
-                        : 'Instant Synced · 60fps'}
-                    </span>
-                    {isSupabaseConfigured && supabaseConnected && supabaseLatency !== undefined && (
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-mono font-medium bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                        {supabaseLatency}ms
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                    {optimisticSyncState.lastSyncedTime
-                      ? `Cloud verified at ${optimisticSyncState.lastSyncedTime}`
-                      : isSupabaseConfigured && supabaseConnected
-                      ? 'Postgres CDC Live Feed'
-                      : 'Local storage verified'}
-                  </span>
-                </div>
-              </>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
