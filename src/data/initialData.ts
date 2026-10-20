@@ -111,10 +111,10 @@ export const STAGE_META: Record<LifecycleStage, StageInfo> = {
     color: '#0f766e'
   },
   FAULTY: {
-    label: 'Terminate / Return',
+    label: 'Faulty Hardware',
     badgeClassLight: 'bg-rose-50 text-rose-800 border-rose-200 font-bold',
     badgeClassDark: 'bg-rose-50 text-rose-800 border-rose-200 font-bold',
-    short: 'Terminate / Return',
+    short: 'Faulty',
     color: '#be123c'
   },
   LOST: {
@@ -150,7 +150,7 @@ export const RAW_DEVICES: Array<{
   {"s": "WP5400PQ23200302", "m": "Wizar POS Q2 Pro", "dt": "2026-08-04", "b": "108", "stf": "SENG Menghor (19274)", "g": "COMPLETE", "mid": "100000880108001", "tid": "TID-10801", "mn": "U-Care Pharmacy Monument", "mp": "089 865 464", "ad": "Preah Norodom Blvd, BKK1", "dd": "2026-08-19", "rr": "", "rc": 0},
   {"s": "WP5400PQ23200303", "m": "Wizar POS Q2 Pro", "dt": "2026-09-05", "b": "105", "stf": "NI Oudomroth (10811)", "g": "CONFIGURING", "mid": "100000880105004", "tid": "TID-10504", "mn": "Starbucks Reserve TK", "mp": "012 900 411", "ad": "St 516, Toul Kork", "dd": "2026-10-17", "rr": "", "rc": 0},
   {"s": "WP5400PQ23200304", "m": "Wizar POS Q2 Pro", "dt": "2026-10-01", "b": "105", "stf": "NI Oudomroth (10811)", "g": "BRANCH_RESERVE", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200305", "m": "Wizar POS Q2 Pro", "dt": "2026-06-14", "b": "105", "stf": "NI Oudomroth (10811)", "g": "FAULTY", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "2026-07-01", "rr": "Merchant Closed Business", "rc": 2},
+  {"s": "WP5400PQ23200305", "m": "Wizar POS Q2 Pro", "dt": "2026-06-14", "b": "105", "stf": "NI Oudomroth (10811)", "g": "BRANCH_RESERVE", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "2026-07-01", "rr": "Merchant Closed Business", "rc": 2},
   {"s": "WP5400PQ23200306", "m": "Wizar POS Q2 Pro", "dt": "2026-10-10", "b": "100", "stf": "SAY Chanmakara (8986)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
   {"s": "WP5400PQ23200307", "m": "Wizar POS Q2 Pro", "dt": "2026-10-10", "b": "100", "stf": "SAY Chanmakara (8986)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
   {"s": "WP5400PQ23200308", "m": "Wizar POS Q2 Pro", "dt": "2026-10-11", "b": "100", "stf": "CHHOEUN Seyha (5546)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},

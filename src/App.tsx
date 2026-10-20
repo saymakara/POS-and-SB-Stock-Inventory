@@ -221,6 +221,8 @@ export function App() {
             : d.batterySerial;
           const stage = ((d.stage as string) === 'OUT_FOR_INSTALL'
             ? 'CONFIGURING'
+            : d.serial === 'WP5400PQ23200305' || (d.stage === 'FAULTY' && !d.merchantName && d.returnReason === 'Merchant Closed Business')
+            ? 'BRANCH_RESERVE'
             : d.stage) as LifecycleStage;
           return {
             ...d,
