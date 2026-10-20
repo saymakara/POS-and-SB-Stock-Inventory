@@ -164,7 +164,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               whileTap={{ scale: 0.95 }}
               type="button"
               onClick={onOpenRequestModal}
-              className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#18191e] hover:bg-[#252730] text-white border border-white/10 flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-xs"
+              className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-xs transition"
             >
               <SendHorizontal className="w-3.5 h-3.5" />
               <span>New Stock Request</span>
@@ -208,7 +208,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={() => openArrangeModal(req)}
-                      className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#18191e] hover:bg-[#252730] text-white border border-white/10 flex items-center gap-1.5 ml-auto cursor-pointer whitespace-nowrap shadow-xs"
+                      className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 ml-auto cursor-pointer whitespace-nowrap shadow-xs transition"
                     >
                       <Truck className="w-3.5 h-3.5" />
                       <span>Arrange &amp; Dispatch</span>
@@ -439,11 +439,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     <button
                       type="button"
                       onClick={() => openArrangeModal(arrangingReq)}
-                      className={`px-2.5 py-1.5 rounded-md font-bold flex items-center gap-1 cursor-pointer border transition ${
-                        isLight
-                          ? 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'
-                          : 'bg-[#18191e] border-white/10 text-white hover:bg-[#252730]'
-                      }`}
+                      className="px-2.5 py-1.5 rounded-md font-bold flex items-center gap-1 cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white transition shadow-xs"
                     >
                       <Wand2 className="w-3.5 h-3.5" />
                       <span>Auto-Match from HO Stock (Code 100)</span>
@@ -548,7 +544,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#18191e] hover:bg-[#252730] text-white border border-white/10 shadow-xs cursor-pointer flex items-center gap-2"
+                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs cursor-pointer flex items-center gap-2 transition"
                     >
                       <span>Review Dispatch (Step 2 Preview)</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -638,7 +634,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     <button
                       type="button"
                       onClick={handleFinalDispatch}
-                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#18191e] hover:bg-[#252730] text-white border border-white/10 shadow-xs cursor-pointer flex items-center gap-2"
+                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs cursor-pointer flex items-center gap-2 transition"
                     >
                       <Truck className="w-3.5 h-3.5" />
                       <span>Confirm &amp; Dispatch to Branch Code {arrangingReq.branchId}</span>

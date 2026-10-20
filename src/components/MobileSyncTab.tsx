@@ -1633,7 +1633,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
           <div className={`p-4 sm:p-5 border-b ${isLight ? 'sb-card-header-light' : 'sb-card-header-dark'} flex flex-col gap-3`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#18191e] border border-white/15 text-white flex items-center justify-center shrink-0 shadow-md">
+                <div className="w-9 h-9 rounded-xl bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-md">
                   <Smartphone className="w-4.5 h-4.5 text-sky-400" />
                 </div>
                 <div>

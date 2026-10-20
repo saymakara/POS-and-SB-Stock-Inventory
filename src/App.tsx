@@ -2630,7 +2630,7 @@ export function App() {
                     }
                     setActiveAlertNotif(null);
                   }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white cursor-pointer shadow-xs"
+                  className="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer shadow-xs transition"
                 >
                   Review Request
                 </button>

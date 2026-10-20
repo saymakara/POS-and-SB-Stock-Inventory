@@ -126,7 +126,7 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
 
           <button
             type="submit"
-            className="w-full py-2.5 px-4 rounded-lg text-xs font-bold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>Unlock Workstation</span>

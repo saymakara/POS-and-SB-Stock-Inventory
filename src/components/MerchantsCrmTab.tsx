@@ -2082,7 +2082,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                         type="button"
                         onClick={handleAutoRemediateAll}
                         disabled={bulkRows.length === 0}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white shadow-xs transition flex items-center gap-1.5 disabled:opacity-40 cursor-pointer"
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition flex items-center gap-1.5 disabled:opacity-40 cursor-pointer"
                       >
                         <Wand2 className="w-3.5 h-3.5" />
                         <span>Auto-Fix All Formats &amp; Duplicates</span>
@@ -2635,7 +2635,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       type="button"
                       disabled={bulkSummary.assignable.length === 0}
                       onClick={handleCommitValidBulkAssignments}
-                      className="px-4 py-2 rounded-lg text-xs font-bold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white shadow-xs disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs disabled:opacity-40 flex items-center gap-1.5 cursor-pointer transition"
                     >
                       <ShieldCheck className="w-4 h-4" />
                       <span>
@@ -2964,7 +2964,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                               setSelectedMid(null);
                               onOpenWorkflow(dev.serial);
                             }}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white transition shrink-0 cursor-pointer"
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition shrink-0 cursor-pointer shadow-xs"
                           >
                             Update Lifecycle
                           </button>

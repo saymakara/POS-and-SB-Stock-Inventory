@@ -990,7 +990,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         whileTap={{ scale: 0.96 }}
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#18191e] hover:bg-[#252730] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5 border border-white/10"
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5"
                       >
                         <Upload className="w-3.5 h-3.5" />
                         <span>Browse File</span>
@@ -1435,7 +1435,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     <button
                       type="button"
                       onClick={handleGenerateDualRange}
-                      className="px-4 py-2 rounded-xl text-xs font-extrabold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white transition shadow-xs cursor-pointer"
+                      className="px-4 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white transition shadow-xs cursor-pointer"
                     >
                       Generate POS Terminal &amp; Sound Box Serials
                     </button>
@@ -1645,7 +1645,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     if (validItems.length > 0) setBatchStep('PREVIEW');
                   }}
                   disabled={validItems.length === 0}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#18191e] hover:bg-[#252730] text-white disabled:opacity-50 transition shadow-xs cursor-pointer flex items-center gap-2 border border-white/10"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-50 transition shadow-xs cursor-pointer flex items-center gap-2"
                 >
                   <span>Review Intake Batch (Step 2 Preview)</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -1840,7 +1840,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 whileTap={{ scale: 0.94 }}
                 type="button"
                 onClick={handleCommit}
-                className="px-6 py-2 rounded-xl text-xs font-bold bg-[#18191e] hover:bg-[#252730] text-white transition shadow-md cursor-pointer flex items-center gap-2 border border-white/10"
+                className="px-6 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition shadow-md cursor-pointer flex items-center gap-2"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Confirm &amp; Commit {validItems.length} Entries to Database</span>

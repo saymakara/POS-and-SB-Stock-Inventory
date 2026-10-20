@@ -561,7 +561,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                     <option
                       key={u.uid}
                       value={label}
-                      className="bg-[#18191e] text-white"
+                      className="bg-[#003857] text-white"
                     >
                       {u.name} (#{u.empId})
                     </option>
@@ -583,7 +583,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                     <option
                       key={b.id}
                       value={b.id}
-                      className="bg-[#18191e] text-white"
+                      className="bg-[#003857] text-white"
                     >
                       Branch Code {b.id} - {b.name.replace(' Branch', '')}
                     </option>
@@ -603,7 +603,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   <option
                     key={s}
                     value={s}
-                    className="bg-[#18191e] text-white"
+                    className="bg-[#003857] text-white"
                   >
                     {s}
                   </option>
@@ -612,13 +612,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             </div>
           )}
 
-          {/* Request Stock Action Button in Executive Charcoal */}
+          {/* Request Stock Action Button in Signature Navy Blue */}
           <motion.button
             whileHover={{ y: -1 }}
             whileTap={{ scale: 0.96 }}
             type="button"
             onClick={onOpenRequestModal}
-            className="px-3 py-1.5 rounded-xl text-xs font-extrabold shadow-xs flex items-center gap-1.5 whitespace-nowrap cursor-pointer shrink-0 border bg-[#18191e] hover:bg-[#252730] text-white border-white/10"
+            className="px-3 py-1.5 rounded-xl text-xs font-extrabold shadow-xs flex items-center gap-1.5 whitespace-nowrap cursor-pointer shrink-0 bg-[#003857] hover:bg-[#002a42] text-white transition"
           >
             <SendHorizontal className="w-3.5 h-3.5" />
             <span>Request Stock</span>
@@ -632,7 +632,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               title="Alerts: Branch Staff Stock Requests"
               className={`p-2 rounded-xl cursor-pointer relative border backdrop-blur-md transition ${
                 notifOpen
-                  ? 'bg-[#18191e] text-white border-zinc-700'
+                  ? 'bg-[#003857] text-white border-[#003857]'
                   : unreadCount > 0
                   ? 'bg-zinc-900/10 hover:bg-zinc-900/15 text-zinc-900 border-zinc-300'
                   : 'bg-slate-100/80 hover:bg-slate-200 text-zinc-700 border-zinc-200'
@@ -658,7 +658,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   {/* Clean, Modern Header */}
                   <div className="px-4 py-3 bg-slate-50/80 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-zinc-900/10 text-zinc-800 flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] flex items-center justify-center">
                         <Bell className="w-3.5 h-3.5" />
                       </div>
                       <div className="flex items-center gap-2">
@@ -666,7 +666,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                           Notifications
                         </span>
                         {unreadCount > 0 ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#18191e] text-white">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#003857] text-white">
                             {unreadCount} new
                           </span>
                         ) : (
@@ -720,16 +720,16 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                 : 'bg-white hover:bg-slate-50/80'
                             }`}
                           >
-                            {/* Charcoal left indicator stripe for unread */}
+                            {/* Accent left indicator stripe for unread */}
                             {!n.read && (
-                              <span className="absolute left-0 top-3 bottom-3 w-1 bg-[#18191e] rounded-r" />
+                              <span className="absolute left-0 top-3 bottom-3 w-1 bg-[#003857] rounded-r" />
                             )}
 
                             {/* Icon Avatar */}
                             <div
                               className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border transition ${
                                 !n.read
-                                  ? 'bg-zinc-900/10 text-zinc-900 border-zinc-300 group-hover:bg-[#18191e] group-hover:text-white'
+                                  ? 'bg-[#003857]/10 text-[#003857] border-[#003857]/30 group-hover:bg-[#003857] group-hover:text-white'
                                   : 'bg-slate-100 text-slate-500 border-slate-200'
                               }`}
                             >
@@ -829,7 +829,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   : `Branch Code ${currentBranch.id}`}
               </div>
             </div>
-            <div className="w-8 h-8 rounded-full border flex items-center justify-center bg-[#18191e] text-white border-zinc-700/80 shadow-2xs">
+            <div className="w-8 h-8 rounded-full border flex items-center justify-center bg-[#003857] text-white border-[#003857]/40 shadow-2xs">
               <UserCircle2 className="w-5 h-5" />
             </div>
           </div>

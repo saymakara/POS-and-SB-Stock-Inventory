@@ -523,7 +523,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     whileTap={{ scale: 0.94 }}
                     type="submit"
                     disabled={totalQty <= 0}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white shadow-xs flex items-center gap-2 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs flex items-center gap-2 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <span>Review Request (Step 2 Preview)</span>
                     <ArrowRight className="w-3.5 h-3.5" />

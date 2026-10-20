@@ -1228,7 +1228,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         : `Battery changed to ${newBatt} (fresh 24-month cycle)`
                     );
                   }}
-                  className="px-4 py-1.5 rounded-xl bg-[#18191e] hover:bg-[#252730] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs border border-white/10"
+                  className="px-4 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
                   title="Install fresh battery with new serial and reset the 24-month countdown"
                 >
                   <BatteryCharging className="w-3.5 h-3.5" />
@@ -1277,7 +1277,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-[#18191e] hover:bg-[#252730] text-white text-xs font-semibold shadow-xs transition cursor-pointer flex items-center gap-2 border border-white/10"
+                className="px-5 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold shadow-xs transition cursor-pointer flex items-center gap-2"
               >
                 <span>Review Changes (Step 2 Preview)</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1671,7 +1671,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 whileTap={{ scale: 0.96 }}
                 type="button"
                 onClick={handleFinalCommit}
-                className="px-6 py-2.5 rounded-xl bg-[#18191e] hover:bg-[#252730] text-white text-xs font-bold shadow-md transition cursor-pointer flex items-center gap-2 border border-white/10"
+                className="px-6 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-md transition cursor-pointer flex items-center gap-2"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Confirm &amp; Commit Changes</span>

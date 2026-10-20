@@ -332,7 +332,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             <button
               onClick={handleExportDevicesCsv}
               disabled={downloadingId === 'devices-csv'}
-              className="px-3.5 py-2 rounded-lg text-xs font-bold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
+              className="px-3.5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs transition"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
               <span>{downloadingId === 'devices-csv' ? 'Exporting...' : 'Export CSV'}</span>
@@ -357,7 +357,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             <button
               onClick={handleExportMerchantsCsv}
               disabled={downloadingId === 'merchants-csv'}
-              className="px-3.5 py-2 rounded-lg text-xs font-bold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
+              className="px-3.5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs transition"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
               <span>{downloadingId === 'merchants-csv' ? 'Exporting...' : 'Export CSV'}</span>

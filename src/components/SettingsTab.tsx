@@ -273,7 +273,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       {/* Top Header Card */}
       <div className="surface-card shadow-md p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-start sm:items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-[#18191e] border border-white/10 flex items-center justify-center text-white shadow-sm shrink-0">
+          <div className="w-11 h-11 rounded-xl bg-[#003857] flex items-center justify-center text-white shadow-sm shrink-0">
             <Settings className="w-5 h-5 text-sky-300" />
           </div>
           <div>
@@ -302,7 +302,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             type="button"
             onClick={handleSave}
             disabled={!isAdminLike}
-            className="px-4 py-2 rounded-xl text-xs font-extrabold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+            className="px-4 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             <span>Save Configuration</span>
@@ -991,7 +991,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => handleOpenAddField()}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5"
                   >
                     <Plus className="w-4 h-4 text-emerald-400" />
                     <span>Add Custom Field</span>
@@ -1450,7 +1450,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
                     className="w-full max-w-lg rounded-3xl border bg-white border-slate-200 shadow-2xl overflow-hidden text-slate-900"
                   >
-                    <div className="px-6 py-4 bg-[#18191e] border-b border-white/10 flex items-center justify-between text-white">
+                    <div className="px-6 py-4 bg-[#003857] border-b border-white/10 flex items-center justify-between text-white">
                       <div>
                         <h3 className="text-sm font-extrabold">
                           {editingFieldId ? 'Edit Attribute Field' : 'Add New Custom Field'}
@@ -1606,7 +1606,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         </button>
                         <button
                           type="submit"
-                          className="px-5 py-2 rounded-xl text-xs font-bold bg-[#18191e] hover:bg-[#252730] text-white shadow-sm transition cursor-pointer"
+                          className="px-5 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-sm transition cursor-pointer"
                         >
                           {editingFieldId ? 'Save Changes' : 'Activate Custom Field'}
                         </button>
@@ -1646,7 +1646,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <button
                   type="button"
                   onClick={onExportBackup}
-                  className="px-4 py-2.5 rounded-xl bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white text-xs font-extrabold shadow-sm flex items-center gap-2 transition cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-extrabold shadow-sm flex items-center gap-2 transition cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>Download Complete JSON Backup</span>

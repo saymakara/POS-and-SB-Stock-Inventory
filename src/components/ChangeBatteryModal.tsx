@@ -334,7 +334,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 rounded-xl bg-[#18191e] hover:bg-[#252730] text-white text-xs font-bold shadow-xs flex items-center gap-2 transition cursor-pointer border border-white/10"
+                className="px-5 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-xs flex items-center gap-2 transition cursor-pointer"
               >
                 <span>Review Replacement (Step 2 Preview)</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -441,7 +441,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               <button
                 type="button"
                 onClick={handleFinalConfirm}
-                className="px-5 py-2.5 rounded-xl bg-[#18191e] hover:bg-[#252730] text-white text-xs font-bold shadow-md flex items-center gap-2 transition cursor-pointer border border-white/10"
+                className="px-5 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-md flex items-center gap-2 transition cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Confirm &amp; Install New Battery</span>

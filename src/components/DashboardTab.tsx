@@ -238,8 +238,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       {/* Classic Institutional Header & Export Bar */}
       <div className="surface-card shadow-md p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-start sm:items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-[#18191e] border border-white/10 flex items-center justify-center text-white shadow-sm shrink-0">
-            <BarChart3 className="w-5 h-5" />
+          <div className="w-11 h-11 rounded-xl bg-[#003857] flex items-center justify-center text-white shadow-sm shrink-0">
+            <BarChart3 className="w-5 h-5 text-white" />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
@@ -273,7 +273,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <button
             type="button"
             onClick={onOpenExportModal}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-[#18191e] hover:bg-[#252730] text-white border border-white/10 shadow-xs transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer"
           >
             <FileDown className="w-3.5 h-3.5" />
             <span>Export Report</span>
