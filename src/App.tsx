@@ -344,14 +344,16 @@ export function App() {
     }
 
     try {
-      let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
-      if (!link) {
-        link = document.createElement('link');
-        link.type = 'image/svg+xml';
-        link.rel = 'icon';
-        document.head.appendChild(link);
+      if (appSettings.customLogoUrl) {
+        let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+        if (!link) {
+          link = document.createElement('link');
+          link.type = 'image/svg+xml';
+          link.rel = 'icon';
+          document.head.appendChild(link);
+        }
+        link.href = appSettings.customLogoUrl;
       }
-      link.href = appSettings.customLogoUrl || '/favicon.svg';
     } catch (e) {
       // ignore
     }

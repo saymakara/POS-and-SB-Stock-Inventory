@@ -221,7 +221,7 @@ export const PRESET_META: Record<
 
 export const AppBrandLogo: React.FC<AppBrandLogoProps> = ({
   logoUrl,
-  presetId = 'fintech-pulse',
+  presetId = 'quantum-sound',
   size = 'md',
   className = '',
   showGlow = false,
@@ -229,7 +229,7 @@ export const AppBrandLogo: React.FC<AppBrandLogoProps> = ({
 }) => {
   const [imgError, setImgError] = React.useState(false);
   const sizeStyle = SIZE_MAP[size] || SIZE_MAP.md;
-  const ActiveComponent = PRESET_META[presetId]?.Component || SvgFintechPulse;
+  const ActiveComponent = PRESET_META[presetId]?.Component || SvgQuantumSound;
 
   // Reset error if URL changes
   React.useEffect(() => {

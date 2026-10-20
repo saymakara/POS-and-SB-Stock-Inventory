@@ -51,7 +51,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedPreset, setSelectedPreset] = useState<LogoPresetId>(
-    appSettings.logoPresetId || 'fintech-pulse'
+    appSettings.logoPresetId || 'quantum-sound'
   );
   const [customUrl, setCustomUrl] = useState<string>(appSettings.customLogoUrl || '');
   const [titleInput, setTitleInput] = useState<string>(
