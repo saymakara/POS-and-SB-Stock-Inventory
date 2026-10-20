@@ -6,10 +6,13 @@ import {
   Device,
   Requisition,
   User,
+  Branch,
   CustomFieldDefinition,
   CustomFieldType,
   DEFAULT_CUSTOM_FIELDS,
 } from '../types';
+import { BranchesTab } from './BranchesTab';
+import { LogoPageTab } from './LogoPageTab';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Settings,
@@ -46,6 +49,16 @@ import {
   Zap,
 } from 'lucide-react';
 
+export type SettingsSubTab =
+  | 'policy'
+  | 'branches'
+  | 'brand_logo'
+  | 'hardware'
+  | 'sla'
+  | 'customFields'
+  | 'data'
+  | 'security';
+
 interface SettingsTabProps {
   settings: AppSettings;
   onUpdateSettings: (newSettings: AppSettings) => void;
@@ -55,21 +68,53 @@ interface SettingsTabProps {
   onResetData?: () => void;
   onExportBackup?: () => void;
   onImportBackup?: (jsonStr: string) => void;
+  initialSubTab?: SettingsSubTab;
+  onSubTabChange?: (tab: SettingsSubTab) => void;
+  branches?: Branch[];
+  devices?: Device[];
+  users?: User[];
+  onSelectBranchFilter?: (branchCode: string) => void;
+  onOpenNewBranchModal?: () => void;
+  onOpenEditBranchModal?: (branch: Branch) => void;
+  onSelectDevice?: (serial: string) => void;
+  addAuditLog?: (actionTitle: string, detailText: string) => void;
+  onUpdateAppSettings?: (updater: (prev: AppSettings) => AppSettings) => void;
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
   settings,
   onUpdateSettings,
   role,
+  theme = 'light',
   onToast,
   onResetData,
   onExportBackup,
   onImportBackup,
+  initialSubTab = 'policy',
+  onSubTabChange,
+  branches = [],
+  devices = [],
+  users = [],
+  onSelectBranchFilter,
+  onOpenNewBranchModal,
+  onOpenEditBranchModal,
+  onSelectDevice,
+  addAuditLog,
+  onUpdateAppSettings,
 }) => {
   const [formState, setFormState] = useState<AppSettings>(settings);
-  const [activeSubTab, setActiveSubTab] = useState<
-    'policy' | 'hardware' | 'sla' | 'customFields' | 'data' | 'security'
-  >('policy');
+  const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>(initialSubTab || 'policy');
+
+  useEffect(() => {
+    if (initialSubTab && initialSubTab !== activeSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
+
+  const handleSubTabSelect = (tab: SettingsSubTab) => {
+    setActiveSubTab(tab);
+    onSubTabChange?.(tab);
+  };
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -274,63 +319,118 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       <div className="surface-card shadow-md p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-start sm:items-center gap-3.5">
           <div className="w-11 h-11 rounded-xl bg-[#003857] flex items-center justify-center text-white shadow-sm shrink-0">
-            <Settings className="w-5 h-5 text-sky-300" />
+            {activeSubTab === 'branches' ? (
+              <Building2 className="w-5 h-5 text-sky-300" />
+            ) : activeSubTab === 'brand_logo' ? (
+              <Sparkles className="w-5 h-5 text-amber-300" />
+            ) : (
+              <Settings className="w-5 h-5 text-sky-300" />
+            )}
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
               <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-zinc-900">
-                System &amp; Policy Settings
+                {activeSubTab === 'branches'
+                  ? 'Branch Codes & Network Directory'
+                  : activeSubTab === 'brand_logo'
+                  ? 'Brand & Logo Studio'
+                  : 'System & Policy Settings'}
               </h2>
               <span className="text-xs font-mono font-bold text-slate-500">
-                · FinTech Acquiring &amp; Terminal Governance
+                {activeSubTab === 'branches'
+                  ? `· ${branches.length} Branch Operations Connected`
+                  : activeSubTab === 'brand_logo'
+                  ? '· Portal Branding, Logos & Live Mockups'
+                  : '· FinTech Acquiring & Terminal Governance'}
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Configure 15-digit MID validation, 24-month POS battery lifecycle policies, operational SLA targets, hardware serial numbering standards, and data backup controls.
+              {activeSubTab === 'branches'
+                ? 'Manage branch codes, physical locations, branch staff directory, and hardware serial reserves.'
+                : activeSubTab === 'brand_logo'
+                ? 'Select brand presets, upload custom logos, configure institution titles, and review responsive application mockups.'
+                : 'Configure 15-digit MID validation, 24-month POS battery lifecycle policies, operational SLA targets, hardware serial numbering standards, and data backup controls.'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {savedSuccess && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Saved successfully</span>
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!isAdminLike}
-            className="px-4 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            <span>Save Configuration</span>
-          </button>
-        </div>
+        {activeSubTab !== 'branches' && activeSubTab !== 'brand_logo' && (
+          <div className="flex items-center gap-2.5">
+            {savedSuccess && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Saved successfully</span>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!isAdminLike}
+              className="px-4 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" />
+              <span>Save Configuration</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Navigation Sub-Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
         <button
           type="button"
-          onClick={() => setActiveSubTab('policy')}
+          onClick={() => handleSubTabSelect('policy')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'policy'
-              ? 'bg-[#004953] text-white shadow-xs'
+              ? 'bg-[#003857] text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
           <ShieldCheck className="w-4 h-4" />
-          <span>MID &amp; 24-Month Battery Policy</span>
+          <span>MID &amp; Battery Policy</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveSubTab('hardware')}
+          onClick={() => handleSubTabSelect('branches')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            activeSubTab === 'branches'
+              ? 'bg-[#003857] text-white shadow-xs'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
+          }`}
+        >
+          <Building2 className="w-4 h-4 text-sky-500" />
+          <span>Branch Codes</span>
+          <span
+            className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+              activeSubTab === 'branches'
+                ? 'bg-white/20 text-white'
+                : 'bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
+          >
+            {branches.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSubTabSelect('brand_logo')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            activeSubTab === 'brand_logo'
+              ? 'bg-[#003857] text-white shadow-xs'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          <span>Brand &amp; Logo</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSubTabSelect('hardware')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'hardware'
-              ? 'bg-[#004953] text-white shadow-xs'
+              ? 'bg-[#003857] text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -340,39 +440,45 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
         <button
           type="button"
-          onClick={() => setActiveSubTab('sla')}
+          onClick={() => handleSubTabSelect('sla')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'sla'
-              ? 'bg-[#004953] text-white shadow-xs'
+              ? 'bg-[#003857] text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
           <Clock className="w-4 h-4 text-sky-500" />
-          <span>SLA &amp; Turnaround Targets</span>
+          <span>SLA &amp; Turnaround</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveSubTab('customFields')}
+          onClick={() => handleSubTabSelect('customFields')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'customFields'
-              ? 'bg-[#004953] text-white shadow-xs'
+              ? 'bg-[#003857] text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
           <SlidersHorizontal className="w-4 h-4 text-emerald-500" />
           <span>Custom &amp; Dynamic Fields</span>
-          <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-600 font-extrabold">
+          <span
+            className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+              activeSubTab === 'customFields'
+                ? 'bg-white/20 text-white'
+                : 'bg-emerald-500/15 text-emerald-600'
+            }`}
+          >
             {currentCustomFields.filter((f) => f.enabled).length} Active
           </span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveSubTab('data')}
+          onClick={() => handleSubTabSelect('data')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'data'
-              ? 'bg-[#004953] text-white shadow-xs'
+              ? 'bg-[#003857] text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -382,10 +488,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
         <button
           type="button"
-          onClick={() => setActiveSubTab('security')}
+          onClick={() => handleSubTabSelect('security')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'security'
-              ? 'bg-[#004953] text-white shadow-xs'
+              ? 'bg-[#003857] text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -396,6 +502,37 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       {/* Main Settings Sections */}
       <div className="space-y-6">
+        {/* SUBTAB: Branch Codes */}
+        {activeSubTab === 'branches' && (
+          <div className="space-y-6">
+            <BranchesTab
+              branches={branches}
+              devices={devices}
+              users={users}
+              role={role}
+              theme={theme}
+              onSelectBranchFilter={onSelectBranchFilter || (() => {})}
+              onOpenNewBranchModal={onOpenNewBranchModal || (() => {})}
+              onOpenEditBranchModal={onOpenEditBranchModal || (() => {})}
+              onSelectDevice={onSelectDevice}
+            />
+          </div>
+        )}
+
+        {/* SUBTAB: Brand & Logo Studio */}
+        {activeSubTab === 'brand_logo' && (
+          <div className="space-y-6">
+            <LogoPageTab
+              appSettings={settings}
+              onUpdateAppSettings={
+                onUpdateAppSettings || ((updater) => onUpdateSettings(updater(settings)))
+              }
+              triggerToast={onToast || (() => {})}
+              addAuditLog={addAuditLog || (() => {})}
+              theme={theme}
+            />
+          </div>
+        )}
         {/* SUBTAB 1: Policy */}
         {activeSubTab === 'policy' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -46,13 +46,13 @@ import {
 
 interface SidebarProps {
   activeTab: string;
-  onSelectTab: (tab: string) => void;
+  onSelectTab: (tab: string, subTab?: string) => void;
   totalDevices: number;
   totalMerchants: number;
   totalHistoricalMerchants?: number;
   webhookCount: number;
   pendingReqs: number;
-  totalBranches: number;
+  totalBranches?: number;
   totalUsers: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -130,11 +130,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           count: pendingReqs,
         },
         {
-          id: 'branches',
-          label: 'Branch Codes',
-          icon: Building2,
-        },
-        {
           id: 'users',
           label: 'Staff Directory',
           icon: UserCog,
@@ -143,11 +138,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'audit_log',
           label: 'Audit Trail',
           icon: History,
-        },
-        {
-          id: 'brand_logo',
-          label: 'Brand & Logo',
-          icon: Sparkles,
         },
         {
           id: 'settings',
@@ -172,11 +162,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             transition={{ type: 'spring', stiffness: 450, damping: 25 }}
             type="button"
             onClick={() => {
-              onSelectTab('brand_logo');
+              onSelectTab('settings', 'brand_logo');
               if (isMobileView) onCloseMobile?.();
             }}
             className="flex items-center gap-3 cursor-pointer text-left min-w-0"
-            title="Brand & Logo Studio"
+            title="Brand & Logo Studio (Settings)"
           >
             <AppBrandLogo
               logoUrl={appSettings?.customLogoUrl}
@@ -367,7 +357,7 @@ interface HeaderProps {
   onLockSession: () => void;
   onSignOut: () => void;
   activeTab: string;
-  onSelectTab: (tab: string) => void;
+  onSelectTab: (tab: string, subTab?: string) => void;
   totalDevices: number;
   totalMerchants: number;
   totalHistoricalMerchants?: number;
@@ -470,10 +460,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     { id: 'mobile_sync', label: 'Mobile Sync' },
     { id: 'inventory', label: 'Stock Inventory' },
     { id: 'requisitions', label: 'Stock Requests', redPoint: unreadCount > 0 },
-    { id: 'branches', label: 'Branch Codes' },
     { id: 'users', label: 'Staff Directory' },
     { id: 'audit_log', label: 'Audit Trail' },
-    { id: 'brand_logo', label: 'Brand & Logo' },
     { id: 'settings', label: 'Settings' },
   ];
 
