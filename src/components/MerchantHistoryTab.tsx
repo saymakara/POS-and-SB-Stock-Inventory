@@ -346,18 +346,18 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       {/* Top Institutional Header */}
       <div className="surface-card shadow-md p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-start sm:items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-[#18191e] border border-white/10 flex items-center justify-center text-white shadow-sm shrink-0">
-            <Store className="w-5 h-5 text-amber-300" />
+          <div className="w-11 h-11 rounded-xl bg-[#003857] text-white flex items-center justify-center shadow-sm shrink-0">
+            <Store className="w-5 h-5 text-white" />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-zinc-900">
+              <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-zinc-900 dark:text-white">
                 Historical Merchant Records
               </h2>
-              <span className="text-xs font-mono font-bold text-slate-500">
+              <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
                 · {filteredRecords.length} Terminated &amp; Returned Devices
               </span>
-              <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+              <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-[#eef5f9] text-[#003857] border border-[#003857]/20 dark:bg-white/10 dark:text-slate-300 dark:border-white/10">
                 Archival Ledger
               </span>
             </div>
