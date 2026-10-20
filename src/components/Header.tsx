@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
+  role?: UserRole;
   activeTab: string;
   onSelectTab: (tab: string, subTab?: string) => void;
   totalDevices: number;
@@ -61,6 +62,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = React.memo(({
+  role = 'SUPER_ADMIN',
   activeTab,
   onSelectTab,
   totalDevices,

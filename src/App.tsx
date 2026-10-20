@@ -2670,6 +2670,7 @@ export function App() {
     <div className="min-h-screen flex items-start fintech-ambient-light">
       {/* Full-Height Sidebar covering the top-left corner all the way from top to bottom */}
       <Sidebar
+        role={role}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
         totalDevices={filteredInventory.length}
