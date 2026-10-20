@@ -660,58 +660,22 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         </div>
                       </td>
 
-                      {/* Return Reason & Staff Accountability (Installer vs Replacement Person) */}
+                      {/* Return Reason & Staff Accountability (Returned by only, no color accents) */}
                       <td className="py-2.5 px-3">
                         <div
-                          className="text-xs text-slate-800 font-medium max-w-[220px] truncate"
+                          className="text-xs text-slate-800 dark:text-slate-200 font-medium max-w-[220px] truncate"
                           title={rec.returnReason}
                         >
                           {rec.returnReason}
                         </div>
-                        <div className="text-[10.5px] mt-1 space-y-1">
-                          <div className="flex items-center gap-1 text-slate-500">
-                            <span className="font-semibold text-slate-400">Installer:</span>
-                            <span className="font-medium text-slate-700">
-                              {rec.installedByStaff || rec.handledByStaff}
-                            </span>
-                          </div>
-                          {rec.replacedByStaff && (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-semibold text-slate-400">Replaced by:</span>
-                              <span
-                                className={`font-bold ${
-                                  rec.replacedByStaff !== (rec.installedByStaff || rec.handledByStaff)
-                                    ? 'text-amber-800'
-                                    : 'text-slate-700'
-                                }`}
-                              >
-                                {rec.replacedByStaff}
-                              </span>
-                              {rec.replacedByStaff !== (rec.installedByStaff || rec.handledByStaff) && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-50 text-amber-800 border border-amber-300">
-                                  Different Person
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-slate-400">Returned by:</span>
-                            <span
-                              className={`font-bold ${
-                                (rec.returnedByStaff || rec.handledByStaff) !== (rec.installedByStaff || rec.handledByStaff)
-                                  ? 'text-indigo-800'
-                                  : 'text-slate-700'
-                              }`}
-                            >
+                        {(rec.returnedByStaff || rec.handledByStaff) && (
+                          <div className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                            <span className="font-medium text-slate-400 dark:text-slate-500">Returned by:</span>
+                            <span className="font-medium text-slate-700 dark:text-slate-300">
                               {rec.returnedByStaff || rec.handledByStaff}
                             </span>
-                            {(rec.returnedByStaff || rec.handledByStaff) !== (rec.installedByStaff || rec.handledByStaff) && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-indigo-50 text-indigo-800 border border-indigo-300">
-                                Different Returner
-                              </span>
-                            )}
                           </div>
-                        </div>
+                        )}
                       </td>
 
                       {/* Actions */}

@@ -1774,38 +1774,24 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                         </span>
                       </div>
                       {(() => {
-                        const swappedDev = m.devices?.find(
-                          (d) =>
-                            d.replacedByStaff &&
-                            d.replacedByStaff !== (d.installedByStaff || m.accountOfficer)
-                        );
                         const returnedDev = m.devices?.find(
                           (d) =>
                             d.returnedByStaff &&
                             d.returnedByStaff !== (d.installedByStaff || m.accountOfficer)
                         );
 
+                        if (!returnedDev || !returnedDev.returnedByStaff) return null;
+
                         return (
-                          <>
-                            {swappedDev && swappedDev.replacedByStaff && (
-                              <div
-                                className="text-[10px] text-amber-700 dark:text-amber-300 font-semibold mt-1 flex items-center gap-1"
-                                title={`Device ${swappedDev.serial} was swapped by ${swappedDev.replacedByStaff} (Original Installer: ${m.accountOfficer})`}
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-                                <span>Replaced by: {swappedDev.replacedByStaff}</span>
-                              </div>
-                            )}
-                            {returnedDev && returnedDev.returnedByStaff && (
-                              <div
-                                className="text-[10px] text-indigo-700 dark:text-indigo-300 font-semibold mt-0.5 flex items-center gap-1"
-                                title={`Device ${returnedDev.serial} returned by ${returnedDev.returnedByStaff} (Original Installer: ${m.accountOfficer})`}
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
-                                <span>Returned by: {returnedDev.returnedByStaff}</span>
-                              </div>
-                            )}
-                          </>
+                          <div
+                            className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1 flex items-center gap-1"
+                            title={`Device ${returnedDev.serial} returned by ${returnedDev.returnedByStaff} (Original Installer: ${m.accountOfficer})`}
+                          >
+                            <span className="text-slate-400 dark:text-slate-500">Returned by:</span>
+                            <span className="text-slate-700 dark:text-slate-300 font-medium">
+                              {returnedDev.returnedByStaff}
+                            </span>
+                          </div>
                         );
                       })()}
                     </td>
