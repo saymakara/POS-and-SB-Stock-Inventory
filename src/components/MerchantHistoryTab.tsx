@@ -683,7 +683,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         <button
                           type="button"
                           onClick={() => setSelectedRecord(rec)}
-                          className="px-2.5 py-1 rounded-md bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white text-[10px] font-extrabold shadow-2xs transition cursor-pointer whitespace-nowrap"
+                          className="px-2.5 py-1 rounded-md bg-[#003857] hover:bg-[#002a42] text-white text-[10px] font-extrabold shadow-2xs transition cursor-pointer whitespace-nowrap"
                         >
                           View Details
                         </button>
@@ -706,14 +706,14 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
-              className={`w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden my-8 transform-gpu will-change-gpu ${
+              className={`w-full max-w-2xl rounded-2xl border-0 shadow-2xl overflow-hidden my-8 transform-gpu will-change-gpu ${
                 isLight
-                  ? 'bg-white border-slate-200/90 text-slate-800'
-                  : 'bg-[#12151e] border-slate-800 text-slate-100'
+                  ? 'bg-white text-slate-800'
+                  : 'bg-[#12151e] text-slate-100'
               }`}
             >
               {/* Prestigious Navy Header Bar */}
-              <div className="navy-header-bar px-6 py-4.5 text-white flex items-center justify-between border-b border-white/10">
+              <div className="navy-header-bar rounded-t-2xl px-6 py-4.5 text-white flex items-center justify-between border-b border-white/10">
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-white shrink-0 shadow-xs">
                     <Store className="w-5 h-5 text-white" />
@@ -1228,11 +1228,11 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              className="w-full max-w-lg rounded-3xl border shadow-2xl overflow-hidden my-8 bg-white border-slate-200 text-zinc-900"
+              className="w-full max-w-lg rounded-3xl border-0 shadow-2xl overflow-hidden my-8 bg-white text-zinc-900"
             >
-              <div className="px-6 py-4.5 bg-[#18191e] border-b border-white/10 text-white flex items-center justify-between">
+              <div className="px-6 py-4.5 bg-[#003857] rounded-t-3xl border-b border-white/10 text-white flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <RotateCcw className="w-5 h-5 text-amber-300" />
+                  <RotateCcw className="w-5 h-5 text-white" />
                   <h3 className="text-base font-extrabold text-white">
                     Log Merchant Device Return / Decommission
                   </h3>
@@ -1476,7 +1476,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white shadow-sm cursor-pointer"
+                    className="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-sm cursor-pointer transition"
                   >
                     Save Return Record
                   </button>

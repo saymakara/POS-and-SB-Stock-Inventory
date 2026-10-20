@@ -1867,11 +1867,11 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                           whileTap={{ scale: 0.94 }}
                           type="button"
                           onClick={() => setSelectedMid(m.mid)}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-[#18191e] hover:bg-[#252730] border border-white/10 text-white shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                           title="Open Merchant 360 View"
                         >
                           <span>360 View</span>
-                          <ExternalLink className="w-3 h-3 text-slate-400" />
+                          <ExternalLink className="w-3 h-3 text-sky-200" />
                         </motion.button>
                       </div>
                     </td>
