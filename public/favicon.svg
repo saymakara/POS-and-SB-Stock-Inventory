@@ -1,0 +1,20 @@
+<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="soundSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1117" />
+      <stop offset="100%" stop-color="#161b22" />
+    </linearGradient>
+    <linearGradient id="soundWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#34d399" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#soundSimpleBg)" />
+  <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" stroke-opacity="0.12" stroke-width="1" />
+
+  <!-- 4 Clean Equalizer Audio Frequency Bars -->
+  <rect x="13" y="20" width="4" height="8" rx="2" fill="url(#soundWaveGrad)" />
+  <rect x="19" y="14" width="4" height="20" rx="2" fill="url(#soundWaveGrad)" />
+  <rect x="25" y="11" width="4" height="26" rx="2" fill="url(#soundWaveGrad)" />
+  <rect x="31" y="17" width="4" height="14" rx="2" fill="url(#soundWaveGrad)" />
+</svg>

@@ -1,0 +1,460 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Plus Jakarta Sans', ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --ease-apple-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-apple-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-apple-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-apple-decel: cubic-bezier(0, 0, 0.2, 1);
+  --default-transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@layer base {
+  html,
+  body {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    letter-spacing: -0.011em;
+    background-color: #f3f4f6;
+    color: #18191e;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  *,
+  *::before,
+  *::after {
+    --default-transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  button,
+  select,
+  input,
+  a {
+    touch-action: manipulation;
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Clean Ambient Light Grey Canvas */
+.fintech-ambient-light {
+  background-color: #f3f4f6;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(0, 0, 0, 0.025) 0px, transparent 50%),
+    radial-gradient(at 95% 10%, rgba(0, 0, 0, 0.02) 0px, transparent 45%),
+    linear-gradient(180deg, #f8f9fa 0%, #edf0f2 100%);
+}
+
+.fintech-ambient-dark {
+  background-color: #f3f4f6;
+}
+
+/* Executive Charcoal Black Sidebar */
+.sb-sidebar-gradient {
+  background-color: #121316;
+  background-image: linear-gradient(
+    180deg,
+    #1c1d22 0%,
+    #141519 50%,
+    #0c0d10 100%
+  );
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 4px 0 24px -4px rgba(0, 0, 0, 0.65);
+}
+
+/* Glassmorphic Bar in Signature Navy Blue */
+.navy-header-bar {
+  background-color: #003857;
+  background-image: linear-gradient(
+    90deg,
+    #002840 0%,
+    #003857 50%,
+    #004b75 100%
+  );
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 8px 24px -6px rgba(0, 56, 87, 0.35),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Table Header (Prestigious Navy Blue Color) */
+table thead,
+.glass-table-thead,
+.glass-table-thead-light {
+  background-color: #003857;
+  background-image: linear-gradient(
+    90deg,
+    #002840 0%,
+    #003857 50%,
+    #004b75 100%
+  );
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+table thead tr,
+table thead th,
+.glass-table-thead tr,
+.glass-table-thead th,
+.glass-table-thead-light tr,
+.glass-table-thead-light th {
+  background-color: #003857;
+  color: #ffffff !important;
+}
+
+/* Ensure sticky table headers and cells are 100% solid & opaque to prevent see-through when scrolling */
+thead[class*="sticky"],
+thead.sticky,
+.sticky-table-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+thead[class*="sticky"] th,
+thead.sticky th,
+.glass-table-thead.sticky th,
+.glass-table-thead[class*="sticky"] th,
+th[class*="sticky"],
+th.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: #003857 !important;
+  background-image: linear-gradient(
+    90deg,
+    #002840 0%,
+    #003857 50%,
+    #004b75 100%
+  ) !important;
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+}
+
+/* MID-Night Green Toggle Button & Pill Styles */
+.bg-midnight-green {
+  background-color: #004953 !important;
+  background-image: linear-gradient(135deg, #093940 0%, #004953 50%, #065460 100%) !important;
+}
+
+.text-midnight-green {
+  color: #004953 !important;
+}
+
+.border-midnight-green {
+  border-color: rgba(0, 73, 83, 0.35) !important;
+}
+
+/* Elevated Cards with Subtle Glass Sheen & Multi-Layered Shadows */
+.surface-card,
+.surface-card-light {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  box-shadow:
+    0 10px 26px -6px rgba(0, 0, 0, 0.04),
+    0 4px 10px -3px rgba(0, 0, 0, 0.02),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.surface-card:hover,
+.surface-card-light:hover {
+  box-shadow:
+    0 16px 32px -6px rgba(0, 0, 0, 0.06),
+    0 6px 14px -3px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.98);
+}
+
+.surface-card-dark {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  box-shadow:
+    0 10px 26px -6px rgba(0, 0, 0, 0.04),
+    0 4px 10px -3px rgba(0, 0, 0, 0.02);
+}
+
+/* Clean Frosted Light Grey Card Header Strip */
+.sb-card-header-light,
+.sb-card-header-dark {
+  background: linear-gradient(
+    90deg,
+    rgba(248, 249, 250, 0.95) 0%,
+    rgba(243, 244, 246, 0.92) 100%
+  );
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+}
+
+/* Subtle Inset Surface in Light Grey */
+.surface-inset-light,
+.surface-inset-dark {
+  background: rgba(243, 244, 246, 0.92);
+  backdrop-filter: blur(10px);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.65rem;
+}
+
+/* Natural Red Status Point with Soft Organic Halo */
+.natural-red-point {
+  background-color: #f43f5e;
+  box-shadow:
+    0 0 0 3px rgba(244, 63, 94, 0.25),
+    0 0 8px rgba(244, 63, 94, 0.45);
+}
+
+/* iPhone 18 Pro Max Space Black Titanium Hardware Frame & Photorealistic Aesthetics */
+.iphone-18-pro-frame,
+.iphone-16-pro-frame {
+  position: relative;
+  border-radius: 54px;
+  padding: 8.5px;
+  background: linear-gradient(
+    135deg,
+    #141518 0%,
+    #25262a 12%,
+    #38393e 24%,
+    #1b1c1f 38%,
+    #2f3035 52%,
+    #121315 66%,
+    #26272b 80%,
+    #36373c 92%,
+    #151619 100%
+  );
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 0 0 2.5px rgba(8, 8, 10, 0.98),
+    0 32px 64px -12px rgba(0, 0, 0, 0.65),
+    0 12px 24px -8px rgba(0, 0, 0, 0.45),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.35),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.95);
+}
+
+.iphone-titanium-btn-left {
+  background: linear-gradient(180deg, #38393e 0%, #202124 50%, #111214 100%);
+  box-shadow: -1.5px 1px 2px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.iphone-titanium-btn-right {
+  background: linear-gradient(180deg, #38393e 0%, #202124 50%, #111214 100%);
+  box-shadow: 1.5px 1px 2px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.iphone-camera-control {
+  background: linear-gradient(180deg, #141517 0%, #25262a 50%, #101113 100%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 0 0.75px rgba(255, 255, 255, 0.2);
+}
+
+/* Custom Clean Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+.no-scrollbar::-webkit-scrollbar,
+.no-scrollbar *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* ==========================================================================
+   1. Apple-Style Fluid Physics, Easing & Zero-Latency Tactile Feedback
+   ========================================================================== */
+
+/* Universal Apple spring transition timing overrides */
+.transition,
+.transition-all,
+.transition-colors,
+.transition-opacity,
+.transition-shadow,
+.transition-transform {
+  transition-timing-function: var(--ease-apple-spring) !important;
+}
+
+/* Zero-Latency Desktop & Touch Tactile Feedback:
+   Immediate depression (scale 0.97) on click without delay, smooth organic release */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+.tactile-btn:not(:disabled),
+.interactive-tab-btn {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+  transition: transform 0.22s var(--ease-apple-spring),
+              background-color 0.18s var(--ease-apple-spring),
+              border-color 0.18s var(--ease-apple-spring),
+              color 0.18s var(--ease-apple-spring),
+              box-shadow 0.22s var(--ease-apple-spring),
+              opacity 0.18s var(--ease-apple-spring);
+}
+
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled),
+.tactile-btn:active:not(:disabled),
+.interactive-tab-btn:active {
+  transform: scale(0.97) translateZ(0) !important;
+  transition: transform 0.05s var(--ease-apple-spring) !important;
+}
+
+/* Fluid Hover state transitions without jerky snapping */
+button:hover:not(:disabled),
+[role="button"]:hover:not(:disabled),
+.tactile-btn:hover:not(:disabled) {
+  transition: transform 0.22s var(--ease-apple-spring),
+              background-color 0.18s var(--ease-apple-spring),
+              border-color 0.18s var(--ease-apple-spring),
+              color 0.18s var(--ease-apple-spring),
+              box-shadow 0.22s var(--ease-apple-spring);
+}
+
+/* Interactive Table Rows: Instant Tactile Response */
+.interactive-row {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+  transition: background-color 0.18s var(--ease-apple-spring),
+              transform 0.2s var(--ease-apple-spring),
+              box-shadow 0.2s var(--ease-apple-spring);
+}
+
+.interactive-row:active {
+  transform: scale(0.995) translateZ(0);
+  transition: transform 0.05s var(--ease-apple-spring);
+}
+
+/* ==========================================================================
+   2. Strict GPU Rendering & Hardware Acceleration (Locked 60fps)
+   ========================================================================== */
+.transform-gpu {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, opacity;
+}
+
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-gpu {
+  will-change: transform, opacity;
+}
+
+/* Prevent layout thrashing on slide drawers and modals */
+.gpu-modal-container {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  contain: layout style;
+}
+
+/* ==========================================================================
+   3. Optimistic UI Micro-Animations (Instant Responsiveness & Sync Ticker)
+   ========================================================================== */
+
+/* Subtle glowing pulse highlight on the updated row while background syncing */
+@keyframes optimisticPulse {
+  0%, 100% {
+    background-color: rgba(0, 73, 83, 0.04);
+    box-shadow: inset 0 0 0 1.5px rgba(0, 73, 83, 0.35);
+  }
+  50% {
+    background-color: rgba(0, 73, 83, 0.12);
+    box-shadow: inset 0 0 0 2px rgba(0, 73, 83, 0.65);
+  }
+}
+
+.optimistic-sync-active {
+  animation: optimisticPulse 1.4s var(--ease-apple-spring) infinite;
+  position: relative;
+  z-index: 5;
+}
+
+/* Shimmer scanline for syncing cards */
+@keyframes optimisticShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.optimistic-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(0, 73, 83, 0.08) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: optimisticShimmer 1.8s infinite linear;
+}
+
+/* Subtle Odometer Ticker Animation for Sync Counters */
+@keyframes tickerPop {
+  0% {
+    transform: translateY(-8px) scale(0.9);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(2px) scale(1.04);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.odometer-pop {
+  display: inline-block;
+  animation: tickerPop 0.32s var(--ease-apple-spring) forwards;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
