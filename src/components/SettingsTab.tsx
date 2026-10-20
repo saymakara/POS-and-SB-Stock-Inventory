@@ -1753,7 +1753,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     System Restore &amp; Factory Reset
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Restore from backup file or reset to certified institutional demo state
+                    Restore from backup file or reset to baseline operational defaults
                   </p>
                 </div>
               </div>
@@ -1864,7 +1864,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </h3>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              This will restore all demo devices, 15-digit MIDs (`100000880...`), POS terminal serials (`WP5400PQ...`), battery serials (`160525A...`), and branch records to certified defaults.
+              This will restore certified hardware inventory, 15-digit MIDs (`100000880...`), POS terminal serials (`WP5400PQ...`), battery serials (`160525A...`), and branch records to certified defaults.
             </p>
             <div className="flex items-center justify-end gap-2.5 pt-2">
               <button

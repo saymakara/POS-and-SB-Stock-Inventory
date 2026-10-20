@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Building2,
   AlertTriangle,
-  Sparkles,
 } from 'lucide-react';
 
 interface SignInPageProps {
@@ -44,9 +43,9 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   appSettings,
   onSignInSuccess,
 }) => {
-  // Credentials State
-  const [username, setUsername] = useState('8986');
-  const [password, setPassword] = useState('Admin@2026');
+  // Credentials State - Clean Production Empty Defaults
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
@@ -178,24 +177,6 @@ export const SignInPage: React.FC<SignInPageProps> = ({
         username: operator.username,
       });
     }, 250);
-  };
-
-  // Fast Demo Login Helpers for Instant Role Testing
-  const handleQuickDemoLogin = (demoEmpId: string, demoPass: string) => {
-    setUsername(demoEmpId);
-    setPassword(demoPass);
-    setErrorMsg('');
-    const operator = resolveUserIdentity(demoEmpId);
-    setIsAuthenticating(true);
-    setTimeout(() => {
-      setIsAuthenticating(false);
-      onSignInSuccess({
-        role: operator.role,
-        operatorLabel: operator.operatorLabel,
-        branchId: operator.branchId,
-        username: demoEmpId,
-      });
-    }, 200);
   };
 
   return (
@@ -373,63 +354,6 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 )}
               </motion.button>
             </form>
-
-            {/* Quick Demo Sign-In Selector Strip */}
-            <div className="pt-3 border-t border-slate-100 space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
-                <span className="flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Quick Demo Accounts:</span>
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">1-Click Sign-In</span>
-              </div>
-              <div className="grid grid-cols-1 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin('8986', 'Admin@2026')}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-[#003857] hover:bg-slate-50 text-left text-xs flex items-center justify-between transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#003857] text-white">
-                      SUPER ADMIN
-                    </span>
-                    <span className="font-bold text-slate-800">SAY Chanmakara</span>
-                    <span className="font-mono text-slate-400 text-[11px]">(#8986)</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-mono">Admin@2026</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin('5546', 'Admin@2026')}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-sky-600 hover:bg-slate-50 text-left text-xs flex items-center justify-between transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-700 text-white">
-                      ADMIN HQ
-                    </span>
-                    <span className="font-bold text-slate-800">CHHOEUN Seyha</span>
-                    <span className="font-mono text-slate-400 text-[11px]">(#5546)</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-mono">Admin@2026</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin('10811', '123456')}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-emerald-600 hover:bg-slate-50 text-left text-xs flex items-center justify-between transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-700 text-white">
-                      BRANCH STAFF
-                    </span>
-                    <span className="font-bold text-slate-800">NI Oudomroth</span>
-                    <span className="font-mono text-slate-400 text-[11px]">(Branch 105)</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-mono">123456</span>
-                </button>
-              </div>
-            </div>
 
             {/* Security Guarantee Strip */}
             <div className="pt-3 border-t border-slate-100 flex items-center justify-center gap-4 text-[11px] text-slate-400 font-medium">
