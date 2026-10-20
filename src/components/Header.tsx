@@ -110,7 +110,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'mobile_sync',
           label: 'Mobile Sync',
           icon: Smartphone,
-          count: webhookCount,
+          count: webhookCount > 0 ? webhookCount : undefined,
+          highlight: webhookCount > 0,
         },
       ],
     },
@@ -260,8 +261,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         )}
                       </div>
 
-                      {/* Subtle Counter Badge */}
-                      {(isMobileView || !collapsed) && item.count !== undefined && (
+                      {/* Subtle Counter Badge (hidden when count is 0 or completely synced) */}
+                      {(isMobileView || !collapsed) && item.count !== undefined && item.count > 0 && (
                         <span
                           className={`font-mono text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-colors ${
                             isActive

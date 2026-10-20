@@ -1100,11 +1100,11 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     9:41
                   </span>
 
-                  {/* iPhone 18 Pro Max Dynamic Island with TrueDepth Lens */}
+                  {/* iPhone 18 Pro Max Dynamic Island with TrueDepth Lens (Dead-center on iPhone Screen) */}
                   <motion.div
                     layout
                     transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                    className="bg-black text-white px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg border border-white/10"
+                    className="absolute left-1/2 -translate-x-1/2 top-2.5 bg-black text-white px-3.5 py-1.5 rounded-full flex items-center gap-2 shadow-lg border border-white/10 z-30"
                   >
                     {/* TrueDepth Sapphire Front Camera Lens */}
                     <div className="relative w-2.5 h-2.5 rounded-full bg-[#080c18] ring-[0.5px] ring-white/15 flex items-center justify-center shrink-0">

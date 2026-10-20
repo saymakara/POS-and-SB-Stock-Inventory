@@ -2500,6 +2500,13 @@ export function App() {
     [requisitions]
   );
 
+  const outOfSyncWebhooksCount = useMemo(() => {
+    return webhookEvents.filter((evt) => {
+      const dev = devices.find((d) => d.serial.toUpperCase() === evt.serial.toUpperCase());
+      return !dev || dev.stage !== evt.newStage;
+    }).length;
+  }, [webhookEvents, devices]);
+
   // Show Sign-In Page when signed out (placed AFTER all hooks have executed!)
   if (!isAuthenticated) {
     return (
@@ -2526,7 +2533,7 @@ export function App() {
         totalDevices={filteredInventory.length}
         totalMerchants={uniqueMerchantsCount}
         totalHistoricalMerchants={historicalMerchants.length}
-        webhookCount={webhookEvents.length}
+        webhookCount={outOfSyncWebhooksCount}
         pendingReqs={pendingReqsCount}
         totalBranches={branches.length}
         totalUsers={users.length}
@@ -2674,7 +2681,7 @@ export function App() {
             totalDevices={filteredInventory.length}
             totalMerchants={uniqueMerchantsCount}
             totalHistoricalMerchants={historicalMerchants.length}
-            webhookCount={webhookEvents.length}
+            webhookCount={outOfSyncWebhooksCount}
             sseConnected={sseConnected}
             pendingReqs={pendingReqsCount}
             totalUsers={users.length}
