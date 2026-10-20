@@ -10,8 +10,6 @@ import {
 import { AppBrandLogo } from './AppBrandLogo';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  ShieldAlert,
-  ShieldCheck,
   Building2,
   Users,
   FilePlus,
@@ -484,58 +482,22 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               whileTap={{ scale: 0.92 }}
               type="button"
               onClick={onToggleSidebar}
-              className="p-2 sm:p-2.5 rounded-2xl cursor-pointer border bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/90 shadow-2xs transition shrink-0"
+              className="p-2 rounded-xl cursor-pointer border bg-slate-100 hover:bg-slate-200/80 text-slate-700 border-slate-200/90 shadow-2xs transition shrink-0"
               title="Toggle Sidebar"
             >
               <Menu className="w-4 h-4" />
             </motion.button>
           )}
 
-          {/* Clean Grey Role Authority Badge Based on User Mockup */}
-          <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl border border-slate-200/90 bg-slate-50/90 shadow-2xs shrink-0 select-none">
-            {role === 'SUPER_ADMIN' ? (
-              <>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#002b45] flex items-center justify-center shrink-0 shadow-2xs">
-                  <ShieldAlert className="w-4 h-4 text-sky-400 shrink-0" />
-                </div>
-                <div className="flex flex-col text-left leading-none justify-center">
-                  <span className="text-xs font-black tracking-tight text-slate-900 uppercase">
-                    SUPER ADMIN
-                  </span>
-                  <span className="text-[11px] font-medium text-slate-500 mt-0.5">
-                    Full Authority
-                  </span>
-                </div>
-              </>
-            ) : role === 'ADMIN' ? (
-              <>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#002b45] flex items-center justify-center shrink-0 shadow-2xs">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                </div>
-                <div className="flex flex-col text-left leading-none justify-center">
-                  <span className="text-xs font-black tracking-tight text-slate-900 uppercase">
-                    ADMIN HQ
-                  </span>
-                  <span className="text-[11px] font-medium text-slate-500 mt-0.5">
-                    Head Office
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#002b45] flex items-center justify-center shrink-0 shadow-2xs">
-                  <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
-                </div>
-                <div className="flex flex-col text-left leading-none justify-center">
-                  <span className="text-xs font-black tracking-tight text-slate-900 uppercase">
-                    BRANCH STAFF
-                  </span>
-                  <span className="text-[11px] font-medium text-slate-500 mt-0.5">
-                    Code {activeBranchId}
-                  </span>
-                </div>
-              </>
-            )}
+          {/* Clean Grey Text-Only Role Authority Badge (No Logo) */}
+          <div className="flex items-center px-3 py-1.5 rounded-xl border border-slate-200/90 bg-slate-100/90 shadow-2xs shrink-0 select-none">
+            <span className="text-xs font-bold tracking-tight text-slate-800">
+              {role === 'SUPER_ADMIN'
+                ? 'Super Admin'
+                : role === 'ADMIN'
+                ? 'Admin'
+                : 'Branch Staff'}
+            </span>
           </div>
         </div>
 
