@@ -34,6 +34,7 @@ export interface User {
   status: UserStatus;
   updatedAt: string;
   username?: string;
+  password?: string;
 }
 
 export interface Device {

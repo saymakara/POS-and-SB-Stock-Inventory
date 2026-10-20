@@ -60,7 +60,8 @@ export function buildInitialUsers(): User[] {
         position,
         contact,
         status,
-        updatedAt: '2026-10-18'
+        updatedAt: '2026-10-18',
+        password: isSuperAdmin ? 'Admin@2026' : '123456',
       });
     });
   });

@@ -532,7 +532,6 @@ export function App() {
   }, [notifications]);
 
   const [role, setRole] = useState<UserRole>('SUPER_ADMIN');
-  const [roleMorphBanner, setRoleMorphBanner] = useState<UserRole | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<string>('105');
   const [selectedStaffUser, setSelectedStaffUser] = useState<string>('NI Oudomroth (10811)');
   const [activeAdminStaff, setActiveAdminStaff] = useState<string>('SAY Chanmakara (8986)');
@@ -592,6 +591,7 @@ export function App() {
   const [userBranchInput, setUserBranchInput] = useState('105');
   const [userRoleInput, setUserRoleInput] = useState<UserRole>('BRANCH');
   const [userStatusInput, setUserStatusInput] = useState<UserStatus>('Operating');
+  const [userPasswordInput, setUserPasswordInput] = useState('');
 
   const triggerToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -745,19 +745,15 @@ export function App() {
     };
   }, [isAuthenticated, isSessionLocked, appSettings.sessionTimeoutMinutes, addAuditLog]);
 
-  // Smooth Morph Transition when switching role between Super Admin, Admin, and Branch Staff
+  // Role authority handler
   const handleRoleChange = (newRole: UserRole) => {
     if (newRole === role) return;
-    setRoleMorphBanner(newRole);
     setRole(newRole);
     if (newRole === 'BRANCH') {
       setBranchFilter(selectedBranch);
     } else {
       setBranchFilter('ALL');
     }
-    setTimeout(() => {
-      setRoleMorphBanner(null);
-    }, 950);
   };
 
   const handleBranchChange = (bCode: string) => {
@@ -780,20 +776,23 @@ export function App() {
     username: string;
   }) => {
     setRole(params.role);
-    setSelectedBranch(params.branchId === '100' ? '105' : params.branchId);
     setAuthUsername(params.operatorLabel);
     if (params.role === 'BRANCH') {
+      setSelectedBranch(params.branchId);
       setSelectedStaffUser(params.operatorLabel);
+      setBranchFilter(params.branchId);
     } else {
+      setSelectedBranch(params.branchId === '100' ? '105' : params.branchId);
       setActiveAdminStaff(params.operatorLabel);
+      setBranchFilter('ALL');
     }
     setIsAuthenticated(true);
     addAuditLog(
-      'User Session Sign-In (2FA Verified)',
-      `Authenticated into 2026 Enterprise Session with Multi-Factor Authentication as ${params.role} (${params.operatorLabel})`,
+      'User Session Sign-In',
+      `Authenticated into workstation as ${params.role} (${params.operatorLabel})`,
       params.role
     );
-    triggerToast(`Welcome ${params.operatorLabel} • Authenticated with MFA`);
+    triggerToast(`Welcome ${params.operatorLabel} (${params.role})`);
   };
 
   const scopedDevices = useMemo(() => {
@@ -2121,6 +2120,7 @@ export function App() {
                 branchName: bObj?.name || `Branch Code ${userBranchInput}`,
                 accessRole: userRoleInput,
                 status: userStatusInput,
+                password: userPasswordInput.trim() ? userPasswordInput.trim() : (editingUser.password || '123456'),
                 updatedAt: today,
               }
             : u
@@ -2143,6 +2143,7 @@ export function App() {
         accessRole: userRoleInput,
         contact: '',
         status: userStatusInput,
+        password: userPasswordInput.trim() || '123456',
         updatedAt: today,
       };
       setUsers((prev) => [newUser, ...prev]);
@@ -2566,35 +2567,6 @@ export function App() {
         appSettings={appSettings}
       />
 
-      {/* Smooth Role Morph Transition Banner */}
-      <AnimatePresence>
-        {roleMorphBanner && (
-          <motion.div
-            initial={{ opacity: 0, y: -16, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl shadow-xl border flex items-center gap-3 bg-[#1b4f72] text-white border-white/25 backdrop-blur-xl"
-          >
-            {roleMorphBanner === 'SUPER_ADMIN' ? (
-              <ShieldAlert className="w-4 h-4 text-white" />
-            ) : roleMorphBanner === 'ADMIN' ? (
-              <ShieldCheck className="w-4 h-4 text-white" />
-            ) : (
-              <Building2 className="w-4 h-4 text-white" />
-            )}
-            <span className="text-xs font-extrabold tracking-tight">
-              Switched Workspace to{' '}
-              {roleMorphBanner === 'SUPER_ADMIN'
-                ? 'Super Admin Authority'
-                : roleMorphBanner === 'ADMIN'
-                ? 'Admin HQ Command'
-                : `Branch Code ${selectedBranch} Staff View`}
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Live Alert Notification Card (Branch Staff Request / Admin Assignment) */}
       {/* Real-time Branch Alert Toast Notification */}
       <AnimatePresence>
@@ -2685,7 +2657,6 @@ export function App() {
             onSignOut={() => {
               addAuditLog('Session Terminated', 'Operator signed out of workstation session');
               setIsSessionLocked(false);
-              setRoleMorphBanner(null);
               setIsBatchModalOpen(false);
               setIsReqModalOpen(false);
               setIsNewBranchModalOpen(false);
@@ -2913,6 +2884,7 @@ export function App() {
                           setUserBranchInput(u.branchId);
                           setUserRoleInput(u.accessRole);
                           setUserStatusInput(u.status);
+                          setUserPasswordInput(u.password || '');
                         } else {
                           setEditingUser(null);
                           setUserEmpIdInput('');
@@ -2921,6 +2893,7 @@ export function App() {
                           setUserBranchInput('105');
                           setUserRoleInput('BRANCH');
                           setUserStatusInput('Operating');
+                          setUserPasswordInput('123456');
                         }
                         setIsUserModalOpen(true);
                       }}
@@ -3291,6 +3264,21 @@ export function App() {
                     <option value="Suspended">Suspended</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                  Workstation Password {editingUser ? '(Leave blank to retain current)' : ''}
+                </label>
+                <input
+                  type="text"
+                  value={userPasswordInput}
+                  onChange={(e) => setUserPasswordInput(e.target.value)}
+                  placeholder={editingUser ? 'Enter new password or leave blank' : 'Set password (e.g. 123456)'}
+                  className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold border bg-slate-50 border-slate-200 text-slate-900"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Configured by Super Admin for staff workstation sign-in (Default: 123456).
+                </p>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button

@@ -348,7 +348,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
 interface HeaderProps {
   role: UserRole;
-  onSetRole: (role: UserRole) => void;
+  onSetRole?: (role: UserRole) => void;
   branches: Branch[];
   adminUsers: User[];
   activeAdminStaff: string;
@@ -501,109 +501,74 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             </motion.button>
           )}
 
-          {/* Glassmorphic Morphing Role Switcher */}
-          <div className="p-1 rounded-xl border bg-slate-100/85 border-zinc-200 backdrop-blur-md flex items-center gap-0.5 shrink-0 relative">
-            {roleOptions.map((opt) => {
-              const Icon = opt.icon;
-              const isActive = role === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => onSetRole(opt.id)}
-                  className={`relative px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 whitespace-nowrap cursor-pointer z-10 transition-colors ${
-                    isActive
-                      ? 'text-white'
-                      : 'text-zinc-600 hover:text-zinc-900'
-                  }`}
-                >
-                  {isActive && (
-                    <motion.div
-                      layoutId="roleMorphPill"
-                      transition={{
-                        type: 'spring',
-                        stiffness: 440,
-                        damping: 30,
-                        mass: 0.7,
-                      }}
-                      className="absolute inset-0 rounded-lg shadow-xs -z-10 bg-[#004953] border border-emerald-400/30"
-                    />
-                  )}
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
-                  <span>{opt.label}</span>
-                </button>
-              );
-            })}
+          {/* Locked Role Authority Badge Based on Super Admin Assignment */}
+          <div className="px-3 py-1.5 rounded-xl border bg-slate-50 border-slate-200/90 text-slate-900 flex items-center gap-2 shadow-2xs shrink-0 select-none">
+            {role === 'SUPER_ADMIN' ? (
+              <>
+                <div className="w-5 h-5 rounded-md bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <ShieldAlert className="w-3.5 h-3.5 text-sky-300" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black tracking-tight text-[#003857] uppercase leading-none">
+                    Super Admin
+                  </span>
+                  <span className="text-[9px] font-semibold text-slate-500 leading-none mt-0.5">
+                    Full Authority
+                  </span>
+                </div>
+              </>
+            ) : role === 'ADMIN' ? (
+              <>
+                <div className="w-5 h-5 rounded-md bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black tracking-tight text-[#003857] uppercase leading-none">
+                    Admin HQ
+                  </span>
+                  <span className="text-[9px] font-semibold text-slate-500 leading-none mt-0.5">
+                    Head Office Stock (Code 100)
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-5 h-5 rounded-md bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <Building2 className="w-3.5 h-3.5 text-amber-300" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-black tracking-tight text-[#003857] uppercase leading-none">
+                    Branch Staff
+                  </span>
+                  <span className="text-[9px] font-semibold text-slate-500 leading-none mt-0.5">
+                    Branch Code {activeBranchId}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         {/* Right Controls */}
         <div className="flex items-center gap-2 sm:gap-2.5">
-
-          {/* Contextual Branch Code / Officer Glass Selector */}
+          {/* Institutional User Identity & Branch Assignment Display */}
           {role !== 'BRANCH' ? (
             <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-white/80 border-zinc-200 text-zinc-900 backdrop-blur-md shrink-0">
               <Users className="w-3.5 h-3.5 text-zinc-700 shrink-0" />
-              <select
-                value={activeAdminStaff}
-                onChange={(e) => onChangeAdminStaff(e.target.value)}
-                aria-label="Select Admin Officer"
-                className="bg-transparent text-xs font-bold focus:outline-none cursor-pointer"
-              >
-                {adminUsers.map((u) => {
-                  const label = `${u.name} (${u.empId})`;
-                  return (
-                    <option
-                      key={u.uid}
-                      value={label}
-                      className="bg-[#003857] text-white"
-                    >
-                      {u.name} (#{u.empId})
-                    </option>
-                  );
-                })}
-              </select>
+              <span className="text-xs font-bold text-zinc-800">
+                {activeAdminStaff}
+              </span>
             </div>
           ) : (
             <div className="hidden xl:flex items-center gap-2 px-2.5 py-1.5 rounded-xl border bg-white/80 border-zinc-200 text-zinc-900 backdrop-blur-md shrink-0">
-              <select
-                value={activeBranchId}
-                onChange={(e) => onChangeBranchId(e.target.value)}
-                aria-label="Select Branch Code"
-                className="bg-transparent text-xs font-bold focus:outline-none cursor-pointer"
-              >
-                {branches
-                  .filter((b) => b.id !== '100')
-                  .map((b) => (
-                    <option
-                      key={b.id}
-                      value={b.id}
-                      className="bg-[#003857] text-white"
-                    >
-                      Branch Code {b.id} - {b.name.replace(' Branch', '')}
-                    </option>
-                  ))}
-              </select>
+              <Building2 className="w-3.5 h-3.5 text-zinc-700 shrink-0" />
+              <span className="text-xs font-bold text-zinc-800">
+                {currentBranch ? `Branch Code ${currentBranch.id} - ${currentBranch.name.replace(' Branch', '')}` : `Branch Code ${activeBranchId}`}
+              </span>
               <span className="opacity-30">|</span>
-              <select
-                value={activeStaff}
-                onChange={(e) => onChangeStaff(e.target.value)}
-                aria-label="Select Officer"
-                className="bg-transparent text-xs font-bold focus:outline-none cursor-pointer"
-              >
-                {(currentBranch?.staff && currentBranch.staff.length > 0
-                  ? currentBranch.staff
-                  : ['Branch Staff']
-                ).map((s) => (
-                  <option
-                    key={s}
-                    value={s}
-                    className="bg-[#003857] text-white"
-                  >
-                    {s}
-                  </option>
-                ))}
-              </select>
+              <span className="text-xs font-semibold text-zinc-700 font-mono">
+                {activeStaff}
+              </span>
             </div>
           )}
 
