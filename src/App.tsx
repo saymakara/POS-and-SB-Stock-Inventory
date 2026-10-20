@@ -66,7 +66,7 @@ import {
 const STORAGE_KEY_DEVICES = 'crm_pos_devices_v12';
 const STORAGE_KEY_REQS = 'crm_pos_reqs_v11';
 const STORAGE_KEY_BRANCHES = 'crm_pos_branches_v11';
-const STORAGE_KEY_USERS = 'crm_pos_users_v11';
+const STORAGE_KEY_USERS = 'crm_pos_users_v12';
 const STORAGE_KEY_LOGS = 'crm_pos_logs_v11';
 const STORAGE_KEY_WEBHOOKS = 'crm_pos_mobile_webhooks_v11';
 const STORAGE_KEY_NOTIFS = 'crm_pos_notifs_v11';
@@ -167,6 +167,7 @@ export function App() {
         return parsed.map((u) => ({
           ...u,
           branchName: u.branchId === '100' ? 'Head Office' : u.branchName,
+          password: u.password || u.empId,
         }));
       }
     } catch (e) {
@@ -2239,7 +2240,7 @@ export function App() {
                 branchName: bObj?.name || `Branch Code ${userBranchInput}`,
                 accessRole: userRoleInput,
                 status: userStatusInput,
-                password: userPasswordInput.trim() ? userPasswordInput.trim() : (editingUser.password || '123456'),
+                password: userPasswordInput.trim() ? userPasswordInput.trim() : (editingUser.password || userEmpIdInput.trim()),
                 updatedAt: today,
               }
             : u
@@ -2262,7 +2263,7 @@ export function App() {
         accessRole: userRoleInput,
         contact: '',
         status: userStatusInput,
-        password: userPasswordInput.trim() || '123456',
+        password: userPasswordInput.trim() || userEmpIdInput.trim(),
         updatedAt: today,
       };
       setUsers((prev) => [newUser, ...prev]);
@@ -3014,7 +3015,7 @@ export function App() {
                           setUserBranchInput('105');
                           setUserRoleInput('BRANCH');
                           setUserStatusInput('Operating');
-                          setUserPasswordInput('123456');
+                          setUserPasswordInput('');
                         }
                         setIsUserModalOpen(true);
                       }}
@@ -3418,11 +3419,11 @@ export function App() {
                   type="text"
                   value={userPasswordInput}
                   onChange={(e) => setUserPasswordInput(e.target.value)}
-                  placeholder={editingUser ? 'Enter new password or leave blank' : 'Set password (e.g. 123456)'}
+                  placeholder={editingUser ? 'Enter new password or leave blank' : 'Defaults to Staff ID if left blank'}
                   className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold border bg-slate-50 border-slate-200 text-slate-900"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Configured by Super Admin for staff workstation sign-in (Default: 123456).
+                  Defaults to the same Staff ID if left blank. Can be customized by Super Admin.
                 </p>
               </div>
               <div className="flex justify-end gap-2 pt-2">

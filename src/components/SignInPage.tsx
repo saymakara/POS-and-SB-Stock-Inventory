@@ -137,16 +137,16 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     }
 
     const operator = resolveUserIdentity(username);
+    const staffId = operator.userObj?.empId || operator.username;
     const configuredPassword =
       operator.userObj?.password ||
-      (operator.role === 'SUPER_ADMIN' ? 'Admin@2026' : '123456');
+      staffId;
 
-    // Password verification set by Super Admin
+    // Password verification: matches configured password or defaults to the same staff ID / username
     const isPasswordValid =
       password.trim() === configuredPassword ||
-      password.trim() === 'POS-Admin@2026' ||
-      password.trim() === 'Admin@2026' ||
-      password.trim() === '123456';
+      password.trim() === staffId ||
+      password.trim() === operator.username;
 
     if (!isPasswordValid) {
       const nextFail = failedAttempts + 1;

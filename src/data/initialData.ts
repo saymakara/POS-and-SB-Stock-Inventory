@@ -61,7 +61,7 @@ export function buildInitialUsers(): User[] {
         contact,
         status,
         updatedAt: '2026-10-18',
-        password: isSuperAdmin ? 'Admin@2026' : '123456',
+        password: empId,
       });
     });
   });
