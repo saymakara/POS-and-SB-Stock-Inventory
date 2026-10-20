@@ -472,66 +472,68 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     { id: 'settings', label: 'Settings' },
   ];
 
-  const roleOptions: Array<{
-    id: UserRole;
-    label: string;
-    icon: React.ElementType;
-  }> = [
-    { id: 'SUPER_ADMIN', label: 'Super Admin', icon: ShieldAlert },
-    { id: 'ADMIN', label: 'Admin', icon: ShieldCheck },
-    { id: 'BRANCH', label: 'Staff', icon: Building2 },
-  ];
-
   // Style #2 Locked In as the #1 Permanent Header Style:
   // Translucent Crystal-White Glass Header with Stock-Request Table-Header Blue (slightly darker: #0f334d / #133e5e)
   return (
     <header className="sticky top-0 z-40 bg-white/82 backdrop-blur-2xl text-zinc-900 border-b border-zinc-200/80 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all duration-200">
       <div className="h-[4.5rem] px-4 sm:px-6 flex items-center justify-between gap-3">
-        {/* Left: Sidebar Toggle & Role Switcher */}
+        {/* Left: Sidebar Toggle & Role Authority Badge */}
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           {onToggleSidebar && (
             <motion.button
               whileTap={{ scale: 0.92 }}
               type="button"
               onClick={onToggleSidebar}
-              className="p-2 rounded-xl cursor-pointer border bg-[#003857]/10 hover:bg-[#003857]/20 text-[#003857] border-[#003857]/30 backdrop-blur-md transition shrink-0"
+              className="p-2 sm:p-2.5 rounded-2xl cursor-pointer border bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/90 shadow-2xs transition shrink-0"
               title="Toggle Sidebar"
             >
               <Menu className="w-4 h-4" />
             </motion.button>
           )}
 
-          {/* Locked Role Authority Badge Based on Super Admin Assignment */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#003857] text-white shadow-xs shrink-0 select-none">
+          {/* Clean Grey Role Authority Badge Based on User Mockup */}
+          <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl border border-slate-200/90 bg-slate-50/90 shadow-2xs shrink-0 select-none">
             {role === 'SUPER_ADMIN' ? (
               <>
-                <ShieldAlert className="w-3.5 h-3.5 text-sky-300 shrink-0" />
-                <span className="text-xs font-black tracking-tight uppercase">
-                  Super Admin
-                </span>
-                <span className="text-[10px] font-semibold text-sky-200/80 font-mono border-l border-white/20 pl-2">
-                  Full Authority
-                </span>
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#002b45] flex items-center justify-center shrink-0 shadow-2xs">
+                  <ShieldAlert className="w-4 h-4 text-sky-400 shrink-0" />
+                </div>
+                <div className="flex flex-col text-left leading-none justify-center">
+                  <span className="text-xs font-black tracking-tight text-slate-900 uppercase">
+                    SUPER ADMIN
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-500 mt-0.5">
+                    Full Authority
+                  </span>
+                </div>
               </>
             ) : role === 'ADMIN' ? (
               <>
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
-                <span className="text-xs font-black tracking-tight uppercase">
-                  Admin HQ
-                </span>
-                <span className="text-[10px] font-semibold text-sky-200/80 font-mono border-l border-white/20 pl-2">
-                  Head Office
-                </span>
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#002b45] flex items-center justify-center shrink-0 shadow-2xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                </div>
+                <div className="flex flex-col text-left leading-none justify-center">
+                  <span className="text-xs font-black tracking-tight text-slate-900 uppercase">
+                    ADMIN HQ
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-500 mt-0.5">
+                    Head Office
+                  </span>
+                </div>
               </>
             ) : (
               <>
-                <Building2 className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                <span className="text-xs font-black tracking-tight uppercase">
-                  Branch Staff
-                </span>
-                <span className="text-[10px] font-semibold text-amber-200/80 font-mono border-l border-white/20 pl-2">
-                  Code {activeBranchId}
-                </span>
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#002b45] flex items-center justify-center shrink-0 shadow-2xs">
+                  <Building2 className="w-4 h-4 text-amber-400 shrink-0" />
+                </div>
+                <div className="flex flex-col text-left leading-none justify-center">
+                  <span className="text-xs font-black tracking-tight text-slate-900 uppercase">
+                    BRANCH STAFF
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-500 mt-0.5">
+                    Code {activeBranchId}
+                  </span>
+                </div>
               </>
             )}
           </div>
