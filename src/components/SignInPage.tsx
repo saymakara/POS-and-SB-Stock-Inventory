@@ -9,10 +9,8 @@ import {
   EyeOff,
   ArrowRight,
   KeyRound,
-  Shield,
   ShieldAlert,
   ShieldCheck,
-  Building2,
   AlertTriangle,
 } from 'lucide-react';
 
@@ -158,7 +156,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
         setErrorMsg('Security Lockout: 5 failed authentication attempts. Please wait 30 seconds.');
       } else {
         setErrorMsg(
-          `Invalid workstation password. Please enter the password set by Super Admin (${5 - nextFail} attempts remaining).`
+          `Invalid password. Please check your credentials (${5 - nextFail} attempts remaining).`
         );
       }
       return;
@@ -233,7 +231,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               Sign In to Workstation
             </h1>
             <p className="text-xs text-slate-500 mt-1 max-w-[320px] mx-auto leading-relaxed">
-              Enter your Employee ID and password set by Super Admin to sign in.
+              Enter your Employee ID and password to sign in.
             </p>
           </div>
 
@@ -249,7 +247,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. 8986, 5546, 10811"
+                    placeholder="Enter Employee ID"
                     required
                     disabled={lockoutSeconds > 0}
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl text-xs font-mono font-bold border border-slate-300 bg-white text-zinc-900 focus:outline-none focus:border-[#003857] focus:ring-3 focus:ring-[#003857]/15 transition shadow-2xs placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-400"
@@ -258,21 +256,16 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-zinc-800">
-                    Password
-                  </label>
-                  <span className="text-[11px] text-slate-400">
-                    Set by Super Admin
-                  </span>
-                </div>
+                <label className="block text-xs font-bold text-zinc-800 mb-1.5">
+                  Password
+                </label>
                 <div className="relative">
                   <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter workstation password"
+                    placeholder="Enter password"
                     required
                     disabled={lockoutSeconds > 0}
                     className="w-full pl-10 pr-10 py-2.5 rounded-xl text-xs font-mono font-bold border border-slate-300 bg-white text-zinc-900 focus:outline-none focus:border-[#003857] focus:ring-3 focus:ring-[#003857]/15 transition shadow-2xs placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-400"
@@ -354,21 +347,6 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 )}
               </motion.button>
             </form>
-
-            {/* Security Guarantee Strip */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-center gap-4 text-[11px] text-slate-400 font-medium">
-              <span className="flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                <span>256-bit TLS</span>
-              </span>
-              <span>·</span>
-              <span className="flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-[#003857]" />
-                <span>Role-Based Authority</span>
-              </span>
-              <span>·</span>
-              <span>Audit Logged</span>
-            </div>
           </div>
         </motion.div>
       </main>
