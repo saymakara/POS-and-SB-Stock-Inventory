@@ -2559,10 +2559,7 @@ export function App() {
       {/* Full-Height Sidebar covering the top-left corner all the way from top to bottom */}
       <Sidebar
         activeTab={activeTab}
-        onSelectTab={(tabId) => {
-          setActiveTab(tabId);
-          setMobileDrawerOpen(false);
-        }}
+        onSelectTab={handleSelectTab}
         totalDevices={filteredInventory.length}
         totalMerchants={uniqueMerchantsCount}
         totalHistoricalMerchants={historicalMerchants.length}
@@ -2710,7 +2707,7 @@ export function App() {
               setIsAuthenticated(false);
             }}
             activeTab={activeTab}
-            onSelectTab={setActiveTab}
+            onSelectTab={handleSelectTab}
             totalDevices={filteredInventory.length}
             totalMerchants={uniqueMerchantsCount}
             totalHistoricalMerchants={historicalMerchants.length}
@@ -2728,7 +2725,7 @@ export function App() {
                   item.id === n.id ? { ...item, read: true } : item
                 )
               );
-              if (n.targetTab) setActiveTab(n.targetTab);
+              if (n.targetTab) handleSelectTab(n.targetTab);
             }}
             theme={theme}
             onToggleSidebar={handleToggleSidebar}
@@ -2783,7 +2780,7 @@ export function App() {
                       theme={theme}
                       onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
                       onOpenExportModal={() => setIsExportModalOpen(true)}
-                      onNavigateTab={setActiveTab}
+                      onNavigateTab={handleSelectTab}
                     />
                   )}
 
@@ -3023,6 +3020,32 @@ export function App() {
                         localStorage.clear();
                         window.location.reload();
                       }}
+                      initialSubTab={settingsSubTab}
+                      onSubTabChange={(st) => setSettingsSubTab(st)}
+                      branches={branches}
+                      devices={devices}
+                      users={users}
+                      onSelectBranchFilter={(bCode) => {
+                        setBranchFilter(bCode);
+                        setActiveTab('inventory');
+                      }}
+                      onOpenNewBranchModal={() => {
+                        setEditingBranch(null);
+                        setBranchCodeInput('');
+                        setBranchNameInput('');
+                        setBranchStaffInput('');
+                        setIsNewBranchModalOpen(true);
+                      }}
+                      onOpenEditBranchModal={(b) => {
+                        setEditingBranch(b);
+                        setBranchCodeInput(b.code);
+                        setBranchNameInput(b.name);
+                        setBranchStaffInput(b.staff.join(', '));
+                        setIsNewBranchModalOpen(true);
+                      }}
+                      onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
+                      addAuditLog={addAuditLog}
+                      onUpdateAppSettings={setAppSettings}
                     />
                   )}
                   </ErrorBoundary>
