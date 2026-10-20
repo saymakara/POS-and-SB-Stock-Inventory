@@ -1773,27 +1773,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                           {m.branchName.replace(' Branch', '')}
                         </span>
                       </div>
-                      {(() => {
-                        const returnedDev = m.devices?.find(
-                          (d) =>
-                            d.returnedByStaff &&
-                            d.returnedByStaff !== (d.installedByStaff || m.accountOfficer)
-                        );
-
-                        if (!returnedDev || !returnedDev.returnedByStaff) return null;
-
-                        return (
-                          <div
-                            className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1 flex items-center gap-1"
-                            title={`Device ${returnedDev.serial} returned by ${returnedDev.returnedByStaff} (Original Installer: ${m.accountOfficer})`}
-                          >
-                            <span className="text-slate-400 dark:text-slate-500">Returned by:</span>
-                            <span className="text-slate-700 dark:text-slate-300 font-medium">
-                              {returnedDev.returnedByStaff}
-                            </span>
-                          </div>
-                        );
-                      })()}
                     </td>
 
                     <td className="py-3.5 px-4">
