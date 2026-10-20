@@ -194,6 +194,8 @@ export interface Requisition {
   reason: string;
   status: 'PENDING_ADMIN' | 'DISPATCHED' | 'RECEIVED';
   arrangedDevices?: ArrangedDeviceItem[];
+  type?: 'STOCK_REQUEST' | 'STOCK_RETURN';
+  returnSerials?: string[];
 }
 
 export interface StageInfo {

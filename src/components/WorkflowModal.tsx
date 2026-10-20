@@ -70,6 +70,7 @@ interface WorkflowModalProps {
     }
   ) => void;
   onReturnToAdminStock?: (serial: string, reason: string) => void;
+  onRequestReturnToAdminStock?: (serial: string, reason: string) => void;
   onReturnToBranchReserve?: (serial: string, branchId: string, reason: string) => void;
   onRemoveFromDashboard?: (serial: string, reason: string) => void;
   onChangeBattery?: (device: Device) => void;
@@ -85,6 +86,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   onClose,
   onSave,
   onReturnToAdminStock,
+  onRequestReturnToAdminStock,
   onReturnToBranchReserve,
   onRemoveFromDashboard,
   onChangeBattery,
@@ -555,39 +557,55 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       </button>
                     )}
 
-                    {device.stage !== 'HQ_STOCK' && onReturnToAdminStock && (
+                    {device.stage !== 'HQ_STOCK' && (
                       <button
                         type="button"
                         onClick={() => {
-                          const targetBranch = branches.find((b) => b.code === '100');
-                          setPendingPayload({
-                            actionType: 'RETURN_ADMIN_STOCK',
-                            actionTitle: 'Return Unit to Head Office Admin Stock (Code 100)',
-                            stage: 'HQ_STOCK',
-                            branchId: '100',
-                            branchName: targetBranch ? targetBranch.name : 'Head Office Stock',
-                            staff: 'SAY Chanmakara (8986)',
-                            merchantName: '',
-                            mid: '',
-                            tid: '',
-                            note:
-                              note.trim() || 'Returned back to Admin HQ Stock (Branch Code 100)',
-                            deployedDate: device.deployedDate || device.stockInDate,
-                            batteryInstalledDate,
-                            batterySerial,
-                            isBatteryChanged: false,
-                          });
-                          setModalStep('PREVIEW');
+                          if (isAdminLike && onReturnToAdminStock) {
+                            const targetBranch = branches.find((b) => b.code === '100');
+                            setPendingPayload({
+                              actionType: 'RETURN_ADMIN_STOCK',
+                              actionTitle: 'Return Unit to Head Office Admin Stock (Code 100)',
+                              stage: 'HQ_STOCK',
+                              branchId: '100',
+                              branchName: targetBranch ? targetBranch.name : 'Head Office Stock',
+                              staff: 'SAY Chanmakara (8986)',
+                              merchantName: '',
+                              mid: '',
+                              tid: '',
+                              note:
+                                note.trim() || 'Returned back to Admin HQ Stock (Branch Code 100)',
+                              deployedDate: device.deployedDate || device.stockInDate,
+                              batteryInstalledDate,
+                              batterySerial,
+                              isBatteryChanged: false,
+                            });
+                            setModalStep('PREVIEW');
+                          } else if (onRequestReturnToAdminStock) {
+                            onRequestReturnToAdminStock(
+                              device.serial,
+                              note.trim() || `Branch requested return of ${device.serial} to Admin Stock`
+                            );
+                            onClose();
+                          }
                         }}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
                           isLight
                             ? 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800'
                             : 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300'
                         }`}
-                        title="Return unit back to Head Office Admin Stock"
+                        title={
+                          isAdminLike
+                            ? 'Return unit back to Head Office Admin Stock'
+                            : 'Submit a return request to Admin HQ for approval'
+                        }
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
-                        <span>Return to Admin Stock</span>
+                        <span>
+                          {isAdminLike
+                            ? 'Return to Admin Stock'
+                            : 'Request Return to Admin Stock'}
+                        </span>
                       </button>
                     )}
 
@@ -737,20 +755,32 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     <Building2 className="w-3.5 h-3.5" />
                     <span>Return to Branch Reserve</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setTerminateDestination('HQ_STOCK')}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition cursor-pointer ${
-                      terminateDestination === 'HQ_STOCK'
-                        ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
-                        : isLight
-                        ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
-                        : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
-                    }`}
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Return to Admin HQ Stock</span>
-                  </button>
+                  {isAdminLike ? (
+                    <button
+                      type="button"
+                      onClick={() => setTerminateDestination('HQ_STOCK')}
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition cursor-pointer ${
+                        terminateDestination === 'HQ_STOCK'
+                          ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                          : isLight
+                          ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                          : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
+                      }`}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Return to Admin HQ Stock</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
+                      title="Only Admin & Super Admin can return directly to HQ Stock. Units must be returned to Branch Reserve first, then submitted as a Return Request."
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Return to Admin HQ Stock (Admin Only)</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}

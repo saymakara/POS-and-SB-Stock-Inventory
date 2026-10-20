@@ -64,6 +64,7 @@ interface InventoryTabProps {
     note?: string
   ) => void;
   onReturnToAdminStock?: (serials: string[], reason?: string) => void;
+  onRequestReturnToAdminStock?: (serials: string[], reason?: string) => void;
   onRemoveFromDashboard?: (serials: string[], reason?: string) => void;
   onRestoreToDashboard?: (serials: string[]) => void;
   onChangeBattery?: (serial: string) => void;
@@ -94,6 +95,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   onExportCsv,
   onBulkAssignBranch,
   onReturnToAdminStock,
+  onRequestReturnToAdminStock,
   onRemoveFromDashboard,
   onRestoreToDashboard,
   onChangeBattery,
@@ -243,14 +245,25 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
   const handleOpenBulkReturnAdmin = () => {
     if (!selectedSns.length) return;
-    setPendingBulkAction({
-      type: 'RETURN_ADMIN',
-      title: 'Bulk Return to Head Office Admin Stock (Code 100)',
-      targetBranchId: '100',
-      targetBranchName: 'Head Office Admin Stock',
-      serials: [...selectedSns],
-      impactDescription: `You are about to return ${selectedSns.length} hardware unit(s) back to Head Office Admin Stock (Branch Code 100). Any active branch reservations or merchant bindings will be safely cleared.`,
-    });
+    if (isAdminLike) {
+      setPendingBulkAction({
+        type: 'RETURN_ADMIN',
+        title: 'Bulk Return to Head Office Admin Stock (Code 100)',
+        targetBranchId: '100',
+        targetBranchName: 'Head Office Admin Stock',
+        serials: [...selectedSns],
+        impactDescription: `You are about to return ${selectedSns.length} hardware unit(s) back to Head Office Admin Stock (Branch Code 100). Any active branch reservations or merchant bindings will be safely cleared.`,
+      });
+    } else {
+      setPendingBulkAction({
+        type: 'RETURN_ADMIN',
+        title: 'Submit Return Request to Admin Stock',
+        targetBranchId: '100',
+        targetBranchName: 'Head Office Admin Stock (Pending Admin Approval)',
+        serials: [...selectedSns],
+        impactDescription: `You are about to submit a formal return request for ${selectedSns.length} hardware unit(s) to Head Office Admin Stock. Admin HQ will be notified to review and finalize this return into Admin Stock.`,
+      });
+    }
   };
 
   const handleOpenBulkRemove = () => {
@@ -282,11 +295,18 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
         pendingBulkAction.targetBranchId,
         `Bulk Assigned ${pendingBulkAction.serials.length} units to Branch Code ${pendingBulkAction.targetBranchId}`
       );
-    } else if (pendingBulkAction.type === 'RETURN_ADMIN' && onReturnToAdminStock) {
-      onReturnToAdminStock(
-        pendingBulkAction.serials,
-        'Bulk Return to Admin HQ Stock (Branch Code 100)'
-      );
+    } else if (pendingBulkAction.type === 'RETURN_ADMIN') {
+      if (isAdminLike && onReturnToAdminStock) {
+        onReturnToAdminStock(
+          pendingBulkAction.serials,
+          'Bulk Return to Admin HQ Stock (Branch Code 100)'
+        );
+      } else if (!isAdminLike && onRequestReturnToAdminStock) {
+        onRequestReturnToAdminStock(
+          pendingBulkAction.serials,
+          'Bulk Return to Admin HQ Stock requested by branch'
+        );
+      }
     } else if (pendingBulkAction.type === 'REMOVE' && onRemoveFromDashboard) {
       onRemoveFromDashboard(pendingBulkAction.serials, 'Removed from active dashboard ledger');
     } else if (pendingBulkAction.type === 'RESTORE' && onRestoreToDashboard) {
@@ -577,7 +597,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-900 text-xs font-black transition cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Return to Admin Stock</span>
+                    <span>{isAdminLike ? 'Return to Admin Stock' : 'Request Return to Admin Stock'}</span>
                   </button>
 
                   {isAdminLike && (

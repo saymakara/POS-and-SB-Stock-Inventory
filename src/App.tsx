@@ -1340,6 +1340,76 @@ export function App() {
     triggerToast(`Returned ${serials.length} unit(s) back to Admin HQ Stock`);
   };
 
+  // Branch Staff Return Request: Submits a formal Stock Return Request to Admin HQ for approval
+  const handleRequestReturnToAdminStock = (
+    serials: string[],
+    reason: string = 'Return to Admin HQ Stock requested by branch'
+  ) => {
+    if (!serials.length) return;
+    const today = new Date().toISOString().split('T')[0];
+    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const affected = devices.filter((d) => serials.includes(d.serial));
+    const targetBranchId = affected[0]?.branchId || selectedBranch;
+    const branchObj = branches.find((b) => b.code === targetBranchId || b.id === targetBranchId);
+    const posCount = affected.filter((d) => d.type === 'POS Terminal').length;
+    const sbCount = affected.filter((d) => d.type === 'Sound Box').length;
+    const actor =
+      selectedStaffUser ||
+      (branchObj && branchObj.staff.length > 0 ? branchObj.staff[0] : 'Branch Staff');
+
+    const newReq: Requisition = {
+      reqId: `RET-${Date.now().toString().slice(-6)}`,
+      date: today,
+      branchId: targetBranchId,
+      branchName: branchObj?.name || `Branch Code ${targetBranchId}`,
+      staff: actor,
+      posQty: posCount,
+      sbQty: sbCount,
+      reason: reason || 'Return device to Admin HQ Stock',
+      status: 'PENDING_ADMIN',
+      type: 'STOCK_RETURN',
+      returnSerials: [...serials],
+    };
+
+    setRequisitions((prev) => [newReq, ...prev]);
+    if (isSupabaseConfigured) {
+      upsertRequisitionToSupabase(newReq).catch((err) =>
+        console.warn('[Supabase Return Requisition Error]', err)
+      );
+    }
+
+    // Update devices to record that a return request has been submitted
+    setDevices((prev) =>
+      prev.map((d) => {
+        if (!serials.includes(d.serial)) return d;
+        const nextCycleNum = (d.history || []).length + 1;
+        return {
+          ...d,
+          note: `Pending Return Approval (${newReq.reqId}). ${d.note || ''}`.trim(),
+          history: [
+            `${nowTime} | Cycle #${nextCycleNum}: Stock Return Requested | Submitted ${newReq.reqId} to Admin HQ Stock — Requested by: ${actor}`,
+            ...(d.history || []),
+          ],
+        };
+      })
+    );
+
+    addAuditLog(
+      'Stock Return Request Submitted',
+      `Submitted return request ${newReq.reqId} for ${serials.length} unit(s) (${serials.join(', ')}) from Branch Code ${targetBranchId}`
+    );
+
+    addNotification(
+      `Return Request from Branch Staff • ${newReq.reqId}`,
+      `Branch Staff ${actor} (Branch Code ${targetBranchId} — ${newReq.branchName}) requested return of ${serials.length} unit(s) (${serials.join(', ')}) to Admin HQ Stock: "${reason}"`,
+      'REQUEST',
+      targetBranchId,
+      'requisitions'
+    );
+
+    triggerToast(`Return Request ${newReq.reqId} submitted! Notified Admin HQ & Super Admin`);
+  };
+
   // Return Back to Branch Reserve (BRANCH_RESERVE)
   const handleReturnToBranchReserve = (
     serials: string[],
@@ -1867,6 +1937,49 @@ export function App() {
     }
     addAuditLog('Requisition Received', `Branch confirmed receipt of ${reqId}`);
     triggerToast(`Confirmed receipt of ${reqId}`);
+  };
+
+  // Approve & Finalize Return Requisition (Admin / Super Admin receives units into Admin HQ Stock)
+  const handleApproveReturnRequisition = (
+    reqId: string,
+    returnSerials?: string[],
+    reason?: string
+  ) => {
+    const targetReq = requisitions.find((r) => r.reqId === reqId);
+    if (!targetReq) return;
+
+    const serialsToReturn = returnSerials || targetReq.returnSerials || [];
+    if (serialsToReturn.length > 0) {
+      handleReturnToAdminStock(
+        serialsToReturn,
+        `Approved Return Request ${reqId}: ${reason || targetReq.reason}`
+      );
+    }
+
+    const updatedReq: Requisition = { ...targetReq, status: 'RECEIVED' };
+    setRequisitions((prev) =>
+      prev.map((r) => (r.reqId === reqId ? updatedReq : r))
+    );
+    if (isSupabaseConfigured) {
+      upsertRequisitionToSupabase(updatedReq).catch((err) =>
+        console.warn('[Supabase Return Requisition Approve Error]', err)
+      );
+    }
+
+    addAuditLog(
+      'Return Request Approved & Received',
+      `Admin approved return request ${reqId} for ${serialsToReturn.length} serials back to Admin HQ Stock`
+    );
+
+    addNotification(
+      `Return Approved • ${reqId} Received into Admin HQ`,
+      `Admin received ${serialsToReturn.length} returned unit(s) from Branch Code ${targetReq.branchId} (${targetReq.branchName}) into Central HQ Stock.`,
+      'STOCK',
+      targetReq.branchId,
+      'requisitions'
+    );
+
+    triggerToast(`Approved return ${reqId}! Units received into Admin HQ Stock`);
   };
 
   // Merchant CRM Bindings (for MerchantsCrmTab - supports both existing & newly created serials)
@@ -2793,6 +2906,7 @@ export function App() {
                       hqDevices={devices}
                       onOpenRequestModal={() => setIsReqModalOpen(true)}
                       onApproveRequisition={handleApproveRequisition}
+                      onApproveReturnRequisition={handleApproveReturnRequisition}
                       onReceiveRequisition={handleReceiveRequisition}
                       theme={theme}
                     />
@@ -2820,6 +2934,7 @@ export function App() {
                       onExportCsv={handleExportInventoryCsv}
                       onBulkAssignBranch={handleBulkAssignBranch}
                       onReturnToAdminStock={handleReturnToAdminStock}
+                      onRequestReturnToAdminStock={handleRequestReturnToAdminStock}
                       onRemoveFromDashboard={handleRemoveFromDashboard}
                       onRestoreToDashboard={handleRestoreToDashboard}
                       onChangeBattery={(sn) => {
@@ -3081,6 +3196,9 @@ export function App() {
           onSave={handleSaveWorkflow}
           onReturnToAdminStock={(sn, reason) =>
             handleReturnToAdminStock([sn], reason)
+          }
+          onRequestReturnToAdminStock={(sn, reason) =>
+            handleRequestReturnToAdminStock([sn], reason)
           }
           onReturnToBranchReserve={(sn, branchId, reason) =>
             handleReturnToBranchReserve([sn], branchId, reason)

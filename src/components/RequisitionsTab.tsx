@@ -18,6 +18,7 @@ import {
   ArrowRight,
   ArrowLeft,
   ShieldCheck,
+  RotateCcw,
 } from 'lucide-react';
 
 interface RequisitionsTabProps {
@@ -26,6 +27,7 @@ interface RequisitionsTabProps {
   hqDevices?: Device[];
   onOpenRequestModal: () => void;
   onApproveRequisition: (reqId: string, arrangedDevices?: ArrangedDeviceItem[]) => void;
+  onApproveReturnRequisition?: (reqId: string, returnSerials?: string[], reason?: string) => void;
   onReceiveRequisition: (reqId: string) => void;
   theme?: ThemeMode;
 }
@@ -36,6 +38,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   hqDevices = [],
   onOpenRequestModal,
   onApproveRequisition,
+  onApproveReturnRequisition,
   onReceiveRequisition,
   theme = 'light',
 }) => {
@@ -200,20 +203,50 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 let statusLabel = 'Pending Approval';
                 let actionBtn: React.ReactNode = null;
 
+                const isReturnReq = req.type === 'STOCK_RETURN';
+
                 if (req.status === 'PENDING_ADMIN') {
-                  statusColor = 'text-[#d99b00] dark:text-[#f6c23e]';
-                  statusLabel = 'Pending Approval';
-                  actionBtn = (
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      type="button"
-                      onClick={() => openArrangeModal(req)}
-                      className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 ml-auto cursor-pointer whitespace-nowrap shadow-xs transition"
-                    >
-                      <Truck className="w-3.5 h-3.5" />
-                      <span>Arrange &amp; Dispatch</span>
-                    </motion.button>
-                  );
+                  if (isReturnReq) {
+                    statusColor = 'text-amber-600 dark:text-amber-400';
+                    statusLabel = 'Pending Return Approval';
+                    actionBtn =
+                      role === 'SUPER_ADMIN' || role === 'ADMIN' ? (
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={() =>
+                            onApproveReturnRequisition?.(
+                              req.reqId,
+                              req.returnSerials,
+                              req.reason
+                            )
+                          }
+                          className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#1cc88a] hover:bg-[#17a673] text-white flex items-center gap-1.5 ml-auto cursor-pointer whitespace-nowrap shadow-xs transition"
+                          title="Approve and receive returned hardware units into Head Office Admin Stock"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Approve &amp; Receive to HQ</span>
+                        </motion.button>
+                      ) : (
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold text-xs flex items-center gap-1 justify-end">
+                          <span>Awaiting Admin Approval</span>
+                        </span>
+                      );
+                  } else {
+                    statusColor = 'text-[#d99b00] dark:text-[#f6c23e]';
+                    statusLabel = 'Pending Approval';
+                    actionBtn = (
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        type="button"
+                        onClick={() => openArrangeModal(req)}
+                        className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 ml-auto cursor-pointer whitespace-nowrap shadow-xs transition"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        <span>Arrange &amp; Dispatch</span>
+                      </motion.button>
+                    );
+                  }
                 } else if (req.status === 'DISPATCHED') {
                   statusColor = navyTitleClass;
                   statusLabel = 'Dispatched';
@@ -230,11 +263,11 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   );
                 } else if (req.status === 'RECEIVED') {
                   statusColor = 'text-[#1cc88a]';
-                  statusLabel = 'Received';
+                  statusLabel = isReturnReq ? 'Returned to HQ Stock' : 'Received';
                   actionBtn = (
                     <span className="text-[#1cc88a] font-bold flex items-center gap-1 justify-end whitespace-nowrap">
                       <Check className="w-3.5 h-3.5" />
-                      <span>Confirmed</span>
+                      <span>{isReturnReq ? 'Received in HQ' : 'Confirmed'}</span>
                     </span>
                   );
                 }
@@ -251,8 +284,19 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     }
                   >
                     <td className="py-3 px-3.5">
-                      <div className={`font-mono font-bold ${headingClass}`}>
-                        {req.reqId}
+                      <div className="flex items-center gap-1.5">
+                        <span className={`font-mono font-bold ${headingClass}`}>
+                          {req.reqId}
+                        </span>
+                        {isReturnReq ? (
+                          <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/80">
+                            Return
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-300/80">
+                            Request
+                          </span>
+                        )}
                       </div>
                       <div className={`text-[10px] font-mono ${subtextClass}`}>
                         {req.date}
@@ -273,7 +317,30 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       </div>
                     </td>
                     <td className="py-3 px-3.5 max-w-[300px]">
-                      {arranged.length > 0 ? (
+                      {isReturnReq ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Returning Serials ({req.returnSerials?.length || req.posQty + req.sbQty}):</span>
+                          </span>
+                          {req.returnSerials && req.returnSerials.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {req.returnSerials.map((sn) => (
+                                <span
+                                  key={sn}
+                                  className="px-1.5 py-0.5 rounded font-mono text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200"
+                                >
+                                  {sn}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className={`text-[11px] ${subtextClass}`}>
+                              {req.posQty}x POS · {req.sbQty}x Sound Box
+                            </span>
+                          )}
+                        </div>
+                      ) : arranged.length > 0 ? (
                         <div className="flex flex-col gap-1">
                           {arranged.slice(0, 4).map((item, i) => (
                             <div
