@@ -626,6 +626,8 @@ export function App() {
   const [batteryModalDevice, setBatteryModalDevice] = useState<Device | null>(null);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isReqModalOpen, setIsReqModalOpen] = useState(false);
+  const [fulfillingRequisition, setFulfillingRequisition] = useState<Requisition | null>(null);
+  const [stagedFulfillmentItems, setStagedFulfillmentItems] = useState<ArrangedDeviceItem[] | null>(null);
   const [isNewBranchModalOpen, setIsNewBranchModalOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -1988,6 +1990,66 @@ export function App() {
       'requisitions'
     );
     triggerToast(`Dispatched requisition ${reqId} to Branch Code ${targetReq.branchId}`);
+    setFulfillingRequisition(null);
+    setStagedFulfillmentItems(null);
+  };
+
+  const handleDirectToStockInventory = (
+    req: Requisition,
+    _currentStaged?: ArrangedDeviceItem[]
+  ) => {
+    setFulfillingRequisition(req);
+    setStageFilter('HQ_STOCK');
+    setBranchFilter('100');
+    setActiveTab('inventory');
+    triggerToast(
+      `Directing to Stock Inventory: Select ${req.posQty} POS & ${req.sbQty} Sound Box for Requisition ${req.reqId}`
+    );
+  };
+
+  const handleConfirmFulfillment = (selectedSerials: string[]) => {
+    if (!fulfillingRequisition) return;
+    const selectedDevices = devices.filter((d) => selectedSerials.includes(d.serial));
+    const staged: ArrangedDeviceItem[] = selectedDevices.map((d, idx) => ({
+      serial: d.serial,
+      batterySerial:
+        d.batterySerial || deriveBatterySerial(d.serial, d.type === 'POS Terminal', idx),
+      type: d.type,
+      model: d.model,
+    }));
+
+    // Pad remaining quotas if fewer than required were selected
+    const posChosen = staged.filter((s) => s.type === 'POS Terminal').length;
+    for (let i = posChosen; i < fulfillingRequisition.posQty; i++) {
+      staged.push({
+        serial: '',
+        batterySerial: '',
+        type: 'POS Terminal',
+        model: 'Wizar POS Q2 Pro',
+      });
+    }
+    const sbChosen = staged.filter((s) => s.type === 'Sound Box').length;
+    for (let i = sbChosen; i < fulfillingRequisition.sbQty; i++) {
+      staged.push({
+        serial: '',
+        batterySerial: '',
+        type: 'Sound Box',
+        model: 'Sound Box',
+      });
+    }
+
+    setStagedFulfillmentItems(staged);
+    setActiveTab('requisitions');
+    triggerToast(
+      `Loaded ${selectedDevices.length} serial(s) from Stock Inventory into Requisition ${fulfillingRequisition.reqId}.`
+    );
+  };
+
+  const handleCancelFulfillment = () => {
+    setFulfillingRequisition(null);
+    setStagedFulfillmentItems(null);
+    setStageFilter('ALL');
+    setBranchFilter('ALL');
   };
 
   const handleReceiveRequisition = (reqId: string) => {
@@ -2985,6 +3047,13 @@ export function App() {
                       onApproveReturnRequisition={handleApproveReturnRequisition}
                       onReceiveRequisition={handleReceiveRequisition}
                       theme={theme}
+                      onDirectToStockInventory={handleDirectToStockInventory}
+                      externalArrangingReq={fulfillingRequisition}
+                      externalStagedItems={stagedFulfillmentItems}
+                      onClearExternalArranging={() => {
+                        setFulfillingRequisition(null);
+                        setStagedFulfillmentItems(null);
+                      }}
                     />
                   )}
 
@@ -3019,6 +3088,9 @@ export function App() {
                       }}
                       customFields={appSettings.customFields}
                       syncingSerials={syncingSerials}
+                      fulfillingRequisition={fulfillingRequisition}
+                      onConfirmFulfillment={handleConfirmFulfillment}
+                      onCancelFulfillment={handleCancelFulfillment}
                     />
                   )}
 

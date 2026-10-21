@@ -7,6 +7,7 @@ import {
   STAGE_ORDER,
   getBatteryLifecycleStatus,
   CustomFieldDefinition,
+  Requisition,
 } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { detectDuplicateMids } from '../utils/crmUtils';
@@ -36,6 +37,7 @@ import {
   X,
   ArrowRight,
   Upload,
+  Truck,
 } from 'lucide-react';
 
 interface InventoryTabProps {
@@ -71,6 +73,9 @@ interface InventoryTabProps {
   theme?: ThemeMode;
   customFields?: CustomFieldDefinition[];
   syncingSerials?: Set<string>;
+  fulfillingRequisition?: Requisition | null;
+  onConfirmFulfillment?: (selectedSerials: string[]) => void;
+  onCancelFulfillment?: () => void;
 }
 
 export const InventoryTab: React.FC<InventoryTabProps> = ({
@@ -102,6 +107,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   theme,
   customFields,
   syncingSerials,
+  fulfillingRequisition,
+  onConfirmFulfillment,
+  onCancelFulfillment,
 }) => {
   const [selectedSns, setSelectedSns] = useState<string[]>([]);
   const [targetBulkBranch, setTargetBulkBranch] = useState<string>('101');
@@ -218,6 +226,19 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     const firstTen = pagedDevices.slice(0, 10).map((d) => d.serial);
     setSelectedSns(firstTen);
   };
+
+  const { selectedPosCount, selectedSbCount } = useMemo(() => {
+    let pos = 0;
+    let sb = 0;
+    const selectedSet = new Set(selectedSns);
+    for (const d of allDevices) {
+      if (selectedSet.has(d.serial)) {
+        if (d.type === 'POS Terminal') pos++;
+        else if (d.type === 'Sound Box') sb++;
+      }
+    }
+    return { selectedPosCount: pos, selectedSbCount: sb };
+  }, [selectedSns, allDevices]);
 
   // Double-Step Bulk Action State
   interface PendingBulkAction {
@@ -544,6 +565,87 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           )}
         </div>
       </div>
+
+      {/* GUIDED REQUISITION FULFILLMENT BANNER */}
+      {fulfillingRequisition && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl p-4 border shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-[#003857] text-white border-sky-400/30"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
+              <Truck className="w-5 h-5 text-sky-200" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-extrabold flex flex-wrap items-center gap-2">
+                <span>Select Hardware for Requisition {fulfillingRequisition.reqId}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] bg-sky-400/20 text-sky-200 border border-sky-400/30 font-mono">
+                  Target Branch Code {fulfillingRequisition.branchId} ({fulfillingRequisition.branchName.replace(' Branch', '')})
+                </span>
+              </div>
+              <div className="text-xs text-sky-100/90 mt-1 flex flex-wrap items-center gap-2.5">
+                <span>
+                  Quota:{' '}
+                  <strong>{fulfillingRequisition.posQty} POS</strong> &amp;{' '}
+                  <strong>{fulfillingRequisition.sbQty} Sound Box</strong>
+                </span>
+                <span className="opacity-40">|</span>
+                <span>
+                  Selected:{' '}
+                  <span
+                    className={`font-mono font-extrabold ${
+                      selectedPosCount === fulfillingRequisition.posQty
+                        ? 'text-emerald-300'
+                        : selectedPosCount > fulfillingRequisition.posQty
+                        ? 'text-rose-300'
+                        : 'text-amber-300'
+                    }`}
+                  >
+                    {selectedPosCount}/{fulfillingRequisition.posQty} POS
+                  </span>
+                  {', '}
+                  <span
+                    className={`font-mono font-extrabold ${
+                      selectedSbCount === fulfillingRequisition.sbQty
+                        ? 'text-emerald-300'
+                        : selectedSbCount > fulfillingRequisition.sbQty
+                        ? 'text-rose-300'
+                        : 'text-amber-300'
+                    }`}
+                  >
+                    {selectedSbCount}/{fulfillingRequisition.sbQty} Sound Box
+                  </span>
+                  {' '}(Total: {selectedSns.length} units)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {onCancelFulfillment && (
+              <button
+                type="button"
+                onClick={onCancelFulfillment}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white cursor-pointer transition border border-white/15"
+              >
+                Cancel Selection
+              </button>
+            )}
+            {onConfirmFulfillment && (
+              <button
+                type="button"
+                disabled={selectedSns.length === 0}
+                onClick={() => onConfirmFulfillment(selectedSns)}
+                className="px-4 py-2 rounded-xl text-xs font-extrabold bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-slate-950 flex items-center gap-1.5 shadow-md cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Confirm Selection ({selectedSns.length}) &amp; Dispatch ➔</span>
+              </button>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* MULTI-SELECTION & BULK ASSIGNMENT COMMAND BAR (Dark Charcoal matching Sidebar) */}
       <AnimatePresence>

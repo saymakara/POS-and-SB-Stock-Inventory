@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   ShieldCheck,
   RotateCcw,
+  Package,
 } from 'lucide-react';
 
 interface RequisitionsTabProps {
@@ -30,6 +31,10 @@ interface RequisitionsTabProps {
   onApproveReturnRequisition?: (reqId: string, returnSerials?: string[], reason?: string) => void;
   onReceiveRequisition: (reqId: string) => void;
   theme?: ThemeMode;
+  onDirectToStockInventory?: (req: Requisition, currentStaged?: ArrangedDeviceItem[]) => void;
+  externalArrangingReq?: Requisition | null;
+  externalStagedItems?: ArrangedDeviceItem[] | null;
+  onClearExternalArranging?: () => void;
 }
 
 export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
@@ -41,16 +46,31 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   onApproveReturnRequisition,
   onReceiveRequisition,
   theme = 'light',
+  onDirectToStockInventory,
+  externalArrangingReq,
+  externalStagedItems,
+  onClearExternalArranging,
 }) => {
   const isLight = theme === 'light';
   const [arrangingReq, setArrangingReq] = useState<Requisition | null>(null);
   const [stagedItems, setStagedItems] = useState<ArrangedDeviceItem[]>([]);
 
+  useEffect(() => {
+    if (externalArrangingReq && externalStagedItems) {
+      setArrangingReq(externalArrangingReq);
+      setStagedItems(externalStagedItems);
+      setArrangeStep('ARRANGE');
+      if (onClearExternalArranging) {
+        onClearExternalArranging();
+      }
+    }
+  }, [externalArrangingReq, externalStagedItems, onClearExternalArranging]);
+
   const availableHqPos = hqDevices.filter(
-    (d) => d.stage === 'HQ_STOCK' && d.type === 'POS Terminal'
+    (d) => d.stage === 'HQ_STOCK' && d.type === 'POS Terminal' && !d.archived
   );
   const availableHqSb = hqDevices.filter(
-    (d) => d.stage === 'HQ_STOCK' && d.type === 'Sound Box'
+    (d) => d.stage === 'HQ_STOCK' && d.type === 'Sound Box' && !d.archived
   );
 
   const openArrangeModal = (req: Requisition) => {
@@ -58,10 +78,9 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
 
     for (let i = 0; i < req.posQty; i++) {
       const hqMatch = availableHqPos[i];
-      const fallbackSerial = `WP5400PQ${23200316 + i}`;
-      const serial = hqMatch ? hqMatch.serial : fallbackSerial;
+      const serial = hqMatch ? hqMatch.serial : '';
       const batterySerial =
-        hqMatch?.batterySerial || `160525A${String(5720 + i).padStart(7, '0')}`;
+        hqMatch?.batterySerial || (hqMatch ? deriveBatterySerial(hqMatch.serial, true, i) : '');
       initial.push({
         serial,
         batterySerial,
@@ -73,10 +92,9 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
     const sbModels = ['SB-Pro', 'SB-Max', 'SB-Standard', 'SB-Mini'];
     for (let i = 0; i < req.sbQty; i++) {
       const hqMatch = availableHqSb[i];
-      const fallbackSerial = `SB-00${req.branchId}${i + 1}`;
-      const serial = hqMatch ? hqMatch.serial : fallbackSerial;
+      const serial = hqMatch ? hqMatch.serial : '';
       const batterySerial =
-        hqMatch?.batterySerial || `BAT-SB-${serial.replace(/^SB-/i, '')}`;
+        hqMatch?.batterySerial || (hqMatch ? deriveBatterySerial(hqMatch.serial, false, i) : '');
       initial.push({
         serial,
         batterySerial,
@@ -236,15 +254,29 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     statusColor = 'text-[#d99b00] dark:text-[#f6c23e]';
                     statusLabel = 'Pending Approval';
                     actionBtn = (
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        type="button"
-                        onClick={() => openArrangeModal(req)}
-                        className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 ml-auto cursor-pointer whitespace-nowrap shadow-xs transition"
-                      >
-                        <Truck className="w-3.5 h-3.5" />
-                        <span>Arrange &amp; Dispatch</span>
-                      </motion.button>
+                      <div className="flex items-center gap-1.5 justify-end">
+                        {onDirectToStockInventory && (
+                          <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            type="button"
+                            onClick={() => onDirectToStockInventory(req)}
+                            className="px-2.5 py-1.5 rounded-md text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 cursor-pointer whitespace-nowrap shadow-xs transition"
+                            title="Direct to Stock Inventory to select serial numbers first"
+                          >
+                            <Package className="w-3.5 h-3.5" />
+                            <span>Select in Stock</span>
+                          </motion.button>
+                        )}
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={() => openArrangeModal(req)}
+                          className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs transition"
+                        >
+                          <Truck className="w-3.5 h-3.5" />
+                          <span>Arrange &amp; Dispatch</span>
+                        </motion.button>
+                      </div>
                     );
                   }
                 } else if (req.status === 'DISPATCHED') {
@@ -503,14 +535,27 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         Requested by {arrangingReq.staff} · Reason: {arrangingReq.reason}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openArrangeModal(arrangingReq)}
-                      className="px-2.5 py-1.5 rounded-md font-bold flex items-center gap-1 cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white transition shadow-xs"
-                    >
-                      <Wand2 className="w-3.5 h-3.5" />
-                      <span>Auto-Match from HO Stock (Code 100)</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {onDirectToStockInventory && (
+                        <button
+                          type="button"
+                          onClick={() => onDirectToStockInventory(arrangingReq, stagedItems)}
+                          className="px-3 py-1.5 rounded-md font-bold flex items-center gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs text-xs"
+                          title="Direct to Stock Inventory tab to select serial numbers from Head Office stock"
+                        >
+                          <Package className="w-3.5 h-3.5" />
+                          <span>Direct to Stock Inventory to Select SN</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openArrangeModal(arrangingReq)}
+                        className="px-2.5 py-1.5 rounded-md font-bold flex items-center gap-1 cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white transition shadow-xs text-xs"
+                      >
+                        <Wand2 className="w-3.5 h-3.5" />
+                        <span>Auto-Match from HO Stock</span>
+                      </button>
+                    </div>
                   </div>
 
                   {role === 'BRANCH' && (
@@ -562,19 +607,37 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                               />
                             </td>
                             <td className="py-2 px-3">
-                              <input
-                                type="text"
-                                required
-                                value={item.serial}
-                                onChange={(e) =>
-                                  handleUpdateStagedItem(idx, 'serial', e.target.value)
-                                }
-                                className={`w-full rounded-md px-2.5 py-1.5 text-xs font-mono font-bold border ${
-                                  isLight
-                                    ? 'bg-white border-slate-300 text-[#002f49]'
-                                    : 'bg-[#001a2c] border-[#003b5c] text-white'
-                                }`}
-                              />
+                              {(() => {
+                                const availableForType =
+                                  item.type === 'POS Terminal' ? availableHqPos : availableHqSb;
+                                return (
+                                  <select
+                                    required
+                                    value={item.serial}
+                                    onChange={(e) =>
+                                      handleUpdateStagedItem(idx, 'serial', e.target.value)
+                                    }
+                                    className={`w-full rounded-md px-2.5 py-1.5 text-xs font-mono font-bold border ${
+                                      isLight
+                                        ? 'bg-white border-slate-300 text-[#002f49]'
+                                        : 'bg-[#001a2c] border-[#003b5c] text-white'
+                                    }`}
+                                  >
+                                    <option value="">-- Select from Stock Inventory --</option>
+                                    {availableForType.map((d) => (
+                                      <option key={d.serial} value={d.serial}>
+                                        {d.serial} — {d.model} {d.batterySerial ? `(Bat: ${d.batterySerial})` : ''}
+                                      </option>
+                                    ))}
+                                    {item.serial &&
+                                      !availableForType.some((d) => d.serial === item.serial) && (
+                                        <option value={item.serial}>
+                                          {item.serial} ({item.model || 'Selected'})
+                                        </option>
+                                      )}
+                                  </select>
+                                );
+                              })()}
                             </td>
                             <td className="py-2 px-3">
                               <input
