@@ -211,6 +211,14 @@ th.sticky {
   border-radius: 0.65rem;
 }
 
+/* Natural Amber Status Point with Soft Organic Halo */
+.natural-amber-point {
+  background-color: #f59e0b;
+  box-shadow:
+    0 0 0 3px rgba(245, 158, 11, 0.25),
+    0 0 8px rgba(245, 158, 11, 0.45);
+}
+
 /* Natural Red Status Point with Soft Organic Halo */
 .natural-red-point {
   background-color: #f43f5e;
