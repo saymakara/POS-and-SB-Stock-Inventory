@@ -390,8 +390,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 </span>
               </div>
               <div className="text-[11px] text-slate-600 mt-0.5">
-                POS: <strong className="text-zinc-900">{selectedMonthStats.posInstalled}</strong> · Soundbox:{' '}
-                <strong className="text-slate-700">{selectedMonthStats.sbInstalled}</strong>
+                POS: <strong className="text-[#003857]">{selectedMonthStats.posInstalled}</strong> · Sound Box:{' '}
+                <strong className="text-emerald-600">{selectedMonthStats.sbInstalled}</strong>
               </div>
             </div>
 
@@ -446,10 +446,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       labels={monthlyData.map((m) => m.shortLabel)}
                       series1Label="POS Terminal Installed"
                       series1Data={monthlyData.map((m) => m.posInstalled)}
-                      series1Color="#18191e"
+                      series1Color="#003857"
                       series2Label="Sound Box Installed"
                       series2Data={monthlyData.map((m) => m.sbInstalled)}
-                      series2Color="#64748b"
+                      series2Color="#10b981"
                       height={240}
                       theme="light"
                     />
@@ -520,7 +520,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                             POS Terminal: <strong className="text-[#003857]">{m.posInstalled}</strong> ({posPct}%)
                           </span>
                           <span>
-                            Sound Box: <strong className="text-slate-700">{m.sbInstalled}</strong> ({sbPct}%)
+                            Sound Box: <strong className="text-emerald-600">{m.sbInstalled}</strong> ({sbPct}%)
                           </span>
                           <span className="text-[#002f49] font-extrabold">
                             Total: {m.total}
@@ -530,11 +530,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-200">
                         <div
                           style={{ width: `${posPct}%` }}
-                          className="h-full bg-[#18191e]"
+                          className="h-full bg-[#003857]"
                         />
                         <div
                           style={{ width: `${sbPct}%` }}
-                          className="h-full bg-slate-500"
+                          className="h-full bg-[#10b981]"
                         />
                       </div>
                     </div>
@@ -558,7 +558,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   series1Color="#003857"
                   series2Label="Sound Box Units"
                   series2Data={topBranchesChart.sbSeries}
-                  series2Color="#64748b"
+                  series2Color="#10b981"
                   height={240}
                   theme="light"
                 />

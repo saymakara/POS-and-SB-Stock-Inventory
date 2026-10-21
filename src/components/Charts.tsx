@@ -78,11 +78,11 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
 
     const isLight = theme === 'light';
 
-    const legendTextColor = isLight ? '#18191e' : '#e2e8f0';
+    const legendTextColor = isLight ? '#0f172a' : '#e2e8f0';
     const gridLineColor = isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)';
     const axisTextColor = isLight ? '#64748b' : '#94a3b8';
-    const valueTextColor = isLight ? '#18191e' : '#f8fafc';
-    const labelTextColor = isLight ? '#18191e' : '#cbd5e1';
+    const valueTextColor = isLight ? '#0f172a' : '#f8fafc';
+    const labelTextColor = isLight ? '#334155' : '#cbd5e1';
     const chartFont = '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif';
 
     // Legend
@@ -104,7 +104,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
 
     const padLeft = 36;
     const padRight = 16;
-    const padTop = 36;
+    const padTop = 38;
     const padBottom = 38;
     const plotW = Math.max(100, width - padLeft - padRight);
     const plotH = Math.max(80, height - padTop - padBottom);
@@ -149,15 +149,17 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
       ctx.roundRect(gx + barW + 4, padTop + plotH - h2, barW, h2, [4, 4, 0, 0]);
       ctx.fill();
 
-      // Value annotations
+      // Value annotations (centered above bars)
       ctx.font = `700 10px ${chartFont}`;
       if (v1 > 0) {
         ctx.fillStyle = valueTextColor;
-        ctx.fillText(String(v1), gx + 2, padTop + plotH - h1 - 4);
+        const tw1 = ctx.measureText(String(v1)).width;
+        ctx.fillText(String(v1), gx + (barW - tw1) / 2, padTop + plotH - h1 - 4);
       }
       if (v2 > 0) {
         ctx.fillStyle = valueTextColor;
-        ctx.fillText(String(v2), gx + barW + 6, padTop + plotH - h2 - 4);
+        const tw2 = ctx.measureText(String(v2)).width;
+        ctx.fillText(String(v2), gx + barW + 4 + (barW - tw2) / 2, padTop + plotH - h2 - 4);
       }
 
       // X-axis label
