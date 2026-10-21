@@ -443,13 +443,13 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 12 }}
                   transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
-                  className={`my-auto border rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
+                  className={`my-auto border-0 rounded-3xl w-full max-w-5xl xl:max-w-6xl shadow-2xl overflow-hidden flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
                     isLight
-                      ? 'bg-white border-slate-200 text-slate-900'
-                      : 'bg-[#18191e] border-white/10 text-slate-100'
+                      ? 'bg-white text-slate-900'
+                      : 'bg-[#121622] text-slate-100'
                   }`}
                 >
-              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
+              <div className="navy-header-bar rounded-t-3xl px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10">
                 <div>
                   <h3 className="text-base font-bold flex items-center gap-2">
                     <BatteryCharging className="w-5 h-5 text-sky-400" />
@@ -464,7 +464,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setArrangingReq(null)}
-                  className="text-slate-300 hover:text-white p-1.5 rounded-lg cursor-pointer"
+                  className="p-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -472,9 +472,9 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
 
               {/* Stepper Progress Bar */}
               <div
-                className={`px-6 py-2.5 border-b flex items-center justify-between text-xs ${
+                className={`px-6 py-3 border-b flex items-center justify-between text-xs ${
                   isLight
-                    ? 'bg-slate-50 border-slate-200 text-slate-700'
+                    ? 'bg-slate-50/90 border-slate-200 text-slate-700'
                     : 'bg-[#151922] border-slate-800 text-slate-300'
                 }`}
               >
@@ -521,17 +521,17 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               {arrangeStep === 'ARRANGE' ? (
                 <form onSubmit={handleProceedToPreview} className="p-6 flex flex-col gap-4 text-xs">
                   <div
-                    className={`p-3 rounded-lg border flex flex-wrap items-center justify-between gap-2 ${
+                    className={`p-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${
                       isLight
-                        ? 'bg-slate-50 border-slate-200'
+                        ? 'bg-slate-50/70 border-slate-200'
                         : 'bg-[#18191e] border-white/10'
                     }`}
                   >
                     <div>
-                      <span className="font-bold">
+                      <span className="font-bold text-sm">
                         Target Branch: Code {arrangingReq.branchId} — {arrangingReq.branchName}
                       </span>
-                      <span className={`block text-[11px] ${subtextClass}`}>
+                      <span className={`block text-xs mt-0.5 ${subtextClass}`}>
                         Requested by {arrangingReq.staff} · Reason: {arrangingReq.reason}
                       </span>
                     </div>
@@ -540,7 +540,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         <button
                           type="button"
                           onClick={() => onDirectToStockInventory(arrangingReq, stagedItems)}
-                          className="px-3 py-1.5 rounded-md font-bold flex items-center gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs text-xs"
+                          className="px-3.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs text-xs"
                           title="Direct to Stock Inventory tab to select serial numbers from Head Office stock"
                         >
                           <Package className="w-3.5 h-3.5" />
@@ -550,7 +550,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       <button
                         type="button"
                         onClick={() => openArrangeModal(arrangingReq)}
-                        className="px-2.5 py-1.5 rounded-md font-bold flex items-center gap-1 cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white transition shadow-xs text-xs"
+                        className="px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white transition shadow-xs text-xs"
                       >
                         <Wand2 className="w-3.5 h-3.5" />
                         <span>Auto-Match from HO Stock</span>
@@ -564,15 +564,15 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     </div>
                   )}
 
-                  <div className="overflow-x-auto max-h-80 border rounded-lg border-[#cbd8e3] dark:border-[#003b5c]">
+                  <div className="overflow-x-auto max-h-[520px] rounded-xl border border-slate-200 dark:border-[#003b5c] shadow-2xs">
                     <table className="w-full text-left text-xs">
-                      <thead className="glass-table-thead text-[10px] uppercase font-extrabold">
+                      <thead className="glass-table-thead text-[11px] uppercase font-extrabold sticky top-0 z-10 shadow-xs">
                         <tr>
-                          <th className="py-2.5 px-3">#</th>
-                          <th className="py-2.5 px-3">Device Type</th>
-                          <th className="py-2.5 px-3">Model</th>
-                          <th className="py-2.5 px-3">Arranged Device Serial *</th>
-                          <th className="py-2.5 px-3">Arranged Battery Serial *</th>
+                          <th className="py-3 px-3.5 w-12 text-center">#</th>
+                          <th className="py-3 px-4 w-36">Device Type</th>
+                          <th className="py-3 px-4 w-44">Model</th>
+                          <th className="py-3 px-4 min-w-[280px]">Arranged Device Serial *</th>
+                          <th className="py-3 px-4 w-56">Arranged Battery Serial *</th>
                         </tr>
                       </thead>
                       <tbody
@@ -581,32 +581,32 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         }`}
                       >
                         {stagedItems.map((item, idx) => (
-                          <tr key={idx}>
-                            <td className="py-2 px-3 font-mono font-bold">
+                          <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
+                            <td className="py-2.5 px-3.5 font-mono font-bold text-center text-slate-500">
                               {idx + 1}
                             </td>
-                            <td className="py-2 px-3 font-bold">
+                            <td className="py-2.5 px-4 font-bold">
                               {item.type === 'POS Terminal' ? (
                                 <span className={navyTitleClass}>POS Terminal</span>
                               ) : (
                                 <span className="text-[#1cc88a]">Sound Box</span>
                               )}
                             </td>
-                            <td className="py-2 px-3">
+                            <td className="py-2.5 px-4">
                               <input
                                 type="text"
                                 value={item.model}
                                 onChange={(e) =>
                                   handleUpdateStagedItem(idx, 'model', e.target.value)
                                 }
-                                className={`w-full rounded-md px-2.5 py-1.5 text-xs border ${
+                                className={`w-full rounded-lg px-3 py-2 text-xs border ${
                                   isLight
-                                    ? 'bg-white border-slate-300 text-[#002f49]'
-                                    : 'bg-[#001a2c] border-[#003b5c] text-white'
+                                    ? 'bg-white border-slate-300 text-[#002f49] focus:border-[#003857]'
+                                    : 'bg-[#001a2c] border-[#003b5c] text-white focus:border-sky-400'
                                 }`}
                               />
                             </td>
-                            <td className="py-2 px-3">
+                            <td className="py-2.5 px-4">
                               {(() => {
                                 const availableForType =
                                   item.type === 'POS Terminal' ? availableHqPos : availableHqSb;
@@ -617,10 +617,10 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                                     onChange={(e) =>
                                       handleUpdateStagedItem(idx, 'serial', e.target.value)
                                     }
-                                    className={`w-full rounded-md px-2.5 py-1.5 text-xs font-mono font-bold border ${
+                                    className={`w-full rounded-lg px-3 py-2 text-xs font-mono font-bold border ${
                                       isLight
-                                        ? 'bg-white border-slate-300 text-[#002f49]'
-                                        : 'bg-[#001a2c] border-[#003b5c] text-white'
+                                        ? 'bg-white border-slate-300 text-[#002f49] focus:border-[#003857]'
+                                        : 'bg-[#001a2c] border-[#003b5c] text-white focus:border-sky-400'
                                     }`}
                                   >
                                     <option value="">-- Select from Stock Inventory --</option>
@@ -639,7 +639,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                                 );
                               })()}
                             </td>
-                            <td className="py-2 px-3">
+                            <td className="py-2.5 px-4">
                               <input
                                 type="text"
                                 required
@@ -651,10 +651,10 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                                     e.target.value
                                   )
                                 }
-                                className={`w-full rounded-md px-2.5 py-1.5 text-xs font-mono font-bold border ${
+                                className={`w-full rounded-lg px-3 py-2 text-xs font-mono font-bold border ${
                                   isLight
-                                    ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-slate-500'
-                                    : 'bg-black/20 border-white/10 text-white focus:border-white/30'
+                                    ? 'bg-white border-slate-300 text-slate-900 focus:border-[#003857]'
+                                    : 'bg-black/20 border-white/10 text-white focus:border-sky-400'
                                 }`}
                               />
                             </td>
@@ -664,7 +664,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     </table>
                   </div>
 
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-[#003b5c]">
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-[#003b5c]">
                     <button
                       type="button"
                       onClick={() => setArrangingReq(null)}
@@ -721,25 +721,25 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   </div>
 
                   {/* Arranged Items Preview Table */}
-                  <div className="overflow-x-auto max-h-60 border rounded-xl border-slate-200">
+                  <div className="overflow-x-auto max-h-[460px] rounded-xl border border-slate-200">
                     <table className="w-full text-left text-xs">
-                      <thead className="glass-table-thead text-[10px] uppercase font-extrabold">
+                      <thead className="glass-table-thead text-[11px] uppercase font-extrabold sticky top-0 z-10 shadow-xs">
                         <tr>
-                          <th className="py-2 px-3">#</th>
-                          <th className="py-2 px-3">Device Type</th>
-                          <th className="py-2 px-3">Model</th>
-                          <th className="py-2 px-3">Serial Number</th>
-                          <th className="py-2 px-3">Battery Serial</th>
+                          <th className="py-2.5 px-3.5 w-12 text-center">#</th>
+                          <th className="py-2.5 px-4 w-36">Device Type</th>
+                          <th className="py-2.5 px-4 w-44">Model</th>
+                          <th className="py-2.5 px-4 min-w-[280px]">Serial Number</th>
+                          <th className="py-2.5 px-4 w-56">Battery Serial</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 bg-white">
                         {stagedItems.map((item, idx) => (
                           <tr key={idx} className="hover:bg-slate-50">
-                            <td className="py-1.5 px-3 font-mono font-bold text-slate-500">{idx + 1}</td>
-                            <td className="py-1.5 px-3 font-semibold text-slate-800">{item.type}</td>
-                            <td className="py-1.5 px-3 text-slate-600">{item.model}</td>
-                            <td className="py-1.5 px-3 font-mono font-bold text-[#1e5b88]">{item.serial}</td>
-                            <td className="py-1.5 px-3 font-mono text-slate-700">{item.batterySerial}</td>
+                            <td className="py-2 px-3.5 font-mono font-bold text-center text-slate-500">{idx + 1}</td>
+                            <td className="py-2 px-4 font-semibold text-slate-800">{item.type}</td>
+                            <td className="py-2 px-4 text-slate-600">{item.model}</td>
+                            <td className="py-2 px-4 font-mono font-bold text-[#1e5b88]">{item.serial}</td>
+                            <td className="py-2 px-4 font-mono text-slate-700">{item.batterySerial}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -752,7 +752,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-200">
                     <button
                       type="button"
                       onClick={() => setArrangeStep('ARRANGE')}
