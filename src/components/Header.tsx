@@ -485,8 +485,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   return (
     <header className="sticky top-0 z-40 bg-white/82 backdrop-blur-2xl text-zinc-900 border-b border-zinc-200/80 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all duration-200">
       <div className="h-[4.5rem] px-4 sm:px-6 flex items-center justify-between gap-3">
-        {/* Left: Sidebar Toggle & Role Authority Badge */}
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        {/* Left: Sidebar Toggle, Operator Name & Role Authority Badge */}
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           {onToggleSidebar && (
             <motion.button
               whileTap={{ scale: 0.92 }}
@@ -498,6 +498,14 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               <Menu className="w-4 h-4" />
             </motion.button>
           )}
+
+          {/* Operator Name Pill (Placed Before Role) */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-white/80 border-zinc-200 text-zinc-900 backdrop-blur-md shrink-0 shadow-2xs">
+            <Users className="w-3.5 h-3.5 text-zinc-700 shrink-0" />
+            <span className="text-xs font-bold text-zinc-800 truncate max-w-[140px] sm:max-w-none">
+              {role !== 'BRANCH' ? activeAdminStaff : activeStaff}
+            </span>
+          </div>
 
           {/* Clean Grey Text-Only Role Authority Badge (No Logo) */}
           <div className="flex items-center px-3 py-1.5 rounded-xl border border-slate-200/90 bg-slate-100/90 shadow-2xs shrink-0 select-none">
@@ -514,23 +522,12 @@ export const Header: React.FC<HeaderProps> = React.memo(({
 
         {/* Right Controls */}
         <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* Institutional User Identity & Branch Assignment Display */}
-          {role !== 'BRANCH' ? (
+          {/* Branch Assignment Display (Branch Role Only) */}
+          {role === 'BRANCH' && (
             <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-white/80 border-zinc-200 text-zinc-900 backdrop-blur-md shrink-0">
-              <Users className="w-3.5 h-3.5 text-zinc-700 shrink-0" />
-              <span className="text-xs font-bold text-zinc-800">
-                {activeAdminStaff}
-              </span>
-            </div>
-          ) : (
-            <div className="hidden xl:flex items-center gap-2 px-2.5 py-1.5 rounded-xl border bg-white/80 border-zinc-200 text-zinc-900 backdrop-blur-md shrink-0">
               <Building2 className="w-3.5 h-3.5 text-zinc-700 shrink-0" />
               <span className="text-xs font-bold text-zinc-800">
                 {currentBranch ? `Branch Code ${currentBranch.id} - ${currentBranch.name.replace(' Branch', '')}` : `Branch Code ${activeBranchId}`}
-              </span>
-              <span className="opacity-30">|</span>
-              <span className="text-xs font-semibold text-zinc-700 font-mono">
-                {activeStaff}
               </span>
             </div>
           )}
