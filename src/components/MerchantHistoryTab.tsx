@@ -683,7 +683,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         <button
                           type="button"
                           onClick={() => setSelectedRecord(rec)}
-                          className="px-2.5 py-1 rounded-md bg-[#003857] hover:bg-[#002a42] text-white text-[10px] font-extrabold shadow-2xs transition cursor-pointer whitespace-nowrap"
+                          className="px-2.5 py-1 rounded-md bg-[#003857] hover:bg-[#002a42] text-white text-[10px] font-normal shadow-2xs transition cursor-pointer whitespace-nowrap"
                         >
                           View Details
                         </button>

@@ -632,7 +632,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                             <button
                               type="button"
                               onClick={() => onSelectBranchFilter(b.code)}
-                              className="px-2.5 py-1 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white font-bold text-xs transition inline-flex items-center gap-1 cursor-pointer"
+                              className="px-2.5 py-1 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white font-normal text-xs transition inline-flex items-center gap-1 cursor-pointer"
                               title={`Open filtered hardware stock ledger for Branch Code ${b.code}`}
                             >
                               <span>Stock Ledger</span>
@@ -706,7 +706,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                                     <button
                                       type="button"
                                       onClick={() => onSelectBranchFilter(b.code)}
-                                      className="text-[10px] text-zinc-800 hover:underline font-bold cursor-pointer"
+                                      className="text-[10px] text-zinc-800 hover:underline font-normal cursor-pointer"
                                     >
                                       View All in Stock Ledger &rarr;
                                     </button>
