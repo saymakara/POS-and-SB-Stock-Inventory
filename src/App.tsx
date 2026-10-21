@@ -72,6 +72,31 @@ const STORAGE_KEY_WEBHOOKS = 'crm_pos_mobile_webhooks_v11';
 const STORAGE_KEY_NOTIFS = 'crm_pos_notifs_v11';
 const STORAGE_KEY_HISTORICAL_MERCHANTS = 'crm_pos_historical_merchants_v11';
 const STORAGE_KEY_SETTINGS = 'crm_pos_settings_v11';
+const STORAGE_KEY_AUTH_SESSION = 'crm_pos_auth_session_v1';
+
+interface StoredAuthSession {
+  role: UserRole;
+  operatorLabel: string;
+  branchId: string;
+  username: string;
+}
+
+const getInitialAuthSession = (): StoredAuthSession | null => {
+  try {
+    const raw =
+      localStorage.getItem(STORAGE_KEY_AUTH_SESSION) ||
+      sessionStorage.getItem(STORAGE_KEY_AUTH_SESSION);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.role && parsed.operatorLabel) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to parse initial auth session:', e);
+  }
+  return null;
+};
 
 const INITIAL_WEBHOOK_EVENTS: MobileWebhookEvent[] = [
   {
@@ -145,9 +170,13 @@ export function App() {
     document.documentElement.classList.remove('dark');
   }, []);
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return Boolean(getInitialAuthSession());
+  });
   const [isSessionLocked, setIsSessionLocked] = useState<boolean>(false);
-  const [authUsername, setAuthUsername] = useState<string>('SAY Chanmakara (8986)');
+  const [authUsername, setAuthUsername] = useState<string>(() => {
+    return getInitialAuthSession()?.operatorLabel || '';
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
 
@@ -532,10 +561,26 @@ export function App() {
     }
   }, [notifications]);
 
-  const [role, setRole] = useState<UserRole>('SUPER_ADMIN');
-  const [selectedBranch, setSelectedBranch] = useState<string>('105');
-  const [selectedStaffUser, setSelectedStaffUser] = useState<string>('NI Oudomroth (10811)');
-  const [activeAdminStaff, setActiveAdminStaff] = useState<string>('SAY Chanmakara (8986)');
+  const [role, setRole] = useState<UserRole>(() => {
+    return getInitialAuthSession()?.role || 'BRANCH';
+  });
+  const [selectedBranch, setSelectedBranch] = useState<string>(() => {
+    return getInitialAuthSession()?.branchId || '105';
+  });
+  const [selectedStaffUser, setSelectedStaffUser] = useState<string>(() => {
+    const session = getInitialAuthSession();
+    if (session && session.role === 'BRANCH') {
+      return session.operatorLabel;
+    }
+    return 'NI Oudomroth (10811)';
+  });
+  const [activeAdminStaff, setActiveAdminStaff] = useState<string>(() => {
+    const session = getInitialAuthSession();
+    if (session && session.role !== 'BRANCH') {
+      return session.operatorLabel;
+    }
+    return 'SAY Chanmakara (8986)';
+  });
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [settingsSubTab, setSettingsSubTab] = useState<
     'policy' | 'branches' | 'brand_logo' | 'hardware' | 'sla' | 'customFields' | 'data' | 'security'
@@ -781,7 +826,26 @@ export function App() {
     operatorLabel: string;
     branchId: string;
     username: string;
+    rememberMe?: boolean;
   }) => {
+    const sessionData: StoredAuthSession = {
+      role: params.role,
+      operatorLabel: params.operatorLabel,
+      branchId: params.branchId,
+      username: params.username,
+    };
+    try {
+      if (params.rememberMe !== false) {
+        localStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(sessionData));
+        sessionStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
+      } else {
+        sessionStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(sessionData));
+        localStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
+      }
+    } catch (e) {
+      console.error('Failed to persist auth session:', e);
+    }
+
     setRole(params.role);
     setAuthUsername(params.operatorLabel);
     if (params.role === 'BRANCH') {
@@ -2776,6 +2840,10 @@ export function App() {
               addAuditLog('Session Manually Locked', 'Workstation session manually locked by operator');
             }}
             onSignOut={() => {
+              try {
+                localStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
+                sessionStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
+              } catch {}
               addAuditLog('Session Terminated', 'Operator signed out of workstation session');
               setIsSessionLocked(false);
               setIsBatchModalOpen(false);

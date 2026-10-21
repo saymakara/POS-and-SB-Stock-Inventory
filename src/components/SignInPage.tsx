@@ -23,6 +23,7 @@ interface SignInPageProps {
     operatorLabel: string;
     branchId: string;
     username: string;
+    rememberMe?: boolean;
   }) => void;
 }
 
@@ -173,6 +174,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
         operatorLabel: operator.operatorLabel,
         branchId: operator.branchId,
         username: operator.username,
+        rememberMe,
       });
     }, 250);
   };
