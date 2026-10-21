@@ -7,7 +7,7 @@ import {
   Building2,
   Settings,
   CheckCircle2,
-  AlertOctagon,
+  RotateCcw,
   SearchX,
 } from 'lucide-react';
 
@@ -23,7 +23,7 @@ const STAGE_ICONS: Record<LifecycleStage, React.ReactNode> = {
   BRANCH_RESERVE: <Building2 className="w-4 h-4" />,
   CONFIGURING: <Settings className="w-4 h-4" />,
   COMPLETE: <CheckCircle2 className="w-4 h-4" />,
-  FAULTY: <AlertOctagon className="w-4 h-4" />,
+  FAULTY: <RotateCcw className="w-4 h-4" />,
   LOST: <SearchX className="w-4 h-4" />,
 };
 
@@ -64,7 +64,7 @@ const STAGE_STYLES: Record<
     accentBar: 'bg-rose-700',
     iconBox: 'bg-rose-50 text-rose-800 border-rose-200',
     ringActive: 'ring-2 ring-rose-700 border-rose-700',
-    subtitle: 'Terminated & Returned',
+    subtitle: 'Returned to Stock',
   },
   LOST: {
     accentBar: 'bg-amber-600',

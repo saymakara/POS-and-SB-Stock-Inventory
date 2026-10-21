@@ -109,7 +109,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
   const quickReasons = [
     'Branch reserve replenishment',
     'Merchant deployment & installation',
-    'Faulty device replacement swap',
+    'Device replacement swap',
   ];
 
   return (

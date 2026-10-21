@@ -86,7 +86,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
       id: 'FAULTY',
       title: STAGE_META.FAULTY.short,
       count: counts.faulty,
-      icon: AlertTriangle,
+      icon: RotateCcw,
       accentColor: 'text-[#e41e26]',
     },
     {

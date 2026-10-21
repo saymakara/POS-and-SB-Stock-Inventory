@@ -112,10 +112,10 @@ export const STAGE_META: Record<LifecycleStage, StageInfo> = {
     color: '#0f766e'
   },
   FAULTY: {
-    label: 'Faulty Hardware',
+    label: 'Terminated & Returned',
     badgeClassLight: 'bg-rose-50 text-rose-800 border-rose-200 font-bold',
     badgeClassDark: 'bg-rose-50 text-rose-800 border-rose-200 font-bold',
-    short: 'Faulty',
+    short: 'Terminated & Returned',
     color: '#be123c'
   },
   LOST: {
