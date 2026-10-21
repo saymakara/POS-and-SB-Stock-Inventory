@@ -461,13 +461,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <button
                 type="button"
                 onClick={() => setModalStep('EDIT')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold transition cursor-pointer text-xs ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold tracking-wide transition cursor-pointer text-xs ${
                   modalStep === 'EDIT'
                     ? 'bg-[#004953] text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
-                <span className="w-3.5 h-3.5 rounded-full bg-white/20 flex items-center justify-center text-[9px] font-black">
+                <span className="w-3.5 h-3.5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">
                   1
                 </span>
                 <span>Configure &amp; Edit Details</span>
@@ -481,7 +481,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   if (pendingPayload) setModalStep('PREVIEW');
                 }}
                 disabled={!pendingPayload}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold transition text-xs ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold tracking-wide transition text-xs ${
                   modalStep === 'PREVIEW'
                     ? 'bg-[#004953] text-white shadow-xs'
                     : pendingPayload
@@ -489,7 +489,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     : 'text-slate-400 opacity-60 cursor-not-allowed'
                 }`}
               >
-                <span className="w-3.5 h-3.5 rounded-full bg-white/20 flex items-center justify-center text-[9px] font-black">
+                <span className="w-3.5 h-3.5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">
                   2
                 </span>
                 <span>Impact Review &amp; Before/After Diff</span>
@@ -1253,7 +1253,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         : `Battery changed to ${newBatt} (fresh 24-month cycle)`
                     );
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                  className="px-3.5 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
                   title="Install fresh battery with new serial and reset the 24-month countdown"
                 >
                   <BatteryCharging className="w-3.5 h-3.5" />
@@ -1302,7 +1302,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 type="submit"
-                className="px-4 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-xs transition cursor-pointer flex items-center gap-1.5"
               >
                 <span>Review Changes (Step 2 Preview)</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1324,7 +1324,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             >
               <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="flex-1">
-                <div className="font-extrabold text-xs flex flex-wrap items-center gap-2">
+                <div className="font-bold text-xs flex flex-wrap items-center gap-2">
                   <span>{pendingPayload.actionTitle}</span>
                   <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-200/90 text-amber-950 dark:bg-amber-800/80 dark:text-amber-100">
                     Step 2 Verification
@@ -1347,7 +1347,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/80 dark:border-slate-800">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     Current Record (Before)
                   </span>
                   <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
@@ -1509,11 +1509,11 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between pb-1.5 border-b border-sky-200/80 dark:border-sky-800/80">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1e5b88] dark:text-sky-300 flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#1e5b88] dark:text-sky-300 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-sky-500" />
                     <span>Proposed Update (After / Preview)</span>
                   </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-200/80 text-sky-950 dark:bg-sky-800/80 dark:text-sky-100 font-black">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-200/80 text-sky-950 dark:bg-sky-800/80 dark:text-sky-100 font-bold">
                     PROPOSED
                   </span>
                 </div>
@@ -1528,7 +1528,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
                         style={{ backgroundColor: STAGE_META[pendingPayload.stage].color }}
                       />
-                      <span className={pendingPayload.stage !== device.stage ? 'text-[#1e5b88] dark:text-sky-300 font-extrabold' : ''}>
+                      <span className={pendingPayload.stage !== device.stage ? 'text-[#1e5b88] dark:text-sky-300 font-bold' : ''}>
                         {STAGE_META[pendingPayload.stage].label}
                       </span>
                       {pendingPayload.stage !== device.stage && (
@@ -1543,7 +1543,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     <span className="text-[10px] text-[#1e5b88] dark:text-sky-300 font-bold block uppercase tracking-wider">
                       Assigned Branch Custody
                     </span>
-                    <div className={`mt-1 font-bold ${pendingPayload.branchId !== device.branchId ? 'text-[#1e5b88] dark:text-sky-300 font-extrabold' : ''}`}>
+                    <div className={`mt-1 font-bold ${pendingPayload.branchId !== device.branchId ? 'text-[#1e5b88] dark:text-sky-300' : ''}`}>
                       Branch Code {pendingPayload.branchId} — {pendingPayload.branchName}
                       {pendingPayload.branchId !== device.branchId && (
                         <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200">
@@ -1696,7 +1696,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 whileTap={{ scale: 0.96 }}
                 type="button"
                 onClick={handleFinalCommit}
-                className="px-5 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-md transition cursor-pointer flex items-center gap-2"
+                className="px-5 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-md transition cursor-pointer flex items-center gap-2"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Confirm &amp; Commit Changes</span>

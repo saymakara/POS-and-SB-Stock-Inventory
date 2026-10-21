@@ -357,7 +357,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               type="button"
               onClick={handleSave}
               disabled={!isAdminLike}
-              className="px-4 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide bg-[#003857] hover:bg-[#002a42] text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
               <span>Save Configuration</span>
@@ -1735,7 +1735,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <button
                   type="button"
                   onClick={onExportBackup}
-                  className="px-4 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-extrabold shadow-sm flex items-center gap-2 transition cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-sm flex items-center gap-2 transition cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>Download Complete JSON Backup</span>
@@ -1785,7 +1785,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsResetConfirmOpen(true)}
-                    className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-extrabold transition cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-semibold tracking-wide transition cursor-pointer"
                   >
                     Reset System State
                   </button>
@@ -1880,7 +1880,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   if (onResetData) onResetData();
                   setIsResetConfirmOpen(false);
                 }}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold tracking-wide cursor-pointer"
               >
                 Confirm Reset
               </button>

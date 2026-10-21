@@ -444,7 +444,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               <button
                 type="button"
                 onClick={onOpenNewBranchModal}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-extrabold shadow-xs transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-xs transition cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Branch Code</span>

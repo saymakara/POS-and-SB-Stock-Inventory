@@ -152,7 +152,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
         {isAdminLike && (
           <button
             onClick={() => onOpenUserModal()}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-extrabold shadow-sm transition cursor-pointer border border-[#002840]/30"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-sm transition cursor-pointer border border-[#002840]/30"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Staff / Admin Account</span>
@@ -210,7 +210,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
 
       {selectedIds.length > 0 && isAdminLike && (
         <div className="rounded-2xl p-3.5 bg-[#18191e] border border-zinc-700/80 text-white flex flex-wrap items-center justify-between gap-3 shadow-md">
-          <span className="text-xs font-extrabold">
+          <span className="text-xs font-bold">
             {selectedIds.length} User Accounts Selected
           </span>
           <div className="flex items-center gap-2">
@@ -219,7 +219,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                 onBulkUpdateStatus(selectedIds, 'Operating');
                 setSelectedIds([]);
               }}
-              className="px-3 py-1.5 rounded-lg bg-white text-zinc-900 text-xs font-black cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-white text-zinc-900 text-xs font-semibold tracking-wide cursor-pointer"
             >
               Set Operating
             </button>
@@ -228,14 +228,14 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                 onBulkUpdateStatus(selectedIds, 'Suspended');
                 setSelectedIds([]);
               }}
-              className="px-3 py-1.5 rounded-lg bg-amber-400 text-zinc-900 text-xs font-black cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-amber-400 text-zinc-900 text-xs font-semibold tracking-wide cursor-pointer"
             >
               Suspend
             </button>
             {isSuperAdmin && (
               <button
                 onClick={requestBulkDelete}
-                className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-black cursor-pointer shadow-xs"
+                className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold tracking-wide cursor-pointer shadow-xs"
               >
                 Delete Selected
               </button>
@@ -427,7 +427,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                 <button
                   type="button"
                   onClick={handleExecuteDelete}
-                  className="px-4 py-2 rounded-xl text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white shadow-md cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide bg-rose-600 hover:bg-rose-700 text-white shadow-md cursor-pointer flex items-center gap-1.5"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Confirm Permanent Delete</span>

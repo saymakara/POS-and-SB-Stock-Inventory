@@ -5,6 +5,8 @@
 @theme {
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Plus Jakarta Sans', ui-monospace, SFMono-Regular, monospace;
+  --font-weight-extrabold: 700;
+  --font-weight-black: 750;
 }
 
 :root {
@@ -21,8 +23,8 @@
     font-family: var(--font-sans);
     font-size: 14.5px;
     line-height: 1.5;
-    -webkit-font-smoothing: auto;
-    -moz-osx-font-smoothing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     letter-spacing: 0;
     background-color: #f3f4f6;
@@ -300,16 +302,30 @@ th.sticky {
 }
 
 /* Zero-Latency Desktop & Touch Tactile Feedback:
-   Immediate depression (scale 0.97) on click without delay, smooth organic release */
+   Immediate depression (scale 0.98) on click without delay, smooth organic release */
 button:not(:disabled),
 [role="button"]:not(:disabled),
 .tactile-btn:not(:disabled),
 .interactive-tab-btn {
+  /* ── Subpixel ClearType antialiasing for sharp, crisp button labels ── */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+  /* Slight tracking keeps bold glyphs from touching each other at xs text */
+  letter-spacing: 0.01em;
   transition: background-color 0.18s var(--ease-apple-spring),
               border-color 0.18s var(--ease-apple-spring),
               color 0.18s var(--ease-apple-spring),
               box-shadow 0.22s var(--ease-apple-spring),
               opacity 0.18s var(--ease-apple-spring);
+}
+
+/* Prevent any button label inheriting body letter-spacing:0 which collapses bold strokes */
+button span,
+button strong,
+[role="button"] span,
+[role="button"] strong {
+  letter-spacing: inherit;
 }
 
 button:active:not(:disabled),
