@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   UserRole,
   Branch,
@@ -6,8 +6,10 @@ import {
   ThemeMode,
   SystemNotification,
   AppSettings,
+  Device,
 } from '../types';
 import { AppBrandLogo } from './AppBrandLogo';
+import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Building2,
@@ -40,6 +42,9 @@ import {
   Sparkles,
   Palette,
   Check,
+  Search,
+  Cpu,
+  Volume2,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -384,6 +389,10 @@ interface HeaderProps {
   onSelectNotification: (notif: SystemNotification) => void;
   theme?: ThemeMode;
   onToggleSidebar?: () => void;
+  devices?: Device[];
+  onSelectDevice?: (serial: string) => void;
+  searchQuery?: string;
+  onSearchChange?: (q: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = React.memo(({
@@ -408,6 +417,10 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   onMarkAllNotificationsRead,
   onSelectNotification,
   onToggleSidebar,
+  devices = [],
+  onSelectDevice,
+  searchQuery,
+  onSearchChange,
 }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -467,6 +480,85 @@ export const Header: React.FC<HeaderProps> = React.memo(({
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  // Global Quick Search State & Logic
+  const [localSearch, setLocalSearch] = useState(searchQuery || '');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (searchQuery !== undefined && searchQuery !== localSearch) {
+      setLocalSearch(searchQuery);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    function handleClickOutsideSearch(e: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsSearchFocused(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutsideSearch);
+    return () => document.removeEventListener('mousedown', handleClickOutsideSearch);
+  }, []);
+
+  // Global Keyboard Shortcut: Cmd/Ctrl + K or Escape
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        setIsSearchFocused(true);
+      }
+      if (e.key === 'Escape' && isSearchFocused) {
+        setIsSearchFocused(false);
+        searchInputRef.current?.blur();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSearchFocused]);
+
+  // Fast single-pass search across devices & branches
+  const searchResults = useMemo(() => {
+    const term = localSearch.trim().toLowerCase();
+    if (!term) return { devices: [], branches: [] };
+
+    const matchedDevices: Device[] = [];
+    if (devices && devices.length > 0) {
+      for (let i = 0; i < devices.length; i++) {
+        const d = devices[i];
+        if (
+          d.serial.toLowerCase().includes(term) ||
+          (d.mid && d.mid.toLowerCase().includes(term)) ||
+          (d.tid && d.tid.toLowerCase().includes(term)) ||
+          (d.merchantName && d.merchantName.toLowerCase().includes(term)) ||
+          d.branchId === term
+        ) {
+          matchedDevices.push(d);
+          if (matchedDevices.length >= 6) break;
+        }
+      }
+    }
+
+    const matchedBranches: Branch[] = [];
+    if (branches && branches.length > 0) {
+      for (let i = 0; i < branches.length; i++) {
+        const b = branches[i];
+        if (
+          b.id === term ||
+          b.code === term ||
+          b.name.toLowerCase().includes(term)
+        ) {
+          matchedBranches.push(b);
+          if (matchedBranches.length >= 3) break;
+        }
+      }
+    }
+
+    return { devices: matchedDevices, branches: matchedBranches };
+  }, [devices, branches, localSearch]);
+
   const mobileTabs = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'merchants', label: 'Merchant Deployment' },
@@ -485,8 +577,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   return (
     <header className="sticky top-0 z-40 bg-white/82 backdrop-blur-2xl text-zinc-900 border-b border-zinc-200/80 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all duration-200">
       <div className="h-[4.5rem] px-4 sm:px-6 flex items-center justify-between gap-3">
-        {/* Left: Sidebar Toggle, Operator Name & Role Authority Badge */}
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+        {/* Left: Sidebar Toggle & Global Quick Search Bar */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 max-w-xl">
           {onToggleSidebar && (
             <motion.button
               whileTap={{ scale: 0.92 }}
@@ -499,24 +591,207 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             </motion.button>
           )}
 
-          {/* Operator Name Pill (Placed Before Role) */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-white/80 border-zinc-200 text-zinc-900 backdrop-blur-md shrink-0 shadow-2xs">
-            <Users className="w-3.5 h-3.5 text-zinc-700 shrink-0" />
-            <span className="text-xs font-bold text-zinc-800 truncate max-w-[140px] sm:max-w-none">
-              {role !== 'BRANCH' ? activeAdminStaff : activeStaff}
-            </span>
-          </div>
+          {/* Global Quick Search Bar */}
+          <div ref={searchContainerRef} className="relative flex-1 min-w-[180px] max-w-[340px] sm:max-w-[420px]">
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all duration-150 ${
+                isSearchFocused
+                  ? 'bg-white border-[#003857] ring-3 ring-[#003857]/15 shadow-sm'
+                  : 'bg-slate-100/90 hover:bg-slate-100 border-slate-200/90 hover:border-slate-300 shadow-2xs'
+              }`}
+            >
+              <Search
+                className={`w-4 h-4 shrink-0 transition-colors ${
+                  isSearchFocused ? 'text-[#003857]' : 'text-slate-400'
+                }`}
+              />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={localSearch}
+                onChange={(e) => {
+                  setLocalSearch(e.target.value);
+                  setIsSearchFocused(true);
+                }}
+                onFocus={() => setIsSearchFocused(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    onSearchChange?.(localSearch.trim());
+                    onSelectTab('inventory');
+                    setIsSearchFocused(false);
+                  }
+                }}
+                placeholder="Quick search serial, MID, branch..."
+                className="w-full text-xs font-medium text-zinc-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
+              />
+              {localSearch ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocalSearch('');
+                    onSearchChange?.('');
+                    searchInputRef.current?.focus();
+                  }}
+                  className="p-0.5 rounded hover:bg-slate-200 text-slate-400 hover:text-zinc-700 cursor-pointer shrink-0 transition"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-white border border-slate-200 text-slate-400 shrink-0 shadow-3xs select-none">
+                  ⌘K
+                </kbd>
+              )}
+            </div>
 
-          {/* Clean Grey Text-Only Role Authority Badge (No Logo) */}
-          <div className="flex items-center px-3 py-1.5 rounded-xl border border-slate-200/90 bg-slate-100/90 shadow-2xs shrink-0 select-none">
-            <span className="text-xs font-bold tracking-tight text-slate-800">
-              <span className="text-slate-500 font-medium mr-1.5">Role:</span>
-              {role === 'SUPER_ADMIN'
-                ? 'Super Admin'
-                : role === 'ADMIN'
-                ? 'Admin'
-                : 'Branch Staff'}
-            </span>
+            {/* Instant Quick Search Dropdown Results */}
+            <AnimatePresence>
+              {isSearchFocused && localSearch.trim().length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="absolute left-0 top-full mt-2 w-full min-w-[340px] sm:min-w-[420px] max-w-[500px] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden z-50 divide-y divide-slate-100"
+                >
+                  {/* Results List */}
+                  <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 custom-scrollbar p-1.5">
+                    {searchResults.devices.length === 0 && searchResults.branches.length === 0 ? (
+                      <div className="py-8 px-4 text-center">
+                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mx-auto mb-2">
+                          <Search className="w-4 h-4" />
+                        </div>
+                        <div className="text-xs font-bold text-zinc-800">No matching records</div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          No hardware serial, MID, or branch found for &ldquo;{localSearch.trim()}&rdquo;
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Matched Devices */}
+                        {searchResults.devices.length > 0 && (
+                          <div className="py-1">
+                            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Hardware Devices ({searchResults.devices.length})
+                            </div>
+                            {searchResults.devices.map((d) => {
+                              const isSB = d.type === 'Sound Box';
+                              const meta = STAGE_META[d.stage] || STAGE_META.BRANCH_RESERVE;
+                              return (
+                                <button
+                                  key={d.serial}
+                                  type="button"
+                                  onClick={() => {
+                                    setIsSearchFocused(false);
+                                    if (onSelectDevice) {
+                                      onSelectDevice(d.serial);
+                                    } else {
+                                      onSearchChange?.(d.serial);
+                                      onSelectTab('inventory');
+                                    }
+                                  }}
+                                  className="w-full px-3 py-2 text-left rounded-xl hover:bg-slate-50 flex items-center gap-2.5 transition cursor-pointer group"
+                                >
+                                  <div
+                                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                                      isSB
+                                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                        : 'bg-blue-50 text-[#003857] border-blue-200'
+                                    }`}
+                                  >
+                                    {isSB ? (
+                                      <Volume2 className="w-3.5 h-3.5" />
+                                    ) : (
+                                      <Cpu className="w-3.5 h-3.5" />
+                                    )}
+                                  </div>
+
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-bold font-mono text-zinc-900 group-hover:text-[#003857] truncate">
+                                        {d.serial}
+                                      </span>
+                                      <span
+                                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+                                          meta.badgeClassLight || 'bg-slate-100 text-slate-700 border-slate-200'
+                                        }`}
+                                      >
+                                        {meta.short}
+                                      </span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                                      {d.model} · Branch {d.branchId}
+                                      {d.merchantName ? ` · ${d.merchantName}` : ''}
+                                      {d.mid ? ` (MID: ${d.mid})` : ''}
+                                    </div>
+                                  </div>
+
+                                  <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-zinc-600 shrink-0 group-hover:translate-x-0.5 transition" />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Matched Branches */}
+                        {searchResults.branches.length > 0 && (
+                          <div className="py-1">
+                            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Branches ({searchResults.branches.length})
+                            </div>
+                            {searchResults.branches.map((b) => (
+                              <button
+                                key={b.id}
+                                type="button"
+                                onClick={() => {
+                                  setIsSearchFocused(false);
+                                  onChangeBranchId(b.id);
+                                  onSelectTab('inventory');
+                                }}
+                                className="w-full px-3 py-2 text-left rounded-xl hover:bg-slate-50 flex items-center gap-2.5 transition cursor-pointer group"
+                              >
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border bg-emerald-50 text-emerald-700 border-emerald-200">
+                                  <Building2 className="w-3.5 h-3.5" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs font-bold text-zinc-900 group-hover:text-[#003857] truncate">
+                                    Branch Code {b.id} — {b.name}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 truncate">
+                                    {(b.staff && b.staff.length) || 0} active staff members
+                                  </div>
+                                </div>
+                                <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-zinc-600 shrink-0 group-hover:translate-x-0.5 transition" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Dropdown Footer */}
+                  <div className="px-3 py-2 bg-slate-50/90 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">
+                      Press <kbd className="font-mono font-bold text-slate-600">Enter</kbd> to search all records
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSearchChange?.(localSearch.trim());
+                        onSelectTab('inventory');
+                        setIsSearchFocused(false);
+                      }}
+                      className="font-bold text-[#003857] hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      <span>Filter in Inventory</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -736,16 +1011,16 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           </button>
 
           {/* User Profile & Sign Out */}
-          <div className="hidden 2xl:flex items-center gap-2.5 pl-3 border-l border-zinc-200 shrink-0">
+          <div className="hidden lg:flex items-center gap-2.5 pl-3 border-l border-zinc-200 shrink-0">
             <div className="text-right leading-tight">
               <div className="text-xs font-bold text-zinc-800">
-                {operatorName}
+                {role !== 'BRANCH' ? activeAdminStaff : activeStaff}
               </div>
               <div className="text-[10px] text-zinc-500 font-semibold">
                 {role === 'SUPER_ADMIN'
-                  ? 'Super Admin (100)'
+                  ? 'Super Admin (Head Office)'
                   : role === 'ADMIN'
-                  ? 'Admin HQ (100)'
+                  ? 'Admin HQ (Head Office)'
                   : `Branch Code ${currentBranch.id}`}
               </div>
             </div>

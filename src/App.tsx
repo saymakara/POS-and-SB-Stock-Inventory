@@ -2930,6 +2930,10 @@ export function App() {
             }}
             theme={theme}
             onToggleSidebar={handleToggleSidebar}
+            devices={devices}
+            onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
           />
 
           {/* Classic Pipeline Stage Filter Bar */}
