@@ -397,35 +397,35 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 12 }}
           transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
-          className={`relative w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden my-6 z-10 border-0 flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
+          className={`relative w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[88vh] z-10 border-0 flex flex-col ${
             isLight
               ? 'bg-white text-slate-800'
               : 'bg-[#12151e] text-slate-100'
           }`}
         >
           {/* Header */}
-          <div className="navy-header-bar rounded-t-2xl px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-xs text-white">
+          <div className="navy-header-bar rounded-t-2xl px-5 py-3 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-xs text-white">
                 {device.type === 'POS Terminal' ? (
-                  <Cpu className="w-5 h-5 text-white" />
+                  <Cpu className="w-4 h-4 text-white" />
                 ) : (
-                  <Volume2 className="w-5 h-5 text-white" />
+                  <Volume2 className="w-4 h-4 text-white" />
                 )}
               </div>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-base font-bold text-white tracking-tight truncate">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-mono text-sm sm:text-base font-bold text-white tracking-tight truncate">
                     {device.serial}
                   </span>
-                  <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-white/15 text-white border border-white/20">
+                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-white/15 text-white border border-white/20">
                     {device.type}
                   </span>
-                  <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-white/10 text-white/90 border border-white/15">
+                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-white/10 text-white/90 border border-white/15">
                     Branch Code {device.branchId}
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-white/75 truncate">
+                <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[11px] text-white/75 truncate">
                   <span className="font-mono text-white/90 font-medium">
                     {device.batterySerial && !device.batterySerial.startsWith('BAT-')
                       ? device.batterySerial
@@ -442,16 +442,16 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl text-white/75 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0 ml-3"
+              className="p-1.5 rounded-xl text-white/75 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0 ml-2"
               title="Close Modal"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Stepper Progress Bar (Double-Step Flow) */}
           <div
-            className={`px-6 py-2.5 border-b flex items-center justify-between text-xs ${
+            className={`px-5 py-2 border-b flex items-center justify-between text-xs shrink-0 ${
               isLight
                 ? 'bg-slate-50 border-slate-200 text-slate-700'
                 : 'bg-[#151922] border-slate-800 text-slate-300'
@@ -461,19 +461,19 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <button
                 type="button"
                 onClick={() => setModalStep('EDIT')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold transition cursor-pointer text-xs ${
                   modalStep === 'EDIT'
                     ? 'bg-[#004953] text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
-                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
+                <span className="w-3.5 h-3.5 rounded-full bg-white/20 flex items-center justify-center text-[9px] font-black">
                   1
                 </span>
                 <span>Configure &amp; Edit Details</span>
               </button>
 
-              <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+              <ArrowRight className="w-3 h-3 text-slate-400" />
 
               <button
                 type="button"
@@ -481,7 +481,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   if (pendingPayload) setModalStep('PREVIEW');
                 }}
                 disabled={!pendingPayload}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold transition text-xs ${
                   modalStep === 'PREVIEW'
                     ? 'bg-[#004953] text-white shadow-xs'
                     : pendingPayload
@@ -489,15 +489,15 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     : 'text-slate-400 opacity-60 cursor-not-allowed'
                 }`}
               >
-                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
+                <span className="w-3.5 h-3.5 rounded-full bg-white/20 flex items-center justify-center text-[9px] font-black">
                   2
                 </span>
                 <span>Impact Review &amp; Before/After Diff</span>
               </button>
             </div>
 
-            <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              <ShieldCheck className="w-4 h-4 text-[#1e5b88] dark:text-sky-400" />
+            <div className="hidden sm:flex items-center gap-1 text-[10.5px] font-medium text-slate-500 dark:text-slate-400">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
               <span>Double-Step Safeguard Active</span>
             </div>
           </div>
@@ -507,7 +507,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               {/* Quick Action Toolbar Strip */}
               {hasQuickActions && (
                 <div
-                  className={`px-6 py-2.5 border-b flex items-center justify-between flex-wrap gap-2 text-xs ${
+                  className={`px-5 py-2 border-b flex items-center justify-between flex-wrap gap-2 text-xs shrink-0 ${
                     isLight
                       ? 'bg-slate-50/90 border-slate-200/80 text-slate-600'
                       : 'bg-[#181c26] border-slate-700/80 text-slate-300'
@@ -649,10 +649,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               )}
 
               {/* Form Body */}
-              <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4.5">
+              <form onSubmit={handleSubmit} className="p-4 sm:p-5 flex flex-col gap-3 overflow-y-auto max-h-[calc(88vh-130px)] custom-scrollbar">
             {/* Row 1: Lifecycle Stage & Assigned Branch */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Lifecycle Status Stage *
                 </label>
@@ -662,7 +662,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     onChange={(e) =>
                       handleStageChange(e.target.value as LifecycleStage)
                     }
-                    className={`w-full appearance-none rounded-xl px-3.5 py-2.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
+                    className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
                       isLight
                         ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
                         : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -689,7 +689,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   <Building2 className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                   <span>Assigned Branch Code *</span>
@@ -699,7 +699,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     value={branchId}
                     onChange={(e) => handleBranchChange(e.target.value)}
                     disabled={role === 'BRANCH' || stage === 'HQ_STOCK'}
-                    className={`w-full appearance-none rounded-xl px-3.5 py-2.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 disabled:opacity-60 disabled:cursor-not-allowed ${
+                    className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 disabled:opacity-60 disabled:cursor-not-allowed ${
                       isLight
                         ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
                         : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -804,8 +804,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             )}
 
             {/* Row 2: Staff Officer & Deployment Date */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
                 <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   <User className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                   <span>Assigned Branch Staff Officer</span>
@@ -814,7 +814,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   <select
                     value={staff}
                     onChange={(e) => setStaff(e.target.value)}
-                    className={`w-full appearance-none rounded-xl px-3.5 py-2.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
+                    className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
                       isLight
                         ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
                         : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -848,7 +848,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   <Calendar className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                   <span>Installation / Deployment Date</span>
@@ -857,7 +857,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   type="date"
                   value={deployedDate}
                   onChange={(e) => setDeployedDate(e.target.value)}
-                  className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-mono font-medium border focus:outline-none transition ${
+                  className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                     isLight
                       ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
                       : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -867,8 +867,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             </div>
 
             {/* Row 3: Merchant Name, MID, TID */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              <div className="flex flex-col gap-1.5 sm:col-span-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="flex flex-col gap-1 sm:col-span-1">
                 <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   <Store className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                   <span>Merchant DBA Name</span>
@@ -878,7 +878,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   value={merchantName}
                   onChange={(e) => setMerchantName(e.target.value)}
                   placeholder="e.g. Brown Coffee BKK"
-                  className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-medium border focus:outline-none transition ${
+                  className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                     isLight
                       ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
                       : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -886,7 +886,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     Merchant ID (MID)
@@ -899,7 +899,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       setMid(`100000880${cleanBranch}${rand}`);
                       setMidError('');
                     }}
-                    className="text-[10.5px] font-medium text-zinc-800 dark:text-zinc-300 hover:underline cursor-pointer flex items-center gap-1 font-bold"
+                    className="text-[10px] font-medium text-zinc-800 dark:text-zinc-300 hover:underline cursor-pointer flex items-center gap-1 font-bold"
                   >
                     <Sparkles className="w-2.5 h-2.5 text-amber-500" />
                     <span>Auto-Gen 15D</span>
@@ -915,7 +915,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   }}
                   maxLength={15}
                   placeholder="e.g. 100000880101001"
-                  className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-mono font-medium border focus:outline-none transition ${
+                  className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                     midError
                       ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/50'
                       : isLight
@@ -923,7 +923,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                   }`}
                 />
-                <div className="flex items-center justify-between text-[10px] px-1">
+                <div className="flex items-center justify-between text-[10px] px-0.5">
                   {midError ? (
                     <span className="text-rose-600 font-semibold">{midError}</span>
                   ) : (
@@ -933,7 +933,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Terminal ID (TID)
                 </label>
@@ -942,7 +942,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   value={tid}
                   onChange={(e) => setTid(e.target.value)}
                   placeholder="e.g. TID-10101"
-                  className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-mono font-medium border focus:outline-none transition ${
+                  className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                     isLight
                       ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
                       : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -954,15 +954,15 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             {/* Dynamic Custom & Additional Fields Section */}
             {activeCustomFields.length > 0 && (
               <div
-                className={`p-4 rounded-2xl border flex flex-col gap-3.5 transition-colors ${
+                className={`p-3 rounded-xl border flex flex-col gap-2.5 transition-colors ${
                   isLight
                     ? 'bg-slate-50/70 border-slate-200'
                     : 'bg-[#181c26] border-slate-700/80'
                 }`}
               >
                 <div className="flex items-center justify-between pb-1 border-b border-slate-200/50 dark:border-white/[0.06]">
-                  <div className="flex items-center gap-2">
-                    <SlidersHorizontal className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <div className="flex items-center gap-1.5">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                       Additional Attributes ({activeCustomFields.length})
                     </span>
@@ -972,7 +972,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {activeCustomFields.map((field) => {
                     const val = customFieldValues[field.id] ?? '';
                     const getFieldIcon = () => {
@@ -984,7 +984,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     };
 
                     return (
-                      <div key={field.id} className="flex flex-col gap-1.5">
+                      <div key={field.id} className="flex flex-col gap-1">
                         <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                           <span className="flex items-center gap-1.5">
                             {getFieldIcon()}
@@ -1007,7 +1007,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                 }))
                               }
                               required={field.required}
-                              className={`w-full appearance-none rounded-xl px-3.5 py-2.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
+                              className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
                                 isLight
                                   ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
                                   : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1020,7 +1020,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                 </option>
                               ))}
                             </select>
-                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
                           </div>
                         ) : field.type === 'date' ? (
                           <input
@@ -1033,7 +1033,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                               }))
                             }
                             required={field.required}
-                            className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-medium border focus:outline-none transition ${
+                            className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                               isLight
                                 ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
                                 : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1051,7 +1051,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             }
                             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
                             required={field.required}
-                            className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-medium border focus:outline-none transition ${
+                            className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                               isLight
                                 ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
                                 : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1069,17 +1069,12 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             }
                             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
                             required={field.required}
-                            className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-medium border focus:outline-none transition ${
+                            className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                               isLight
                                 ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
                                 : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                             }`}
                           />
-                        )}
-                        {field.description && (
-                          <span className="text-[10px] text-slate-400 leading-tight">
-                            {field.description}
-                          </span>
                         )}
                       </div>
                     );
@@ -1090,7 +1085,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
             {/* Row 4: 24-Month POS Battery Lifecycle Card */}
             <div
-              className={`p-4 rounded-xl border flex flex-col gap-3 transition-colors ${
+              className={`p-3 rounded-xl border flex flex-col gap-2.5 transition-colors ${
                 previewBatteryInfo.state === 'EXPIRED'
                   ? isLight
                     ? 'bg-rose-50/60 border-rose-200'
@@ -1104,10 +1099,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   : 'bg-[#181c26] border-slate-700/80'
               }`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
                 <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <BatteryCharging
-                    className={`w-4 h-4 ${
+                    className={`w-3.5 h-3.5 ${
                       previewBatteryInfo.state === 'EXPIRED'
                         ? 'text-rose-600'
                         : previewBatteryInfo.state === 'DUE_SOON'
@@ -1118,7 +1113,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   <span>POS Terminal Battery (24-Month Cycle Standard)</span>
                 </span>
                 <span
-                  className={`text-[10.5px] font-mono font-medium px-2.5 py-0.5 rounded-full border ${
+                  className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-full border ${
                     previewBatteryInfo.state === 'EXPIRED'
                       ? 'bg-rose-100/90 text-rose-800 border-rose-300'
                       : previewBatteryInfo.state === 'DUE_SOON'
@@ -1136,7 +1131,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
               {/* Status Message Banner */}
               <div
-                className={`p-2.5 rounded-lg text-xs flex items-center gap-2 border ${
+                className={`px-2.5 py-1.5 rounded-lg text-[11px] flex items-center gap-2 border ${
                   previewBatteryInfo.state === 'EXPIRED'
                     ? 'bg-rose-100/70 border-rose-200 text-rose-800 font-medium'
                     : previewBatteryInfo.state === 'DUE_SOON'
@@ -1148,21 +1143,21 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               >
                 {previewBatteryInfo.state === 'EXPIRED' ? (
                   <>
-                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                     <span>
                       Battery reached {previewBatteryInfo.monthsUsed} months of service (&ge; 24-month limit). Replacement is required immediately!
                     </span>
                   </>
                 ) : previewBatteryInfo.state === 'DUE_SOON' ? (
                   <>
-                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                    <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     <span>
                       Battery is {previewBatteryInfo.monthsUsed} months old with {previewBatteryInfo.monthsRemaining} months remaining until 24-month expiration.
                     </span>
                   </>
                 ) : (
                   <>
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span>
                       Battery in good standing ({previewBatteryInfo.monthsUsed} of 24 months elapsed · {previewBatteryInfo.monthsRemaining} months remaining).
                     </span>
@@ -1171,7 +1166,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               </div>
 
               {/* Battery Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
@@ -1193,7 +1188,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     value={batterySerial}
                     onChange={(e) => setBatterySerial(e.target.value)}
                     placeholder="e.g. 160525A0005709"
-                    className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                    className={`w-full rounded-xl px-3 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                       isLight
                         ? 'bg-white border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400'
                         : 'bg-black/20 border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1212,7 +1207,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     type="date"
                     value={batteryInstalledDate}
                     onChange={(e) => setBatteryInstalledDate(e.target.value)}
-                    className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                    className={`w-full rounded-xl px-3 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                       isLight
                         ? 'bg-white border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400'
                         : 'bg-black/20 border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1233,7 +1228,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       onClose();
                       onChangeBattery(device);
                     }}
-                    className={`px-3.5 py-1.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
                       isLight
                         ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
                         : 'bg-white/10 hover:bg-white/15 border-white/15 text-white'
@@ -1258,7 +1253,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         : `Battery changed to ${newBatt} (fresh 24-month cycle)`
                     );
                   }}
-                  className="px-4 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                  className="px-3.5 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
                   title="Install fresh battery with new serial and reset the 24-month countdown"
                 >
                   <BatteryCharging className="w-3.5 h-3.5" />
@@ -1268,7 +1263,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             </div>
 
             {/* Row 5: Audit Note */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <FileText className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                 <span>Audit Note / Update Reason</span>
@@ -1278,7 +1273,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Describe reason for stage change, merchant deployment, or branch transfer..."
-                className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-medium border focus:outline-none transition ${
+                className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                   isLight
                     ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400'
                     : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-slate-400/20 focus:border-slate-500'
@@ -1288,7 +1283,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
             {/* Footer */}
             <div
-              className={`flex items-center justify-end gap-2.5 pt-3 border-t ${
+              className={`flex items-center justify-end gap-2 pt-2.5 border-t ${
                 isLight ? 'border-slate-100' : 'border-slate-800/80'
               }`}
             >
@@ -1296,7 +1291,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 whileTap={{ scale: 0.96 }}
                 type="button"
                 onClick={onClose}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
                   isLight
                     ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                     : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
@@ -1307,7 +1302,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold shadow-xs transition cursor-pointer flex items-center gap-2"
+                className="px-4 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold shadow-xs transition cursor-pointer flex items-center gap-1.5"
               >
                 <span>Review Changes (Step 2 Preview)</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1318,16 +1313,16 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       ) : (
         /* STEP 2: IMPACT PREVIEW & BEFORE/AFTER DIFF CONFIRMATION */
         pendingPayload && (
-          <div className="p-6 flex flex-col gap-4.5 max-h-[75vh] overflow-y-auto">
+          <div className="p-4 sm:p-5 flex flex-col gap-3 max-h-[calc(88vh-130px)] overflow-y-auto custom-scrollbar">
             {/* Impact Notice Alert Banner */}
             <div
-              className={`p-4 rounded-2xl border flex items-start gap-3.5 ${
+              className={`p-3 rounded-xl border flex items-start gap-2.5 ${
                 isLight
                   ? 'bg-amber-50/90 border-amber-200 text-amber-900'
                   : 'bg-amber-950/30 border-amber-800/60 text-amber-200'
               }`}
             >
-              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="flex-1">
                 <div className="font-extrabold text-xs flex flex-wrap items-center gap-2">
                   <span>{pendingPayload.actionTitle}</span>
@@ -1335,23 +1330,23 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     Step 2 Verification
                   </span>
                 </div>
-                <p className="text-[11px] mt-1 opacity-90 leading-relaxed">
+                <p className="text-[11px] mt-0.5 opacity-90 leading-relaxed">
                   Carefully verify the before-and-after state differences below. Data mutations and lifecycle transitions will only take effect once you click <strong>Confirm &amp; Commit Changes</strong>.
                 </p>
               </div>
             </div>
 
             {/* Before vs After Diff Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Left Column: Live Record (Before) */}
               <div
-                className={`p-4.5 rounded-2xl border flex flex-col gap-3 ${
+                className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${
                   isLight
                     ? 'bg-slate-50 border-slate-200/90 text-slate-800'
                     : 'bg-slate-900/60 border-slate-800 text-slate-200'
                 }`}
               >
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-800">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/80 dark:border-slate-800">
                   <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
                     Current Record (Before)
                   </span>
@@ -1360,7 +1355,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   </span>
                 </div>
 
-                <div className="space-y-3 text-xs">
+                <div className="space-y-2.5 text-xs">
                   <div>
                     <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">
                       Lifecycle Stage
@@ -1507,13 +1502,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
               {/* Right Column: Proposed Mutation (After / Preview) */}
               <div
-                className={`p-4.5 rounded-2xl border flex flex-col gap-3 ${
+                className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${
                   isLight
                     ? 'bg-sky-50/40 border-sky-300 text-slate-800'
                     : 'bg-sky-950/20 border-sky-700/60 text-slate-100'
                 }`}
               >
-                <div className="flex items-center justify-between pb-2 border-b border-sky-200/80 dark:border-sky-800/80">
+                <div className="flex items-center justify-between pb-1.5 border-b border-sky-200/80 dark:border-sky-800/80">
                   <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1e5b88] dark:text-sky-300 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-sky-500" />
                     <span>Proposed Update (After / Preview)</span>
@@ -1523,7 +1518,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   </span>
                 </div>
 
-                <div className="space-y-3 text-xs">
+                <div className="space-y-2.5 text-xs">
                   <div>
                     <span className="text-[10px] text-[#1e5b88] dark:text-sky-300 font-bold block uppercase tracking-wider">
                       Lifecycle Stage
@@ -1660,7 +1655,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
             {/* Permanent Audit Log Entry Preview */}
             <div
-              className={`p-3.5 rounded-xl border flex items-center gap-3 ${
+              className={`p-2.5 rounded-xl border flex items-center gap-2.5 ${
                 isLight
                   ? 'bg-slate-50 border-slate-200 text-slate-800'
                   : 'bg-slate-900/80 border-slate-800 text-slate-200'
@@ -1679,7 +1674,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
             {/* Preview Footer Actions */}
             <div
-              className={`flex items-center justify-between gap-3 pt-3 border-t ${
+              className={`flex items-center justify-between gap-3 pt-2.5 border-t ${
                 isLight ? 'border-slate-100' : 'border-slate-800/80'
               }`}
             >
@@ -1687,7 +1682,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 whileTap={{ scale: 0.96 }}
                 type="button"
                 onClick={() => setModalStep('EDIT')}
-                className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
                   isLight
                     ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
                     : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
@@ -1701,7 +1696,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 whileTap={{ scale: 0.96 }}
                 type="button"
                 onClick={handleFinalCommit}
-                className="px-6 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-md transition cursor-pointer flex items-center gap-2"
+                className="px-5 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-md transition cursor-pointer flex items-center gap-2"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Confirm &amp; Commit Changes</span>
