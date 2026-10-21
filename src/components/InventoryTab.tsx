@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Device,
   Branch,
@@ -112,7 +112,15 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   onCancelFulfillment,
 }) => {
   const [selectedSns, setSelectedSns] = useState<string[]>([]);
-  const [targetBulkBranch, setTargetBulkBranch] = useState<string>('101');
+  const [targetBulkBranch, setTargetBulkBranch] = useState<string>(
+    fulfillingRequisition?.branchId || (selectedBranch && selectedBranch !== '100' ? selectedBranch : '101')
+  );
+
+  useEffect(() => {
+    if (fulfillingRequisition?.branchId) {
+      setTargetBulkBranch(fulfillingRequisition.branchId);
+    }
+  }, [fulfillingRequisition?.branchId]);
   const [showArchivedView, setShowArchivedView] = useState<boolean>(false);
   const [batteryFilter, setBatteryFilter] = useState<'ALL' | 'EXPIRED' | 'DUE_SOON' | 'HEALTHY'>('ALL');
   const [midDeviceFilter, setMidDeviceFilter] = useState<'ALL' | 'SINGLE' | 'MULTIPLE'>('ALL');
@@ -656,53 +664,89 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             exit={{ opacity: 0, y: -10 }}
             className="rounded-2xl p-4 border shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-[#18191e] text-white border-zinc-700/80"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="px-3 py-1 rounded-xl bg-white text-zinc-900 font-mono text-xs font-black shadow-2xs">
                 {selectedSns.length} Serial{selectedSns.length === 1 ? '' : 's'} Selected
               </span>
-              <span className="text-xs font-bold text-white/90">
-                Batch assign selected units to a target Branch Code, return to Admin Stock, or remove from dashboard:
-              </span>
+              {fulfillingRequisition ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-md bg-sky-500/20 text-sky-300 font-mono text-[11px] font-bold border border-sky-400/30">
+                    REQ {fulfillingRequisition.reqId}
+                  </span>
+                  <span className="text-xs font-bold text-white">
+                    Direct connect to Requester: <strong className="text-emerald-400 font-black">Branch Code {fulfillingRequisition.branchId} ({fulfillingRequisition.branchName})</strong>
+                  </span>
+                </div>
+              ) : (
+                <span className="text-xs font-bold text-white/90">
+                  Batch assign selected units to a target Branch Code, return to Admin Stock, or remove from dashboard:
+                </span>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               {!showArchivedView ? (
                 <>
-                  <div className="flex items-center bg-[#24262d] rounded-xl p-1 border border-white/15">
-                    <select
-                      value={targetBulkBranch}
-                      onChange={(e) => setTargetBulkBranch(e.target.value)}
-                      className="bg-transparent text-white text-xs font-bold px-2.5 py-1.5 outline-none cursor-pointer"
-                    >
-                      {branches
-                        .filter((b) => b.code !== '100')
-                        .map((b) => (
-                          <option
-                            key={b.code}
-                            value={b.code}
-                            className="bg-[#003857] text-white"
-                          >
-                            Assign to Branch Code {b.code} ({b.name})
-                          </option>
-                        ))}
-                    </select>
+                  {fulfillingRequisition ? (
+                    <div className="flex items-center bg-[#004953] rounded-xl p-1 border border-emerald-400/30 text-white shadow-xs">
+                      <div className="px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 text-emerald-200">
+                        <Building2 className="w-3.5 h-3.5 text-emerald-300" />
+                        <span>Requester: Branch Code {fulfillingRequisition.branchId}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onConfirmFulfillment) {
+                            onConfirmFulfillment(selectedSns);
+                          } else {
+                            handleOpenBulkAssign();
+                          }
+                        }}
+                        className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Assign {selectedSns.length} to Branch Code {fulfillingRequisition.branchId}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center bg-[#24262d] rounded-xl p-1 border border-white/15">
+                      <select
+                        value={targetBulkBranch}
+                        onChange={(e) => setTargetBulkBranch(e.target.value)}
+                        className="bg-transparent text-white text-xs font-bold px-2.5 py-1.5 outline-none cursor-pointer"
+                      >
+                        {branches
+                          .filter((b) => b.code !== '100')
+                          .map((b) => (
+                            <option
+                              key={b.code}
+                              value={b.code}
+                              className="bg-[#003857] text-white"
+                            >
+                              Assign to Branch Code {b.code} ({b.name})
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        onClick={handleOpenBulkAssign}
+                        className="px-3 py-1.5 rounded-lg bg-white text-zinc-900 hover:bg-slate-100 text-xs font-black transition cursor-pointer"
+                      >
+                        Assign {selectedSns.length} to Branch Code {targetBulkBranch}
+                      </button>
+                    </div>
+                  )}
+
+                  {!fulfillingRequisition && (
                     <button
-                      onClick={handleOpenBulkAssign}
-                      className="px-3 py-1.5 rounded-lg bg-white text-zinc-900 hover:bg-slate-100 text-xs font-black transition cursor-pointer"
+                      onClick={handleOpenBulkReturnAdmin}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-900 text-xs font-black transition cursor-pointer"
                     >
-                      Assign {selectedSns.length} to Branch Code {targetBulkBranch}
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>{isAdminLike ? 'Return to Admin Stock' : 'Request Return to Admin Stock'}</span>
                     </button>
-                  </div>
+                  )}
 
-                  <button
-                    onClick={handleOpenBulkReturnAdmin}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-900 text-xs font-black transition cursor-pointer"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>{isAdminLike ? 'Return to Admin Stock' : 'Request Return to Admin Stock'}</span>
-                  </button>
-
-                  {isAdminLike && (
+                  {!fulfillingRequisition && isAdminLike && (
                     <button
                       onClick={handleOpenBulkRemove}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black transition cursor-pointer"
