@@ -575,7 +575,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   // Style #2 Locked In as the #1 Permanent Header Style:
   // Translucent Crystal-White Glass Header with Stock-Request Table-Header Blue (slightly darker: #0f334d / #133e5e)
   return (
-    <header className="sticky top-0 z-40 bg-white/82 backdrop-blur-2xl text-zinc-900 border-b border-zinc-200/80 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all duration-200">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md text-zinc-900 border-b border-zinc-200/90 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all duration-200">
       <div className="h-[4.5rem] px-4 sm:px-6 flex items-center justify-between gap-3">
         {/* Left: Sidebar Toggle & Global Quick Search Bar */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 max-w-xl">

@@ -846,7 +846,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         layout: { type: 'spring', stiffness: 360, damping: 32, mass: 0.75 },
                         opacity: { duration: 0.2, ease: [0.32, 0.72, 0, 1] },
                       }}
-                      className={`transition-colors interactive-row transform-gpu will-change-transform ${
+                      className={`transition-colors interactive-row ${
                         isSyncingThisDevice ? 'optimistic-sync-active' : ''
                       } ${
                         isChecked

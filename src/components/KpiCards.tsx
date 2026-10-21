@@ -125,7 +125,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
             transition={{ duration: 0.18, delay: idx * 0.02, ease: 'easeOut' }}
             whileHover={{ y: -2, transition: { duration: 0.12 } }}
             onClick={() => onSelectStage && onSelectStage(isSelected ? 'ALL' : stage)}
-            className={`surface-card relative overflow-hidden rounded-xl p-3 sm:p-4 transition-all duration-150 cursor-pointer select-none group shadow-md hover:shadow-lg transform-gpu ${
+            className={`surface-card relative overflow-hidden rounded-xl p-3 sm:p-4 transition-all duration-150 cursor-pointer select-none group shadow-md hover:shadow-lg ${
               isSelected ? style.ringActive : 'hover:border-zinc-400'
             }`}
           >
