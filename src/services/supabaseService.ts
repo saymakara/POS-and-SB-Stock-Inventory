@@ -148,22 +148,34 @@ export async function bulkUpsertBranchesToSupabase(branches: Branch[]): Promise<
 // DEVICES API
 // -----------------------------------------------------------------------------
 
-export async function fetchDevicesFromSupabase(): Promise<Device[] | null> {
+export async function fetchDevicesFromSupabase(
+  pageSize = 5000,
+  maxTotal = 500000
+): Promise<Device[] | null> {
   if (!isSupabaseConfigured) return null;
 
   try {
-    const { data, error } = await supabase
-      .from('devices')
-      .select('*')
-      .order('stock_in_date', { ascending: false })
-      .limit(2000);
+    const allRows: any[] = [];
+    let from = 0;
+    while (from < maxTotal) {
+      const to = from + pageSize - 1;
+      const { data, error } = await supabase
+        .from('devices')
+        .select('*')
+        .order('stock_in_date', { ascending: false })
+        .range(from, to);
 
-    if (error) {
-      console.warn('[Supabase] Error fetching devices:', error.message);
-      return null;
+      if (error) {
+        console.warn('[Supabase] Error fetching devices:', error.message);
+        break;
+      }
+      if (!data || data.length === 0) break;
+      allRows.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
     }
 
-    return (data || []).map(mapRowToDevice);
+    return allRows.map(mapRowToDevice);
   } catch (err) {
     console.warn('[Supabase] Exception fetching devices:', err);
     return null;
@@ -190,19 +202,31 @@ export async function upsertDeviceToSupabase(device: Device): Promise<boolean> {
   }
 }
 
-export async function bulkUpsertDevicesToSupabase(devices: Device[]): Promise<boolean> {
+export async function bulkUpsertDevicesToSupabase(
+  devices: Device[],
+  onProgress?: (processed: number, total: number) => void
+): Promise<boolean> {
   if (!isSupabaseConfigured || devices.length === 0) return false;
 
   try {
-    const rows = devices.map(mapDeviceToRow);
-    const { error } = await supabase
-      .from('devices')
-      .upsert(rows, { onConflict: 'serial' });
+    // Process in batches of 500 rows to prevent HTTP request payload limit timeouts on 500K datasets
+    const BATCH_SIZE = 500;
+    const total = devices.length;
 
-    if (error) {
-      console.warn('[Supabase] Error bulk upserting devices:', error.message);
-      return false;
+    for (let i = 0; i < total; i += BATCH_SIZE) {
+      const slice = devices.slice(i, i + BATCH_SIZE);
+      const rows = slice.map(mapDeviceToRow);
+      const { error } = await supabase
+        .from('devices')
+        .upsert(rows, { onConflict: 'serial' });
+
+      if (error) {
+        console.warn(`[Supabase] Error bulk upserting batch ${i}-${i + slice.length}:`, error.message);
+        return false;
+      }
+      onProgress?.(Math.min(i + BATCH_SIZE, total), total);
     }
+
     return true;
   } catch (err) {
     console.warn('[Supabase] Exception bulk upserting devices:', err);

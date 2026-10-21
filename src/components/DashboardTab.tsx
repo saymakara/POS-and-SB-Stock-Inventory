@@ -23,6 +23,7 @@ import {
   FileDown,
   Building2,
   ScrollText,
+  Package,
 } from 'lucide-react';
 
 interface DashboardTabProps {
@@ -57,6 +58,34 @@ interface MonthlyBucket {
   target: number;
 }
 
+function generateDynamicMonthBuckets(count = 12): {
+  monthKey: string;
+  label: string;
+  shortLabel: string;
+}[] {
+  const months: { monthKey: string; label: string; shortLabel: string }[] = [];
+  const now = new Date();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const shortNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const monthKey = `${yyyy}-${mm}`;
+    const label = `${monthNames[d.getMonth()]} ${yyyy}`;
+    const shortLabel = `${shortNames[d.getMonth()]} ${String(yyyy).slice(-2)}`;
+    months.push({ monthKey, label, shortLabel });
+  }
+  return months;
+}
+
 export const DashboardTab: React.FC<DashboardTabProps> = ({
   devices,
   allDevices,
@@ -68,10 +97,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onOpenExportModal,
   onNavigateTab,
 }) => {
+  const currentMonthKey = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
   const [perfViewMode, setPerfViewMode] =
     useState<PerformanceViewMode>('MONTHLY_INSTALLS');
   const [timeHorizon, setTimeHorizon] = useState<TimeHorizon>('6M');
-  const [selectedMonthKey, setSelectedMonthKey] = useState<string>('2026-10');
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(currentMonthKey);
 
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const activeDevices = useMemo(
@@ -80,72 +114,85 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   );
 
   const monthlyData: MonthlyBucket[] = useMemo(() => {
-    const baseMonths: Omit<MonthlyBucket, 'total'>[] = [
-      { monthKey: '2025-11', label: 'November 2025', shortLabel: 'Nov 25', posInstalled: 14, sbInstalled: 19, dispatched: 36, faulty: 1, target: 30 },
-      { monthKey: '2025-12', label: 'December 2025', shortLabel: 'Dec 25', posInstalled: 18, sbInstalled: 24, dispatched: 45, faulty: 2, target: 38 },
-      { monthKey: '2026-01', label: 'January 2026', shortLabel: 'Jan 26', posInstalled: 21, sbInstalled: 27, dispatched: 52, faulty: 1, target: 45 },
-      { monthKey: '2026-02', label: 'February 2026', shortLabel: 'Feb 26', posInstalled: 19, sbInstalled: 25, dispatched: 48, faulty: 1, target: 45 },
-      { monthKey: '2026-03', label: 'March 2026', shortLabel: 'Mar 26', posInstalled: 24, sbInstalled: 31, dispatched: 60, faulty: 2, target: 50 },
-      { monthKey: '2026-04', label: 'April 2026', shortLabel: 'Apr 26', posInstalled: 22, sbInstalled: 29, dispatched: 54, faulty: 1, target: 50 },
-      { monthKey: '2026-05', label: 'May 2026', shortLabel: 'May 26', posInstalled: 27, sbInstalled: 35, dispatched: 66, faulty: 2, target: 55 },
-      { monthKey: '2026-06', label: 'June 2026', shortLabel: 'Jun 26', posInstalled: 29, sbInstalled: 38, dispatched: 71, faulty: 1, target: 60 },
-      { monthKey: '2026-07', label: 'July 2026', shortLabel: 'Jul 26', posInstalled: 32, sbInstalled: 41, dispatched: 78, faulty: 2, target: 65 },
-      { monthKey: '2026-08', label: 'August 2026', shortLabel: 'Aug 26', posInstalled: 34, sbInstalled: 44, dispatched: 82, faulty: 1, target: 70 },
-      { monthKey: '2026-09', label: 'September 2026', shortLabel: 'Sep 26', posInstalled: 37, sbInstalled: 48, dispatched: 90, faulty: 2, target: 75 },
-      { monthKey: '2026-10', label: 'October 2026', shortLabel: 'Oct 26', posInstalled: 38, sbInstalled: 49, dispatched: 94, faulty: 1, target: 80 },
-    ];
+    const buckets = generateDynamicMonthBuckets(12);
+    const bucketMap = new Map<
+      string,
+      { posInstalled: number; sbInstalled: number; dispatched: number; faulty: number }
+    >();
 
-    const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-    let octLivePos = 0;
-    let octLiveSb = 0;
+    for (let i = 0; i < buckets.length; i++) {
+      bucketMap.set(buckets[i].monthKey, {
+        posInstalled: 0,
+        sbInstalled: 0,
+        dispatched: 0,
+        faulty: 0,
+      });
+    }
+
+    // High-performance single pass across all devices (O(N) handling up to 500K rows)
     const len = activeDevices.length;
     for (let i = 0; i < len; i++) {
       const d = activeDevices[i];
-      if (d.stage === 'COMPLETE') {
-        const dateMatch =
-          (d.deployedDate && d.deployedDate.includes(currentMonthKey)) ||
-          (d.updatedAt && d.updatedAt.includes(currentMonthKey));
-        if (dateMatch) {
-          if (d.type === 'POS Terminal') octLivePos++;
-          else if (d.type === 'Sound Box') octLiveSb++;
+      const depDate = d.deployedDate || d.updatedAt || d.stockInDate || '';
+      if (depDate.length >= 7) {
+        const mKey = depDate.slice(0, 7);
+        const stats = bucketMap.get(mKey);
+        if (stats) {
+          if (d.stage === 'COMPLETE') {
+            if (d.type === 'POS Terminal') stats.posInstalled++;
+            else if (d.type === 'Sound Box') stats.sbInstalled++;
+          } else if (d.stage === 'FAULTY') {
+            stats.faulty++;
+          }
+          if (d.stage === 'COMPLETE' || d.stage === 'BRANCH_RESERVE' || d.stage === 'CONFIGURING') {
+            stats.dispatched++;
+          }
         }
       }
     }
 
-    const scaleFactor = role === 'BRANCH' ? 0.18 : 1;
-
-    const computed = baseMonths.map((m) => {
-      const pos =
-        m.monthKey === '2026-10'
-          ? Math.max(octLivePos, Math.round(m.posInstalled * scaleFactor))
-          : Math.max(1, Math.round(m.posInstalled * scaleFactor));
-      const sb =
-        m.monthKey === '2026-10'
-          ? Math.max(octLiveSb, Math.round(m.sbInstalled * scaleFactor))
-          : Math.max(1, Math.round(m.sbInstalled * scaleFactor));
-      const disp = Math.max(pos + sb + 2, Math.round(m.dispatched * scaleFactor));
-      const tgt = Math.max(4, Math.round(m.target * scaleFactor));
+    const computed = buckets.map((b) => {
+      const s = bucketMap.get(b.monthKey) || {
+        posInstalled: 0,
+        sbInstalled: 0,
+        dispatched: 0,
+        faulty: 0,
+      };
+      const total = s.posInstalled + s.sbInstalled;
       return {
-        ...m,
-        posInstalled: pos,
-        sbInstalled: sb,
-        dispatched: disp,
-        target: tgt,
-        total: pos + sb,
+        monthKey: b.monthKey,
+        label: b.label,
+        shortLabel: b.shortLabel,
+        posInstalled: s.posInstalled,
+        sbInstalled: s.sbInstalled,
+        dispatched: Math.max(s.dispatched, total),
+        faulty: s.faulty,
+        total,
+        target: 50,
       };
     });
 
     if (timeHorizon === '6M') return computed.slice(-6);
     if (timeHorizon === 'Q4_2026') return computed.slice(-3);
     return computed;
-  }, [activeDevices, role, timeHorizon]);
+  }, [activeDevices, timeHorizon]);
 
   const selectedMonthStats = useMemo(() => {
     return (
       monthlyData.find((m) => m.monthKey === selectedMonthKey) ||
-      monthlyData[monthlyData.length - 1]
+      monthlyData[monthlyData.length - 1] || {
+        monthKey: currentMonthKey,
+        label: 'Current Month',
+        shortLabel: 'Now',
+        posInstalled: 0,
+        sbInstalled: 0,
+        dispatched: 0,
+        faulty: 0,
+        total: 0,
+        target: 50,
+      }
     );
-  }, [monthlyData, selectedMonthKey]);
+  }, [monthlyData, selectedMonthKey, currentMonthKey]);
 
   // High-Throughput Single-Pass Branch Velocity Aggregator
   const branchVelocity = useMemo(() => {
@@ -712,7 +759,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
 
           <div className="p-4 space-y-2.5 flex-1">
-            {activeDevices.slice(0, 6).map((dev) => {
+            {activeDevices.length === 0 ? (
+              <div className="py-10 text-center text-slate-500 text-xs">
+                <Package className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                <p className="font-bold text-slate-700">No Hardware Dispatched Yet</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Use Batch Upload or New Stock Request to register hardware units.</p>
+              </div>
+            ) : (
+              activeDevices.slice(0, 6).map((dev) => {
               const meta = STAGE_META[dev.stage];
               const cycleCount = (dev.history || []).length;
               return (
@@ -762,7 +816,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   </span>
                 </div>
               );
-            })}
+            })
+          )}
           </div>
         </div>
       </div>

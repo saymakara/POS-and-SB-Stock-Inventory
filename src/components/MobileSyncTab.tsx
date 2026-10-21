@@ -114,7 +114,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
     devices[0];
 
   const [selectedSerial, setSelectedSerial] = useState<string>(
-    defaultDevice?.serial || 'SB-00012'
+    defaultDevice?.serial || ''
   );
   const [stage, setStage] = useState<LifecycleStage>('COMPLETE');
   const [branchId, setBranchId] = useState<string>(
@@ -123,25 +123,23 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
       : activeBranchId
   );
   const [installerName, setInstallerName] = useState<string>(
-    defaultDevice?.staff || activeStaff || 'SOK Dara (27811)'
+    defaultDevice?.staff || activeStaff || ''
   );
-  const [mid, setMid] = useState<string>(defaultDevice?.mid || 'MID-880105-01');
-  const [tid, setTid] = useState<string>(defaultDevice?.tid || 'TID-10501');
+  const [mid, setMid] = useState<string>(defaultDevice?.mid || '');
+  const [tid, setTid] = useState<string>(defaultDevice?.tid || '');
   const [merchantName, setMerchantName] = useState<string>(
-    defaultDevice?.merchantName || 'Brown Coffee Norodom'
+    defaultDevice?.merchantName || ''
   );
   const [merchantPhone, setMerchantPhone] = useState<string>(
-    defaultDevice?.merchantPhone || '012 889 102'
+    defaultDevice?.merchantPhone || ''
   );
   const [address, setAddress] = useState<string>(
-    defaultDevice?.address || 'Preah Norodom Blvd, Phnom Penh'
+    defaultDevice?.address || ''
   );
   const [gpsLocation, setGpsLocation] = useState<string>(
-    defaultDevice?.location || '11.5621° N, 104.9260° E · Phnom Penh'
+    defaultDevice?.location || ''
   );
-  const [notes, setNotes] = useState<string>(
-    'Verified QR audio & terminal network check on-site'
-  );
+  const [notes, setNotes] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dynamicIslandState, setDynamicIslandState] = useState<
     'IDLE' | 'SYNCING' | 'SUCCESS'

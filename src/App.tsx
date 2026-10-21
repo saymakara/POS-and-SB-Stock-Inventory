@@ -62,17 +62,22 @@ import {
   upsertRequisitionToSupabase,
   subscribeToRealtimeChanges,
 } from './services/supabaseService';
+import {
+  loadDevicesFromIdb,
+  saveDevicesToIdb,
+  clearDevicesFromIdb,
+} from './utils/idbStorage';
 
-const STORAGE_KEY_DEVICES = 'crm_pos_devices_v12';
-const STORAGE_KEY_REQS = 'crm_pos_reqs_v11';
-const STORAGE_KEY_BRANCHES = 'crm_pos_branches_v11';
-const STORAGE_KEY_USERS = 'crm_pos_users_v12';
-const STORAGE_KEY_LOGS = 'crm_pos_logs_v11';
-const STORAGE_KEY_WEBHOOKS = 'crm_pos_mobile_webhooks_v11';
-const STORAGE_KEY_NOTIFS = 'crm_pos_notifs_v11';
-const STORAGE_KEY_HISTORICAL_MERCHANTS = 'crm_pos_historical_merchants_v11';
-const STORAGE_KEY_SETTINGS = 'crm_pos_settings_v11';
-const STORAGE_KEY_AUTH_SESSION = 'crm_pos_auth_session_v1';
+const STORAGE_KEY_DEVICES = 'crm_pos_devices_v20';
+const STORAGE_KEY_REQS = 'crm_pos_reqs_v20';
+const STORAGE_KEY_BRANCHES = 'crm_pos_branches_v20';
+const STORAGE_KEY_USERS = 'crm_pos_users_v20';
+const STORAGE_KEY_LOGS = 'crm_pos_logs_v20';
+const STORAGE_KEY_WEBHOOKS = 'crm_pos_mobile_webhooks_v20';
+const STORAGE_KEY_NOTIFS = 'crm_pos_notifs_v20';
+const STORAGE_KEY_HISTORICAL_MERCHANTS = 'crm_pos_historical_merchants_v20';
+const STORAGE_KEY_SETTINGS = 'crm_pos_settings_v20';
+const STORAGE_KEY_AUTH_SESSION = 'crm_pos_auth_session_v20';
 
 interface StoredAuthSession {
   role: UserRole;
@@ -89,6 +94,18 @@ const getInitialAuthSession = (): StoredAuthSession | null => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.role && parsed.operatorLabel) {
+        // Banking Security Hardening: Only whitelisted Super Admin staff can possess SUPER_ADMIN role
+        if (parsed.role === 'SUPER_ADMIN') {
+          const isWhitelisted =
+            parsed.username === '8986' ||
+            parsed.username === '5546' ||
+            parsed.operatorLabel?.includes('8986') ||
+            parsed.operatorLabel?.includes('5546');
+          if (!isWhitelisted) {
+            console.warn('[Security Audit] Unauthorized SUPER_ADMIN session downgraded to BRANCH officer.');
+            parsed.role = 'BRANCH';
+          }
+        }
         return parsed;
       }
     }
@@ -98,65 +115,9 @@ const getInitialAuthSession = (): StoredAuthSession | null => {
   return null;
 };
 
-const INITIAL_WEBHOOK_EVENTS: MobileWebhookEvent[] = [
-  {
-    eventId: 'WH-2026-8841',
-    timestamp: '2026-10-18 09:12:04',
-    serial: 'WP5400PQ23200297',
-    previousStage: 'CONFIGURING',
-    newStage: 'COMPLETE',
-    branchId: '101',
-    installerStaff: 'SEOUN Chettra (25490)',
-    merchantName: 'Borei Keyla Pharmacy',
-    merchantPhone: '089 591 091',
-    address: 'Borei Keyla St, 7 Makara',
-    mid: '100000880101001',
-    tid: 'TID-10101',
-    note: 'Mobile app QR scan verified & merchant receipt signed on iPhone 18 Pro Max',
-    source: 'MOBILE_APP_WEBHOOK',
-    status: 'APPLIED',
-  },
-  {
-    eventId: 'WH-2026-8842',
-    timestamp: '2026-10-18 09:45:19',
-    serial: 'WP5400PQ23200301',
-    previousStage: 'CONFIGURING',
-    newStage: 'COMPLETE',
-    branchId: '105',
-    installerStaff: 'NI Oudomroth (10811)',
-    merchantName: 'Tube Coffee Toul Kork',
-    merchantPhone: '093 630 583',
-    address: 'St 289, Toul Kork',
-    mid: '100000880105001',
-    tid: 'TID-10502',
-    note: 'KHQR audio broadcast and payment test passed on iPhone 18 Pro Max',
-    source: 'MOBILE_APP_WEBHOOK',
-    status: 'APPLIED',
-  },
-];
+const INITIAL_WEBHOOK_EVENTS: MobileWebhookEvent[] = [];
 
-const INITIAL_NOTIFICATIONS: SystemNotification[] = [
-  {
-    id: 'NOTIF-2026-001',
-    title: 'REQ-2026-105',
-    message: 'Branch Code 105 (Toul Kork Branch — NI Oudomroth) requested 2x POS Terminal units for merchant installations.',
-    category: 'REQUEST',
-    timestamp: '2026-10-18 09:15:00',
-    read: false,
-    branchId: '105',
-    targetTab: 'requisitions',
-  },
-  {
-    id: 'NOTIF-2026-002',
-    title: 'REQ-2026-102',
-    message: 'Branch Code 102 (Olympic Branch — KIM Sreypov) requested 3x Sound Box units for merchant setups.',
-    category: 'REQUEST',
-    timestamp: '2026-10-18 08:30:00',
-    read: true,
-    branchId: '102',
-    targetTab: 'requisitions',
-  },
-];
+const INITIAL_NOTIFICATIONS: SystemNotification[] = [];
 
 export function App() {
   // Always use Light Mode (Single theme as before)
@@ -228,11 +189,6 @@ export function App() {
       const saved = localStorage.getItem(STORAGE_KEY_DEVICES);
       if (saved) {
         const parsed: Device[] = JSON.parse(saved);
-        // Automatic rollback guard: if storage contains synthetic benchmark data, roll back to certified initial devices
-        if (parsed.length > 200 || parsed.some((d) => d.serial.startsWith('WP5400PQ24'))) {
-          localStorage.removeItem(STORAGE_KEY_DEVICES);
-          return buildInitialDevices(buildInitialBranches(buildInitialUsers()));
-        }
         return parsed.map((d, idx) => {
           const isSoundBox = d.type === 'Sound Box';
           // Normalize serial to WP5400PQ format if old POS-
@@ -290,10 +246,7 @@ export function App() {
       console.error(e);
     }
     return [
-      '2026-10-18 09:20:00 | System Integrity Initialized | Super Admin SAY Chanmakara (8986) initialized immutable audit ledger across 34 Branch Codes',
-      '2026-10-18 09:15:10 | Stock Requisition Alert | Branch Code 105 officer NI Oudomroth (10811) submitted REQ-2026-105 for 2x POS Terminal',
-      '2026-10-18 09:12:04 | Serial Cycle Completed | Branch Code 101 officer SEOUN Chettra (25490) completed installation of WP5400PQ23200297 (Install Date: 2026-01-18 · MID: 100000880101001)',
-      '2026-10-18 08:45:00 | Bulk Branch Code Dispatch | Head Office dispatched Wizar POS Q2 Pro units to Branch Code 105 Reserve',
+      '2026-10-21 08:00:00 | System Initialized | Immutable security audit ledger verified across all 34 Branch Codes',
     ];
   });
 
@@ -505,11 +458,41 @@ export function App() {
     };
   }, []);
 
+  // High-Volume Device Hydration from IndexedDB (supports up to 500,000+ rows)
   useEffect(() => {
+    let isMounted = true;
+    loadDevicesFromIdb()
+      .then((idbDevices) => {
+        if (!isMounted) return;
+        if (idbDevices && idbDevices.length > 0) {
+          setDevices(idbDevices);
+        }
+      })
+      .catch((err) => {
+        console.warn('[IndexedDB Load Devices Warning]', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (devices.length > 0) {
+      saveDevicesToIdb(devices).catch((err) =>
+        console.warn('[IndexedDB Save Devices Warning]', err)
+      );
+    } else {
+      clearDevicesFromIdb().catch(() => {});
+    }
+
     try {
-      localStorage.setItem(STORAGE_KEY_DEVICES, JSON.stringify(devices));
+      if (devices.length <= 5000) {
+        localStorage.setItem(STORAGE_KEY_DEVICES, JSON.stringify(devices));
+      } else {
+        localStorage.removeItem(STORAGE_KEY_DEVICES);
+      }
     } catch (e) {
-      // Quota exceeded or private browsing restrictions
+      // LocalStorage Quota Exceeded (Gracefully handled; IndexedDB stores up to 500K)
     }
   }, [devices]);
 
@@ -735,7 +718,14 @@ export function App() {
       }
       if (data.devices && Array.isArray(data.devices)) {
         setDevices(data.devices);
-        localStorage.setItem(STORAGE_KEY_DEVICES, JSON.stringify(data.devices));
+        saveDevicesToIdb(data.devices).catch(() => {});
+        try {
+          if (data.devices.length <= 5000) {
+            localStorage.setItem(STORAGE_KEY_DEVICES, JSON.stringify(data.devices));
+          } else {
+            localStorage.removeItem(STORAGE_KEY_DEVICES);
+          }
+        } catch {}
       }
       if (data.branches && Array.isArray(data.branches)) {
         setBranches(data.branches);

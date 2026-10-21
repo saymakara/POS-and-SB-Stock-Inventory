@@ -86,7 +86,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
       };
     }
 
-    if (clean.includes('super') || clean === '8986' || clean.includes('chanmakara')) {
+    if (clean === '8986' || clean === 'say chanmakara' || clean === 'say.chanmakara') {
       return {
         role: 'SUPER_ADMIN',
         branchId: '100',
@@ -96,9 +96,9 @@ export const SignInPage: React.FC<SignInPageProps> = ({
         username: inputUser.trim(),
       };
     }
-    if (clean.includes('admin') || clean === '5546' || clean.includes('seyha')) {
+    if (clean === '5546' || clean === 'chhoeun seyha' || clean === 'chhoeun.seyha') {
       return {
-        role: 'ADMIN',
+        role: 'SUPER_ADMIN',
         branchId: '100',
         branchName: 'Head Office (Code 100)',
         empId: '5546',
@@ -106,7 +106,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
         username: inputUser.trim(),
       };
     }
-    if (clean === '10811' || clean.includes('oudomroth') || clean.includes('branch')) {
+    if (clean === '10811' || clean === 'ni oudomroth' || clean === 'ni.oudomroth') {
       return {
         role: 'BRANCH',
         branchId: '105',

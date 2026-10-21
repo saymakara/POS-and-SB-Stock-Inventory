@@ -142,27 +142,7 @@ export const RAW_DEVICES: Array<{
   dd: string;
   rr: string;
   rc: number;
-}> = [
-  {"s": "WP5400PQ23200297", "m": "Wizar POS Q2 Pro", "dt": "2024-09-12", "b": "101", "stf": "SEOUN Chettra (25490)", "g": "COMPLETE", "mid": "100000880101001", "tid": "TID-10101", "mn": "Borei Keyla Pharmacy", "mp": "089 591 091", "ad": "Borei Keyla St, 7 Makara", "dd": "2026-01-18", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200298", "m": "Wizar POS Q2 Pro", "dt": "2024-11-20", "b": "102", "stf": "HON Bunheng (17022)", "g": "COMPLETE", "mid": "100000880102001", "tid": "TID-10201", "mn": "Mondulkiri Coffee Mao Tse Toung", "mp": "088 927 265", "ad": "Mao Tse Toung Blvd, Chamkar Mon", "dd": "2026-02-14", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200299", "m": "Wizar POS Q2 Pro", "dt": "2026-03-10", "b": "105", "stf": "NI Oudomroth (10811)", "g": "COMPLETE", "mid": "100000880105001", "tid": "TID-10501", "mn": "Brown Coffee Toul Kork", "mp": "012 889 101", "ad": "St 315, Boeung Kak 1, Toul Kork", "dd": "2026-03-20", "rr": "", "rc": 1},
-  {"s": "WP5400PQ23200300", "m": "Wizar POS Q2 Pro", "dt": "2026-04-12", "b": "106", "stf": "CHHET Chhea (18359)", "g": "COMPLETE", "mid": "100000880106001", "tid": "TID-10601", "mn": "Sorya Fashion Boutique", "mp": "086 884 000", "ad": "Preah Trasak Paem St (St 63), Daun Penh", "dd": "2026-04-25", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200301", "m": "Wizar POS Q2 Pro", "dt": "2026-05-10", "b": "113", "stf": "YONG Sokleap (26059)", "g": "COMPLETE", "mid": "100000880113001", "tid": "TID-11301", "mn": "Saensokh Superstore", "mp": "096 970 483", "ad": "Hanoi Blvd (1019), Sen Sok", "dd": "2026-05-15", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200302", "m": "Wizar POS Q2 Pro", "dt": "2026-08-04", "b": "108", "stf": "SENG Menghor (19274)", "g": "COMPLETE", "mid": "100000880108001", "tid": "TID-10801", "mn": "U-Care Pharmacy Monument", "mp": "089 865 464", "ad": "Preah Norodom Blvd, BKK1", "dd": "2026-08-19", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200303", "m": "Wizar POS Q2 Pro", "dt": "2026-09-05", "b": "105", "stf": "NI Oudomroth (10811)", "g": "CONFIGURING", "mid": "100000880105004", "tid": "TID-10504", "mn": "Starbucks Reserve TK", "mp": "012 900 411", "ad": "St 516, Toul Kork", "dd": "2026-10-17", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200304", "m": "Wizar POS Q2 Pro", "dt": "2026-10-01", "b": "105", "stf": "NI Oudomroth (10811)", "g": "BRANCH_RESERVE", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200305", "m": "Wizar POS Q2 Pro", "dt": "2026-06-14", "b": "105", "stf": "NI Oudomroth (10811)", "g": "BRANCH_RESERVE", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "2026-07-01", "rr": "Merchant Closed Business", "rc": 2},
-  {"s": "WP5400PQ23200306", "m": "Wizar POS Q2 Pro", "dt": "2026-10-10", "b": "100", "stf": "SAY Chanmakara (8986)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200307", "m": "Wizar POS Q2 Pro", "dt": "2026-10-10", "b": "100", "stf": "SAY Chanmakara (8986)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200308", "m": "Wizar POS Q2 Pro", "dt": "2026-10-11", "b": "100", "stf": "CHHOEUN Seyha (5546)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200309", "m": "Wizar POS Q2 Pro", "dt": "2026-10-11", "b": "100", "stf": "CHHOEUN Seyha (5546)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200310", "m": "Wizar POS Q2 Pro", "dt": "2026-10-12", "b": "100", "stf": "CHHOEUN Seyha (5546)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200311", "m": "Wizar POS Q2 Pro", "dt": "2026-10-12", "b": "100", "stf": "SAY Chanmakara (8986)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200312", "m": "Wizar POS Q2 Pro", "dt": "2026-10-13", "b": "100", "stf": "SAY Chanmakara (8986)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200313", "m": "Wizar POS Q2 Pro", "dt": "2026-10-14", "b": "100", "stf": "CHHOEUN Seyha (5546)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200314", "m": "Wizar POS Q2 Pro", "dt": "2026-10-15", "b": "100", "stf": "CHHOEUN Seyha (5546)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0},
-  {"s": "WP5400PQ23200315", "m": "Wizar POS Q2 Pro", "dt": "2026-10-16", "b": "100", "stf": "SAY Chanmakara (8986)", "g": "HQ_STOCK", "mid": "", "tid": "", "mn": "", "mp": "", "ad": "", "dd": "", "rr": "", "rc": 0}
-];
+}> = [];
 
 export function deriveBatterySerial(serial: string, isPos: boolean = true, index: number = 0): string {
   if (isPos) {
@@ -177,6 +157,7 @@ export function deriveBatterySerial(serial: string, isPos: boolean = true, index
 }
 
 export function buildInitialDevices(branches: Branch[]): Device[] {
+  if (RAW_DEVICES.length === 0) return [];
   return RAW_DEVICES.map((d, idx) => {
     const bObj = branches.find(b => b.id === d.b) || branches[0];
     const isPos = true;
@@ -236,18 +217,6 @@ export function buildInitialDevices(branches: Branch[]): Device[] {
 }
 
 export function createInitialRequisitions(): Requisition[] {
-  return [
-    {
-      reqId: "REQ-2026-105",
-      date: "2026-10-17 09:15",
-      branchId: "105",
-      branchName: "Toul Kork Branch",
-      staff: "NI Oudomroth (10811)",
-      posQty: 2,
-      sbQty: 0,
-      reason: "Branch Code 105 reserve replenishment for merchant POS Terminal installations",
-      status: "PENDING_ADMIN"
-    }
-  ];
+  return [];
 }
 

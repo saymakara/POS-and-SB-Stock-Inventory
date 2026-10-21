@@ -35,42 +35,7 @@ const VALID_STAGES = new Set([
 ]);
 
 // Authoritative Server-Side Webhook Log & Connected SSE Clients
-const webhookLogs: ServerWebhookEvent[] = [
-  {
-    eventId: 'WHK-2026-8801',
-    timestamp: '2026-10-17 13:20:15',
-    serial: 'POS-A920-00105',
-    previousStage: 'OUT_FOR_INSTALL',
-    newStage: 'COMPLETE',
-    mid: 'MID-880105-01',
-    tid: 'TID-10501',
-    merchantName: 'Brown Coffee Toul Kork',
-    merchantPhone: '012 889 101',
-    address: 'St 315, Boeung Kak 1, Toul Kork',
-    installerStaff: 'NI Oudomroth (10811)',
-    branchId: '105',
-    note: 'Verified QR & NFC tap on-site via Mobile Installer App v2.4',
-    source: 'MOBILE_APP_WEBHOOK',
-    status: 'APPLIED',
-  },
-  {
-    eventId: 'WHK-2026-8802',
-    timestamp: '2026-10-17 13:15:42',
-    serial: 'POS-A920-00101',
-    previousStage: 'OUT_FOR_INSTALL',
-    newStage: 'COMPLETE',
-    mid: 'MID-880101-01',
-    tid: 'TID-10101',
-    merchantName: 'Borei Keyla Pharmacy',
-    merchantPhone: '089 591 091',
-    address: 'Borei Keyla St, 7 Makara',
-    installerStaff: 'SEOUN Chettra (25490)',
-    branchId: '101',
-    note: 'POS Terminal verified and completed on-site',
-    source: 'MOBILE_APP_WEBHOOK',
-    status: 'APPLIED',
-  },
-];
+const webhookLogs: ServerWebhookEvent[] = [];
 
 const sseClients = new Set<Response>();
 
