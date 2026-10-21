@@ -45,7 +45,7 @@ import { BatchUploadModal } from './components/BatchUploadModal';
 import { RequestStockModal } from './components/RequestStockModal';
 import { SessionLockModal } from './components/SessionLockModal';
 import { MobileSyncTab } from './components/MobileSyncTab';
-import { SettingsTab } from './components/SettingsTab';
+import { SettingsTab, SettingsSubTab } from './components/SettingsTab';
 import { LogoPageTab } from './components/LogoPageTab';
 import { AuditLogTab } from './components/AuditLogTab';
 import { SignInPage } from './components/SignInPage';
@@ -582,9 +582,7 @@ export function App() {
     return 'SAY Chanmakara (8986)';
   });
   const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [settingsSubTab, setSettingsSubTab] = useState<
-    'policy' | 'branches' | 'brand_logo' | 'hardware' | 'sla' | 'customFields' | 'data' | 'security'
-  >('policy');
+  const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('policy');
 
   const handleSelectTab = (tabId: string, subTab?: string) => {
     if ((tabId === 'settings' || tabId === 'brand_logo') && role !== 'SUPER_ADMIN') {
