@@ -1,5 +1,6 @@
-import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useSort, SortTh } from '../utils/sort';
+import { useProgressive } from '../utils/useProgressive';
 import { UserCog, Plus, Search, Loader2, KeyRound, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { StaffAccount, fetchStaffAccounts, saveStaffAccount } from '../services/supabaseService';
@@ -21,11 +22,12 @@ function makePassword(): string {
   return s.slice(0, 5) + '-' + s.slice(5) + (/\d/.test(s) ? '' : '7');
 }
 
+const STAFF_CACHE_KEY = 'staff_accounts_cache_v1';                 // shown at once on the next visit, cleared at sign-out
+
 export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; triggerToast: (m: string) => void }> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-  const CACHE = 'staff_accounts_cache_v1';
   // the last list is shown at once while the fresh one loads (no empty screen, no waiting)
-  const [list, setList] = useState<StaffAccount[] | null>(() => { try { const c = sessionStorage.getItem('staff_accounts_cache_v1'); return c ? JSON.parse(c) : null; } catch { return null; } });
+  const [list, setList] = useState<StaffAccount[] | null>(() => { try { const c = sessionStorage.getItem(STAFF_CACHE_KEY); return c ? JSON.parse(c) : null; } catch { return null; } });
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
   const [form, setForm] = useState<typeof blank | null>(null);
@@ -38,7 +40,7 @@ export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; tr
     const x = await fetchStaffAccounts();
     if (!x) { setErr('The accounts could not be loaded.'); return; }
     setErr(''); setList(x);
-    try { sessionStorage.setItem('staff_accounts_cache_v1', JSON.stringify(x)); } catch { /* storage blocked: fine */ }
+    try { sessionStorage.setItem(STAFF_CACHE_KEY, JSON.stringify(x)); } catch { /* storage blocked: fine */ }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -54,16 +56,7 @@ export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; tr
     status: (a) => (a.active ? (a.mustChangePassword ? 'Active · first password' : 'Active') : 'Off'),
   });
   // the first rows appear at once; the rest are added as the list is scrolled
-  const [visible, setVisible] = useState(60);
-  const sentinel = useRef<HTMLDivElement | null>(null);
-  useEffect(() => { setVisible(60); }, [dq, stSort]);
-  useEffect(() => {
-    const el = sentinel.current;
-    if (!el || visible >= shown.length) return;
-    const io = new IntersectionObserver((en) => { if (en.some((x) => x.isIntersecting)) setVisible((v) => v + 80); }, { rootMargin: '500px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [visible, shown.length]);
+  const { visible, sentinelRef: sentinel } = useProgressive(shown.length, [dq, stSort]);
   const openEdit = useCallback((a: StaffAccount) => {
     setIsNew(false); setFormErr('');
     setForm({ emp_id: a.empId, name: a.name, role: a.role, branch_id: a.branchId, position: a.position || '', contact: a.contact || '', active: a.active, password: '' });

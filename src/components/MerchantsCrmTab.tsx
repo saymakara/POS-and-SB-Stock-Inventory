@@ -24,7 +24,6 @@ import {
   Check,
   AlertOctagon,
   Wand2,
-  TrendingUp,
   BarChart3,
   Upload,
   ChevronLeft,
@@ -36,7 +35,6 @@ import {
   BarChart,
   Bar,
   Area,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -756,6 +754,17 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     }
   }, [totalMerchantPages, merchantPage]);
 
+  // (review) the MID picker lists at most 300 merchants (the selected one always included): a list of thousands of
+  // options made the screen slow to open and could not be scrolled through anyway; the search narrows it
+  const trendMidOptions = useMemo(() => {
+    const top = merchantProfiles.slice(0, 300);
+    if (selectedTrendMid !== 'ALL' && !top.some((m) => m.mid === selectedTrendMid)) {
+      const sel = merchantProfiles.find((m) => m.mid === selectedTrendMid);
+      if (sel) top.unshift(sel);
+    }
+    return top;
+  }, [merchantProfiles, selectedTrendMid]);
+
   const pagedMerchants = useMemo(() => {
     const start = (merchantPage - 1) * merchantsPerPage;
     return filteredMerchants.slice(start, start + merchantsPerPage);
@@ -839,38 +848,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   const trendHasData = useMemo(
     () => monthlyDeploymentTrendData.some((r) => r.monthlyTotal > 0),
     [monthlyDeploymentTrendData]
-  );
-
-  // 6-month trend for the Merchant 360 Detail Modal (same rule: deployedDate only)
-  const modalMerchantMonthlyData = useMemo(() => {
-    if (!selectedMerchantProfile) return [];
-    const modalMonths = lastMonthsPP(6);
-    const firstKey = modalMonths[0].key;
-    let cum = selectedMerchantProfile.devices.filter((d) => {
-      const k = (d.deployedDate || '').slice(0, 7);
-      return /^\d{4}-\d{2}$/.test(k) && k < firstKey;
-    }).length;
-    return modalMonths.map((mObj) => {
-      let pos = 0;
-      let sb = 0;
-      selectedMerchantProfile.devices.forEach((dev) => {
-        if ((dev.deployedDate || '').slice(0, 7) !== mObj.key) return;
-        if (dev.type === 'POS Terminal') pos += 1;
-        else sb += 1;
-      });
-      cum += pos + sb;
-      return {
-        month: mObj.label,
-        posDeployed: pos,
-        sbDeployed: sb,
-        cumulative: cum,
-      };
-    });
-  }, [selectedMerchantProfile]);
-
-  const modalTrendHasData = useMemo(
-    () => modalMerchantMonthlyData.some((r) => r.posDeployed + r.sbDeployed > 0),
-    [modalMerchantMonthlyData]
   );
 
   const cardClass = isLight
@@ -1075,17 +1052,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     setTerminateModalMerchant(null);
   };
 
-  const handleOpenNewMerchantModal = () => {
-    // Every field starts empty: MID/TID come from the acquiring record, the serial from the device list.
-    setNewMerchMid('');
-    setNewMerchTid('');
-    setNewMerchName('');
-    setNewMerchPhone('');
-    setNewMerchAddress('');
-    setNewMerchSerial('');
-    setNewMerchantModalOpen(true);
-  };
-
   const handleCreateNewMerchant = (e: React.FormEvent) => {
     e.preventDefault();
     if (
@@ -1282,11 +1248,14 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
               title="Filter deployment trend by specific Merchant MID"
             >
               <option value="ALL">All Filtered Merchants (MID Aggregate)</option>
-              {merchantProfiles.map((m) => (
+              {trendMidOptions.map((m) => (
                 <option key={m.mid} value={m.mid}>
                   {m.mid} — {dash(m.merchantName)} ({m.posCount} POS / {m.sbCount} SB)
                 </option>
               ))}
+              {merchantProfiles.length > trendMidOptions.length && (
+                <option disabled value="__more">… {merchantProfiles.length - trendMidOptions.length} more – use the search above to narrow the list</option>
+              )}
             </select>
 
             {/* Chart Mode Toggle */}

@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, Branch, ArrangedDeviceItem } from '../types';
+import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, ArrangedDeviceItem } from '../types';
 import { normalizeMid } from '../utils/display';
 
 /**
@@ -137,69 +137,65 @@ function mapRequisitionToRow(req: Requisition): any {
   };
 }
 
-/** Reads a whole table page by page in a stable order (PostgREST returns at most 1000 rows per call). */
+/**
+ * Reads a whole table in a stable order (22 Oct 2026, review).
+ * The server may return fewer rows per call than asked (its "max rows" setting) or a table may change while it is read.
+ * Before, a lower server limit silently cut the list after the first page, and a server that ignored the page range
+ * made the reader loop until the browser ran out of memory. Now: the page size is whatever the server really returns,
+ * pages are read 4 at a time, the result is checked against the server's total, and if anything does not add up the
+ * table is read again key by key ("after the last serial"), which cannot skip or repeat a row. Returns null on any error,
+ * so a part of a list is never shown as if it were all of it.
+ */
 async function fetchAllRows(table: string, orderCol: string, pageSize = 1000, maxTotal = 500000): Promise<any[] | null> {
-  // (22 Oct 2026) the first page also returns the total; the other pages are then read at the same time (faster start)
-  const page = (from: number, withCount: boolean) =>
-    supabase.from(table).select('*', withCount ? { count: 'exact' } : undefined).order(orderCol, { ascending: true }).range(from, from + pageSize - 1);
-  const first = await page(0, true);
-  if (first.error) {
-    console.warn(`[Supabase] Error reading ${table}:`, first.error.message);
-    return null;                                                       // never show a part of a list as if it were all of it
-  }
-  const rows: any[] = [...(first.data || [])];
-  if (rows.length < pageSize) return rows;
-  if (first.count == null) {                                           // no total given: read on page by page
-    for (let from = pageSize; from < maxTotal; from += pageSize) {
-      const r = await page(from, false);
-      if (r.error) { console.warn(`[Supabase] Error reading ${table}:`, r.error.message); return null; }
-      rows.push(...(r.data || []));
-      if (!r.data || r.data.length < pageSize) break;
-    }
-    return rows;
-  }
-  const total = Math.min(first.count, maxTotal);
-  if (total <= rows.length) return rows;
+  const warn = (msg: string) => { console.warn(`[Supabase] Error reading ${table}:`, msg); return null; };
+  const first = await supabase.from(table).select('*', { count: 'exact' }).order(orderCol, { ascending: true }).range(0, pageSize - 1);
+  if (first.error) return warn(first.error.message);
+  const firstRows: any[] = first.data || [];
+  const total = first.count;
+  if (total != null && firstRows.length >= total) return firstRows.slice(0, total);
+  if (firstRows.length === 0) return total ? keyset(pageSize) : [];
+  const step = Math.min(firstRows.length, pageSize);                 // the server's real page size
+  if (total == null && firstRows.length < pageSize) return firstRows;  // no total given and a short first page: that is all
+  if (total == null || firstRows.length > pageSize) return keyset(step);
+  const rows: any[] = [...firstRows];
   const starts: number[] = [];
-  for (let from = pageSize; from < total; from += pageSize) starts.push(from);
-  for (let i = 0; i < starts.length; i += 4) {                         // at most 4 pages at a time
-    const res = await Promise.all(starts.slice(i, i + 4).map((f) => page(f, false)));
+  for (let from = step; from < Math.min(total, maxTotal); from += step) starts.push(from);
+  for (let i = 0; i < starts.length; i += 4) {
+    const res = await Promise.all(starts.slice(i, i + 4).map((f) =>
+      supabase.from(table).select('*').order(orderCol, { ascending: true }).range(f, f + step - 1)));
     for (const r of res) {
-      if (r.error) { console.warn(`[Supabase] Error reading ${table}:`, r.error.message); return null; }
+      if (r.error) return warn(r.error.message);
       rows.push(...(r.data || []));
     }
   }
-  // a row added while reading can shift a page: keep each key once
   const seen = new Set<string>();
-  return rows.filter((r) => { const k = String(r[orderCol]); if (seen.has(k)) return false; seen.add(k); return true; });
+  const unique = rows.filter((r) => { const k = String(r[orderCol]); if (seen.has(k)) return false; seen.add(k); return true; });
+  if (unique.length >= Math.min(total, maxTotal)) return unique;
+  return keyset(step);                                               // a row moved while reading: read again by key
+
+  async function keyset(size: number): Promise<any[] | null> {
+    const out: any[] = [];
+    let last: string | null = null;
+    while (out.length < maxTotal) {
+      let q = supabase.from(table).select('*').order(orderCol, { ascending: true }).limit(size);
+      if (last !== null) q = q.gt(orderCol, last);
+      const r = await q;
+      if (r.error) return warn(r.error.message);
+      const data: any[] = r.data || [];
+      if (!data.length) break;
+      const nextLast = String(data[data.length - 1][orderCol]);
+      if (nextLast === last) break;                                   // the server did not move on: stop, never loop
+      out.push(...data);
+      last = nextLast;
+      if (data.length < size) break;
+    }
+    return out;
+  }
 }
 
 // -----------------------------------------------------------------------------
 // BRANCHES API
 // -----------------------------------------------------------------------------
-
-export async function bulkUpsertBranchesToSupabase(branches: Branch[]): Promise<boolean> {
-  if (!isSupabaseConfigured || branches.length === 0) return false;
-  try {
-    const rows = branches.map((b) => ({
-      id: b.id,
-      code: b.code || b.id,
-      name: b.name,
-      staff: b.staff || [],
-      active: true,
-      updated_at: new Date().toISOString(),
-    }));
-    const { error } = await supabase.from('branches').upsert(rows, { onConflict: 'id' });
-    if (error) {
-      console.warn('[Supabase] Error bulk upserting branches:', error.message);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.warn('[Supabase] Exception bulk upserting branches:', err);
-    return false;
-  }
-}
 
 // -----------------------------------------------------------------------------
 // DEVICES API
@@ -213,58 +209,6 @@ export async function fetchDevicesFromSupabase(): Promise<Device[] | null> {
   } catch (err) {
     console.warn('[Supabase] Exception fetching devices:', err);
     return null;
-  }
-}
-
-export async function upsertDeviceToSupabase(device: Device): Promise<boolean> {
-  if (!isSupabaseConfigured) return false;
-
-  try {
-    const row = mapDeviceToRow(device);
-    const { error } = await supabase
-      .from('devices')
-      .upsert(row, { onConflict: 'serial' });
-
-    if (error) {
-      console.warn('[Supabase] Error upserting device:', error.message);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.warn('[Supabase] Exception upserting device:', err);
-    return false;
-  }
-}
-
-export async function bulkUpsertDevicesToSupabase(
-  devices: Device[],
-  onProgress?: (processed: number, total: number) => void
-): Promise<boolean> {
-  if (!isSupabaseConfigured || devices.length === 0) return false;
-
-  try {
-    // Process in batches of 500 rows to prevent HTTP request payload limit timeouts on 500K datasets
-    const BATCH_SIZE = 500;
-    const total = devices.length;
-
-    for (let i = 0; i < total; i += BATCH_SIZE) {
-      const slice = devices.slice(i, i + BATCH_SIZE);
-      const rows = slice.map(mapDeviceToRow);
-      const { error } = await supabase
-        .from('devices')
-        .upsert(rows, { onConflict: 'serial' });
-
-      if (error) {
-        console.warn(`[Supabase] Error bulk upserting batch ${i}-${i + slice.length}:`, error.message);
-        return false;
-      }
-      onProgress?.(Math.min(i + BATCH_SIZE, total), total);
-    }
-
-    return true;
-  } catch (err) {
-    console.warn('[Supabase] Exception bulk upserting devices:', err);
-    return false;
   }
 }
 
@@ -283,26 +227,6 @@ export async function fetchRequisitionsFromSupabase(): Promise<Requisition[] | n
   } catch (err) {
     console.warn('[Supabase] Exception fetching requisitions:', err);
     return null;
-  }
-}
-
-export async function upsertRequisitionToSupabase(req: Requisition): Promise<boolean> {
-  if (!isSupabaseConfigured) return false;
-
-  try {
-    const row = mapRequisitionToRow(req);
-    const { error } = await supabase
-      .from('requisitions')
-      .upsert(row, { onConflict: 'req_id' });
-
-    if (error) {
-      console.warn('[Supabase] Error upserting requisition:', error.message);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.warn('[Supabase] Exception upserting requisition:', err);
-    return false;
   }
 }
 
@@ -601,15 +525,6 @@ function mapFieldEvent(r: any): FieldEvent {
     recordedAt: r.recorded_at, latitude: r.latitude, longitude: r.longitude, remarks: r.remarks, payload: r.payload || {}, issues: Array.isArray(r.issues) ? r.issues : [],
     status: r.status, reviewedByName: r.reviewed_by_name, reviewedAt: r.reviewed_at, reviewNote: r.review_note, applied: r.applied, receivedAt: r.received_at };
 }
-export async function fetchFieldEvents(limit = 500): Promise<FieldEvent[] | null> {
-  // every pending record is always loaded (however many), plus the latest reviewed ones
-  const [pend, done] = await Promise.all([
-    supabase.from('field_events').select('*').eq('status', 'PENDING').order('received_at', { ascending: false }).limit(5000),
-    supabase.from('field_events').select('*').neq('status', 'PENDING').order('received_at', { ascending: false }).limit(limit),
-  ]);
-  if (pend.error || done.error) return null;
-  return [...(pend.data || []), ...(done.data || [])].map(mapFieldEvent);
-}
 /** branch id -> region ('Phnom Penh' or a province), used to show Phnom Penh or regional records in Phone App Review. */
 export async function fetchBranchRegions(): Promise<Record<string, string>> {
   const { data, error } = await supabase.from('branches').select('id,region');
@@ -674,8 +589,21 @@ export async function saveStaffAccount(p: { emp_id: string; name: string; role: 
   if (error) throw new Error(error.message);
   return mapStaff(data);
 }
-export async function fetchBranchesFromSupabase(): Promise<{ id: string; code: string; name: string }[] | null> {
-  const { data, error } = await supabase.from('branches').select('id,code,name').order('id');
+/** The branch list kept on the server (the record for every screen; 22 Oct 2026). */
+export async function fetchBranchesFromSupabase(): Promise<{ id: string; code: string; name: string; region: string }[] | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.from('branches').select('id,code,name,region,active').order('id');
   if (error) return null;
-  return (data || []).map((b: any) => ({ id: String(b.id), code: String(b.code || b.id), name: b.name }));
+  return (data || []).filter((b: any) => b.active !== false)
+    .map((b: any) => ({ id: String(b.id), code: String(b.code || b.id), name: String(b.name || ''), region: String(b.region || '') }));
+}
+/** Admin HQ creates or renames a branch on the server. Returns '' when saved, otherwise the reason. */
+export async function saveBranchOnServer(b: { id: string; name: string }): Promise<string> {
+  if (!isSupabaseConfigured) return '';
+  try {
+    const { error } = await supabase.from('branches').upsert({ id: b.id, code: b.id, name: b.name, active: true, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    return error ? error.message : '';
+  } catch (err) {
+    return err instanceof Error ? err.message : 'Network error';
+  }
 }

@@ -1,12 +1,26 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, type Plugin} from 'vite';
+
+// (22 Oct 2026, security review) Content Security Policy for the published site only (the dev server needs inline
+// scripts for hot reload): only this site, the Supabase server and Google Fonts can be reached; no inline/foreign scripts.
+const CSP = [
+  "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com", "img-src 'self' data: blob: https:",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co", "worker-src 'self' blob:", "object-src 'none'",
+  "base-uri 'self'", "form-action 'self'",
+].join('; ');
+const cspPlugin = (): Plugin => ({
+  name: 'inject-csp',
+  apply: 'build',
+  transformIndexHtml: (html) => html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`),
+});
 
 export default defineConfig(() => {
   return {
     base: './',
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), cspPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),

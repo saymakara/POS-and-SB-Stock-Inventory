@@ -67,3 +67,25 @@ Generates a static, relative production bundle in `dist/`.
 
 ## 📄 License
 Internal banking enterprise management application. All rights reserved.
+
+---
+
+## 🔒 Security Model (reviewed 22 Oct 2026)
+
+- **The database decides, not the browser.** Every rule is enforced by Supabase row-level security and database functions: Branch Staff see and change only their own branch; Admin HQ actions (dispatch, approvals, accounts) run in checked server functions; only a Super Admin can permanently delete.
+- **First password.** A new account cannot read any data until its first password is changed, and the change is refused if the new password is still the Employee ID.
+- **Tamper-proof history.** A unit's history can only be added to by branch users; stage moves from a branch follow the device life cycle; audit entries are stamped by the database with the real user and branch.
+- **Browser.** The published site carries a Content Security Policy (only this site, Supabase and Google Fonts), CSV exports neutralise spreadsheet formulas, and nothing of a signed-out user is left in the browser.
+
+## 🧪 Tests
+
+Build the site, serve `dist/` on port 8500, then run with Playwright installed:
+
+```bash
+npm run build && (cd dist && python3 -m http.server 8500 &)
+node tests/e2e/inv_e2e.js      # functional regression (sign-in, dispatch, phone review, saving, stale copies)
+node tests/e2e/stress.js       # 20,000 units / 1,500 requests / 3,000 phone records: load, tabs, search, sort, memory
+node tests/e2e/rt_stress.js    # live feed: bursts of 500 changes, late/old copies, deletes, no echo back to the server
+```
+
+The tests use a stand-in of the Supabase API, so they never touch live data.

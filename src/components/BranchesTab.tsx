@@ -1,4 +1,5 @@
 import { useSort, SortTh } from '../utils/sort';
+import { csvFile } from '../utils/csv';
 import React, { useState, useMemo } from 'react';
 import { Branch, Device, User, UserRole, ThemeMode } from '../types';
 import { STAGE_META } from '../data/initialData';
@@ -22,7 +23,6 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
-  ShieldCheck,
   Package,
 } from 'lucide-react';
 
@@ -213,31 +213,18 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
       'Reserve Status',
     ];
     const rows = enrichedBranches.map((b) => [
-      `"${b.code}"`,
-      `"${b.name}"`,
-      b.posCount,
-      b.sbCount,
-      b.totalDevices,
-      b.reserveCount,
-      b.completeCount,
-      b.inFlightCount,
-      b.faultyCount,
-      b.staffCount,
-      b.lowReserve ? 'Low Reserve Alert' : 'Healthy',
+      b.code, b.name, b.posCount, b.sbCount, b.totalDevices, b.reserveCount, b.completeCount, b.inFlightCount,
+      b.faultyCount, b.staffCount, b.lowReserve ? 'Low Reserve Alert' : 'Healthy',
     ]);
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    // (22 Oct 2026, review) proper CSV: names with commas, quotes or '#' no longer break or cut the file, Khmer stays intact
+    const url = URL.createObjectURL(csvFile([headers, ...rows]));
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute(
-      'download',
-      `Branch_Codes_Inventory_Table_${new Date().toISOString().slice(0, 10)}.csv`
-    );
+    link.href = url;
+    link.download = `Branch_Codes_Inventory_Table_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (

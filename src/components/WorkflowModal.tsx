@@ -11,7 +11,6 @@ import {
   DEFAULT_CUSTOM_FIELDS,
 } from '../types';
 import { STAGE_META } from '../data/initialData';
-import { findMidDuplicateDevices } from '../utils/crmUtils';
 import { todayPP } from '../utils/time';
 import { phoneFor, canSeeFullContact } from '../utils/privacy';
 import { ALLOWED_NEXT, canMove, moveError, onMove } from '../utils/stages';
@@ -120,10 +119,6 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   // Dynamic Custom Fields State
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
 
-  // One MID One Serial conflict detection
-  const conflictingDevices = useMemo(() => {
-    return findMidDuplicateDevices(mid, devices, device?.serial);
-  }, [mid, devices, device?.serial]);
 
   // Double-Step Verification State
   const [modalStep, setModalStep] = useState<'EDIT' | 'PREVIEW'>('EDIT');

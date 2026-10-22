@@ -35,7 +35,7 @@ const CACHE_KEYS = ['crm_pos_devices_v20', 'crm_pos_reqs_v20', 'crm_pos_historic
 export function clearLocalCaches(): void {
   try {
     CACHE_KEYS.forEach((k) => localStorage.removeItem(k));
-    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.clear();                                              // (review) also the staff list and screen caches
     localStorage.removeItem(SESSION_KEY);
   } catch {
     /* storage blocked */
