@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Branch, ThemeMode } from '../types';
+import { Branch, ThemeMode, UserRole } from '../types';
 import {
   X,
   SendHorizontal,
@@ -17,7 +17,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   Check,
-  Sparkles,
+  Lock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -34,6 +34,10 @@ interface RequestStockModalProps {
     reason: string;
   }) => void;
   theme?: ThemeMode;
+  /** Signed-in role (from the server). BRANCH users can only request for their own branch, as themselves. */
+  role?: UserRole;
+  /** Signed-in operator's name/label; the requester for BRANCH users. */
+  operatorLabel?: string;
 }
 
 export const RequestStockModal: React.FC<RequestStockModalProps> = ({
@@ -43,28 +47,27 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
   activeBranchId,
   onSubmitRequest,
   theme = 'light',
+  role = 'BRANCH',
+  operatorLabel = '',
 }) => {
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [modalStep, setModalStep] = useState<'FORM' | 'PREVIEW'>('FORM');
-  const [selectedBranchId, setSelectedBranchId] = useState(
-    activeBranchId || '105'
-  );
+  const [selectedBranchId, setSelectedBranchId] = useState(activeBranchId || '');
   const [selectedStaff, setSelectedStaff] = useState('');
-  const [posQty, setPosQty] = useState(3);
-  const [sbQty, setSbQty] = useState(5);
+  const [posQty, setPosQty] = useState(0);
+  const [sbQty, setSbQty] = useState(0);
   const [reason, setReason] = useState(
     'Branch reserve stock replenishment for merchant deployment & installation'
   );
 
   const isLight = theme === 'light';
   const eligibleBranches = branches.filter((b) => b.id !== '100');
-  const currentBranch =
-    branches.find((b) => b.id === selectedBranchId) ||
-    eligibleBranches[0] ||
-    branches[0] ||
-    { id: '105', code: '105', name: 'Branch Office', staff: ['Branch Officer'] };
-  const staffList = currentBranch?.staff?.length
-    ? currentBranch.staff
-    : ['Branch Officer'];
+  // BRANCH users: branch is always their own (server-assigned), never selectable.
+  const effectiveBranchId = isAdmin ? selectedBranchId : activeBranchId;
+  const currentBranch = branches.find((b) => b.id === effectiveBranchId);
+  const staffList = currentBranch?.staff || [];
+  // BRANCH users: requester is always the signed-in operator (read-only).
+  const effectiveStaff = isAdmin ? selectedStaff : operatorLabel.trim();
 
   useEffect(() => {
     if (activeBranchId && activeBranchId !== '100') {
@@ -72,33 +75,46 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
     }
   }, [activeBranchId]);
 
+  // Admins pick the requesting officer explicitly; nothing is pre-chosen when the branch changes.
   useEffect(() => {
-    if (staffList.length > 0) {
-      setSelectedStaff(staffList[0]);
-    }
+    setSelectedStaff('');
   }, [selectedBranchId]);
 
   useEffect(() => {
     if (isOpen) {
       setModalStep('FORM');
+      // Quantities start at zero each time: the branch states what it needs.
+      setPosQty(0);
+      setSbQty(0);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   const totalQty = posQty + sbQty;
+  const formError = !effectiveBranchId || !currentBranch || effectiveBranchId === '100'
+    ? isAdmin
+      ? 'Choose the requesting branch.'
+      : 'Your account has no branch assigned. Please contact HQ admin.'
+    : !effectiveStaff
+    ? isAdmin
+      ? 'Choose the requesting branch staff officer.'
+      : 'Your signed-in name is missing. Please sign out and sign in again.'
+    : totalQty <= 0
+    ? 'Request at least one unit.'
+    : '';
 
   const handleProceedToPreview = (e: React.FormEvent) => {
     e.preventDefault();
-    if (totalQty <= 0) return;
+    if (formError) return;
     setModalStep('PREVIEW');
   };
 
   const handleFinalConfirm = () => {
-    if (totalQty <= 0) return;
+    if (formError) return;
     onSubmitRequest({
-      branchId: selectedBranchId,
-      staff: selectedStaff,
+      branchId: effectiveBranchId,
+      staff: effectiveStaff,
       posQty,
       sbQty,
       reason: reason.trim() || 'Branch reserve stock replenishment',
@@ -157,6 +173,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
               onClick={onClose}
               className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0 ml-2"
               title="Close Modal"
+              aria-label="Close"
             >
               <X className="w-4 h-4" />
             </motion.button>
@@ -191,13 +208,13 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  if (totalQty > 0) setModalStep('PREVIEW');
+                  if (!formError) setModalStep('PREVIEW');
                 }}
-                disabled={totalQty <= 0}
+                disabled={!!formError}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
                   modalStep === 'PREVIEW'
                     ? 'bg-[#004953] text-white shadow-xs'
-                    : totalQty > 0
+                    : !formError
                     ? 'text-slate-600 hover:text-slate-900 dark:hover:text-white cursor-pointer'
                     : 'text-slate-400 opacity-60 cursor-not-allowed'
                 }`}
@@ -229,12 +246,26 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     Code 101–801
                   </span>
                 </label>
+                {!isAdmin ? (
+                  <div
+                    className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-semibold border flex items-center gap-2 ${
+                      isLight ? 'bg-slate-100 border-slate-200 text-slate-800' : 'bg-[#181c26] border-slate-700/80 text-slate-200'
+                    }`}
+                    aria-readonly="true"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-slate-400" />
+                    <span>
+                      {currentBranch ? `Branch Code ${currentBranch.id} — ${currentBranch.name}` : 'No branch assigned to your account'}
+                    </span>
+                  </div>
+                ) : (
                 <div className="relative flex items-center">
                   <div className="absolute left-3 w-6 h-6 rounded-lg bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-400 flex items-center justify-center pointer-events-none">
                     <Building2 className="w-3.5 h-3.5" />
                   </div>
                   <select
                     value={selectedBranchId}
+                    aria-label="Requesting branch"
                     onChange={(e) => setSelectedBranchId(e.target.value)}
                     className={`w-full appearance-none rounded-xl pl-11 pr-10 py-2.5 text-xs font-semibold border transition cursor-pointer shadow-2xs ${
                       isLight
@@ -242,6 +273,9 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         : 'bg-[#181c26] hover:bg-[#1f2432] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                     }`}
                   >
+                    <option value="" disabled>
+                      Choose branch…
+                    </option>
                     {eligibleBranches.map((b) => (
                       <option
                         key={b.id}
@@ -258,6 +292,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5" />
                 </div>
+                )}
               </div>
 
               {/* Field 2: Branch Staff Officer */}
@@ -268,15 +303,29 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     <span>Branch Staff Officer *</span>
                   </span>
                   <span className="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-300 border border-[#1e5b88]/20">
-                    {staffList.length} staff officer{staffList.length === 1 ? '' : 's'} assigned
+                    {isAdmin
+                      ? `${staffList.length} staff officer${staffList.length === 1 ? '' : 's'} assigned`
+                      : 'Signed-in officer'}
                   </span>
                 </label>
+                {!isAdmin ? (
+                  <div
+                    className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-semibold border flex items-center gap-2 ${
+                      isLight ? 'bg-slate-100 border-slate-200 text-slate-800' : 'bg-[#181c26] border-slate-700/80 text-slate-200'
+                    }`}
+                    aria-readonly="true"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{effectiveStaff || 'Signed-in name not available'}</span>
+                  </div>
+                ) : (
                 <div className="relative flex items-center">
                   <div className="absolute left-3 w-6 h-6 rounded-lg bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-400 flex items-center justify-center pointer-events-none">
                     <User className="w-3.5 h-3.5" />
                   </div>
                   <select
                     value={selectedStaff}
+                    aria-label="Requesting branch staff officer"
                     onChange={(e) => setSelectedStaff(e.target.value)}
                     className={`w-full appearance-none rounded-xl pl-11 pr-10 py-2.5 text-xs font-semibold border transition cursor-pointer shadow-2xs ${
                       isLight
@@ -284,6 +333,9 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         : 'bg-[#181c26] hover:bg-[#1f2432] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                     }`}
                   >
+                    <option value="" disabled>
+                      {staffList.length ? 'Choose staff officer…' : 'No staff registered for this branch'}
+                    </option>
                     {staffList.map((s) => (
                       <option
                         key={s}
@@ -300,6 +352,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5" />
                 </div>
+                )}
               </div>
 
               {/* Field 3: Requested Hardware Units (Institutional Staging Registry) */}
@@ -346,6 +399,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         disabled={posQty <= 0}
                         className="w-7 h-7 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
                         title="Decrease POS Quantity"
+                        aria-label="Decrease POS Quantity"
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </motion.button>
@@ -373,6 +427,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         disabled={posQty >= 50}
                         className="w-7 h-7 rounded-lg flex items-center justify-center border border-white/20 bg-gradient-to-r from-[#1e5b88] to-[#246da1] hover:from-[#1b4f72] hover:to-[#1e5b88] text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-xs"
                         title="Increase POS Quantity"
+                        aria-label="Increase POS Quantity"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </motion.button>
@@ -400,6 +455,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         disabled={sbQty <= 0}
                         className="w-7 h-7 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
                         title="Decrease Sound Box Quantity"
+                        aria-label="Decrease Sound Box Quantity"
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </motion.button>
@@ -427,6 +483,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         disabled={sbQty >= 50}
                         className="w-7 h-7 rounded-lg flex items-center justify-center border border-white/20 bg-gradient-to-r from-[#1e5b88] to-[#246da1] hover:from-[#1b4f72] hover:to-[#1e5b88] text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-xs"
                         title="Increase Sound Box Quantity"
+                        aria-label="Increase Sound Box Quantity"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </motion.button>
@@ -489,8 +546,13 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   isLight ? 'border-slate-100' : 'border-slate-800/80'
                 }`}
               >
-                <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-[#1e5b88] dark:text-sky-300">
+                <div className="flex flex-col gap-0.5 text-[11px] font-mono font-bold text-[#1e5b88] dark:text-sky-300">
                   <span>Staging {posQty} POS &amp; {sbQty} Sound Box</span>
+                  {formError && (
+                    <span role="alert" className="font-sans text-[10.5px] text-rose-600 dark:text-rose-400">
+                      {formError}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -510,7 +572,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   <motion.button
                     whileTap={{ scale: 0.94 }}
                     type="submit"
-                    disabled={totalQty <= 0}
+                    disabled={!!formError}
                     className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs flex items-center gap-2 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <span>Review Request (Step 2 Preview)</span>
@@ -550,12 +612,12 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 <div className="p-3 flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Destination Branch:</span>
                   <span className="font-bold">
-                    Branch Code {selectedBranchId} — {currentBranch.name}
+                    Branch Code {effectiveBranchId} — {currentBranch?.name || ''}
                   </span>
                 </div>
                 <div className="p-3 flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Requesting Officer:</span>
-                  <span className="font-bold">{selectedStaff}</span>
+                  <span className="font-bold">{effectiveStaff}</span>
                 </div>
                 <div className="p-3 flex items-center justify-between">
                   <span className="text-slate-500 font-medium">POS Terminal Units:</span>
@@ -607,6 +669,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   whileTap={{ scale: 0.94 }}
                   type="button"
                   onClick={handleFinalConfirm}
+                  disabled={!!formError}
                   className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-[#1e5b88] to-[#246da1] hover:from-[#1b4f72] hover:to-[#1e5b88] border border-white/20 text-white shadow-md flex items-center gap-2 cursor-pointer transition"
                 >
                   <CheckCircle2 className="w-4 h-4 text-emerald-300" />

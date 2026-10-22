@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ThemeMode } from '../types';
 
 interface GroupedBarChartProps {
@@ -11,6 +11,16 @@ interface GroupedBarChartProps {
   series2Color: string;
   height?: number;
   theme?: ThemeMode;
+  /** Optional screen-reader summary. When omitted, one is built from the data. */
+  ariaLabel?: string;
+}
+
+type Ctx2D = CanvasRenderingContext2D;
+/** roundRect is missing in some older browsers (e.g. older Android WebViews); fall back to a plain rectangle. */
+function roundRectPath(ctx: Ctx2D, x: number, y: number, w: number, h: number, r: number | number[]) {
+  ctx.beginPath();
+  if (typeof (ctx as any).roundRect === 'function') (ctx as any).roundRect(x, y, w, h, r);
+  else ctx.rect(x, y, w, h);
 }
 
 export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
@@ -23,6 +33,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
   series2Color,
   height = 240,
   theme = 'dark',
+  ariaLabel,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -56,6 +67,24 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
     };
   }, []);
 
+  // Redraw only when the values change, not when a parent passes a new array with the same values.
+  const dataKey = useMemo(
+    () => JSON.stringify([labels, series1Data, series2Data]),
+    [labels, series1Data, series2Data]
+  );
+  const hasData = useMemo(
+    () => series1Data.some((v) => v > 0) || series2Data.some((v) => v > 0),
+    [series1Data, series2Data]
+  );
+  const summary = useMemo(() => {
+    if (ariaLabel) return ariaLabel;
+    if (labels.length === 0 || !hasData) return `Bar chart: ${series1Label} and ${series2Label}. No data to show.`;
+    const parts = labels.map((l, i) => `${l}: ${series1Data[i] || 0} ${series1Label}, ${series2Data[i] || 0} ${series2Label}`);
+    return `Bar chart of ${series1Label} and ${series2Label}. ${parts.join('; ')}.`;
+    // dataKey covers labels/series value changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ariaLabel, dataKey, series1Label, series2Label, hasData]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -63,7 +92,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
     const parent = canvas.parentElement;
     if (!parent) return;
 
-    const dpr = window.devicePixelRatio || 2;
+    const dpr = window.devicePixelRatio || 1;
     const width = containerWidth || parent.clientWidth || 540;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -73,7 +102,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
     const isLight = theme === 'light';
@@ -88,16 +117,14 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
     // Legend
     ctx.font = `700 11px ${chartFont}`;
     ctx.fillStyle = series1Color;
-    ctx.beginPath();
-    ctx.roundRect(16, 8, 10, 10, 3);
+    roundRectPath(ctx, 16, 8, 10, 10, 3);
     ctx.fill();
     ctx.fillStyle = legendTextColor;
     ctx.fillText(series1Label, 32, 17);
 
     const s1Width = ctx.measureText(series1Label).width;
     ctx.fillStyle = series2Color;
-    ctx.beginPath();
-    ctx.roundRect(52 + s1Width, 8, 10, 10, 3);
+    roundRectPath(ctx, 52 + s1Width, 8, 10, 10, 3);
     ctx.fill();
     ctx.fillStyle = legendTextColor;
     ctx.fillText(series2Label, 68 + s1Width, 17);
@@ -139,15 +166,17 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
 
       // Bar 1
       ctx.fillStyle = series1Color;
-      ctx.beginPath();
-      ctx.roundRect(gx, padTop + plotH - h1, barW, h1, [4, 4, 0, 0]);
-      ctx.fill();
+      if (h1 > 0) {
+        roundRectPath(ctx, gx, padTop + plotH - h1, barW, h1, [4, 4, 0, 0]);
+        ctx.fill();
+      }
 
       // Bar 2
       ctx.fillStyle = series2Color;
-      ctx.beginPath();
-      ctx.roundRect(gx + barW + 4, padTop + plotH - h2, barW, h2, [4, 4, 0, 0]);
-      ctx.fill();
+      if (h2 > 0) {
+        roundRectPath(ctx, gx + barW + 4, padTop + plotH - h2, barW, h2, [4, 4, 0, 0]);
+        ctx.fill();
+      }
 
       // Value annotations (centered above bars)
       ctx.font = `700 10px ${chartFont}`;
@@ -169,10 +198,10 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
       const tw = ctx.measureText(shortLbl).width;
       ctx.fillText(shortLbl, padLeft + idx * groupW + (groupW - tw) / 2, height - 14);
     });
+    // labels / series are covered by dataKey (value-based)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    labels,
-    series1Data,
-    series2Data,
+    dataKey,
     series1Color,
     series2Color,
     series1Label,
@@ -183,8 +212,17 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
   ]);
 
   return (
-    <div className="relative w-full h-[245px] flex items-center justify-center">
-      <canvas ref={canvasRef} className="w-full h-full block" />
+    <div className="relative w-full flex items-center justify-center" style={{ height: height + 5 }}>
+      <canvas ref={canvasRef} role="img" aria-label={summary} className="w-full h-full block">
+        {summary}
+      </canvas>
+      {!hasData && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+          <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${theme === 'light' ? 'bg-white/90 text-slate-500' : 'bg-black/40 text-slate-300'}`}>
+            No data for this period
+          </span>
+        </div>
+      )}
     </div>
   );
 };

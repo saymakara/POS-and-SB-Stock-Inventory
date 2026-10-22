@@ -746,7 +746,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                 type="button"
                                 onClick={() => {
                                   setIsSearchFocused(false);
-                                  onChangeBranchId(b.id);
+                                  // (22 Oct 2026) a branch account never changes its own branch from search
+                                  if (role !== 'BRANCH') onChangeBranchId(b.id);
                                   onSelectTab('inventory');
                                 }}
                                 className="w-full px-3 py-2 text-left rounded-xl hover:bg-slate-50 flex items-center gap-2.5 transition cursor-pointer group"

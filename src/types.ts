@@ -1,3 +1,4 @@
+import { todayPP } from './utils/time';
 export type LifecycleStage =
   | 'HQ_STOCK'
   | 'BRANCH_RESERVE'
@@ -72,6 +73,8 @@ export interface Device {
   archived?: boolean;
   integrityHash?: string;
   customFields?: Record<string, string>;
+  /** Server version of the row (22 Oct 2026): a save from an out-of-date copy is refused. */
+  rowVersion?: number;
 }
 
 export interface SystemNotification {
@@ -104,26 +107,25 @@ export function formatTo15DigitMid(raw: string): string {
   return digits.slice(0, 15);
 }
 
-export function generate15DigitMid(branchId: string = '101', seq: number = 1): string {
-  const cleanBranch = branchId.replace(/\D/g, '').padStart(3, '0').slice(-3);
-  const cleanSeq = String(seq).padStart(3, '0').slice(-3);
-  return `100000880${cleanBranch}${cleanSeq}`;
-}
 
 export function getBatteryLifecycleStatus(
   device: Pick<Device, 'batteryInstalledDate' | 'stockInDate' | 'deployedDate'>,
-  referenceDateStr = new Date().toISOString().split('T')[0]
+  referenceDateStr = todayPP()
 ): BatteryLifecycleStatus {
-  const installedStr =
-    device.batteryInstalledDate || device.stockInDate || device.deployedDate || '2025-10-18';
+  // (22 Oct 2026) no made-up dates: a unit without any date is shown as "no date recorded" (to be checked)
+  const installedStr = device.batteryInstalledDate || device.stockInDate || device.deployedDate || '';
+  if (!/^\d{4}-\d{2}-\d{2}/.test(installedStr) || !/^\d{4}-\d{2}-\d{2}/.test(referenceDateStr)) {
+    return { installedDate: '', dueDate: '', monthsUsed: 0, monthsRemaining: 0, lifePercent: 0, state: 'DUE_SOON',
+      label: 'No battery date recorded — please check' };
+  }
 
-  const refYear = +referenceDateStr.slice(0, 4) || 2026;
-  const refMonth = +referenceDateStr.slice(5, 7) || 10;
-  const refDay = +referenceDateStr.slice(8, 10) || 18;
+  const refYear = +referenceDateStr.slice(0, 4);
+  const refMonth = +referenceDateStr.slice(5, 7);
+  const refDay = +referenceDateStr.slice(8, 10);
 
-  const instYear = +installedStr.slice(0, 4) || 2025;
-  const instMonth = +installedStr.slice(5, 7) || 10;
-  const instDay = +installedStr.slice(8, 10) || 18;
+  const instYear = +installedStr.slice(0, 4);
+  const instMonth = +installedStr.slice(5, 7);
+  const instDay = +installedStr.slice(8, 10);
 
   const rawMonths =
     (refYear - instYear) * 12 + (refMonth - instMonth) + (refDay >= instDay ? 0 : -1);
@@ -132,7 +134,8 @@ export function getBatteryLifecycleStatus(
   const lifePercent = Math.max(0, Math.min(100, Math.round(((24 - monthsUsed) / 24) * 100)));
 
   const dueYear = instYear + 2;
-  const dueDate = `${dueYear}-${String(instMonth).padStart(2, '0')}-${String(instDay).padStart(2, '0')}`;
+  const lastDay = new Date(Date.UTC(dueYear, instMonth, 0)).getUTCDate();   // 29 Feb → 28 Feb in a common year
+  const dueDate = `${dueYear}-${String(instMonth).padStart(2, '0')}-${String(Math.min(instDay, lastDay)).padStart(2, '0')}`;
 
   // 24 Months Expiration Policy for POS Terminal batteries
   if (monthsUsed >= 24) {

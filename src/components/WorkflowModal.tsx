@@ -12,6 +12,9 @@ import {
 } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { findMidDuplicateDevices } from '../utils/crmUtils';
+import { todayPP } from '../utils/time';
+import { phoneFor, canSeeFullContact } from '../utils/privacy';
+import { ALLOWED_NEXT, canMove, moveError, onMove } from '../utils/stages';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
@@ -67,6 +70,9 @@ interface WorkflowModalProps {
       batteryInstalledDate: string;
       batterySerial?: string;
       customFields?: Record<string, string>;
+      /** Status texts that go with the stage (from utils/stages statusOf). */
+      deploymentStatus?: string;
+      stockStatus?: string;
     }
   ) => void;
   onReturnToAdminStock?: (serial: string, reason: string) => void;
@@ -74,6 +80,8 @@ interface WorkflowModalProps {
   onReturnToBranchReserve?: (serial: string, branchId: string, reason: string) => void;
   onRemoveFromDashboard?: (serial: string, reason: string) => void;
   onChangeBattery?: (device: Device) => void;
+  /** Signed-in operator's name/label (recorded as custodian when a unit goes to HQ stock). */
+  operatorLabel?: string;
 }
 
 export const WorkflowModal: React.FC<WorkflowModalProps> = ({
@@ -90,6 +98,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   onReturnToBranchReserve,
   onRemoveFromDashboard,
   onChangeBattery,
+  operatorLabel = '',
 }) => {
   const [stage, setStage] = useState<LifecycleStage>('HQ_STOCK');
   const [terminateDestination, setTerminateDestination] =
@@ -99,10 +108,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const [merchantName, setMerchantName] = useState('');
   const [mid, setMid] = useState('');
   const [tid, setTid] = useState('');
-  const [deployedDate, setDeployedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [deployedDate, setDeployedDate] = useState('');
   const [note, setNote] = useState('');
-  const [batteryInstalledDate, setBatteryInstalledDate] =
-    useState('2026-01-15');
+  const [batteryInstalledDate, setBatteryInstalledDate] = useState('');
   const [batterySerial, setBatterySerial] = useState('');
   const [midError, setMidError] = useState('');
 
@@ -120,6 +128,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     actionType: 'SAVE' | 'RETURN_BRANCH_RESERVE' | 'RETURN_ADMIN_STOCK' | 'REMOVE_DASHBOARD';
     actionTitle: string;
     stage: LifecycleStage;
+    deploymentStatus?: string;
+    stockStatus?: string;
     branchId: string;
     branchName: string;
     staff: string;
@@ -140,31 +150,36 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
   const isLight = theme === 'light';
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  const showFullPhone = canSeeFullContact(role);
 
   const activeCustomFields = useMemo(() => {
     return (customFields || []).filter((f) => f.enabled);
   }, [customFields]);
 
+  // Reset the form only when a different unit is opened (or the modal re-opens), not every time the parent
+  // re-renders with a new copy of the same device object — that used to wipe what the operator was typing.
+  const deviceSerial = device?.serial || '';
   useEffect(() => {
     if (device) {
       setStage(device.stage);
+      setTerminateDestination('BRANCH_RESERVE');
       setBranchId(device.branchId);
       setStaff(device.staff || '');
       setMerchantName(device.merchantName || '');
       setMid(device.mid || '');
       setTid(device.tid || '');
-      setDeployedDate(device.deployedDate || device.updatedAt || new Date().toISOString().split('T')[0]);
+      setDeployedDate(device.deployedDate || '');
       setNote('');
       setMidError('');
-      setBatterySerial(device.batterySerial || '160525A0005709');
-      setBatteryInstalledDate(
-        device.batteryInstalledDate || device.stockInDate || '2026-01-15'
-      );
+      // Only the unit's own recorded battery data; blank when not recorded (never a made-up serial/date).
+      setBatterySerial(device.batterySerial || '');
+      setBatteryInstalledDate(device.batteryInstalledDate || device.stockInDate || '');
 
-      // Initialize custom field values from standard device attributes or customFields record
+      // Initialize custom field values from standard device attributes or customFields record.
+      // Branch staff do not get the full merchant phone in the form; they may type a new one to replace it.
       const initialCustomValues: Record<string, string> = {
         location: device.location || '',
-        merchantPhone: device.merchantPhone || '',
+        merchantPhone: showFullPhone ? device.merchantPhone || '' : '',
         address: device.address || '',
         ...(device.customFields || {}),
       };
@@ -173,7 +188,17 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       setModalStep('EDIT');
       setPendingPayload(null);
     }
-  }, [device]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceSerial]);
+
+  /** Stages this unit may move to from where it is now (plus staying put). Branch users never move a unit into HQ stock. */
+  const stageOptions = useMemo(() => {
+    if (!device) return [] as LifecycleStage[];
+    const allowed = new Set<LifecycleStage>([device.stage, ...ALLOWED_NEXT[device.stage]]);
+    return STAGE_ORDER.filter(
+      (s) => allowed.has(s) && (s === device.stage || isAdminLike || s !== 'HQ_STOCK')
+    );
+  }, [device, isAdminLike]);
 
   if (!device) return null;
 
@@ -182,104 +207,162 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
   const handleStageChange = (newStage: LifecycleStage) => {
     setStage(newStage);
+    setMidError('');
     if (newStage === 'HQ_STOCK') {
       setBranchId('100');
-      setStaff('SAY Chanmakara (8986)');
+      setStaff(operatorLabel.trim());
     } else if (newStage === 'COMPLETE' && !deployedDate) {
-      setDeployedDate(new Date().toISOString().split('T')[0]);
+      setDeployedDate(todayPP());
     }
   };
 
   const handleBranchChange = (newBranchCode: string) => {
     setBranchId(newBranchCode);
-    const bObj = branches.find((b) => b.code === newBranchCode);
-    if (bObj && bObj.staff && bObj.staff.length > 0) {
-      setStaff(bObj.staff[0]);
-    } else {
-      setStaff('');
-    }
+    // The officer is chosen explicitly; nobody is pre-selected on a branch change.
+    setStaff('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (stage !== 'FAULTY' && stage !== 'LOST' && mid.trim() && !/^\d{15}$/.test(mid.trim())) {
-      setMidError('MID must be exactly 15 numeric digits (e.g. 100000880101001).');
+    const fail = (msg: string) => {
+      setMidError(msg);
       return;
-    }
-    setMidError('');
+    };
 
-    let finalStage: LifecycleStage = stage;
+    // 1. The move itself must be allowed by the device life cycle.
+    const stageErr = moveError(device.stage, stage, STAGE_META);
+    if (stageErr) return fail(stageErr);
+    if (!stageOptions.includes(stage)) return fail('Only Admin HQ can move a unit into Head Office stock.');
+
+    if (stage !== 'FAULTY' && stage !== 'LOST' && mid.trim() && !/^\d{15}$/.test(mid.trim())) {
+      return fail('MID must be exactly 15 numeric digits.');
+    }
+
+    // FAULTY stays FAULTY (it is never converted to another stage here). The choice only says where the faulty unit
+    // is held: at its branch, or (Admin HQ only) back at Head Office (Branch Code 100).
     let finalBranchId = branchId;
     let finalStaff = staff;
-    let finalMerchantName = merchantName;
-    let finalMid = mid;
-    let finalTid = tid;
-
-    if (stage === 'FAULTY') {
-      finalStage = terminateDestination;
-      finalMerchantName = '';
-      finalMid = '';
-      finalTid = '';
-      if (terminateDestination === 'HQ_STOCK') {
-        finalBranchId = '100';
-        finalStaff = 'SAY Chanmakara (8986)';
-      }
-    } else if (stage === 'LOST') {
-      finalMerchantName = '';
-      finalMid = '';
-      finalTid = '';
+    if (stage === 'HQ_STOCK') {
+      finalBranchId = '100';
+      finalStaff = operatorLabel.trim() || staff;
+    } else if (stage === 'FAULTY' && terminateDestination === 'HQ_STOCK' && isAdminLike) {
+      finalBranchId = '100';
+      finalStaff = operatorLabel.trim() || staff;
+    }
+    if ((stage === 'BRANCH_RESERVE' || stage === 'CONFIGURING' || stage === 'COMPLETE') && (!finalBranchId || finalBranchId === '100')) {
+      return fail('Choose the branch that holds this unit (not Head Office Code 100).');
+    }
+    if (stage === 'COMPLETE') {
+      if (!merchantName.trim()) return fail('Enter the merchant name for an installed unit.');
+      if (!/^\d{15}$/.test(mid.trim())) return fail('Enter the 15-digit MID for an installed unit.');
+      if (!deployedDate) return fail('Choose the installation date.');
     }
 
-    const targetBranch = branches.find((b) => b.code === finalBranchId);
-    const isBatteryChanged =
-      batterySerial !== (device.batterySerial || '160525A0005709') ||
-      batteryInstalledDate !== (device.batteryInstalledDate || device.stockInDate || '2026-01-15');
+    // Validate required custom fields (branch staff may leave the phone blank to keep the one on record).
+    for (const f of activeCustomFields) {
+      const v = customFieldValues[f.id]?.trim() || (f.id === 'merchantPhone' ? device.merchantPhone || '' : '');
+      if (f.required && !v.trim()) return fail(`Attribute "${f.label}" is required by system settings.`);
+    }
 
+    const origBatterySerial = device.batterySerial || '';
+    const origBatteryDate = device.batteryInstalledDate || device.stockInDate || '';
+    const isBatteryChanged =
+      batterySerial.trim() !== origBatterySerial || batteryInstalledDate !== origBatteryDate;
+    if (isBatteryChanged && device.type === 'POS Terminal' && !batterySerial.trim()) {
+      return fail('Enter the serial printed on the new battery (or use the Battery Replacement Wizard).');
+    }
+    if (batteryInstalledDate && batteryInstalledDate > todayPP()) return fail('The battery date cannot be in the future.');
+    setMidError('');
+
+    const locVal = customFieldValues['location'] ?? device.location ?? '';
+    const phoneVal = customFieldValues['merchantPhone']?.trim() || device.merchantPhone || '';
+    const addrVal = customFieldValues['address'] ?? device.address ?? '';
+
+    // 2. Apply the move: status texts for the stage, and no merchant details once the unit leaves the merchant.
+    const moved = onMove(
+      {
+        ...device,
+        branchId: finalBranchId,
+        merchantName: merchantName.trim(),
+        mid: mid.trim(),
+        tid: tid.trim(),
+        merchantPhone: phoneVal,
+        location: locVal,
+        address: addrVal,
+      },
+      stage
+    );
+
+    const targetBranch = branches.find((b) => b.code === finalBranchId);
+    const leftMerchant = !!device.merchantName && !moved.merchantName;
     const generatedNote =
       note.trim() ||
       (stage === 'FAULTY'
-        ? `Device terminated & returned to ${
-            finalStage === 'HQ_STOCK'
-              ? 'Admin HQ Stock (Branch Code 100)'
-              : `Branch Reserve (Code ${finalBranchId})`
-          }`
+        ? `Device marked faulty / returned${finalBranchId === '100' ? ' and held at Admin HQ (Branch Code 100)' : ` and held at Branch Code ${finalBranchId}`}`
         : stage === 'LOST'
         ? 'Device marked as Device Lost in system inventory'
-        : 'Device details and lifecycle updated');
-
-    // Validate required custom fields
-    for (const f of activeCustomFields) {
-      if (f.required && !customFieldValues[f.id]?.trim()) {
-        setMidError(`Attribute "${f.label}" is required by system settings.`);
-        return;
-      }
-    }
-
-    const locVal = customFieldValues['location'] || device.location || '';
-    const phoneVal = customFieldValues['merchantPhone'] || device.merchantPhone || '';
-    const addrVal = customFieldValues['address'] || device.address || '';
+        : stage !== device.stage
+        ? `Stage changed from ${STAGE_META[device.stage].short} to ${STAGE_META[stage].short}${leftMerchant ? ` (merchant ${device.merchantName} detached)` : ''}`
+        : 'Device details updated') +
+        (isBatteryChanged && !note.trim() ? ` | Battery ${batterySerial.trim()} installed ${batteryInstalledDate}` : '');
 
     setPendingPayload({
       actionType: 'SAVE',
       actionTitle: 'Save Device Lifecycle & Custody Updates',
-      stage: finalStage,
+      stage: moved.stage,
+      deploymentStatus: moved.deploymentStatus,
+      stockStatus: moved.stockStatus,
       branchId: finalBranchId,
       branchName: targetBranch ? targetBranch.name : `Branch Code ${finalBranchId}`,
       staff: finalStaff,
-      merchantName: finalMerchantName,
-      merchantPhone: phoneVal,
-      location: locVal,
-      address: addrVal,
-      mid: finalMid,
-      tid: finalTid,
+      merchantName: moved.merchantName,
+      merchantPhone: moved.merchantPhone,
+      location: moved.location,
+      address: moved.address,
+      mid: moved.mid,
+      tid: moved.tid,
       note: generatedNote,
       deployedDate,
       batteryInstalledDate,
-      batterySerial,
+      batterySerial: batterySerial.trim(),
       isBatteryChanged,
-      customFields: customFieldValues,
+      customFields: { ...customFieldValues, merchantPhone: moved.merchantPhone || '' },
     });
     setModalStep('PREVIEW');
+  };
+
+  /** Payload for a quick action that moves the unit (status texts and merchant clearing from onMove). */
+  const quickMove = (
+    to: LifecycleStage,
+    actionType: PendingPayload['actionType'],
+    actionTitle: string,
+    targetCode: string,
+    targetStaff: string,
+    defaultNote: string
+  ): PendingPayload => {
+    const moved = onMove({ ...device, branchId: targetCode }, to);
+    const targetBranch = branches.find((b) => b.code === targetCode);
+    return {
+      actionType,
+      actionTitle,
+      stage: moved.stage,
+      deploymentStatus: moved.deploymentStatus,
+      stockStatus: moved.stockStatus,
+      branchId: targetCode,
+      branchName: targetBranch ? targetBranch.name : `Branch Code ${targetCode}`,
+      staff: targetStaff,
+      merchantName: moved.merchantName,
+      merchantPhone: moved.merchantPhone,
+      location: moved.location,
+      address: moved.address,
+      mid: moved.mid,
+      tid: moved.tid,
+      note: note.trim() || defaultNote,
+      deployedDate: device.deployedDate || '',
+      batteryInstalledDate: device.batteryInstalledDate || device.stockInDate || '',
+      batterySerial: device.batterySerial || '',
+      isBatteryChanged: false,
+    };
   };
 
   const handleFinalCommit = () => {
@@ -308,6 +391,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           batteryInstalledDate: pendingPayload.batteryInstalledDate,
           batterySerial: pendingPayload.batterySerial,
           customFields: pendingPayload.customFields,
+          deploymentStatus: pendingPayload.deploymentStatus,
+          stockStatus: pendingPayload.stockStatus,
         });
       }
       onClose();
@@ -333,6 +418,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           batteryInstalledDate: pendingPayload.batteryInstalledDate,
           batterySerial: pendingPayload.batterySerial,
           customFields: pendingPayload.customFields,
+          deploymentStatus: pendingPayload.deploymentStatus,
+          stockStatus: pendingPayload.stockStatus,
         });
       }
       onClose();
@@ -363,21 +450,31 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       batteryInstalledDate: pendingPayload.batteryInstalledDate,
       batterySerial: pendingPayload.batterySerial,
       customFields: pendingPayload.customFields,
+      deploymentStatus: pendingPayload.deploymentStatus,
+      stockStatus: pendingPayload.stockStatus,
     });
     onClose();
   };
 
-  const previewBatteryInfo = getBatteryLifecycleStatus({
-    batteryInstalledDate,
-    stockInDate: device.stockInDate,
-    deployedDate,
-  });
+  const previewBatteryInfo = getBatteryLifecycleStatus(
+    {
+      batteryInstalledDate,
+      stockInDate: device.stockInDate,
+      deployedDate,
+    },
+    todayPP()
+  );
 
-  const hasQuickActions =
-    device.merchantName ||
-    device.stage === 'COMPLETE' ||
-    (device.stage !== 'HQ_STOCK' && onReturnToAdminStock) ||
-    (isAdminLike && onRemoveFromDashboard);
+  // Quick actions are offered only when the life cycle allows the move.
+  const canReturnToReserve =
+    (!!device.merchantName || device.stage === 'COMPLETE') &&
+    device.branchId !== '100' &&
+    canMove(device.stage, 'BRANCH_RESERVE');
+  const canReturnToHq =
+    device.stage !== 'HQ_STOCK' &&
+    canMove(device.stage, 'HQ_STOCK') &&
+    (isAdminLike ? !!onReturnToAdminStock : !!onRequestReturnToAdminStock);
+  const hasQuickActions = canReturnToReserve || canReturnToHq || (isAdminLike && !!onRemoveFromDashboard);
 
   return (
     <AnimatePresence>
@@ -427,9 +524,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[11px] text-white/75 truncate">
                   <span className="font-mono text-white/90 font-medium">
-                    {device.batterySerial && !device.batterySerial.startsWith('BAT-')
-                      ? device.batterySerial
-                      : '160525A0005709'}
+                    {device.batterySerial || 'Battery serial not recorded'}
                   </span>
                   <span className="text-white/30">•</span>
                   <span>{device.model}</span>
@@ -444,6 +539,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               onClick={onClose}
               className="p-1.5 rounded-xl text-white/75 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0 ml-2"
               title="Close Modal"
+              aria-label="Close"
             >
               <X className="w-4 h-4" />
             </button>
@@ -517,32 +613,20 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     Lifecycle Actions
                   </span>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {(device.merchantName || device.stage === 'COMPLETE') && (
+                    {canReturnToReserve && (
                       <button
                         type="button"
                         onClick={() => {
-                          const targetCode = device.branchId === '100' ? '105' : device.branchId;
-                          const targetBranch = branches.find((b) => b.code === targetCode);
-                          setPendingPayload({
-                            actionType: 'RETURN_BRANCH_RESERVE',
-                            actionTitle: 'Return Unit from Merchant to Branch Reserve',
-                            stage: 'BRANCH_RESERVE',
-                            branchId: targetCode,
-                            branchName: targetBranch ? targetBranch.name : `Branch Code ${targetCode}`,
-                            staff: device.staff || '',
-                            merchantName: '',
-                            mid: '',
-                            tid: '',
-                            note:
-                              note.trim() ||
-                              `Returned from merchant ${
-                                device.merchantName || 'Merchant'
-                              } back to Branch Reserve`,
-                            deployedDate: device.deployedDate || device.stockInDate,
-                            batteryInstalledDate,
-                            batterySerial,
-                            isBatteryChanged: false,
-                          });
+                          setPendingPayload(
+                            quickMove(
+                              'BRANCH_RESERVE',
+                              'RETURN_BRANCH_RESERVE',
+                              'Return Unit from Merchant to Branch Reserve',
+                              device.branchId,
+                              device.staff || '',
+                              `Returned from merchant ${device.merchantName || ''} back to Branch Reserve`.replace('  ', ' ')
+                            )
+                          );
                           setModalStep('PREVIEW');
                         }}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
@@ -557,29 +641,21 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       </button>
                     )}
 
-                    {device.stage !== 'HQ_STOCK' && (
+                    {canReturnToHq && (
                       <button
                         type="button"
                         onClick={() => {
                           if (isAdminLike && onReturnToAdminStock) {
-                            const targetBranch = branches.find((b) => b.code === '100');
-                            setPendingPayload({
-                              actionType: 'RETURN_ADMIN_STOCK',
-                              actionTitle: 'Return Unit to Head Office Admin Stock (Code 100)',
-                              stage: 'HQ_STOCK',
-                              branchId: '100',
-                              branchName: targetBranch ? targetBranch.name : 'Head Office Stock',
-                              staff: 'SAY Chanmakara (8986)',
-                              merchantName: '',
-                              mid: '',
-                              tid: '',
-                              note:
-                                note.trim() || 'Returned back to Admin HQ Stock (Branch Code 100)',
-                              deployedDate: device.deployedDate || device.stockInDate,
-                              batteryInstalledDate,
-                              batterySerial,
-                              isBatteryChanged: false,
-                            });
+                            setPendingPayload(
+                              quickMove(
+                                'HQ_STOCK',
+                                'RETURN_ADMIN_STOCK',
+                                'Return Unit to Head Office Admin Stock (Code 100)',
+                                '100',
+                                operatorLabel.trim(),
+                                'Returned back to Admin HQ Stock (Branch Code 100)'
+                              )
+                            );
                             setModalStep('PREVIEW');
                           } else if (onRequestReturnToAdminStock) {
                             onRequestReturnToAdminStock(
@@ -659,6 +735,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 <div className="relative">
                   <select
                     value={stage}
+                    aria-label="Lifecycle stage"
                     onChange={(e) =>
                       handleStageChange(e.target.value as LifecycleStage)
                     }
@@ -668,8 +745,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                     }`}
                   >
-                    {STAGE_ORDER.map((s) => {
-                      if (role === 'BRANCH' && s === 'HQ_STOCK') return null;
+                    {stageOptions.map((s) => {
                       return (
                         <option
                           key={s}
@@ -681,6 +757,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           }
                         >
                           {STAGE_META[s].label}
+                          {s === device.stage ? ' (current)' : ''}
                         </option>
                       );
                     })}
@@ -698,7 +775,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   <select
                     value={branchId}
                     onChange={(e) => handleBranchChange(e.target.value)}
-                    disabled={role === 'BRANCH' || stage === 'HQ_STOCK'}
+                    aria-label="Assigned branch code"
+                    disabled={!isAdminLike || stage === 'HQ_STOCK'}
                     className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 disabled:opacity-60 disabled:cursor-not-allowed ${
                       isLight
                         ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
@@ -735,10 +813,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               >
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
                   <RotateCcw className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Physical Hardware Return Destination (Mandatory) *</span>
+                  <span>Where Is the Faulty Unit Held? *</span>
                 </div>
                 <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
-                  After terminating merchant deployment, staff must physically return this hardware unit into stock:
+                  The unit is recorded as <strong>Faulty / Returned</strong> and its merchant details are detached. Choose where it is physically held now:
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
@@ -753,7 +831,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     }`}
                   >
                     <Building2 className="w-3.5 h-3.5" />
-                    <span>Return to Branch Reserve</span>
+                    <span>Held at Branch Code {branchId}</span>
                   </button>
                   {isAdminLike ? (
                     <button
@@ -768,7 +846,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       }`}
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Return to Admin HQ Stock</span>
+                      <span>Held at Admin HQ (Code 100)</span>
                     </button>
                   ) : (
                     <button
@@ -813,6 +891,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 <div className="relative">
                   <select
                     value={staff}
+                    aria-label="Assigned branch staff officer"
                     onChange={(e) => setStaff(e.target.value)}
                     className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
                       isLight
@@ -830,6 +909,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     >
                       -- Unassigned --
                     </option>
+                    {staff && !availableStaff.includes(staff) && (
+                      <option value={staff}>{staff}</option>
+                    )}
                     {availableStaff.map((st) => (
                       <option
                         key={st}
@@ -891,19 +973,6 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     Merchant ID (MID)
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cleanBranch = branchId.padStart(3, '0').slice(-3);
-                      const rand = Math.floor(100 + Math.random() * 900);
-                      setMid(`100000880${cleanBranch}${rand}`);
-                      setMidError('');
-                    }}
-                    className="text-[10px] font-medium text-zinc-800 dark:text-zinc-300 hover:underline cursor-pointer flex items-center gap-1 font-bold"
-                  >
-                    <Sparkles className="w-2.5 h-2.5 text-amber-500" />
-                    <span>Auto-Gen 15D</span>
-                  </button>
                 </div>
                 <input
                   type="text"
@@ -914,7 +983,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     if (midError) setMidError('');
                   }}
                   maxLength={15}
-                  placeholder="e.g. 100000880101001"
+                  inputMode="numeric"
+                  aria-label="Merchant ID (MID)"
+                  placeholder="15-digit MID from the merchant record"
                   className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                     midError
                       ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/50'
@@ -1067,8 +1138,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                 [field.id]: e.target.value,
                               }))
                             }
-                            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-                            required={field.required}
+                            placeholder={
+                              field.id === 'merchantPhone' && !showFullPhone && device.merchantPhone
+                                ? `On record: ${phoneFor(role, device.merchantPhone)} (type to replace)`
+                                : field.placeholder || `Enter ${field.label.toLowerCase()}`
+                            }
+                            aria-label={field.label}
+                            required={field.required && !(field.id === 'merchantPhone' && device.merchantPhone)}
                             className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                               isLight
                                 ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
@@ -1172,22 +1248,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
                       Battery Serial Number
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const rand = Math.floor(5730 + Math.random() * 3000);
-                        setBatterySerial(`160525A${String(rand).padStart(7, '0')}`);
-                      }}
-                      className="text-[10px] font-medium text-slate-700 dark:text-slate-300 hover:underline cursor-pointer"
-                    >
-                      Auto-Gen 160525A
-                    </button>
                   </div>
                   <input
                     type="text"
                     value={batterySerial}
                     onChange={(e) => setBatterySerial(e.target.value)}
-                    placeholder="e.g. 160525A0005709"
+                    id="workflow-battery-serial"
+                    aria-label="Battery serial number"
+                    placeholder="Serial printed on the battery"
                     className={`w-full rounded-xl px-3 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                       isLight
                         ? 'bg-white border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400'
@@ -1206,6 +1274,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   <input
                     type="date"
                     value={batteryInstalledDate}
+                    max={todayPP()}
+                    aria-label="Battery installed date"
                     onChange={(e) => setBatteryInstalledDate(e.target.value)}
                     className={`w-full rounded-xl px-3 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                       isLight
@@ -1242,19 +1312,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const today = new Date().toISOString().split('T')[0];
-                    const rand = Math.floor(5730 + Math.random() * 3000);
-                    const newBatt = `160525A${String(rand).padStart(7, '0')}`;
-                    setBatterySerial(newBatt);
-                    setBatteryInstalledDate(today);
-                    setNote((prev) =>
-                      prev
-                        ? `${prev} | Battery changed to ${newBatt} (fresh 24-month cycle)`
-                        : `Battery changed to ${newBatt} (fresh 24-month cycle)`
-                    );
+                    // New battery: the operator types/scans its serial; the 24-month cycle starts today.
+                    setBatterySerial('');
+                    setBatteryInstalledDate(todayPP());
+                    setTimeout(() => document.getElementById('workflow-battery-serial')?.focus(), 0);
                   }}
                   className="px-3.5 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
-                  title="Install fresh battery with new serial and reset the 24-month countdown"
+                  title="Enter the new battery's serial and reset the 24-month countdown from today"
                 >
                   <BatteryCharging className="w-3.5 h-3.5" />
                   <span>Change Battery (Install New &amp; Reset 24M)</span>
@@ -1465,6 +1529,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                               ? device.location
                               : f.id === 'merchantPhone'
                               ? device.merchantPhone
+                                ? phoneFor(role, device.merchantPhone)
+                                : ''
                               : f.id === 'address'
                               ? device.address
                               : device.customFields?.[f.id];
@@ -1491,9 +1557,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       Battery Serial &amp; Age
                     </span>
                     <div className="mt-1 font-mono text-[11px] text-slate-700 dark:text-slate-300">
-                      {device.batterySerial || '160525A0005709'}
+                      {device.batterySerial || 'Not recorded'}
                       <span className="text-slate-400 ml-1.5 font-sans text-[11px]">
-                        (Installed: {device.batteryInstalledDate || device.stockInDate || '2026-01-15'})
+                        (Installed: {device.batteryInstalledDate || device.stockInDate || '—'})
                       </span>
                     </div>
                   </div>
@@ -1619,7 +1685,11 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                     : 'font-semibold text-slate-800 dark:text-slate-200'
                                 }`}
                               >
-                                <span>{nextVal || <span className="text-slate-400 italic font-normal">Not set</span>}</span>
+                                <span>
+                                  {(f.id === 'merchantPhone' && nextVal ? phoneFor(role, nextVal) : nextVal) || (
+                                    <span className="text-slate-400 italic font-normal">Not set</span>
+                                  )}
+                                </span>
                                 {isChanged && (
                                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200">
                                     Changed

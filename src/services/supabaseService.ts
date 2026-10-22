@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, Branch } from '../types';
+import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, Branch, ArrangedDeviceItem } from '../types';
 
 /**
  * Maps Supabase snake_case / postgres schema to application Device type
@@ -19,10 +19,10 @@ function mapRowToDevice(row: any): Device {
     batterySerial: row.battery_serial || undefined,
     batteryInstalledDate: row.battery_installed_date || undefined,
     type: row.type || 'POS Terminal',
-    model: row.model || 'Wizar POS Q2 Pro',
+    model: row.model || '',
     stockInDate: row.stock_in_date || '',
     branchId: row.branch_id || '100',
-    branchName: row.branch_name || 'Head Office',
+    branchName: row.branch_name || (row.branch_id === '100' || !row.branch_id ? 'Head Office' : `Branch Code ${row.branch_id}`),
     staff: row.staff || '',
     stage,
     deploymentStatus:
@@ -37,18 +37,19 @@ function mapRowToDevice(row: any): Device {
     tid: row.tid || '',
     merchantName: row.merchant_name || '',
     merchantPhone: row.merchant_phone || '',
-    location: row.location || 'Phnom Penh',
+    location: row.location || '',
     address: row.address || '',
     deployedDate: row.deployed_date || '',
     returnReason: row.return_reason || '',
     redeployCount: row.redeploy_count || 0,
-    hoursInStage: row.hours_in_stage || 12,
-    updatedAt: row.updated_at || new Date().toISOString(),
+    hoursInStage: row.hours_in_stage || 0,
+    updatedAt: row.updated_at || '',
     note: row.note || '',
     history: Array.isArray(row.history) ? row.history : [],
     archived: Boolean(row.archived),
-    integrityHash: row.integrity_hash || `SHA256-${row.serial}`,
+    integrityHash: row.integrity_hash || undefined,
     customFields: row.custom_fields || {},
+    rowVersion: typeof row.row_version === 'number' ? row.row_version : Number(row.row_version) || undefined,
   };
 }
 
@@ -84,9 +85,10 @@ function mapDeviceToRow(dev: Device): any {
     return_reason: dev.returnReason || null,
     deployment_status: dev.deploymentStatus || null,
     stock_status: dev.stockStatus || null,
-    hours_in_stage: dev.hoursInStage || 12,
+    hours_in_stage: dev.hoursInStage || 0,
     integrity_hash: dev.integrityHash || null,
-    updated_at: new Date().toISOString(),
+    // updated_at and the version are set by the database; the version sent back is the one this copy was read at
+    ...(dev.rowVersion ? { row_version: dev.rowVersion } : {}),
   };
 }
 
@@ -105,6 +107,8 @@ function mapRowToRequisition(row: any): Requisition {
     reason: row.reason || '',
     status: row.status || 'PENDING_ADMIN',
     arrangedDevices: Array.isArray(row.arranged_devices) ? row.arranged_devices : [],
+    type: row.type === 'STOCK_RETURN' ? 'STOCK_RETURN' : 'STOCK_REQUEST',
+    returnSerials: Array.isArray(row.return_serials) ? row.return_serials.map(String) : [],
   };
 }
 
@@ -123,8 +127,25 @@ function mapRequisitionToRow(req: Requisition): any {
     reason: req.reason,
     status: req.status,
     arranged_devices: req.arrangedDevices || [],
-    updated_at: new Date().toISOString(),
+    type: req.type || 'STOCK_REQUEST',
+    return_serials: req.returnSerials || [],
   };
+}
+
+/** Reads a whole table page by page in a stable order (PostgREST returns at most 1000 rows per call). */
+async function fetchAllRows(table: string, orderCol: string, pageSize = 1000, maxTotal = 500000): Promise<any[] | null> {
+  const all: any[] = [];
+  for (let from = 0; from < maxTotal; from += pageSize) {
+    const { data, error } = await supabase.from(table).select('*').order(orderCol, { ascending: true }).range(from, from + pageSize - 1);
+    if (error) {
+      console.warn(`[Supabase] Error reading ${table}:`, error.message);
+      return null;                                                     // never show a part of a list as if it were all of it
+    }
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+  }
+  return all;
 }
 
 // -----------------------------------------------------------------------------
@@ -158,35 +179,11 @@ export async function bulkUpsertBranchesToSupabase(branches: Branch[]): Promise<
 // DEVICES API
 // -----------------------------------------------------------------------------
 
-export async function fetchDevicesFromSupabase(
-  pageSize = 5000,
-  maxTotal = 500000
-): Promise<Device[] | null> {
+export async function fetchDevicesFromSupabase(): Promise<Device[] | null> {
   if (!isSupabaseConfigured) return null;
-
   try {
-    const allRows: any[] = [];
-    let from = 0;
-    while (from < maxTotal) {
-      const to = from + pageSize - 1;
-      const { data, error } = await supabase
-        .from('devices')
-        .select('*')
-        .order('stock_in_date', { ascending: false })
-        .range(from, to);
-
-      if (error) {
-        // never show a part of the stock as if it were all of it
-        console.warn('[Supabase] Error fetching devices:', error.message);
-        return null;
-      }
-      if (!data || data.length === 0) break;
-      allRows.push(...data);
-      if (data.length < pageSize) break;
-      from += pageSize;
-    }
-
-    return allRows.map(mapRowToDevice);
+    const rows = await fetchAllRows('devices', 'serial');             // ordered by the key: no row is skipped or read twice
+    return rows ? rows.map(mapRowToDevice) : null;
   } catch (err) {
     console.warn('[Supabase] Exception fetching devices:', err);
     return null;
@@ -253,17 +250,10 @@ export async function fetchRequisitionsFromSupabase(): Promise<Requisition[] | n
   if (!isSupabaseConfigured) return null;
 
   try {
-    const { data, error } = await supabase
-      .from('requisitions')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.warn('[Supabase] Error fetching requisitions:', error.message);
-      return null;
-    }
-
-    return (data || []).map(mapRowToRequisition);
+    const rows = await fetchAllRows('requisitions', 'req_id');
+    if (!rows) return null;
+    return rows.map(mapRowToRequisition)
+      .sort((x, y) => String(y.date).localeCompare(String(x.date)) || y.reqId.localeCompare(x.reqId));
   } catch (err) {
     console.warn('[Supabase] Exception fetching requisitions:', err);
     return null;
@@ -298,17 +288,11 @@ export async function fetchHistoricalMerchantsFromSupabase(): Promise<Historical
   if (!isSupabaseConfigured) return null;
 
   try {
-    const { data, error } = await supabase
-      .from('historical_merchants')
-      .select('*')
-      .order('returned_date', { ascending: false });
+    const data = await fetchAllRows('historical_merchants', 'record_id');
+    if (!data) return null;
+    data.sort((x: any, y: any) => String(y.returned_date || '').localeCompare(String(x.returned_date || '')));
 
-    if (error) {
-      console.warn('[Supabase] Error fetching historical merchants:', error.message);
-      return null;
-    }
-
-    return (data || []).map((row: any) => ({
+    return data.map((row: any) => ({
       recordId: row.record_id,
       merchantName: row.merchant_name,
       merchantPhone: row.merchant_phone,
@@ -327,6 +311,9 @@ export async function fetchHistoricalMerchantsFromSupabase(): Promise<Historical
       returnReason: row.return_reason,
       status: row.status,
       handledByStaff: row.handled_by_staff,
+      installedByStaff: row.installed_by_staff || undefined,
+      replacedByStaff: row.replaced_by_staff || undefined,
+      returnedByStaff: row.returned_by_staff || undefined,
       settlementFinalized: Boolean(row.settlement_finalized),
       notes: row.notes,
     }));
@@ -353,19 +340,21 @@ export async function insertHistoricalMerchantToSupabase(rec: HistoricalMerchant
       battery_serial: rec.batterySerial,
       branch_id: rec.branchId,
       branch_name: rec.branchName,
-      installed_date: rec.installedDate,
-      returned_date: rec.returnedDate,
+      installed_date: /^\d{4}-\d{2}-\d{2}/.test(rec.installedDate || '') ? rec.installedDate.slice(0, 10) : null,
+      returned_date: /^\d{4}-\d{2}-\d{2}/.test(rec.returnedDate || '') ? rec.returnedDate.slice(0, 10) : null,
       active_duration_months: rec.activeDurationMonths,
       return_reason: rec.returnReason,
       status: rec.status,
       handled_by_staff: rec.handledByStaff,
+      installed_by_staff: rec.installedByStaff || null,
+      replaced_by_staff: rec.replacedByStaff || null,
+      returned_by_staff: rec.returnedByStaff || null,
       settlement_finalized: rec.settlementFinalized,
       notes: rec.notes,
     };
 
-    const { error } = await supabase
-      .from('historical_merchants')
-      .upsert(row, { onConflict: 'record_id' });
+    // a new record is inserted (an existing record is never overwritten from a browser copy)
+    const { error } = await supabase.from('historical_merchants').insert(row);
 
     if (error) {
       console.warn('[Supabase] Error inserting historical merchant:', error.message);
@@ -382,33 +371,44 @@ export async function insertHistoricalMerchantToSupabase(rec: HistoricalMerchant
 // REALTIME SUBSCRIPTION
 // -----------------------------------------------------------------------------
 
+let channelSeq = 0;
+/** Each subscription gets its own channel name: two screens on one name would make the client refuse the second. */
+const channelName = (base: string) => `${base}_${Date.now().toString(36)}_${++channelSeq}`;
+
 export function subscribeToRealtimeChanges(
   onDeviceChange: (updatedDevice: Device) => void,
-  onRequisitionChange?: (updatedReq: Requisition) => void
+  onRequisitionChange?: (updatedReq: Requisition) => void,
+  extra?: {
+    onDeviceDelete?: (serial: string) => void;
+    onRequisitionDelete?: (reqId: string) => void;
+    /** Called when the live feed comes back after a drop: changes made meanwhile were missed, so reload. */
+    onReconnect?: () => void;
+  }
 ): () => void {
   if (!isSupabaseConfigured) return () => {};
-
+  let dropped = false;
   const channel = supabase
-    .channel('inventory_realtime_feed')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'devices' },
-      (payload) => {
-        if (payload.new && (payload.new as any).serial) {
-          onDeviceChange(mapRowToDevice(payload.new));
-        }
+    .channel(channelName('inventory_realtime_feed'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, (payload) => {
+      if (payload.eventType === 'DELETE') {
+        const serial = (payload.old as any)?.serial;
+        if (serial) extra?.onDeviceDelete?.(serial);
+        return;
       }
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'requisitions' },
-      (payload) => {
-        if (payload.new && onRequisitionChange) {
-          onRequisitionChange(mapRowToRequisition(payload.new));
-        }
+      if (payload.new && (payload.new as any).serial) onDeviceChange(mapRowToDevice(payload.new));
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'requisitions' }, (payload) => {
+      if (payload.eventType === 'DELETE') {
+        const id = (payload.old as any)?.req_id;
+        if (id) extra?.onRequisitionDelete?.(id);
+        return;
       }
-    )
-    .subscribe();
+      if (payload.new && (payload.new as any).req_id && onRequisitionChange) onRequisitionChange(mapRowToRequisition(payload.new));
+    })
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') dropped = true;
+      else if (status === 'SUBSCRIBED' && dropped) { dropped = false; extra?.onReconnect?.(); }
+    });
 
   return () => {
     supabase.removeChannel(channel);
@@ -419,28 +419,74 @@ export function subscribeToRealtimeChanges(
 // (21 Oct 2026) SAVING WITH A CLEAR ANSWER, REVIEW QUEUE, STAFF ACCOUNTS
 // -----------------------------------------------------------------------------
 
-/** Saves devices; '' when saved, otherwise the reason (e.g. refused by the access rules). */
-export async function saveDevicesStrict(devices: Device[]): Promise<string> {
-  if (!isSupabaseConfigured || devices.length === 0) return '';
+/** The outcome of a save: '' when saved, otherwise the reason; `versions` holds the new server version of each saved row. */
+export interface SaveResult { error: string; stale: boolean; versions: Map<string, number> }
+
+/**
+ * Saves devices (22 Oct 2026). A unit read from the server carries its version and is updated only if nobody changed it
+ * since (the database refuses a stale copy). A unit without a version is new and is inserted – it never overwrites a
+ * unit that already exists.
+ */
+export async function saveDevicesStrict(devices: Device[]): Promise<SaveResult> {
+  const versions = new Map<string, number>();
+  if (!isSupabaseConfigured || devices.length === 0) return { error: '', stale: false, versions };
+  const note = (data: any[] | null) => (data || []).forEach((r: any) => versions.set(r.serial, Number(r.row_version)));
   try {
-    for (let i = 0; i < devices.length; i += 500) {
-      const { error } = await supabase.from('devices').upsert(devices.slice(i, i + 500).map(mapDeviceToRow), { onConflict: 'serial' });
-      if (error) return error.message;
+    const fresh = devices.filter((d) => !d.rowVersion);
+    const known = devices.filter((d) => d.rowVersion);
+    for (let i = 0; i < fresh.length; i += 500) {
+      const { data, error } = await supabase.from('devices').insert(fresh.slice(i, i + 500).map(mapDeviceToRow)).select('serial,row_version');
+      if (error) {
+        const dup = /duplicate key|23505/i.test(error.message + (error as any).code);
+        return { error: dup ? 'a unit with this serial already exists in the inventory' : error.message, stale: false, versions };
+      }
+      note(data);
     }
-    return '';
+    // one row per call (a few at a time): a refused stale row names itself, and the other rows are kept
+    let first: { error: string; stale: boolean } | null = null;
+    for (let i = 0; i < known.length && !first; i += 6) {
+      await Promise.all(known.slice(i, i + 6).map(async (d) => {
+        const { data, error } = await supabase.from('devices').update(mapDeviceToRow(d)).eq('serial', d.serial).select('serial,row_version');
+        if (error) {
+          const stale = /STALE_ROW|40001/.test(error.message + (error as any).code);
+          first = first || { error: stale ? `${d.serial} was changed by someone else just now` : error.message, stale };
+        } else if (!data || data.length === 0) {
+          first = first || { error: `you do not have access to change ${d.serial}`, stale: false };
+        } else note(data);
+      }));
+    }
+    return first ? { ...(first as { error: string; stale: boolean }), versions } : { error: '', stale: false, versions };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Network error', stale: false, versions };
+  }
+}
+
+/** Saves a new request (status, units and returns change only through the functions below). */
+export async function saveRequisitionStrict(req: Requisition, isNew: boolean): Promise<string> {
+  if (!isSupabaseConfigured) return '';
+  try {
+    const row = mapRequisitionToRow(req);
+    const { error } = isNew
+      ? await supabase.from('requisitions').insert(row)
+      : await supabase.from('requisitions').update({ reason: row.reason, staff: row.staff, pos_qty: row.pos_qty, sb_qty: row.sb_qty }).eq('req_id', req.reqId);
+    return error ? error.message : '';
   } catch (err) {
     return err instanceof Error ? err.message : 'Network error';
   }
 }
 
-export async function saveRequisitionStrict(req: Requisition): Promise<string> {
-  if (!isSupabaseConfigured) return '';
-  try {
-    const { error } = await supabase.from('requisitions').upsert(mapRequisitionToRow(req), { onConflict: 'req_id' });
-    return error ? error.message : '';
-  } catch (err) {
-    return err instanceof Error ? err.message : 'Network error';
-  }
+/** HQ dispatches units for a pending stock request; the database checks every unit and keeps them allocated in HQ stock. */
+export async function dispatchRequisitionOnServer(reqId: string, serials: string[], note?: string): Promise<ArrangedDeviceItem[]> {
+  const { data, error } = await supabase.rpc('admin_dispatch_requisition', { p_req_id: reqId, p_serials: serials, p_note: note || null });
+  if (error) throw new Error(error.message);
+  return (data && data.arranged) || [];
+}
+
+/** HQ approves a branch's stock return; the database moves only units still at that branch. */
+export async function receiveReturnOnServer(reqId: string, note?: string): Promise<{ moved: string[]; skipped: string[] }> {
+  const { data, error } = await supabase.rpc('admin_receive_return', { p_req_id: reqId, p_note: note || null });
+  if (error) throw new Error(error.message);
+  return { moved: (data && data.moved) || [], skipped: (data && data.skipped) || [] };
 }
 
 /** A branch confirms receipt of a dispatched request (the database moves the units). */
@@ -465,6 +511,7 @@ export interface ServerAuditEntry {
   actorEmp: string | null; actorName: string | null; action: string | null; target: string | null;
 }
 export async function fetchAuditLogs(limit = 1000): Promise<ServerAuditEntry[] | null> {
+  if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(limit);
   if (error) return null;
   return (data || []).map((r: any) => ({ id: r.id, title: r.title, detail: r.detail, role: r.role, branchId: r.branch_id, createdAt: r.created_at,
@@ -489,13 +536,22 @@ function mapFieldEvent(r: any): FieldEvent {
     status: r.status, reviewedByName: r.reviewed_by_name, reviewedAt: r.reviewed_at, reviewNote: r.review_note, applied: r.applied, receivedAt: r.received_at };
 }
 export async function fetchFieldEvents(limit = 500): Promise<FieldEvent[] | null> {
-  const { data, error } = await supabase.from('field_events').select('*').order('received_at', { ascending: false }).limit(limit);
-  if (error) return null;
-  return (data || []).map(mapFieldEvent);
+  // every pending record is always loaded (however many), plus the latest reviewed ones
+  const [pend, done] = await Promise.all([
+    supabase.from('field_events').select('*').eq('status', 'PENDING').order('received_at', { ascending: false }).limit(5000),
+    supabase.from('field_events').select('*').neq('status', 'PENDING').order('received_at', { ascending: false }).limit(limit),
+  ]);
+  if (pend.error || done.error) return null;
+  return [...(pend.data || []), ...(done.data || [])].map(mapFieldEvent);
+}
+/** The number of records waiting for review (counted by the database, not limited by a page). */
+export async function countPendingFieldEvents(): Promise<number | null> {
+  const { count, error } = await supabase.from('field_events').select('id', { count: 'exact', head: true }).eq('status', 'PENDING');
+  return error ? null : count || 0;
 }
 export function subscribeToFieldEvents(onChange: (e: FieldEvent) => void): () => void {
   if (!isSupabaseConfigured) return () => {};
-  const channel = supabase.channel('field_events_feed')
+  const channel = supabase.channel(channelName('field_events_feed'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'field_events' }, (payload) => {
       if (payload.new && (payload.new as any).id) onChange(mapFieldEvent(payload.new));
     })

@@ -57,10 +57,15 @@ export async function signOutEverywhere(): Promise<void> {
   window.location.reload();
 }
 
-async function loadProfile(userId: string): Promise<StaffProfile | null> {
-  const { data, error } = await supabase.from('staff_profiles').select('*').eq('user_id', userId).maybeSingle();
-  if (error || !data) return null;
-  return data as StaffProfile;
+/** The staff profile; 'offline' when the server could not be reached (not the same as "no account"). */
+async function loadProfile(userId: string): Promise<StaffProfile | null | 'offline'> {
+  try {
+    const { data, error } = await supabase.from('staff_profiles').select('*').eq('user_id', userId).maybeSingle();
+    if (error) return 'offline';
+    return (data as StaffProfile) || null;
+  } catch {
+    return 'offline';
+  }
 }
 
 function storeSession(p: StaffProfile) {
@@ -90,6 +95,11 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
 
   const enter = useCallback(async (userId: string) => {
     const p = await loadProfile(userId);
+    if (p === 'offline') {
+      setError('No connection to the server. Please check the internet and try again.');
+      setPhase('signin');
+      return;
+    }
     if (!p || !p.active) {
       await supabase.auth.signOut();
       setError(p ? 'This account is not active. Please contact your admin.' : 'No staff account is linked to this sign-in. Please contact your admin.');
@@ -156,6 +166,8 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
       setProfile(p);
       storeSession(p);
       setPhase('ready');
+    } catch {
+      setError('No connection to the server, so the change may not be complete. Please try again (if your new password is already active, use it as the current one).');
     } finally {
       setBusy(false);
     }

@@ -189,17 +189,21 @@ const ReviewCard: React.FC<{
 
   const blocked = issues.some((i) => i.level === 'block');
   const warned = issues.some((i) => i.level === 'warn');
+  // (22 Oct 2026) a confirmation covers only the warnings that were shown: when they change, it must be given again
+  const issueKey = issues.map((i) => i.code + ':' + i.text).join('|');
+  useEffect(() => { setAck(false); }, [issueKey]);
   const needsBranch = (e.kind === 'INSTALL' || e.kind === 'REPLACE') && !branchId;
   const needsReturn = (e.kind === 'REPLACE' && !!e.oldSerial) || e.kind === 'SB_RETURN';
 
   const approve = async () => {
     setErr('');
+    if (busy) { setErr('Please wait – the record is being checked again.'); return; }
     if (blocked) { setErr('This record cannot be approved as it is. Reject it with the reason, or correct the stock first.'); return; }
     if (needsBranch) { setErr('Choose the branch first.'); return; }
     if (warned && !ack) { setErr('Tick the box to confirm you checked the warnings.'); return; }
     setBusy('approve');
     try {
-      await approveFieldEvent(e.id, note, { branch_id: branchId || undefined, return_stage: needsReturn ? returnStage : undefined, acknowledge: ack || !warned });
+      await approveFieldEvent(e.id, note, { branch_id: branchId || undefined, return_stage: needsReturn ? returnStage : undefined, acknowledge: ack });
       triggerToast(`Approved · ${e.serial} · stock updated`);
       onDone();
     } catch (x) {
@@ -317,7 +321,7 @@ const ReviewCard: React.FC<{
                 <button type="button" onClick={reject} disabled={!!busy && busy !== 'check'} className="px-3.5 py-2 rounded-xl text-xs font-extrabold border border-rose-200 text-rose-700 bg-white hover:bg-rose-50 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer">
                   {busy === 'reject' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} Reject
                 </button>
-                <button type="button" onClick={approve} disabled={blocked || (!!busy && busy !== 'check')} className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-50 flex items-center gap-1.5 cursor-pointer">
+                <button type="button" onClick={approve} disabled={blocked || !!busy} className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-50 flex items-center gap-1.5 cursor-pointer">
                   {busy === 'approve' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Approve and update stock
                 </button>
               </div>

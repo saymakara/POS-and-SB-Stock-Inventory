@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Store,
   Search,
-  Phone,
   MapPin,
   Cpu,
   Volume2,
@@ -46,7 +45,73 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { findMidDuplicateDevices } from '../utils/crmUtils';
+import { parseCsv } from '../utils/csv';
+import { newRecordId } from '../utils/ids';
+import { lastMonthsPP, todayPP } from '../utils/time';
+import { canSeeFullContact, phoneFor } from '../utils/privacy';
+import { canMove, moveError, statusOf } from '../utils/stages';
+
+/**
+ * What the CRM sends with a bind (22 Oct 2026). The stage fields are what the move to "Installed Live" must set
+ * (from statusOf/onMove) so the handler can apply them instead of choosing its own wording.
+ */
+export interface MerchantBindPayload {
+  mid: string;
+  tid: string;
+  merchantName: string;
+  merchantPhone: string;
+  address: string;
+  stage?: 'COMPLETE';
+  deploymentStatus?: string;
+  stockStatus?: string;
+  deployedDate?: string;
+}
+
+/** Only units waiting at a branch (reserve or being set up) may be bound, and never one that belongs to another MID. */
+const BINDABLE_STAGES = ['BRANCH_RESERVE', 'CONFIGURING'] as const;
+function bindBlockReason(d: Device | undefined, targetMid: string): string {
+  if (!d) return 'Serial is not in the device list. Register the unit in stock first.';
+  if (d.archived) return `Serial ${d.serial} is archived.`;
+  if (!(BINDABLE_STAGES as readonly string[]).includes(d.stage)) {
+    const why = moveError(d.stage, 'COMPLETE', STAGE_META);
+    return `Serial ${d.serial} is in ${STAGE_META[d.stage]?.short || d.stage}. Only Branch Reserve or Configuring units can be bound.${why ? ' ' + why : ''}`;
+  }
+  if (!canMove(d.stage, 'COMPLETE')) return moveError(d.stage, 'COMPLETE', STAGE_META);
+  const cur = (d.mid || '').trim();
+  if (cur && targetMid && cur.toUpperCase() !== targetMid.trim().toUpperCase()) {
+    return `Serial ${d.serial} is already bound to MID ${cur}${d.merchantName ? ` (${d.merchantName})` : ''}.`;
+  }
+  return '';
+}
+const bindStageFields = (): Pick<MerchantBindPayload, 'stage' | 'deploymentStatus' | 'stockStatus' | 'deployedDate'> => ({
+  stage: 'COMPLETE',
+  ...statusOf('COMPLETE'),
+  deployedDate: todayPP(),
+});
+
+/** Placeholder contact values that must never be saved as real data (saved as '' and shown as "—"). */
+const PLACEHOLDER_PHONE_DIGITS = new Set(['012345678', '012888100', '012889100', '012888900', '012990112', '012000000', '000000000']);
+function cleanPhone(v: string | null | undefined): string {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  const d = s.replace(/\D/g, '');
+  if (d.length < 8 || PLACEHOLDER_PHONE_DIGITS.has(d) || /^(\d)\1+$/.test(d)) return '';
+  if (/^(n\/?a|none|null|tbd|unknown|-+|—)$/i.test(s)) return '';
+  return s;
+}
+function cleanAddress(v: string | null | undefined): string {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  if (/^(n\/?a|none|null|tbd|unknown|-+|—)(\s+street)?$/i.test(s)) return '';
+  return s;
+}
+const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
+
+/** Text for the paste box; quotes a value only when it has a comma, quote or line break. */
+const rowToLine = (r: BulkValidationRow) =>
+  [r.serial, r.mid, r.tid, r.merchantName, r.merchantPhone, r.address]
+    .map((v) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v))
+    .join(', ');
 
 interface MerchantsCrmTabProps {
   role: UserRole;
@@ -56,25 +121,9 @@ interface MerchantsCrmTabProps {
   activeBranchId: string;
   activeStaff: string;
   onOpenWorkflow: (serial: string) => void;
-  onBindDeviceToMerchant: (
-    serial: string,
-    merchantData: {
-      mid: string;
-      tid: string;
-      merchantName: string;
-      merchantPhone: string;
-      address: string;
-    }
-  ) => void;
+  onBindDeviceToMerchant: (serial: string, merchantData: MerchantBindPayload) => void;
   onBulkBindDevicesToMerchants?: (
-    assignments: Array<{
-      serial: string;
-      mid: string;
-      tid: string;
-      merchantName: string;
-      merchantPhone: string;
-      address: string;
-    }>
+    assignments: Array<MerchantBindPayload & { serial: string }>
   ) => void;
   onTerminateMerchant?: (
     mid: string,
@@ -106,19 +155,17 @@ export interface ValidationIssue {
     | 'BRANCH_CODE_MISMATCH'
     | 'SERIAL_NOT_FOUND'
     | 'SERIAL_ALREADY_ASSIGNED'
+    | 'SERIAL_NOT_BINDABLE'
     | 'MISSING_MERCHANT_NAME'
     | 'ONE_MID_ONE_SERIAL_VIOLATION';
   severity: 'ERROR' | 'WARN';
   message: string;
-  suggestion?: string;
 }
 
 export interface EvaluatedBulkRow extends BulkValidationRow {
   deviceMatch?: Device;
   issues: ValidationIssue[];
   status: 'VALID' | 'WARNING' | 'ERROR';
-  suggestedMid?: string;
-  suggestedTid?: string;
 }
 
 // Standard 15-Digit Merchant ID (MID) Regex & TID Regex
@@ -194,13 +241,13 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       if (!prof) {
         prof = {
           mid: d.mid || key,
-          merchantName: d.merchantName || 'Unnamed Merchant',
-          merchantPhone: d.merchantPhone || '012 888 100',
-          address: d.address || d.location || 'Phnom Penh',
-          location: d.location || 'Phnom Penh',
+          merchantName: d.merchantName || '',
+          merchantPhone: cleanPhone(d.merchantPhone),
+          address: cleanAddress(d.address),
+          location: d.location || '',
           branchId: d.branchId,
           branchName: d.branchName,
-          accountOfficer: d.staff || 'Branch Officer',
+          accountOfficer: d.staff || '',
           devices: [],
           posCount: 0,
           sbCount: 0,
@@ -208,7 +255,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           pendingCount: 0,
           faultyCount: 0,
           crmStatus: 'ACTIVE',
-          updatedAt: d.updatedAt || '2026-10-18',
+          updatedAt: d.updatedAt || '',
         };
         map.set(key, prof);
       }
@@ -219,12 +266,10 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       if (d.stage === 'COMPLETE') prof.liveCount += 1;
       if (d.stage === 'CONFIGURING') prof.pendingCount += 1;
       if (d.stage === 'FAULTY') prof.faultyCount += 1;
-      if (d.merchantPhone && (!prof.merchantPhone || prof.merchantPhone === '012 888 100')) {
-        prof.merchantPhone = d.merchantPhone;
-      }
-      if (d.address && (!prof.address || prof.address === 'Phnom Penh')) {
-        prof.address = d.address;
-      }
+      if (!prof.merchantPhone) prof.merchantPhone = cleanPhone(d.merchantPhone);
+      if (!prof.address) prof.address = cleanAddress(d.address);
+      if (!prof.merchantName && d.merchantName) prof.merchantName = d.merchantName;
+      if (!prof.accountOfficer) prof.accountOfficer = d.staff || '';
     }
 
     const list: MerchantProfile[] = [];
@@ -241,11 +286,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
     return list.sort((a, b) => b.devices.length - a.devices.length);
   }, [devices]);
-
-  // Merchants holding 2 or more devices (One MID One Serial Policy)
-  const duplicateMidMerchants = useMemo(() => {
-    return merchantProfiles.filter((m) => m.devices && m.devices.length >= 2);
-  }, [merchantProfiles]);
 
   // Existing system maps for fast duplicate & conflict lookup
   const existingTidMap = useMemo(() => {
@@ -306,7 +346,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           stage: d.stage,
           mid: midVal || 'MISSING',
           tid: tidVal || 'MISSING',
-          merchantName: d.merchantName || 'Unassigned',
+          merchantName: d.merchantName || '—',
           issueType: 'Missing MID/TID',
           severity: 'ERROR',
           description: `Hardware in ${d.stage} stage is missing required MID or TID assignment.`,
@@ -322,10 +362,10 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           stage: d.stage,
           mid: midVal,
           tid: tidVal,
-          merchantName: d.merchantName || 'Unnamed',
+          merchantName: d.merchantName || '—',
           issueType: 'MID Format Mismatch',
           severity: 'WARN',
-          description: `MID must be exactly 15 numeric digits (currently ${midVal.length} chars). Expected format: 15 numeric digits (e.g. 100000880${d.branchId}001).`,
+          description: `MID must be exactly 15 numeric digits (currently ${midVal.length} characters). Correct it from the merchant's acquiring record.`,
         });
       }
 
@@ -337,7 +377,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           stage: d.stage,
           mid: midVal,
           tid: tidVal,
-          merchantName: d.merchantName || 'Unnamed',
+          merchantName: d.merchantName || '—',
           issueType: 'TID Format Mismatch',
           severity: 'WARN',
           description: `Does not match standard TID-{Branch}{Seq} format (expected TID-${d.branchId}XX).`,
@@ -353,7 +393,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           stage: d.stage,
           mid: midVal,
           tid: tidVal,
-          merchantName: d.merchantName || 'Unnamed',
+          merchantName: d.merchantName || '—',
           issueType: 'Duplicate TID Collision',
           severity: 'ERROR',
           description: `TID ${tidVal} is shared across ${dupTids.length} units (${dupTids
@@ -366,57 +406,25 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     return anomalies;
   }, [allDevices, existingTidMap]);
 
-  // Available reserve devices for binding to a merchant
+  // Units that may be bound: Branch Reserve or Configuring, not archived, not bound to any merchant yet
+  // (HQ stock must be dispatched to a branch first – HQ_STOCK → COMPLETE is not an allowed move).
   const availableReserveDevices = useMemo(() => {
     return allDevices.filter(
       (d) =>
         !d.archived &&
-        (d.stage === 'BRANCH_RESERVE' || d.stage === 'HQ_STOCK') &&
+        (BINDABLE_STAGES as readonly string[]).includes(d.stage) &&
+        !(d.mid || '').trim() &&
         (role === 'SUPER_ADMIN' || role === 'ADMIN' || d.branchId === activeBranchId)
     );
   }, [allDevices, role, activeBranchId]);
 
-  // Helper to generate clean formatted MID/TID suggestions for a row
-  const buildCleanSuggestions = (
-    row: BulkValidationRow,
-    index: number,
-    deviceMatch?: Device
-  ): { suggestedMid: string; suggestedTid: string } => {
-    const branchCode =
-      deviceMatch?.branchId && deviceMatch.branchId !== '100'
-        ? deviceMatch.branchId
-        : role === 'BRANCH'
-        ? activeBranchId
-        : '105';
-
-    // Extract digits from current MID or generate a clean 15-digit sequence
-    const digitsInMid = row.mid.replace(/\D/g, '');
-    const cleanBranch = branchCode.padStart(3, '0').slice(-3);
-    const seqMid =
-      digitsInMid.length >= 3
-        ? digitsInMid.slice(-3)
-        : String(1 + index).padStart(3, '0');
-    const suggestedMid = `100000880${cleanBranch}${seqMid}`;
-
-    // Extract digits from current TID or generate a non-colliding TID
-    const digitsInTid = row.tid.replace(/\D/g, '');
-    let seqNum =
-      digitsInTid.length >= 2 ? parseInt(digitsInTid.slice(-2), 10) || 20 + index : 20 + index;
-    let candidateTid = `TID-${branchCode}${String(seqNum).padStart(2, '0')}`;
-    while (existingTidMap.has(candidateTid.toUpperCase())) {
-      seqNum += 1;
-      candidateTid = `TID-${branchCode}${String(seqNum).padStart(2, '0')}`;
-    }
-
-    return { suggestedMid, suggestedTid: candidateTid };
-  };
+  const deviceBySerial = useMemo(
+    () => new Map<string, Device>(allDevices.map((d) => [d.serial.trim().toUpperCase(), d])),
+    [allDevices]
+  );
 
   // Evaluate Bulk Validation Rows in Real Time
   const evaluatedBulkRows = useMemo<EvaluatedBulkRow[]>(() => {
-    const deviceBySerial = new Map<string, Device>(
-      allDevices.map((d) => [d.serial.toUpperCase(), d])
-    );
-
     // Count occurrences within the batch itself
     const batchTidCounts = new Map<string, number>();
     const batchSerialCounts = new Map<string, number>();
@@ -435,31 +443,42 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       }
     });
 
-    return bulkRows.map((row, idx) => {
+    return bulkRows.map((row) => {
       const issues: ValidationIssue[] = [];
       const serialClean = row.serial.trim();
       const midClean = row.mid.trim().toUpperCase();
       const tidClean = row.tid.trim().toUpperCase();
       const nameClean = row.merchantName.trim();
 
-      const deviceMatch = deviceBySerial.get(serialClean.toUpperCase());
-      const { suggestedMid, suggestedTid } = buildCleanSuggestions(row, idx, deviceMatch);
+      const deviceMatch = serialClean ? deviceBySerial.get(serialClean.toUpperCase()) : undefined;
 
-      // 1. Hardware Serial Check (Existing or New Production POS Terminal)
+      // 1. Hardware serial: must be given, must already be in the device list, and must be bindable.
+      //    Unknown serials are never created from an import.
       if (!serialClean) {
         issues.push({
           code: 'SERIAL_NOT_FOUND',
           severity: 'ERROR',
-          message: 'Hardware serial is required (e.g. WP5400PQ23200297).',
+          message: 'Hardware serial is required.',
         });
-      } else if (deviceMatch) {
-        if (deviceMatch.stage !== 'BRANCH_RESERVE' && deviceMatch.stage !== 'HQ_STOCK') {
+      } else if (!deviceMatch) {
+        issues.push({
+          code: 'SERIAL_NOT_FOUND',
+          severity: 'ERROR',
+          message: `Serial ${serialClean} is not in the device list. Register it in stock first; it will not be created from this import.`,
+        });
+      } else if (role === 'BRANCH' && deviceMatch.branchId !== activeBranchId) {
+        issues.push({
+          code: 'SERIAL_NOT_BINDABLE',
+          severity: 'ERROR',
+          message: `Serial ${deviceMatch.serial} belongs to branch ${deviceMatch.branchId}, not your branch.`,
+        });
+      } else {
+        const why = bindBlockReason(deviceMatch, midClean);
+        if (why) {
           issues.push({
-            code: 'SERIAL_ALREADY_ASSIGNED',
-            severity: 'WARN',
-            message: `Serial ${deviceMatch.serial} is currently in ${STAGE_META[deviceMatch.stage].short} (${
-              deviceMatch.mid || 'Assigned'
-            }). Importing will update its merchant assignment.`,
+            code: (deviceMatch.mid || '').trim() ? 'SERIAL_ALREADY_ASSIGNED' : 'SERIAL_NOT_BINDABLE',
+            severity: 'ERROR',
+            message: why,
           });
         }
       }
@@ -480,14 +499,12 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           code: 'MID_FORMAT_MISMATCH',
           severity: 'ERROR',
           message: 'Merchant ID (MID) is required (15 numeric digits).',
-          suggestion: suggestedMid,
         });
       } else if (!is15Digit) {
         issues.push({
           code: 'MID_FORMAT_MISMATCH',
           severity: 'ERROR',
-          message: `MID must be exactly 15 numeric digits (currently ${midClean.length} digits). Standard format: 15 digits (e.g. 100000880101001).`,
-          suggestion: suggestedMid,
+          message: `MID must be exactly 15 numeric digits (currently ${midClean.length} characters). Correct it from the merchant's record.`,
         });
       }
 
@@ -498,14 +515,12 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           code: 'TID_FORMAT_MISMATCH',
           severity: 'ERROR',
           message: 'Terminal ID (TID) is required.',
-          suggestion: suggestedTid,
         });
       } else if (!tidMatch) {
         issues.push({
           code: 'TID_FORMAT_MISMATCH',
           severity: 'WARN',
-          message: `Custom production TID "${row.tid}" (Standard format: TID-{Branch}{Seq}). Ready to import.`,
-          suggestion: suggestedTid,
+          message: `TID "${row.tid}" is not in the TID-{Branch}{Seq} format. Check it against the issued TID.`,
         });
       } else if (
         deviceMatch &&
@@ -516,7 +531,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           code: 'BRANCH_CODE_MISMATCH',
           severity: 'WARN',
           message: `TID branch prefix (${tidMatch[1]}) differs from serial's branch (Code ${deviceMatch.branchId}).`,
-          suggestion: suggestedTid,
         });
       }
 
@@ -526,7 +540,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           code: 'DUPLICATE_TID_IN_BATCH',
           severity: 'ERROR',
           message: `Duplicate TID "${tidClean}" detected multiple times within this batch.`,
-          suggestion: suggestedTid,
         });
       }
 
@@ -540,7 +553,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             code: 'DUPLICATE_TID_IN_SYSTEM',
             severity: 'ERROR',
             message: `TID "${tidClean}" is already assigned to active hardware ${existingDevsWithTid[0].serial} (${existingDevsWithTid[0].merchantName}).`,
-            suggestion: suggestedTid,
           });
         }
       }
@@ -587,11 +599,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
         deviceMatch,
         issues,
         status: hasError ? 'ERROR' : hasWarn ? 'WARNING' : 'VALID',
-        suggestedMid,
-        suggestedTid,
       };
     });
-  }, [bulkRows, allDevices, existingTidMap, existingMidMap, role, activeBranchId]);
+  }, [bulkRows, deviceBySerial, existingTidMap, existingMidMap, role, activeBranchId]);
 
   const filteredEvaluatedRows = useMemo(() => {
     if (validationFilter === 'VALID') {
@@ -608,8 +618,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     const valid = evaluatedBulkRows.filter((r) => r.status === 'VALID').length;
     const warnings = evaluatedBulkRows.filter((r) => r.status === 'WARNING').length;
     const errors = evaluatedBulkRows.filter((r) => r.status === 'ERROR').length;
+    // Only rows with a known, bindable unit and no blocking error may be committed.
     const assignable = evaluatedBulkRows.filter(
-      (r) => r.status === 'VALID' || r.status === 'WARNING'
+      (r) => (r.status === 'VALID' || r.status === 'WARNING') && Boolean(r.deviceMatch)
     );
     return { total, valid, warnings, errors, assignable };
   }, [evaluatedBulkRows]);
@@ -618,16 +629,30 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   const singleBindValidation = useMemo(() => {
     if (!bindModalMerchant) return { valid: true, errors: [] as string[] };
     const errs: string[] = [];
-    const tidClean = newTidInput.trim().toUpperCase();
-    if (!TID_REGEX.test(tidClean)) {
-      errs.push(`TID format mismatch: use TID-${bindModalMerchant.branchId}XX (e.g. TID-${bindModalMerchant.branchId}25)`);
+    if (!/^\d{15}$/.test(bindModalMerchant.mid.trim())) {
+      errs.push(`This merchant's MID (${bindModalMerchant.mid}) is not a 15-digit MID. Correct the MID before binding more units.`);
     }
-    const existingWithTid = existingTidMap.get(tidClean) || [];
-    if (existingWithTid.length > 0) {
+    if (!bindModalMerchant.merchantName.trim()) {
+      errs.push('This merchant has no business name on record. Add it before binding.');
+    }
+    if (selectedReserveSerial) {
+      const why = bindBlockReason(deviceBySerial.get(selectedReserveSerial.trim().toUpperCase()), bindModalMerchant.mid);
+      if (why) errs.push(why);
+    }
+    const tidClean = newTidInput.trim().toUpperCase();
+    if (!tidClean) {
+      errs.push('Enter the Terminal ID (TID) issued for this unit.');
+    } else if (!TID_REGEX.test(tidClean)) {
+      errs.push(`TID format mismatch: expected TID-{Branch}{Seq} (e.g. branch ${bindModalMerchant.branchId}).`);
+    }
+    const existingWithTid = (existingTidMap.get(tidClean) || []).filter(
+      (d) => d.serial.toUpperCase() !== selectedReserveSerial.trim().toUpperCase()
+    );
+    if (tidClean && existingWithTid.length > 0) {
       errs.push(`Duplicate TID: ${tidClean} is already bound to ${existingWithTid[0].serial}`);
     }
     return { valid: errs.length === 0, errors: errs };
-  }, [bindModalMerchant, newTidInput, existingTidMap]);
+  }, [bindModalMerchant, newTidInput, existingTidMap, selectedReserveSerial, deviceBySerial]);
 
   const singleNewMerchantValidation = useMemo(() => {
     const errs: string[] = [];
@@ -636,11 +661,21 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
     if (!midClean) {
       errs.push('Merchant ID (MID) is required (15 numeric digits).');
-    } else if (!/^\d{15}$/.test(midClean)) {
-      errs.push(`MID must be exactly 15 numeric digits (currently ${midClean.length} digits). Example: 100000880101001`);
+    } else if (!MID_REGEX.test(midClean)) {
+      errs.push(`MID must be exactly 15 numeric digits (currently ${midClean.length} digits).`);
     }
     if (!tidClean) {
       errs.push('Terminal ID (TID) is required.');
+    }
+    const serialClean = newMerchSerial.trim().toUpperCase();
+    if (!serialClean) {
+      errs.push('Choose a hardware serial from the device list.');
+    } else {
+      const dev = deviceBySerial.get(serialClean);
+      const why = role === 'BRANCH' && dev && dev.branchId !== activeBranchId
+        ? `Serial ${dev.serial} belongs to branch ${dev.branchId}, not your branch.`
+        : bindBlockReason(dev, midClean);
+      if (why) errs.push(why);
     }
     if (tidClean && (existingTidMap.get(tidClean) || []).length > 0) {
       const collide = existingTidMap.get(tidClean)![0];
@@ -649,13 +684,14 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     const existingMidInfo = existingMidMap.get(midClean);
     if (
       existingMidInfo &&
+      existingMidInfo.merchantName &&
       newMerchName.trim() &&
       existingMidInfo.merchantName.toLowerCase() !== newMerchName.trim().toLowerCase()
     ) {
       errs.push(`Duplicate MID conflict: ${midClean} is already registered to "${existingMidInfo.merchantName}"`);
     }
     return { valid: errs.length === 0, errors: errs };
-  }, [newMerchMid, newMerchTid, newMerchName, newMerchSerial, allDevices, existingTidMap, existingMidMap]);
+  }, [newMerchMid, newMerchTid, newMerchName, newMerchSerial, deviceBySerial, existingTidMap, existingMidMap, role, activeBranchId]);
 
   const filteredMerchants = useMemo(() => {
     return merchantProfiles.filter((m) => {
@@ -670,12 +706,14 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const serialsText = m.devices.map((d) => `${d.serial} ${d.tid} ${d.model}`).join(' ');
-        const hay = `${m.mid} ${m.merchantName} ${m.merchantPhone} ${m.address} ${m.branchId} ${m.branchName} ${m.accountOfficer} ${serialsText}`.toLowerCase();
+        // Branch staff cannot search by full phone number (it would reveal a masked number).
+        const phoneText = canSeeFullContact(role) ? m.merchantPhone : '';
+        const hay = `${m.mid} ${m.merchantName} ${phoneText} ${m.address} ${m.branchId} ${m.branchName} ${m.accountOfficer} ${serialsText}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [merchantProfiles, branchFilter, statusFilter, bundleFilter, deviceCountFilter, search]);
+  }, [merchantProfiles, branchFilter, statusFilter, bundleFilter, deviceCountFilter, search, role]);
 
   const selectedMerchantProfile = useMemo(
     () => merchantProfiles.find((m) => m.mid === selectedMid) || null,
@@ -734,23 +772,12 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     return source.slice(0, 6);
   }, [filteredMerchants, merchantProfiles]);
 
-  const monthlyDeploymentTrendData = useMemo(() => {
-    const allMonths = [
-      { key: '2025-11', label: 'Nov 25' },
-      { key: '2025-12', label: 'Dec 25' },
-      { key: '2026-01', label: 'Jan 26' },
-      { key: '2026-02', label: 'Feb 26' },
-      { key: '2026-03', label: 'Mar 26' },
-      { key: '2026-04', label: 'Apr 26' },
-      { key: '2026-05', label: 'May 26' },
-      { key: '2026-06', label: 'Jun 26' },
-      { key: '2026-07', label: 'Jul 26' },
-      { key: '2026-08', label: 'Aug 26' },
-      { key: '2026-09', label: 'Sep 26' },
-      { key: '2026-10', label: 'Oct 26' },
-    ];
+  // Real deployments only: a unit counts in the month of its deployedDate (Phnom Penh months). No invented history.
+  const trendMonths = useMemo(() => lastMonthsPP(trendHorizon === '6M' ? 6 : 12), [trendHorizon]);
 
-    const months = trendHorizon === '6M' ? allMonths.slice(6) : allMonths;
+  const monthlyDeploymentTrendData = useMemo(() => {
+    const months = trendMonths;
+    const firstKey = months[0]?.key || '';
     const targetMerchants =
       selectedTrendMid === 'ALL'
         ? filteredMerchants.length > 0
@@ -758,82 +785,71 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           : merchantProfiles
         : merchantProfiles.filter((m) => m.mid === selectedTrendMid);
 
-    let runningCumulative = 0;
-
-    return months.map((mObj, mIdx) => {
-      let posDeployed = 0;
-      let sbDeployed = 0;
+    const index = new Map<string, number>(months.map((m, i) => [m.key, i]));
+    const rows = months.map((mObj) => {
       const perMidCounts: Record<string, number> = {};
-
       topMerchantsForTrend.forEach((tm) => {
         perMidCounts[tm.mid] = 0;
       });
-
-      targetMerchants.forEach((merch, merchIdx) => {
-        merch.devices.forEach((dev, devIdx) => {
-          const rawDate = (dev.deployedDate || dev.updatedAt || dev.stockInDate || '').slice(0, 7);
-          const matchedDirectly = rawDate === mObj.key;
-
-          // Deterministic historical expansion cadence so each MID exhibits a realistic multi-month deployment curve
-          const seed =
-            (merch.mid.charCodeAt(merch.mid.length - 1) || 5) + devIdx * 3 + merchIdx * 2 + mIdx;
-          const historicalCadenceHit =
-            !matchedDirectly &&
-            mObj.key < '2026-10' &&
-            ((selectedTrendMid !== 'ALL' && seed % 2 === 0) ||
-              (selectedTrendMid === 'ALL' && seed % 4 === 0));
-
-          if (matchedDirectly || historicalCadenceHit) {
-            const units = matchedDirectly ? 1 : 1;
-            if (dev.type === 'POS Terminal') {
-              posDeployed += units;
-            } else {
-              sbDeployed += units;
-            }
-            if (perMidCounts[merch.mid] !== undefined) {
-              perMidCounts[merch.mid] += units;
-            }
-          }
-        });
-      });
-
-      const monthlyTotal = posDeployed + sbDeployed;
-      runningCumulative += monthlyTotal;
-
       return {
         month: mObj.label,
         monthKey: mObj.key,
-        posDeployed,
-        sbDeployed,
-        monthlyTotal,
-        cumulativeFleet: runningCumulative,
+        posDeployed: 0,
+        sbDeployed: 0,
+        monthlyTotal: 0,
+        cumulativeFleet: 0,
         ...perMidCounts,
-      };
+      } as { month: string; monthKey: string; posDeployed: number; sbDeployed: number; monthlyTotal: number; cumulativeFleet: number } & Record<string, number | string>;
     });
-  }, [filteredMerchants, merchantProfiles, selectedTrendMid, trendHorizon, topMerchantsForTrend]);
 
-  // Dedicated 6-month trend for the Merchant 360 Detail Modal
+    let before = 0;
+    targetMerchants.forEach((merch) => {
+      merch.devices.forEach((dev) => {
+        const key = (dev.deployedDate || '').slice(0, 7);
+        if (!/^\d{4}-\d{2}$/.test(key)) return;
+        if (key < firstKey) {
+          before += 1;
+          return;
+        }
+        const i = index.get(key);
+        if (i === undefined) return;
+        const row = rows[i];
+        if (dev.type === 'POS Terminal') row.posDeployed += 1;
+        else row.sbDeployed += 1;
+        row.monthlyTotal += 1;
+        if (typeof row[merch.mid] === 'number') row[merch.mid] = (row[merch.mid] as number) + 1;
+      });
+    });
+
+    let running = before;
+    rows.forEach((r) => {
+      running += r.monthlyTotal;
+      r.cumulativeFleet = running;
+    });
+    return rows;
+  }, [filteredMerchants, merchantProfiles, selectedTrendMid, trendMonths, topMerchantsForTrend]);
+
+  const trendHasData = useMemo(
+    () => monthlyDeploymentTrendData.some((r) => r.monthlyTotal > 0),
+    [monthlyDeploymentTrendData]
+  );
+
+  // 6-month trend for the Merchant 360 Detail Modal (same rule: deployedDate only)
   const modalMerchantMonthlyData = useMemo(() => {
     if (!selectedMerchantProfile) return [];
-    const modalMonths = [
-      { key: '2026-05', label: 'May 26' },
-      { key: '2026-06', label: 'Jun 26' },
-      { key: '2026-07', label: 'Jul 26' },
-      { key: '2026-08', label: 'Aug 26' },
-      { key: '2026-09', label: 'Sep 26' },
-      { key: '2026-10', label: 'Oct 26' },
-    ];
-    let cum = 0;
-    return modalMonths.map((mObj, idx) => {
+    const modalMonths = lastMonthsPP(6);
+    const firstKey = modalMonths[0].key;
+    let cum = selectedMerchantProfile.devices.filter((d) => {
+      const k = (d.deployedDate || '').slice(0, 7);
+      return /^\d{4}-\d{2}$/.test(k) && k < firstKey;
+    }).length;
+    return modalMonths.map((mObj) => {
       let pos = 0;
       let sb = 0;
-      selectedMerchantProfile.devices.forEach((dev, dIdx) => {
-        const dMonth = (dev.deployedDate || dev.updatedAt || dev.stockInDate || '').slice(0, 7);
-        const seed = (selectedMerchantProfile.mid.charCodeAt(4) || 3) + idx + dIdx;
-        if (dMonth === mObj.key || (mObj.key < '2026-10' && seed % 2 === 0)) {
-          if (dev.type === 'POS Terminal') pos += 1;
-          else sb += 1;
-        }
+      selectedMerchantProfile.devices.forEach((dev) => {
+        if ((dev.deployedDate || '').slice(0, 7) !== mObj.key) return;
+        if (dev.type === 'POS Terminal') pos += 1;
+        else sb += 1;
       });
       cum += pos + sb;
       return {
@@ -844,6 +860,11 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       };
     });
   }, [selectedMerchantProfile]);
+
+  const modalTrendHasData = useMemo(
+    () => modalMerchantMonthlyData.some((r) => r.posDeployed + r.sbDeployed > 0),
+    [modalMerchantMonthlyData]
+  );
 
   const cardClass = isLight
     ? 'surface-card-light text-[#002f49]'
@@ -863,53 +884,47 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   };
 
   // --- Bulk Validator & Production Merchant Upload Actions ---
+  // Reads pasted text or a CSV file with the shared CSV reader (quoted values, tabs/semicolons, empty fields kept).
+  // Nothing is filled in for a missing value: a blank serial/MID/TID stays blank and is reported in the preview.
   const parseRawTextToRows = (text: string): BulkValidationRow[] => {
-    const rawLines = text
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-    if (rawLines.length === 0) return [];
+    const table = parseCsv(text);
+    if (table.length === 0) return [];
 
-    // Check if first row is a header row
-    const firstParts = rawLines[0].split(/[,\t|;]/).map((p) => p.trim().toLowerCase());
-    const hasHeader =
-      firstParts.some((h) => h.includes('serial') || h === 'mid' || h === 'tid' || h.includes('merchant'));
+    const firstParts = table[0].map((p) => p.trim().toLowerCase());
+    const hasHeader = firstParts.some(
+      (h) => h.includes('serial') || h === 'mid' || h === 'tid' || h.includes('merchant')
+    );
+    const col = (pred: (h: string) => boolean, fallback: number) => {
+      if (!hasHeader) return fallback;
+      const i = firstParts.findIndex(pred);
+      return i;
+    };
+    const sIdx = col((h) => h.includes('serial') || h === 'sn' || h === 's/n', 0);
+    const mIdx = col((h) => h === 'mid' || h.includes('merchant id'), 1);
+    const tIdx = col((h) => h === 'tid' || h.includes('terminal id'), 2);
+    const nIdx = col(
+      (h) => h.includes('merchant name') || h === 'merchant' || h === 'name' || h.includes('store'),
+      3
+    );
+    const pIdx = col((h) => h.includes('phone') || h.includes('contact') || h.includes('tel'), 4);
+    const aIdx = col((h) => h.includes('address') || h.includes('location'), 5);
+    const at = (parts: string[], i: number) => (i >= 0 ? (parts[i] || '').trim() : '');
 
-    const dataLines = hasHeader ? rawLines.slice(1) : rawLines;
+    const dataRows = hasHeader ? table.slice(1) : table;
+    return dataRows.map((parts) => ({
+      id: newRecordId('ROW'),
+      serial: at(parts, sIdx),
+      mid: at(parts, mIdx),
+      tid: at(parts, tIdx),
+      merchantName: at(parts, nIdx),
+      merchantPhone: at(parts, pIdx),
+      address: at(parts, aIdx),
+    }));
+  };
 
-    return dataLines.map((line, idx) => {
-      const parts = line.split(/[,\t|;]/).map((p) => p.trim());
-      if (hasHeader) {
-        const sIdx = firstParts.findIndex((h) => h.includes('serial') || h.includes('sn') || h.includes('pos'));
-        const mIdx = firstParts.findIndex((h) => h === 'mid' || h.includes('merchant id'));
-        const tIdx = firstParts.findIndex((h) => h === 'tid' || h.includes('terminal id'));
-        const nIdx = firstParts.findIndex(
-          (h) => h.includes('merchant name') || h === 'merchant' || h === 'name' || h.includes('store')
-        );
-        const pIdx = firstParts.findIndex((h) => h.includes('phone') || h.includes('contact') || h.includes('tel'));
-        const aIdx = firstParts.findIndex((h) => h.includes('address') || h.includes('location'));
-
-        return {
-          id: `ROW-${Date.now()}-${idx}`,
-          serial: (sIdx >= 0 ? parts[sIdx] : parts[0]) || `POS-A920-${String(201 + idx).padStart(5, '0')}`,
-          mid: (mIdx >= 0 ? parts[mIdx] : parts[1]) || '',
-          tid: (tIdx >= 0 ? parts[tIdx] : parts[2]) || '',
-          merchantName: (nIdx >= 0 ? parts[nIdx] : parts[3]) || '',
-          merchantPhone: (pIdx >= 0 ? parts[pIdx] : parts[4]) || '012 889 100',
-          address: (aIdx >= 0 ? parts[aIdx] : parts[5]) || 'Phnom Penh',
-        };
-      }
-
-      return {
-        id: `ROW-${Date.now()}-${idx}`,
-        serial: parts[0] || `POS-A920-${String(201 + idx).padStart(5, '0')}`,
-        mid: parts[1] || '',
-        tid: parts[2] || '',
-        merchantName: parts[3] || '',
-        merchantPhone: parts[4] || '012 889 100',
-        address: parts[5] || 'Phnom Penh',
-      };
-    });
+  const applyBulkRows = (rows: BulkValidationRow[]) => {
+    setBulkRows(rows);
+    setRawBatchText(rows.map(rowToLine).join('\n'));
   };
 
   const handleBulkCsvFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -923,16 +938,12 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       setValidationFilter('ALL');
     };
     reader.readAsText(file);
-  };
-
-  const syncRowsToRawText = (rows: BulkValidationRow[]) => {
-    const csvLines = rows.map(
-      (r) => `${r.serial}, ${r.mid}, ${r.tid}, ${r.merchantName}, ${r.merchantPhone}, ${r.address}`
-    );
-    setRawBatchText(csvLines.join('\n'));
+    // Let the same file be chosen again after edits.
+    e.target.value = '';
   };
 
   const handleOpenValidatorModal = () => {
+    setValidatorTab('BULK_PREFLIGHT');
     setValidatorModalOpen(true);
   };
 
@@ -941,175 +952,77 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     field: keyof BulkValidationRow,
     value: string
   ) => {
-    setBulkRows((prev) => {
-      const updated = prev.map((r) => (r.id === rowId ? { ...r, [field]: value } : r));
-      syncRowsToRawText(updated);
-      return updated;
-    });
+    applyBulkRows(bulkRows.map((r) => (r.id === rowId ? { ...r, [field]: value } : r)));
   };
 
   const handleRemoveBulkRow = (rowId: string) => {
-    setBulkRows((prev) => {
-      const updated = prev.filter((r) => r.id !== rowId);
-      syncRowsToRawText(updated);
-      return updated;
-    });
+    applyBulkRows(bulkRows.filter((r) => r.id !== rowId));
   };
 
+  // A blank row to fill in by hand (nothing is pre-filled or invented).
   const handleAddEmptyBulkRow = () => {
-    const unusedReserve = availableReserveDevices.find(
-      (d) => !bulkRows.some((r) => r.serial.toUpperCase() === d.serial.toUpperCase())
-    );
-    const bCode =
-      unusedReserve?.branchId && unusedReserve.branchId !== '100'
-        ? unusedReserve.branchId
-        : role === 'BRANCH'
-        ? activeBranchId
-        : '105';
-    const seq = 60 + bulkRows.length;
-
-    const newRow: BulkValidationRow = {
-      id: `ROW-ADD-${Date.now()}`,
-      serial: unusedReserve?.serial || '',
-      mid: `MID-880${bCode}-${seq}`,
-      tid: `TID-${bCode}${seq}`,
-      merchantName: 'New Merchant Store',
-      merchantPhone: '012 888 900',
-      address: 'Phnom Penh',
-    };
-    const next = [...bulkRows, newRow];
-    setBulkRows(next);
-    syncRowsToRawText(next);
+    applyBulkRows([
+      ...bulkRows,
+      { id: newRecordId('ROW'), serial: '', mid: '', tid: '', merchantName: '', merchantPhone: '', address: '' },
+    ]);
   };
 
-  // Auto-remediate format mismatches, branch mismatches, and duplicate TIDs across all batch rows
-  const handleAutoRemediateAll = () => {
-    const usedTids = new Set<string>(Array.from(existingTidMap.keys()));
-    const usedMids = new Set<string>(Array.from(existingMidMap.keys()));
-    const usedSerials = new Set<string>();
-    const midCanonicalName = new Map<string, string>();
+  // Formatting clean-up only: trims, upper-cases serial/TID, strips spaces and dashes from a MID made of digits.
+  // It never creates, guesses or replaces a MID, TID, serial, name, phone or address – problems stay flagged.
+  const tidyRow = (r: BulkValidationRow): BulkValidationRow => {
+    const mid = r.mid.trim();
+    const midDigits = mid.replace(/[\s-]/g, '');
+    return {
+      ...r,
+      serial: r.serial.trim().toUpperCase().replace(/\s+/g, ''),
+      mid: /^\d+$/.test(midDigits) ? midDigits : mid.toUpperCase(),
+      tid: r.tid.trim().toUpperCase().replace(/\s+/g, ''),
+      merchantName: r.merchantName.trim().replace(/\s+/g, ' '),
+      merchantPhone: r.merchantPhone.trim().replace(/\s+/g, ' '),
+      address: r.address.trim().replace(/\s+/g, ' '),
+    };
+  };
+  const rowNeedsTidy = (r: BulkValidationRow) => {
+    const t = tidyRow(r);
+    return (Object.keys(t) as Array<keyof BulkValidationRow>).some((k) => t[k] !== r[k]);
+  };
 
-    existingMidMap.forEach((val, key) => {
-      if (val.merchantName) midCanonicalName.set(key, val.merchantName);
-    });
-
-    const fixedRows = evaluatedBulkRows.map((row, idx) => {
-      let targetSerial = row.serial.trim();
-      let devMatch = row.deviceMatch;
-
-      // Fix duplicate or missing serial if reserve devices are available
-      if (!devMatch || usedSerials.has(targetSerial.toUpperCase())) {
-        const replacement = availableReserveDevices.find(
-          (d) => !usedSerials.has(d.serial.toUpperCase())
-        );
-        if (replacement) {
-          targetSerial = replacement.serial;
-          devMatch = replacement;
-        }
-      }
-      if (targetSerial) usedSerials.add(targetSerial.toUpperCase());
-
-      const branchCode =
-        devMatch?.branchId && devMatch.branchId !== '100'
-          ? devMatch.branchId
-          : role === 'BRANCH'
-          ? activeBranchId
-          : '105';
-
-      // Fix MID format, branch prefix mismatch, or duplicate MID (One MID One Serial)
-      let nextMid = row.mid.trim().toUpperCase();
-      const is15 = /^\d{15}$/.test(nextMid);
-      const cleanBranch = branchCode.padStart(3, '0').slice(-3);
-      let midSeq = 31 + idx;
-      if (!is15 || usedMids.has(nextMid) || findMidDuplicateDevices(nextMid, allDevices, targetSerial).length > 0) {
-        const digits = nextMid.replace(/\D/g, '');
-        const seqStr = digits.length >= 3 ? digits.slice(-3) : String(midSeq).padStart(3, '0');
-        nextMid = `100000880${cleanBranch}${seqStr}`;
-        while (usedMids.has(nextMid) || findMidDuplicateDevices(nextMid, allDevices, targetSerial).length > 0) {
-          midSeq += 1;
-          nextMid = `100000880${cleanBranch}${String(midSeq).padStart(3, '0')}`;
-        }
-      }
-      usedMids.add(nextMid);
-
-      // Fix merchant name conflict on shared MID
-      let nextMerchantName = row.merchantName.trim() || `Merchant Outlet ${idx + 1}`;
-      if (midCanonicalName.has(nextMid)) {
-        nextMerchantName = midCanonicalName.get(nextMid)!;
-      } else {
-        midCanonicalName.set(nextMid, nextMerchantName);
-      }
-
-      // Fix TID format, branch prefix, or duplicate collision
-      let nextTid = row.tid.trim().toUpperCase();
-      const tidMatch = TID_REGEX.exec(nextTid);
-      let seqNum = 41 + idx;
-      if (tidMatch && tidMatch[1] === branchCode && !usedTids.has(nextTid)) {
-        usedTids.add(nextTid);
-      } else {
-        while (usedTids.has(`TID-${branchCode}${String(seqNum).padStart(2, '0')}`)) {
-          seqNum += 1;
-        }
-        nextTid = `TID-${branchCode}${String(seqNum).padStart(2, '0')}`;
-        usedTids.add(nextTid);
-      }
-
-      return {
-        id: row.id,
-        serial: targetSerial,
-        mid: nextMid,
-        tid: nextTid,
-        merchantName: nextMerchantName,
-        merchantPhone: row.merchantPhone.trim() || '012 889 100',
-        address: row.address.trim() || 'Phnom Penh',
-      };
-    });
-
-    setBulkRows(fixedRows);
-    syncRowsToRawText(fixedRows);
+  const handleTidyAllFormatting = () => {
+    applyBulkRows(bulkRows.map(tidyRow));
   };
 
   const handleCommitValidBulkAssignments = () => {
     const assignable = bulkSummary.assignable;
     if (assignable.length === 0) return;
 
-    const payload = assignable.map((r) => ({
-      serial: r.serial.trim(),
+    const stageFields = bindStageFields();
+    const payload: Array<MerchantBindPayload & { serial: string }> = assignable.map((r) => ({
+      serial: r.deviceMatch!.serial,
       mid: r.mid.trim().toUpperCase(),
       tid: r.tid.trim().toUpperCase(),
       merchantName: r.merchantName.trim(),
-      merchantPhone: r.merchantPhone.trim() || '012 889 100',
-      address: r.address.trim() || 'Phnom Penh',
+      merchantPhone: cleanPhone(r.merchantPhone),
+      address: cleanAddress(r.address),
+      ...stageFields,
     }));
 
     if (onBulkBindDevicesToMerchants) {
       onBulkBindDevicesToMerchants(payload);
     } else {
-      payload.forEach((item) => {
-        onBindDeviceToMerchant(item.serial, item);
+      payload.forEach(({ serial, ...item }) => {
+        onBindDeviceToMerchant(serial, item);
       });
     }
 
-    // Keep only rows that still had errors, or close modal if all succeeded
-    const remainingErrors = evaluatedBulkRows
-      .filter((r) => r.status === 'ERROR')
-      .map(({ id, serial, mid, tid, merchantName, merchantPhone, address }) => ({
-        id,
-        serial,
-        mid,
-        tid,
-        merchantName,
-        merchantPhone,
-        address,
-      }));
+    // Keep only the rows that were not sent (blocking errors), or close the studio when all were sent.
+    const sentIds = new Set(assignable.map((r) => r.id));
+    const remaining = bulkRows.filter((r) => !sentIds.has(r.id));
 
-    if (remainingErrors.length === 0) {
-      setBulkRows([]);
-      setRawBatchText('');
+    if (remaining.length === 0) {
+      applyBulkRows([]);
       setValidatorModalOpen(false);
     } else {
-      setBulkRows(remainingErrors);
-      syncRowsToRawText(remainingErrors);
+      applyBulkRows(remaining);
     }
   };
 
@@ -1118,25 +1031,20 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     const branchRes = availableReserveDevices.filter((d) => d.branchId === merchant.branchId);
     const defaultDev = branchRes[0] || availableReserveDevices[0];
     setSelectedReserveSerial(defaultDev ? defaultDev.serial : '');
-
-    let seq = 20 + merchant.devices.length;
-    let candidateTid = `TID-${merchant.branchId}${seq}`;
-    while (existingTidMap.has(candidateTid.toUpperCase())) {
-      seq += 1;
-      candidateTid = `TID-${merchant.branchId}${seq}`;
-    }
-    setNewTidInput(candidateTid);
+    // The TID is the one issued for the unit; it is typed in, never generated here.
+    setNewTidInput('');
   };
 
   const handleConfirmBindDevice = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bindModalMerchant || !selectedReserveSerial || !singleBindValidation.valid) return;
     onBindDeviceToMerchant(selectedReserveSerial, {
-      mid: bindModalMerchant.mid,
+      mid: bindModalMerchant.mid.trim(),
       tid: newTidInput.trim().toUpperCase(),
-      merchantName: bindModalMerchant.merchantName,
-      merchantPhone: bindModalMerchant.merchantPhone,
-      address: bindModalMerchant.address,
+      merchantName: bindModalMerchant.merchantName.trim(),
+      merchantPhone: cleanPhone(bindModalMerchant.merchantPhone),
+      address: cleanAddress(bindModalMerchant.address),
+      ...bindStageFields(),
     });
     setBindModalMerchant(null);
   };
@@ -1161,22 +1069,13 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   };
 
   const handleOpenNewMerchantModal = () => {
-    const bCode = role === 'BRANCH' ? activeBranchId : '105';
-    let seq = 20 + allDevices.length;
-    while (existingTidMap.has(`TID-${bCode}${seq}`)) {
-      seq += 1;
-    }
-    setNewMerchMid(`MID-880${bCode}-${seq}`);
-    setNewMerchTid(`TID-${bCode}${seq}`);
+    // Every field starts empty: MID/TID come from the acquiring record, the serial from the device list.
+    setNewMerchMid('');
+    setNewMerchTid('');
     setNewMerchName('');
-    setNewMerchPhone('012 ');
+    setNewMerchPhone('');
     setNewMerchAddress('');
-    const defaultDev = availableReserveDevices[0];
-    setNewMerchSerial(
-      defaultDev
-        ? defaultDev.serial
-        : `POS-A920-${String(101 + allDevices.length).padStart(5, '0')}`
-    );
+    setNewMerchSerial('');
     setNewMerchantModalOpen(true);
   };
 
@@ -1189,18 +1088,30 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       !singleNewMerchantValidation.valid
     )
       return;
-    onBindDeviceToMerchant(newMerchSerial.trim().toUpperCase(), {
+    const dev = deviceBySerial.get(newMerchSerial.trim().toUpperCase());
+    if (!dev) return;
+    onBindDeviceToMerchant(dev.serial, {
       mid: newMerchMid.trim().toUpperCase(),
       tid: newMerchTid.trim().toUpperCase(),
       merchantName: newMerchName.trim(),
-      merchantPhone: newMerchPhone.trim() || '012 990 112',
-      address: newMerchAddress.trim() || 'Phnom Penh',
+      merchantPhone: cleanPhone(newMerchPhone),
+      address: cleanAddress(newMerchAddress),
+      ...bindStageFields(),
     });
     setNewMerchantModalOpen(false);
   };
 
   return (
     <div className="flex flex-col gap-4">
+      {/* One shared list of bindable serials for every serial input on this tab */}
+      <datalist id="crm-bindable-serials">
+        {availableReserveDevices.map((d) => (
+          <option key={d.serial} value={d.serial}>
+            {d.model} ({d.type} • Code {d.branchId})
+          </option>
+        ))}
+      </datalist>
+
       {/* Top CRM Banner */}
       <div
         className={`${cardClass} rounded-xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4`}
@@ -1235,6 +1146,26 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           >
             <BarChart3 className="w-3.5 h-3.5" />
             <span>{showTrendChart ? 'Hide Trends' : 'Trends Chart'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenValidatorModal}
+            className={`px-3 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              isLight
+                ? 'bg-slate-50 hover:bg-slate-100 text-[#003857] border-slate-300'
+                : 'bg-[#001d2e] hover:bg-[#002a42] text-slate-200 border-[#003857]'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Bulk MID / TID Import</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenNewMerchantModal}
+            className="px-3 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 whitespace-nowrap cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white border-[#004469]"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Assign Hardware</span>
           </button>
         </div>
       </div>
@@ -1354,7 +1285,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
               <option value="ALL">All Filtered Merchants (MID Aggregate)</option>
               {merchantProfiles.map((m) => (
                 <option key={m.mid} value={m.mid}>
-                  {m.mid} — {m.merchantName} ({m.posCount} POS / {m.sbCount} SB)
+                  {m.mid} — {dash(m.merchantName)} ({m.posCount} POS / {m.sbCount} SB)
                 </option>
               ))}
             </select>
@@ -1458,7 +1389,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                 />
                 <span>{m.mid}</span>
                 <span className="text-[10px] opacity-70 truncate max-w-[110px]">
-                  {m.merchantName}
+                  {dash(m.merchantName)}
                 </span>
               </button>
             );
@@ -1466,6 +1397,15 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
         </div>
 
         {/* Recharts Responsive Canvas */}
+        {!trendHasData ? (
+          <div className={`h-40 w-full flex flex-col items-center justify-center text-center rounded-xl border border-dashed ${isLight ? 'border-slate-300' : 'border-[#003857]'}`}>
+            <BarChart3 className="w-5 h-5 text-slate-400 mb-1.5" />
+            <p className={`text-xs font-semibold ${headingClass}`}>No deployments recorded in this period</p>
+            <p className={`text-[11px] ${subtextClass}`}>
+              Units are counted in the month of their installation date ({trendMonths[0]?.label} – {trendMonths[trendMonths.length - 1]?.label}).
+            </p>
+          </div>
+        ) : (
         <div className="h-72 w-full pt-1">
           <ResponsiveContainer width="100%" height="100%">
             {trendChartMode === 'POS_VS_SB' ? (
@@ -1581,7 +1521,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                   <Bar
                     key={m.mid}
                     dataKey={m.mid}
-                    name={`${m.mid} (${m.merchantName.slice(0, 16)})`}
+                    name={`${m.mid} (${(m.merchantName || '—').slice(0, 16)})`}
                     stackId="midStack"
                     fill={MID_SERIES_COLORS[idx % MID_SERIES_COLORS.length]}
                     radius={idx === topMerchantsForTrend.length - 1 ? [5, 5, 0, 0] : [0, 0, 0, 0]}
@@ -1592,6 +1532,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             )}
           </ResponsiveContainer>
         </div>
+        )}
       </div>
       )}
 
@@ -1605,7 +1546,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search MID, merchant, phone, serial..."
+            placeholder={canSeeFullContact(role) ? 'Search MID, merchant, phone, serial...' : 'Search MID, merchant, serial...'}
+            aria-label="Search merchants"
             className={`w-full rounded-xl pl-8 pr-3 py-2 text-xs border focus:outline-none ${inputClass}`}
           />
         </div>
@@ -1740,7 +1682,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
                     <td className="py-3.5 px-4">
                       <div className={`text-xs sm:text-[13px] font-bold ${headingClass}`}>
-                        {m.merchantName}
+                        {dash(m.merchantName)}
                       </div>
                       {m.address && (
                         <div className={`flex items-center gap-1 text-[11px] ${subtextClass} mt-0.5 truncate max-w-[220px]`}>
@@ -1753,7 +1695,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-xs text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                         <UserCheck className="w-3.5 h-3.5 text-[#005a8c] dark:text-[#7cc4ed] shrink-0" />
-                        <span>{m.accountOfficer}</span>
+                        <span>{dash(m.accountOfficer)}</span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-1">
                         <span
@@ -1837,12 +1779,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
                     <td className="py-3.5 px-4 font-mono text-xs whitespace-nowrap">
                       {(() => {
+                        // Installation date only (a stock-in or update date is not an installation).
                         const installDate =
-                          m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate ||
-                          m.devices[0]?.deployedDate ||
-                          m.devices[0]?.stockInDate ||
-                          m.updatedAt ||
-                          '-';
+                          m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate || '—';
                         return (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 font-bold text-slate-900 border border-slate-200">
                             <Calendar className="w-3 h-3 text-slate-500" />
@@ -1950,6 +1889,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
                   }`}
                   title="Previous Page"
+                  aria-label="Previous page"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -1968,6 +1908,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
                   }`}
                   title="Next Page"
+                  aria-label="Next page"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -2037,6 +1978,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                   <button
                     type="button"
                     onClick={() => setValidatorModalOpen(false)}
+                    aria-label="Close bulk import"
+                    title="Close"
                     className="p-1.5 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition"
                   >
                     <X className="w-5 h-5" />
@@ -2061,8 +2004,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       </div>
                       <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] ${subtextClass}`}>
                         <span>
-                          &bull; <strong>MID Pattern:</strong>{' '}
-                          <code className="font-mono text-cyan-400">MID-880&#123;Branch&#125;-&#123;2-4 digits&#125;</code>
+                          &bull; <strong>MID:</strong>{' '}
+                          <code className="font-mono text-cyan-400">15 numeric digits</code>
                         </span>
                         <span>
                           &bull; <strong>TID Pattern:</strong>{' '}
@@ -2072,7 +2015,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                           &bull; <strong>Uniqueness:</strong> Zero duplicate TIDs in batch or active inventory
                         </span>
                         <span>
-                          &bull; <strong>Branch Match:</strong> MID/TID branch prefix matches hardware serial branch
+                          &bull; <strong>Serial:</strong> must already be in the device list, in Branch Reserve or Configuring, and not bound to another MID
                         </span>
                       </div>
                     </div>
@@ -2080,12 +2023,13 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                     <div className="flex items-center flex-wrap gap-2 shrink-0">
                       <button
                         type="button"
-                        onClick={handleAutoRemediateAll}
+                        onClick={handleTidyAllFormatting}
                         disabled={bulkRows.length === 0}
+                        title="Trims spaces, upper-cases serials and TIDs, removes spaces/dashes inside numeric MIDs. Never creates or changes an ID."
                         className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition flex items-center gap-1.5 disabled:opacity-40 cursor-pointer"
                       >
                         <Wand2 className="w-3.5 h-3.5" />
-                        <span>Auto-Fix All Formats &amp; Duplicates</span>
+                        <span>Tidy Formatting</span>
                       </button>
                     </div>
                   </div>
@@ -2130,7 +2074,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                           setRawBatchText(val);
                           setBulkRows(parseRawTextToRows(val));
                         }}
-                        placeholder="POS-A920-00105, MID-880105-31, TID-10531, KOI The Norodom, 012 911 205, Norodom Blvd"
+                        placeholder="SERIAL, 15-digit MID, TID-{Branch}{Seq}, Merchant name, Phone, Address"
+                        aria-label="Paste merchant rows"
                         className={`w-full rounded-2xl p-3 text-xs font-mono border focus:outline-none ${inputClass}`}
                       />
                     </div>
@@ -2261,6 +2206,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                             const hasSerialIssue = row.issues.some(
                               (i) =>
                                 i.code === 'SERIAL_NOT_FOUND' ||
+                                i.code === 'SERIAL_NOT_BINDABLE' ||
+                                i.code === 'SERIAL_ALREADY_ASSIGNED' ||
                                 i.code === 'DUPLICATE_SERIAL_IN_BATCH'
                             );
 
@@ -2283,7 +2230,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                 <td className="py-2.5 px-3 align-top">
                                   <input
                                     type="text"
-                                    list={`reserve-serials-${row.id}`}
+                                    list="crm-bindable-serials"
+                                    aria-label="Hardware serial"
                                     value={row.serial}
                                     onChange={(e) =>
                                       handleUpdateBulkRowField(row.id, 'serial', e.target.value)
@@ -2294,20 +2242,13 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                         : inputClass
                                     }`}
                                   />
-                                  <datalist id={`reserve-serials-${row.id}`}>
-                                    {availableReserveDevices.map((d) => (
-                                      <option key={d.serial} value={d.serial}>
-                                        {d.model} • Code {d.branchId}
-                                      </option>
-                                    ))}
-                                  </datalist>
                                   {row.deviceMatch ? (
                                     <div className="text-[10px] text-slate-400 mt-1 font-mono">
                                       {row.deviceMatch.model} &bull; Code {row.deviceMatch.branchId}
                                     </div>
                                   ) : (
-                                    <div className="text-[10px] text-emerald-500 mt-1 font-semibold">
-                                      New POS Terminal (Will be created)
+                                    <div className="text-[10px] text-rose-400 mt-1 font-semibold">
+                                      {row.serial.trim() ? 'Not in device list — will not be imported' : 'Serial required'}
                                     </div>
                                   )}
                                 </td>
@@ -2326,17 +2267,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                         : inputClass
                                     }`}
                                   />
-                                  {hasMidIssue && row.suggestedMid && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleUpdateBulkRowField(row.id, 'mid', row.suggestedMid!)
-                                      }
-                                      className="block text-[10px] text-cyan-400 hover:underline font-mono mt-1"
-                                    >
-                                      Use {row.suggestedMid}
-                                    </button>
-                                  )}
                                 </td>
 
                                 {/* TID Input */}
@@ -2353,17 +2283,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                         : inputClass
                                     }`}
                                   />
-                                  {hasTidIssue && row.suggestedTid && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleUpdateBulkRowField(row.id, 'tid', row.suggestedTid!)
-                                      }
-                                      className="block text-[10px] text-cyan-400 hover:underline font-mono mt-1"
-                                    >
-                                      Use {row.suggestedTid}
-                                    </button>
-                                  )}
                                 </td>
 
                                 {/* Merchant Name & Phone */}
@@ -2379,6 +2298,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                       )
                                     }
                                     placeholder="Merchant Business Name"
+                                    aria-label="Merchant name"
                                     className={`w-44 rounded-lg px-2 py-1 text-xs border ${inputClass}`}
                                   />
                                   <div className="flex items-center gap-1.5 mt-1">
@@ -2393,6 +2313,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                         )
                                       }
                                       placeholder="Phone"
+                                      aria-label="Merchant phone"
                                       className={`w-24 rounded-md px-1.5 py-0.5 text-[10px] font-mono border ${inputClass}`}
                                     />
                                     <input
@@ -2402,6 +2323,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                         handleUpdateBulkRowField(row.id, 'address', e.target.value)
                                       }
                                       placeholder="Address"
+                                      aria-label="Merchant address"
                                       className={`w-28 rounded-md px-1.5 py-0.5 text-[10px] border ${inputClass}`}
                                     />
                                   </div>
@@ -2440,29 +2362,17 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                 {/* Row Actions */}
                                 <td className="py-2.5 px-3 align-top text-right">
                                   <div className="flex items-center justify-end gap-1">
-                                    {(hasMidIssue || hasTidIssue) && (
+                                    {(hasMidIssue || hasTidIssue || hasSerialIssue) && rowNeedsTidy(row) && (
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          if (row.suggestedMid) {
-                                            handleUpdateBulkRowField(
-                                              row.id,
-                                              'mid',
-                                              row.suggestedMid
-                                            );
-                                          }
-                                          if (row.suggestedTid) {
-                                            handleUpdateBulkRowField(
-                                              row.id,
-                                              'tid',
-                                              row.suggestedTid
-                                            );
-                                          }
+                                          const t = tidyRow(row);
+                                          applyBulkRows(bulkRows.map((r) => (r.id === row.id ? t : r)));
                                         }}
                                         className="px-2 py-1 rounded-lg text-[11px] font-bold bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 transition"
-                                        title="Auto-fix MID & TID format/duplicates for this row"
+                                        title="Tidy spacing and letter case in this row (does not create or change IDs)"
                                       >
-                                        Fix ID
+                                        Tidy
                                       </button>
                                     )}
                                     <button
@@ -2470,6 +2380,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                       onClick={() => handleRemoveBulkRow(row.id)}
                                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
                                       title="Remove row"
+                                      aria-label={`Remove row ${row.serial || ''}`.trim()}
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -2606,8 +2517,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                 <div className="text-xs text-slate-400">
                   {bulkSummary.errors > 0 ? (
                     <span className="text-amber-400 font-semibold">
-                      {bulkSummary.errors} row(s) have blocking format or duplicate errors. Click
-                      &ldquo;Auto-Fix All Formats &amp; Duplicates&rdquo; or assign only the{' '}
+                      {bulkSummary.errors} row(s) have blocking errors and will not be imported. Correct
+                      them from the source record, or assign only the{' '}
                       {bulkSummary.assignable.length} validated row(s).
                     </span>
                   ) : (
@@ -2672,7 +2583,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                     <span>{selectedMerchantProfile.mid}</span>
                   </div>
                   <h3 className="text-lg font-extrabold tracking-tight mt-0.5">
-                    {selectedMerchantProfile.merchantName}
+                    {dash(selectedMerchantProfile.merchantName)}
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2706,6 +2617,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedMid(null)}
+                    aria-label="Close merchant profile"
+                    title="Close"
                     className="p-1.5 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
                   >
                     <X className="w-5 h-5" />
@@ -2725,10 +2638,10 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       Contact &amp; Location
                     </div>
                     <div className="font-mono font-bold text-xs mt-1 text-cyan-400">
-                      {selectedMerchantProfile.merchantPhone}
+                      {phoneFor(role, selectedMerchantProfile.merchantPhone)}
                     </div>
                     <div className="text-xs mt-0.5 opacity-85">
-                      {selectedMerchantProfile.address}
+                      {dash(selectedMerchantProfile.address)}
                     </div>
                   </div>
 
@@ -2748,7 +2661,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       </span>
                     </div>
                     <div className="text-xs mt-0.5 opacity-85">
-                      Staff Name: {selectedMerchantProfile.accountOfficer}
+                      Staff Name: {dash(selectedMerchantProfile.accountOfficer)}
                     </div>
                   </div>
 
@@ -2785,6 +2698,11 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       6-Month POS &amp; Sound Box Rollout
                     </span>
                   </div>
+                  {!modalTrendHasData ? (
+                    <div className="h-24 w-full flex items-center justify-center text-center text-[11px] text-slate-400">
+                      No installations recorded for this MID in the last 6 months.
+                    </div>
+                  ) : (
                   <div className="h-44 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart
@@ -2843,6 +2761,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
+                  )}
                 </div>
 
                 {/* Assigned Hardware Units List */}
@@ -2895,14 +2814,14 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                 </span>
                               </div>
                               <div className="text-[11px] text-slate-400 mt-1 font-mono">
-                                MID: {dev.mid || 'N/A'} &bull; TID: {dev.tid || 'Pending'} &bull;
-                                Updated: {dev.updatedAt}
+                                MID: {dash(dev.mid)} &bull; TID: {dash(dev.tid)} &bull;
+                                Updated: {dash(dev.updatedAt)}
                               </div>
                               <div className="flex items-center gap-2 mt-1.5 text-[11px] flex-wrap">
                                 <span className="text-slate-500">
                                   Installer:{' '}
                                   <strong className="text-slate-800 dark:text-slate-200">
-                                    {dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer}
+                                    {dash(dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer)}
                                   </strong>
                                 </span>
                                 {dev.replacedByStaff && (
@@ -3001,12 +2920,14 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                     <div>
                       <h3 className="text-sm font-bold">Bind Hardware Serial to Merchant</h3>
                       <p className="text-[11px] text-cyan-300 font-mono">
-                        {bindModalMerchant.mid} — {bindModalMerchant.merchantName}
+                        {bindModalMerchant.mid} — {dash(bindModalMerchant.merchantName)}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setBindModalMerchant(null)}
+                      aria-label="Close bind dialog"
+                      title="Close"
                       className="p-1 rounded-full text-slate-300 hover:text-white"
                     >
                       <X className="w-4 h-4" />
@@ -3015,17 +2936,18 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
                   <div className="p-6 flex flex-col gap-4 text-xs">
                     <div>
-                      <label className="block font-semibold mb-1.5">
+                      <label htmlFor="crm-bind-serial" className="block font-semibold mb-1.5">
                         Select Reserve Serial (POS or Sound Box)
                       </label>
                       <select
+                        id="crm-bind-serial"
                         value={selectedReserveSerial}
                         onChange={(e) => setSelectedReserveSerial(e.target.value)}
                         required
                         className={`w-full rounded-xl px-3 py-2 border font-mono ${inputClass}`}
                       >
                         {availableReserveDevices.length === 0 && (
-                          <option value="">No reserve serials available</option>
+                          <option value="">No Branch Reserve / Configuring units available</option>
                         )}
                         {availableReserveDevices.map((d) => (
                           <option key={d.serial} value={d.serial}>
@@ -3036,15 +2958,16 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                     </div>
 
                     <div>
-                      <label className="block font-semibold mb-1.5">
+                      <label htmlFor="crm-bind-tid" className="block font-semibold mb-1.5">
                         Assign Terminal ID (TID) — Validated for Format &amp; Uniqueness
                       </label>
                       <input
+                        id="crm-bind-tid"
                         type="text"
                         value={newTidInput}
                         onChange={(e) => setNewTidInput(e.target.value)}
                         required
-                        placeholder={`e.g. TID-${bindModalMerchant.branchId}88`}
+                        placeholder={`Issued TID, format TID-${bindModalMerchant.branchId}…`}
                         className={`w-full rounded-xl px-3 py-2 border font-mono ${
                           !singleBindValidation.valid ? 'border-rose-500' : ''
                         } ${inputClass}`}
@@ -3061,7 +2984,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       ) : (
                         <div className="mt-1.5 text-[11px] text-emerald-400 flex items-center gap-1">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>TID format and uniqueness verified</span>
+                          <span>Unit, TID format and uniqueness verified</span>
                         </div>
                       )}
                     </div>
@@ -3118,13 +3041,15 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       Terminate Merchant &amp; Return Hardware
                     </h3>
                     <p className="text-[11px] text-cyan-300 font-mono">
-                      {terminateModalMerchant.mid} — {terminateModalMerchant.merchantName}
+                      {terminateModalMerchant.mid} — {dash(terminateModalMerchant.merchantName)}
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setTerminateModalMerchant(null)}
+                  aria-label="Close terminate dialog"
+                  title="Close"
                   className="p-1 rounded-full text-slate-300 hover:text-white cursor-pointer"
                 >
                   <X className="w-4 h-4" />
@@ -3300,6 +3225,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setNewMerchantModalOpen(false)}
+                  aria-label="Close assign hardware dialog"
+                  title="Close"
                   className="p-1 rounded-full text-slate-300 hover:text-white"
                 >
                   <X className="w-4 h-4" />
@@ -3309,8 +3236,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
               <div className="p-6 flex flex-col gap-3.5 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-semibold mb-1">Merchant Business Name *</label>
+                    <label htmlFor="crm-new-name" className="block font-semibold mb-1">Merchant Business Name *</label>
                     <input
+                      id="crm-new-name"
                       type="text"
                       value={newMerchName}
                       onChange={(e) => setNewMerchName(e.target.value)}
@@ -3320,13 +3248,13 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1">Merchant Phone *</label>
+                    <label htmlFor="crm-new-phone" className="block font-semibold mb-1">Merchant Phone</label>
                     <input
-                      type="text"
+                      id="crm-new-phone"
+                      type="tel"
                       value={newMerchPhone}
                       onChange={(e) => setNewMerchPhone(e.target.value)}
-                      required
-                      placeholder="012 889 221"
+                      placeholder="Merchant contact number"
                       className={`w-full rounded-xl px-3 py-2 border font-mono ${inputClass}`}
                     />
                   </div>
@@ -3335,26 +3263,17 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block font-semibold">MID *</label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const cleanBranch = (role === 'BRANCH' ? activeBranchId : '101').padStart(3, '0').slice(-3);
-                          const rand = Math.floor(100 + Math.random() * 900);
-                          setNewMerchMid(`100000880${cleanBranch}${rand}`);
-                        }}
-                        className="text-[10px] text-cyan-500 hover:underline cursor-pointer"
-                      >
-                        Auto-Gen 15D
-                      </button>
+                      <label htmlFor="crm-new-mid" className="block font-semibold">MID *</label>
                     </div>
                     <input
+                      id="crm-new-mid"
                       type="text"
+                      inputMode="numeric"
                       value={newMerchMid}
                       onChange={(e) => setNewMerchMid(e.target.value.replace(/\D/g, '').slice(0, 15))}
                       maxLength={15}
                       required
-                      placeholder="e.g. 100000880101001 (15 digits)"
+                      placeholder="15-digit MID from the acquiring record"
                       className={`w-full rounded-xl px-3 py-2 border font-mono ${inputClass}`}
                     />
                     <div className="text-[10px] text-slate-400 mt-0.5 text-right font-mono">
@@ -3362,9 +3281,11 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                     </div>
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1">Terminal ID (TID) *</label>
+                    <label htmlFor="crm-new-tid" className="block font-semibold mb-1">Terminal ID (TID) *</label>
                     <input
+                      id="crm-new-tid"
                       type="text"
+                      placeholder="Issued TID, e.g. TID-{Branch}{Seq}"
                       value={newMerchTid}
                       onChange={(e) => setNewMerchTid(e.target.value)}
                       required
@@ -3391,37 +3312,31 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                 )}
 
                 <div>
-                  <label className="block font-semibold mb-1">Physical Store Address *</label>
+                  <label htmlFor="crm-new-address" className="block font-semibold mb-1">Physical Store Address</label>
                   <input
+                    id="crm-new-address"
                     type="text"
                     value={newMerchAddress}
                     onChange={(e) => setNewMerchAddress(e.target.value)}
-                    required
-                    placeholder="St 51, Boeung Keng Kang 1, Phnom Penh"
+                    placeholder="Street, Sangkat, Khan"
                     className={`w-full rounded-xl px-3 py-2 border ${inputClass}`}
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold mb-1">
-                    POS Terminal / Hardware Serial (Enter New or Select Reserve) *
+                  <label htmlFor="crm-new-serial" className="block font-semibold mb-1">
+                    POS Terminal / Hardware Serial (Branch Reserve or Configuring unit) *
                   </label>
                   <input
+                    id="crm-new-serial"
                     type="text"
-                    list="new-merchant-serial-options"
+                    list="crm-bindable-serials"
                     value={newMerchSerial}
                     onChange={(e) => setNewMerchSerial(e.target.value)}
                     required
-                    placeholder="e.g. POS-A920-00201"
+                    placeholder="Choose a serial from the device list"
                     className={`w-full rounded-xl px-3 py-2 border font-mono ${inputClass}`}
                   />
-                  <datalist id="new-merchant-serial-options">
-                    {availableReserveDevices.map((d) => (
-                      <option key={d.serial} value={d.serial}>
-                        {d.serial} — {d.model} ({d.type} • Code {d.branchId})
-                      </option>
-                    ))}
-                  </datalist>
                 </div>
 
                 <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200/90 dark:border-slate-800">

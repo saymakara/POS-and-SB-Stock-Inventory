@@ -25,7 +25,9 @@ import {
   FileText,
   Sparkles,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
+import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
+import { todayPP } from '../utils/time';
 
 export const SCHEMA_COLUMNS = [
   { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
@@ -57,6 +59,8 @@ export interface StagedItem {
   tid?: string;
   redeployCount?: number;
   isDuplicate: boolean;
+  /** Why this row cannot be imported (unknown branch, bad stage/date…); rows with an error are not committed. */
+  error?: string;
 }
 
 interface BatchUploadModalProps {
@@ -67,41 +71,8 @@ interface BatchUploadModalProps {
   onCommitBatch: (newDevices: Partial<Device>[]) => void;
   activeBranchId: string;
   theme?: ThemeMode;
-}
-
-// Split CSV row while respecting double quotes
-function splitCsvRow(line: string, delimiter = ','): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === delimiter && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result;
-}
-
-// Detect delimiter (comma, semicolon, tab)
-function detectDelimiter(headerLine: string): string {
-  const commas = (headerLine.match(/,/g) || []).length;
-  const tabs = (headerLine.match(/\t/g) || []).length;
-  const semicolons = (headerLine.match(/;/g) || []).length;
-  if (tabs > commas && tabs > semicolons) return '\t';
-  if (semicolons > commas && semicolons > tabs) return ';';
-  return ',';
+  /** Signed-in operator's name/label, recorded as the person who stocked the units in. */
+  operatorLabel?: string;
 }
 
 // Normalize column header for robust matching
@@ -109,10 +80,10 @@ function normalizeHeader(h: string): string {
   return h.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-// Map various string representations to LifecycleStage enum
-function parseStageValue(rawStage: string, branchId: string): LifecycleStage {
+/** Map a stage text to a LifecycleStage. Blank = the chosen default; text that matches nothing = null (row error). */
+function parseStageValue(rawStage: string, fallback: LifecycleStage): LifecycleStage | null {
   const s = rawStage.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (!s) return branchId === '100' ? 'HQ_STOCK' : 'BRANCH_RESERVE';
+  if (!s) return fallback;
   if (s.includes('hq') || s.includes('admin') || s === 'hqstock') return 'HQ_STOCK';
   if (s.includes('reserve') || s === 'branchreserve') return 'BRANCH_RESERVE';
   if (s.includes('config') || s === 'branchconfig') return 'CONFIGURING';
@@ -127,7 +98,7 @@ function parseStageValue(rawStage: string, branchId: string): LifecycleStage {
   }
   if (s.includes('faulty') || s.includes('terminate') || s.includes('return')) return 'FAULTY';
   if (s.includes('lost')) return 'LOST';
-  return branchId === '100' ? 'HQ_STOCK' : 'BRANCH_RESERVE';
+  return null;
 }
 
 // Parse device type from row or serial format
@@ -145,6 +116,8 @@ function parseDeviceType(rawType: string, serial: string): 'POS Terminal' | 'Sou
   return 'POS Terminal';
 }
 
+const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+
 export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   isOpen,
   onClose,
@@ -152,6 +125,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   existingDevices,
   onCommitBatch,
   theme = 'light',
+  operatorLabel = '',
 }) => {
   const [batchStep, setBatchStep] = useState<'INPUT' | 'PREVIEW'>('INPUT');
   const [method, setMethod] = useState<'tableCsv' | 'paste' | 'range'>('tableCsv');
@@ -164,60 +138,74 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   const [uploadedFileMeta, setUploadedFileMeta] = useState<{ name: string; size: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Target stock destination defaults
+  // Target stock destination defaults (used only for rows that give no branch / stage)
   const [defaultBranchId, setDefaultBranchId] = useState('100');
   const [defaultStage, setDefaultStage] = useState<LifecycleStage>('HQ_STOCK');
 
-  // Field 1: POS Terminal state (Method B)
+  // Field 1: POS Terminal state (Method B / C). Range inputs start empty: serials come from the carton label.
   const [posModel, setPosModel] = useState('Wizar POS Q2 Pro');
   const [posPasteText, setPosPasteText] = useState('');
-  const [posPrefix, setPosPrefix] = useState('WP5400PQ');
-  const [posStartNum, setPosStartNum] = useState(23200316);
+  const [posPrefix, setPosPrefix] = useState('');
+  const [posStartNum, setPosStartNum] = useState('');
   const [posPadding, setPosPadding] = useState(8);
-  const [posQty, setPosQty] = useState(5);
+  const [posQty, setPosQty] = useState(0);
 
-  // Field 2: Sound Box state (Method B)
+  // Field 2: Sound Box state (Method B / C)
   const [sbModel, setSbModel] = useState('SB-Pro');
   const [sbPasteText, setSbPasteText] = useState('');
-  const [sbPrefix, setSbPrefix] = useState('SB-');
-  const [sbStartNum, setSbStartNum] = useState(310);
+  const [sbPrefix, setSbPrefix] = useState('');
+  const [sbStartNum, setSbStartNum] = useState('');
   const [sbPadding, setSbPadding] = useState(5);
-  const [sbQty, setSbQty] = useState(5);
+  const [sbQty, setSbQty] = useState(0);
 
   const [generatedRangeBatch, setGeneratedRangeBatch] = useState<StagedItem[]>([]);
+  const [rangeError, setRangeError] = useState('');
+  const [commitNotice, setCommitNotice] = useState('');
 
   // Reset step when modal opens
   React.useEffect(() => {
     if (isOpen) {
       setBatchStep('INPUT');
+      setCommitNotice('');
     }
   }, [isOpen]);
 
+  // A generated range is only valid for the inputs it was made from: changing any of them clears it.
+  React.useEffect(() => {
+    setGeneratedRangeBatch([]);
+  }, [posPrefix, posStartNum, posPadding, posQty, posModel, sbPrefix, sbStartNum, sbPadding, sbQty, sbModel, defaultBranchId, defaultStage]);
+
   const isLight = theme === 'light';
   const existingSerials = useMemo(
-    () => new Set(existingDevices.map((d) => d.serial.toUpperCase())),
+    () => new Set(existingDevices.map((d) => d.serial.trim().toUpperCase())),
     [existingDevices]
   );
 
-  const buildAutoBatterySerial = (serial: string, isPos: boolean) => {
-    if (isPos) {
-      const match = serial.match(/\d+$/);
-      const offset = match ? Math.max(0, parseInt(match[0].slice(-4), 10) - 297) : 0;
-      return `160525A${String(5709 + offset).padStart(7, '0')}`;
+  const defaultBranch = useMemo(
+    () => branches.find((b) => b.id === defaultBranchId || b.code === defaultBranchId),
+    [branches, defaultBranchId]
+  );
+  const findBranch = (code: string) => branches.find((b) => b.id === code || b.code === code);
+  const staffLabel = operatorLabel.trim();
+
+  /** Branch for a row: its own code when given (unknown code = error, never defaulted), otherwise the chosen default. */
+  const resolveBranch = (rawCode: string): { branch?: Branch; error?: string } => {
+    const code = rawCode.trim();
+    if (code) {
+      const digits = (code.match(/\d+/) || [''])[0];
+      const b = digits ? findBranch(digits) : undefined;
+      return b ? { branch: b } : { error: `Unknown branch code "${code}"` };
     }
-    const clean = serial.replace(/^(POS-|SB-)/i, '');
-    return `SB-BAT-${clean}`;
+    return defaultBranch ? { branch: defaultBranch } : { error: 'Choose the default branch' };
   };
 
   // Master Table CSV Parser: Parses files formatted exactly as the inventory table
   const tableCsvBatch = useMemo(() => {
     if (!tableCsvText.trim()) return [];
-    const lines = tableCsvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    if (lines.length === 0) return [];
+    const rows = parseCsv(tableCsvText);
+    if (rows.length === 0) return [];
 
-    const delimiter = detectDelimiter(lines[0]);
-    const firstLineTokens = splitCsvRow(lines[0], delimiter);
-    const normalizedTokens = firstLineTokens.map(normalizeHeader);
+    const normalizedTokens = rows[0].map(normalizeHeader);
 
     // Check if line 0 is a header row
     const hasHeader = normalizedTokens.some((t) =>
@@ -245,22 +233,22 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       dataStartIdx = 1;
       normalizedTokens.forEach((token, idx) => {
         if (/stock.*date|date/.test(token) && colMap.stockInDate === undefined) colMap.stockInDate = idx;
-        else if (/(serial.*sn|serial.*num|serial|sn)/.test(token) && colMap.serial === undefined) colMap.serial = idx;
+        else if (/(battery.*serial|battery.*sn|battery)/.test(token) && colMap.batterySerial === undefined) colMap.batterySerial = idx;
+        else if (/(serial.*sn|serial.*num|serial|sn)/.test(token) && !/cycle/.test(token) && colMap.serial === undefined) colMap.serial = idx;
         else if (/(product.*type|hardware.*type|devicetype|type)/.test(token) && colMap.type === undefined) colMap.type = idx;
         else if (/model/.test(token) && colMap.model === undefined) colMap.model = idx;
-        else if (/(battery.*serial|battery.*sn|battery)/.test(token) && colMap.batterySerial === undefined) colMap.batterySerial = idx;
         else if (/(branch.*code|branch.*id)/.test(token) && colMap.branchCode === undefined) colMap.branchCode = idx;
         else if (/branch.*name/.test(token) && colMap.branchName === undefined) colMap.branchName = idx;
         else if (/branch/.test(token) && colMap.branchCode === undefined) colMap.branchCode = idx;
         else if (/(lifecycle.*stage|stage|status)/.test(token) && colMap.stage === undefined) colMap.stage = idx;
-        else if (/(merchant.*name|merchant)/.test(token) && colMap.merchantName === undefined) colMap.merchantName = idx;
+        else if (/(merchant.*name|merchant)/.test(token) && !/merchantid/.test(token) && colMap.merchantName === undefined) colMap.merchantName = idx;
         else if (/(^mid$|merchant.*id)/.test(token) && colMap.mid === undefined) colMap.mid = idx;
         else if (/(^tid$|terminal.*id)/.test(token) && colMap.tid === undefined) colMap.tid = idx;
         else if (/(cycles|redeploy)/.test(token) && colMap.redeployCount === undefined) colMap.redeployCount = idx;
       });
     } else {
       // No header: detect column order based on column count and date presence
-      const sample = splitCsvRow(lines[0], delimiter);
+      const sample = rows[0];
       if (sample.length >= 6 && /^\d{4}-\d{2}-\d{2}/.test(sample[0])) {
         // Standard table export order:
         // 0: Stock_In_Date, 1: Serial_SN, 2: Product_Type, 3: Model, 4: Battery_Serial, 5: Branch_Code, 6: Branch_Name, 7: Lifecycle_Stage, 8: Merchant_Name, 9: MID, 10: TID, 11: Serial_Cycles_Count
@@ -290,105 +278,66 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       }
     }
 
-    const fallbackBranch: Branch = {
-      id: '100',
-      code: '100',
-      name: 'Head Office (In-Store MS Unit)',
-      staff: ['SAY Chanmakara (8986)'],
-      staffDetails: [],
-    };
-    const defaultBranch =
-      branches.find((b) => b.id === defaultBranchId || b.code === defaultBranchId) ||
-      branches[0] ||
-      fallbackBranch;
-    const seenInBatch = new Set<string>();
+    const cell = (row: string[], key: string) => (colMap[key] !== undefined ? row[colMap[key]] || '' : '').trim();
     const parsed: StagedItem[] = [];
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayPP();
 
-    for (let i = dataStartIdx; i < lines.length; i++) {
-      const row = splitCsvRow(lines[i], delimiter);
-      if (!row || row.length === 0 || (row.length === 1 && !row[0])) continue;
-
-      let rawSerial = (colMap.serial !== undefined ? row[colMap.serial] : row[0]) || '';
-      // If colMap.serial wasn't found or pointed to a date, look for token starting with WP or SB or containing alphanumeric
-      if (/^\d{4}-\d{2}-\d{2}$/.test(rawSerial) && row.length > 1) {
-        rawSerial = row[1] || '';
-      }
-      const serial = rawSerial.trim().toUpperCase();
+    for (let i = dataStartIdx; i < rows.length; i++) {
+      const row = rows[i];
+      const serial = cell(row, 'serial').toUpperCase();
       if (!serial || serial === 'SERIAL' || serial === 'SERIAL_SN' || serial === 'SERIAL NUMBER (SN)') {
         continue;
       }
+      const errors: string[] = [];
 
-      const rawType = (colMap.type !== undefined ? row[colMap.type] : '') || '';
-      const itemType = parseDeviceType(rawType, serial);
+      const itemType = parseDeviceType(cell(row, 'type'), serial);
       const isPos = itemType === 'POS Terminal';
+      const rawModel = cell(row, 'model') || (isPos ? posModel : sbModel);
+      // Battery serial only as written in the file (blank when the file has none).
+      const rawBattery = cell(row, 'batterySerial');
 
-      let rawModel = (colMap.model !== undefined ? row[colMap.model] : '')?.trim() || '';
-      if (!rawModel) {
-        rawModel = isPos ? 'Wizar POS Q2 Pro' : 'SB-Pro';
-      }
+      const { branch: targetBranch, error: branchError } = resolveBranch(cell(row, 'branchCode'));
+      if (branchError) errors.push(branchError);
 
-      let rawBattery = (colMap.batterySerial !== undefined ? row[colMap.batterySerial] : '')?.trim() || '';
-      if (!rawBattery || rawBattery.toUpperCase().startsWith('BAT-')) {
-        rawBattery = buildAutoBatterySerial(serial, isPos);
-      }
+      const rawStage = cell(row, 'stage');
+      const fallbackStage: LifecycleStage = targetBranch?.id === '100' ? 'HQ_STOCK' : defaultStage;
+      const stage = parseStageValue(rawStage, fallbackStage);
+      if (!stage) errors.push(`Unknown stage "${rawStage}"`);
 
-      const rawBranchCode = (colMap.branchCode !== undefined ? row[colMap.branchCode] : '')?.trim() || '';
-      const cleanBranchCode = (rawBranchCode.match(/\d+/) || [defaultBranchId])[0] || defaultBranchId;
-      const targetBranch =
-        branches.find((b) => b.id === cleanBranchCode || b.code === cleanBranchCode) || defaultBranch;
+      const rawDate = cell(row, 'stockInDate');
+      if (rawDate && !isDate(rawDate)) errors.push(`Stock-in date "${rawDate}" is not YYYY-MM-DD`);
+      const stockInDate = isDate(rawDate) ? rawDate : today;
 
-      const rawBranchName = (colMap.branchName !== undefined ? row[colMap.branchName] : '')?.trim() || targetBranch.name;
-      const rawStage = (colMap.stage !== undefined ? row[colMap.stage] : '')?.trim() || '';
-      const stage = parseStageValue(rawStage, targetBranch.id);
-
-      const rawDate = (colMap.stockInDate !== undefined ? row[colMap.stockInDate] : '')?.trim() || '';
-      const stockInDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : today;
-
-      const merchantName = (colMap.merchantName !== undefined ? row[colMap.merchantName] : '')?.trim() || '';
-      const mid = (colMap.mid !== undefined ? row[colMap.mid] : '')?.trim() || '';
-      const tid = (colMap.tid !== undefined ? row[colMap.tid] : '')?.trim() || '';
       const rawCycles = colMap.redeployCount !== undefined ? parseInt(row[colMap.redeployCount], 10) : 0;
       const redeployCount = isNaN(rawCycles) ? 0 : Math.max(0, rawCycles);
-
-      const isDuplicate = existingSerials.has(serial) || seenInBatch.has(serial);
-      seenInBatch.add(serial);
 
       parsed.push({
         serial,
         batterySerial: rawBattery,
         model: rawModel,
         type: itemType,
-        branchId: targetBranch.id,
-        branchName: rawBranchName || targetBranch.name,
-        staff: (targetBranch.staff && targetBranch.staff[0]) || 'Head Office Admin',
-        stage: targetBranch.id === '100' && !rawStage ? 'HQ_STOCK' : stage,
+        branchId: targetBranch?.id || cell(row, 'branchCode'),
+        branchName: targetBranch?.name || cell(row, 'branchName'),
+        staff: staffLabel,
+        stage: stage || fallbackStage,
         stockInDate,
-        merchantName,
-        mid,
-        tid,
+        merchantName: cell(row, 'merchantName'),
+        mid: cell(row, 'mid'),
+        tid: cell(row, 'tid'),
         redeployCount,
-        isDuplicate,
+        isDuplicate: false,
+        error: errors.join('; ') || undefined,
       });
     }
 
     return parsed;
-  }, [tableCsvText, branches, defaultBranchId, existingSerials]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableCsvText, branches, defaultBranch, defaultStage, posModel, sbModel, staffLabel]);
 
   // Method B: Parse dual fields for POS Terminal & Sound Box
   const pastedBatch = useMemo(() => {
-    const fallbackBranch: Branch = {
-      id: '100',
-      code: '100',
-      name: 'Head Office (In-Store MS Unit)',
-      staff: ['SAY Chanmakara (8986)'],
-      staffDetails: [],
-    };
-    const branchObj =
-      branches.find((b) => b.id === defaultBranchId) || branches[0] || fallbackBranch;
-    const stage = branchObj.id === '100' ? 'HQ_STOCK' : defaultStage;
-    const seenInBatch = new Set<string>();
     const parsed: StagedItem[] = [];
+    const today = todayPP();
 
     const parseLinesForType = (
       raw: string,
@@ -396,26 +345,20 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       selectedModel: string
     ) => {
       if (!raw.trim()) return;
-      const lines = raw
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter(Boolean);
+      // parseCsv keeps empty fields, so "SN,,105" still puts 105 in the branch column.
+      const rows = parseCsv(raw, detectDelimiter(raw.split(/\r?\n/)[0] || ''));
 
-      lines.forEach((line) => {
-        if (line.toLowerCase().startsWith('serial') || line.toLowerCase().startsWith('stock')) return;
-        const parts = line
-          .split(/[,\t;]+/)
-          .map((p) => p.trim())
-          .filter(Boolean);
-        if (parts.length === 0) return;
+      rows.forEach((parts) => {
+        const first = (parts[0] || '').toLowerCase();
+        if (first.startsWith('serial') || first.startsWith('stock')) return;
 
-        // Auto-detect if line is table-formatted: [date, serial, ...]
+        // Auto-detect if line is table-formatted: [date, serial, type, model, battery, branch]
         let serial = (parts[0] || '').toUpperCase();
         let batterySerial = '';
         let modelPart = parts[1] || '';
         let branchPart = parts[2] || '';
 
-        if (/^\d{4}-\d{2}-\d{2}$/.test(parts[0]) && parts.length > 1) {
+        if (isDate(parts[0] || '') && parts.length > 1) {
           serial = (parts[1] || '').toUpperCase();
           modelPart = parts[3] || '';
           batterySerial = parts[4] || '';
@@ -424,7 +367,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           batterySerial = modelPart.toUpperCase();
           modelPart = parts[2] || '';
           branchPart = parts[3] || '';
-        } else if (/^\d{3}$/.test(modelPart) && branches.some((b) => b.id === modelPart)) {
+        } else if (/^\d{3}$/.test(modelPart)) {
           // Serial, BranchCode
           branchPart = modelPart;
           modelPart = '';
@@ -432,29 +375,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
         if (!serial) return;
 
-        const model = modelPart || selectedModel;
-        const isPos = fixedType === 'POS Terminal';
-
-        if (!batterySerial) {
-          batterySerial = buildAutoBatterySerial(serial, isPos);
-        }
-
-        const bCode = (branchPart.match(/\d+/) || [defaultBranchId])[0] || defaultBranchId;
-        const curBranch = branches.find((b) => b.id === bCode) || branchObj;
-        const isDuplicate = existingSerials.has(serial) || seenInBatch.has(serial);
-        seenInBatch.add(serial);
-
+        const { branch: curBranch, error: branchError } = resolveBranch(branchPart);
         parsed.push({
           serial,
           batterySerial,
-          model,
+          model: modelPart || selectedModel,
           type: fixedType,
-          branchId: curBranch.id,
-          branchName: curBranch.name,
-          staff: (curBranch.staff && curBranch.staff[0]) || 'Head Office Admin',
-          stage: curBranch.id === '100' ? 'HQ_STOCK' : stage,
-          stockInDate: new Date().toISOString().split('T')[0],
-          isDuplicate,
+          branchId: curBranch?.id || branchPart,
+          branchName: curBranch?.name || '',
+          staff: staffLabel,
+          stage: curBranch?.id === '100' ? 'HQ_STOCK' : defaultStage,
+          stockInDate: today,
+          isDuplicate: false,
+          error: branchError,
         });
       });
     };
@@ -463,74 +396,54 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     parseLinesForType(sbPasteText, 'Sound Box', sbModel);
 
     return parsed;
-  }, [
-    posPasteText,
-    sbPasteText,
-    posModel,
-    sbModel,
-    defaultBranchId,
-    defaultStage,
-    branches,
-    existingSerials,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posPasteText, sbPasteText, posModel, sbModel, defaultBranch, defaultStage, branches, staffLabel]);
 
+  /**
+   * Method C: consecutive serials from a range the operator types from the carton label (prefix + start number +
+   * quantity). Nothing is pre-filled, and battery serials are left blank (they are not part of a range).
+   */
   const handleGenerateDualRange = () => {
-    const fallbackBranch: Branch = {
-      id: '100',
-      code: '100',
-      name: 'Head Office (In-Store MS Unit)',
-      staff: ['SAY Chanmakara (8986)'],
-      staffDetails: [],
-    };
-    const branchObj =
-      branches.find((b) => b.id === defaultBranchId) || branches[0] || fallbackBranch;
-    const stage = branchObj.id === '100' ? 'HQ_STOCK' : defaultStage;
-    const seenInBatch = new Set<string>();
-    const generated: StagedItem[] = [];
-    const today = new Date().toISOString().split('T')[0];
-
-    const safePosQty = Math.min(200, Math.max(0, posQty));
-    for (let i = 0; i < safePosQty; i++) {
-      const numStr = String(posStartNum + i).padStart(posPadding, '0');
-      const serial = `${posPrefix.trim().toUpperCase()}${numStr}`;
-      const batterySerial = buildAutoBatterySerial(serial, true);
-      const isDuplicate = existingSerials.has(serial) || seenInBatch.has(serial);
-      seenInBatch.add(serial);
-
-      generated.push({
-        serial,
-        batterySerial,
-        model: posModel,
-        type: 'POS Terminal',
-        branchId: branchObj.id,
-        branchName: branchObj.name,
-        staff: (branchObj.staff && branchObj.staff[0]) || 'Head Office Admin',
-        stage: branchObj.id === '100' ? 'HQ_STOCK' : stage,
-        stockInDate: today,
-        isDuplicate,
-      });
+    setRangeError('');
+    if (!defaultBranch) {
+      setRangeError('Choose the default branch first.');
+      return;
     }
-
+    const safePosQty = Math.min(200, Math.max(0, posQty));
     const safeSbQty = Math.min(200, Math.max(0, sbQty));
-    for (let i = 0; i < safeSbQty; i++) {
-      const numStr = String(sbStartNum + i).padStart(sbPadding, '0');
-      const serial = `${sbPrefix.trim().toUpperCase()}${numStr}`;
-      const batterySerial = buildAutoBatterySerial(serial, false);
-      const isDuplicate = existingSerials.has(serial) || seenInBatch.has(serial);
-      seenInBatch.add(serial);
-
+    const posStart = parseInt(posStartNum, 10);
+    const sbStart = parseInt(sbStartNum, 10);
+    const problems: string[] = [];
+    if (safePosQty > 0 && (!posPrefix.trim() || isNaN(posStart))) problems.push('enter the POS prefix and start number');
+    if (safeSbQty > 0 && (!sbPrefix.trim() || isNaN(sbStart))) problems.push('enter the Sound Box prefix and start number');
+    if (safePosQty + safeSbQty === 0) problems.push('enter a quantity');
+    if (problems.length) {
+      setRangeError(`To generate a range, ${problems.join(' and ')}.`);
+      setGeneratedRangeBatch([]);
+      return;
+    }
+    const stage: LifecycleStage = defaultBranch.id === '100' ? 'HQ_STOCK' : defaultStage;
+    const today = todayPP();
+    const generated: StagedItem[] = [];
+    const push = (serial: string, type: 'POS Terminal' | 'Sound Box', model: string) =>
       generated.push({
         serial,
-        batterySerial,
-        model: sbModel,
-        type: 'Sound Box',
-        branchId: branchObj.id,
-        branchName: branchObj.name,
-        staff: (branchObj.staff && branchObj.staff[0]) || 'Head Office Admin',
-        stage: branchObj.id === '100' ? 'HQ_STOCK' : stage,
+        batterySerial: '',
+        model,
+        type,
+        branchId: defaultBranch.id,
+        branchName: defaultBranch.name,
+        staff: staffLabel,
+        stage,
         stockInDate: today,
-        isDuplicate,
+        isDuplicate: false,
       });
+
+    for (let i = 0; i < safePosQty; i++) {
+      push(`${posPrefix.trim().toUpperCase()}${String(posStart + i).padStart(posPadding, '0')}`, 'POS Terminal', posModel);
+    }
+    for (let i = 0; i < safeSbQty; i++) {
+      push(`${sbPrefix.trim().toUpperCase()}${String(sbStart + i).padStart(sbPadding, '0')}`, 'Sound Box', sbModel);
     }
 
     setGeneratedRangeBatch(generated);
@@ -596,96 +509,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     if (e.target) e.target.value = '';
   };
 
+  /** Header row only: sample rows with made-up serials/MIDs could be uploaded by mistake as real stock. */
   const handleDownloadTemplate = () => {
-    const headers = [
-      'Stock_In_Date',
-      'Serial_SN',
-      'Product_Type',
-      'Model',
-      'Battery_Serial',
-      'Branch_Code',
-      'Branch_Name',
-      'Lifecycle_Stage',
-      'Merchant_Name',
-      'MID',
-      'TID',
-      'Serial_Cycles_Count',
-    ];
-    const today = new Date().toISOString().split('T')[0];
-    const sampleRows = [
-      [
-        today,
-        'WP5400PQ23200380',
-        'POS Terminal',
-        'Wizar POS Q2 Pro',
-        '160525A0005790',
-        '100',
-        'Head Office (In-Store MS Unit)',
-        'Admin HQ Stock',
-        '',
-        '',
-        '',
-        '0',
-      ],
-      [
-        today,
-        'WP5400PQ23200381',
-        'POS Terminal',
-        'Wizar POS Q2 Pro',
-        '160525A0005791',
-        '101',
-        'Borei Keyla Branch',
-        'Branch Reserve',
-        '',
-        '',
-        '',
-        '0',
-      ],
-      [
-        today,
-        'WP5400PQ23200382',
-        'POS Terminal',
-        'PAX A920 Pro',
-        '160525A0005792',
-        '105',
-        'Toul Kork Branch',
-        'Installed Live',
-        'Brown Coffee Toul Kork',
-        '100000880105001',
-        '00880105',
-        '1',
-      ],
-      [
-        today,
-        'SB-00380',
-        'Sound Box',
-        'SB-Pro',
-        'SB-BAT-00380',
-        '100',
-        'Head Office (In-Store MS Unit)',
-        'Admin HQ Stock',
-        '',
-        '',
-        '',
-        '0',
-      ],
-      [
-        today,
-        'SB-00381',
-        'Sound Box',
-        'SB-Pro',
-        'SB-BAT-00381',
-        '102',
-        'Mao Tse Toung Branch',
-        'Installed Live',
-        'Lucky Supermarket MTT',
-        '100000880102003',
-        '00880102',
-        '1',
-      ],
-    ];
-    const csvContent = [headers.join(','), ...sampleRows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = csvFile([SCHEMA_COLUMNS.map((c) => c.label)]);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -694,25 +520,49 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  /** The rows for the chosen method, with duplicates flagged against the CURRENT inventory and within the batch. */
   const activeStagedBatch = useMemo(() => {
-    if (method === 'tableCsv') return tableCsvBatch;
-    if (method === 'paste') return pastedBatch;
-    return generatedRangeBatch;
-  }, [method, tableCsvBatch, pastedBatch, generatedRangeBatch]);
+    const raw = method === 'tableCsv' ? tableCsvBatch : method === 'paste' ? pastedBatch : generatedRangeBatch;
+    const seen = new Set<string>();
+    return raw.map((item) => {
+      const key = item.serial.trim().toUpperCase();
+      const isDuplicate = existingSerials.has(key) || seen.has(key);
+      seen.add(key);
+      return item.isDuplicate === isDuplicate ? item : { ...item, isDuplicate };
+    });
+  }, [method, tableCsvBatch, pastedBatch, generatedRangeBatch, existingSerials]);
 
-  const validItems = activeStagedBatch.filter((i) => !i.isDuplicate);
-  const dupCount = activeStagedBatch.length - validItems.length;
-  const validPosCount = validItems.filter((i) => i.type === 'POS Terminal').length;
-  const validSbCount = validItems.filter((i) => i.type === 'Sound Box').length;
+  const { validItems, dupCount, errorCount, validPosCount, validSbCount } = useMemo(() => {
+    const valid = activeStagedBatch.filter((i) => !i.isDuplicate && !i.error);
+    const dups = activeStagedBatch.filter((i) => i.isDuplicate).length;
+    return {
+      validItems: valid,
+      dupCount: dups,
+      errorCount: activeStagedBatch.filter((i) => !i.isDuplicate && i.error).length,
+      validPosCount: valid.filter((i) => i.type === 'POS Terminal').length,
+      validSbCount: valid.filter((i) => i.type === 'Sound Box').length,
+    };
+  }, [activeStagedBatch]);
 
   const handleCommit = () => {
     if (validItems.length === 0) return;
-    onCommitBatch(validItems);
+    // Final re-check against the inventory as it is now: an existing serial is never sent (so never overwritten).
+    const stillNew = validItems.filter((i) => !existingSerials.has(i.serial.trim().toUpperCase()));
+    if (stillNew.length !== validItems.length) {
+      setCommitNotice(
+        `${validItems.length - stillNew.length} serial(s) were added to the inventory by someone else while you were reviewing. They are now marked as duplicates; review the list and confirm again.`
+      );
+      return;
+    }
+    onCommitBatch(
+      stillNew.map(({ isDuplicate: _d, error: _e, ...rest }) => ({ ...rest, serial: rest.serial.trim().toUpperCase() }))
+    );
     setTableCsvText('');
     setUploadedFileMeta(null);
     setPosPasteText('');
     setSbPasteText('');
     setGeneratedRangeBatch([]);
+    setCommitNotice('');
     onClose();
   };
 
@@ -750,6 +600,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
             whileTap={{ scale: 0.94 }}
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="text-slate-300 hover:text-white p-1 rounded-lg transition cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -931,7 +782,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       <option value="HQ_STOCK">Admin HQ Stock (Branch Code 100)</option>
                       <option value="BRANCH_RESERVE">Branch Reserve (Stock-In)</option>
                       <option value="CONFIGURING">Configuring</option>
-                      <option value="COMPLETE">Installed Live (Merchant Assigned)</option>
                     </select>
                   </div>
                 </div>
@@ -1295,6 +1145,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <input
                             type="text"
                             value={posPrefix}
+                            placeholder="e.g. prefix on the label"
+                            aria-label="POS serial prefix"
                             onChange={(e) => setPosPrefix(e.target.value)}
                             className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
                           />
@@ -1320,10 +1172,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           </label>
                           <input
                             type="number"
+                            min={0}
                             value={posStartNum}
-                            onChange={(e) =>
-                              setPosStartNum(parseInt(e.target.value, 10) || 1)
-                            }
+                            placeholder="From carton label"
+                            aria-label="POS start number"
+                            onChange={(e) => setPosStartNum(e.target.value)}
                             className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
                           />
                         </div>
@@ -1382,6 +1235,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <input
                             type="text"
                             value={sbPrefix}
+                            placeholder="e.g. prefix on the label"
+                            aria-label="Sound Box serial prefix"
                             onChange={(e) => setSbPrefix(e.target.value)}
                             className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
                           />
@@ -1407,10 +1262,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           </label>
                           <input
                             type="number"
+                            min={0}
                             value={sbStartNum}
-                            onChange={(e) =>
-                              setSbStartNum(parseInt(e.target.value, 10) || 1)
-                            }
+                            placeholder="From carton label"
+                            aria-label="Sound Box start number"
+                            onChange={(e) => setSbStartNum(e.target.value)}
                             className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
                           />
                         </div>
@@ -1431,7 +1287,12 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-end gap-3">
+                    {rangeError && (
+                      <span role="alert" className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                        {rangeError}
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={handleGenerateDualRange}
@@ -1465,10 +1326,12 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       ({validItems.length} valid: {validPosCount} POS, {validSbCount} Sound Box)
                     </span>
                   </span>
-                  {dupCount > 0 && (
+                  {(dupCount > 0 || errorCount > 0) && (
                     <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 text-[11px] bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                       <AlertCircle className="w-3.5 h-3.5" />
-                      {dupCount} duplicate(s) filtered
+                      {dupCount > 0 && `${dupCount} duplicate(s) skipped`}
+                      {dupCount > 0 && errorCount > 0 && ' · '}
+                      {errorCount > 0 && `${errorCount} row(s) with errors`}
                     </span>
                   )}
                 </div>
@@ -1572,7 +1435,16 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <td className="py-1.5 px-3 text-right whitespace-nowrap">
                             {item.isDuplicate ? (
                               <span className="text-rose-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20">
-                                Duplicate (Skipped)
+                                {existingSerials.has(item.serial.trim().toUpperCase())
+                                  ? 'Already in inventory (Skipped)'
+                                  : 'Repeated in file (Skipped)'}
+                              </span>
+                            ) : item.error ? (
+                              <span
+                                title={item.error}
+                                className="text-rose-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 inline-block max-w-[220px] truncate align-middle"
+                              >
+                                Error: {item.error}
                               </span>
                             ) : (
                               <span className="text-emerald-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -1618,9 +1490,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     0 valid serials ready for intake staging
                   </span>
                 )}
-                {dupCount > 0 && (
+                {(dupCount > 0 || errorCount > 0) && (
                   <span className="text-amber-600 dark:text-amber-400 text-[11px] font-medium hidden sm:inline">
-                    ({dupCount} duplicates filtered)
+                    ({dupCount} duplicates skipped{errorCount > 0 ? `, ${errorCount} rows with errors not imported` : ''})
                   </span>
                 )}
               </div>
@@ -1726,7 +1598,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     Duplicates Filtered
                   </span>
                   <span className="font-bold text-xs text-slate-500 mt-0.5 block">
-                    {dupCount} Skipped
+                    {dupCount} Skipped{errorCount > 0 ? ` · ${errorCount} with errors` : ''}
                   </span>
                 </div>
               </div>
@@ -1836,11 +1708,18 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 <span>Back to Edit Intake</span>
               </motion.button>
 
+              {commitNotice && (
+                <span role="alert" className="flex-1 mx-3 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                  {commitNotice}
+                </span>
+              )}
+
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 type="button"
                 onClick={handleCommit}
-                className="px-6 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition shadow-md cursor-pointer flex items-center gap-2"
+                disabled={validItems.length === 0}
+                className="px-6 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Confirm &amp; Commit {validItems.length} Entries to Database</span>
