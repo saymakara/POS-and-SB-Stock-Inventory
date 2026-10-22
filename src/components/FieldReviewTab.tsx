@@ -6,6 +6,7 @@ import {
   FieldEvent,
   FieldIssue,
   fetchFieldEvents,
+  FieldEventStatus,
   subscribeToFieldEvents,
   recheckFieldEvent,
   approveFieldEvent,
@@ -146,7 +147,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
         {shown.map((e) => (
           <ReviewCard key={e.id} e={e} open={openId === e.id} onToggle={() => setOpenId(openId === e.id ? null : e.id)} isAdmin={isAdmin}
             branches={branches} device={deviceBySerial.get(e.serial.toUpperCase())} oldDevice={e.oldSerial ? deviceBySerial.get(e.oldSerial.toUpperCase()) : undefined}
-            triggerToast={triggerToast} onDone={() => { setOpenId(null); load(); onApplied(); }} onOpenWorkflow={onOpenWorkflow} />
+            triggerToast={triggerToast} onDone={(st) => { setOpenId(null); setEvents((prev) => prev && prev.map((x) => (x.id === e.id ? { ...x, status: st } : x))); onApplied(); }} onOpenWorkflow={onOpenWorkflow} />
         ))}
       </div>
     </div>
@@ -166,7 +167,7 @@ const IssueList: React.FC<{ issues: FieldIssue[] }> = ({ issues }) => (
 
 const ReviewCard: React.FC<{
   e: FieldEvent; open: boolean; onToggle: () => void; isAdmin: boolean; branches: Branch[]; device?: Device; oldDevice?: Device;
-  triggerToast: (m: string) => void; onDone: () => void; onOpenWorkflow?: (serial: string) => void;
+  triggerToast: (m: string) => void; onDone: (status: FieldEventStatus) => void; onOpenWorkflow?: (serial: string) => void;
 }> = ({ e, open, onToggle, isAdmin, branches, device, oldDevice, triggerToast, onDone, onOpenWorkflow }) => {
   const [issues, setIssues] = useState<FieldIssue[]>(e.issues);
   const [branchId, setBranchId] = useState<string>(e.branchId || '');
@@ -205,7 +206,7 @@ const ReviewCard: React.FC<{
     try {
       await approveFieldEvent(e.id, note, { branch_id: branchId || undefined, return_stage: needsReturn ? returnStage : undefined, acknowledge: ack });
       triggerToast(`Approved · ${e.serial} · stock updated`);
-      onDone();
+      onDone('APPROVED');
     } catch (x) {
       setErr(x instanceof Error ? x.message : String(x));
     } finally { setBusy(''); }
@@ -217,7 +218,7 @@ const ReviewCard: React.FC<{
     try {
       await rejectFieldEvent(e.id, note.trim());
       triggerToast(`Rejected · ${e.serial}`);
-      onDone();
+      onDone('REJECTED');
     } catch (x) {
       setErr(x instanceof Error ? x.message : String(x));
     } finally { setBusy(''); }

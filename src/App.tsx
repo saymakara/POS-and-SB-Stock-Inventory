@@ -487,6 +487,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       countPendingFieldEvents().then((n) => {
         if (alive && n !== null) setPendingFieldCount(n);
       });
+    // (22 Oct 2026) a burst of phone records is counted once, at most every 15 seconds (fewer server requests)
+    let countTimer: ReturnType<typeof setTimeout> | null = null;
+    const countPendingSoon = () => {
+      if (countTimer) return;
+      countTimer = setTimeout(() => { countTimer = null; countPending(); }, 15000);
+    };
     (async () => {
       const conn = await checkSupabaseConnection();
       if (!alive) return;
@@ -533,6 +539,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             syncedReqs.current.delete(reqId);
             setRequisitions((prev) => prev.filter((r) => r.reqId !== reqId));
           },
+          onHistoryInsert: (rec) => {
+            syncedHist.current.add(rec.recordId);                       // (came from the server: not sent back)
+            setHistoricalMerchants((prev) => (prev.some((h) => h.recordId === rec.recordId) ? prev : [rec, ...prev]));
+          },
           onReconnect: () => {
             // the live feed was down for a while: changes made meanwhile were missed
             reloadFromServer().then((ok) => setServerError(ok ? '' : 'The connection to the server is unstable. Please reload the page.'));
@@ -540,11 +550,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         }
       );
       countPending();
-      unsubscribeField = subscribeToFieldEvents(() => countPending());
+      unsubscribeField = subscribeToFieldEvents(() => countPendingSoon());
     })();
 
     return () => {
       alive = false;
+      if (countTimer) clearTimeout(countTimer);
       unsubscribe();
       unsubscribeField();
     };
@@ -1105,7 +1116,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           (d.location && d.location.toLowerCase().includes(q)) ||
           (isAdminOrSuper && d.merchantPhone && d.merchantPhone.toLowerCase().includes(q)) ||
           (d.address && d.address.toLowerCase().includes(q)) ||
-          (d.customFields && Object.values(d.customFields).some((val) => (val || '').toLowerCase().includes(q)));
+          (d.customFields && Object.values(d.customFields).some((val) => String(val ?? '').toLowerCase().includes(q)));
 
         if (!match) continue;
       }
@@ -1797,7 +1808,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
     if (isSupabaseConfigured) {
       dispatchRequisitionOnServer(reqId, serials)
-        .then((items) => { reloadFromServer(); finish(items.length); })
+        .then((items) => finish(items.length))                  // the live feed brings the changed rows
         .catch((e) => triggerToast(e instanceof Error ? e.message : String(e)));
       return;
     }
@@ -1871,7 +1882,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (isSupabaseConfigured) {
       confirmReceiptOnServer(reqId)
         .then(({ moved, skipped }) => {
-          reloadFromServer();
           addAuditLog('Requisition Received', `Receipt of ${reqId} confirmed: ${moved.length} unit(s) received`);
           triggerToast(`Confirmed receipt of ${reqId}: ${moved.length} unit(s) received` + (skipped.length ? `; not moved (not in HQ stock): ${skipped.join(', ')}` : ''));
         })
@@ -1910,7 +1920,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (isSupabaseConfigured) {
       receiveReturnOnServer(reqId, reason)
         .then(({ moved, skipped }) => {
-          reloadFromServer();
           addAuditLog('Return Request Approved & Received', `Return ${reqId}: ${moved.length} unit(s) received at HQ`);
           triggerToast(`Return ${reqId}: ${moved.length} unit(s) received at HQ` + (skipped.length ? `; not moved: ${skipped.join(', ')}` : ''));
         })
@@ -2909,7 +2918,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       devices={devices}
                       triggerToast={triggerToast}
                       onApplied={() => {
-                        reloadFromServer();
+                        // the live feed brings the changed units and history; only the waiting count is asked for
                         countPendingFieldEvents().then((n) => n !== null && setPendingFieldCount(n));
                       }}
                       onOpenWorkflow={(sn) => setEditingDeviceSerial(sn)}

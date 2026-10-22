@@ -6,7 +6,11 @@ import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, Branch, 
  */
 function mapRowToDevice(row: any): Device {
   const stage = (row.stage || 'HQ_STOCK') as LifecycleStage;
-  const cf = (row.custom_fields || {}) as Record<string, string>;
+  // (22 Oct 2026) every custom value as text: approved phone records store GPS as numbers, which broke search
+  const cf: Record<string, string> = {};
+  Object.entries((row.custom_fields && typeof row.custom_fields === 'object') ? row.custom_fields : {}).forEach(([k, v]) => {
+    if (v !== null && v !== undefined) cf[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);
+  });
   return {
     // (21 Oct 2026) officers and dates written by the database (approved phone app records) live in custom_fields
     installedByStaff: cf.installedByStaff || undefined,
@@ -48,7 +52,7 @@ function mapRowToDevice(row: any): Device {
     history: Array.isArray(row.history) ? row.history : [],
     archived: Boolean(row.archived),
     integrityHash: row.integrity_hash || undefined,
-    customFields: row.custom_fields || {},
+    customFields: cf,
     rowVersion: typeof row.row_version === 'number' ? row.row_version : Number(row.row_version) || undefined,
   };
 }
@@ -284,6 +288,34 @@ export async function upsertRequisitionToSupabase(req: Requisition): Promise<boo
 // HISTORICAL MERCHANTS API
 // -----------------------------------------------------------------------------
 
+function mapRowToHistory(row: any): HistoricalMerchantRecord {
+  return {
+    recordId: row.record_id,
+    merchantName: row.merchant_name,
+    merchantPhone: row.merchant_phone,
+    address: row.address,
+    mid: row.mid,
+    tid: row.tid,
+    deviceType: row.device_type,
+    model: row.model,
+    serial: row.serial,
+    batterySerial: row.battery_serial,
+    branchId: row.branch_id,
+    branchName: row.branch_name,
+    installedDate: row.installed_date,
+    returnedDate: row.returned_date,
+    activeDurationMonths: row.active_duration_months,
+    returnReason: row.return_reason,
+    status: row.status,
+    handledByStaff: row.handled_by_staff,
+    installedByStaff: row.installed_by_staff || undefined,
+    replacedByStaff: row.replaced_by_staff || undefined,
+    returnedByStaff: row.returned_by_staff || undefined,
+    settlementFinalized: Boolean(row.settlement_finalized),
+    notes: row.notes,
+  };
+}
+
 export async function fetchHistoricalMerchantsFromSupabase(): Promise<HistoricalMerchantRecord[] | null> {
   if (!isSupabaseConfigured) return null;
 
@@ -292,31 +324,7 @@ export async function fetchHistoricalMerchantsFromSupabase(): Promise<Historical
     if (!data) return null;
     data.sort((x: any, y: any) => String(y.returned_date || '').localeCompare(String(x.returned_date || '')));
 
-    return data.map((row: any) => ({
-      recordId: row.record_id,
-      merchantName: row.merchant_name,
-      merchantPhone: row.merchant_phone,
-      address: row.address,
-      mid: row.mid,
-      tid: row.tid,
-      deviceType: row.device_type,
-      model: row.model,
-      serial: row.serial,
-      batterySerial: row.battery_serial,
-      branchId: row.branch_id,
-      branchName: row.branch_name,
-      installedDate: row.installed_date,
-      returnedDate: row.returned_date,
-      activeDurationMonths: row.active_duration_months,
-      returnReason: row.return_reason,
-      status: row.status,
-      handledByStaff: row.handled_by_staff,
-      installedByStaff: row.installed_by_staff || undefined,
-      replacedByStaff: row.replaced_by_staff || undefined,
-      returnedByStaff: row.returned_by_staff || undefined,
-      settlementFinalized: Boolean(row.settlement_finalized),
-      notes: row.notes,
-    }));
+    return data.map(mapRowToHistory);
   } catch (err) {
     console.warn('[Supabase] Exception fetching historical merchants:', err);
     return null;
@@ -381,6 +389,8 @@ export function subscribeToRealtimeChanges(
   extra?: {
     onDeviceDelete?: (serial: string) => void;
     onRequisitionDelete?: (reqId: string) => void;
+    /** A merchant-history record added on the server (e.g. by approving a phone app record). */
+    onHistoryInsert?: (rec: HistoricalMerchantRecord) => void;
     /** Called when the live feed comes back after a drop: changes made meanwhile were missed, so reload. */
     onReconnect?: () => void;
   }
@@ -404,6 +414,9 @@ export function subscribeToRealtimeChanges(
         return;
       }
       if (payload.new && (payload.new as any).req_id && onRequisitionChange) onRequisitionChange(mapRowToRequisition(payload.new));
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'historical_merchants' }, (payload) => {
+      if (payload.new && (payload.new as any).record_id) extra?.onHistoryInsert?.(mapRowToHistory(payload.new));
     })
     .subscribe((status) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') dropped = true;
@@ -448,7 +461,7 @@ export async function saveDevicesStrict(devices: Device[]): Promise<SaveResult> 
       await Promise.all(known.slice(i, i + 6).map(async (d) => {
         const { data, error } = await supabase.from('devices').update(mapDeviceToRow(d)).eq('serial', d.serial).select('serial,row_version');
         if (error) {
-          const stale = /STALE_ROW|40001/.test(error.message + (error as any).code);
+          const stale = /STALE_ROW|PT409/.test(error.message + (error as any).code);
           first = first || { error: stale ? `${d.serial} was changed by someone else just now` : error.message, stale };
         } else if (!data || data.length === 0) {
           first = first || { error: `you do not have access to change ${d.serial}`, stale: false };

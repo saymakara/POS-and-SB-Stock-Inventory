@@ -8,7 +8,8 @@
 alter table public.requisitions add column if not exists type varchar not null default 'STOCK_REQUEST';
 alter table public.requisitions add column if not exists return_serials jsonb not null default '[]'::jsonb;
 
--- 2. Devices: a version number, so a save made from an out-of-date screen cannot overwrite a newer change
+-- 2. Devices: a version number, so a save made from an out-of-date screen cannot overwrite a newer change.
+--    The refusal uses SQLSTATE PT409 (HTTP 409). Never 40001: PostgREST retries 40001 automatically, endlessly.
 alter table public.devices add column if not exists row_version bigint not null default 1;
 
 create or replace function app.devices_guard() returns trigger
@@ -22,7 +23,7 @@ begin
   end if;
   if not v_trusted and new.row_version is distinct from old.row_version then
     raise exception 'STALE_ROW: device % was changed by someone else just now (server version %, your copy %).',
-      old.serial, old.row_version, new.row_version using errcode = '40001';
+      old.serial, old.row_version, new.row_version using errcode = 'PT409';
   end if;
   new.row_version := old.row_version + 1;
   if auth.uid() is not null and not app.is_admin() and not v_trusted then
