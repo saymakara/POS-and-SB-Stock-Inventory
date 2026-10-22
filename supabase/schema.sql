@@ -132,21 +132,9 @@ ALTER TABLE public.historical_merchants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.requisitions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Allow public read/write for demo anon key (configure fine-grained JWT RLS as needed)
-CREATE POLICY "Permissive read for all users" ON public.branches FOR SELECT USING (true);
-CREATE POLICY "Permissive write for all users" ON public.branches FOR ALL USING (true);
-
-CREATE POLICY "Permissive read for devices" ON public.devices FOR SELECT USING (true);
-CREATE POLICY "Permissive write for devices" ON public.devices FOR ALL USING (true);
-
-CREATE POLICY "Permissive read for historical_merchants" ON public.historical_merchants FOR SELECT USING (true);
-CREATE POLICY "Permissive write for historical_merchants" ON public.historical_merchants FOR ALL USING (true);
-
-CREATE POLICY "Permissive read for requisitions" ON public.requisitions FOR SELECT USING (true);
-CREATE POLICY "Permissive write for requisitions" ON public.requisitions FOR ALL USING (true);
-
-CREATE POLICY "Permissive read for audit_logs" ON public.audit_logs FOR SELECT USING (true);
-CREATE POLICY "Permissive write for audit_logs" ON public.audit_logs FOR ALL USING (true);
+-- (21 Oct 2026) NO "allow everyone" policies. Access rules (sign-in, roles, branches) are in
+-- migrations/20261021_01_security_and_field_review.sql – run it after this file. Never add USING (true) policies:
+-- the website's public key would then let anyone read and change the stock.
 
 -- ==============================================================================
 -- Realtime CDC Publication Setup

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Lock, ShieldCheck, KeyRound } from 'lucide-react';
 import { ThemeMode } from '../types';
 import { motion } from 'motion/react';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { signOutEverywhere } from './AuthGate';
 
 interface SessionLockModalProps {
   isOpen: boolean;
@@ -30,8 +32,22 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
   const empIdMatch = operatorName.match(/\((\d+)\)/);
   const validEmpPin = empIdMatch ? empIdMatch[1] : '1234';
 
-  const handleUnlockAttempt = (e: React.FormEvent) => {
+  const handleUnlockAttempt = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSupabaseConfigured) {
+      // (21 Oct 2026) the lock opens with the person's own password, checked by the server; 5 wrong tries sign out
+      if (!pin) { setErrorMsg('Please enter your password to unlock.'); return; }
+      const { data } = await supabase.auth.getUser();
+      const email = data.user?.email;
+      if (!email) { signOutEverywhere(); return; }
+      const { error } = await supabase.auth.signInWithPassword({ email, password: pin });
+      if (!error) { setErrorMsg(null); setAttempts(0); setPin(''); onUnlock(); return; }
+      const next = attempts + 1;
+      setAttempts(next);
+      if (next >= 5) { signOutEverywhere(); return; }
+      setErrorMsg(`Incorrect password (${next} of 5 tries).`);
+      return;
+    }
     const cleanPin = pin.trim();
     if (!cleanPin) {
       setErrorMsg('Please enter your operator PIN or Employee ID to unlock.');
@@ -72,7 +88,7 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
           Operator Session Locked
         </h3>
         <p className="text-xs text-slate-400 mt-1">
-          Enter your Employee ID or security PIN to resume stock &amp; merchant deployment operations.
+          {isSupabaseConfigured ? 'Enter your password to continue.' : 'Enter your Employee ID or security PIN to resume stock & merchant deployment operations.'}
         </p>
 
         <div
@@ -90,8 +106,8 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
         <form onSubmit={handleUnlockAttempt} className="w-full flex flex-col gap-3">
           <div>
             <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-              <span>Security PIN / Emp ID</span>
-              <button
+              <span>{isSupabaseConfigured ? 'Password' : 'Security PIN / Emp ID'}</span>
+              {!isSupabaseConfigured && <button
                 type="button"
                 onClick={() => {
                   setPin(validEmpPin);
@@ -100,7 +116,7 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
                 className="text-slate-700 dark:text-slate-300 hover:underline font-medium"
               >
                 Use Emp ID ({validEmpPin})
-              </button>
+              </button>}
             </div>
             <input
               type="password"
@@ -110,7 +126,7 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
                 setPin(e.target.value);
                 setErrorMsg(null);
               }}
-              placeholder={`Enter ${validEmpPin} or 1234`}
+              placeholder={isSupabaseConfigured ? 'Your password' : `Enter ${validEmpPin} or 1234`}
               className={`w-full text-center tracking-widest text-sm font-mono rounded-lg px-3 py-2 border focus:outline-none ${
                 isLight
                   ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-slate-500'

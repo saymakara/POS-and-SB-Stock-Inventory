@@ -6,7 +6,15 @@ import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, Branch }
  */
 function mapRowToDevice(row: any): Device {
   const stage = (row.stage || 'HQ_STOCK') as LifecycleStage;
+  const cf = (row.custom_fields || {}) as Record<string, string>;
   return {
+    // (21 Oct 2026) officers and dates written by the database (approved phone app records) live in custom_fields
+    installedByStaff: cf.installedByStaff || undefined,
+    replacedByStaff: cf.replacedByStaff || undefined,
+    returnedByStaff: cf.returnedByStaff || undefined,
+    returnedDate: cf.returnedDate || undefined,
+    replacementDate: cf.replacementDate || undefined,
+    replacedFromSerial: cf.replacedFromSerial || undefined,
     serial: row.serial,
     batterySerial: row.battery_serial || undefined,
     batteryInstalledDate: row.battery_installed_date || undefined,
@@ -70,7 +78,9 @@ function mapDeviceToRow(dev: Device): any {
     note: dev.note || null,
     history: dev.history || [],
     archived: Boolean(dev.archived),
-    custom_fields: dev.customFields || {},
+    custom_fields: Object.assign({}, dev.customFields || {}, Object.fromEntries(
+      (['installedByStaff', 'replacedByStaff', 'returnedByStaff', 'returnedDate', 'replacementDate', 'replacedFromSerial'] as const)
+        .filter((k) => dev[k]).map((k) => [k, String(dev[k])]))),
     return_reason: dev.returnReason || null,
     deployment_status: dev.deploymentStatus || null,
     stock_status: dev.stockStatus || null,
@@ -166,8 +176,9 @@ export async function fetchDevicesFromSupabase(
         .range(from, to);
 
       if (error) {
+        // never show a part of the stock as if it were all of it
         console.warn('[Supabase] Error fetching devices:', error.message);
-        break;
+        return null;
       }
       if (!data || data.length === 0) break;
       allRows.push(...data);
@@ -402,4 +413,129 @@ export function subscribeToRealtimeChanges(
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+// -----------------------------------------------------------------------------
+// (21 Oct 2026) SAVING WITH A CLEAR ANSWER, REVIEW QUEUE, STAFF ACCOUNTS
+// -----------------------------------------------------------------------------
+
+/** Saves devices; '' when saved, otherwise the reason (e.g. refused by the access rules). */
+export async function saveDevicesStrict(devices: Device[]): Promise<string> {
+  if (!isSupabaseConfigured || devices.length === 0) return '';
+  try {
+    for (let i = 0; i < devices.length; i += 500) {
+      const { error } = await supabase.from('devices').upsert(devices.slice(i, i + 500).map(mapDeviceToRow), { onConflict: 'serial' });
+      if (error) return error.message;
+    }
+    return '';
+  } catch (err) {
+    return err instanceof Error ? err.message : 'Network error';
+  }
+}
+
+export async function saveRequisitionStrict(req: Requisition): Promise<string> {
+  if (!isSupabaseConfigured) return '';
+  try {
+    const { error } = await supabase.from('requisitions').upsert(mapRequisitionToRow(req), { onConflict: 'req_id' });
+    return error ? error.message : '';
+  } catch (err) {
+    return err instanceof Error ? err.message : 'Network error';
+  }
+}
+
+/** A branch confirms receipt of a dispatched request (the database moves the units). */
+export async function confirmReceiptOnServer(reqId: string): Promise<{ moved: string[]; skipped: string[] }> {
+  const { data, error } = await supabase.rpc('branch_confirm_receipt', { p_req_id: reqId });
+  if (error) throw new Error(error.message);
+  return { moved: (data && data.moved) || [], skipped: (data && data.skipped) || [] };
+}
+
+/** An entry in the server's audit log (who and when are stamped by the database). */
+export async function writeAuditLog(title: string, detail: string, action?: string, target?: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  try {
+    await supabase.from('audit_logs').insert({ title: title.slice(0, 160), detail, action: action || null, target: target || null });
+  } catch {
+    /* the local log keeps it */
+  }
+}
+
+export interface ServerAuditEntry {
+  id: number; title: string; detail: string; role: string | null; branchId: string | null; createdAt: string;
+  actorEmp: string | null; actorName: string | null; action: string | null; target: string | null;
+}
+export async function fetchAuditLogs(limit = 1000): Promise<ServerAuditEntry[] | null> {
+  const { data, error } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(limit);
+  if (error) return null;
+  return (data || []).map((r: any) => ({ id: r.id, title: r.title, detail: r.detail, role: r.role, branchId: r.branch_id, createdAt: r.created_at,
+    actorEmp: r.actor_emp, actorName: r.actor_name, action: r.action, target: r.target }));
+}
+
+export type FieldEventStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUPERSEDED' | 'CANCELLED';
+export interface FieldIssue { code: string; level: 'warn' | 'block'; text: string }
+export interface FieldEvent {
+  id: number; sourceRecordId: string; unitNo: number; revision: number;
+  kind: 'INSTALL' | 'REPLACE' | 'BATTERY' | 'SB_MAINT' | 'SB_RETURN'; deviceType: 'POS Terminal' | 'Sound Box';
+  serial: string; oldSerial: string | null; oldBattery: string | null; newBattery: string | null; mid: string | null; tid: string | null;
+  terminalName: string | null; outletName: string | null; branchText: string | null; branchId: string | null; staffId: string | null; staffName: string | null;
+  recordedAt: string; latitude: number | null; longitude: number | null; remarks: string | null; payload: any; issues: FieldIssue[];
+  status: FieldEventStatus; reviewedByName: string | null; reviewedAt: string | null; reviewNote: string | null; applied: any; receivedAt: string;
+}
+function mapFieldEvent(r: any): FieldEvent {
+  return { id: r.id, sourceRecordId: r.source_record_id, unitNo: r.unit_no, revision: r.revision, kind: r.kind, deviceType: r.device_type,
+    serial: r.serial, oldSerial: r.old_serial, oldBattery: r.old_battery, newBattery: r.new_battery, mid: r.mid, tid: r.tid,
+    terminalName: r.terminal_name, outletName: r.outlet_name, branchText: r.branch_text, branchId: r.branch_id, staffId: r.staff_id, staffName: r.staff_name,
+    recordedAt: r.recorded_at, latitude: r.latitude, longitude: r.longitude, remarks: r.remarks, payload: r.payload || {}, issues: Array.isArray(r.issues) ? r.issues : [],
+    status: r.status, reviewedByName: r.reviewed_by_name, reviewedAt: r.reviewed_at, reviewNote: r.review_note, applied: r.applied, receivedAt: r.received_at };
+}
+export async function fetchFieldEvents(limit = 500): Promise<FieldEvent[] | null> {
+  const { data, error } = await supabase.from('field_events').select('*').order('received_at', { ascending: false }).limit(limit);
+  if (error) return null;
+  return (data || []).map(mapFieldEvent);
+}
+export function subscribeToFieldEvents(onChange: (e: FieldEvent) => void): () => void {
+  if (!isSupabaseConfigured) return () => {};
+  const channel = supabase.channel('field_events_feed')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'field_events' }, (payload) => {
+      if (payload.new && (payload.new as any).id) onChange(mapFieldEvent(payload.new));
+    })
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+export async function recheckFieldEvent(id: number, branchId?: string): Promise<FieldIssue[]> {
+  const { data, error } = await supabase.rpc('field_recheck', { p_id: id, p_branch: branchId || null });
+  if (error) throw new Error(error.message);
+  return Array.isArray(data) ? data : [];
+}
+export async function approveFieldEvent(id: number, note: string, opt: { branch_id?: string; return_stage?: string; acknowledge?: boolean }): Promise<any> {
+  const { data, error } = await supabase.rpc('field_approve', { p_id: id, p_note: note || null, p_opt: opt });
+  if (error) throw new Error(error.message);
+  return data;
+}
+export async function rejectFieldEvent(id: number, note: string): Promise<void> {
+  const { error } = await supabase.rpc('field_reject', { p_id: id, p_note: note });
+  if (error) throw new Error(error.message);
+}
+
+export interface StaffAccount {
+  userId: string; empId: string; name: string; role: 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH'; branchId: string;
+  position: string | null; contact: string | null; active: boolean; mustChangePassword: boolean; updatedAt: string;
+}
+const mapStaff = (r: any): StaffAccount => ({ userId: r.user_id, empId: r.emp_id, name: r.name, role: r.role, branchId: r.branch_id, position: r.position,
+  contact: r.contact, active: !!r.active, mustChangePassword: !!r.must_change_password, updatedAt: r.updated_at });
+export async function fetchStaffAccounts(): Promise<StaffAccount[] | null> {
+  const { data, error } = await supabase.from('staff_profiles').select('*').order('emp_id');
+  if (error) return null;
+  return (data || []).map(mapStaff);
+}
+export async function saveStaffAccount(p: { emp_id: string; name: string; role: string; branch_id: string; position?: string; contact?: string; active: boolean; password?: string }): Promise<StaffAccount> {
+  const body: any = Object.assign({}, p); if (!body.password) delete body.password;
+  const { data, error } = await supabase.rpc('admin_save_staff', { p: body });
+  if (error) throw new Error(error.message);
+  return mapStaff(data);
+}
+export async function fetchBranchesFromSupabase(): Promise<{ id: string; code: string; name: string }[] | null> {
+  const { data, error } = await supabase.from('branches').select('id,code,name').order('id');
+  if (error) return null;
+  return (data || []).map((b: any) => ({ id: String(b.id), code: String(b.code || b.id), name: b.name }));
 }
