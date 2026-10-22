@@ -311,6 +311,8 @@ export interface AppSettings {
   customLogoUrl?: string;
   customLogoTitle?: string;
   customLogoSubtitle?: string;
+  /** Phone App Review: which staff's records are shown — Phnom Penh only, or Phnom Penh and the provinces */
+  phoneReviewScope?: 'PHNOM_PENH' | 'ALL';
   logoPresetId?: 'fintech-pulse' | 'apex-pos' | 'bank-shield' | 'quantum-sound';
 }
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
+import { useFlip } from '../utils/useFlip';
 import { User, Branch, UserRole, UserStatus, ThemeMode } from '../types';
 import {
   Search,
@@ -116,6 +117,9 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
   const PAGE = 40;
   const [visible, setVisible] = useState(PAGE);
   const sentinelRef = useRef<HTMLTableRowElement | null>(null);
+
+  const flipRef = useRef<HTMLTableSectionElement>(null);
+  useFlip(flipRef, [filteredUsers, visible]);
   useEffect(() => { setVisible(PAGE); }, [branchFilter, roleFilter, statusFilter, deferredSearch]);
   useEffect(() => {
     const el = sentinelRef.current;
@@ -277,7 +281,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200/70 text-xs bg-white">
+            <tbody ref={flipRef} className="divide-y divide-slate-200/70 text-xs bg-white">
               {filteredUsers.slice(0, visible).map((u, rowIdx) => {
                 const isSelected = selectedIds.includes(u.uid);
                 const resolvedBranchName =
@@ -285,7 +289,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                   u.branchName ||
                   `Branch ${u.branchId}`;
                 return (
-                  <tr key={u.uid} className="hover:bg-slate-50/80 row-in">
+                  <tr key={u.uid} data-flip={u.uid} className="hover:bg-slate-50/80">
                     <td className="py-3 px-4">
                       <button
                         onClick={() => toggleSelect(u.uid)}

@@ -77,6 +77,7 @@ import {
   writeAuditLog,
   fetchHistoricalMerchantsFromSupabase,
   insertHistoricalMerchantToSupabase,
+  deleteAllHistoricalMerchantsOnServer,
   countPendingFieldEvents,
   fetchAuditLogs,
   subscribeToFieldEvents,
@@ -817,6 +818,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // screen never shows something that was not saved.
   const saveQueue = React.useRef<Promise<void>>(Promise.resolve());
   const pushDevices = useCallback((changed: Device[]) => {
+    // (22 Oct 2026) optimistic UI: the screen already shows the change; these rows pulse until the server confirms it
+    const syncSerials = changed.map((d) => d.serial);
+    setSyncingSerials((prev) => { const n = new Set(prev); syncSerials.forEach((sn) => n.add(sn)); return n; });
+    const settle = () => window.setTimeout(() => setSyncingSerials((prev) => { const n = new Set(prev); syncSerials.forEach((sn) => n.delete(sn)); return n; }), 450);
     // saves run one after another, so a second edit of a unit waits for the first and uses its new version
     saveQueue.current = saveQueue.current.then(async () => {
       const sent = changed.map((d) => {
@@ -838,7 +843,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           : `Not saved to the server: ${/row-level security|permission|42501/i.test(res.error) ? 'you do not have access to change this device' : res.error}. The list was reloaded.`);
         await reloadFromServer();
       }
-    }).catch(() => undefined);
+    }).catch(() => undefined).then(() => { settle(); });
   }, [triggerToast, reloadFromServer]);
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
@@ -1209,7 +1214,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         };
       });
 
-      // Clear row highlight gently after brief confirmation window
+      // Clear row highlight gently after brief confirmation window (with the shared database the real save clears it)
+      if (isSupabaseConfigured) return;
       setTimeout(() => {
         setSyncingSerials((prev) => {
           const next = new Set(prev);
@@ -1686,6 +1692,23 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
     if (isSupabaseConfigured) {
       deleteDevicesOnServer(serials).then((err) => { if (err) triggerToast(`Not deleted: ${err}`); else finish(); });
+      return;
+    }
+    finish();
+  };
+
+  /** Super Admin: remove every Merchant History record (the list and the database). */
+  const handleClearHistory = () => {
+    if (role !== 'SUPER_ADMIN') { triggerToast('Only the Super Admin can clear Merchant History.'); return; }
+    const count = historicalMerchants.length;
+    const finish = () => {
+      setHistoricalMerchants([]);
+      syncedHist.current.clear();
+      addAuditLog('Merchant History Cleared', `Removed all ${count} merchant history record(s).`);
+      triggerToast(`Merchant History cleared (${count} record(s) removed)`);
+    };
+    if (isSupabaseConfigured) {
+      deleteAllHistoricalMerchantsOnServer().then((err) => { if (err) triggerToast(`Not cleared: ${err}`); else finish(); });
       return;
     }
     finish();
@@ -2769,6 +2792,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       selectedBranch={selectedBranch}
                       theme={theme}
                       devices={devices}
+                      onClearAll={role === 'SUPER_ADMIN' ? handleClearHistory : undefined}
                       onAddRecord={(rec) => {
                         setHistoricalMerchants((prev) => [rec, ...prev]);
                         addAuditLog(
@@ -2968,6 +2992,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                         countPendingFieldEvents().then((n) => n !== null && setPendingFieldCount(n));
                       }}
                       onOpenWorkflow={(sn) => setEditingDeviceSerial(sn)}
+                      scope={appSettings.phoneReviewScope || 'ALL'}
                     />
                   )}
                   {activeTab === 'mobile_sync' && !isSupabaseConfigured && (
@@ -3138,6 +3163,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           theme={theme}
           onClose={() => setEditingDeviceSerial(null)}
           onSave={handleSaveWorkflow}
+          onDeletePermanently={(sn) => handleDeletePermanently([sn])}
           onReturnToAdminStock={(sn, reason) =>
             handleReturnToAdminStock([sn], reason)
           }

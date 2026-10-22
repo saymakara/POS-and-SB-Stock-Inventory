@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useFlip } from '../utils/useFlip';
 import {
   Device,
   Branch,
@@ -216,6 +217,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     const start = (currentPage - 1) * rowsPerPage;
     return visibleDevices.slice(start, start + rowsPerPage);
   }, [visibleDevices, currentPage, rowsPerPage]);
+
+  const flipRef = useRef<HTMLTableSectionElement>(null);
+  useFlip(flipRef, [pagedDevices]);
 
   // Combined single-pass calculation for POS and Sound Box counts
   const { posCount, sbCount } = useMemo(() => {
@@ -520,10 +524,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
         <AnimatePresence initial={false}>
           {showExportMenu && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              initial={{ y: -8, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -8, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 36, mass: 0.7 }}
               className="overflow-hidden border-b border-slate-200 bg-white"
             >
               <div className="px-4 py-3 flex flex-wrap items-center gap-2">
@@ -928,18 +932,18 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 </th>
                 <th className="py-2.5 px-3 w-10 text-right">No.</th>
                 <th className="py-2.5 px-3">Stock-In Date</th>
-                <th className="py-2.5 px-3">Serial Number (SN)</th>
-                <th className="py-2.5 px-3">Product Type</th>
+                <th className="py-2.5 px-3">Serial Number</th>
+                <th className="py-2.5 px-3">Device Type</th>
                 <th className="py-2.5 px-3">Model</th>
-                <th className="py-2.5 px-3">Branch</th>
+                <th className="py-2.5 px-3">Branch Code &amp; Name</th>
                 <th className="py-2.5 px-3">Lifecycle Stage</th>
                 <th className="py-2.5 px-3">Merchant Name</th>
-                <th className="py-2.5 px-3">MID</th>
+                <th className="py-2.5 px-3">Merchant ID (MID)</th>
                 <th className="py-2.5 px-3 text-center">Serial Cycles</th>
-                <th className="py-2.5 px-3 text-right">Quick Actions</th>
+                <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200/80 text-xs bg-white">
+            <tbody ref={flipRef} className="divide-y divide-slate-200/80 text-xs bg-white">
               {pagedDevices.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="py-8 text-center text-slate-400">
@@ -964,6 +968,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   return (
                     <tr
                       key={dev.serial}
+                      data-flip={dev.serial}
                       className={`transition-colors interactive-row ${
                         isSyncingThisDevice ? 'optimistic-sync-active' : ''
                       } ${

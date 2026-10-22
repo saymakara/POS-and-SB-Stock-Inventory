@@ -1359,10 +1359,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   <table className="w-full text-left text-xs min-w-[800px]">
                     <thead className="glass-table-thead text-[10px] uppercase font-extrabold text-white sticky top-0 z-10">
                       <tr>
-                        <th className="py-2.5 px-3">#</th>
+                        <th className="py-2.5 px-3">No.</th>
                         <th className="py-2.5 px-3">Stock-In Date</th>
-                        <th className="py-2.5 px-3">Serial Number (SN)</th>
-                        <th className="py-2.5 px-3">Product Type</th>
+                        <th className="py-2.5 px-3">Serial Number</th>
+                        <th className="py-2.5 px-3">Device Type</th>
                         <th className="py-2.5 px-3">Model</th>
                         <th className="py-2.5 px-3">Battery Serial</th>
                         <th className="py-2.5 px-3">Branch Code &amp; Name</th>
@@ -1640,10 +1640,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   <table className="w-full text-left text-xs min-w-[850px]">
                     <thead className="glass-table-thead text-[10px] uppercase font-extrabold text-white">
                       <tr>
-                        <th className="py-2.5 px-3">#</th>
+                        <th className="py-2.5 px-3">No.</th>
                         <th className="py-2.5 px-3">Stock-In Date</th>
-                        <th className="py-2.5 px-3">Serial Number (SN)</th>
-                        <th className="py-2.5 px-3">Type</th>
+                        <th className="py-2.5 px-3">Serial Number</th>
+                        <th className="py-2.5 px-3">Device Type</th>
                         <th className="py-2.5 px-3">Model</th>
                         <th className="py-2.5 px-3">Battery Serial</th>
                         <th className="py-2.5 px-3">Stock Location</th>

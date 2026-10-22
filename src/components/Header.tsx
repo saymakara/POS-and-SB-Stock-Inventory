@@ -330,6 +330,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
         initial={false}
         animate={{ width: collapsed ? 76 : 244 }}
         transition={{ type: 'spring', stiffness: 450, damping: 35, mass: 0.6 }}
+        style={{ contain: 'layout style', willChange: 'width' }}
         className="sb-sidebar-gradient sticky top-0 left-0 h-screen z-40 text-white shrink-0 hidden md:flex flex-col justify-between select-none overflow-y-auto overflow-x-hidden no-scrollbar relative transform-gpu"
       >
         {renderNavContent(false)}

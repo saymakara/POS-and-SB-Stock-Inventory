@@ -2,6 +2,7 @@ import React from 'react';
 import { Device, LifecycleStage, STAGE_ORDER, ThemeMode } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { motion } from 'motion/react';
+import { Odometer } from './Odometer';
 import {
   Package,
   Building2,
@@ -37,9 +38,9 @@ const STAGE_STYLES: Record<
   }
 > = {
   HQ_STOCK: {
-    accentBar: 'bg-slate-600',
-    iconBox: 'bg-slate-100 text-slate-700 border-slate-200',
-    ringActive: 'ring-2 ring-[#18191e] border-[#18191e]',
+    accentBar: 'bg-indigo-600',
+    iconBox: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    ringActive: 'ring-2 ring-indigo-600 border-indigo-600',
     subtitle: 'Branch Code 100 Vault',
   },
   BRANCH_RESERVE: {
@@ -167,7 +168,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
 
             <div className="flex items-baseline justify-between gap-2 mb-1">
               <div className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums font-figure leading-none text-[#002f49]">
-                {count}
+                <Odometer value={count} />
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 Units
@@ -185,10 +186,11 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
 
             <div className="w-full h-1.5 rounded-full overflow-hidden mb-2 sm:mb-2.5 bg-slate-100">
               <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.max(pct, count > 0 ? 6 : 0)}%` }}
-                transition={{ duration: 0.35, ease: 'easeOut' }}
-                className={`h-full rounded-full ${style.accentBar}`}
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: Math.max(pct, count > 0 ? 6 : 0) / 100 }}
+                transition={{ type: 'spring', stiffness: 220, damping: 30 }}
+                style={{ transformOrigin: 'left center', willChange: 'transform' }}
+                className={`h-full w-full rounded-full ${style.accentBar}`}
               />
             </div>
 

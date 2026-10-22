@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useFlip } from '../utils/useFlip';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, MerchantProfile } from '../types';
 import { STAGE_META } from '../data/initialData';
@@ -753,6 +754,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     const start = (merchantPage - 1) * merchantsPerPage;
     return filteredMerchants.slice(start, start + merchantsPerPage);
   }, [filteredMerchants, merchantPage, merchantsPerPage]);
+
+  const flipRef = useRef<HTMLTableSectionElement>(null);
+  useFlip(flipRef, [pagedMerchants]);
 
   // --- Monthly Hardware Deployment Trends per Merchant MID (Recharts Data Engine) ---
   const MID_SERIES_COLORS = [
@@ -1611,24 +1615,24 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
-                <th>MID</th>
-                <th>Merchant</th>
-                <th>Staff</th>
-                <th>Device</th>
-                <th>Serial</th>
-                <th>Installed</th>
+                <th>Merchant ID (MID)</th>
+                <th>Merchant Name</th>
+                <th>Staff Name</th>
+                <th>Device Type</th>
+                <th>Serial Number</th>
+                <th>Installed Date</th>
                 <th>Status</th>
-                <th className="text-right col-actions" aria-label="Actions"></th>
+                <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody ref={flipRef}>
               {pagedMerchants.map((m, rowIdx) => {
                 const chip = m.crmStatus === 'ONBOARDING' ? 'chip-amber' : m.crmStatus === 'ATTENTION' ? 'chip-red' : 'chip-green';
                 const statusLabel = m.crmStatus === 'ONBOARDING' ? 'Pending install' : m.crmStatus === 'ATTENTION' ? 'Faulty / RMA' : 'Live';
                 const installDate = m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate || '—';
                 const deviceCount = m.devices ? m.devices.length : 0;
                 return (
-                  <tr key={m.mid}>
+                  <tr key={m.mid} data-flip={m.mid}>
                     <td className="col-no">{(merchantPage - 1) * merchantsPerPage + rowIdx + 1}</td>
                     <td className="whitespace-nowrap">
                       <div className={`cell-mono ${isValidMid(m.mid) ? '' : 'warn-text'}`} title={isValidMid(m.mid) ? 'Merchant ID' : 'This MID is not 15 digits. Please correct it.'}>
@@ -2322,7 +2326,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                           <th className="py-3 px-4">Current MID / TID</th>
                           <th className="py-3 px-4">Anomaly Type</th>
                           <th className="py-3 px-4">Diagnostic Detail</th>
-                          <th className="py-3 px-4 text-right">Action</th>
+                          <th className="py-3 px-4 text-right">Action Type</th>
                         </tr>
                       </thead>
                       <tbody

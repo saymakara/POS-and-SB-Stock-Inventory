@@ -530,6 +530,17 @@ export async function deleteDevicesOnServer(serials: string[]): Promise<string> 
   }
 }
 
+/** Super Admin: delete every Merchant History record in the database. Returns '' on success or the reason. */
+export async function deleteAllHistoricalMerchantsOnServer(): Promise<string> {
+  if (!isSupabaseConfigured) return '';
+  try {
+    const { error } = await supabase.from('historical_merchants').delete().not('record_id', 'is', null);
+    return error ? error.message : '';
+  } catch (err) {
+    return err instanceof Error ? err.message : 'Network error';
+  }
+}
+
 /** HQ dispatches units for a pending stock request; the database checks every unit and keeps them allocated in HQ stock. */
 export async function dispatchRequisitionOnServer(reqId: string, serials: string[], note?: string): Promise<ArrangedDeviceItem[]> {
   const { data, error } = await supabase.rpc('admin_dispatch_requisition', { p_req_id: reqId, p_serials: serials, p_note: note || null });
@@ -598,6 +609,14 @@ export async function fetchFieldEvents(limit = 500): Promise<FieldEvent[] | null
   ]);
   if (pend.error || done.error) return null;
   return [...(pend.data || []), ...(done.data || [])].map(mapFieldEvent);
+}
+/** branch id -> region ('Phnom Penh' or a province), used to show Phnom Penh or regional records in Phone App Review. */
+export async function fetchBranchRegions(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.from('branches').select('id,region');
+  if (error) return {};
+  const m: Record<string, string> = {};
+  (data || []).forEach((b: any) => { m[String(b.id)] = String(b.region || ''); });
+  return m;
 }
 /** The number of records waiting for review (counted by the database, not limited by a page). */
 export async function countPendingFieldEvents(): Promise<number | null> {

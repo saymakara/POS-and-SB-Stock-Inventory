@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useFlip } from '../utils/useFlip';
 import { createPortal } from 'react-dom';
 import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -60,6 +61,8 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   externalStagedItems,
   onClearExternalArranging,
 }) => {
+  const flipRef = useRef<HTMLTableSectionElement>(null);
+  useFlip(flipRef, [requisitions]);
   const isLight = theme === 'light';
   // Dispatching / approving moves Head Office stock: HQ roles only (the server enforces this too).
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -388,15 +391,15 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
-                <th>Request</th>
+                <th>Request ID &amp; Reason</th>
                 <th>Branch / Requested By</th>
-                <th>Quantity</th>
-                <th>Serials</th>
+                <th>Quantity Requested</th>
+                <th>Serial Numbers</th>
                 <th>Status</th>
-                <th className="text-right col-actions" aria-label="Actions"></th>
+                <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody ref={flipRef}>
               {requisitions.map((req, rowIdx) => {
                 const isReturnReq = req.type === 'STOCK_RETURN';
                 const arranged = req.arrangedDevices || [];
@@ -454,7 +457,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
 
                 const serialList = isReturnReq ? (req.returnSerials || []) : arranged.map((a) => a.serial);
                 return (
-                  <tr key={req.reqId}>
+                  <tr key={req.reqId} data-flip={req.reqId}>
                     <td className="col-no">{rowIdx + 1}</td>
                     <td>
                       <div className="cell-mono whitespace-nowrap">{req.reqId}</div>
@@ -724,7 +727,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     <table className="w-full text-left text-xs">
                       <thead className="glass-table-thead text-[11px] uppercase font-extrabold sticky top-0 z-10 shadow-xs">
                         <tr>
-                          <th className="py-3 px-3.5 w-12 text-center">#</th>
+                          <th className="py-3 px-3.5 w-12 text-center">No.</th>
                           <th className="py-3 px-4 w-36">Device Type</th>
                           <th className="py-3 px-4 w-44">Model</th>
                           <th className="py-3 px-4 min-w-[280px]">Arranged Device Serial *</th>
@@ -887,7 +890,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     <table className="w-full text-left text-xs">
                       <thead className="glass-table-thead text-[11px] uppercase font-extrabold sticky top-0 z-10 shadow-xs">
                         <tr>
-                          <th className="py-2.5 px-3.5 w-12 text-center">#</th>
+                          <th className="py-2.5 px-3.5 w-12 text-center">No.</th>
                           <th className="py-2.5 px-4 w-36">Device Type</th>
                           <th className="py-2.5 px-4 w-44">Model</th>
                           <th className="py-2.5 px-4 min-w-[280px]">Serial Number</th>

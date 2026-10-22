@@ -1753,8 +1753,8 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                       key={evt.eventId}
                       initial={{ opacity: 0, y: -8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
+                      exit={{ opacity: 0, x: 16 }}
+                      transition={{ type: 'spring', stiffness: 420, damping: 36 }}
                       className={`p-4 rounded-2xl border flex flex-col gap-3 backdrop-blur-md transition-all ${
                         isOutOfSync
                           ? 'bg-amber-500/[0.06] border-amber-500/35 shadow-xs'

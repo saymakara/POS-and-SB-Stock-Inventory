@@ -151,7 +151,7 @@ export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; tr
           <table className="w-full text-xs">
             <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wide">
               <tr><th className="text-right px-3 py-2 w-10">No.</th><th className="text-left px-3 py-2">Employee ID</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Role</th>
-                <th className="text-left px-3 py-2">Branch</th><th className="text-left px-3 py-2">Status</th><th className="px-3 py-2" /></tr>
+                <th className="text-left px-3 py-2">Branch Code &amp; Name</th><th className="text-left px-3 py-2">Status</th><th className="px-3 py-2" /></tr>
             </thead>
             <tbody>
               {shown.map((a, rowIdx) => (
