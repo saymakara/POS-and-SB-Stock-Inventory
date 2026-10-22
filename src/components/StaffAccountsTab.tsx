@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useSort, SortTh } from '../utils/sort';
 import { UserCog, Plus, Search, Loader2, KeyRound, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { StaffAccount, fetchStaffAccounts, saveStaffAccount } from '../services/supabaseService';
@@ -22,7 +23,9 @@ function makePassword(): string {
 
 export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; triggerToast: (m: string) => void }> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-  const [list, setList] = useState<StaffAccount[] | null>(null);
+  const CACHE = 'staff_accounts_cache_v1';
+  // the last list is shown at once while the fresh one loads (no empty screen, no waiting)
+  const [list, setList] = useState<StaffAccount[] | null>(() => { try { const c = sessionStorage.getItem('staff_accounts_cache_v1'); return c ? JSON.parse(c) : null; } catch { return null; } });
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
   const [form, setForm] = useState<typeof blank | null>(null);
@@ -35,14 +38,36 @@ export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; tr
     const x = await fetchStaffAccounts();
     if (!x) { setErr('The accounts could not be loaded.'); return; }
     setErr(''); setList(x);
+    try { sessionStorage.setItem('staff_accounts_cache_v1', JSON.stringify(x)); } catch { /* storage blocked: fine */ }
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const branchName = (id: string) => branches.find((b) => b.id === id)?.name || 'Branch ' + id;
-  const shown = useMemo(() => {
-    const s = q.trim().toLowerCase();
+  const branchNames = useMemo(() => { const m = new Map<string, string>(); branches.forEach((b) => m.set(b.id, b.name)); return m; }, [branches]);
+  const branchName = useCallback((id: string) => branchNames.get(id) || 'Branch ' + id, [branchNames]);
+  const dq = useDeferredValue(q);                                      // typing stays instant; the list follows
+  const matched = useMemo(() => {
+    const s = dq.trim().toLowerCase();
     return (list || []).filter((a) => !s || [a.empId, a.name, a.branchId, branchName(a.branchId), ROLE_LABEL[a.role]].some((v) => String(v).toLowerCase().includes(s)));
-  }, [list, q, branches]);
+  }, [list, dq, branchName]);
+  const { sorted: shown, sort: stSort, toggle: stToggle } = useSort<StaffAccount>(matched, {
+    emp: (a) => Number(a.empId) || a.empId, name: (a) => a.name, role: (a) => ROLE_LABEL[a.role], branch: (a) => Number(a.branchId) || a.branchId,
+    status: (a) => (a.active ? (a.mustChangePassword ? 'Active · first password' : 'Active') : 'Off'),
+  });
+  // the first rows appear at once; the rest are added as the list is scrolled
+  const [visible, setVisible] = useState(60);
+  const sentinel = useRef<HTMLDivElement | null>(null);
+  useEffect(() => { setVisible(60); }, [dq, stSort]);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || visible >= shown.length) return;
+    const io = new IntersectionObserver((en) => { if (en.some((x) => x.isIntersecting)) setVisible((v) => v + 80); }, { rootMargin: '500px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visible, shown.length]);
+  const openEdit = useCallback((a: StaffAccount) => {
+    setIsNew(false); setFormErr('');
+    setForm({ emp_id: a.empId, name: a.name, role: a.role, branch_id: a.branchId, position: a.position || '', contact: a.contact || '', active: a.active, password: '' });
+  }, []);
 
   const roleOptions = role === 'SUPER_ADMIN' ? ['BRANCH', 'ADMIN', 'SUPER_ADMIN'] : ['BRANCH'];
   const canEdit = (a: StaffAccount) => role === 'SUPER_ADMIN' || (role === 'ADMIN' && a.role === 'BRANCH');
@@ -149,31 +174,42 @@ export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; tr
         )}
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wide">
-              <tr><th className="text-right px-3 py-2 w-10">No.</th><th className="text-left px-3 py-2">Employee ID</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Role</th>
-                <th className="text-left px-3 py-2">Branch Code &amp; Name</th><th className="text-left px-3 py-2">Status</th><th className="px-3 py-2" /></tr>
+            <thead className="glass-table-thead">
+              <tr><th className="text-right px-3 py-2 w-10">No.</th>
+                <SortTh k="emp" sort={stSort} onSort={stToggle} className="text-left px-3 py-2">Employee ID</SortTh>
+                <SortTh k="name" sort={stSort} onSort={stToggle} className="text-left px-3 py-2">Staff Name</SortTh>
+                <SortTh k="role" sort={stSort} onSort={stToggle} className="text-left px-3 py-2">System Role</SortTh>
+                <SortTh k="branch" sort={stSort} onSort={stToggle} className="text-left px-3 py-2">Branch Code &amp; Name</SortTh>
+                <SortTh k="status" sort={stSort} onSort={stToggle} className="text-left px-3 py-2">Account Status</SortTh>
+                <th className="px-3 py-2 text-right">Actions</th></tr>
             </thead>
             <tbody>
-              {shown.map((a, rowIdx) => (
-                <tr key={a.userId} className="border-t border-slate-100 row-in">
-                  <td className="px-3 py-2 text-right text-slate-500 tabular-nums">{rowIdx + 1}</td>
-                  <td className="px-3 py-2 font-mono font-bold">{a.empId}</td>
-                  <td className="px-3 py-2 font-semibold text-slate-800">{a.name}</td>
-                  <td className="px-3 py-2">{a.role !== 'BRANCH' && <ShieldCheck className="w-3.5 h-3.5 inline mr-1 text-[#003857]" />}{ROLE_LABEL[a.role]}</td>
-                  <td className="px-3 py-2">{a.branchId} · {branchName(a.branchId)}</td>
-                  <td className="px-3 py-2">{a.active ? (a.mustChangePassword ? 'Active · first password' : 'Active') : <span className="text-rose-700 font-bold">Off</span>}</td>
-                  <td className="px-3 py-2 text-right">
-                    {isAdmin && canEdit(a) && (
-                      <button type="button" onClick={() => { setIsNew(false); setFormErr(''); setForm({ emp_id: a.empId, name: a.name, role: a.role, branch_id: a.branchId, position: a.position || '', contact: a.contact || '', active: a.active, password: '' }); }}
-                        className="text-[11px] font-bold text-[#003857] hover:underline cursor-pointer">Edit</button>
-                    )}
-                  </td>
-                </tr>
+              {shown.slice(0, visible).map((a, rowIdx) => (
+                <StaffRow key={a.userId} a={a} no={rowIdx + 1} branchLabel={branchName(a.branchId)} editable={isAdmin && canEdit(a)} onEdit={openEdit} />
               ))}
+              {list && shown.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-slate-500">No accounts match the search.</td></tr>}
             </tbody>
           </table>
+          {visible < shown.length && <div ref={sentinel} className="h-10 flex items-center justify-center text-[11px] text-slate-400">Showing {visible} of {shown.length}…</div>}
         </div>
       </div>
     </div>
   );
 };
+
+/** One account line. Drawn again only when its own data changes, so typing, sorting and scrolling stay quick. */
+const StaffRow = memo(function StaffRow({ a, no, branchLabel, editable, onEdit }: { a: StaffAccount; no: number; branchLabel: string; editable: boolean; onEdit: (a: StaffAccount) => void }) {
+  return (
+    <tr className="border-t border-slate-100 hover:bg-slate-50/80 transition-colors">
+      <td className="px-3 py-2 text-right text-slate-500 tabular-nums">{no}</td>
+      <td className="px-3 py-2 font-mono font-bold">{a.empId}</td>
+      <td className="px-3 py-2 font-semibold text-slate-800">{a.name}</td>
+      <td className="px-3 py-2">{a.role !== 'BRANCH' && <ShieldCheck className="w-3.5 h-3.5 inline mr-1 text-[#003857]" />}{ROLE_LABEL[a.role]}</td>
+      <td className="px-3 py-2">{a.branchId} · {branchLabel}</td>
+      <td className="px-3 py-2">{a.active ? (a.mustChangePassword ? 'Active · first password' : 'Active') : <span className="text-rose-700 font-bold">Off</span>}</td>
+      <td className="px-3 py-2 text-right">
+        {editable && <button type="button" onClick={() => onEdit(a)} className="text-[11px] font-bold text-[#003857] hover:underline cursor-pointer">Edit</button>}
+      </td>
+    </tr>
+  );
+});

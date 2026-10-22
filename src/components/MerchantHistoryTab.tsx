@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useDeferredValue, useRef } from 'react';
 import { useFlip } from '../utils/useFlip';
+import { useSort, SortTh } from '../utils/sort';
 import {
   HistoricalMerchantRecord,
   Branch,
@@ -222,7 +223,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   }, [records]);
 
   // Filtered records
-  const filteredRecords = useMemo(() => {
+  const matchedRecords = useMemo(() => {
     const q = deferredQuery.toLowerCase().trim();
     const reasonQ = reasonFilter.toLowerCase().slice(0, 15);
     return uniqueRecords.filter((rec) => {
@@ -259,6 +260,10 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       return true;
     });
   }, [uniqueRecords, role, selectedBranch, branchFilter, typeFilter, reasonFilter, deferredQuery, showFullContact]);
+  const { sorted: filteredRecords, sort: histSort, toggle: histToggle } = useSort<HistoricalMerchantRecord>(matchedRecords, {
+    returned: (r) => r.returnedDate, type: (r) => r.status, merchant: (r) => r.merchantName, mid: (r) => r.mid, serial: (r) => r.serial,
+    branch: (r) => Number(r.branchId) || r.branchId, service: (r) => r.activeDurationMonths, reason: (r) => r.returnReason,
+  });
 
   // Paging: back to page 1 whenever the filters or search change.
   useEffect(() => {
@@ -660,14 +665,14 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
-                <th>Returned Date</th>
-                <th>Record Type</th>
-                <th>Merchant Name</th>
-                <th>Merchant ID (MID)</th>
-                <th>Serial Number</th>
-                <th>Branch / Staff</th>
-                <th>In Service</th>
-                <th>Return Reason</th>
+                <SortTh k="returned" sort={histSort} onSort={histToggle}>Returned Date</SortTh>
+                <SortTh k="type" sort={histSort} onSort={histToggle}>Record Type</SortTh>
+                <SortTh k="merchant" sort={histSort} onSort={histToggle}>Merchant Name</SortTh>
+                <SortTh k="mid" sort={histSort} onSort={histToggle}>Merchant ID (MID)</SortTh>
+                <SortTh k="serial" sort={histSort} onSort={histToggle}>Serial Number</SortTh>
+                <SortTh k="branch" sort={histSort} onSort={histToggle}>Branch / Staff</SortTh>
+                <SortTh k="service" sort={histSort} onSort={histToggle}>In Service</SortTh>
+                <SortTh k="reason" sort={histSort} onSort={histToggle}>Return Reason</SortTh>
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>

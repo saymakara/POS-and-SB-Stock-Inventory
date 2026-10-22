@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useFlip } from '../utils/useFlip';
+import { useSort, SortTh } from '../utils/sort';
 import {
   Device,
   Branch,
@@ -160,7 +161,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   }, [allDevices]);
 
   // High-Throughput Visible Devices Engine: Zero unnecessary array allocations
-  const visibleDevices = useMemo(() => {
+  const filteredDevices = useMemo(() => {
     const hasBatteryFilter = batteryFilter !== 'ALL';
     const hasMidDeviceFilter = midDeviceFilter !== 'ALL';
     if (!showArchivedView && !hasBatteryFilter && !hasMidDeviceFilter) {
@@ -192,6 +193,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     }
     return result;
   }, [devices, allDevices, showArchivedView, batteryFilter, midDeviceFilter, duplicateMidsMap, today]);
+  // click a column heading to sort the whole list (ascending, descending, original order)
+  const { sorted: visibleDevices, sort: invSort, toggle: invToggle } = useSort<Device>(filteredDevices, {
+    stockIn: (d) => d.stockInDate, serial: (d) => d.serial, type: (d) => d.type, model: (d) => d.model,
+    branch: (d) => Number(d.branchId) || d.branchId, stage: (d) => STAGE_META[d.stage]?.short || d.stage,
+    merchant: (d) => d.merchantName, mid: (d) => d.mid, cycles: (d) => d.redeployCount || 0,
+  });
 
   // Keep only selected serials that are still on screen after a filter / search / view change,
   // so a bulk action never touches units the operator can no longer see.
@@ -931,15 +938,15 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   </button>
                 </th>
                 <th className="py-2.5 px-3 w-10 text-right">No.</th>
-                <th className="py-2.5 px-3">Stock-In Date</th>
-                <th className="py-2.5 px-3">Serial Number</th>
-                <th className="py-2.5 px-3">Device Type</th>
-                <th className="py-2.5 px-3">Model</th>
-                <th className="py-2.5 px-3">Branch Code &amp; Name</th>
-                <th className="py-2.5 px-3">Lifecycle Stage</th>
-                <th className="py-2.5 px-3">Merchant Name</th>
-                <th className="py-2.5 px-3">Merchant ID (MID)</th>
-                <th className="py-2.5 px-3 text-center">Serial Cycles</th>
+                <SortTh k="stockIn" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Stock-In Date</SortTh>
+                <SortTh k="serial" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Serial Number</SortTh>
+                <SortTh k="type" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Device Type</SortTh>
+                <SortTh k="model" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Model</SortTh>
+                <SortTh k="branch" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Branch Code &amp; Name</SortTh>
+                <SortTh k="stage" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Lifecycle Stage</SortTh>
+                <SortTh k="merchant" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Merchant Name</SortTh>
+                <SortTh k="mid" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Merchant ID (MID)</SortTh>
+                <SortTh k="cycles" sort={invSort} onSort={invToggle} align="center" className="py-2.5 px-3 text-center">Serial Cycles</SortTh>
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>

@@ -587,7 +587,7 @@ button:hover:not(:disabled),
 }
 
 /* View Transitions: the page morphs, the sidebar highlight slides to the new item */
-.tab-view { view-transition-name: tab-view; }
+.tab-view { }
 .nav-active-pill { view-transition-name: nav-pill; }
 .nav-active-bar { view-transition-name: nav-bar; }
 ::view-transition-old(root),
@@ -732,3 +732,8 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 .skeleton { background: #eef2f6; animation: syncPulse 1.2s ease-in-out infinite; }
 /* status chips outside .data-table (Phone App Review lines) */
 .chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 9999px; font-size: 10.5px; font-weight: 500; line-height: 1.5; white-space: nowrap; border: 1px solid transparent; }
+
+/* sortable column headings keep the heading look */
+.sort-btn { color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; background: none; border: 0; padding: 0; text-align: inherit; }
+.sort-btn:hover { opacity: 0.85; }
+.sort-btn:active { transform: none !important; }

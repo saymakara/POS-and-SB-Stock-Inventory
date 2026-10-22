@@ -2,6 +2,8 @@ import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef,
 import { Smartphone, Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
+import { useSort, SortState } from '../utils/sort';
+import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { STAGE_META } from '../data/initialData';
 import {
   FieldEvent,
@@ -69,7 +71,7 @@ const resolve = (e: FieldEvent, o?: RowOpt) => ({
   ack: o?.ack ?? false,
 });
 
-export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, triggerToast, onApplied, onOpenWorkflow, scope = 'ALL' }) => {
+export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, triggerToast, onApplied, onOpenWorkflow, scope = 'PHNOM_PENH' }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [events, setEvents] = useState<FieldEvent[] | null>(() => {
     try { const c = sessionStorage.getItem(CACHE_KEY); return c ? (JSON.parse(c) as FieldEvent[]) : null; } catch { return null; }   // instant first paint
@@ -144,8 +146,11 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
 
   const inScope = useCallback((e: FieldEvent) => {
     if (scope !== 'PHNOM_PENH') return true;
-    const r = regions[String(e.branchId || '')];
-    return !r || /phnom\s*penh/i.test(r);
+    if (/province|provincial|regional/i.test(e.branchText || '')) return false;
+    if (!e.branchId) return true;                                   // no branch given yet: kept visible for review
+    if (Object.keys(regions).length === 0) return true;             // regions still loading
+    const r = regions[String(e.branchId)];
+    return r !== undefined && (r === '' || /phnom\s*penh/i.test(r));                          // not a Phnom Penh branch of this system = regional
   }, [scope, regions]);
   const scoped = useMemo(() => (events || []).filter(inScope), [events, inScope]);
 
@@ -160,7 +165,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
     return c;
   }, [scoped, filter]);
 
-  const shown = useMemo(() => {
+  const shownBase = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     return scoped
       .filter((e) => filter === 'ALL' || e.status === filter)
@@ -170,6 +175,11 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
       .sort((a, b) => filter === 'PENDING' ? a.receivedAt.localeCompare(b.receivedAt) : b.receivedAt.localeCompare(a.receivedAt));
   }, [scoped, filter, typeFilter, deferredQuery]);
 
+  const { sorted: shown, sort, toggle: toggleSort } = useSort(shownBase, {
+    type: (e) => e.deviceType, kind: (e) => KIND_LABEL[e.kind], serial: (e) => e.serial,
+    merchant: (e) => e.outletName || e.terminalName, branch: (e) => e.branchText, staff: (e) => e.staffName,
+    status: (e) => STATUS_LABEL[e.status], date: (e) => e.receivedAt,
+  });
   useEffect(() => { setVisible(FIRST); }, [filter, typeFilter, deferredQuery, scope]);
   useEffect(() => {          // more rows are drawn as the list is scrolled: a long list opens at once
     const el = sentinel.current;
@@ -326,22 +336,22 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
       {loadError && <div role="alert" className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">{loadError}</div>}
 
       {/* Section 3 — the records */}
-      <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto" aria-label="Records">
+      <section className="bg-white rounded-2xl border border-slate-300 shadow-xs overflow-x-auto" aria-label="Records">
        <div className="min-w-[980px]">
-        <div className={`${GRID} bg-slate-50 text-slate-500 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5`} role="row">
+        <div className={`${GRID} bg-[#003857] text-white border-b border-slate-300 text-[11px] font-extrabold uppercase tracking-wider px-3 py-2.5`} role="row">
           <span>{isAdmin && shownPending.length > 0 && (
             <button type="button" aria-label={allSelected ? 'Unselect all' : 'Select all waiting'} aria-pressed={allSelected} onClick={() => setSelected(allSelected ? new Set() : new Set(shownPending.map((e) => e.id)))} className="cursor-pointer flex">
               {allSelected ? <CheckSquare className="w-4 h-4 text-[#003857]" /> : <Square className="w-4 h-4 text-slate-400" />}
             </button>
           )}</span>
           <span className="text-right">No.</span>
-          <span>Device Type</span>
-          <span>Record Type</span>
-          <span>Serial Number</span>
-          <span>Merchant Name</span>
-          <span>Branch / Staff</span>
-          <span>Status</span>
-          <span className="text-right">Decision</span>
+          <SortBtn k="type" sort={sort} onSort={toggleSort}>Device Type</SortBtn>
+          <SortBtn k="kind" sort={sort} onSort={toggleSort}>Record Type</SortBtn>
+          <SortBtn k="serial" sort={sort} onSort={toggleSort}>Serial Number</SortBtn>
+          <SortBtn k="merchant" sort={sort} onSort={toggleSort}>Merchant Name</SortBtn>
+          <SortBtn k="branch" sort={sort} onSort={toggleSort}>Branch / Staff</SortBtn>
+          <SortBtn k="status" sort={sort} onSort={toggleSort}>Status</SortBtn>
+          <SortBtn k="date" sort={sort} onSort={toggleSort} right>Decision</SortBtn>
         </div>
 
         {loadingFirst && (
@@ -368,6 +378,12 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
       </section>
     </div>
   );
+};
+
+const SortBtn: React.FC<{ k: string; sort: SortState | null; onSort: (k: string) => void; children: React.ReactNode; right?: boolean }> = ({ k, sort, onSort, children, right }) => {
+  const a = sort?.key === k; const I = !a ? ChevronsUpDown : sort!.dir === 'asc' ? ArrowUp : ArrowDown;
+  return <button type="button" onClick={() => onSort(k)} aria-sort={a ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'} title="Sort: ascending, descending, original order"
+    className={`inline-flex items-center gap-1 cursor-pointer uppercase font-extrabold tracking-wider ${right ? 'justify-end' : ''}`}><span>{children}</span><I className={`w-3 h-3 shrink-0 ${a ? 'opacity-100' : 'opacity-50'}`} aria-hidden /></button>;
 };
 
 /* ---------- one record: a clean line that opens into three labelled sections ---------- */
@@ -403,7 +419,7 @@ const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked
 
   return (
     <motion.div layout="position" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 24, transition: { duration: 0.16 } }} transition={SPRING}
-      className={`border-b border-slate-100 last:border-b-0 ${checked ? 'bg-sky-50/50' : isOpen ? 'bg-slate-50/70' : 'bg-white'}`}>
+      className={`border-b border-slate-300 ${checked ? 'bg-sky-50/50' : isOpen ? 'bg-slate-50/70' : 'bg-white'}`}>
       {/* the clean line */}
       <div className={`${GRID} px-3 py-2.5 text-xs`}>
         <span>{isAdmin && pending && (
