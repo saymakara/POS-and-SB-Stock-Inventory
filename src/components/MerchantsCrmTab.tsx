@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useFlip } from '../utils/useFlip';
+import { useSort, SortTh } from '../utils/sort';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, MerchantProfile } from '../types';
 import { STAGE_META } from '../data/initialData';
@@ -691,7 +692,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     return { valid: errs.length === 0, errors: errs };
   }, [newMerchMid, newMerchTid, newMerchName, newMerchSerial, deviceBySerial, existingTidMap, existingMidMap, role, activeBranchId]);
 
-  const filteredMerchants = useMemo(() => {
+  const matchedMerchants = useMemo(() => {
     return merchantProfiles.filter((m) => {
       if (branchFilter !== 'ALL' && m.branchId !== branchFilter) return false;
       if (statusFilter !== 'ALL' && m.crmStatus !== statusFilter) return false;
@@ -712,6 +713,11 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       return true;
     });
   }, [merchantProfiles, branchFilter, statusFilter, bundleFilter, deviceCountFilter, search, role]);
+  const { sorted: filteredMerchants, sort: crmSort, toggle: crmToggle } = useSort<MerchantProfile>(matchedMerchants, {
+    mid: (m) => m.mid, merchant: (m) => m.merchantName, staff: (m) => m.accountOfficer,
+    device: (m) => m.devices.length, serial: (m) => m.devices[0]?.serial,
+    installed: (m) => m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate, status: (m) => m.crmStatus,
+  });
 
   const selectedMerchantProfile = useMemo(
     () => merchantProfiles.find((m) => m.mid === selectedMid) || null,
@@ -1615,13 +1621,13 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
-                <th>Merchant ID (MID)</th>
-                <th>Merchant Name</th>
-                <th>Staff Name</th>
-                <th>Device Type</th>
-                <th>Serial Number</th>
-                <th>Installed Date</th>
-                <th>Status</th>
+                <SortTh k="mid" sort={crmSort} onSort={crmToggle}>Merchant ID (MID)</SortTh>
+                <SortTh k="merchant" sort={crmSort} onSort={crmToggle}>Merchant Name</SortTh>
+                <SortTh k="staff" sort={crmSort} onSort={crmToggle}>Staff Name</SortTh>
+                <SortTh k="device" sort={crmSort} onSort={crmToggle}>Device Type</SortTh>
+                <SortTh k="serial" sort={crmSort} onSort={crmToggle}>Serial Number</SortTh>
+                <SortTh k="installed" sort={crmSort} onSort={crmToggle}>Installed Date</SortTh>
+                <SortTh k="status" sort={crmSort} onSort={crmToggle}>Status</SortTh>
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>

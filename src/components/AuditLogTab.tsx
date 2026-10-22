@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useSort, SortTh } from '../utils/sort';
 import { UserRole, ThemeMode } from '../types';
 import type { ServerAuditEntry } from '../services/supabaseService';
 import { csvFile } from '../utils/csv';
@@ -168,7 +169,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
     });
   }, [serverMode, serverLogs, auditLogs]);
 
-  const filteredRows = useMemo(() => {
+  const matchedRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     const words = actionFilter !== 'ALL' ? CATEGORY_WORDS[actionFilter] || [] : [];
     return rows.filter((row) => {
@@ -178,6 +179,10 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
       return true;
     });
   }, [rows, search, roleFilter, actionFilter, serverMode]);
+  const { sorted: filteredRows, sort: auSort, toggle: auToggle } = useSort<AuditRow>(matchedRows, {
+    time: (r) => r.time, actor: (r) => r.actor, role: (r) => r.actorRole, branch: (r) => Number(r.branchCode) || r.branchCode,
+    action: (r) => r.title, detail: (r) => r.detail,
+  });
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
 
@@ -415,12 +420,12 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
             <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white sticky top-0 z-20">
               <tr>
                 <th className="py-3 px-3.5 w-10 text-right">No.</th>
-                <th className="py-3 px-3.5 whitespace-nowrap">Date &amp; Time</th>
-                {serverMode && <th className="py-3 px-3.5 whitespace-nowrap">Actor</th>}
-                {serverMode && <th className="py-3 px-3.5 whitespace-nowrap">Role</th>}
-                <th className="py-3 px-3.5 whitespace-nowrap">Branch Code</th>
-                <th className="py-3 px-3.5 whitespace-nowrap">Action Type</th>
-                <th className="py-3 px-3.5 min-w-[260px]">Change Details</th>
+                <SortTh k="time" sort={auSort} onSort={auToggle} className="py-3 px-3.5 whitespace-nowrap">Date &amp; Time</SortTh>
+                {serverMode && <SortTh k="actor" sort={auSort} onSort={auToggle} className="py-3 px-3.5 whitespace-nowrap">Actor</SortTh>}
+                {serverMode && <SortTh k="role" sort={auSort} onSort={auToggle} className="py-3 px-3.5 whitespace-nowrap">Role</SortTh>}
+                <SortTh k="branch" sort={auSort} onSort={auToggle} className="py-3 px-3.5 whitespace-nowrap">Branch Code</SortTh>
+                <SortTh k="action" sort={auSort} onSort={auToggle} className="py-3 px-3.5 whitespace-nowrap">Action Type</SortTh>
+                <SortTh k="detail" sort={auSort} onSort={auToggle} className="py-3 px-3.5 min-w-[260px]">Change Details</SortTh>
               </tr>
             </thead>
             <tbody

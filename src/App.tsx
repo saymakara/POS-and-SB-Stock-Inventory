@@ -2747,7 +2747,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
               {/* Robust Responsive Tab Content with Error Boundary */}
               {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
-              <div key={activeTab} className="tab-view tab-glide">
+              <motion.div key={activeTab} className="tab-view" initial={{ opacity: 0, y: 14, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.7 }} style={{ willChange: 'transform, opacity' }}>
                   <ErrorBoundary>
                   {activeTab === 'dashboard' && (
                     <DashboardTab
@@ -2992,7 +2992,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                         countPendingFieldEvents().then((n) => n !== null && setPendingFieldCount(n));
                       }}
                       onOpenWorkflow={(sn) => setEditingDeviceSerial(sn)}
-                      scope={appSettings.phoneReviewScope || 'ALL'}
+                      scope={appSettings.phoneReviewScope || 'PHNOM_PENH'}
                     />
                   )}
                   {activeTab === 'mobile_sync' && !isSupabaseConfigured && (
@@ -3095,7 +3095,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     </div>
                   )}
                   </ErrorBoundary>
-              </div>
+              </motion.div>
             </main>
           </div>
 

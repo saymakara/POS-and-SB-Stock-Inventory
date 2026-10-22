@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFlip } from '../utils/useFlip';
+import { useSort, SortTh } from '../utils/sort';
 import { createPortal } from 'react-dom';
 import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -62,7 +63,11 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   onClearExternalArranging,
 }) => {
   const flipRef = useRef<HTMLTableSectionElement>(null);
-  useFlip(flipRef, [requisitions]);
+  const { sorted: sortedReqs, sort: reqSort, toggle: reqToggle } = useSort<Requisition>(requisitions, {
+    request: (r) => r.reqId, branch: (r) => Number(r.branchId) || r.branchId, qty: (r) => (r.posQty || 0) + (r.sbQty || 0),
+    serials: (r) => (r.arrangedDevices || []).length, status: (r) => r.status, date: (r) => r.date,
+  });
+  useFlip(flipRef, [sortedReqs]);
   const isLight = theme === 'light';
   // Dispatching / approving moves Head Office stock: HQ roles only (the server enforces this too).
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -391,16 +396,16 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
-                <th>Request ID &amp; Reason</th>
-                <th>Branch / Requested By</th>
-                <th>Quantity Requested</th>
-                <th>Serial Numbers</th>
-                <th>Status</th>
+                <SortTh k="request" sort={reqSort} onSort={reqToggle}>Request ID &amp; Reason</SortTh>
+                <SortTh k="branch" sort={reqSort} onSort={reqToggle}>Branch / Requested By</SortTh>
+                <SortTh k="qty" sort={reqSort} onSort={reqToggle}>Quantity Requested</SortTh>
+                <SortTh k="serials" sort={reqSort} onSort={reqToggle}>Serial Numbers</SortTh>
+                <SortTh k="status" sort={reqSort} onSort={reqToggle}>Status</SortTh>
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
             <tbody ref={flipRef}>
-              {requisitions.map((req, rowIdx) => {
+              {sortedReqs.map((req, rowIdx) => {
                 const isReturnReq = req.type === 'STOCK_RETURN';
                 const arranged = req.arrangedDevices || [];
                 let chip = 'chip-amber';

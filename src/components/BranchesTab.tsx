@@ -1,3 +1,4 @@
+import { useSort, SortTh } from '../utils/sort';
 import React, { useState, useMemo } from 'react';
 import { Branch, Device, User, UserRole, ThemeMode } from '../types';
 import { STAGE_META } from '../data/initialData';
@@ -141,7 +142,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
     };
   }, [branches, activeDevices, users]);
 
-  const enrichedBranches = useMemo(() => {
+  const matchedBranches = useMemo(() => {
     return branches
       .map((b) => {
         const acc = branchDataMap.get(b.code) || {
@@ -187,6 +188,10 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         );
       });
   }, [branches, branchDataMap, users, searchQuery, statusFilter]);
+  const { sorted: enrichedBranches, sort: brSort, toggle: brToggle } = useSort<(typeof matchedBranches)[number]>(matchedBranches, {
+    code: (b) => Number(b.code) || b.code, name: (b) => b.name, pos: (b) => b.posCount, sb: (b) => b.sbCount, total: (b) => b.totalDevices,
+    reserve: (b) => b.reserveCount, live: (b) => b.completeCount, staff: (b) => b.staffCount, status: (b) => (b.lowReserve ? 1 : 0),
+  });
 
   const inspectedBranch = useMemo(
     () => enrichedBranches.find((b) => b.code === inspectedBranchCode) || null,
@@ -459,17 +464,17 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <table className="w-full text-left min-w-[980px]">
               <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
                 <tr>
-                  <th className="py-3 px-3.5 w-10 text-center">No.</th>
+                  <th className="py-3 px-3.5 w-10 text-center"><span className="sr-only">Expand</span></th>
                   <th className="py-3 px-3 w-10 text-right">No.</th>
-                  <th className="py-3 px-3.5">Branch Code</th>
-                  <th className="py-3 px-3.5">Branch Name</th>
-                  <th className="py-3 px-3.5 text-center">POS Terminal</th>
-                  <th className="py-3 px-3.5 text-center">Sound Box</th>
-                  <th className="py-3 px-3.5 text-center">Total Units</th>
-                  <th className="py-3 px-3.5 text-center">Branch Reserve</th>
-                  <th className="py-3 px-3.5 text-center">Live Installed</th>
-                  <th className="py-3 px-3.5 text-center">Staff Officers</th>
-                  <th className="py-3 px-3.5 text-center">Reserve Status</th>
+                  <SortTh k="code" sort={brSort} onSort={brToggle} className="py-3 px-3.5">Branch Code</SortTh>
+                  <SortTh k="name" sort={brSort} onSort={brToggle} className="py-3 px-3.5">Branch Name</SortTh>
+                  <SortTh k="pos" sort={brSort} onSort={brToggle} align="center" className="py-3 px-3.5 text-center">POS Terminal</SortTh>
+                  <SortTh k="sb" sort={brSort} onSort={brToggle} align="center" className="py-3 px-3.5 text-center">Sound Box</SortTh>
+                  <SortTh k="total" sort={brSort} onSort={brToggle} align="center" className="py-3 px-3.5 text-center">Total Units</SortTh>
+                  <SortTh k="reserve" sort={brSort} onSort={brToggle} align="center" className="py-3 px-3.5 text-center">Branch Reserve</SortTh>
+                  <SortTh k="live" sort={brSort} onSort={brToggle} align="center" className="py-3 px-3.5 text-center">Live Installed</SortTh>
+                  <SortTh k="staff" sort={brSort} onSort={brToggle} align="center" className="py-3 px-3.5 text-center">Staff Officers</SortTh>
+                  <SortTh k="status" sort={brSort} onSort={brToggle} align="center" className="py-3 px-3.5 text-center">Reserve Status</SortTh>
                   <th className="py-3 px-3.5 text-right">Actions</th>
                 </tr>
               </thead>

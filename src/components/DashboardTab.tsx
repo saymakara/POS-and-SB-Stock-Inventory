@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSort, SortTh } from '../utils/sort';
 import {
   Device,
   Branch,
@@ -298,6 +299,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       .filter((b) => isAdminLike || b.total > 0)
       .sort((a, b) => b.total - a.total || b.complete - a.complete);
   }, [branches, matrixSource, isAdminLike]);
+
+  // the 8 busiest branches; click a heading to sort them (ascending / descending)
+  const topBranches = useMemo(() => branchVelocity.slice(0, 8), [branchVelocity]);
+  const { sorted: sortedTopBranches, sort: dbSort, toggle: dbToggle } = useSort<(typeof branchVelocity)[number]>(topBranches, {
+    code: (b) => Number(b.code) || b.code, name: (b) => b.name, pos: (b) => b.posCount, sb: (b) => b.sbCount,
+    reserve: (b) => b.reserve, installed: (b) => b.complete, rate: (b) => b.conversion,
+  });
 
   // Battery figures: POS Terminals only (Sound Boxes have no replaceable 24M battery). Units without any date are
   // reported separately instead of being given an invented install date.
@@ -751,13 +759,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <thead className="glass-table-thead text-[11px] font-extrabold uppercase text-white">
                 <tr>
                   <th className="py-3 px-3 w-10 text-right">No.</th>
-                  <th className="py-3 px-4">Branch Code</th>
-                  <th className="py-3 px-4">Branch Name</th>
-                  <th className="py-3 px-3 text-center">POS Terminals</th>
-                  <th className="py-3 px-3 text-center">Sound Boxes</th>
-                  <th className="py-3 px-3 text-center">Branch Reserve</th>
-                  <th className="py-3 px-3 text-center">Installed Units</th>
-                  <th className="py-3 px-4 text-right">Installed Rate</th>
+                  <SortTh k="code" sort={dbSort} onSort={dbToggle} className="py-3 px-4">Branch Code</SortTh>
+                  <SortTh k="name" sort={dbSort} onSort={dbToggle} className="py-3 px-4">Branch Name</SortTh>
+                  <SortTh k="pos" sort={dbSort} onSort={dbToggle} align="center" className="py-3 px-3 text-center">POS Terminals</SortTh>
+                  <SortTh k="sb" sort={dbSort} onSort={dbToggle} align="center" className="py-3 px-3 text-center">Sound Boxes</SortTh>
+                  <SortTh k="reserve" sort={dbSort} onSort={dbToggle} align="center" className="py-3 px-3 text-center">Branch Reserve</SortTh>
+                  <SortTh k="installed" sort={dbSort} onSort={dbToggle} align="center" className="py-3 px-3 text-center">Installed Units</SortTh>
+                  <SortTh k="rate" sort={dbSort} onSort={dbToggle} align="right" className="py-3 px-4 text-right">Installed Rate</SortTh>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/70">
@@ -768,7 +776,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     </td>
                   </tr>
                 )}
-                {branchVelocity.slice(0, 8).map((b, rowIdx) => (
+                {sortedTopBranches.map((b, rowIdx) => (
                   <tr
                     key={b.code}
                     className="hover:bg-slate-50/90 transition-colors"

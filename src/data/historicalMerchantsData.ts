@@ -23,7 +23,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   customLogoUrl: '',
   customLogoTitle: 'POS & Sound Box Stock',
   customLogoSubtitle: 'Branch Operations Portal',
-  phoneReviewScope: 'ALL',
+  phoneReviewScope: 'PHNOM_PENH',
   logoPresetId: 'quantum-sound',
 };
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
+import { useSort, SortTh } from '../utils/sort';
 import { useFlip } from '../utils/useFlip';
 import { User, Branch, UserRole, UserStatus, ThemeMode } from '../types';
 import {
@@ -91,7 +92,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
   );
 
   const deferredSearch = useDeferredValue(searchQuery);                // typing stays instant; the list follows
-  const filteredUsers = useMemo(() => {
+  const matchedUsers = useMemo(() => {
     return users.filter((u) => {
       if (branchFilter !== 'ALL' && u.branchId !== branchFilter) return false;
       if (roleFilter !== 'ALL' && u.accessRole !== roleFilter) return false;
@@ -112,6 +113,10 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
       );
     });
   }, [users, branchFilter, roleFilter, statusFilter, deferredSearch, branchNameByCode]);
+  const { sorted: filteredUsers, sort: uSort, toggle: uToggle } = useSort<(typeof users)[number]>(matchedUsers, {
+    emp: (u) => Number(u.empId) || u.empId, name: (u) => u.name, position: (u) => u.position, code: (u) => Number(u.branchId) || u.branchId,
+    branch: (u) => branchNameByCode.get(u.branchId) || u.branchName, role: (u) => u.accessRole, status: (u) => u.status,
+  });
 
   // The first rows appear at once; the rest are added as the list is scrolled (a long directory no longer blocks the screen)
   const PAGE = 40;
@@ -271,13 +276,13 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
               <tr>
                 <th className="py-3.5 px-4 w-10"></th>
                 <th className="py-3.5 px-2 w-10 text-right">No.</th>
-                <th className="py-3.5 px-3">Employee ID</th>
-                <th className="py-3.5 px-3">Staff Name</th>
-                <th className="py-3.5 px-3">Position</th>
-                <th className="py-3.5 px-3">Branch Code</th>
-                <th className="py-3.5 px-3">Branch Name</th>
-                <th className="py-3.5 px-3">System Role</th>
-                <th className="py-3.5 px-3">Account Status</th>
+                <SortTh k="emp" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Employee ID</SortTh>
+                <SortTh k="name" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Staff Name</SortTh>
+                <SortTh k="position" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Position</SortTh>
+                <SortTh k="code" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Branch Code</SortTh>
+                <SortTh k="branch" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Branch Name</SortTh>
+                <SortTh k="role" sort={uSort} onSort={uToggle} className="py-3.5 px-3">System Role</SortTh>
+                <SortTh k="status" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Account Status</SortTh>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
