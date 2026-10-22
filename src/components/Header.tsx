@@ -113,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
         },
         {
           id: 'mobile_sync',
-          label: 'Mobile Sync',
+          label: 'Phone App Review',
           icon: Smartphone,
           count: webhookCount > 0 ? webhookCount : undefined,
           highlight: webhookCount > 0,
@@ -563,7 +563,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'merchants', label: 'Merchant Deployment' },
     { id: 'merchant_history', label: 'Merchant History' },
-    { id: 'mobile_sync', label: 'Mobile Sync' },
+    { id: 'mobile_sync', label: 'Phone App Review' },
     { id: 'inventory', label: 'Stock Inventory' },
     { id: 'requisitions', label: 'Stock Requests', redPoint: unreadCount > 0 },
     { id: 'branches', label: 'Branch Codes' },

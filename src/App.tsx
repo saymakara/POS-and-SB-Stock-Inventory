@@ -59,9 +59,19 @@ import {
   bulkUpsertDevicesToSupabase,
   bulkUpsertBranchesToSupabase,
   fetchRequisitionsFromSupabase,
-  upsertRequisitionToSupabase,
   subscribeToRealtimeChanges,
+  saveDevicesStrict,
+  saveRequisitionStrict,
+  confirmReceiptOnServer,
+  writeAuditLog,
+  fetchHistoricalMerchantsFromSupabase,
+  insertHistoricalMerchantToSupabase,
+  fetchFieldEvents,
+  subscribeToFieldEvents,
 } from './services/supabaseService';
+import { signOutEverywhere } from './components/AuthGate';
+import { FieldReviewTab } from './components/FieldReviewTab';
+import { StaffAccountsTab } from './components/StaffAccountsTab';
 import {
   loadDevicesFromIdb,
   saveDevicesToIdb,
@@ -116,6 +126,10 @@ const getInitialAuthSession = (): StoredAuthSession | null => {
 };
 
 const INITIAL_WEBHOOK_EVENTS: MobileWebhookEvent[] = [];
+
+// (21 Oct 2026) requests are saved to the database by the change watcher in App (one place, with a clear error);
+// the older direct calls below are kept as no-ops so each action reads as before
+const upsertRequisitionToSupabase = async (_req: Requisition): Promise<boolean> => true;
 
 const INITIAL_NOTIFICATIONS: SystemNotification[] = [];
 
@@ -183,6 +197,7 @@ export function App() {
   });
 
   const [devices, setDevices] = useState<Device[]>(() => {
+    if (isSupabaseConfigured) return [];                               // (21 Oct 2026) the stock comes from the database only
     try {
       // Purge any legacy benchmark cache
       localStorage.removeItem('crm_pos_devices_v11');
@@ -229,6 +244,7 @@ export function App() {
   });
 
   const [requisitions, setRequisitions] = useState<Requisition[]>(() => {
+    if (isSupabaseConfigured) return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_REQS);
       if (saved) return JSON.parse(saved);
@@ -275,6 +291,7 @@ export function App() {
   });
 
   const [historicalMerchants, setHistoricalMerchants] = useState<HistoricalMerchantRecord[]>(() => {
+    if (isSupabaseConfigured) return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_HISTORICAL_MERCHANTS);
       if (saved) return JSON.parse(saved);
@@ -345,6 +362,9 @@ export function App() {
   }, [appSettings]);
 
   useEffect(() => {
+    // (21 Oct 2026) the phone app's records come through the database (Phone App Review); the old /api/v1 stream needs a
+    // server that GitHub Pages cannot run, so it is only used in the local preview
+    if (isSupabaseConfigured) { setSseConnected(false); return; }
     let es: EventSource | null = null;
     try {
       es = new EventSource('/api/v1/stream');
@@ -372,94 +392,97 @@ export function App() {
   const [supabaseConnected, setSupabaseConnected] = useState<boolean>(false);
   const [supabaseLatency, setSupabaseLatency] = useState<number | undefined>();
 
-  // Supabase Cloud Realtime & Initial Data Hydration
-  useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
+  // (21 Oct 2026) The shared database is the record. Everything is loaded from it (nothing from this browser is pushed
+  // up), live changes come in from it, and every change made here goes back to it (see the change watchers below).
+  const syncedDevices = React.useRef<Map<string, Device>>(new Map());
+  const syncedReqs = React.useRef<Map<string, Requisition>>(new Map());
+  const syncedHist = React.useRef<Set<string>>(new Set());
+  const [serverReady, setServerReady] = useState<boolean>(false);
+  const [serverError, setServerError] = useState<string>('');
+  const [pendingFieldCount, setPendingFieldCount] = useState<number>(0);
 
-    async function initSupabase() {
-      if (!isSupabaseConfigured) return;
-
-      const conn = await checkSupabaseConnection();
-      setSupabaseConnected(conn.connected);
-      if (conn.latencyMs !== undefined) {
-        setSupabaseLatency(conn.latencyMs);
-      }
-
-      if (conn.connected) {
-        // 0. Ensure all branches exist in Supabase first
-        if (branches.length > 0) {
-          await bulkUpsertBranchesToSupabase(branches);
-        }
-
-        // 1. Fetch remote devices from Supabase & merge
-        const remoteDevices = await fetchDevicesFromSupabase();
-        if (remoteDevices && remoteDevices.length > 0) {
-          setDevices((prev) => {
-            const map = new Map<string, Device>();
-            prev.forEach((d) => map.set(d.serial, d));
-            remoteDevices.forEach((d) => map.set(d.serial, d));
-            return Array.from(map.values());
-          });
-        } else if (remoteDevices && remoteDevices.length === 0 && devices.length > 0) {
-          bulkUpsertDevicesToSupabase(devices).catch((err) =>
-            console.warn('[Supabase Seed Devices Error]', err)
-          );
-        }
-
-        // 2. Fetch remote requisitions from Supabase & merge
-        const remoteReqs = await fetchRequisitionsFromSupabase();
-        if (remoteReqs && remoteReqs.length > 0) {
-          setRequisitions((prev) => {
-            const map = new Map<string, Requisition>();
-            prev.forEach((r) => map.set(r.reqId, r));
-            remoteReqs.forEach((r) => map.set(r.reqId, r));
-            return Array.from(map.values());
-          });
-        } else if (remoteReqs && remoteReqs.length === 0 && requisitions.length > 0) {
-          requisitions.forEach((r) => {
-            upsertRequisitionToSupabase(r).catch((err) =>
-              console.warn('[Supabase Seed Requisition Error]', err)
-            );
-          });
-        }
-
-        // 3. Attach Postgres CDC WebSocket Realtime listener
-        unsubscribe = subscribeToRealtimeChanges(
-          (updatedDevice) => {
-            setDevices((prev) => {
-              const idx = prev.findIndex((d) => d.serial === updatedDevice.serial);
-              if (idx >= 0) {
-                const next = [...prev];
-                next[idx] = updatedDevice;
-                return next;
-              }
-              return [updatedDevice, ...prev];
-            });
-          },
-          (updatedReq) => {
-            setRequisitions((prev) => {
-              const idx = prev.findIndex((r) => r.reqId === updatedReq.reqId);
-              if (idx >= 0) {
-                const next = [...prev];
-                next[idx] = updatedReq;
-                return next;
-              }
-              return [updatedReq, ...prev];
-            });
-          }
-        );
-      }
+  const reloadFromServer = useCallback(async (): Promise<boolean> => {
+    const [devs, reqs, hist] = await Promise.all([
+      fetchDevicesFromSupabase(),
+      fetchRequisitionsFromSupabase(),
+      fetchHistoricalMerchantsFromSupabase(),
+    ]);
+    if (devs) {
+      syncedDevices.current = new Map(devs.map((d) => [d.serial, d]));
+      setDevices(devs);
     }
+    if (reqs) {
+      syncedReqs.current = new Map(reqs.map((r) => [r.reqId, r]));
+      setRequisitions(reqs);
+    }
+    if (hist) {
+      syncedHist.current = new Set(hist.map((h) => h.recordId));
+      setHistoricalMerchants(hist);
+    }
+    return Boolean(devs && reqs && hist);
+  }, []);
 
-    initSupabase();
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let alive = true;
+    let unsubscribe: () => void = () => {};
+    let unsubscribeField: () => void = () => {};
+    const countPending = () =>
+      fetchFieldEvents(1000).then((list) => {
+        if (alive && list) setPendingFieldCount(list.filter((e) => e.status === 'PENDING').length);
+      });
+    (async () => {
+      const conn = await checkSupabaseConnection();
+      if (!alive) return;
+      setSupabaseConnected(conn.connected);
+      if (conn.latencyMs !== undefined) setSupabaseLatency(conn.latencyMs);
+      const loaded = await reloadFromServer();
+      if (!alive) return;
+      if (!loaded) {
+        setServerError('The stock could not be loaded from the server. Nothing you change now is saved – please reload the page.');
+        return;
+      }
+      setServerReady(true);
+      unsubscribe = subscribeToRealtimeChanges(
+        (updatedDevice) => {
+          syncedDevices.current.set(updatedDevice.serial, updatedDevice);   // (came from the server: not sent back)
+          setDevices((prev) => {
+            const idx = prev.findIndex((d) => d.serial === updatedDevice.serial);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = updatedDevice;
+              return next;
+            }
+            return [updatedDevice, ...prev];
+          });
+        },
+        (updatedReq) => {
+          syncedReqs.current.set(updatedReq.reqId, updatedReq);
+          setRequisitions((prev) => {
+            const idx = prev.findIndex((r) => r.reqId === updatedReq.reqId);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = updatedReq;
+              return next;
+            }
+            return [updatedReq, ...prev];
+          });
+        }
+      );
+      countPending();
+      unsubscribeField = subscribeToFieldEvents(() => countPending());
+    })();
 
     return () => {
-      unsubscribe?.();
+      alive = false;
+      unsubscribe();
+      unsubscribeField();
     };
-  }, []);
+  }, [reloadFromServer]);
 
   // High-Volume Device Hydration from IndexedDB (supports up to 500,000+ rows)
   useEffect(() => {
+    if (isSupabaseConfigured) return;                                  // (21 Oct 2026) the database is the record
     let isMounted = true;
     loadDevicesFromIdb()
       .then((idbDevices) => {
@@ -681,9 +704,51 @@ export function App() {
         `${now} | ${actionTitle} | ${actorDesc} — ${detailText}`,
         ...prev.slice(0, 199),
       ]);
+      // (21 Oct 2026) also in the server's audit log, where the database stamps who and when (nobody can edit it)
+      void writeAuditLog(actionTitle, detailText);
     },
     [role, authUsername, activeAdminStaff, selectedBranch, selectedStaffUser]
   );
+
+  // ---- (21 Oct 2026) change watchers: every device, request and merchant-history record changed in this app goes to
+  // the database. A change the server refuses (e.g. not your branch) is said plainly and the lists are reloaded, so the
+  // screen never shows something that was not saved.
+  const pushDevices = useCallback(async (changed: Device[]) => {
+    const err = await saveDevicesStrict(changed);
+    if (err) {
+      triggerToast(`Not saved to the server: ${/row-level security|permission|42501/i.test(err) ? 'you do not have access to change this device' : err}. The list was reloaded.`);
+      reloadFromServer();
+    }
+  }, [triggerToast, reloadFromServer]);
+  useEffect(() => {
+    if (!isSupabaseConfigured || !serverReady) return;
+    const changed = devices.filter((d) => syncedDevices.current.get(d.serial) !== d);
+    if (!changed.length) return;
+    changed.forEach((d) => syncedDevices.current.set(d.serial, d));
+    pushDevices(changed);
+  }, [devices, serverReady, pushDevices]);
+  useEffect(() => {
+    if (!isSupabaseConfigured || !serverReady) return;
+    const changed = requisitions.filter((r) => syncedReqs.current.get(r.reqId) !== r);
+    if (!changed.length) return;
+    changed.forEach((r) => syncedReqs.current.set(r.reqId, r));
+    Promise.all(changed.map((r) => saveRequisitionStrict(r))).then((errs) => {
+      const err = errs.find(Boolean);
+      if (err) {
+        triggerToast(`Request not saved to the server: ${/row-level security|permission|42501/i.test(err) ? 'you do not have access to this request' : err}. The list was reloaded.`);
+        reloadFromServer();
+      }
+    });
+  }, [requisitions, serverReady, triggerToast, reloadFromServer]);
+  useEffect(() => {
+    if (!isSupabaseConfigured || !serverReady) return;
+    const fresh = historicalMerchants.filter((h) => !syncedHist.current.has(h.recordId));
+    if (!fresh.length) return;
+    fresh.forEach((h) => syncedHist.current.add(h.recordId));
+    Promise.all(fresh.map((h) => insertHistoricalMerchantToSupabase(h))).then((oks) => {
+      if (oks.some((x) => !x)) triggerToast('A merchant history record was not saved to the server.');
+    });
+  }, [historicalMerchants, serverReady, triggerToast]);
 
   const handleExportBackup = useCallback(() => {
     const backupData = {
@@ -987,15 +1052,8 @@ export function App() {
       lastSyncedTime: prev.lastSyncedTime,
     }));
 
-    // 3. Fire-and-forget background push to Supabase if configured
-    if (isSupabaseConfigured) {
-      const itemsToSync = syncPayload || devicesRef.current.filter((d) => serials.includes(d.serial));
-      if (itemsToSync.length > 0) {
-        bulkUpsertDevicesToSupabase(itemsToSync).catch((err) => {
-          console.warn('[Supabase Sync Error]', err);
-        });
-      }
-    }
+    // 3. (21 Oct 2026) saved to the database by the change watcher (devices), with an error shown if refused
+    void syncPayload;
 
     // 4. Asynchronous background cloud persistence queue (simulating Supabase/REST commit without blocking user thread)
     setTimeout(() => {
@@ -2041,6 +2099,16 @@ export function App() {
   };
 
   const handleReceiveRequisition = (reqId: string) => {
+    if (isSupabaseConfigured) {
+      confirmReceiptOnServer(reqId)
+        .then(({ moved, skipped }) => {
+          reloadFromServer();
+          addAuditLog('Requisition Received', `Receipt of ${reqId} confirmed: ${moved.length} unit(s) received`);
+          triggerToast(`Confirmed receipt of ${reqId}: ${moved.length} unit(s) received` + (skipped.length ? `; not moved (not in HQ stock): ${skipped.join(', ')}` : ''));
+        })
+        .catch((e) => triggerToast(`Receipt not confirmed: ${e instanceof Error ? e.message : e}`));
+      return;
+    }
     let updated: Requisition | null = null;
     setRequisitions((prev) =>
       prev.map((r) => {
@@ -2790,7 +2858,7 @@ export function App() {
         totalDevices={filteredInventory.length}
         totalMerchants={uniqueMerchantsCount}
         totalHistoricalMerchants={historicalMerchants.length}
-        webhookCount={outOfSyncWebhooksCount}
+        webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
         pendingReqs={pendingReqsCount}
         totalBranches={branches.length}
         totalUsers={users.length}
@@ -2890,6 +2958,10 @@ export function App() {
               addAuditLog('Session Manually Locked', 'Workstation session manually locked by operator');
             }}
             onSignOut={() => {
+              if (isSupabaseConfigured) {                                  // (21 Oct 2026) the server session ends; this browser keeps nothing
+                writeAuditLog('Session Terminated', 'Signed out').finally(() => signOutEverywhere());
+                return;
+              }
               try {
                 localStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
                 sessionStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
@@ -2912,7 +2984,7 @@ export function App() {
             totalDevices={filteredInventory.length}
             totalMerchants={uniqueMerchantsCount}
             totalHistoricalMerchants={historicalMerchants.length}
-            webhookCount={outOfSyncWebhooksCount}
+            webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
             sseConnected={sseConnected}
             pendingReqs={pendingReqsCount}
             totalUsers={users.length}
@@ -3124,7 +3196,10 @@ export function App() {
                     />
                   )}
 
-                  {(activeTab === 'users' || activeTab === 'iam') && (
+                  {(activeTab === 'users' || activeTab === 'iam') && isSupabaseConfigured && (
+                    <StaffAccountsTab role={role} branches={branches} triggerToast={triggerToast} />
+                  )}
+                  {(activeTab === 'users' || activeTab === 'iam') && !isSupabaseConfigured && (
                     <IamUsersTab
                       users={users}
                       branches={branches}
@@ -3193,7 +3268,20 @@ export function App() {
                     />
                   )}
 
-                  {activeTab === 'mobile_sync' && (
+                  {activeTab === 'mobile_sync' && isSupabaseConfigured && (
+                    <FieldReviewTab
+                      role={role}
+                      branches={branches}
+                      devices={devices}
+                      triggerToast={triggerToast}
+                      onApplied={() => {
+                        reloadFromServer();
+                        fetchFieldEvents(1000).then((list) => list && setPendingFieldCount(list.filter((e) => e.status === 'PENDING').length));
+                      }}
+                      onOpenWorkflow={(sn) => setEditingDeviceSerial(sn)}
+                    />
+                  )}
+                  {activeTab === 'mobile_sync' && !isSupabaseConfigured && (
                     <MobileSyncTab
                       devices={devices}
                       branches={branches}
