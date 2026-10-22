@@ -618,6 +618,16 @@ export async function fetchBranchRegions(): Promise<Record<string, string>> {
   (data || []).forEach((b: any) => { m[String(b.id)] = String(b.region || ''); });
   return m;
 }
+/** Waiting records only: small and fast, so the review list can paint first. */
+export async function fetchPendingFieldEvents(): Promise<FieldEvent[] | null> {
+  const { data, error } = await supabase.from('field_events').select('*').eq('status', 'PENDING').order('received_at', { ascending: true }).limit(5000);
+  return error ? null : (data || []).map(mapFieldEvent);
+}
+/** Already reviewed records (approved / rejected / withdrawn), loaded in the background after the waiting ones. */
+export async function fetchReviewedFieldEvents(limit = 600): Promise<FieldEvent[] | null> {
+  const { data, error } = await supabase.from('field_events').select('*').neq('status', 'PENDING').order('received_at', { ascending: false }).limit(limit);
+  return error ? null : (data || []).map(mapFieldEvent);
+}
 /** The number of records waiting for review (counted by the database, not limited by a page). */
 export async function countPendingFieldEvents(): Promise<number | null> {
   const { count, error } = await supabase.from('field_events').select('id', { count: 'exact', head: true }).eq('status', 'PENDING');

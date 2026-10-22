@@ -726,3 +726,9 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* live dot: a soft opacity pulse; skeleton lines while the first records load */
+.sync-dot { animation: syncPulse 1.6s cubic-bezier(0.32, 0.72, 0, 1) infinite; }
+.skeleton { background: #eef2f6; animation: syncPulse 1.2s ease-in-out infinite; }
+/* status chips outside .data-table (Phone App Review lines) */
+.chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 9999px; font-size: 10.5px; font-weight: 500; line-height: 1.5; white-space: nowrap; border: 1px solid transparent; }
