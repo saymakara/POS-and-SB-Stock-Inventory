@@ -687,7 +687,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
         <div className={`${cardSurface} p-4.5 rounded-2xl flex items-center justify-between relative overflow-hidden backdrop-blur-xl border border-white/10 shadow-sm transition-all`}>
           <div>
             <span className={`text-[11px] font-bold uppercase tracking-wider ${subtextClass}`}>Synced Events</span>
-            <div className={`text-2xl font-black font-mono tabular-nums tracking-tight mt-1 ${headingClass}`}>
+            <div className={`text-2xl font-black font-figure tabular-nums tracking-tight mt-1 ${headingClass}`}>
               {webhookEvents.length}
             </div>
             <span className={`text-[11px] font-medium mt-1 block ${subtextClass}`}>
@@ -703,7 +703,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
         <div className={`${cardSurface} p-4.5 rounded-2xl flex items-center justify-between relative overflow-hidden backdrop-blur-xl border border-white/10 shadow-sm transition-all`}>
           <div>
             <span className={`text-[11px] font-bold uppercase tracking-wider ${subtextClass}`}>Verified Serials</span>
-            <div className={`text-2xl font-black font-mono tabular-nums tracking-tight mt-1 ${headingClass}`}>
+            <div className={`text-2xl font-black font-figure tabular-nums tracking-tight mt-1 ${headingClass}`}>
               {reconciliationReport.verifiedMatches.length}
             </div>
             <span className="text-[11px] font-bold text-emerald-500 mt-1 block">
@@ -735,7 +735,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
             </div>
             <div className="flex items-baseline gap-2 mt-1">
               <span
-                className={`text-2xl font-black font-mono tabular-nums ${
+                className={`text-2xl font-black font-figure tabular-nums ${
                   reconciliationReport.totalDiscrepancies > 0
                     ? 'text-amber-500'
                     : 'text-emerald-400'

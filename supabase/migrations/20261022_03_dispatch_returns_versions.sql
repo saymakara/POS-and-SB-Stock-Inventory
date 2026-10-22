@@ -219,3 +219,14 @@ create index if not exists idx_devices_allocated on public.devices ((custom_fiel
 alter table public.historical_merchants add column if not exists installed_by_staff text;
 alter table public.historical_merchants add column if not exists replaced_by_staff text;
 alter table public.historical_merchants add column if not exists returned_by_staff text;
+
+-- 9. A MID is digits only. This refuses Excel's shortened form (e.g. "1.00001E+14", where the real digits are lost).
+--    NOT VALID: rows saved before this rule are kept (and shown as "check MID") until corrected.
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'devices_mid_digits') then
+    alter table public.devices add constraint devices_mid_digits check (mid is null or mid = '' or mid ~ '^[0-9]+$') not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'hist_mid_digits') then
+    alter table public.historical_merchants add constraint hist_mid_digits check (mid is null or mid = '' or mid ~ '^[0-9]+$') not valid;
+  end if;
+end $$;

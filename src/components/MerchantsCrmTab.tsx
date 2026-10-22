@@ -6,18 +6,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Store,
   Search,
-  MapPin,
   Cpu,
   Volume2,
-  Calendar,
   CheckCircle2,
   Clock,
   AlertTriangle,
   Plus,
-  ExternalLink,
   X,
   Building2,
-  UserCheck,
   RotateCcw,
   Layers,
   ShieldCheck,
@@ -46,6 +42,7 @@ import {
   Legend,
 } from 'recharts';
 import { parseCsv } from '../utils/csv';
+import { hasKhmer, isValidMid, normalizeMid } from '../utils/display';
 import { newRecordId } from '../utils/ids';
 import { lastMonthsPP, todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';
@@ -914,7 +911,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     return dataRows.map((parts) => ({
       id: newRecordId('ROW'),
       serial: at(parts, sIdx),
-      mid: at(parts, mIdx),
+      mid: normalizeMid(at(parts, mIdx)),
       tid: at(parts, tIdx),
       merchantName: at(parts, nIdx),
       merchantPhone: at(parts, pIdx),
@@ -975,7 +972,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     return {
       ...r,
       serial: r.serial.trim().toUpperCase().replace(/\s+/g, ''),
-      mid: /^\d+$/.test(midDigits) ? midDigits : mid.toUpperCase(),
+      mid: /^\d+$/.test(midDigits) ? midDigits : normalizeMid(mid).toUpperCase(),
       tid: r.tid.trim().toUpperCase().replace(/\s+/g, ''),
       merchantName: r.merchantName.trim().replace(/\s+/g, ' '),
       merchantPhone: r.merchantPhone.trim().replace(/\s+/g, ' '),
@@ -998,7 +995,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     const stageFields = bindStageFields();
     const payload: Array<MerchantBindPayload & { serial: string }> = assignable.map((r) => ({
       serial: r.deviceMatch!.serial,
-      mid: r.mid.trim().toUpperCase(),
+      mid: normalizeMid(r.mid).toUpperCase(),
       tid: r.tid.trim().toUpperCase(),
       merchantName: r.merchantName.trim(),
       merchantPhone: cleanPhone(r.merchantPhone),
@@ -1039,7 +1036,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     e.preventDefault();
     if (!bindModalMerchant || !selectedReserveSerial || !singleBindValidation.valid) return;
     onBindDeviceToMerchant(selectedReserveSerial, {
-      mid: bindModalMerchant.mid.trim(),
+      mid: normalizeMid(bindModalMerchant.mid),
       tid: newTidInput.trim().toUpperCase(),
       merchantName: bindModalMerchant.merchantName.trim(),
       merchantPhone: cleanPhone(bindModalMerchant.merchantPhone),
@@ -1091,7 +1088,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     const dev = deviceBySerial.get(newMerchSerial.trim().toUpperCase());
     if (!dev) return;
     onBindDeviceToMerchant(dev.serial, {
-      mid: newMerchMid.trim().toUpperCase(),
+      mid: normalizeMid(newMerchMid).toUpperCase(),
       tid: newMerchTid.trim().toUpperCase(),
       merchantName: newMerchName.trim(),
       merchantPhone: cleanPhone(newMerchPhone),
@@ -1182,13 +1179,13 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             </div>
           </div>
           <div
-            className={`text-2xl sm:text-3xl font-extrabold font-mono tabular-nums mt-2 ${headingClass}`}
+            className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
           >
             {totalMerchants}
           </div>
           <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
             <span>Registered MIDs</span>
-            <span className="text-emerald-400 font-semibold font-mono">{activeMerchants} Live</span>
+            <span className="text-emerald-400 font-semibold font-figure">{activeMerchants} Live</span>
           </div>
         </div>
 
@@ -1202,7 +1199,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             </div>
           </div>
           <div
-            className={`text-2xl sm:text-3xl font-extrabold font-mono tabular-nums mt-2 ${headingClass}`}
+            className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
           >
             {bundleMerchants}
           </div>
@@ -1222,7 +1219,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             </div>
           </div>
           <div
-            className={`text-2xl sm:text-3xl font-extrabold font-mono tabular-nums mt-2 ${headingClass}`}
+            className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
           >
             {onboardingMerchants}
           </div>
@@ -1242,7 +1239,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             </div>
           </div>
           <div
-            className={`text-2xl sm:text-3xl font-extrabold font-mono tabular-nums mt-2 ${headingClass}`}
+            className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
           >
             {attentionMerchants}
           </div>
@@ -1615,204 +1612,96 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
         </motion.button>
       </div>
 
-      {/* Merchant 360 Registry Table */}
+      {/* Merchant 360 Registry Table (22 Oct 2026: one clean style, Khmer in Battambang) */}
       <div className={`${cardClass} border rounded-xl overflow-hidden`}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] text-left text-xs">
-            <thead className="glass-table-thead text-[11px] uppercase tracking-wider font-extrabold">
+          <table className="data-table min-w-[900px]">
+            <thead className="glass-table-thead">
               <tr>
-                <th className="py-3.5 px-4">Merchant ID (MID)</th>
-                <th className="py-3.5 px-4">Merchant Name</th>
-                <th className="py-3.5 px-4">Staff Name</th>
-                <th className="py-3.5 px-4">Product Types</th>
-                <th className="py-3.5 px-4">Terminal Serial</th>
-                <th className="py-3.5 px-4">Installation Date</th>
-                <th className="py-3.5 px-4">STATUS</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th>MID</th>
+                <th>Merchant</th>
+                <th>Staff</th>
+                <th>Device</th>
+                <th>Serial</th>
+                <th>Installed</th>
+                <th>Status</th>
+                <th className="text-right col-actions" aria-label="Actions"></th>
               </tr>
             </thead>
-            <tbody className={`divide-y ${isLight ? 'divide-slate-200' : 'divide-white/[0.05]'}`}>
+            <tbody>
               {pagedMerchants.map((m) => {
-                let statusBadge = isLight
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25';
-                let statusLabel = 'Active Live';
-
-                if (m.crmStatus === 'ONBOARDING') {
-                  statusBadge = isLight
-                    ? 'bg-amber-50 text-amber-800 border-amber-200'
-                    : 'bg-amber-500/10 text-amber-300 border-amber-500/25';
-                  statusLabel = 'Pending Install';
-                } else if (m.crmStatus === 'ATTENTION') {
-                  statusBadge = isLight
-                    ? 'bg-rose-50 text-rose-800 border-rose-200'
-                    : 'bg-rose-500/10 text-rose-300 border-rose-500/25';
-                  statusLabel = 'RMA / Faulty';
-                }
-
+                const chip = m.crmStatus === 'ONBOARDING' ? 'chip-amber' : m.crmStatus === 'ATTENTION' ? 'chip-red' : 'chip-green';
+                const statusLabel = m.crmStatus === 'ONBOARDING' ? 'Pending install' : m.crmStatus === 'ATTENTION' ? 'Faulty / RMA' : 'Live';
+                const installDate = m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate || '—';
+                const deviceCount = m.devices ? m.devices.length : 0;
                 return (
-                  <tr
-                    key={m.mid}
-                    className={`transition ${
-                      isLight ? 'hover:bg-[#eef5f9]' : 'hover:bg-[#003857]/20'
-                    }`}
-                  >
-                    <td className="py-3.5 px-4">
-                      <div className="flex flex-col items-start gap-1">
-                        <span
-                          className={`font-mono text-xs px-2 py-0.5 rounded-md border inline-block ${
-                            isLight
-                              ? 'bg-[#eef5f9] text-[#003857] border-[#003857]/25'
-                              : 'bg-[#003857]/40 text-[#7cc4ed] border-[#005a8c]/50'
-                          }`}
-                        >
-                          {m.mid}
-                        </span>
-                        <span
-                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${
-                            isLight
-                              ? 'bg-slate-100 text-slate-700 border-slate-200'
-                              : 'bg-white/5 text-slate-300 border-white/10'
-                          }`}
-                        >
-                          {m.devices ? m.devices.length : 0} {m.devices?.length === 1 ? 'Serial' : 'Serials'}
-                        </span>
+                  <tr key={m.mid}>
+                    <td className="whitespace-nowrap">
+                      <div className={`cell-mono ${isValidMid(m.mid) ? '' : 'warn-text'}`} title={isValidMid(m.mid) ? 'Merchant ID' : 'This MID is not 15 digits. Please correct it.'}>
+                        {m.mid}{isValidMid(m.mid) ? '' : ' ⚠'}
                       </div>
+                      {deviceCount > 1 && <div className="cell-sub">{deviceCount} units</div>}
                     </td>
-
-                    <td className="py-3.5 px-4">
-                      <div className={`text-xs sm:text-[13px] font-bold ${headingClass}`}>
+                    <td>
+                      <div className={`cell-main max-w-[230px] truncate ${hasKhmer(m.merchantName) ? 'khmer' : ''}`} title={m.merchantName}>
                         {dash(m.merchantName)}
                       </div>
                       {m.address && (
-                        <div className={`flex items-center gap-1 text-[11px] ${subtextClass} mt-0.5 truncate max-w-[220px]`}>
-                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span className="truncate">{m.address}</span>
-                        </div>
+                        <div className={`cell-sub max-w-[230px] truncate ${hasKhmer(m.address) ? 'khmer' : ''}`} title={m.address}>{m.address}</div>
                       )}
                     </td>
-
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-xs text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                        <UserCheck className="w-3.5 h-3.5 text-[#005a8c] dark:text-[#7cc4ed] shrink-0" />
-                        <span>{dash(m.accountOfficer)}</span>
+                    <td>
+                      <div className={`cell-main font-medium max-w-[190px] truncate ${hasKhmer(m.accountOfficer) ? 'khmer' : ''}`} title={m.accountOfficer}>
+                        {dash(m.accountOfficer)}
                       </div>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span
-                          className={`font-mono px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                            isLight
-                              ? 'bg-[#eef5f9] text-[#003857] border border-[#003857]/20'
-                              : 'bg-white/[0.06] text-slate-300 border border-white/[0.08]'
-                          }`}
-                        >
-                          Code {m.branchId}
-                        </span>
-                        <span
-                          className={`text-[11px] truncate max-w-[150px] ${
-                            isLight ? 'text-slate-500' : 'text-slate-400'
-                          }`}
-                        >
-                          {m.branchName.replace(' Branch', '')}
-                        </span>
+                      <div className="cell-sub max-w-[190px] truncate">
+                        Code {m.branchId} · {m.branchName.replace(' Branch', '')}
                       </div>
                     </td>
-
-                    <td className="py-3.5 px-4">
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        {m.posCount > 0 && (
-                          <div className="flex items-center gap-1.5 whitespace-nowrap">
-                            <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                            <span className="text-slate-700 text-xs">
-                              POS Terminal
-                            </span>
-                            {m.posCount > 1 && (
-                              <span className="text-[10px] font-mono text-slate-500">
-                                ({m.posCount})
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {m.sbCount > 0 && (
-                          <div className="flex items-center gap-1.5 whitespace-nowrap">
-                            <Volume2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                            <span className="text-slate-700 text-xs">
-                              Sound Box
-                            </span>
-                            {m.sbCount > 1 && (
-                              <span className="text-[10px] font-mono text-slate-500">
-                                ({m.sbCount})
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {m.posCount === 0 && m.sbCount === 0 && (
-                          <span className="text-slate-400 text-xs">-</span>
-                        )}
-                      </div>
+                    <td className="whitespace-nowrap">
+                      {m.posCount > 0 && (
+                        <div className="cell-main font-medium flex items-center gap-1.5">
+                          <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />
+                          POS Terminal{m.posCount > 1 ? ` ×${m.posCount}` : ''}
+                        </div>
+                      )}
+                      {m.sbCount > 0 && (
+                        <div className="cell-main font-medium flex items-center gap-1.5">
+                          <Volume2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" aria-hidden />
+                          Sound Box{m.sbCount > 1 ? ` ×${m.sbCount}` : ''}
+                        </div>
+                      )}
+                      {m.posCount === 0 && m.sbCount === 0 && <span className="cell-sub">—</span>}
                     </td>
-
-                    <td className="py-3.5 px-4">
-                      {m.devices && m.devices.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 max-w-[320px]">
+                    <td>
+                      {deviceCount > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 max-w-[300px]">
                           {m.devices.map((dev) => (
                             <button
                               key={dev.serial}
                               type="button"
                               onClick={() => onOpenWorkflow(dev.serial)}
-                              title={`Click to configure ${dev.serial} (${dev.model})`}
-                              className={`font-mono text-xs px-2.5 py-1 rounded-md border transition inline-flex items-center cursor-pointer ${
-                                isLight
-                                  ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#003857] hover:underline border-slate-200'
-                                  : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10'
-                              }`}
+                              title={`Open ${dev.serial}${dev.model ? ` (${dev.model})` : ''}`}
+                              className="serial-btn"
                             >
-                              <span className="font-mono text-xs">
-                                {dev.serial}
-                              </span>
+                              {dev.serial}
                             </button>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-slate-400 font-mono text-xs">-</span>
+                        <span className="cell-sub">—</span>
                       )}
                     </td>
-
-                    <td className="py-3.5 px-4 font-mono text-xs whitespace-nowrap">
-                      {(() => {
-                        // Installation date only (a stock-in or update date is not an installation).
-                        const installDate =
-                          m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate || '—';
-                        return (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 font-bold text-slate-900 border border-slate-200">
-                            <Calendar className="w-3 h-3 text-slate-500" />
-                            <span>{installDate}</span>
-                          </span>
-                        );
-                      })()}
+                    <td className="whitespace-nowrap">
+                      <div className="cell-mono">{installDate}</div>
                     </td>
-
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold border ${statusBadge}`}
-                      >
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>{statusLabel}</span>
-                      </span>
+                    <td className="whitespace-nowrap">
+                      <span className={`chip ${chip}`}>{statusLabel}</span>
                     </td>
-
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end">
-                        <motion.button
-                          whileTap={{ scale: 0.94 }}
-                          type="button"
-                          onClick={() => setSelectedMid(m.mid)}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                          title="Open Merchant 360 View"
-                        >
-                          <span>360 View</span>
-                          <ExternalLink className="w-3 h-3 text-sky-200" />
-                        </motion.button>
-                      </div>
+                    <td className="text-right col-actions">
+                      <button type="button" onClick={() => setSelectedMid(m.mid)} className="row-btn" title="Open the merchant's 360 view">
+                        360 View
+                      </button>
                     </td>
                   </tr>
                 );
@@ -1820,8 +1709,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
               {filteredMerchants.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400 text-xs">
-                    No merchant CRM records match your current filter criteria.
+                  <td colSpan={8} className="py-12 text-center">
+                    <span className="cell-sub">No merchants match the search or filters.</span>
                   </td>
                 </tr>
               )}

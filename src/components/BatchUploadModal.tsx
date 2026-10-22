@@ -26,6 +26,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { normalizeMid } from '../utils/display';
 import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
 
@@ -322,7 +323,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         stage: stage || fallbackStage,
         stockInDate,
         merchantName: cell(row, 'merchantName'),
-        mid: cell(row, 'mid'),
+        mid: normalizeMid(cell(row, 'mid')),
         tid: cell(row, 'tid'),
         redeployCount,
         isDuplicate: false,

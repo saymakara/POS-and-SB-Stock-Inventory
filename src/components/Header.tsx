@@ -247,12 +247,16 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                           : 'px-3 justify-between py-2'
                       } rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-all duration-150 z-10 ${
                         isActive
-                          ? 'font-medium text-white bg-white/12 border border-white/15 shadow-xs'
-                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06]'
+                          ? 'font-medium text-white border border-transparent'
+                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] border border-transparent'
                       }`}
                     >
+                      {/* (22 Oct 2026) the highlight is its own layer, so it morphs from the old item to the new one */}
                       {isActive && (
-                        <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90" />
+                        <>
+                          <div aria-hidden className="nav-active-pill absolute inset-0 rounded-xl bg-white/12 border border-white/15 shadow-xs -z-10" />
+                          <div aria-hidden className="nav-active-bar absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90" />
+                        </>
                       )}
 
                       <div className="relative flex items-center gap-2.5 min-w-0">
@@ -273,7 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       {/* Subtle Counter Badge (hidden when count is 0 or completely synced) */}
                       {(isMobileView || !collapsed) && item.count !== undefined && item.count > 0 && (
                         <span
-                          className={`font-mono text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-colors ${
+                          className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-colors ${
                             isActive
                               ? 'bg-white text-zinc-900 font-semibold shadow-2xs'
                               : item.highlight

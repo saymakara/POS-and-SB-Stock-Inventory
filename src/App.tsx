@@ -55,6 +55,15 @@ import { AuditLogTab } from './components/AuditLogTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { motion, AnimatePresence } from 'motion/react';
+import { flushSync } from 'react-dom';
+
+/** Runs a page change as a smooth morph/glide where the browser supports View Transitions. */
+function glideTo(update: () => void) {
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+  const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (!doc.startViewTransition || reduce || document.visibilityState !== 'visible') { update(); return; }
+  try { doc.startViewTransition(() => flushSync(update)); } catch { update(); }
+}
 import { SendHorizontal, Lock } from 'lucide-react';
 import { isSupabaseConfigured, checkSupabaseConnection } from './lib/supabase';
 import {
@@ -671,7 +680,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }
     return '';
   });
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTabRaw] = useState<string>('dashboard');
+  // (22 Oct 2026) changing page glides: the browser morphs the old page into the new one (View Transitions);
+  // older browsers get a short CSS glide-in instead. Respects "reduce motion".
+  const setActiveTab = useCallback((tab: string) => glideTo(() => setActiveTabRaw(tab)), []);
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('policy');
 
   const handleSelectTab = (tabId: string, subTab?: string) => {
@@ -694,10 +706,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   useEffect(() => {
     if ((activeTab === 'settings' || activeTab === 'brand_logo') && role !== 'SUPER_ADMIN') {
-      setActiveTab('dashboard');
+      setActiveTabRaw('dashboard');
     } else if (activeTab === 'brand_logo') {
       setSettingsSubTab('brand_logo');
-      setActiveTab('settings');
+      setActiveTabRaw('settings');
     }
   }, [activeTab, role]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -2676,14 +2688,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               />
 
               {/* Robust Responsive Tab Content with Error Boundary */}
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, y: 3 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.12, ease: 'easeOut' }}
-                >
+              {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
+              <div key={activeTab} className="tab-view tab-glide">
                   <ErrorBoundary>
                   {activeTab === 'dashboard' && (
                     <DashboardTab
@@ -3024,8 +3030,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     </div>
                   )}
                   </ErrorBoundary>
-                </motion.div>
-              </AnimatePresence>
+              </div>
             </main>
           </div>
 

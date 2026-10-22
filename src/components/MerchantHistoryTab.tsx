@@ -12,7 +12,6 @@ import {
   Search,
   FileDown,
   Building2,
-  Calendar,
   Clock,
   RotateCcw,
   Cpu,
@@ -35,6 +34,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { csvFile } from '../utils/csv';
+import { hasKhmer, isValidMid, serviceLength, statusText } from '../utils/display';
 import { newRecordId } from '../utils/ids';
 import { todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';
@@ -280,8 +280,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       if (r.deviceType === 'POS Terminal') posCount++;
       else if (r.deviceType === 'Sound Box') sbCount++;
       if ((r.returnReason || '').toLowerCase().includes('closed')) closedCount++;
-      if (r.activeDurationMonths > 0) {
-        monthsSum += r.activeDurationMonths;
+      // (22 Oct 2026) from the two dates, never from a stored or assumed figure
+      if (r.installedDate && r.returnedDate) {
+        monthsSum += monthsBetween(r.installedDate.slice(0, 10), r.returnedDate.slice(0, 10));
         monthsN++;
       }
     }
@@ -336,7 +337,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       branchMap.get(r.branchId) || r.branchName,
       r.installedDate,
       r.returnedDate,
-      r.activeDurationMonths > 0 ? r.activeDurationMonths : '',
+      r.installedDate && r.returnedDate ? monthsBetween(r.installedDate.slice(0, 10), r.returnedDate.slice(0, 10)) : '',
       r.returnReason,
       r.status,
       r.installedByStaff || r.handledByStaff || '',
@@ -494,7 +495,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             Total Decommissioned
           </div>
-          <div className="text-2xl font-black font-mono text-zinc-900 mt-1">
+          <div className="text-2xl font-black font-figure text-zinc-900 mt-1">
             {stats.total}
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
@@ -507,7 +508,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             POS Terminals Returned
           </div>
-          <div className="text-2xl font-black font-mono text-zinc-900 mt-1 flex items-center gap-1.5">
+          <div className="text-2xl font-black font-figure text-zinc-900 mt-1 flex items-center gap-1.5">
             <Cpu className="w-5 h-5 text-sky-600" />
             <span>{stats.posCount}</span>
           </div>
@@ -520,7 +521,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             Sound Boxes Returned
           </div>
-          <div className="text-2xl font-black font-mono text-zinc-900 mt-1 flex items-center gap-1.5">
+          <div className="text-2xl font-black font-figure text-zinc-900 mt-1 flex items-center gap-1.5">
             <Volume2 className="w-5 h-5 text-indigo-600" />
             <span>{stats.sbCount}</span>
           </div>
@@ -533,7 +534,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             Avg. Active Lifespan
           </div>
-          <div className="text-2xl font-black font-mono text-emerald-700 mt-1">
+          <div className="text-2xl font-black font-figure text-emerald-700 mt-1">
             {stats.monthsN > 0 ? stats.avgDuration : '—'} <span className="text-sm font-bold text-slate-500">Months</span>
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
@@ -546,7 +547,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             Closed Business Ratio
           </div>
-          <div className="text-2xl font-black font-mono text-rose-700 mt-1">
+          <div className="text-2xl font-black font-figure text-rose-700 mt-1">
             {stats.total > 0
               ? `${Math.round((stats.closedCount / stats.total) * 100)}%`
               : '0%'}
@@ -636,172 +637,86 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
         </div>
       </div>
 
-      {/* Main Historical Merchants Table */}
+      {/* Main Historical Merchants Table (22 Oct 2026: one clean style, Khmer in Battambang, figures from real dates) */}
       <div className="surface-card shadow-md rounded-2xl overflow-hidden border border-slate-200/80">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
+          <table className="data-table min-w-[900px]">
+            <thead className="glass-table-thead">
               <tr>
-                <th className="py-2.5 px-3">Decommission Date</th>
-                <th className="py-2.5 px-3">Merchant Name</th>
-                <th className="py-2.5 px-3">MID</th>
-                <th className="py-2.5 px-3">TERMINAL SERIAL</th>
-                <th className="py-2.5 px-3">Product Type</th>
-                <th className="py-2.5 px-3">Branch Code</th>
-                <th className="py-2.5 px-3 text-center">Service Lifespan</th>
-                <th className="py-2.5 px-3">Termination Reason</th>
-                <th className="py-2.5 px-3 text-right">Actions</th>
+                <th>Returned</th>
+                <th>Merchant</th>
+                <th>MID / TID</th>
+                <th>Unit</th>
+                <th>Branch</th>
+                <th>In Service</th>
+                <th>Reason</th>
+                <th className="text-right col-actions" aria-label="Actions"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200/80 text-xs bg-white">
+            <tbody>
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center">
                     <Store className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="font-semibold">No historical merchant records match the criteria.</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Adjust your search or filter options.
-                    </p>
+                    <p className="cell-main">No merchant history matches the search or filters.</p>
+                    <p className="cell-sub">Adjust the search or filter options.</p>
                   </td>
                 </tr>
               ) : (
-                pagedRecords.map((rec, index) => {
+                pagedRecords.map((rec) => {
+                  const chip = rec.status === 'TERMINATED' ? 'chip-red' : rec.status === 'RETURNED' ? 'chip-amber' : 'chip-slate';
+                  const midOk = isValidMid(rec.mid);
+                  const officer = rec.returnedByStaff || rec.handledByStaff;
                   return (
-                    <tr
-                      key={rec.recordId}
-                      className={`transition-colors hover:bg-zinc-100/70 ${
-                        index % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'
-                      }`}
-                    >
-                      {/* Decommission Date & Status */}
-                      <td className="py-2 px-3 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-zinc-900 border border-slate-200 font-mono text-[11px] font-bold">
-                          <Calendar className="w-3 h-3 text-slate-500" />
-                          <span>{dash(rec.returnedDate)}</span>
-                        </div>
-                        <div className="mt-1">
-                          <span
-                            className={`inline-block text-[9px] font-mono font-extrabold px-1.5 py-0.2 rounded border ${
-                              rec.status === 'TERMINATED'
-                                ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                : rec.status === 'RETURNED'
-                                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                : 'bg-teal-50 text-teal-800 border-teal-200'
-                            }`}
-                          >
-                            {rec.status}
-                          </span>
-                        </div>
+                    <tr key={rec.recordId}>
+                      <td className="whitespace-nowrap">
+                        <div className="cell-mono">{dash(rec.returnedDate)}</div>
+                        <span className={`chip ${chip} mt-1`}>{statusText(rec.status)}</span>
                       </td>
-
-                      {/* Merchant Name */}
-                      <td className="py-2 px-3">
-                        <div className="text-zinc-900 font-bold text-xs max-w-[190px] truncate" title={rec.merchantName}>
+                      <td>
+                        <div className={`cell-main max-w-[160px] truncate ${hasKhmer(rec.merchantName) ? 'khmer' : ''}`} title={rec.merchantName}>
                           {dash(rec.merchantName)}
                         </div>
                       </td>
-
-                      {/* MID */}
-                      <td className="py-2 px-3 font-mono">
-                        <div className="inline-flex items-center gap-1">
-                          <span
-                            className="px-1.5 py-0.5 rounded border text-[11px] whitespace-nowrap text-slate-800 bg-slate-100 border-slate-200"
-                            title={`Merchant ID (MID): ${rec.mid}`}
-                          >
-                            {rec.mid}
-                          </span>
+                      <td className="whitespace-nowrap">
+                        <div className={`cell-mono ${midOk ? '' : 'warn-text'}`} title={midOk ? 'Merchant ID' : 'This MID is not 15 digits (for example a number shortened by Excel). Please correct it.'}>
+                          {dash(rec.mid)}{!midOk && rec.mid ? ' ⚠' : ''}
                         </div>
-                        {rec.tid && (
-                          <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
-                            {rec.tid}
-                          </div>
-                        )}
+                        {rec.tid && <div className="cell-mono-sub">{rec.tid}</div>}
                       </td>
-
-                      {/* Hardware Serial & Battery Serial directly beneath (no wording) */}
-                      <td className="py-2 px-3">
+                      <td>
                         <button
                           type="button"
-                          onClick={() => {
-                            if (onSelectDevice) onSelectDevice(rec.serial);
-                          }}
-                          className="font-mono text-xs text-zinc-900 font-bold hover:underline cursor-pointer text-left"
-                          title="Click to view hardware serial lifecycle"
+                          onClick={() => onSelectDevice?.(rec.serial)}
+                          className="serial-btn"
+                          title="Open this unit's history"
                         >
                           {rec.serial}
                         </button>
-                        {rec.batterySerial && (
-                          <div className="mt-0.5 font-mono text-[11px] text-slate-600">
-                            {rec.batterySerial}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Device Type & Model */}
-                      <td className="py-2 px-3">
-                        <div className="flex items-center gap-1.5">
+                        <div className="cell-sub flex items-center gap-1 max-w-[160px] truncate" title={`${rec.deviceType}${rec.model ? ' · ' + rec.model : ''}`}>
                           {rec.deviceType === 'POS Terminal' ? (
-                            <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                            <Cpu className="w-3 h-3 text-sky-600 shrink-0" aria-hidden />
                           ) : (
-                            <Volume2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            <Volume2 className="w-3 h-3 text-indigo-600 shrink-0" aria-hidden />
                           )}
-                          <span className="text-slate-700 text-xs">
-                            {rec.deviceType}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">
-                          {rec.model}
+                          <span className="truncate">{rec.deviceType}{rec.model ? ` · ${rec.model}` : ''}</span>
                         </div>
                       </td>
-
-                      {/* Branch Code */}
-                      <td className="py-2 px-3">
-                        <div className="inline-flex items-center gap-1 font-mono text-xs text-zinc-900">
-                          <Building2 className="w-3 h-3 text-slate-400" />
-                          <span>Code {rec.branchId}</span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 max-w-[130px] truncate" title={rec.branchName}>
-                          {rec.branchName}
-                        </div>
+                      <td>
+                        <div className="cell-mono">Code {rec.branchId}</div>
+                        <div className="cell-sub max-w-[140px] truncate" title={rec.branchName}>{rec.branchName}</div>
                       </td>
-
-                      {/* Active Duration */}
-                      <td className="py-2 px-3 text-center whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-mono">
-                          <Clock className="w-3 h-3" />
-                          <span>{rec.activeDurationMonths > 0 ? `${rec.activeDurationMonths} Months` : '—'}</span>
-                        </span>
-                        <div className="text-[9px] text-slate-400 mt-0.5">
-                          {dash(rec.installedDate)} to {dash(rec.returnedDate)}
-                        </div>
+                      <td className="whitespace-nowrap">
+                        <div className="cell-main font-medium">{serviceLength(rec.installedDate, rec.returnedDate)}</div>
+                        {rec.installedDate && <div className="cell-sub">since {rec.installedDate}</div>}
                       </td>
-
-                      {/* Return Reason & Staff Accountability (Returned by only, no color accents) */}
-                      <td className="py-2.5 px-3">
-                        <div
-                          className="text-xs text-slate-800 dark:text-slate-200 font-medium max-w-[220px] truncate"
-                          title={rec.returnReason}
-                        >
-                          {rec.returnReason}
-                        </div>
-                        {(rec.returnedByStaff || rec.handledByStaff) && (
-                          <div className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
-                            <span className="font-medium text-slate-400 dark:text-slate-500">Returned by:</span>
-                            <span className="font-medium text-slate-700 dark:text-slate-300">
-                              {rec.returnedByStaff || rec.handledByStaff}
-                            </span>
-                          </div>
-                        )}
+                      <td>
+                        <div className="cell-main font-medium max-w-[170px] truncate" title={rec.returnReason}>{dash(rec.returnReason)}</div>
+                        {officer && <div className="cell-sub max-w-[170px] truncate">by {officer}</div>}
                       </td>
-
-                      {/* Actions */}
-                      <td className="py-2 px-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedRecord(rec)}
-                          className="px-2.5 py-1 rounded-md bg-[#003857] hover:bg-[#002a42] text-white text-[10px] font-normal shadow-2xs transition cursor-pointer whitespace-nowrap"
-                        >
-                          View Details
+                      <td className="text-right col-actions">
+                        <button type="button" onClick={() => setSelectedRecord(rec)} className="row-btn">
+                          Details
                         </button>
                       </td>
                     </tr>
@@ -924,7 +839,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         <span>
                           Active in service for{' '}
                           <strong>
-                            {selectedRecord.activeDurationMonths > 0 ? `${selectedRecord.activeDurationMonths} months` : '—'}
+                            {serviceLength(selectedRecord.installedDate, selectedRecord.returnedDate)}
                           </strong>
                         </span>
                         <span className="text-amber-400">•</span>

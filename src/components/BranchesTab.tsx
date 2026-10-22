@@ -247,7 +247,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
               Connected Branches
             </div>
-            <div className="text-lg font-black font-mono text-zinc-900">
+            <div className="text-lg font-black font-figure text-zinc-900">
               {metrics.totalBranches}
             </div>
             <div className="text-[10px] text-slate-400">Nationwide Network</div>
@@ -262,7 +262,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
               Total Hardware Units
             </div>
-            <div className="text-lg font-black font-mono text-zinc-900">
+            <div className="text-lg font-black font-figure text-zinc-900">
               {metrics.totalDevices}
             </div>
             <div className="text-[10px] text-slate-400">
@@ -279,7 +279,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
               Branch Reserves
             </div>
-            <div className="text-lg font-black font-mono text-zinc-900">
+            <div className="text-lg font-black font-figure text-zinc-900">
               {metrics.totalReserve}
             </div>
             <div className="text-[10px] text-slate-400">Ready for Merchant</div>
@@ -294,7 +294,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
               Live Installed
             </div>
-            <div className="text-lg font-black font-mono text-emerald-700">
+            <div className="text-lg font-black font-figure text-emerald-700">
               {metrics.totalLive}
             </div>
             <div className="text-[10px] text-slate-400">
@@ -313,7 +313,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
               Assigned Staff
             </div>
-            <div className="text-lg font-black font-mono text-slate-800">
+            <div className="text-lg font-black font-figure text-slate-800">
               {metrics.totalStaff}
             </div>
             <div className="text-[10px] text-slate-400">Branch Field Officers</div>
@@ -822,7 +822,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
                     <div className="grid grid-cols-4 gap-2 mb-4">
                       <div className="surface-inset-light p-2.5 text-center">
-                        <div className="text-base font-black font-mono text-zinc-900">
+                        <div className="text-base font-black font-figure text-zinc-900">
                           {b.totalDevices}
                         </div>
                         <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
@@ -831,7 +831,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                       </div>
 
                       <div className="surface-inset-light p-2.5 text-center">
-                        <div className="text-base font-black font-mono text-zinc-900">
+                        <div className="text-base font-black font-figure text-zinc-900">
                           {b.reserveCount}
                         </div>
                         <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
@@ -840,7 +840,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                       </div>
 
                       <div className="surface-inset-light p-2.5 text-center">
-                        <div className="text-base font-black font-mono text-emerald-700">
+                        <div className="text-base font-black font-figure text-emerald-700">
                           {b.completeCount}
                         </div>
                         <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
@@ -849,7 +849,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                       </div>
 
                       <div className="surface-inset-light p-2.5 text-center">
-                        <div className="text-base font-black font-mono text-slate-700">
+                        <div className="text-base font-black font-figure text-slate-700">
                           {b.inFlightCount}
                         </div>
                         <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
