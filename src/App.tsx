@@ -2437,7 +2437,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         if (d.serial === faultySerial) {
           const nextCycle = (d.history || []).length + 1;
           return {
-            ...onMove(d, 'FAULTY'),
+            ...onMove(d, 'BRANCH_RESERVE'),   // the replaced unit goes back to the branch reserve (HQ can return it); no Terminated & Returned stock
             deployedDate: '',
             returnReason: reason,
             installedByStaff: originalInstaller,

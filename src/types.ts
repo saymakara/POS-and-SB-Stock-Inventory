@@ -12,9 +12,8 @@ export const STAGE_ORDER: LifecycleStage[] = [
   'BRANCH_RESERVE',
   'CONFIGURING',
   'COMPLETE',
-  'FAULTY',
   'LOST',
-];
+];   // (22 Oct 2026) no "Terminated & Returned" stock stage: a returned unit goes back to HQ stock or the branch reserve
 
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH';
 
