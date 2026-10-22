@@ -414,6 +414,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
           >
             <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white sticky top-0 z-20">
               <tr>
+                <th className="py-3 px-3.5 w-10 text-right">No.</th>
                 <th className="py-3 px-3.5 whitespace-nowrap">Time</th>
                 {serverMode && <th className="py-3 px-3.5 whitespace-nowrap">Actor</th>}
                 {serverMode && <th className="py-3 px-3.5 whitespace-nowrap">Role</th>}
@@ -427,7 +428,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 isLight ? 'divide-slate-200/80 bg-white' : 'divide-[#182c49] bg-[#11141e]'
               }`}
             >
-              {paginatedRows.map((row) => (
+              {paginatedRows.map((row, rowIdx) => (
                 <tr
                   key={row.key}
                   className={
@@ -436,6 +437,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                       : 'hover:bg-white/[0.04] transition-colors'
                   }
                 >
+                  <td className={`py-2.5 px-3.5 text-right tabular-nums ${subtextClass}`}>{(currentPage - 1) * pageSize + rowIdx + 1}</td>
                   <td className={`py-2.5 px-3.5 font-mono whitespace-nowrap ${subtextClass}`}>
                     {row.time}
                   </td>

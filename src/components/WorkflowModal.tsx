@@ -150,6 +150,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
   const isLight = theme === 'light';
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  // (22 Oct 2026) once a unit is installed, only Admin HQ can change the merchant's details (branch staff add them while installing)
+  const merchantLocked = role === 'BRANCH' && device?.stage === 'COMPLETE' && Boolean(device?.mid || device?.merchantName);
   const showFullPhone = canSeeFullContact(role);
 
   const activeCustomFields = useMemo(() => {
@@ -230,7 +232,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     };
 
     // 1. The move itself must be allowed by the device life cycle.
-    const stageErr = moveError(device.stage, stage, STAGE_META);
+    const stageErr = role === 'SUPER_ADMIN' ? '' : moveError(device.stage, stage, STAGE_META);   // the super admin may move a unit to any stage
     if (stageErr) return fail(stageErr);
     if (!stageOptions.includes(stage)) return fail('Only Admin HQ can move a unit into Head Office stock.');
 
@@ -469,10 +471,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const canReturnToReserve =
     (!!device.merchantName || device.stage === 'COMPLETE') &&
     device.branchId !== '100' &&
-    canMove(device.stage, 'BRANCH_RESERVE');
+    (role === 'SUPER_ADMIN' || canMove(device.stage, 'BRANCH_RESERVE'));
   const canReturnToHq =
     device.stage !== 'HQ_STOCK' &&
-    canMove(device.stage, 'HQ_STOCK') &&
+    (role === 'SUPER_ADMIN' || canMove(device.stage, 'HQ_STOCK')) &&
     (isAdminLike ? !!onReturnToAdminStock : !!onRequestReturnToAdminStock);
   const hasQuickActions = canReturnToReserve || canReturnToHq || (isAdminLike && !!onRemoveFromDashboard);
 
@@ -948,6 +950,12 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               </div>
             </div>
 
+            {merchantLocked && (
+              <div role="note" className="p-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium">
+                The merchant details of an installed unit can be changed by Admin HQ only. Please contact HQ if something is wrong.
+              </div>
+            )}
+            <fieldset disabled={merchantLocked} className="contents">
             {/* Row 3: Merchant Name, MID, TID */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="flex flex-col gap-1 sm:col-span-1">
@@ -1158,6 +1166,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
               </div>
             )}
+
+            </fieldset>
 
             {/* Row 4: 24-Month POS Battery Lifecycle Card */}
             <div

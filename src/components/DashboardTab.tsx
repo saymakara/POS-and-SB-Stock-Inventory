@@ -750,6 +750,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <table className="w-full text-left text-xs">
               <thead className="glass-table-thead text-[11px] font-extrabold uppercase text-white">
                 <tr>
+                  <th className="py-3 px-3 w-10 text-right">No.</th>
                   <th className="py-3 px-4">Branch Code</th>
                   <th className="py-3 px-4">Branch Name</th>
                   <th className="py-3 px-3 text-center">POS</th>
@@ -762,16 +763,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <tbody className="divide-y divide-slate-200/70">
                 {branchVelocity.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-500">
+                    <td colSpan={8} className="py-8 text-center text-slate-500">
                       No branch stock recorded yet.
                     </td>
                   </tr>
                 )}
-                {branchVelocity.slice(0, 8).map((b) => (
+                {branchVelocity.slice(0, 8).map((b, rowIdx) => (
                   <tr
                     key={b.code}
                     className="hover:bg-slate-50/90 transition-colors"
                   >
+                    <td className="py-2.5 px-3 text-right text-slate-500 tabular-nums">{rowIdx + 1}</td>
                     <td className="py-2.5 px-4 font-mono font-bold text-zinc-900">
                       Code {b.code}
                     </td>

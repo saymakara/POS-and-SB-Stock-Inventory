@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import { User, Branch, UserRole, UserStatus, ThemeMode } from '../types';
 import {
   Search,
@@ -89,13 +89,14 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
     [branches]
   );
 
+  const deferredSearch = useDeferredValue(searchQuery);                // typing stays instant; the list follows
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
       if (branchFilter !== 'ALL' && u.branchId !== branchFilter) return false;
       if (roleFilter !== 'ALL' && u.accessRole !== roleFilter) return false;
       if (statusFilter !== 'ALL' && u.status !== statusFilter) return false;
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
+      if (!deferredSearch.trim()) return true;
+      const q = deferredSearch.toLowerCase();
       const resolvedBranchName = (
         branchNameByCode.get(u.branchId) ||
         u.branchName ||
@@ -109,7 +110,22 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
         resolvedBranchName.includes(q)
       );
     });
-  }, [users, branchFilter, roleFilter, statusFilter, searchQuery, branchNameByCode]);
+  }, [users, branchFilter, roleFilter, statusFilter, deferredSearch, branchNameByCode]);
+
+  // The first rows appear at once; the rest are added as the list is scrolled (a long directory no longer blocks the screen)
+  const PAGE = 40;
+  const [visible, setVisible] = useState(PAGE);
+  const sentinelRef = useRef<HTMLTableRowElement | null>(null);
+  useEffect(() => { setVisible(PAGE); }, [branchFilter, roleFilter, statusFilter, deferredSearch]);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || visible >= filteredUsers.length) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setVisible((v) => v + 60);
+    }, { rootMargin: '400px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visible, filteredUsers.length]);
 
   const toggleSelect = (uid: string) => {
     setSelectedIds((prev) =>
@@ -249,7 +265,8 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
           <table className="w-full text-left">
             <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
               <tr>
-                <th className="py-3.5 px-4 w-10">#</th>
+                <th className="py-3.5 px-4 w-10"></th>
+                <th className="py-3.5 px-2 w-10 text-right">No.</th>
                 <th className="py-3.5 px-3">Employee ID</th>
                 <th className="py-3.5 px-3">Staff Name</th>
                 <th className="py-3.5 px-3">Position</th>
@@ -261,14 +278,14 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/70 text-xs bg-white">
-              {filteredUsers.map((u) => {
+              {filteredUsers.slice(0, visible).map((u, rowIdx) => {
                 const isSelected = selectedIds.includes(u.uid);
                 const resolvedBranchName =
                   branchNameByCode.get(u.branchId) ||
                   u.branchName ||
                   `Branch ${u.branchId}`;
                 return (
-                  <tr key={u.uid} className="hover:bg-slate-50/80">
+                  <tr key={u.uid} className="hover:bg-slate-50/80 row-in">
                     <td className="py-3 px-4">
                       <button
                         onClick={() => toggleSelect(u.uid)}
@@ -281,6 +298,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                         )}
                       </button>
                     </td>
+                    <td className="py-3 px-2 text-right text-slate-500 tabular-nums">{rowIdx + 1}</td>
                     <td className="py-3 px-3 font-mono font-bold text-zinc-900">
                       {u.empId}
                     </td>
@@ -353,6 +371,16 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                   </tr>
                 );
               })}
+              {visible < filteredUsers.length && (
+                <tr ref={sentinelRef}>
+                  <td colSpan={10} className="py-3 text-center text-[11px] text-slate-500">
+                    Showing {visible} of {filteredUsers.length} · loading more…
+                  </td>
+                </tr>
+              )}
+              {filteredUsers.length === 0 && (
+                <tr><td colSpan={10} className="py-10 text-center text-xs text-slate-500">No staff match the search or filters.</td></tr>
+              )}
             </tbody>
           </table>
         </div>

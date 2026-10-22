@@ -8,6 +8,7 @@ import {
   getBatteryLifecycleStatus,
   CustomFieldDefinition,
   Requisition,
+  LifecycleStage,
 } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { detectDuplicateMids } from '../utils/crmUtils';
@@ -61,7 +62,7 @@ interface InventoryTabProps {
   onOpenImportModal?: () => void;
   onOpenNewStockModal?: () => void;
   onOpenReqModal: () => void;
-  onExportCsv: () => void;
+  onExportCsv: (stage?: LifecycleStage) => void;
   onBulkAssignBranch?: (
     serials: string[],
     targetBranchCode: string,
@@ -71,6 +72,7 @@ interface InventoryTabProps {
   onRequestReturnToAdminStock?: (serials: string[], reason?: string) => void;
   onRemoveFromDashboard?: (serials: string[], reason?: string) => void;
   onRestoreToDashboard?: (serials: string[]) => void;
+  onDeletePermanently?: (serials: string[]) => void;
   onChangeBattery?: (serial: string) => void;
   theme?: ThemeMode;
   customFields?: CustomFieldDefinition[];
@@ -104,6 +106,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   onRequestReturnToAdminStock,
   onRemoveFromDashboard,
   onRestoreToDashboard,
+  onDeletePermanently,
   onChangeBattery,
   theme,
   customFields,
@@ -129,6 +132,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const today = todayPP();
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const stageCounts = useMemo(() => {
+    const c: Partial<Record<LifecycleStage, number>> = {};
+    devices.forEach((d) => { c[d.stage] = (c[d.stage] || 0) + 1; });
+    return c;
+  }, [devices]);
 
   const duplicateMidsMap = useMemo(
     () => detectDuplicateMids(allDevices.length > 0 ? allDevices : devices),
@@ -280,7 +289,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
   // Double-Step Bulk Action State
   interface PendingBulkAction {
-    type: 'ASSIGN' | 'RETURN_ADMIN' | 'REMOVE' | 'RESTORE';
+    type: 'ASSIGN' | 'RETURN_ADMIN' | 'REMOVE' | 'RESTORE' | 'DELETE';
     title: string;
     targetBranchId?: string;
     targetBranchName?: string;
@@ -335,6 +344,17 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     });
   };
 
+  const handleOpenBulkDelete = () => {
+    if (!selectedSns.length || role !== 'SUPER_ADMIN') return;
+    setPendingBulkAction({
+      type: 'DELETE',
+      title: 'Delete Permanently from the Shared Database',
+      targetBranchName: 'Deleted (cannot be undone)',
+      serials: [...selectedSns],
+      impactDescription: `You are about to delete ${selectedSns.length} hardware unit(s) permanently from the shared database for every user. Their merchant history stays, but the units and their own history lines are lost. This cannot be undone. Use Remove from Dashboard instead if you may need them again.`,
+    });
+  };
+
   const handleOpenBulkRestore = () => {
     if (!selectedSns.length || !isAdminLike) return;
     setPendingBulkAction({
@@ -348,6 +368,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const handleConfirmBulkAction = () => {
     if (!pendingBulkAction) return;
 
+    if (pendingBulkAction.type === 'DELETE' && role !== 'SUPER_ADMIN') {
+      setPendingBulkAction(null);
+      return;
+    }
     if (pendingBulkAction.type !== 'RETURN_ADMIN' && !isAdminLike) {
       setPendingBulkAction(null);
       return;
@@ -372,6 +396,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       }
     } else if (pendingBulkAction.type === 'REMOVE' && onRemoveFromDashboard) {
       onRemoveFromDashboard(pendingBulkAction.serials, 'Removed from active dashboard ledger');
+    } else if (pendingBulkAction.type === 'DELETE' && onDeletePermanently) {
+      onDeletePermanently(pendingBulkAction.serials);
     } else if (pendingBulkAction.type === 'RESTORE' && onRestoreToDashboard) {
       onRestoreToDashboard(pendingBulkAction.serials);
     }
@@ -464,7 +490,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             <motion.button
               whileHover={{ y: -1 }}
               whileTap={{ scale: 0.97 }}
-              onClick={onExportCsv}
+              onClick={() => setShowExportMenu((v) => !v)}
+              aria-expanded={showExportMenu}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold tracking-wide bg-white/12 hover:bg-white/20 text-white border border-white/20 transition cursor-pointer"
             >
               <FileDown className="w-3.5 h-3.5" />
@@ -488,6 +515,32 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             )}
           </div>
         </div>
+
+        {/* Export by status */}
+        <AnimatePresence initial={false}>
+          {showExportMenu && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="overflow-hidden border-b border-slate-200 bg-white"
+            >
+              <div className="px-4 py-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-slate-600 mr-1">Export CSV for</span>
+                <button type="button" onClick={() => { onExportCsv(); setShowExportMenu(false); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#003857] bg-[#003857] text-white hover:bg-[#002a42] cursor-pointer">
+                  All shown ({devices.length})
+                </button>
+                {STAGE_ORDER.map((s) => (
+                  <button key={s} type="button" disabled={(stageCounts[s] || 0) === 0} onClick={() => { onExportCsv(s); setShowExportMenu(false); }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+                    {STAGE_META[s].short} ({stageCounts[s] || 0})
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Filter & Search Bar in Neutral Slate & Charcoal */}
         <div className="p-4 bg-slate-50/70 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
@@ -809,8 +862,27 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       <span>Remove from Dashboard</span>
                     </button>
                   )}
+                  {role === 'SUPER_ADMIN' && onDeletePermanently && (
+                    <button
+                      onClick={handleOpenBulkDelete}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-900 hover:bg-rose-800 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Permanently</span>
+                    </button>
+                  )}
                 </>
               ) : !isAdminLike ? null : (
+                <>
+                {role === 'SUPER_ADMIN' && onDeletePermanently && (
+                  <button
+                    onClick={handleOpenBulkDelete}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-900 hover:bg-rose-800 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Permanently</span>
+                  </button>
+                )}
                 <button
                   onClick={handleOpenBulkRestore}
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#133e5e] text-xs font-semibold tracking-wide transition cursor-pointer"
@@ -818,6 +890,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   <ArchiveRestore className="w-3.5 h-3.5" />
                   <span>Restore {selectedSns.length} to Active Dashboard</span>
                 </button>
+                </>
               )}
 
               <button
@@ -853,12 +926,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     )}
                   </button>
                 </th>
+                <th className="py-2.5 px-3 w-10 text-right">No.</th>
                 <th className="py-2.5 px-3">Stock-In Date</th>
                 <th className="py-2.5 px-3">Serial Number (SN)</th>
                 <th className="py-2.5 px-3">Product Type</th>
                 <th className="py-2.5 px-3">Model</th>
-                <th className="py-2.5 px-3">Branch Code</th>
-                <th className="py-2.5 px-3">Branch Name</th>
+                <th className="py-2.5 px-3">Branch</th>
                 <th className="py-2.5 px-3">Lifecycle Stage</th>
                 <th className="py-2.5 px-3">Merchant Name</th>
                 <th className="py-2.5 px-3">MID</th>
@@ -884,8 +957,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     dev.branchName ||
                     `Branch ${dev.branchId}`;
                   // Only the unit's own recorded battery serial is shown; nothing is made up.
-                  const formattedBatterySerial = dev.batterySerial?.trim() || 'Battery serial not recorded';
-                  const shownPhone = dev.merchantPhone ? phoneFor(role, dev.merchantPhone) : '';
+                  const formattedBatterySerial = dev.batterySerial?.trim() || 'No battery serial';
 
                   const isSyncingThisDevice = syncingSerials?.has(dev.serial);
 
@@ -918,6 +990,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         </button>
                       </td>
 
+                      <td className="py-2 px-3 text-right text-[11px] text-slate-500 tabular-nums">{(currentPage - 1) * rowsPerPage + index + 1}</td>
+
                       <td className="py-2 px-3 font-mono text-[11px] whitespace-nowrap">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900/5 text-zinc-800 border border-zinc-200 font-bold">
                           <Calendar className="w-3 h-3" />
@@ -941,7 +1015,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                               }
                             }}
                             title={`POS Terminal Battery: ${formattedBatterySerial} (${batt.monthsUsed}/24m · Click to Change Battery)`}
-                            className="mt-0.5 font-mono text-[11px] text-slate-600 hover:text-zinc-900 flex items-center gap-1.5 cursor-pointer"
+                            className="mt-0.5 font-mono text-[11px] text-slate-600 hover:text-zinc-900 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                           >
                             <span className="hover:underline">{formattedBatterySerial}</span>
                             {batt.state === 'EXPIRED' && (
@@ -989,14 +1063,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       </td>
 
                       <td className="py-2 px-3">
-                        <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-zinc-900/5 text-zinc-800 border border-zinc-200 whitespace-nowrap">
-                          {dev.branchId}
-                        </span>
-                      </td>
-
-                      <td className="py-2 px-3">
-                        <div className="text-xs text-zinc-900 max-w-[160px] truncate" title={resolvedBranchName}>
-                          {resolvedBranchName}
+                        <div className="text-xs text-zinc-900 max-w-[200px] truncate" title={`${dev.branchId} · ${resolvedBranchName}`}>
+                          <span className="font-mono text-[11px] text-slate-600">{dev.branchId}</span>
+                          <span> · {resolvedBranchName.replace(' Branch', '')}</span>
                         </div>
                       </td>
 
@@ -1017,15 +1086,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                             >
                               {dev.merchantName}
                             </span>
-                            {(dev.location || dev.merchantPhone || (dev.customFields && Object.keys(dev.customFields).length > 0)) && (
-                              <span
-                                className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5"
-                                title={[dev.location, shownPhone, dev.address].filter(Boolean).join(' • ')}
-                              >
-                                {[dev.location, shownPhone].filter(Boolean).join(' • ') ||
-                                  (dev.customFields ? Object.entries(dev.customFields)[0]?.[1] : '')}
-                              </span>
-                            )}
                           </div>
                         ) : (
                           <span className="text-slate-400 italic text-[11px]">
@@ -1231,7 +1291,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       <Building2 className="w-4.5 h-4.5" />
                     ) : pendingBulkAction.type === 'RETURN_ADMIN' ? (
                       <RotateCcw className="w-4.5 h-4.5" />
-                    ) : pendingBulkAction.type === 'REMOVE' ? (
+                    ) : pendingBulkAction.type === 'REMOVE' || pendingBulkAction.type === 'DELETE' ? (
                       <Trash2 className="w-4.5 h-4.5" />
                     ) : (
                       <ArchiveRestore className="w-4.5 h-4.5" />

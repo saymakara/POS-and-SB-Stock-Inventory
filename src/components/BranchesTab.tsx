@@ -460,6 +460,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
                 <tr>
                   <th className="py-3 px-3.5 w-10 text-center">#</th>
+                  <th className="py-3 px-3 w-10 text-right">No.</th>
                   <th className="py-3 px-3.5">Branch Code</th>
                   <th className="py-3 px-3.5">Branch Name</th>
                   <th className="py-3 px-3.5 text-center">POS Terminal</th>
@@ -475,7 +476,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               <tbody className="divide-y divide-slate-200/80 text-xs bg-white">
                 {enrichedBranches.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="py-12 text-center text-slate-400">
+                    <td colSpan={12} className="py-12 text-center text-slate-400">
                       <Building2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                       <p className="font-semibold">No branches match your search or filter.</p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
@@ -484,7 +485,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  enrichedBranches.map((b) => {
+                  enrichedBranches.map((b, rowIdx) => {
                     const isHQ = b.code === '100';
                     const isExpanded = expandedBranchCode === b.code;
                     const totalUnits = Math.max(b.totalDevices, 1);
@@ -514,6 +515,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                               )}
                             </button>
                           </td>
+
+                          <td className="py-3 px-3 text-right text-slate-500 tabular-nums">{rowIdx + 1}</td>
 
                           {/* Branch Code */}
                           <td className="py-3 px-3.5 font-mono">

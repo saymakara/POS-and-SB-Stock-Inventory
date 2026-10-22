@@ -18,7 +18,8 @@ import {
   ArrowLeft,
   ShieldCheck,
   RotateCcw,
-  Package,
+  Upload,
+  Pencil,
 } from 'lucide-react';
 
 interface RequisitionsTabProps {
@@ -29,6 +30,7 @@ interface RequisitionsTabProps {
   onApproveRequisition: (reqId: string, arrangedDevices?: ArrangedDeviceItem[]) => void;
   onApproveReturnRequisition?: (reqId: string, returnSerials?: string[], reason?: string) => void;
   onReceiveRequisition: (reqId: string) => void;
+  onEditRequisition?: (reqId: string, changes: { posQty: number; sbQty: number; reason: string }) => void;
   theme?: ThemeMode;
   onDirectToStockInventory?: (req: Requisition, currentStaged?: ArrangedDeviceItem[]) => void;
   externalArrangingReq?: Requisition | null;
@@ -52,8 +54,8 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   onApproveRequisition,
   onApproveReturnRequisition,
   onReceiveRequisition,
+  onEditRequisition,
   theme = 'light',
-  onDirectToStockInventory,
   externalArrangingReq,
   externalStagedItems,
   onClearExternalArranging,
@@ -159,6 +161,8 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
     setDispatchErrors([]);
     setArrangingReq(req);
     setArrangeStep('ARRANGE');
+    setSerialText('');
+    setSerialReport([]);
   };
 
   const rerunAutoMatch = () => {
@@ -265,6 +269,74 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
     setShortfall('');
   };
 
+  // ---- serial list (paste or file): match many serials to the request lines at once
+  const [serialText, setSerialText] = useState('');
+  const [serialReport, setSerialReport] = useState<string[]>([]);
+  const applySerialList = (text: string) => {
+    if (!arrangingReq) return;
+    const rows = text
+      .split(/\r?\n|;/)
+      .map((l) => l.split(/[,\t]/).map((c) => c.trim()))
+      .filter((c) => c[0]);
+    const problems: string[] = [];
+    const seen = new Set<string>();
+    const picked: { dev: Device; battery: string }[] = [];
+    rows.forEach((cols, i) => {
+      const sn = norm(cols[0]);
+      if (i === 0 && /^(SERIAL|SN|SERIAL NUMBER)/.test(sn)) return;      // header row
+      if (seen.has(sn)) { problems.push(`${cols[0]}: listed twice`); return; }
+      seen.add(sn);
+      const dev = deviceBySerial.get(sn);
+      if (!dev) { problems.push(`${cols[0]}: not in the inventory`); return; }
+      if (dev.stage !== 'HQ_STOCK' || dev.archived) { problems.push(`${dev.serial}: not in Head Office stock (${dev.stage}${dev.archived ? ', archived' : ''})`); return; }
+      const other = allocatedElsewhere.get(sn);
+      if (other) { problems.push(`${dev.serial}: already arranged on ${other}`); return; }
+      picked.push({ dev, battery: cols[1] || '' });
+    });
+    // fill the blank lines of each type in order; lines already filled by hand are kept
+    const next = stagedItems.map((r) => ({ ...r }));
+    const used = new Set(next.map((r) => norm(r.serial)).filter(Boolean));
+    let filled = 0;
+    picked.forEach(({ dev, battery }) => {
+      if (used.has(norm(dev.serial))) return;
+      const line = next.find((r) => r.type === dev.type && !r.serial);
+      if (!line) { problems.push(`${dev.serial}: no free ${dev.type} line (the request has ${dev.type === 'POS Terminal' ? arrangingReq.posQty : arrangingReq.sbQty})`); return; }
+      line.serial = dev.serial;
+      line.model = dev.model;
+      line.batterySerial = dev.batterySerial || battery;
+      used.add(norm(dev.serial));
+      filled += 1;
+    });
+    setStagedItems(next);
+    setDispatchErrors([]);
+    setSerialReport([`${filled} serial(s) matched to the request.`, ...problems]);
+    if (filled) setSerialText('');
+  };
+  const onSerialFile = (file: File | undefined) => {
+    if (!file) return;
+    file.text().then((t) => { setSerialText(t); applySerialList(t); }).catch(() => setSerialReport(['The file could not be read.']));
+  };
+
+  // ---- edit a pending request
+  const [editingReq, setEditingReq] = useState<Requisition | null>(null);
+  const [editPos, setEditPos] = useState('0');
+  const [editSb, setEditSb] = useState('0');
+  const [editReason, setEditReason] = useState('');
+  const openEdit = (req: Requisition) => {
+    setEditingReq(req);
+    setEditPos(String(req.posQty));
+    setEditSb(String(req.sbQty));
+    setEditReason(req.reason || '');
+  };
+  const saveEdit = () => {
+    if (!editingReq || !onEditRequisition) return;
+    const posQty = Math.max(0, Math.floor(Number(editPos) || 0));
+    const sbQty = Math.max(0, Math.floor(Number(editSb) || 0));
+    if (posQty + sbQty === 0) return;
+    onEditRequisition(editingReq.reqId, { posQty, sbQty, reason: editReason.trim() });
+    setEditingReq(null);
+  };
+
   /** Serials chosen on other lines of this list (hidden from a line's dropdown). */
   const chosenSerials = useMemo(() => new Set(stagedItems.map((it) => norm(it.serial)).filter(Boolean)), [stagedItems]);
 
@@ -311,248 +383,171 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
           </div>
         </div>
 
-        <div className="p-4 overflow-x-auto">
-          <table
-            className={`w-full text-left text-xs border ${
-              isLight ? 'border-[#d8e2ea]' : 'border-[#003b5c]'
-            }`}
-          >
-            <thead className="glass-table-thead text-[11px] font-extrabold uppercase">
+        <div className="overflow-x-auto">
+          <table className="data-table min-w-[900px]">
+            <thead className="glass-table-thead">
               <tr>
-                <th className="py-3 px-3.5">Request ID</th>
-                <th className="py-3 px-3.5">Branch</th>
-                <th className="py-3 px-3.5">Requested By</th>
-                <th className="py-3 px-3.5">Requested Qty</th>
-                <th className="py-3 px-3.5">Arranged POS, Battery &amp; Sound Box Serials</th>
-                <th className="py-3 px-3.5">Notes</th>
-                <th className="py-3 px-3.5">Status</th>
-                <th className="py-3 px-3.5 text-right">Workflow Action</th>
+                <th className="col-no">No.</th>
+                <th>Request</th>
+                <th>Branch / Requested By</th>
+                <th>Quantity</th>
+                <th>Serials</th>
+                <th>Status</th>
+                <th className="text-right col-actions" aria-label="Actions"></th>
               </tr>
             </thead>
-            <tbody
-              className={`divide-y ${
-                isLight ? 'divide-[#d8e2ea]' : 'divide-[#003b5c]'
-              }`}
-            >
-              {requisitions.map((req) => {
-                let statusColor = 'text-[#d99b00] dark:text-[#f6c23e]';
-                let statusLabel = 'Pending Approval';
-                let actionBtn: React.ReactNode = null;
-
+            <tbody>
+              {requisitions.map((req, rowIdx) => {
                 const isReturnReq = req.type === 'STOCK_RETURN';
+                const arranged = req.arrangedDevices || [];
+                let chip = 'chip-amber';
+                let statusLabel = 'Pending';
+                let actionBtn: React.ReactNode = null;
+                const canEdit = Boolean(onEditRequisition) && req.status === 'PENDING_ADMIN' && !isReturnReq;
+                const editBtn = canEdit ? (
+                  <button type="button" onClick={() => openEdit(req)} className="row-btn inline-flex items-center gap-1" title="Edit the quantity or reason">
+                    <Pencil className="w-3 h-3" aria-hidden />
+                    <span>Edit</span>
+                  </button>
+                ) : null;
 
                 if (req.status === 'PENDING_ADMIN') {
                   if (isReturnReq) {
-                    statusColor = 'text-amber-600 dark:text-amber-400';
-                    statusLabel = 'Pending Return Approval';
-                    actionBtn =
-                      isAdmin ? (
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          type="button"
-                          onClick={() =>
-                            onApproveReturnRequisition?.(
-                              req.reqId,
-                              req.returnSerials,
-                              req.reason
-                            )
-                          }
-                          className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#1cc88a] hover:bg-[#17a673] text-white flex items-center gap-1.5 ml-auto cursor-pointer whitespace-nowrap shadow-xs transition"
-                          title="Approve and receive returned hardware units into Head Office Admin Stock"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Approve &amp; Receive to HQ</span>
-                        </motion.button>
-                      ) : (
-                        <span className="text-amber-600 dark:text-amber-400 font-semibold text-xs flex items-center gap-1 justify-end">
-                          <span>Awaiting Admin Approval</span>
-                        </span>
-                      );
+                    statusLabel = 'Return pending';
+                    actionBtn = isAdmin ? (
+                      <button
+                        type="button"
+                        onClick={() => onApproveReturnRequisition?.(req.reqId, req.returnSerials, req.reason)}
+                        className="row-btn inline-flex items-center gap-1"
+                        title="Approve and receive the returned units into Head Office stock"
+                      >
+                        <CheckCircle2 className="w-3 h-3" aria-hidden />
+                        <span>Approve &amp; Receive</span>
+                      </button>
+                    ) : <span className="cell-sub">Awaiting HQ</span>;
                   } else {
-                    statusColor = 'text-[#d99b00] dark:text-[#f6c23e]';
-                    statusLabel = 'Pending Approval';
-                    actionBtn = !isAdmin ? (
-                      <span className="text-[#d99b00] dark:text-[#f6c23e] font-semibold text-xs flex items-center gap-1 justify-end">
-                        <span>Awaiting HQ Dispatch</span>
-                      </span>
-                    ) : (
-                      <div className="flex items-center gap-1.5 justify-end">
-                        {onDirectToStockInventory && (
-                          <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            type="button"
-                            onClick={() => onDirectToStockInventory(req)}
-                            className="px-2.5 py-1.5 rounded-md text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 cursor-pointer whitespace-nowrap shadow-xs transition"
-                            title="Direct to Stock Inventory to select serial numbers first"
-                          >
-                            <Package className="w-3.5 h-3.5" />
-                            <span>Select in Stock</span>
-                          </motion.button>
-                        )}
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          type="button"
-                          onClick={() => openArrangeModal(req)}
-                          className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs transition"
-                        >
-                          <Truck className="w-3.5 h-3.5" />
-                          <span>Arrange &amp; Dispatch</span>
-                        </motion.button>
+                    actionBtn = (
+                      <div className="inline-flex items-center gap-1.5">
+                        {editBtn}
+                        {isAdmin ? (
+                          <button type="button" onClick={() => openArrangeModal(req)} className="row-btn inline-flex items-center gap-1" title="Choose the serials and dispatch to the branch">
+                            <Truck className="w-3 h-3" aria-hidden />
+                            <span>Arrange &amp; Dispatch</span>
+                          </button>
+                        ) : <span className="cell-sub">Awaiting HQ</span>}
                       </div>
                     );
                   }
                 } else if (req.status === 'DISPATCHED') {
-                  statusColor = navyTitleClass;
+                  chip = 'chip-slate';
                   statusLabel = 'Dispatched';
                   actionBtn = (
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      type="button"
-                      onClick={() => onReceiveRequisition(req.reqId)}
-                      className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#1cc88a] hover:bg-[#17a673] text-white flex items-center gap-1.5 ml-auto cursor-pointer whitespace-nowrap"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    <button type="button" onClick={() => onReceiveRequisition(req.reqId)} className="row-btn inline-flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" aria-hidden />
                       <span>Confirm Receipt</span>
-                    </motion.button>
+                    </button>
                   );
                 } else if (req.status === 'RECEIVED') {
-                  statusColor = 'text-[#1cc88a]';
-                  statusLabel = isReturnReq ? 'Returned to HQ Stock' : 'Received';
-                  actionBtn = (
-                    <span className="text-[#1cc88a] font-bold flex items-center gap-1 justify-end whitespace-nowrap">
-                      <Check className="w-3.5 h-3.5" />
-                      <span>{isReturnReq ? 'Received in HQ' : 'Confirmed'}</span>
-                    </span>
-                  );
+                  chip = 'chip-green';
+                  statusLabel = isReturnReq ? 'Received at HQ' : 'Received';
                 }
 
-                const arranged = req.arrangedDevices || [];
-
+                const serialList = isReturnReq ? (req.returnSerials || []) : arranged.map((a) => a.serial);
                 return (
-                  <tr
-                    key={req.reqId}
-                    className={
-                      isLight
-                        ? 'hover:bg-[#f6f9fb]'
-                        : 'hover:bg-white/[0.03]'
-                    }
-                  >
-                    <td className="py-3 px-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`font-mono font-bold ${headingClass}`}>
-                          {req.reqId}
-                        </span>
-                        {isReturnReq ? (
-                          <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/80">
-                            Return
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-300/80">
-                            Request
-                          </span>
-                        )}
-                      </div>
-                      <div className={`text-[10px] font-mono ${subtextClass}`}>
-                        {req.date}
-                      </div>
+                  <tr key={req.reqId}>
+                    <td className="col-no">{rowIdx + 1}</td>
+                    <td>
+                      <div className="cell-mono whitespace-nowrap">{req.reqId}</div>
+                      <div className="cell-sub whitespace-nowrap">{isReturnReq ? 'Return' : 'Request'} · {req.date}</div>
+                      {req.reason && <div className="cell-sub max-w-[220px] truncate" title={req.reason}>{req.reason}</div>}
                     </td>
-                    <td className={`py-3 px-3.5 font-bold ${headingClass}`}>
-                      Code {req.branchId} · {req.branchName.replace(' Branch', '')}
-                    </td>
-                    <td className="py-3 px-3.5 font-semibold">
-                      {req.staff}
-                    </td>
-                    <td className="py-3 px-3.5">
-                      <div className={`font-mono font-bold ${navyTitleClass} tabular-nums`}>
-                        {req.posQty} POS Terminal
+                    <td>
+                      <div className="cell-main max-w-[220px] truncate" title={`Code ${req.branchId} · ${req.branchName}`}>
+                        {req.branchId} · {req.branchName.replace(' Branch', '')}
                       </div>
-                      <div className="font-mono font-bold text-[#1cc88a] tabular-nums">
-                        {req.sbQty} Sound Box
-                      </div>
+                      <div className="cell-sub max-w-[220px] truncate">{req.staff}</div>
                     </td>
-                    <td className="py-3 px-3.5 max-w-[300px]">
-                      {isReturnReq ? (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                            <RotateCcw className="w-3 h-3" />
-                            <span>Returning Serials ({req.returnSerials?.length || req.posQty + req.sbQty}):</span>
-                          </span>
-                          {req.returnSerials && req.returnSerials.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {req.returnSerials.map((sn) => (
-                                <span
-                                  key={sn}
-                                  className="px-1.5 py-0.5 rounded font-mono text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200"
-                                >
-                                  {sn}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className={`text-[11px] ${subtextClass}`}>
-                              {req.posQty}x POS · {req.sbQty}x Sound Box
-                            </span>
-                          )}
-                        </div>
-                      ) : arranged.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {arranged.slice(0, 4).map((item, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center gap-1.5 text-[11px] font-mono"
-                            >
-                              {item.type === 'POS Terminal' ? (
-                                <Cpu className={`w-3 h-3 ${navyTitleClass} shrink-0`} />
-                              ) : (
-                                <Volume2 className="w-3 h-3 text-[#1cc88a] shrink-0" />
-                              )}
-                              <span className={`font-bold ${headingClass}`}>
-                                {item.serial}
-                              </span>
-                              <span className={`text-[10px] ${subtextClass}`}>
-                                · Bat: {item.batterySerial}
-                              </span>
-                            </div>
+                    <td className="whitespace-nowrap">
+                      {req.posQty > 0 && <div className="cell-main flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />POS Terminal × {req.posQty}</div>}
+                      {req.sbQty > 0 && <div className="cell-main flex items-center gap-1.5"><Volume2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" aria-hidden />Sound Box × {req.sbQty}</div>}
+                    </td>
+                    <td className="max-w-[300px]">
+                      {serialList.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {serialList.slice(0, 4).map((sn) => (
+                            <span key={sn} className="cell-mono px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">{sn}</span>
                           ))}
-                          {arranged.length > 4 && (
-                            <span className={`text-[10px] font-semibold ${subtextClass}`}>
-                              +{arranged.length - 4} more arranged unit(s)
-                            </span>
-                          )}
+                          {serialList.length > 4 && <span className="cell-sub self-center" title={serialList.join(', ')}>+{serialList.length - 4} more</span>}
                         </div>
                       ) : (
-                        <span className={`text-[11px] ${subtextClass}`}>
-                          Awaiting HO Admin POS Serial &amp; Battery Serial arrangement
-                        </span>
+                        <span className="cell-sub">{isReturnReq ? 'No serials listed' : 'Not arranged yet'}</span>
                       )}
                     </td>
-                    <td className={`py-3 px-3.5 max-w-[200px] ${subtextClass}`}>
-                      {req.reason}
-                    </td>
-                    <td className="py-3 px-3.5">
-                      <span className={`font-bold ${statusColor}`}>
-                        {statusLabel}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3.5 text-right">{actionBtn}</td>
+                    <td className="whitespace-nowrap"><span className={`chip ${chip}`}>{statusLabel}</span></td>
+                    <td className="text-right col-actions">{actionBtn}</td>
                   </tr>
                 );
               })}
 
               {requisitions.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={8}
-                    className={`py-10 text-center ${subtextClass} text-xs`}
-                  >
-                    No stock requests found.
-                  </td>
+                  <td colSpan={7} className="py-10 text-center"><span className="cell-sub">No stock requests found.</span></td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Edit a pending request */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {editingReq && (
+              <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96, y: 12 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96, y: 12 }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  className="w-full max-w-md rounded-2xl bg-white text-slate-900 shadow-2xl overflow-hidden"
+                >
+                  <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white">
+                    <div>
+                      <div className="text-sm font-semibold">Edit stock request</div>
+                      <div className="text-xs text-white/75 font-mono">{editingReq.reqId} · Code {editingReq.branchId}</div>
+                    </div>
+                    <button type="button" onClick={() => setEditingReq(null)} aria-label="Close" className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"><X className="w-4 h-4" /></button>
+                  </div>
+                  <div className="p-5 flex flex-col gap-3 text-xs">
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="flex flex-col gap-1">
+                        <span className="text-slate-500">POS Terminal quantity</span>
+                        <input type="number" min={0} inputMode="numeric" value={editPos} onChange={(e) => setEditPos(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2" />
+                      </label>
+                      <label className="flex flex-col gap-1">
+                        <span className="text-slate-500">Sound Box quantity</span>
+                        <input type="number" min={0} inputMode="numeric" value={editSb} onChange={(e) => setEditSb(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2" />
+                      </label>
+                    </div>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-slate-500">Reason</span>
+                      <textarea rows={3} value={editReason} onChange={(e) => setEditReason(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2" />
+                    </label>
+                    {(Math.floor(Number(editPos) || 0) + Math.floor(Number(editSb) || 0)) === 0 && (
+                      <div role="alert" className="text-rose-700">Enter at least one POS Terminal or Sound Box.</div>
+                    )}
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                      <button type="button" onClick={() => setEditingReq(null)} className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer">Cancel</button>
+                      <button type="button" onClick={saveEdit} className="px-4 py-2 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer">Save changes</button>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
 
       {/* Step 3 & 4 Modal: Head Office Admin Arrange POS Serial + Battery Serial + Sound Box Serial to Branch */}
       {typeof document !== 'undefined' &&
@@ -663,17 +658,6 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {onDirectToStockInventory && (
-                        <button
-                          type="button"
-                          onClick={() => onDirectToStockInventory(arrangingReq, stagedItems)}
-                          className="px-3.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs text-xs"
-                          title="Direct to Stock Inventory tab to select serial numbers from Head Office stock"
-                        >
-                          <Package className="w-3.5 h-3.5" />
-                          <span>Direct to Stock Inventory to Select SN</span>
-                        </button>
-                      )}
                       <button
                         type="button"
                         onClick={rerunAutoMatch}
@@ -684,6 +668,34 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         <span>Auto-Match from HO Stock</span>
                       </button>
                     </div>
+                  </div>
+
+                  <div className={`p-3.5 rounded-xl border flex flex-col gap-2 ${isLight ? 'bg-white border-slate-200' : 'bg-[#18191e] border-white/10'}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold">Upload or paste the serial list</span>
+                      <label className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 cursor-pointer inline-flex items-center gap-1.5">
+                        <Upload className="w-3.5 h-3.5" aria-hidden />
+                        <span>Choose CSV / TXT file</span>
+                        <input type="file" accept=".csv,.txt,text/csv,text/plain" className="sr-only" onChange={(e) => { onSerialFile(e.target.files?.[0]); e.target.value = ''; }} />
+                      </label>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={serialText}
+                      onChange={(e) => setSerialText(e.target.value)}
+                      placeholder={'One serial per line. For a POS Terminal you can add the battery serial after a comma, for example:\nP12345678, B98765432'}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-900"
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-[11px] ${subtextClass}`}>Serials fill the free lines by type. Units not in Head Office stock are reported, not added.</span>
+                      <button type="button" disabled={!serialText.trim()} onClick={() => applySerialList(serialText)} className="px-3 py-1.5 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-40 cursor-pointer">Match serials</button>
+                    </div>
+                    {serialReport.length > 0 && (
+                      <ul role="status" className="text-[11px] space-y-0.5">
+                        {serialReport.slice(0, 8).map((l, i) => <li key={i} className={i === 0 ? 'text-emerald-700' : 'text-amber-700'}>{l}</li>)}
+                        {serialReport.length > 8 && <li className="text-amber-700">…and {serialReport.length - 8} more.</li>}
+                      </ul>
+                    )}
                   </div>
 
                   {shortfall && (

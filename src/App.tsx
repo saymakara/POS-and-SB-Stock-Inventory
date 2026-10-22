@@ -72,6 +72,7 @@ import {
   subscribeToRealtimeChanges,
   saveDevicesStrict,
   saveRequisitionStrict,
+  deleteDevicesOnServer,
   confirmReceiptOnServer,
   writeAuditLog,
   fetchHistoricalMerchantsFromSupabase,
@@ -85,6 +86,7 @@ import {
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
 import { FieldReviewTab } from './components/FieldReviewTab';
 import { StaffAccountsTab } from './components/StaffAccountsTab';
+import { SetupAlert } from './components/SetupAlert';
 import {
   loadDevicesFromIdb,
   saveDevicesToIdb,
@@ -1243,7 +1245,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (!d) return;
     if (!inScope(d)) { triggerToast('This unit belongs to another branch.'); return; }
     if (role === 'BRANCH' && updates.branchId !== d.branchId) { triggerToast('Branch staff cannot move a unit to another branch.'); return; }
-    const err = moveError(d.stage, updates.stage, STAGE_META);
+    const err = role === 'SUPER_ADMIN' ? '' : moveError(d.stage, updates.stage, STAGE_META);   // the super admin may move a unit to any stage
     if (err) { triggerToast(err); return; }
     const today = todayPP();
     const nowTime = stampSecPP();
@@ -1671,6 +1673,24 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     triggerToast(`Removed ${serials.length} unit(s) from active dashboard`);
   };
 
+  // (22 Oct 2026) super admin only: remove units for good (the database refuses anyone else)
+  const handleDeletePermanently = (serials: string[]) => {
+    if (role !== 'SUPER_ADMIN') { triggerToast('Only the Super Admin can delete units permanently.'); return; }
+    const gone = new Set(serials);
+    const names = serials.slice(0, 20).join(', ') + (serials.length > 20 ? '…' : '');
+    const finish = () => {
+      setDevices((prev) => prev.filter((d) => !gone.has(d.serial)));
+      serials.forEach((sn) => syncedDevices.current.delete(sn));
+      addAuditLog('Units Deleted Permanently', `Deleted ${serials.length} serial(s): ${names}`);
+      triggerToast(`Deleted ${serials.length} unit(s) permanently`);
+    };
+    if (isSupabaseConfigured) {
+      deleteDevicesOnServer(serials).then((err) => { if (err) triggerToast(`Not deleted: ${err}`); else finish(); });
+      return;
+    }
+    finish();
+  };
+
   const handleRestoreToDashboard = (serials: string[]) => {
     if (role === 'BRANCH') { triggerToast('Only HQ can restore archived units.'); return; }
     const today = todayPP();
@@ -1797,6 +1817,20 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     );
 
     triggerToast(`Alert Sent! Request ${newReq.reqId} notified to Admin HQ & Super Admin`);
+  };
+
+  // (22 Oct 2026) HQ, or the branch that made it, can change the quantity or reason of a request that is still pending
+  const handleEditRequisition = (reqId: string, changes: { posQty: number; sbQty: number; reason: string }) => {
+    const target = requisitions.find((r) => r.reqId === reqId);
+    if (!target) return;
+    if (target.status !== 'PENDING_ADMIN' || target.type === 'STOCK_RETURN') { triggerToast(`Request ${reqId} can no longer be edited (${target.status}).`); return; }
+    if (role === 'BRANCH' && target.branchId !== selectedBranch) { triggerToast('You can edit only your own branch requests.'); return; }
+    const posQty = Math.max(0, Math.floor(changes.posQty || 0));
+    const sbQty = Math.max(0, Math.floor(changes.sbQty || 0));
+    if (posQty + sbQty === 0) { triggerToast('Enter at least one POS Terminal or Sound Box.'); return; }
+    setRequisitions((prev) => prev.map((r) => (r.reqId === reqId ? { ...r, posQty, sbQty, reason: changes.reason } : r)));
+    addAuditLog('Stock Request Edited', `${reqId}: ${target.posQty}x POS & ${target.sbQty}x Sound Box → ${posQty}x POS & ${sbQty}x Sound Box`);
+    triggerToast(`Request ${reqId} updated.`);
   };
 
   // Approve & Dispatch Requisitions (for RequisitionsTab). (22 Oct 2026) With the shared database the server checks every
@@ -2116,7 +2150,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     setEditingUser(null);
   };
 
-  const handleExportInventoryCsv = () => {
+  const handleExportInventoryCsv = (onlyStage?: LifecycleStage) => {
+    const exportList = onlyStage ? filteredInventory.filter((d) => d.stage === onlyStage) : filteredInventory;
     const activeCustom = (appSettings.customFields || []).filter((f) => f.enabled);
     const headers = [
       'Stock_In_Date',
@@ -2134,7 +2169,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       'Archived',
       ...activeCustom.map((f) => f.label.replace(/\s+/g, '_')),
     ];
-    const rows = filteredInventory.map((d) => {
+    const rows = exportList.map((d) => {
       const bObj = branches.find((b) => b.code === d.branchId);
       const bName = bObj?.name || d.branchName || `Branch ${d.branchId}`;
       const batSn = d.batterySerial || '';                             // (22 Oct 2026) the recorded value only
@@ -2165,7 +2200,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `POS_Soundbox_BranchCode_Inventory_${
+    link.download = `POS_Soundbox_Inventory_${onlyStage ? STAGE_META[onlyStage].short.replace(/[^A-Za-z0-9]+/g, '_') + '_' : ''}${
       todayPP()
     }.csv`;
     document.body.appendChild(link);
@@ -2174,9 +2209,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     URL.revokeObjectURL(url);
     addAuditLog(
       'Inventory CSV Exported',
-      `Exported ${filteredInventory.length} hardware serials`
+      `Exported ${exportList.length} hardware serials${onlyStage ? ` (${STAGE_META[onlyStage].short})` : ''}`
     );
-    triggerToast(`Exported ${filteredInventory.length} serials to CSV`);
+    triggerToast(`Exported ${exportList.length} serials to CSV${onlyStage ? ` · ${STAGE_META[onlyStage].short}` : ''}`);
   };
 
   const handleTriggerMobileSync = async (payload: MobileInstallSyncPayload) => {
@@ -2290,7 +2325,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             type: (isSb ? 'Sound Box' : 'POS Terminal') as
               | 'POS Terminal'
               | 'Sound Box',
-            model: isSb ? 'SB-Pro' : 'PAX A920 Pro',
+            model: isSb ? 'Q161 Pro' : 'PAX A920 Pro',
             stockInDate: today,
             branchId: e.branchId || selectedBranch,
             branchName: bObj?.name || `Branch Code ${e.branchId || selectedBranch}`,
@@ -2749,6 +2784,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
+                  {(activeTab === 'dashboard' || activeTab === 'merchants' || activeTab === 'inventory') && (
+                    <SetupAlert devices={scopedDevices} role={role} onOpen={(sn) => setEditingDeviceSerial(sn)} />
+                  )}
+
                   {activeTab === 'requisitions' && (
                     <RequisitionsTab
                       role={role}
@@ -2759,7 +2798,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       onApproveReturnRequisition={handleApproveReturnRequisition}
                       onReceiveRequisition={handleReceiveRequisition}
                       theme={theme}
-                      onDirectToStockInventory={handleDirectToStockInventory}
+                      onEditRequisition={handleEditRequisition}
                       externalArrangingReq={fulfillingRequisition}
                       externalStagedItems={stagedFulfillmentItems}
                       onClearExternalArranging={() => {
@@ -2788,11 +2827,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
                       onOpenReqModal={() => setIsReqModalOpen(true)}
                       onOpenBatchModal={() => setIsBatchModalOpen(true)}
-                      onExportCsv={handleExportInventoryCsv}
+                      onExportCsv={(st) => handleExportInventoryCsv(st)}
                       onBulkAssignBranch={handleBulkAssignBranch}
                       onReturnToAdminStock={handleReturnToAdminStock}
                       onRequestReturnToAdminStock={handleRequestReturnToAdminStock}
                       onRemoveFromDashboard={handleRemoveFromDashboard}
+                      onDeletePermanently={handleDeletePermanently}
                       onRestoreToDashboard={handleRestoreToDashboard}
                       onChangeBattery={(sn) => {
                         const target = deviceBySerialMap.get(sn);
