@@ -10,12 +10,12 @@
 import { Device, LifecycleStage } from '../types';
 
 export const ALLOWED_NEXT: Record<LifecycleStage, LifecycleStage[]> = {
-  HQ_STOCK: ['BRANCH_RESERVE', 'FAULTY', 'LOST'],
-  BRANCH_RESERVE: ['CONFIGURING', 'COMPLETE', 'HQ_STOCK', 'FAULTY', 'LOST'],
-  CONFIGURING: ['COMPLETE', 'BRANCH_RESERVE', 'FAULTY', 'LOST'],
-  COMPLETE: ['FAULTY', 'BRANCH_RESERVE', 'LOST'],
-  FAULTY: ['HQ_STOCK', 'BRANCH_RESERVE', 'LOST'],
-  LOST: ['HQ_STOCK', 'BRANCH_RESERVE', 'FAULTY'],
+  HQ_STOCK: ['BRANCH_RESERVE', 'LOST'],
+  BRANCH_RESERVE: ['CONFIGURING', 'COMPLETE', 'HQ_STOCK', 'LOST'],
+  CONFIGURING: ['COMPLETE', 'BRANCH_RESERVE', 'LOST'],
+  COMPLETE: ['BRANCH_RESERVE', 'HQ_STOCK', 'LOST'],
+  FAULTY: ['HQ_STOCK', 'BRANCH_RESERVE', 'LOST'],      // only for units that were already marked faulty before: they can leave this stage
+  LOST: ['HQ_STOCK', 'BRANCH_RESERVE'],
 };
 export const canMove = (from: LifecycleStage, to: LifecycleStage) => from === to || ALLOWED_NEXT[from].includes(to);
 export function moveError(from: LifecycleStage, to: LifecycleStage, labels: Record<string, { short: string }>): string {

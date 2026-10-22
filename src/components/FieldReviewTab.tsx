@@ -64,7 +64,7 @@ const hasBlock = (e: FieldEvent) => e.issues.some((i) => i.level === 'block');
 const hasWarn = (e: FieldEvent) => e.issues.some((i) => i.level === 'warn');
 const resolve = (e: FieldEvent, o?: RowOpt) => ({
   branchId: o?.branchId ?? (e.branchId || ''),
-  returnStage: o?.returnStage ?? (e.kind === 'SB_RETURN' ? 'BRANCH_RESERVE' : 'FAULTY'),
+  returnStage: o?.returnStage ?? ('HQ_STOCK'),
   note: o?.note ?? '',
   ack: o?.ack ?? false,
 });
@@ -328,10 +328,10 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
       {/* Section 3 — the records */}
       <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto" aria-label="Records">
        <div className="min-w-[980px]">
-        <div className={`${GRID} bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5`} role="row">
+        <div className={`${GRID} bg-slate-50 text-slate-500 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5`} role="row">
           <span>{isAdmin && shownPending.length > 0 && (
             <button type="button" aria-label={allSelected ? 'Unselect all' : 'Select all waiting'} aria-pressed={allSelected} onClick={() => setSelected(allSelected ? new Set() : new Set(shownPending.map((e) => e.id)))} className="cursor-pointer flex">
-              {allSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 opacity-80" />}
+              {allSelected ? <CheckSquare className="w-4 h-4 text-[#003857]" /> : <Square className="w-4 h-4 text-slate-400" />}
             </button>
           )}</span>
           <span className="text-right">No.</span>
@@ -420,10 +420,11 @@ const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked
         </button>
         <span className="truncate" title={merchant}>{merchant || '—'}</span>
         <span className="truncate" title={`${e.branchText} ${e.staffName}`}>{e.branchText || '—'}<span className="block text-[11px] text-slate-500 truncate">{e.staffName || '—'}</span></span>
-        <span className="flex flex-wrap items-center gap-1">
-          <span className={`chip ${STATUS_CHIP[e.status]}`}>{STATUS_LABEL[e.status].length > 12 ? 'Closed' : STATUS_LABEL[e.status]}</span>
-          {blocks > 0 && <span className="chip chip-red" title="Cannot be approved as it is">{blocks} to fix</span>}
-          {warns > 0 && <span className="chip chip-amber" title="Check before approving">{warns} check</span>}
+        <span className="text-slate-600 leading-tight">
+          {STATUS_LABEL[e.status].length > 12 ? 'Closed' : STATUS_LABEL[e.status]}
+          {(blocks > 0 || warns > 0) && pending && (
+            <span className="block text-[11px] text-slate-500">{blocks > 0 && <span className="text-rose-700">{blocks} to fix</span>}{blocks > 0 && warns > 0 && ' · '}{warns > 0 && `${warns} to check`}</span>
+          )}
         </span>
         <span className="flex justify-end gap-1.5">
           {pending && isAdmin ? (
@@ -442,32 +443,25 @@ const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div key="detail" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8, transition: { duration: 0.12 } }} transition={SPRING}
-            className="px-4 pb-4 pt-1 grid gap-x-8 gap-y-5 md:grid-cols-3 border-t border-dashed border-slate-200 bg-white/60">
-            <Section title="Record">
-              <Line k="Record ID">{e.sourceRecordId}{e.unitNo > 1 ? ` · unit ${e.unitNo}` : ''}{e.revision > 1 ? ` · edited (revision ${e.revision})` : ''}</Line>
-              <Line k="Saved">{fmtTime(e.recordedAt)}</Line>
+            className="px-4 pb-3 pt-2 grid gap-x-10 gap-y-4 md:grid-cols-2 border-t border-slate-100 bg-slate-50/50">
+            <Section title="Details">
+              <Line k="Record">{e.sourceRecordId}{e.unitNo > 1 ? ` · unit ${e.unitNo}` : ''} · {fmtTime(e.recordedAt)}</Line>
               <Line k="Staff">{e.staffName ? `${e.staffName}${e.staffId ? ` (${e.staffId})` : ''}` : ''}</Line>
-              <Line k="Phone app branch">{e.branchText}</Line>
-              <Line k="Merchant">{merchant}</Line>
-              <Line k="MID" mono>{e.mid}</Line>
-              <Line k="TID" mono>{e.tid}</Line>
+              <Line k="MID · TID" mono>{[e.mid, e.tid].filter(Boolean).join(' · ')}</Line>
               {e.oldSerial && <Line k="Replaces" mono>{e.oldSerial}</Line>}
               {e.newBattery && <Line k="Battery" mono>{`${e.oldBattery || '—'} → ${e.newBattery}`}</Line>}
-            </Section>
-
-            <Section title="Inventory check">
-              <Line k="This unit now">{stageText(device)}</Line>
-              {e.oldSerial && <Line k="Old unit now">{stageText(oldDevice)}</Line>}
-              {device && onOpenWorkflow && <button type="button" onClick={() => onOpenWorkflow(device.serial)} className="self-start text-[11px] text-[#003857] hover:underline cursor-pointer">Open this device</button>}
-              {e.issues.length === 0 ? <span className="text-emerald-700">No problems found.</span> : (
-                <ul className="flex flex-col gap-1.5 mt-0.5">
+              <Line k="In inventory">{stageText(device)}</Line>
+              {e.oldSerial && <Line k="Old unit">{stageText(oldDevice)}</Line>}
+              {e.issues.length > 0 && (
+                <ul className="mt-1 flex flex-col gap-1">
                   {e.issues.map((i, k) => (
-                    <li key={k} className={`flex items-start gap-1.5 rounded-md px-2 py-1 border ${i.level === 'block' ? 'text-rose-800 bg-rose-50 border-rose-200' : 'text-amber-800 bg-amber-50/70 border-amber-200'}`}>
-                      {i.level === 'block' ? <Ban className="w-3 h-3 shrink-0 mt-0.5" /> : <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />}<span>{i.text}</span>
+                    <li key={k} className={`flex items-start gap-1.5 ${i.level === 'block' ? 'text-rose-700' : 'text-slate-600'}`}>
+                      {i.level === 'block' ? <Ban className="w-3 h-3 shrink-0 mt-0.5" /> : <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5 text-slate-400" />}<span>{i.text}</span>
                     </li>
                   ))}
                 </ul>
               )}
+              {device && onOpenWorkflow && <button type="button" onClick={() => onOpenWorkflow(device.serial)} className="self-start text-[11px] text-[#003857] hover:underline cursor-pointer mt-1">Open this device</button>}
             </Section>
 
             <Section title={pending && isAdmin ? 'Decision' : 'Result'}>
@@ -484,9 +478,8 @@ const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked
                   {needsReturn && (
                     <label className="flex flex-col gap-1 text-slate-600">{e.kind === 'REPLACE' ? 'The old unit goes to' : 'The returned sound box goes to'}
                       <select value={r.returnStage} onChange={(x) => onOpt(e.id, { returnStage: x.target.value })} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900">
-                        <option value="FAULTY">Faulty / repair</option>
-                        <option value="BRANCH_RESERVE">Branch reserve (working)</option>
                         <option value="HQ_STOCK">Back to HQ stock</option>
+                        <option value="BRANCH_RESERVE">Branch reserve</option>
                       </select>
                     </label>
                   )}
@@ -496,7 +489,7 @@ const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked
                   {(warns > 0 || /warning/i.test(err)) && !blocks && (
                     <label className="flex items-center gap-1.5 text-slate-700 cursor-pointer"><input type="checkbox" checked={r.ack} onChange={(x) => onOpt(e.id, { ack: x.target.checked })} /> I checked the warnings</label>
                   )}
-                  {err && <div role="alert" className="text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5 font-semibold">{err}</div>}
+                  {err && <div role="alert" className="text-rose-700 font-semibold">{err}</div>}
                 </>
               ) : (
                 <div>{STATUS_LABEL[e.status]}{e.reviewedByName ? ` by ${e.reviewedByName}` : ''}{e.reviewedAt ? ` · ${fmtTime(e.reviewedAt)}` : ''}{e.reviewNote ? ` · ${e.reviewNote}` : ''}</div>

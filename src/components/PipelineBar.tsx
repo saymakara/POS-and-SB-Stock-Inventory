@@ -83,13 +83,6 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
       accentColor: 'text-[#1cc88a]',
     },
     {
-      id: 'FAULTY',
-      title: STAGE_META.FAULTY.short,
-      count: counts.faulty,
-      icon: RotateCcw,
-      accentColor: 'text-[#e41e26]',
-    },
-    {
       id: 'LOST',
       title: STAGE_META.LOST.short,
       count: counts.lost ?? 0,
