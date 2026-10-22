@@ -9,6 +9,7 @@ import {
 } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { GroupedBarChart } from './Charts';
+import { todayPP, lastMonthsPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   BarChart3,
@@ -26,6 +27,10 @@ import {
   Package,
 } from 'lucide-react';
 
+/** Battery policy defaults (same values as AppSettings defaults). App can pass the live settings values as props. */
+export const DEFAULT_BATTERY_LIFESPAN_MONTHS = 24;
+export const DEFAULT_BATTERY_WARNING_MONTHS = 21;
+
 interface DashboardTabProps {
   devices: Device[];
   allDevices: Device[];
@@ -37,6 +42,10 @@ interface DashboardTabProps {
   onSelectDevice: (serial: string) => void;
   onOpenExportModal: () => void;
   onNavigateTab?: (tab: string) => void;
+  /** Battery change interval in months (AppSettings.batteryLifespanMonths). Default 24. */
+  batteryLifespanMonths?: number;
+  /** "Due soon" threshold in months (AppSettings.batteryWarningMonths). Default 21. */
+  batteryWarningMonths?: number;
 }
 
 type PerformanceViewMode =
@@ -44,7 +53,7 @@ type PerformanceViewMode =
   | 'HARDWARE_MIX'
   | 'BRANCH_LEADERBOARD'
   | 'SLA_CYCLE';
-type TimeHorizon = '6M' | '12M' | 'Q4_2026';
+type TimeHorizon = '6M' | '12M' | '3M';
 
 interface MonthlyBucket {
   monthKey: string;
@@ -52,39 +61,27 @@ interface MonthlyBucket {
   shortLabel: string;
   posInstalled: number;
   sbInstalled: number;
-  dispatched: number;
   faulty: number;
   total: number;
-  target: number;
+  /** Stock-in → install days, summed over installs this month that have both dates. */
+  cycleDaysSum: number;
+  cycleMeasured: number;
 }
 
-function generateDynamicMonthBuckets(count = 12): {
-  monthKey: string;
-  label: string;
-  shortLabel: string;
-}[] {
-  const months: { monthKey: string; label: string; shortLabel: string }[] = [];
-  const now = new Date();
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  const shortNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ];
-
-  for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const monthKey = `${yyyy}-${mm}`;
-    const label = `${monthNames[d.getMonth()]} ${yyyy}`;
-    const shortLabel = `${shortNames[d.getMonth()]} ${String(yyyy).slice(-2)}`;
-    months.push({ monthKey, label, shortLabel });
-  }
-  return months;
+/** Whole days between two YYYY-MM-DD(...) dates, or null when either is missing/invalid or negative. */
+function daysBetween(fromStr: string | undefined, toStr: string | undefined): number | null {
+  const a = (fromStr || '').slice(0, 10);
+  const b = (toStr || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(a) || !/^\d{4}-\d{2}-\d{2}$/.test(b)) return null;
+  const ta = Date.parse(`${a}T00:00:00Z`);
+  const tb = Date.parse(`${b}T00:00:00Z`);
+  if (Number.isNaN(ta) || Number.isNaN(tb) || tb < ta) return null;
+  return Math.round((tb - ta) / 86400000);
 }
+
+const pctOf = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+
+const fmtHours = (h: number) => (h >= 48 ? `${(h / 24).toFixed(1)} days` : `${h.toFixed(1)} hrs`);
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
   devices,
@@ -96,11 +93,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onSelectDevice,
   onOpenExportModal,
   onNavigateTab,
+  batteryLifespanMonths = DEFAULT_BATTERY_LIFESPAN_MONTHS,
+  batteryWarningMonths = DEFAULT_BATTERY_WARNING_MONTHS,
 }) => {
-  const currentMonthKey = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }, []);
+  const today = todayPP();
+  const currentMonthKey = today.slice(0, 7);
 
   const [perfViewMode, setPerfViewMode] =
     useState<PerformanceViewMode>('MONTHLY_INSTALLS');
@@ -114,70 +111,51 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   );
 
   const monthlyData: MonthlyBucket[] = useMemo(() => {
-    const buckets = generateDynamicMonthBuckets(12);
-    const bucketMap = new Map<
-      string,
-      { posInstalled: number; sbInstalled: number; dispatched: number; faulty: number }
-    >();
-
-    for (let i = 0; i < buckets.length; i++) {
-      bucketMap.set(buckets[i].monthKey, {
+    // Months in Phnom Penh time, oldest first.
+    const months = lastMonthsPP(12);
+    const bucketMap = new Map<string, MonthlyBucket>();
+    const buckets: MonthlyBucket[] = months.map((m) => {
+      const b: MonthlyBucket = {
+        monthKey: m.key,
+        label: m.label,
+        shortLabel: `${m.label.slice(0, 3)} ${m.label.slice(-2)}`,
         posInstalled: 0,
         sbInstalled: 0,
-        dispatched: 0,
         faulty: 0,
-      });
-    }
+        total: 0,
+        cycleDaysSum: 0,
+        cycleMeasured: 0,
+      };
+      bucketMap.set(m.key, b);
+      return b;
+    });
 
-    // High-performance single pass across all devices (O(N) handling up to 500K rows)
-    const len = activeDevices.length;
-    for (let i = 0; i < len; i++) {
+    for (let i = 0; i < activeDevices.length; i++) {
       const d = activeDevices[i];
-      const depDate = d.deployedDate || d.updatedAt || d.stockInDate || '';
-      if (depDate.length >= 7) {
-        const mKey = depDate.slice(0, 7);
-        const stats = bucketMap.get(mKey);
-        if (stats) {
-          if (d.stage === 'COMPLETE') {
-            if (d.type === 'POS Terminal') stats.posInstalled++;
-            else if (d.type === 'Sound Box') stats.sbInstalled++;
-          } else if (d.stage === 'FAULTY') {
-            stats.faulty++;
-          }
-          if (d.stage === 'COMPLETE' || d.stage === 'BRANCH_RESERVE' || d.stage === 'CONFIGURING') {
-            stats.dispatched++;
-          }
+      if (d.stage === 'COMPLETE') {
+        // An install is counted in the month of its recorded install date only.
+        const b = d.deployedDate ? bucketMap.get(d.deployedDate.slice(0, 7)) : undefined;
+        if (!b) continue;
+        if (d.type === 'POS Terminal') b.posInstalled++;
+        else if (d.type === 'Sound Box') b.sbInstalled++;
+        b.total++;
+        const days = daysBetween(d.stockInDate, d.deployedDate);
+        if (days !== null) {
+          b.cycleDaysSum += days;
+          b.cycleMeasured++;
         }
+      } else if (d.stage === 'FAULTY') {
+        const b = d.updatedAt ? bucketMap.get(d.updatedAt.slice(0, 7)) : undefined;
+        if (b) b.faulty++;
       }
     }
 
-    const computed = buckets.map((b) => {
-      const s = bucketMap.get(b.monthKey) || {
-        posInstalled: 0,
-        sbInstalled: 0,
-        dispatched: 0,
-        faulty: 0,
-      };
-      const total = s.posInstalled + s.sbInstalled;
-      return {
-        monthKey: b.monthKey,
-        label: b.label,
-        shortLabel: b.shortLabel,
-        posInstalled: s.posInstalled,
-        sbInstalled: s.sbInstalled,
-        dispatched: Math.max(s.dispatched, total),
-        faulty: s.faulty,
-        total,
-        target: 50,
-      };
-    });
-
-    if (timeHorizon === '6M') return computed.slice(-6);
-    if (timeHorizon === 'Q4_2026') return computed.slice(-3);
-    return computed;
+    if (timeHorizon === '6M') return buckets.slice(-6);
+    if (timeHorizon === '3M') return buckets.slice(-3);
+    return buckets;
   }, [activeDevices, timeHorizon]);
 
-  const selectedMonthStats = useMemo(() => {
+  const selectedMonthStats: MonthlyBucket = useMemo(() => {
     return (
       monthlyData.find((m) => m.monthKey === selectedMonthKey) ||
       monthlyData[monthlyData.length - 1] || {
@@ -186,15 +164,85 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         shortLabel: 'Now',
         posInstalled: 0,
         sbInstalled: 0,
-        dispatched: 0,
         faulty: 0,
         total: 0,
-        target: 50,
+        cycleDaysSum: 0,
+        cycleMeasured: 0,
       }
     );
   }, [monthlyData, selectedMonthKey, currentMonthKey]);
 
-  // High-Throughput Single-Pass Branch Velocity Aggregator
+  // Chart series built once per data change (not on every render).
+  const monthlyChart = useMemo(
+    () => ({
+      labels: monthlyData.map((m) => m.shortLabel),
+      pos: monthlyData.map((m) => m.posInstalled),
+      sb: monthlyData.map((m) => m.sbInstalled),
+    }),
+    [monthlyData]
+  );
+  const periodInstallTotal = useMemo(
+    () => monthlyData.reduce((acc, m) => acc + m.total, 0),
+    [monthlyData]
+  );
+
+  // Current pipeline snapshot (not per month): units with a branch that are not yet installed vs installed.
+  const pipeline = useMemo(() => {
+    let reserve = 0;
+    let configuring = 0;
+    let complete = 0;
+    for (const d of activeDevices) {
+      if (d.stage === 'BRANCH_RESERVE') reserve++;
+      else if (d.stage === 'CONFIGURING') configuring++;
+      else if (d.stage === 'COMPLETE') complete++;
+    }
+    const atBranches = reserve + configuring + complete;
+    return { reserve, configuring, complete, atBranches };
+  }, [activeDevices]);
+
+  // Stage ageing computed from each unit's stored hours-in-stage, plus stock-in → install days.
+  const stageAgeing = useMemo(() => {
+    const stages: { stage: 'HQ_STOCK' | 'BRANCH_RESERVE' | 'CONFIGURING'; title: string }[] = [
+      { stage: 'HQ_STOCK', title: 'Waiting in HQ Stock' },
+      { stage: 'BRANCH_RESERVE', title: 'Waiting in Branch Reserve' },
+      { stage: 'CONFIGURING', title: 'Configuring at Merchant' },
+    ];
+    const rows = stages.map(({ stage, title }) => {
+      let n = 0;
+      let sum = 0;
+      let max = 0;
+      for (const d of activeDevices) {
+        if (d.stage !== stage) continue;
+        const h = Number(d.hoursInStage);
+        if (!Number.isFinite(h) || h < 0) continue;
+        n++;
+        sum += h;
+        if (h > max) max = h;
+      }
+      return { key: stage, title, count: n, avg: n > 0 ? fmtHours(sum / n) : '—', detail: n > 0 ? `Longest: ${fmtHours(max)}` : 'No units in this stage' };
+    });
+    let n = 0;
+    let sum = 0;
+    for (const d of activeDevices) {
+      if (d.stage !== 'COMPLETE') continue;
+      const days = daysBetween(d.stockInDate, d.deployedDate);
+      if (days === null) continue;
+      n++;
+      sum += days;
+    }
+    const all: { key: string; title: string; count: number; avg: string; detail: string }[] = rows;
+    all.push({
+      key: 'STOCKIN_TO_INSTALL',
+      title: 'Stock-In → Installed (all installed units)',
+      count: n,
+      avg: n > 0 ? `${(sum / n).toFixed(1)} days` : '—',
+      detail: n > 0 ? 'Based on stock-in and install dates' : 'No units with both dates',
+    });
+    return all;
+  }, [activeDevices]);
+
+  // Branch matrix: HQ sees every branch; a branch user only sees its own scoped devices.
+  const matrixSource = isAdminLike ? allDevices : devices;
   const branchVelocity = useMemo(() => {
     const stats = new Map<
       string,
@@ -214,9 +262,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
     }
 
-    const devLen = allDevices.length;
-    for (let i = 0; i < devLen; i++) {
-      const d = allDevices[i];
+    for (let i = 0; i < matrixSource.length; i++) {
+      const d = matrixSource[i];
       if (d.archived) continue;
       const bStat = stats.get(d.branchId);
       if (!bStat) continue;
@@ -241,33 +288,49 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           sbCount: 0,
           total: 0,
         };
-        const conversion = s.total > 0 ? Math.round((s.complete / s.total) * 100) : 0;
         return {
           code: b.code,
           name: b.name,
           ...s,
-          conversion,
+          conversion: pctOf(s.complete, s.total),
         };
       })
+      .filter((b) => isAdminLike || b.total > 0)
       .sort((a, b) => b.total - a.total || b.complete - a.complete);
-  }, [branches, allDevices]);
+  }, [branches, matrixSource, isAdminLike]);
 
+  // Battery figures: POS Terminals only (Sound Boxes have no replaceable 24M battery). Units without any date are
+  // reported separately instead of being given an invented install date.
   const batterySummary = useMemo(() => {
     let healthy = 0;
     let replaceSoon = 0;
     let critical = 0;
-    activeDevices.forEach((d) => {
-      const st = getBatteryLifecycleStatus(d).state;
-      if (st === 'HEALTHY') healthy++;
-      else if (st === 'DUE_SOON') replaceSoon++;
-      else critical++;
-    });
-    return { healthy, replaceSoon, critical };
-  }, [activeDevices]);
+    let noDate = 0;
+    for (const d of activeDevices) {
+      if (d.type !== 'POS Terminal') continue;
+      if (!d.batteryInstalledDate && !d.stockInDate && !d.deployedDate) {
+        noDate++;
+        continue;
+      }
+      const used = getBatteryLifecycleStatus(d, today).monthsUsed;
+      if (used >= batteryLifespanMonths) critical++;
+      else if (used >= batteryWarningMonths) replaceSoon++;
+      else healthy++;
+    }
+    return { healthy, replaceSoon, critical, noDate, total: healthy + replaceSoon + critical };
+  }, [activeDevices, today, batteryLifespanMonths, batteryWarningMonths]);
 
   const pendingReqs = useMemo(
     () => requisitions.filter((r) => r.status === 'PENDING_ADMIN'),
     [requisitions]
+  );
+
+  const recentDevices = useMemo(
+    () =>
+      [...activeDevices]
+        .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+        .slice(0, 6),
+    [activeDevices]
   );
 
   // Classic GroupedBarChart series for Branch / Lifecycle distribution
@@ -279,6 +342,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       sbSeries: top.map((b) => b.sbCount),
     };
   }, [branchVelocity]);
+
+  const selectedAvgCycle =
+    selectedMonthStats.cycleMeasured > 0
+      ? (selectedMonthStats.cycleDaysSum / selectedMonthStats.cycleMeasured).toFixed(1)
+      : null;
 
   return (
     <div className="space-y-6">
@@ -301,8 +369,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               {isAdminLike
-                ? 'Monitoring all Branch Codes nationwide · Real-time serial cycle tracking & monthly deployment velocity'
-                : `Monitoring Branch Code ${selectedBranch} · Track merchant installations, reserves, and serial lifecycles`}
+                ? 'All Branch Codes · Figures are computed from the current stock records'
+                : `Branch Code ${selectedBranch} · Merchant installations, reserves and serial lifecycles from the current stock records`}
             </p>
           </div>
         </div>
@@ -317,14 +385,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               View Stock Inventory
             </button>
           )}
-          <button
-            type="button"
-            onClick={onOpenExportModal}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer"
-          >
-            <FileDown className="w-3.5 h-3.5" />
-            <span>Export Report</span>
-          </button>
+          {/* Export is limited to HQ admins (the export dialog also enforces this). */}
+          {isAdminLike && (
+            <button
+              type="button"
+              onClick={onOpenExportModal}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer"
+            >
+              <FileDown className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Export Report</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -350,7 +421,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   { id: 'MONTHLY_INSTALLS', label: 'Monthly Installations' },
                   { id: 'HARDWARE_MIX', label: 'POS vs Soundbox Mix' },
                   { id: 'BRANCH_LEADERBOARD', label: 'Branch Code Velocity' },
-                  { id: 'SLA_CYCLE', label: 'Serial Cycle SLA' },
+                  { id: 'SLA_CYCLE', label: 'Stage Ageing' },
                 ] as { id: PerformanceViewMode; label: string }[]
               ).map((mode) => {
                 const active = perfViewMode === mode.id;
@@ -359,6 +430,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     key={mode.id}
                     type="button"
                     onClick={() => setPerfViewMode(mode.id)}
+                    aria-pressed={active}
                     className={`relative px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                       active
                         ? 'text-white'
@@ -383,13 +455,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 [
                   { id: '6M', label: '6 Months' },
                   { id: '12M', label: '12 Months' },
-                  { id: 'Q4_2026', label: 'Q3-Q4 Focus' },
+                  { id: '3M', label: '3 Months' },
                 ] as { id: TimeHorizon; label: string }[]
               ).map((h) => (
                 <button
                   key={h.id}
                   type="button"
                   onClick={() => setTimeHorizon(h.id)}
+                  aria-pressed={timeHorizon === h.id}
                   className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition cursor-pointer ${
                     timeHorizon === h.id
                       ? 'bg-white text-zinc-900 shadow-2xs'
@@ -409,31 +482,26 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div className="surface-inset-light p-4">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-1">
                 <span>SELECTED PERIOD</span>
-                <Calendar className="w-3.5 h-3.5 text-[#003857]" />
+                <Calendar className="w-3.5 h-3.5 text-[#003857]" aria-hidden="true" />
               </div>
               <div className="text-base sm:text-lg font-extrabold tracking-tight text-[#002f49]">
                 {selectedMonthStats.label}
               </div>
               <div className="text-[11px] text-slate-600 font-semibold mt-0.5">
-                Target Achievement:{' '}
-                <strong className="text-[#003857]">
-                  {Math.round(
-                    (selectedMonthStats.total / selectedMonthStats.target) * 100
-                  )}
-                  %
-                </strong>
+                Faulty units (last updated this month):{' '}
+                <strong className="text-rose-700">{selectedMonthStats.faulty}</strong>
               </div>
             </div>
 
             <div className="surface-inset-light p-4">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-1">
                 <span>COMPLETED INSTALLS</span>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
               </div>
               <div className="text-2xl font-black font-mono tabular-nums text-zinc-900">
                 {selectedMonthStats.total}{' '}
                 <span className="text-xs font-normal text-slate-500">
-                  / {selectedMonthStats.target} quota
+                  ({pctOf(selectedMonthStats.total, periodInstallTotal)}% of {periodInstallTotal} in period)
                 </span>
               </div>
               <div className="text-[11px] text-slate-600 mt-0.5">
@@ -444,35 +512,33 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
             <div className="surface-inset-light p-4">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-1">
-                <span>DISPATCHED UNITS</span>
-                <TrendingUp className="w-3.5 h-3.5 text-zinc-700" />
+                <span>AWAITING INSTALL (NOW)</span>
+                <TrendingUp className="w-3.5 h-3.5 text-zinc-700" aria-hidden="true" />
               </div>
               <div className="text-2xl font-black font-mono tabular-nums text-zinc-900">
-                {selectedMonthStats.dispatched}
+                {pipeline.reserve + pipeline.configuring}
               </div>
               <div className="text-[11px] text-slate-600 mt-0.5">
-                Install Conversion:{' '}
+                Installed at branches:{' '}
                 <strong className="text-emerald-700">
-                  {Math.round(
-                    (selectedMonthStats.total /
-                      Math.max(selectedMonthStats.dispatched, 1)) *
-                      100
-                  )}
-                  %
+                  {pipeline.complete} / {pipeline.atBranches} ({pctOf(pipeline.complete, pipeline.atBranches)}%)
                 </strong>
               </div>
             </div>
 
             <div className="surface-inset-light p-4">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-1">
-                <span>AVG SERIAL CYCLE</span>
-                <Clock className="w-3.5 h-3.5 text-slate-600" />
+                <span>AVG STOCK-IN → INSTALL</span>
+                <Clock className="w-3.5 h-3.5 text-slate-600" aria-hidden="true" />
               </div>
               <div className="text-2xl font-black font-mono tabular-nums text-zinc-900">
-                2.4 <span className="text-xs font-normal text-slate-500">days</span>
+                {selectedAvgCycle ?? '—'}{' '}
+                {selectedAvgCycle && <span className="text-xs font-normal text-slate-500">days</span>}
               </div>
               <div className="text-[11px] text-slate-600 font-semibold mt-0.5">
-                Within 48h SLA target
+                {selectedMonthStats.cycleMeasured > 0
+                  ? `${selectedMonthStats.cycleMeasured} install${selectedMonthStats.cycleMeasured === 1 ? '' : 's'} with both dates`
+                  : 'No installs with stock-in and install dates'}
               </div>
             </div>
           </div>
@@ -490,12 +556,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
                   <div className="lg:col-span-8">
                     <GroupedBarChart
-                      labels={monthlyData.map((m) => m.shortLabel)}
+                      labels={monthlyChart.labels}
                       series1Label="POS Terminal Installed"
-                      series1Data={monthlyData.map((m) => m.posInstalled)}
+                      series1Data={monthlyChart.pos}
                       series1Color="#003857"
                       series2Label="Sound Box Installed"
-                      series2Data={monthlyData.map((m) => m.sbInstalled)}
+                      series2Data={monthlyChart.sb}
                       series2Color="#10b981"
                       height={240}
                       theme="light"
@@ -513,6 +579,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                             key={m.monthKey}
                             type="button"
                             onClick={() => setSelectedMonthKey(m.monthKey)}
+                            aria-pressed={isSel}
+                            aria-label={`${m.label}: ${m.total} installed`}
                             className={`p-2.5 rounded-lg border text-left transition cursor-pointer ${
                               isSel
                                 ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
@@ -525,7 +593,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                                 isSel ? 'text-slate-200' : 'text-slate-500'
                               }`}
                             >
-                              {m.total} installed / {m.target}
+                              {m.total} installed
                             </div>
                           </button>
                         );
@@ -545,16 +613,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 transition={{ duration: 0.18 }}
                 className="space-y-3"
               >
-                {monthlyData.map((m) => {
-                  const posPct = Math.round(
-                    (m.posInstalled / Math.max(m.total, 1)) * 100
-                  );
-                  const sbPct = 100 - posPct;
+                {periodInstallTotal === 0 && (
+                  <div className="py-8 text-center text-xs text-slate-500">
+                    No installations with an install date in this period.
+                  </div>
+                )}
+                {periodInstallTotal > 0 && monthlyData.map((m) => {
+                  const posPct = pctOf(m.posInstalled, m.total);
+                  const sbPct = m.total > 0 ? 100 - posPct : 0;
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={m.monthKey}
                       onClick={() => setSelectedMonthKey(m.monthKey)}
-                      className={`p-3 rounded-lg border transition cursor-pointer ${
+                      aria-pressed={m.monthKey === selectedMonthStats.monthKey}
+                      className={`block w-full text-left p-3 rounded-lg border transition cursor-pointer ${
                         m.monthKey === selectedMonthStats.monthKey
                           ? 'bg-[#eef5f9] border-[#003857]'
                           : 'bg-slate-50/70 border-slate-200 hover:border-slate-300'
@@ -584,7 +657,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           className="h-full bg-[#10b981]"
                         />
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </motion.div>
@@ -621,41 +694,25 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 transition={{ duration: 0.18 }}
                 className="grid grid-cols-1 md:grid-cols-4 gap-4"
               >
-                {[
-                  {
-                    stage: 'HQ Stock → Branch Code Reserve',
-                    avgTime: '6.5 hrs',
-                    target: '< 12 hrs',
-                    compliance: '98.4%',
-                  },
-                  {
-                    stage: 'Branch Reserve → Configuring',
-                    avgTime: '14.2 hrs',
-                    target: '< 24 hrs',
-                    compliance: '95.1%',
-                  },
-                  {
-                    stage: 'Branch Config → Installed Live',
-                    avgTime: '22.5 hrs',
-                    target: '< 24 hrs',
-                    compliance: '96.2%',
-                  },
-                ].map((sla) => (
-                  <div key={sla.stage} className="surface-inset-light p-4">
+                {stageAgeing.map((row) => (
+                  <div key={row.key} className="surface-inset-light p-4">
                     <div className="text-xs font-bold text-slate-500 mb-2">
-                      {sla.stage}
+                      {row.title}
                     </div>
                     <div className="text-2xl font-black font-mono text-zinc-900">
-                      {sla.avgTime}
+                      {row.avg}
                     </div>
                     <div className="flex items-center justify-between text-[11px] mt-2 pt-2 border-t border-slate-200">
-                      <span className="text-slate-500">Target: {sla.target}</span>
-                      <span className="font-bold text-emerald-700">
-                        {sla.compliance} SLA
+                      <span className="text-slate-500">{row.detail}</span>
+                      <span className="font-bold text-zinc-700">
+                        {row.count} unit{row.count === 1 ? '' : 's'}
                       </span>
                     </div>
                   </div>
                 ))}
+                <p className="md:col-span-4 text-[11px] text-slate-500">
+                  Averages for units currently in each stage, from the hours-in-stage value stored on each unit. No SLA target is applied here.
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -674,7 +731,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   Branch Code Stock &amp; Deployment Matrix
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Real-time POS Terminal &amp; Sound Box distribution by Branch Code
+                  Current POS Terminal &amp; Sound Box counts by Branch Code (top 8 by units)
                 </p>
               </div>
             </div>
@@ -699,10 +756,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <th className="py-3 px-3 text-center">Soundbox</th>
                   <th className="py-3 px-3 text-center">Reserve</th>
                   <th className="py-3 px-3 text-center">Installed</th>
-                  <th className="py-3 px-4 text-right">Rate</th>
+                  <th className="py-3 px-4 text-right">Installed %</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/70">
+                {branchVelocity.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-500">
+                      No branch stock recorded yet.
+                    </td>
+                  </tr>
+                )}
                 {branchVelocity.slice(0, 8).map((b) => (
                   <tr
                     key={b.code}
@@ -741,10 +805,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div className="sb-card-header-light px-6 py-4 flex items-center justify-between">
             <div>
               <h3 className="text-sm sm:text-base font-extrabold text-[#002f49]">
-                Recent Serial Cycle History
+                Recently Updated Serials
               </h3>
               <p className="text-xs text-slate-500">
-                Click any serial to inspect its cycle history &amp; installation date
+                Latest 6 by last update · Click a serial to inspect its history &amp; installation date
               </p>
             </div>
             {onNavigateTab && (
@@ -762,18 +826,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             {activeDevices.length === 0 ? (
               <div className="py-10 text-center text-slate-500 text-xs">
                 <Package className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                <p className="font-bold text-slate-700">No Hardware Dispatched Yet</p>
+                <p className="font-bold text-slate-700">No Hardware Registered Yet</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">Use Batch Upload or New Stock Request to register hardware units.</p>
               </div>
             ) : (
-              activeDevices.slice(0, 6).map((dev) => {
+              recentDevices.map((dev) => {
               const meta = STAGE_META[dev.stage];
               const cycleCount = (dev.history || []).length;
               return (
-                <div
+                <button
+                  type="button"
                   key={dev.serial}
                   onClick={() => onSelectDevice(dev.serial)}
-                  className="p-3 rounded-xl border bg-slate-50/70 hover:bg-white border-slate-200/80 hover:border-zinc-400 hover:shadow-xs flex items-center justify-between gap-3 transition cursor-pointer"
+                  aria-label={`Open serial ${dev.serial}`}
+                  className="w-full text-left p-3 rounded-xl border bg-slate-50/70 hover:bg-white border-slate-200/80 hover:border-zinc-400 hover:shadow-xs flex items-center justify-between gap-3 transition cursor-pointer"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-800 border border-zinc-200 flex items-center justify-center shrink-0">
@@ -794,27 +860,27 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         </span>
                         <span className="text-slate-400">·</span>
                         <span className="font-mono text-[11px] text-zinc-700 font-bold">
-                          {cycleCount} Cycle{cycleCount === 1 ? '' : 's'}
+                          {cycleCount} History event{cycleCount === 1 ? '' : 's'}
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-500 truncate mt-0.5">
                         {dev.merchantName
-                          ? `${dev.merchantName} (${dev.mid || 'MID'})`
+                          ? `${dev.merchantName}${dev.mid ? ` (${dev.mid})` : ' (no MID)'}`
                           : dev.model}{' '}
                         ·{' '}
                         {dev.deployedDate
                           ? `Install Date: ${dev.deployedDate}`
-                          : `Stock-In: ${dev.stockInDate}`}
+                          : `Stock-In: ${dev.stockInDate || '—'}`}
                       </div>
                     </div>
                   </div>
 
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded border shrink-0 ${meta.badgeClassLight}`}
+                    className={`text-[10px] px-2 py-0.5 rounded border shrink-0 ${meta?.badgeClassLight || ''}`}
                   >
-                    {meta.short}
+                    {meta?.short || dev.stage}
                   </span>
-                </div>
+                </button>
               );
             })
           )}
@@ -833,7 +899,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   Stock Requisition Alerts
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Every branch request triggers an instant alert notification to Admin HQ
+                  {requisitions.length > 0
+                    ? `Showing ${Math.min(4, requisitions.length)} of ${requisitions.length} stock requests`
+                    : 'Stock requests from branches'}
                 </p>
               </div>
             </div>
@@ -897,42 +965,64 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         <div className="lg:col-span-5 surface-card shadow-md overflow-hidden flex flex-col justify-between">
           <div className="sb-card-header-light px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <BatteryCharging className="w-4 h-4 text-zinc-800" />
+              <BatteryCharging className="w-4 h-4 text-zinc-800" aria-hidden="true" />
               <h3 className="text-sm sm:text-base font-extrabold text-zinc-900">
-                24-Month Battery Health Telemetry
+                {batteryLifespanMonths}-Month POS Battery Schedule
               </h3>
             </div>
             <span className="text-[11px] font-mono text-slate-500">
-              2-Year Cycle Standard
+              POS Terminals only · {batterySummary.total} units
             </span>
           </div>
 
-          <div className="p-6 grid grid-cols-3 gap-3 text-center">
-            <div className="surface-inset-light p-3.5">
-              <div className="text-2xl font-black font-mono text-emerald-700">
-                {batterySummary.healthy}
-              </div>
-              <div className="text-[11px] font-bold text-slate-600 mt-1">
-                Healthy (&lt;20M)
-              </div>
+          {batterySummary.total === 0 && batterySummary.noDate === 0 ? (
+            <div className="p-6 text-center text-xs text-slate-500">
+              No POS Terminals in this view.
             </div>
-            <div className="surface-inset-light p-3.5">
-              <div className="text-2xl font-black font-mono text-amber-700">
-                {batterySummary.replaceSoon}
+          ) : (
+            <div className="p-6 pt-4">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="surface-inset-light p-3.5">
+                  <div className="text-2xl font-black font-mono text-emerald-700">
+                    {batterySummary.healthy}
+                  </div>
+                  <div className="text-[11px] font-mono text-slate-500">
+                    {pctOf(batterySummary.healthy, batterySummary.total)}%
+                  </div>
+                  <div className="text-[11px] font-bold text-slate-600 mt-1">
+                    Healthy (&lt;{batteryWarningMonths}M)
+                  </div>
+                </div>
+                <div className="surface-inset-light p-3.5">
+                  <div className="text-2xl font-black font-mono text-amber-700">
+                    {batterySummary.replaceSoon}
+                  </div>
+                  <div className="text-[11px] font-mono text-slate-500">
+                    {pctOf(batterySummary.replaceSoon, batterySummary.total)}%
+                  </div>
+                  <div className="text-[11px] font-bold text-slate-600 mt-1">
+                    Due Soon ({batteryWarningMonths}–{batteryLifespanMonths - 1}M)
+                  </div>
+                </div>
+                <div className="surface-inset-light p-3.5">
+                  <div className="text-2xl font-black font-mono text-rose-700">
+                    {batterySummary.critical}
+                  </div>
+                  <div className="text-[11px] font-mono text-slate-500">
+                    {pctOf(batterySummary.critical, batterySummary.total)}%
+                  </div>
+                  <div className="text-[11px] font-bold text-slate-600 mt-1">
+                    Replace (≥{batteryLifespanMonths}M)
+                  </div>
+                </div>
               </div>
-              <div className="text-[11px] font-bold text-slate-600 mt-1">
-                Due Soon (20-23M)
-              </div>
+              <p className="text-[11px] text-slate-500 mt-3">
+                Months counted from the battery install date (or stock-in / install date when none is recorded).
+                {batterySummary.noDate > 0 &&
+                  ` ${batterySummary.noDate} POS unit${batterySummary.noDate === 1 ? ' has' : 's have'} no date and ${batterySummary.noDate === 1 ? 'is' : 'are'} not counted.`}
+              </p>
             </div>
-            <div className="surface-inset-light p-3.5">
-              <div className="text-2xl font-black font-mono text-rose-700">
-                {batterySummary.critical}
-              </div>
-              <div className="text-[11px] font-bold text-slate-600 mt-1">
-                Replace (≥24M)
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

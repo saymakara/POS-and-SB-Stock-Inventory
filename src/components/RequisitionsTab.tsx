@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '../types';
-import { deriveBatterySerial } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   SendHorizontal,
@@ -37,6 +36,14 @@ interface RequisitionsTabProps {
   onClearExternalArranging?: () => void;
 }
 
+const norm = (s: string | null | undefined) => String(s || '').trim().toUpperCase();
+/** Oldest stock-in first (FIFO); units with no stock-in date go last; serial breaks ties so the order is stable. */
+const fifo = (a: Device, b: Device) => {
+  const da = a.stockInDate || '9999-99-99';
+  const db = b.stockInDate || '9999-99-99';
+  return da === db ? a.serial.localeCompare(b.serial) : da < db ? -1 : 1;
+};
+
 export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   role,
   requisitions,
@@ -52,103 +59,214 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   onClearExternalArranging,
 }) => {
   const isLight = theme === 'light';
+  // Dispatching / approving moves Head Office stock: HQ roles only (the server enforces this too).
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [arrangingReq, setArrangingReq] = useState<Requisition | null>(null);
   const [stagedItems, setStagedItems] = useState<ArrangedDeviceItem[]>([]);
+  const [arrangeStep, setArrangeStep] = useState<'ARRANGE' | 'PREVIEW'>('ARRANGE');
+  const [dispatchErrors, setDispatchErrors] = useState<string[]>([]);
+  const [shortfall, setShortfall] = useState('');
 
   useEffect(() => {
     if (externalArrangingReq && externalStagedItems) {
-      setArrangingReq(externalArrangingReq);
-      setStagedItems(externalStagedItems);
-      setArrangeStep('ARRANGE');
+      if (isAdmin) {
+        setArrangingReq(externalArrangingReq);
+        setStagedItems(externalStagedItems);
+        setArrangeStep('ARRANGE');
+        setDispatchErrors([]);
+        setShortfall('');
+      }
       if (onClearExternalArranging) {
         onClearExternalArranging();
       }
     }
-  }, [externalArrangingReq, externalStagedItems, onClearExternalArranging]);
+  }, [externalArrangingReq, externalStagedItems, onClearExternalArranging, isAdmin]);
 
-  const availableHqPos = hqDevices.filter(
-    (d) => d.stage === 'HQ_STOCK' && d.type === 'POS Terminal' && !d.archived
+  const deviceBySerial = useMemo(() => {
+    const m = new Map<string, Device>();
+    hqDevices.forEach((d) => m.set(norm(d.serial), d));
+    return m;
+  }, [hqDevices]);
+
+  /** Serials already arranged on another requisition that is dispatched but not yet received. */
+  const allocatedElsewhere = useMemo(() => {
+    const m = new Map<string, string>();
+    requisitions.forEach((r) => {
+      if (r.status !== 'DISPATCHED' || r.reqId === arrangingReq?.reqId) return;
+      (r.arrangedDevices || []).forEach((a) => {
+        if (a.serial) m.set(norm(a.serial), r.reqId);
+      });
+    });
+    // The server keeps dispatched units in HQ stock with customFields.allocatedTo = reqId until receipt.
+    hqDevices.forEach((d) => {
+      const to = String(d.customFields?.allocatedTo || '').trim();
+      if (to && to !== arrangingReq?.reqId) m.set(norm(d.serial), to);
+    });
+    return m;
+  }, [requisitions, hqDevices, arrangingReq?.reqId]);
+
+  const availableHq = useMemo(
+    () =>
+      hqDevices
+        .filter((d) => d.stage === 'HQ_STOCK' && !d.archived && !allocatedElsewhere.has(norm(d.serial)))
+        .sort(fifo),
+    [hqDevices, allocatedElsewhere]
   );
-  const availableHqSb = hqDevices.filter(
-    (d) => d.stage === 'HQ_STOCK' && d.type === 'Sound Box' && !d.archived
-  );
+  const availableHqPos = useMemo(() => availableHq.filter((d) => d.type === 'POS Terminal'), [availableHq]);
+  const availableHqSb = useMemo(() => availableHq.filter((d) => d.type === 'Sound Box'), [availableHq]);
+
+  /**
+   * Auto-match: for each requested row take the oldest HQ_STOCK unit (FIFO) of the same type (and the same model when
+   * the row names one) that is not archived, not on another dispatched requisition and not already used in this list.
+   * Rows that cannot be filled stay blank and a shortfall message is shown. Battery serials come only from the
+   * unit's own record; nothing is invented.
+   */
+  const buildAutoMatch = (req: Requisition, rows?: ArrangedDeviceItem[]) => {
+    const template: ArrangedDeviceItem[] =
+      rows && rows.length
+        ? rows.map((r) => ({ ...r }))
+        : [
+            ...Array.from({ length: req.posQty }, () => ({ serial: '', batterySerial: '', type: 'POS Terminal' as const, model: '' })),
+            ...Array.from({ length: req.sbQty }, () => ({ serial: '', batterySerial: '', type: 'Sound Box' as const, model: '' })),
+          ];
+    const used = new Set<string>();
+    const out = template.map((row) => {
+      const pool = row.type === 'POS Terminal' ? availableHqPos : availableHqSb;
+      const wantModel = norm(row.model);
+      const hit = pool.find((d) => !used.has(norm(d.serial)) && (!wantModel || norm(d.model) === wantModel));
+      if (!hit) return { ...row, serial: '', batterySerial: '' };
+      used.add(norm(hit.serial));
+      return { ...row, serial: hit.serial, batterySerial: hit.batterySerial || '', model: hit.model };
+    });
+    const missingPos = out.filter((r) => r.type === 'POS Terminal' && !r.serial).length;
+    const missingSb = out.filter((r) => r.type === 'Sound Box' && !r.serial).length;
+    const parts: string[] = [];
+    if (missingPos) parts.push(`${missingPos} POS Terminal`);
+    if (missingSb) parts.push(`${missingSb} Sound Box`);
+    return {
+      items: out,
+      shortfall: parts.length
+        ? `Not enough available Head Office stock: ${parts.join(' and ')} unit(s) could not be matched. Stock in more units or dispatch fewer.`
+        : '',
+    };
+  };
 
   const openArrangeModal = (req: Requisition) => {
-    const initial: ArrangedDeviceItem[] = [];
-
-    for (let i = 0; i < req.posQty; i++) {
-      const hqMatch = availableHqPos[i];
-      const serial = hqMatch ? hqMatch.serial : '';
-      const batterySerial =
-        hqMatch?.batterySerial || (hqMatch ? deriveBatterySerial(hqMatch.serial, true, i) : '');
-      initial.push({
-        serial,
-        batterySerial,
-        type: 'POS Terminal',
-        model: hqMatch ? hqMatch.model : 'Wizar POS Q2 Pro',
-      });
-    }
-
-    const sbModels = ['SB-Pro', 'SB-Max', 'SB-Standard', 'SB-Mini'];
-    for (let i = 0; i < req.sbQty; i++) {
-      const hqMatch = availableHqSb[i];
-      const serial = hqMatch ? hqMatch.serial : '';
-      const batterySerial =
-        hqMatch?.batterySerial || (hqMatch ? deriveBatterySerial(hqMatch.serial, false, i) : '');
-      initial.push({
-        serial,
-        batterySerial,
-        type: 'Sound Box',
-        model: hqMatch ? hqMatch.model : sbModels[i % sbModels.length],
-      });
-    }
-
-    setStagedItems(initial);
+    if (!isAdmin) return;
+    const { items, shortfall: sf } = buildAutoMatch(req);
+    setStagedItems(items);
+    setShortfall(sf);
+    setDispatchErrors([]);
     setArrangingReq(req);
     setArrangeStep('ARRANGE');
   };
 
-  const [arrangeStep, setArrangeStep] = useState<'ARRANGE' | 'PREVIEW'>('ARRANGE');
+  const rerunAutoMatch = () => {
+    if (!arrangingReq) return;
+    // Keep each row's type; serial, battery and model are re-picked from the current HQ stock.
+    const { items, shortfall: sf } = buildAutoMatch(
+      arrangingReq,
+      stagedItems.map((r) => ({ ...r, serial: '', batterySerial: '', model: '' }))
+    );
+    setStagedItems(items);
+    setShortfall(sf);
+    setDispatchErrors([]);
+  };
 
   const handleUpdateStagedItem = (
     idx: number,
     field: keyof ArrangedDeviceItem,
     value: string
   ) => {
+    setDispatchErrors([]);
     setStagedItems((prev) =>
       prev.map((item, i) => {
         if (i !== idx) return item;
         const next = { ...item, [field]: value };
         if (field === 'serial') {
-          const matchedHq = hqDevices.find(
-            (d) => d.serial.toUpperCase() === value.trim().toUpperCase()
-          );
-          if (matchedHq) {
-            next.batterySerial =
-              matchedHq.batterySerial ||
-              deriveBatterySerial(matchedHq.serial, matchedHq.type === 'POS Terminal', idx);
-            next.model = matchedHq.model;
-          } else {
-            next.batterySerial = deriveBatterySerial(value.trim(), item.type === 'POS Terminal', idx);
-          }
+          const matchedHq = deviceBySerial.get(norm(value));
+          // Battery serial and model come only from the unit's own record (blank if unknown: the admin fills it).
+          next.batterySerial = matchedHq?.batterySerial || '';
+          if (matchedHq) next.model = matchedHq.model;
         }
         return next;
       })
     );
   };
 
+  /** Every reason this list cannot be dispatched (blank, unknown, duplicate, wrong stage/type, allocated elsewhere). */
+  const validateDispatch = (items: ArrangedDeviceItem[]): string[] => {
+    const errs: string[] = [];
+    if (!items.length) errs.push('Nothing to dispatch: the list is empty.');
+    const seen = new Map<string, number>();
+    items.forEach((item, i) => {
+      const line = `Line ${i + 1}`;
+      const sn = norm(item.serial);
+      if (!sn) {
+        errs.push(`${line}: choose a device serial.`);
+        return;
+      }
+      if (seen.has(sn)) {
+        errs.push(`${line}: ${item.serial} is already on line ${seen.get(sn)! + 1}.`);
+        return;
+      }
+      seen.set(sn, i);
+      const dev = deviceBySerial.get(sn);
+      if (!dev) {
+        errs.push(`${line}: ${item.serial} is not a known serial.`);
+        return;
+      }
+      if (dev.stage !== 'HQ_STOCK' || dev.archived) {
+        errs.push(`${line}: ${item.serial} is not in Head Office stock (current stage ${dev.stage}${dev.archived ? ', archived' : ''}).`);
+      }
+      if (dev.type !== item.type) {
+        errs.push(`${line}: ${item.serial} is a ${dev.type}, but this line needs a ${item.type}.`);
+      }
+      const other = allocatedElsewhere.get(sn);
+      if (other) errs.push(`${line}: ${item.serial} is already arranged on requisition ${other}.`);
+      if (item.type === 'POS Terminal' && !String(item.batterySerial || '').trim()) {
+        errs.push(`${line}: enter the battery serial for POS Terminal ${item.serial}.`);
+      }
+    });
+    if (arrangingReq) {
+      const pos = items.filter((it) => it.type === 'POS Terminal').length;
+      const sb = items.filter((it) => it.type === 'Sound Box').length;
+      if (pos > arrangingReq.posQty) errs.push(`${pos} POS Terminal line(s) but only ${arrangingReq.posQty} requested.`);
+      if (sb > arrangingReq.sbQty) errs.push(`${sb} Sound Box line(s) but only ${arrangingReq.sbQty} requested.`);
+    }
+    return errs;
+  };
+
   const handleProceedToPreview = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!arrangingReq) return;
+    if (!arrangingReq || !isAdmin) return;
+    const errs = validateDispatch(stagedItems);
+    setDispatchErrors(errs);
+    if (errs.length) return;
     setArrangeStep('PREVIEW');
   };
 
   const handleFinalDispatch = () => {
-    if (!arrangingReq) return;
-    onApproveRequisition(arrangingReq.reqId, stagedItems);
+    if (!arrangingReq || !isAdmin) return;
+    // Re-check at the moment of dispatch: stock may have changed while the preview was open.
+    const errs = validateDispatch(stagedItems);
+    if (errs.length) {
+      setDispatchErrors(errs);
+      setArrangeStep('ARRANGE');
+      return;
+    }
+    onApproveRequisition(
+      arrangingReq.reqId,
+      stagedItems.map((it) => ({ ...it, serial: it.serial.trim(), batterySerial: String(it.batterySerial || '').trim(), model: it.model.trim() }))
+    );
     setArrangingReq(null);
     setArrangeStep('ARRANGE');
+    setDispatchErrors([]);
+    setShortfall('');
   };
+
+  /** Serials chosen on other lines of this list (hidden from a line's dropdown). */
+  const chosenSerials = useMemo(() => new Set(stagedItems.map((it) => norm(it.serial)).filter(Boolean)), [stagedItems]);
 
   const cardClass = isLight
     ? 'surface-card-light text-zinc-900'
@@ -228,7 +346,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     statusColor = 'text-amber-600 dark:text-amber-400';
                     statusLabel = 'Pending Return Approval';
                     actionBtn =
-                      role === 'SUPER_ADMIN' || role === 'ADMIN' ? (
+                      isAdmin ? (
                         <motion.button
                           whileTap={{ scale: 0.95 }}
                           type="button"
@@ -253,7 +371,11 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   } else {
                     statusColor = 'text-[#d99b00] dark:text-[#f6c23e]';
                     statusLabel = 'Pending Approval';
-                    actionBtn = (
+                    actionBtn = !isAdmin ? (
+                      <span className="text-[#d99b00] dark:text-[#f6c23e] font-semibold text-xs flex items-center gap-1 justify-end">
+                        <span>Awaiting HQ Dispatch</span>
+                      </span>
+                    ) : (
                       <div className="flex items-center gap-1.5 justify-end">
                         {onDirectToStockInventory && (
                           <motion.button
@@ -436,7 +558,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
       {typeof document !== 'undefined' &&
         createPortal(
           <AnimatePresence>
-            {arrangingReq && (
+            {arrangingReq && isAdmin && (
               <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-md overflow-y-auto p-4 flex justify-center items-start sm:items-center">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.96, y: 14 }}
@@ -464,6 +586,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setArrangingReq(null)}
+                  aria-label="Close"
                   className="p-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
@@ -498,7 +621,11 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setArrangeStep('PREVIEW')}
+                    onClick={() => {
+                      const errs = validateDispatch(stagedItems);
+                      setDispatchErrors(errs);
+                      if (!errs.length) setArrangeStep('PREVIEW');
+                    }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
                       arrangeStep === 'PREVIEW'
                         ? 'bg-[#004953] text-white shadow-xs'
@@ -549,7 +676,8 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       )}
                       <button
                         type="button"
-                        onClick={() => openArrangeModal(arrangingReq)}
+                        onClick={rerunAutoMatch}
+                        title="Fill each line with the oldest available Head Office unit of that type (FIFO)"
                         className="px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white transition shadow-xs text-xs"
                       >
                         <Wand2 className="w-3.5 h-3.5" />
@@ -558,9 +686,25 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     </div>
                   </div>
 
-                  {role === 'BRANCH' && (
-                    <div className="p-3 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-300 font-semibold">
-                      Note: Switching to Admin HQ or Super Admin mode is required to dispatch arranged serials from Head Office Stock.
+                  {shortfall && (
+                    <div role="status" className="p-3 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-semibold flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{shortfall}</span>
+                    </div>
+                  )}
+
+                  {dispatchErrors.length > 0 && (
+                    <div role="alert" className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 font-semibold">
+                      <div className="flex items-center gap-2 mb-1">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>Fix these before dispatching:</span>
+                      </div>
+                      <ul className="list-disc pl-6 space-y-0.5 font-medium">
+                        {dispatchErrors.slice(0, 12).map((e, i) => (
+                          <li key={i}>{e}</li>
+                        ))}
+                        {dispatchErrors.length > 12 && <li>…and {dispatchErrors.length - 12} more.</li>}
+                      </ul>
                     </div>
                   )}
 
@@ -595,6 +739,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                             <td className="py-2.5 px-4">
                               <input
                                 type="text"
+                                aria-label={`Model for line ${idx + 1}`}
                                 value={item.model}
                                 onChange={(e) =>
                                   handleUpdateStagedItem(idx, 'model', e.target.value)
@@ -609,10 +754,13 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                             <td className="py-2.5 px-4">
                               {(() => {
                                 const availableForType =
-                                  item.type === 'POS Terminal' ? availableHqPos : availableHqSb;
+                                  (item.type === 'POS Terminal' ? availableHqPos : availableHqSb).filter(
+                                    (d) => norm(d.serial) === norm(item.serial) || !chosenSerials.has(norm(d.serial))
+                                  );
                                 return (
                                   <select
                                     required
+                                    aria-label={`Device serial for line ${idx + 1}`}
                                     value={item.serial}
                                     onChange={(e) =>
                                       handleUpdateStagedItem(idx, 'serial', e.target.value)
@@ -632,7 +780,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                                     {item.serial &&
                                       !availableForType.some((d) => d.serial === item.serial) && (
                                         <option value={item.serial}>
-                                          {item.serial} ({item.model || 'Selected'})
+                                          {item.serial} (not available in HQ stock)
                                         </option>
                                       )}
                                   </select>
@@ -642,7 +790,9 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                             <td className="py-2.5 px-4">
                               <input
                                 type="text"
-                                required
+                                required={item.type === 'POS Terminal'}
+                                aria-label={`Battery serial for line ${idx + 1}`}
+                                placeholder={item.type === 'POS Terminal' ? 'Battery serial on the unit' : 'Optional'}
                                 value={item.batterySerial}
                                 onChange={(e) =>
                                   handleUpdateStagedItem(
@@ -692,7 +842,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         Verify Stock Transfer Custody Before Dispatching
                       </span>
                       <p className="text-[11px] mt-0.5 opacity-90 leading-relaxed">
-                        Approving will immediately transfer physical custody of <strong>{stagedItems.length} hardware unit(s)</strong> from Head Office Admin Stock (Code 100) to <strong>Branch Code {arrangingReq.branchId} ({arrangingReq.branchName})</strong>.
+                        Dispatching allocates <strong>{stagedItems.length} hardware unit(s)</strong> in Head Office Admin Stock (Code 100) to <strong>Branch Code {arrangingReq.branchId} ({arrangingReq.branchName})</strong>. Custody moves to the branch when the branch confirms receipt.
                       </p>
                     </div>
                   </div>
@@ -716,7 +866,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
 
                     <div className="p-3 rounded-xl border bg-slate-50 border-slate-200">
                       <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Total Dispatched</span>
-                      <span className="font-bold text-xs text-emerald-700 mt-0.5 block">{arrangingReq.posQty} POS · {arrangingReq.sbQty} SB</span>
+                      <span className="font-bold text-xs text-emerald-700 mt-0.5 block">{stagedItems.filter((it) => it.type === 'POS Terminal').length} POS · {stagedItems.filter((it) => it.type === 'Sound Box').length} SB</span>
                     </div>
                   </div>
 

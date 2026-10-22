@@ -58,13 +58,13 @@ const STAGE_STYLES: Record<
     accentBar: 'bg-emerald-700',
     iconBox: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     ringActive: 'ring-2 ring-emerald-700 border-emerald-700',
-    subtitle: 'Live Merchant Active',
+    subtitle: 'Installed at Merchant',
   },
   FAULTY: {
     accentBar: 'bg-rose-700',
     iconBox: 'bg-rose-50 text-rose-800 border-rose-200',
     ringActive: 'ring-2 ring-rose-700 border-rose-700',
-    subtitle: 'Returned to Stock',
+    subtitle: 'Faulty / Awaiting Repair',
   },
   LOST: {
     accentBar: 'bg-amber-600',
@@ -102,7 +102,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
       }
     }
 
-    return { total: activeTotal || 1, statsByStage: stats };
+    return { total: activeTotal, statsByStage: stats };
   }, [devices]);
 
   return (
@@ -116,6 +116,11 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
         const sbCount = stageStat.sbCount;
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
         const isSelected = activeStageFilter === stage;
+        const clickable = !!onSelectStage;
+        const select = () => onSelectStage && onSelectStage(isSelected ? 'ALL' : stage);
+        const a11yLabel = `${meta.short}: ${count} units (${pct}% of ${total}), POS ${posCount}, Sound Box ${sbCount}.${
+          clickable ? (isSelected ? ' Selected. Press to clear the filter.' : ' Press to filter the inventory by this stage.') : ''
+        }`;
 
         return (
           <motion.div
@@ -123,9 +128,23 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, delay: idx * 0.02, ease: 'easeOut' }}
-            whileHover={{ y: -2, transition: { duration: 0.12 } }}
-            onClick={() => onSelectStage && onSelectStage(isSelected ? 'ALL' : stage)}
-            className={`surface-card relative overflow-hidden rounded-xl p-3 sm:p-4 transition-all duration-150 cursor-pointer select-none group shadow-md hover:shadow-lg ${
+            whileHover={clickable ? { y: -2, transition: { duration: 0.12 } } : undefined}
+            onClick={clickable ? select : undefined}
+            onKeyDown={
+              clickable
+                ? (e: React.KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      select();
+                    }
+                  }
+                : undefined
+            }
+            role={clickable ? 'button' : 'group'}
+            tabIndex={clickable ? 0 : undefined}
+            aria-pressed={clickable ? isSelected : undefined}
+            aria-label={a11yLabel}
+            className={`surface-card relative overflow-hidden rounded-xl p-3 sm:p-4 transition-all duration-150 select-none group shadow-md hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003857] ${clickable ? 'cursor-pointer' : ''} ${
               isSelected ? style.ringActive : 'hover:border-zinc-400'
             }`}
           >
@@ -135,6 +154,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
 
             <div className="flex items-center justify-between mb-2 sm:mb-3 pt-0.5">
               <div
+                aria-hidden="true"
                 className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg border flex items-center justify-center transition-transform duration-150 group-hover:scale-105 ${style.iconBox}`}
               >
                 {STAGE_ICONS[stage]}

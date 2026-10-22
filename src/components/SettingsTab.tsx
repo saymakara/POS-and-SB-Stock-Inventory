@@ -4,14 +4,12 @@ import {
   UserRole,
   ThemeMode,
   Device,
-  Requisition,
   User,
   Branch,
   CustomFieldDefinition,
   CustomFieldType,
   DEFAULT_CUSTOM_FIELDS,
 } from '../types';
-import { BranchesTab } from './BranchesTab';
 import { LogoPageTab } from './LogoPageTab';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -31,7 +29,6 @@ import {
   Info,
   Clock,
   Layers,
-  Check,
   SlidersHorizontal,
   Plus,
   Trash2,
@@ -41,12 +38,8 @@ import {
   Hash,
   Type,
   Calendar as CalendarIcon,
-  CheckSquare,
   PlusCircle,
-  ToggleLeft,
-  ToggleRight,
   X,
-  Zap,
 } from 'lucide-react';
 
 export type SettingsSubTab =
@@ -78,6 +71,8 @@ interface SettingsTabProps {
   onSelectDevice?: (serial: string) => void;
   addAuditLog?: (actionTitle: string, detailText: string) => void;
   onUpdateAppSettings?: (updater: (prev: AppSettings) => AppSettings) => void;
+  /** (22 Oct 2026) true when the stock lives in the shared database: no file restore; reset clears this browser only */
+  sharedDatabase?: boolean;
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
@@ -89,6 +84,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   onResetData,
   onExportBackup,
   onImportBackup,
+  sharedDatabase = false,
   initialSubTab = 'policy',
   onSubTabChange,
   branches = [],
@@ -1753,13 +1749,15 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     System Restore &amp; Factory Reset
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Restore from backup file or reset to baseline operational defaults
+                    {sharedDatabase
+                      ? 'The stock is kept in the shared database. Files cannot overwrite it; clearing affects this browser only.'
+                      : 'Restore from a backup file or clear the data kept in this browser (local preview).'}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <div>
+                {!sharedDatabase && <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
                     Restore From JSON Backup File
                   </label>
@@ -1773,21 +1771,23 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       className="hidden"
                     />
                   </label>
-                </div>
+                </div>}
 
                 <div className="pt-2 border-t border-slate-100">
                   <div className="text-xs font-bold text-rose-700 mb-1">
-                    Reset to Default Institutional State
+                    {sharedDatabase ? 'Clear This Browser' : 'Clear Local Preview Data'}
                   </div>
                   <p className="text-[11px] text-slate-500 mb-2">
-                    Resets devices, serial numbers (`WP5400PQ...`), battery cycles (`160525A...`), and 15-digit MIDs to initial pristine state.
+                    {sharedDatabase
+                      ? 'Removes the settings and copies kept in this browser and reloads from the server. Nothing on the server is changed.'
+                      : 'Removes everything this browser keeps for the preview (devices, requests, history, settings) and loads the sample data again.'}
                   </p>
                   <button
                     type="button"
                     onClick={() => setIsResetConfirmOpen(true)}
                     className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-semibold tracking-wide transition cursor-pointer"
                   >
-                    Reset System State
+                    {sharedDatabase ? 'Clear This Browser' : 'Clear Local Data'}
                   </button>
                 </div>
               </div>
@@ -1860,11 +1860,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             <div className="flex items-center gap-3 text-rose-600">
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <h3 className="text-base font-black text-zinc-900">
-                Reset Application Data?
+                {sharedDatabase ? 'Clear this browser?' : 'Clear local preview data?'}
               </h3>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              This will restore certified hardware inventory, 15-digit MIDs (`100000880...`), POS terminal serials (`WP5400PQ...`), battery serials (`160525A...`), and branch records to certified defaults.
+              {sharedDatabase
+                ? 'Your settings and any copies kept in this browser are removed and the page reloads from the server. The stock, requests and merchant history on the server are not changed.'
+                : 'Everything this browser keeps for the preview is removed and the sample data is loaded again. This cannot be undone; export a backup first if you need it.'}
             </p>
             <div className="flex items-center justify-end gap-2.5 pt-2">
               <button

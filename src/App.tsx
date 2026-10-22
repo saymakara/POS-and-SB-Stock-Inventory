@@ -20,14 +20,18 @@ import {
   buildInitialDevices,
   createInitialRequisitions,
   buildInitialUsers,
-  deriveBatterySerial,
   STAGE_META,
 } from './data/initialData';
 import {
   INITIAL_HISTORICAL_MERCHANTS,
   DEFAULT_APP_SETTINGS,
 } from './data/historicalMerchantsData';
-import { escapeCsvCell } from './utils/crmUtils';
+import { todayPP, stampPP, stampSecPP } from './utils/time';
+import { newRecordId } from './utils/ids';
+import { canMove, moveError, statusOf, onMove } from './utils/stages';
+import { csvFile } from './utils/csv';
+import { phoneFor } from './utils/privacy';
+import type { MerchantBindPayload } from './components/MerchantsCrmTab';
 import { Header, Sidebar } from './components/Header';
 import { PipelineBar } from './components/PipelineBar';
 import { KpiCards } from './components/KpiCards';
@@ -55,9 +59,6 @@ import { SendHorizontal, Lock } from 'lucide-react';
 import { isSupabaseConfigured, checkSupabaseConnection } from './lib/supabase';
 import {
   fetchDevicesFromSupabase,
-  upsertDeviceToSupabase,
-  bulkUpsertDevicesToSupabase,
-  bulkUpsertBranchesToSupabase,
   fetchRequisitionsFromSupabase,
   subscribeToRealtimeChanges,
   saveDevicesStrict,
@@ -66,10 +67,13 @@ import {
   writeAuditLog,
   fetchHistoricalMerchantsFromSupabase,
   insertHistoricalMerchantToSupabase,
-  fetchFieldEvents,
+  countPendingFieldEvents,
+  fetchAuditLogs,
   subscribeToFieldEvents,
+  dispatchRequisitionOnServer,
+  receiveReturnOnServer,
 } from './services/supabaseService';
-import { signOutEverywhere } from './components/AuthGate';
+import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
 import { FieldReviewTab } from './components/FieldReviewTab';
 import { StaffAccountsTab } from './components/StaffAccountsTab';
 import {
@@ -104,8 +108,9 @@ const getInitialAuthSession = (): StoredAuthSession | null => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.role && parsed.operatorLabel) {
-        // Banking Security Hardening: Only whitelisted Super Admin staff can possess SUPER_ADMIN role
-        if (parsed.role === 'SUPER_ADMIN') {
+        // Banking Security Hardening (local preview only): with the shared database the role comes from the server's
+        // staff profile and the database's access rules enforce it, so no browser-side whitelist applies there
+        if (!isSupabaseConfigured && parsed.role === 'SUPER_ADMIN') {
           const isWhitelisted =
             parsed.username === '8986' ||
             parsed.username === '5546' ||
@@ -127,13 +132,61 @@ const getInitialAuthSession = (): StoredAuthSession | null => {
 
 const INITIAL_WEBHOOK_EVENTS: MobileWebhookEvent[] = [];
 
-// (21 Oct 2026) requests are saved to the database by the change watcher in App (one place, with a clear error);
-// the older direct calls below are kept as no-ops so each action reads as before
-const upsertRequisitionToSupabase = async (_req: Requisition): Promise<boolean> => true;
+/** Whole months between two YYYY-MM-DD dates (0 when a date is missing). */
+const monthsBetween = (from?: string, to?: string): number => {
+  const a = /^(\d{4})-(\d{2})-(\d{2})/.exec(from || ''); const b = /^(\d{4})-(\d{2})-(\d{2})/.exec(to || '');
+  if (!a || !b) return 0;
+  const m = (+b[1] - +a[1]) * 12 + (+b[2] - +a[2]) - (+b[3] < +a[3] ? 1 : 0);
+  return Math.max(0, m);
+};
+/** A merchant-history record made from the unit's real details (22 Oct 2026: nothing is filled in with sample values). */
+const historyRecordFor = (
+  d: Device,
+  o: { reason: string; status: HistoricalMerchantRecord['status']; actor: string; notes?: string; date?: string }
+): HistoricalMerchantRecord => {
+  const returnedDate = o.date || todayPP();
+  const installedDate = d.deployedDate || '';
+  return {
+    recordId: newRecordId('MREC'),
+    merchantName: d.merchantName || '',
+    merchantPhone: d.merchantPhone || '',
+    address: d.address || '',
+    mid: d.mid,
+    tid: d.tid || '',
+    deviceType: d.type,
+    model: d.model,
+    serial: d.serial,
+    batterySerial: d.batterySerial,
+    branchId: d.branchId,
+    branchName: d.branchName,
+    installedDate,
+    returnedDate,
+    activeDurationMonths: monthsBetween(installedDate, returnedDate),
+    returnReason: o.reason,
+    status: o.status,
+    handledByStaff: o.actor,
+    installedByStaff: d.installedByStaff || undefined,
+    replacedByStaff: d.replacedByStaff,
+    returnedByStaff: o.actor,
+    settlementFinalized: false,
+    notes: o.notes || '',
+  };
+};
+const TERMINATION_REASON = /clos|terminat|franchise|seasonal|cancel/i;
+const loadServerAuditLogs = () => fetchAuditLogs(1000);
+
 
 const INITIAL_NOTIFICATIONS: SystemNotification[] = [];
 
-export function App() {
+/** The signed-in staff profile, given by AuthGate when the shared database is configured. */
+export interface AppProfile { user_id: string; emp_id: string; name: string; role: UserRole; branch_id: string }
+const sessionFromProfile = (p: AppProfile): StoredAuthSession => ({ role: p.role, operatorLabel: `${p.name} (${p.emp_id})`, branchId: p.branch_id, username: p.emp_id });
+
+export function App({ profile }: { profile?: AppProfile | null } = {}) {
+  // (22 Oct 2026) with the shared database the session is the server profile (never the browser's stored copy)
+  const bootSession = React.useRef<StoredAuthSession | null | undefined>(undefined);
+  if (bootSession.current === undefined) bootSession.current = profile ? sessionFromProfile(profile) : getInitialAuthSession();
+  const getBootSession = () => bootSession.current || null;
   // Always use Light Mode (Single theme as before)
   const theme: ThemeMode = 'light';
 
@@ -146,11 +199,11 @@ export function App() {
   }, []);
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return Boolean(getInitialAuthSession());
+    return Boolean(getBootSession());
   });
   const [isSessionLocked, setIsSessionLocked] = useState<boolean>(false);
   const [authUsername, setAuthUsername] = useState<string>(() => {
-    return getInitialAuthSession()?.operatorLabel || '';
+    return getBootSession()?.operatorLabel || '';
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
@@ -261,9 +314,7 @@ export function App() {
     } catch (e) {
       console.error(e);
     }
-    return [
-      '2026-10-21 08:00:00 | System Initialized | Immutable security audit ledger verified across all 34 Branch Codes',
-    ];
+    return [];
   });
 
   const [webhookEvents, setWebhookEvents] = useState<MobileWebhookEvent[]>(() => {
@@ -328,6 +379,7 @@ export function App() {
   const [sseConnected, setSseConnected] = useState<boolean>(true);
 
   useEffect(() => {
+    if (isSupabaseConfigured) return;
     try {
       localStorage.setItem(
         STORAGE_KEY_HISTORICAL_MERCHANTS,
@@ -401,7 +453,11 @@ export function App() {
   const [serverError, setServerError] = useState<string>('');
   const [pendingFieldCount, setPendingFieldCount] = useState<number>(0);
 
+  // versions this browser's own saves produced (serial → sent version → new version): a later edit of the same unit
+  // made from the older copy is sent with the right version, while a change by someone else is still refused
+  const versionAlias = React.useRef<Map<string, Map<number, number>>>(new Map());
   const reloadFromServer = useCallback(async (): Promise<boolean> => {
+    versionAlias.current = new Map();
     const [devs, reqs, hist] = await Promise.all([
       fetchDevicesFromSupabase(),
       fetchRequisitionsFromSupabase(),
@@ -428,8 +484,8 @@ export function App() {
     let unsubscribe: () => void = () => {};
     let unsubscribeField: () => void = () => {};
     const countPending = () =>
-      fetchFieldEvents(1000).then((list) => {
-        if (alive && list) setPendingFieldCount(list.filter((e) => e.status === 'PENDING').length);
+      countPendingFieldEvents().then((n) => {
+        if (alive && n !== null) setPendingFieldCount(n);
       });
     (async () => {
       const conn = await checkSupabaseConnection();
@@ -467,6 +523,20 @@ export function App() {
             }
             return [updatedReq, ...prev];
           });
+        },
+        {
+          onDeviceDelete: (serial) => {
+            syncedDevices.current.delete(serial);
+            setDevices((prev) => prev.filter((d) => d.serial !== serial));
+          },
+          onRequisitionDelete: (reqId) => {
+            syncedReqs.current.delete(reqId);
+            setRequisitions((prev) => prev.filter((r) => r.reqId !== reqId));
+          },
+          onReconnect: () => {
+            // the live feed was down for a while: changes made meanwhile were missed
+            reloadFromServer().then((ok) => setServerError(ok ? '' : 'The connection to the server is unstable. Please reload the page.'));
+          },
         }
       );
       countPending();
@@ -500,6 +570,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (isSupabaseConfigured) return;                                  // (22 Oct 2026) stock data is never cached in the browser
     if (devices.length > 0) {
       saveDevicesToIdb(devices).catch((err) =>
         console.warn('[IndexedDB Save Devices Warning]', err)
@@ -520,6 +591,7 @@ export function App() {
   }, [devices]);
 
   useEffect(() => {
+    if (isSupabaseConfigured) return;
     try {
       localStorage.setItem(STORAGE_KEY_REQS, JSON.stringify(requisitions));
     } catch (e) {
@@ -536,6 +608,7 @@ export function App() {
   }, [branches]);
 
   useEffect(() => {
+    if (isSupabaseConfigured) return;                                  // accounts live on the server (no passwords in the browser)
     try {
       localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
     } catch (e) {
@@ -568,24 +641,24 @@ export function App() {
   }, [notifications]);
 
   const [role, setRole] = useState<UserRole>(() => {
-    return getInitialAuthSession()?.role || 'BRANCH';
+    return getBootSession()?.role || 'BRANCH';
   });
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {
-    return getInitialAuthSession()?.branchId || '105';
+    return getBootSession()?.branchId || '105';
   });
   const [selectedStaffUser, setSelectedStaffUser] = useState<string>(() => {
-    const session = getInitialAuthSession();
+    const session = getBootSession();
     if (session && session.role === 'BRANCH') {
       return session.operatorLabel;
     }
-    return 'NI Oudomroth (10811)';
+    return '';
   });
   const [activeAdminStaff, setActiveAdminStaff] = useState<string>(() => {
-    const session = getInitialAuthSession();
+    const session = getBootSession();
     if (session && session.role !== 'BRANCH') {
       return session.operatorLabel;
     }
-    return 'SAY Chanmakara (8986)';
+    return '';
   });
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('policy');
@@ -672,11 +745,11 @@ export function App() {
       }
 
       const notif: SystemNotification = {
-        id: `NOTIF-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id: newRecordId('NOTIF'),
         title,
         message,
         category,
-        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        timestamp: stampSecPP(),
         read: false,
         branchId,
         targetTab: targetTab || 'requisitions',
@@ -690,9 +763,13 @@ export function App() {
     []
   );
 
+  // (22 Oct 2026) the signed-in person, and what a branch account may act on (its own branch only)
+  const operatorLabel = role === 'BRANCH' ? selectedStaffUser : activeAdminStaff || authUsername;
+  const inScope = useCallback((d: Device | undefined) => Boolean(d) && (role !== 'BRANCH' || d!.branchId === selectedBranch), [role, selectedBranch]);
+
   const addAuditLog = useCallback(
     (actionTitle: string, detailText: string, customRole?: UserRole) => {
-      const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const now = stampSecPP();
       const activeRole = customRole || role;
       const actorDesc =
         activeRole === 'SUPER_ADMIN'
@@ -713,12 +790,30 @@ export function App() {
   // ---- (21 Oct 2026) change watchers: every device, request and merchant-history record changed in this app goes to
   // the database. A change the server refuses (e.g. not your branch) is said plainly and the lists are reloaded, so the
   // screen never shows something that was not saved.
-  const pushDevices = useCallback(async (changed: Device[]) => {
-    const err = await saveDevicesStrict(changed);
-    if (err) {
-      triggerToast(`Not saved to the server: ${/row-level security|permission|42501/i.test(err) ? 'you do not have access to change this device' : err}. The list was reloaded.`);
-      reloadFromServer();
-    }
+  const saveQueue = React.useRef<Promise<void>>(Promise.resolve());
+  const pushDevices = useCallback((changed: Device[]) => {
+    // saves run one after another, so a second edit of a unit waits for the first and uses its new version
+    saveQueue.current = saveQueue.current.then(async () => {
+      const sent = changed.map((d) => {
+        const aliases = versionAlias.current.get(d.serial);
+        let v = d.rowVersion || 0;
+        while (aliases && aliases.has(v)) v = aliases.get(v)!;
+        return { ...d, rowVersion: v || undefined };
+      });
+      const res = await saveDevicesStrict(sent);
+      sent.forEach((d) => {
+        const nv = res.versions.get(d.serial);
+        if (nv === undefined) return;
+        if (!versionAlias.current.has(d.serial)) versionAlias.current.set(d.serial, new Map());
+        versionAlias.current.get(d.serial)!.set(d.rowVersion || 0, nv);
+      });
+      if (res.error) {
+        triggerToast(res.stale
+          ? `Not saved: ${res.error}. The latest data was loaded – please check it and make your change again.`
+          : `Not saved to the server: ${/row-level security|permission|42501/i.test(res.error) ? 'you do not have access to change this device' : res.error}. The list was reloaded.`);
+        await reloadFromServer();
+      }
+    }).catch(() => undefined);
   }, [triggerToast, reloadFromServer]);
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
@@ -731,8 +826,14 @@ export function App() {
     if (!isSupabaseConfigured || !serverReady) return;
     const changed = requisitions.filter((r) => syncedReqs.current.get(r.reqId) !== r);
     if (!changed.length) return;
-    changed.forEach((r) => syncedReqs.current.set(r.reqId, r));
-    Promise.all(changed.map((r) => saveRequisitionStrict(r))).then((errs) => {
+    const jobs = changed.map((r) => {
+      const prior = syncedReqs.current.get(r.reqId);
+      syncedReqs.current.set(r.reqId, r);
+      // a status change is made by the database functions (dispatch, receipt, return) – never by saving the row
+      if (prior && prior.status !== r.status) return Promise.resolve('');
+      return saveRequisitionStrict(r, !prior);
+    });
+    Promise.all(jobs).then((errs) => {
       const err = errs.find(Boolean);
       if (err) {
         triggerToast(`Request not saved to the server: ${/row-level security|permission|42501/i.test(err) ? 'you do not have access to this request' : err}. The list was reloaded.`);
@@ -746,9 +847,12 @@ export function App() {
     if (!fresh.length) return;
     fresh.forEach((h) => syncedHist.current.add(h.recordId));
     Promise.all(fresh.map((h) => insertHistoricalMerchantToSupabase(h))).then((oks) => {
-      if (oks.some((x) => !x)) triggerToast('A merchant history record was not saved to the server.');
+      if (oks.some((x) => !x)) {
+        triggerToast('A merchant history record was not saved to the server. The list was reloaded.');
+        reloadFromServer();                                            // the screen never keeps a record the server does not have
+      }
     });
-  }, [historicalMerchants, serverReady, triggerToast]);
+  }, [historicalMerchants, serverReady, triggerToast, reloadFromServer]);
 
   const handleExportBackup = useCallback(() => {
     const backupData = {
@@ -757,7 +861,8 @@ export function App() {
       devices,
       branches,
       requisitions,
-      users,
+      // (22 Oct 2026) never passwords, user names or contacts in a file
+      users: users.map(({ password: _p, username: _u, contact: _c, ...u }) => u),
       appSettings,
       auditLogs,
       historicalMerchants,
@@ -768,7 +873,7 @@ export function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `pos-soundbox-inventory-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `pos-soundbox-inventory-backup-${todayPP()}.json`;
     a.click();
     URL.revokeObjectURL(url);
     triggerToast('Complete system JSON backup downloaded.');
@@ -776,6 +881,11 @@ export function App() {
   }, [devices, branches, requisitions, users, appSettings, auditLogs, historicalMerchants, triggerToast, addAuditLog]);
 
   const handleImportBackup = useCallback((jsonStr: string) => {
+    if (isSupabaseConfigured) {
+      // a file must never overwrite the shared database (it would push old data over everyone's live records)
+      triggerToast('Restoring a backup file is not available when the shared database is in use. Restore from the database backups instead.');
+      return;
+    }
     try {
       const data = JSON.parse(jsonStr);
       if (!data || typeof data !== 'object') {
@@ -855,6 +965,8 @@ export function App() {
   // Role authority handler
   const handleRoleChange = (newRole: UserRole) => {
     if (newRole === role) return;
+    // (22 Oct 2026) with the shared database the role is the server's (no switching in the browser)
+    if (isSupabaseConfigured) { triggerToast('Your role is set by your account. Ask an admin to change it.'); return; }
     setRole(newRole);
     if (newRole === 'BRANCH') {
       setBranchFilter(selectedBranch);
@@ -864,6 +976,11 @@ export function App() {
   };
 
   const handleBranchChange = (bCode: string) => {
+    // a branch account always works in its own branch
+    if (role === 'BRANCH' && isSupabaseConfigured && bCode !== selectedBranch) {
+      triggerToast('Branch accounts work in their own branch only.');
+      return;
+    }
     setSelectedBranch(bCode);
     const bObj = branches.find((b) => b.code === bCode);
     if (bObj && bObj.staff && bObj.staff.length > 0) {
@@ -986,7 +1103,7 @@ export function App() {
           d.branchId.toLowerCase().includes(q) ||
           (d.staff && d.staff.toLowerCase().includes(q)) ||
           (d.location && d.location.toLowerCase().includes(q)) ||
-          (d.merchantPhone && d.merchantPhone.toLowerCase().includes(q)) ||
+          (isAdminOrSuper && d.merchantPhone && d.merchantPhone.toLowerCase().includes(q)) ||
           (d.address && d.address.toLowerCase().includes(q)) ||
           (d.customFields && Object.values(d.customFields).some((val) => (val || '').toLowerCase().includes(q)));
 
@@ -1078,7 +1195,7 @@ export function App() {
     }, 750);
   }, []);
 
-  // Save single device workflow & append Serial Cycle History
+  // Save single device workflow & append Serial Cycle History (22 Oct 2026: only allowed moves; one state update each)
   const handleSaveWorkflow = (
     serial: string,
     updates: {
@@ -1095,165 +1212,73 @@ export function App() {
       deployedDate: string;
       batteryInstalledDate: string;
       customFields?: Record<string, string>;
+      deploymentStatus?: string;
+      stockStatus?: string;
     }
   ) => {
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const d = devices.find((x) => x.serial === serial);
+    if (!d) return;
+    if (!inScope(d)) { triggerToast('This unit belongs to another branch.'); return; }
+    if (role === 'BRANCH' && updates.branchId !== d.branchId) { triggerToast('Branch staff cannot move a unit to another branch.'); return; }
+    const err = moveError(d.stage, updates.stage, STAGE_META);
+    if (err) { triggerToast(err); return; }
+    const today = todayPP();
+    const nowTime = stampSecPP();
     const branchObj = branches.find((b) => b.code === updates.branchId);
-    const actor =
-      role === 'SUPER_ADMIN'
-        ? `Super Admin (${authUsername})`
-        : role === 'ADMIN'
-        ? `Admin HQ (${activeAdminStaff})`
-        : `${selectedStaffUser || 'Staff'} (Branch Code ${selectedBranch})`;
+    const actor = operatorLabel || 'Staff';
+    const stageLabel = STAGE_META[updates.stage].short;
+    const toMerchant = updates.stage === 'COMPLETE' || updates.stage === 'CONFIGURING';
+    const hadMerchant = Boolean(d.mid?.trim());
+    const leftMerchant = hadMerchant && (!toMerchant || (updates.mid || '').trim() !== d.mid.trim());
+    const logNote =
+      updates.note.trim() ||
+      `Moved to ${stageLabel} at Branch Code ${updates.branchId}${updates.merchantName && toMerchant ? ` for ${updates.merchantName}` : ''}`;
 
-    setDevices((prev) =>
-      prev.map((d) => {
-        if (d.serial !== serial) return d;
-        const stageLabel = STAGE_META[updates.stage].short;
-        const nextCycleNum = (d.history || []).length + 1;
-        const logNote =
-          updates.note.trim() ||
-          `Transitioned to ${stageLabel} at Branch Code ${updates.branchId}${
-            updates.merchantName ? ` for ${updates.merchantName}` : ''
-          } (Install Date: ${updates.deployedDate || today}) — Officer: ${actor}`;
+    const histRec = leftMerchant
+      ? historyRecordFor(d, {
+          reason: updates.note.trim() || (updates.stage === 'LOST' ? 'Device lost at merchant' : 'Taken back from merchant'),
+          status: updates.stage === 'LOST' || TERMINATION_REASON.test(updates.note) ? 'TERMINATED' : 'RETURNED',
+          actor,
+          notes: `Unit moved to ${stageLabel}.`,
+        })
+      : null;
 
-        const hadMerchant =
-          Boolean(d.merchantName?.trim()) || d.stage === 'COMPLETE';
-        const isReturnedFromMerchant =
-          hadMerchant &&
-          (updates.stage === 'BRANCH_RESERVE' ||
-            updates.stage === 'HQ_STOCK' ||
-            updates.stage === 'FAULTY' ||
-            updates.stage === 'LOST' ||
-            !updates.merchantName.trim());
-        const isChangedMerchant =
-          Boolean(d.merchantName?.trim()) &&
-          Boolean(updates.merchantName.trim()) &&
-          d.merchantName.trim().toLowerCase() !==
-            updates.merchantName.trim().toLowerCase();
-
-        const nextRedeployCount =
-          isReturnedFromMerchant || isChangedMerchant
-            ? (d.redeployCount || 0) + 1
-            : d.redeployCount || 0;
-
-        // Automatically archive to historical ledger when merchant returns or loses device
-        if (hadMerchant && isReturnedFromMerchant && d.mid) {
-          const histRec: HistoricalMerchantRecord = {
-            recordId: `MREC-${Date.now().toString().slice(-6)}`,
-            merchantName: d.merchantName || 'Merchant',
-            merchantPhone: d.merchantPhone || '012 000 000',
-            address: d.address || 'Phnom Penh, Cambodia',
-            mid: d.mid,
-            tid: d.tid || `TID-${d.branchId}01`,
-            deviceType: d.type,
-            model: d.model,
-            serial: d.serial,
-            batterySerial: d.batterySerial,
-            branchId: d.branchId,
-            branchName: d.branchName,
-            installedDate: d.deployedDate || d.stockInDate || today,
-            returnedDate: today,
-            activeDurationMonths: 6,
-            returnReason:
-              updates.note ||
-              (updates.stage === 'LOST'
-                ? 'Device Lost / Missing from Merchant'
-                : 'Merchant Terminated Contract — Returned Hardware'),
-            status: updates.stage === 'LOST' ? 'TERMINATED' : 'TERMINATED',
-            handledByStaff: updates.staff || actor,
-            installedByStaff: d.installedByStaff || d.staff || actor,
-            replacedByStaff: d.replacedByStaff,
-            returnedByStaff: updates.staff || actor,
-            settlementFinalized: true,
-            notes:
-              updates.stage === 'LOST'
-                ? 'Marked as Device Lost in system inventory.'
-                : `Device returned to ${
-                    updates.stage === 'HQ_STOCK' ? 'Admin HQ Stock' : 'Branch Reserve'
-                  }.`,
-          };
-          setHistoricalMerchants((hPrev) => [histRec, ...hPrev]);
-        }
-
-        // When returned/terminated, ensure merchant info is cleared and stage is active stock
-        const effectiveStage: LifecycleStage =
-          updates.stage === 'FAULTY'
-            ? updates.branchId === '100'
-              ? 'HQ_STOCK'
-              : 'BRANCH_RESERVE'
-            : updates.stage;
-        const effectiveMerchantName = isReturnedFromMerchant ? '' : updates.merchantName;
-        const effectiveMid = isReturnedFromMerchant ? '' : updates.mid;
-        const effectiveTid = isReturnedFromMerchant ? '' : updates.tid;
-
-        return {
-          ...d,
-          stage: effectiveStage,
-          branchId: updates.branchId,
-          branchName: branchObj?.name || d.branchName,
-          staff: updates.staff,
-          installedByStaff: d.installedByStaff || (updates.stage === 'COMPLETE' ? (updates.staff || actor) : undefined),
-          replacedByStaff: isReturnedFromMerchant ? undefined : d.replacedByStaff,
-          returnedByStaff: isReturnedFromMerchant ? (updates.staff || actor) : (updates.stage === 'COMPLETE' ? undefined : d.returnedByStaff),
-          returnedDate: isReturnedFromMerchant ? today : (updates.stage === 'COMPLETE' ? undefined : d.returnedDate),
-          merchantName: effectiveMerchantName,
-          merchantPhone:
-            updates.merchantPhone !== undefined
-              ? updates.merchantPhone
-              : isReturnedFromMerchant
-              ? ''
-              : d.merchantPhone,
-          location:
-            updates.location !== undefined
-              ? updates.location
-              : isReturnedFromMerchant
-              ? ''
-              : d.location,
-          address: updates.address !== undefined ? updates.address : isReturnedFromMerchant ? '' : d.address,
-          customFields: {
-            ...(d.customFields || {}),
-            ...(updates.customFields || {}),
-          },
-          mid: effectiveMid,
-          tid: effectiveTid,
-          deployedDate: updates.deployedDate || d.deployedDate || today,
-          batteryInstalledDate: updates.batteryInstalledDate,
-          redeployCount: nextRedeployCount,
-          updatedAt: today,
-          archived: false,
-          history: [
-            `${nowTime} | Cycle #${nextCycleNum}: ${stageLabel} | ${logNote}`,
-            ...(d.history || []),
-          ],
-        };
-      })
+    const moved = onMove(
+      {
+        ...d,
+        branchId: updates.branchId,
+        branchName: branchObj?.name || d.branchName,
+        staff: updates.staff,
+        merchantName: toMerchant ? updates.merchantName : '',
+        merchantPhone: toMerchant ? (updates.merchantPhone !== undefined ? updates.merchantPhone : d.merchantPhone) : '',
+        address: toMerchant ? (updates.address !== undefined ? updates.address : d.address) : '',
+        location: updates.location !== undefined ? updates.location : d.location,
+        mid: toMerchant ? updates.mid : '',
+        tid: toMerchant ? updates.tid : '',
+      },
+      updates.stage
     );
+    const next: Device = {
+      ...moved,
+      ...(updates.deploymentStatus ? { deploymentStatus: updates.deploymentStatus } : {}),
+      ...(updates.stockStatus ? { stockStatus: updates.stockStatus } : {}),
+      installedByStaff: updates.stage === 'COMPLETE' && d.stage !== 'COMPLETE' ? updates.staff || actor : d.installedByStaff,
+      returnedByStaff: leftMerchant ? actor : d.returnedByStaff,
+      returnedDate: leftMerchant ? today : d.returnedDate,
+      customFields: { ...(d.customFields || {}), ...(updates.customFields || {}) },
+      deployedDate: updates.stage === 'COMPLETE' ? updates.deployedDate || d.deployedDate || today : leftMerchant ? '' : d.deployedDate,
+      batteryInstalledDate: updates.batteryInstalledDate,
+      redeployCount: leftMerchant ? (d.redeployCount || 0) + 1 : d.redeployCount || 0,
+      updatedAt: today,
+      history: [`${nowTime} | ${stageLabel} | ${logNote} — Officer: ${actor}`, ...(d.history || [])],
+    };
+    setDevices((prev) => prev.map((x) => (x.serial === serial ? next : x)));
+    if (histRec) setHistoricalMerchants((h) => [histRec, ...h]);
 
-    addAuditLog(
-      'Serial Cycle Updated',
-      `Updated serial ${serial} -> ${STAGE_META[updates.stage].short} (Branch Code ${
-        updates.branchId
-      }, Install Date: ${updates.deployedDate || today})`
-    );
-    if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
-      addNotification(
-        `Assigned from Admin • ${serial} (Code ${updates.branchId})`,
-        `${actor} assigned ${serial} (${STAGE_META[updates.stage].short}) to Branch Code ${
-          updates.branchId
-        } (${branchObj?.name || ''}) — Staff: ${updates.staff}.`,
-        'STOCK',
-        updates.branchId,
-        'inventory'
-      );
-    }
+    addAuditLog('Serial Cycle Updated', `Updated serial ${serial}: ${STAGE_META[d.stage].short} → ${stageLabel} (Branch Code ${updates.branchId})`);
     setEditingDeviceSerial(null);
-    triggerOptimisticSync(
-      [serial],
-      `Updated ${serial} -> ${STAGE_META[updates.stage].short} (${branchObj?.name || 'Code ' + updates.branchId})`
-    );
-    triggerToast(`Serial ${serial} cycle committed (${STAGE_META[updates.stage].short})`);
+    triggerOptimisticSync([serial], `Updated ${serial} -> ${stageLabel} (${branchObj?.name || 'Code ' + updates.branchId})`);
+    triggerToast(`Serial ${serial} updated (${stageLabel})`);
   };
 
   // Dedicated POS Terminal Battery Replacement
@@ -1263,8 +1288,12 @@ export function App() {
     installedDate: string,
     reason: string
   ) => {
-    const today = installedDate || new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const target = devices.find((d) => d.serial === serial);
+    if (!target || !inScope(target)) { triggerToast('This unit is not in your branch.'); return; }
+    if (target.type !== 'POS Terminal') { triggerToast('Battery changes apply to POS Terminals only.'); return; }
+    if (!newBatterySerial.trim()) { triggerToast('Enter the new battery serial.'); return; }
+    const today = installedDate || todayPP();
+    const nowTime = stampSecPP();
     const actor =
       role === 'SUPER_ADMIN'
         ? `Super Admin (${authUsername})`
@@ -1275,7 +1304,7 @@ export function App() {
     setDevices((prev) =>
       prev.map((d) => {
         if (d.serial !== serial) return d;
-        const oldBatt = d.batterySerial || '160525A0005709';
+        const oldBatt = d.batterySerial || 'none recorded';
         const logEntry = `${nowTime} | Battery Replacement | Installed fresh battery SN ${newBatterySerial} (Replaced: ${oldBatt}) · Reason: ${reason} (Fresh 24-Month Lifespan Activated) — Officer: ${actor}`;
         return {
           ...d,
@@ -1312,25 +1341,31 @@ export function App() {
     note?: string,
     skipNotif?: boolean
   ) => {
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const today = todayPP();
+    const nowTime = stampSecPP();
     const branchObj = branches.find((b) => b.code === targetBranchCode);
-    const defaultStaff =
-      branchObj && branchObj.staff.length > 0 ? branchObj.staff[0] : 'Branch Officer';
-    const actor = role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin HQ';
+    const actor = operatorLabel || 'HQ';
+    if (role === 'BRANCH') { triggerToast('Only HQ can assign units to a branch.'); return; }
+    if (!branchObj || targetBranchCode === '100') { triggerToast('Choose a valid branch.'); return; }
+    // (22 Oct 2026) only free stock moves: HQ stock or branch reserve, not archived, not allocated to a request
+    const wanted = new Set(serials);
+    const blocked = devices.filter((d) => wanted.has(d.serial) &&
+      (!(d.stage === 'HQ_STOCK' || d.stage === 'BRANCH_RESERVE') || d.archived || d.customFields?.allocatedTo));
+    if (blocked.length) {
+      triggerToast(`Not assigned: ${blocked.slice(0, 5).map((d) => `${d.serial} (${d.archived ? 'archived' : d.customFields?.allocatedTo ? 'allocated to ' + d.customFields.allocatedTo : STAGE_META[d.stage].short})`).join(', ')}${blocked.length > 5 ? '…' : ''}. Only free HQ stock or branch reserve can be assigned.`);
+      return;
+    }
 
     setDevices((prev) =>
       prev.map((d) => {
-        if (!serials.includes(d.serial)) return d;
+        if (!wanted.has(d.serial)) return d;
         const nextCycleNum = (d.history || []).length + 1;
         return {
-          ...d,
-          stage: 'BRANCH_RESERVE',
+          ...onMove(d, 'BRANCH_RESERVE'),
           branchId: targetBranchCode,
-          branchName: branchObj?.name || `Branch Code ${targetBranchCode}`,
-          staff: defaultStaff,
+          branchName: branchObj.name,
+          staff: '',
           updatedAt: today,
-          archived: false,
           history: [
             `${nowTime} | Cycle #${nextCycleNum}: Bulk Branch Dispatch | ${
               note ||
@@ -1367,96 +1402,43 @@ export function App() {
     triggerToast(`Assigned ${serials.length} serials to Branch Code ${targetBranchCode}`);
   };
 
-  // Return Back to Admin HQ Stock (Branch Code 100 / HQ_STOCK)
+  // Return Back to Admin HQ Stock (Branch Code 100). (22 Oct 2026) HQ only; a faulty unit stays "Faulty" (held at HQ);
+  // a unit at a merchant is first recorded in Merchant History; a lost or allocated unit is not moved.
   const handleReturnToAdminStock = (serials: string[], reason?: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const actor =
-      role === 'SUPER_ADMIN'
-        ? 'Super Admin'
-        : role === 'ADMIN'
-        ? 'Admin HQ'
-        : `Branch Code ${selectedBranch}`;
-
-    const retiringDevices = devices.filter(
-      (d) => serials.includes(d.serial) && d.mid && d.merchantName
-    );
-    if (retiringDevices.length > 0) {
-      const records: HistoricalMerchantRecord[] = retiringDevices.map((d, idx) => ({
-        recordId: `MREC-${Date.now().toString().slice(-6)}-${idx}`,
-        merchantName: d.merchantName || 'Merchant',
-        merchantPhone: d.merchantPhone || '012 000 000',
-        address: d.address || 'Phnom Penh, Cambodia',
-        mid: d.mid,
-        tid: d.tid || `TID-${d.branchId}01`,
-        deviceType: d.type,
-        model: d.model,
-        serial: d.serial,
-        batterySerial: d.batterySerial,
-        branchId: d.branchId,
-        branchName: d.branchName,
-        installedDate: d.deployedDate || d.stockInDate || today,
-        returnedDate: today,
-        activeDurationMonths: 6,
-        returnReason: reason || 'Returned back to Admin HQ Stock (Branch Code 100)',
-        status: 'RETURNED',
-        handledByStaff: actor,
-        installedByStaff: d.installedByStaff || d.staff || actor,
-        replacedByStaff: d.replacedByStaff,
-        returnedByStaff: actor,
-        settlementFinalized: true,
-        notes: `Returned to Admin HQ Stock. ${reason || ''}`.trim(),
-      }));
-      setHistoricalMerchants((prev) => [...records, ...prev]);
-    }
-
-    setDevices((prev) =>
-      prev.map((d) => {
-        if (!serials.includes(d.serial)) return d;
-        const nextCycleNum = (d.history || []).length + 1;
-        const wasAtMerchant =
-          Boolean(d.merchantName?.trim()) ||
-          d.stage === 'COMPLETE' ||
-          d.stage === 'FAULTY';
-        return {
-          ...d,
-          stage: 'HQ_STOCK',
-          branchId: '100',
-          branchName: 'Head Office (In-Store MS Unit)',
-          staff: 'SAY Chanmakara (8986)',
-          merchantName: '',
-          mid: '',
-          tid: '',
-          returnedByStaff: actor,
-          returnedDate: today,
-          updatedAt: today,
-          redeployCount: wasAtMerchant
-            ? (d.redeployCount || 0) + 1
-            : d.redeployCount || 0,
-          archived: false,
-          history: [
-            `${nowTime} | Cycle #${nextCycleNum}: Return to Admin HQ Stock | ${
-              reason || 'Returned back to Admin HQ Stock (Branch Code 100)'
-            } — Officer: ${actor}`,
-            ...(d.history || []),
-          ],
-        };
-      })
-    );
-
-    addAuditLog(
-      'Return to Admin Stock',
-      `Returned ${serials.length} serial(s) (${serials.join(', ')}) back to Admin HQ Stock (Branch Code 100)`
-    );
-    addNotification(
-      `Stock Returned to Admin HQ • ${serials.length} Unit(s)`,
-      `${serials.join(', ')} returned to Central HQ Stock (Branch Code 100).`,
-      'STOCK',
-      '100',
-      'inventory'
-    );
-    triggerOptimisticSync(serials, `Returned ${serials.length} unit(s) to Admin HQ Stock`);
-    triggerToast(`Returned ${serials.length} unit(s) back to Admin HQ Stock`);
+    if (role === 'BRANCH') { triggerToast('Branch staff send a Return Request instead; HQ approves it.'); return; }
+    const today = todayPP();
+    const nowTime = stampSecPP();
+    const actor = operatorLabel || 'HQ';
+    const wanted = new Set(serials);
+    const targets = devices.filter((d) => wanted.has(d.serial));
+    const skipped = targets.filter((d) => d.stage === 'LOST' || d.customFields?.allocatedTo || (d.stage === 'HQ_STOCK' && d.branchId === '100'));
+    const moving = targets.filter((d) => !skipped.includes(d));
+    if (!moving.length) { triggerToast('Nothing to return: the units are already in HQ stock, lost or allocated to a request.'); return; }
+    const why = reason || 'Returned to HQ stock';
+    const records = moving.filter((d) => d.mid).map((d) => historyRecordFor(d, {
+      reason: why, status: TERMINATION_REASON.test(why) ? 'TERMINATED' : 'RETURNED', actor, notes: 'Returned to HQ.' }));
+    const movedMap = new Map(moving.map((d) => {
+      const to: LifecycleStage = d.stage === 'FAULTY' ? 'FAULTY' : 'HQ_STOCK';
+      const next: Device = {
+        ...onMove(d, to),
+        branchId: '100',
+        branchName: 'Head Office',
+        staff: '',
+        returnedByStaff: d.mid ? actor : d.returnedByStaff,
+        returnedDate: d.mid ? today : d.returnedDate,
+        deployedDate: d.mid ? '' : d.deployedDate,
+        updatedAt: today,
+        redeployCount: d.mid ? (d.redeployCount || 0) + 1 : d.redeployCount || 0,
+        history: [`${nowTime} | Return to HQ | ${why}${to === 'FAULTY' ? ' (kept as Faulty)' : ''} — Officer: ${actor}`, ...(d.history || [])],
+      };
+      return [d.serial, next] as const;
+    }));
+    if (records.length) setHistoricalMerchants((prev) => [...records, ...prev]);
+    setDevices((prev) => prev.map((d) => movedMap.get(d.serial) || d));
+    const done = [...movedMap.keys()];
+    addAuditLog('Return to Admin Stock', `Returned ${done.length} unit(s) (${done.join(', ')}) to HQ${skipped.length ? `; not moved: ${skipped.map((d) => d.serial).join(', ')}` : ''}`);
+    triggerOptimisticSync(done, `Returned ${done.length} unit(s) to Admin HQ Stock`);
+    triggerToast(`Returned ${done.length} unit(s) to HQ` + (skipped.length ? `; ${skipped.length} not moved (lost, allocated or already in HQ stock)` : ''));
   };
 
   // Branch Staff Return Request: Submits a formal Stock Return Request to Admin HQ for approval
@@ -1465,19 +1447,25 @@ export function App() {
     reason: string = 'Return to Admin HQ Stock requested by branch'
   ) => {
     if (!serials.length) return;
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const today = todayPP();
+    const nowTime = stampSecPP();
     const affected = devices.filter((d) => serials.includes(d.serial));
+    // (22 Oct 2026) the same rules the server applies when HQ approves the return
     const targetBranchId = affected[0]?.branchId || selectedBranch;
+    const pendingReturn = new Set(requisitions.filter((r) => r.type === 'STOCK_RETURN' && r.status === 'PENDING_ADMIN').flatMap((r) => r.returnSerials || []));
+    const bad = affected.filter((d) => !inScope(d) || d.branchId !== targetBranchId || d.branchId === '100' ||
+      !(d.stage === 'BRANCH_RESERVE' || d.stage === 'CONFIGURING' || d.stage === 'FAULTY') || pendingReturn.has(d.serial));
+    if (affected.length !== serials.length || bad.length) {
+      triggerToast(`Return not requested: ${bad.map((d) => `${d.serial} (${pendingReturn.has(d.serial) ? 'already waiting for return' : STAGE_META[d.stage].short + ', Branch ' + d.branchId})`).join(', ') || 'unknown serial'}. Only reserve, configuring or faulty units of one branch can be returned.`);
+      return;
+    }
     const branchObj = branches.find((b) => b.code === targetBranchId || b.id === targetBranchId);
     const posCount = affected.filter((d) => d.type === 'POS Terminal').length;
     const sbCount = affected.filter((d) => d.type === 'Sound Box').length;
-    const actor =
-      selectedStaffUser ||
-      (branchObj && branchObj.staff.length > 0 ? branchObj.staff[0] : 'Branch Staff');
+    const actor = operatorLabel || 'Branch Staff';
 
     const newReq: Requisition = {
-      reqId: `RET-${Date.now().toString().slice(-6)}`,
+      reqId: newRecordId('RET'),
       date: today,
       branchId: targetBranchId,
       branchName: branchObj?.name || `Branch Code ${targetBranchId}`,
@@ -1491,11 +1479,6 @@ export function App() {
     };
 
     setRequisitions((prev) => [newReq, ...prev]);
-    if (isSupabaseConfigured) {
-      upsertRequisitionToSupabase(newReq).catch((err) =>
-        console.warn('[Supabase Return Requisition Error]', err)
-      );
-    }
 
     // Update devices to record that a return request has been submitted
     setDevices((prev) =>
@@ -1535,95 +1518,43 @@ export function App() {
     targetBranchId?: string,
     reason?: string
   ) => {
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const actor =
-      role === 'SUPER_ADMIN'
-        ? 'Super Admin'
-        : role === 'ADMIN'
-        ? 'Admin HQ'
-        : `Branch Code ${selectedBranch}`;
-
-    const retiringDevices = devices.filter(
-      (d) => serials.includes(d.serial) && d.mid && d.merchantName
-    );
-    if (retiringDevices.length > 0) {
-      const records: HistoricalMerchantRecord[] = retiringDevices.map((d, idx) => ({
-        recordId: `MREC-${Date.now().toString().slice(-6)}-${idx}`,
-        merchantName: d.merchantName || 'Merchant',
-        merchantPhone: d.merchantPhone || '012 000 000',
-        address: d.address || 'Phnom Penh, Cambodia',
-        mid: d.mid,
-        tid: d.tid || `TID-${d.branchId}01`,
-        deviceType: d.type,
-        model: d.model,
-        serial: d.serial,
-        batterySerial: d.batterySerial,
-        branchId: d.branchId,
-        branchName: d.branchName,
-        installedDate: d.deployedDate || d.stockInDate || today,
-        returnedDate: today,
-        activeDurationMonths: 6,
-        returnReason: reason || `Returned back to Branch Code ${targetBranchId || d.branchId} Reserve`,
-        status: 'RETURNED',
-        handledByStaff: actor,
-        installedByStaff: d.installedByStaff || d.staff || actor,
-        replacedByStaff: d.replacedByStaff,
-        returnedByStaff: actor,
-        settlementFinalized: true,
-        notes: `Returned to Branch Reserve. ${reason || ''}`.trim(),
-      }));
-      setHistoricalMerchants((prev) => [...records, ...prev]);
-    }
-
-    setDevices((prev) =>
-      prev.map((d) => {
-        if (!serials.includes(d.serial)) return d;
-        const bId =
-          targetBranchId ||
-          (d.branchId && d.branchId !== '100' ? d.branchId : '105');
-        const bObj =
-          branches.find((b) => b.id === bId || b.code === bId) || branches[0];
-        const nextCycleNum = (d.history || []).length + 1;
-        const wasAtMerchant =
-          Boolean(d.merchantName?.trim()) ||
-          d.stage === 'COMPLETE' ||
-          d.stage === 'FAULTY';
-
-        return {
-          ...d,
-          stage: 'BRANCH_RESERVE',
-          branchId: bId,
-          branchName: bObj.name,
-          staff: bObj.staff?.[0] || d.staff || 'Branch Officer',
-          merchantName: '',
-          mid: '',
-          tid: '',
-          merchantPhone: '',
-          address: '',
-          returnedByStaff: actor,
-          returnedDate: today,
-          updatedAt: today,
-          redeployCount: wasAtMerchant
-            ? (d.redeployCount || 0) + 1
-            : d.redeployCount || 0,
-          archived: false,
-          history: [
-            `${nowTime} | Cycle #${nextCycleNum}: Return to Branch Reserve | ${
-              reason || `Returned back to Branch Code ${bId} Reserve`
-            } — Officer: ${actor}`,
-            ...(d.history || []),
-          ],
-        };
-      })
-    );
-
-    addAuditLog(
-      'Return to Branch Reserve',
-      `Returned ${serials.length} serial(s) (${serials.join(', ')}) back to Branch Reserve`
-    );
-    triggerOptimisticSync(serials, `Returned ${serials.length} unit(s) to Branch Reserve`);
-    triggerToast(`Returned ${serials.length} unit(s) back to Branch Reserve`);
+    const today = todayPP();
+    const nowTime = stampSecPP();
+    const actor = operatorLabel || 'Staff';
+    const wanted = new Set(serials);
+    const targets = devices.filter((d) => wanted.has(d.serial));
+    const problems: string[] = [];
+    const nextMap = new Map<string, Device>();
+    const records: HistoricalMerchantRecord[] = [];
+    targets.forEach((d) => {
+      // (22 Oct 2026) the unit stays in its own branch unless HQ names another; no default branch is guessed
+      const bId = role === 'BRANCH' ? d.branchId : targetBranchId || (d.branchId !== '100' ? d.branchId : '');
+      const bObj = branches.find((b) => b.id === bId || b.code === bId);
+      if (!inScope(d)) { problems.push(`${d.serial} (another branch)`); return; }
+      if (!bObj || bId === '100') { problems.push(`${d.serial} (choose the branch to hold it)`); return; }
+      if (!canMove(d.stage, 'BRANCH_RESERVE') || d.customFields?.allocatedTo) { problems.push(`${d.serial} (${d.customFields?.allocatedTo ? 'allocated to ' + d.customFields.allocatedTo : STAGE_META[d.stage].short})`); return; }
+      if (role === 'BRANCH' && d.stage === 'HQ_STOCK') { problems.push(`${d.serial} (HQ stock)`); return; }
+      const why = reason || `Returned to Branch Code ${bId} reserve`;
+      if (d.mid) records.push(historyRecordFor(d, { reason: why, status: TERMINATION_REASON.test(why) ? 'TERMINATED' : 'RETURNED', actor, notes: 'Unit kept in branch reserve.' }));
+      nextMap.set(d.serial, {
+        ...onMove(d, 'BRANCH_RESERVE'),
+        branchId: bId,
+        branchName: bObj.name,
+        returnedByStaff: d.mid ? actor : d.returnedByStaff,
+        returnedDate: d.mid ? today : d.returnedDate,
+        deployedDate: d.mid ? '' : d.deployedDate,
+        updatedAt: today,
+        redeployCount: d.mid ? (d.redeployCount || 0) + 1 : d.redeployCount || 0,
+        history: [`${nowTime} | Return to Branch Reserve | ${why} — Officer: ${actor}`, ...(d.history || [])],
+      });
+    });
+    if (!nextMap.size) { triggerToast(`Not moved: ${problems.join(', ') || 'no unit selected'}.`); return; }
+    if (records.length) setHistoricalMerchants((prev) => [...records, ...prev]);
+    setDevices((prev) => prev.map((d) => nextMap.get(d.serial) || d));
+    const done = [...nextMap.keys()];
+    addAuditLog('Return to Branch Reserve', `Returned ${done.length} unit(s) (${done.join(', ')}) to branch reserve${problems.length ? `; not moved: ${problems.join(', ')}` : ''}`);
+    triggerOptimisticSync(done, `Returned ${done.length} unit(s) to Branch Reserve`);
+    triggerToast(`Returned ${done.length} unit(s) to branch reserve` + (problems.length ? `; not moved: ${problems.join(', ')}` : ''));
   };
 
   // Universal Single Device Stock Return (to HQ Stock or Branch Reserve)
@@ -1640,132 +1571,57 @@ export function App() {
     }
   };
 
-  // Terminate Merchant & Return All Assigned Devices to Admin HQ Stock or Branch Reserve
+  // Terminate Merchant & Return All Assigned Devices. (22 Oct 2026) A working unit goes to its branch reserve or (HQ
+  // only) to HQ stock; each unit is recorded once in Merchant History with its real details.
   const handleTerminateMerchant = (
     mid: string,
     destination: 'HQ_STOCK' | 'BRANCH_RESERVE',
     reason: string = 'Merchant Terminated Contract',
     notes?: string
   ) => {
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const actor =
-      role === 'SUPER_ADMIN'
-        ? 'Super Admin'
-        : role === 'ADMIN'
-        ? 'Admin HQ'
-        : (selectedStaffUser || 'Staff Officer');
-    const affectedDevices = devices.filter((d) => d.mid === mid);
-    const merchantName = affectedDevices[0]?.merchantName || 'Merchant';
-    const branchId = affectedDevices[0]?.branchId || selectedBranch;
-
-    // 1. Return all devices belonging to this merchant to chosen destination
-    setDevices((prev) =>
-      prev.map((d) => {
-        if (d.mid !== mid) return d;
-        const targetBranchId =
-          destination === 'HQ_STOCK'
-            ? '100'
-            : d.branchId && d.branchId !== '100'
-            ? d.branchId
-            : branchId || '105';
-        const bObj =
-          branches.find(
-            (b) => b.id === targetBranchId || b.code === targetBranchId
-          ) || branches[0];
-        const nextCycle = (d.history || []).length + 1;
-        const destLabel =
-          destination === 'HQ_STOCK'
-            ? 'Admin HQ Stock (Branch Code 100)'
-            : `Branch Reserve (${bObj.name})`;
-        const logEntry = `${nowTime} | Cycle #${nextCycle}: Terminated Return | Returned from ${
-          d.merchantName || 'merchant'
-        } to ${destLabel} — Reason: ${reason}`;
-
-        return {
-          ...d,
-          stage: destination,
-          branchId: targetBranchId,
-          branchName: bObj.name,
-          staff:
-            destination === 'HQ_STOCK'
-              ? 'SAY Chanmakara (8986)'
-              : bObj.staff?.[0] || d.staff,
-          merchantName: '',
-          mid: '',
-          tid: '',
-          merchantPhone: '',
-          address: '',
-          returnedByStaff: actor,
-          returnedDate: today,
-          returnReason: reason,
-          redeployCount: (d.redeployCount || 0) + 1,
-          updatedAt: today,
-          note: `Returned to ${destLabel} after merchant termination (${reason})`,
-          history: [logEntry, ...(d.history || [])],
-        };
-      })
-    );
-
-    // 2. Archive to historical merchants ledger
-    if (affectedDevices.length > 0) {
-      affectedDevices.forEach((dev, idx) => {
-        const rec: HistoricalMerchantRecord = {
-          recordId: `MREC-${Date.now().toString().slice(-6)}-${idx}`,
-          merchantName: dev.merchantName || merchantName,
-          merchantPhone: dev.merchantPhone || '012 000 000',
-          address: dev.address || 'Phnom Penh, Cambodia',
-          mid: dev.mid || mid,
-          tid: dev.tid || `TID-${dev.branchId}01`,
-          deviceType: dev.type,
-          model: dev.model,
-          serial: dev.serial,
-          batterySerial: dev.batterySerial,
-          branchId: dev.branchId,
-          branchName: dev.branchName,
-          installedDate: dev.deployedDate || dev.stockInDate || today,
-          returnedDate: today,
-          activeDurationMonths: 6,
-          returnReason: reason,
-          status: 'TERMINATED',
-          handledByStaff: dev.staff || selectedStaffUser || 'Staff Officer',
-          installedByStaff: dev.installedByStaff || dev.staff || selectedStaffUser || 'Staff Officer',
-          replacedByStaff: dev.replacedByStaff,
-          returnedByStaff: actor,
-          settlementFinalized: true,
-          notes:
-            notes ||
-            `Terminated and hardware returned to ${
-              destination === 'HQ_STOCK'
-                ? 'Admin HQ Stock'
-                : 'Branch Reserve'
-            }.`,
-        };
-        setHistoricalMerchants((prev) => [rec, ...prev]);
-      });
-    }
-
-    addAuditLog(
-      'Merchant Terminated',
-      `Merchant ${merchantName} (${mid}) terminated. ${affectedDevices.length} device(s) returned to ${
-        destination === 'HQ_STOCK'
-          ? 'Admin HQ Stock (Code 100)'
-          : `Branch Reserve (Code ${branchId})`
-      }`
-    );
-
-    triggerToast(
-      `Merchant ${merchantName} terminated. Hardware returned to ${
-        destination === 'HQ_STOCK' ? 'Admin HQ Stock' : 'Branch Reserve'
-      }.`
-    );
+    const today = todayPP();
+    const nowTime = stampSecPP();
+    const actor = operatorLabel || 'Staff';
+    const affected = devices.filter((d) => d.mid === mid && inScope(d));
+    if (!affected.length) { triggerToast('No unit of this merchant is in your branch.'); return; }
+    if (destination === 'HQ_STOCK' && role === 'BRANCH') { triggerToast('Branch staff return units to the branch reserve; HQ approves a return to HQ.'); return; }
+    const merchantName = affected[0].merchantName || mid;
+    const records = affected.map((d) => historyRecordFor(d, { reason, status: 'TERMINATED', actor,
+      notes: notes || `Terminated; unit returned to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}.` }));
+    const nextMap = new Map(affected.map((d) => {
+      const toHq = destination === 'HQ_STOCK' || d.branchId === '100';
+      const bId = toHq ? '100' : d.branchId;
+      const bObj = branches.find((b) => b.id === bId || b.code === bId);
+      const to: LifecycleStage = toHq ? 'HQ_STOCK' : 'BRANCH_RESERVE';
+      const destLabel = toHq ? 'HQ stock' : `branch reserve (${bObj?.name || 'Branch Code ' + bId})`;
+      const next: Device = {
+        ...onMove(d, to),
+        branchId: bId,
+        branchName: toHq ? 'Head Office' : bObj?.name || d.branchName,
+        staff: toHq ? '' : d.staff,
+        returnedByStaff: actor,
+        returnedDate: today,
+        returnReason: reason,
+        deployedDate: '',
+        redeployCount: (d.redeployCount || 0) + 1,
+        updatedAt: today,
+        note: `Returned to ${destLabel} after merchant termination (${reason})`,
+        history: [`${nowTime} | Terminated Return | Returned from ${d.merchantName || 'merchant'} to ${destLabel} — Reason: ${reason} — Officer: ${actor}`, ...(d.history || [])],
+      };
+      return [d.serial, next] as const;
+    }));
+    setDevices((prev) => prev.map((d) => nextMap.get(d.serial) || d));
+    setHistoricalMerchants((prev) => [...records, ...prev]);
+    addAuditLog('Merchant Terminated', `Merchant ${merchantName} (${mid}) terminated. ${affected.length} unit(s) returned to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}`);
+    triggerToast(`Merchant ${merchantName} terminated. ${affected.length} unit(s) returned to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}.`);
   };
 
   // Remove from Dashboard (Archive) & Restore
   const handleRemoveFromDashboard = (serials: string[], reason?: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const actor = role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin HQ';
+    if (role === 'BRANCH') { triggerToast('Only HQ can archive units.'); return; }
+    const today = todayPP();
+    const nowTime = stampSecPP();
+    const actor = operatorLabel || 'HQ';
 
     setDevices((prev) =>
       prev.map((d) => {
@@ -1793,8 +1649,9 @@ export function App() {
   };
 
   const handleRestoreToDashboard = (serials: string[]) => {
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    if (role === 'BRANCH') { triggerToast('Only HQ can restore archived units.'); return; }
+    const today = todayPP();
+    const nowTime = stampSecPP();
     setDevices((prev) =>
       prev.map((d) => {
         if (!serials.includes(d.serial)) return d;
@@ -1817,70 +1674,59 @@ export function App() {
     triggerToast(`Restored ${serials.length} serial(s) to active dashboard`);
   };
 
-  // Batch Stock Upload Handler (from classic BatchUploadModal)
+  // Batch Stock Upload Handler (from classic BatchUploadModal). (22 Oct 2026) HQ only; new serials only – a serial that
+  // already exists is never overwritten, and nothing is filled in with sample values.
   const handleCommitBatch = (newBatchItems: Partial<Device>[]) => {
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const created: Device[] = newBatchItems.map((item, idx) => {
-      const sn = (item.serial || `POS-A920-${Date.now()}-${idx}`).toUpperCase();
+    if (role === 'BRANCH') { triggerToast('Only HQ can register stock.'); return; }
+    const today = todayPP();
+    const nowTime = stampSecPP();
+    const existing = new Set(devices.map((d) => d.serial.toUpperCase()));
+    const seen = new Set<string>();
+    const problems: string[] = [];
+    const created: Device[] = [];
+    newBatchItems.forEach((item) => {
+      const sn = String(item.serial || '').trim().toUpperCase();
+      if (!sn) { problems.push('a row without a serial'); return; }
+      if (existing.has(sn) || seen.has(sn)) { problems.push(`${sn} (already in the inventory)`); return; }
       const bCode = item.branchId || '100';
       const branchObj = branches.find((b) => b.code === bCode || b.id === bCode);
-      const stg = item.stage || (bCode === '100' ? 'HQ_STOCK' : 'BRANCH_RESERVE');
-      return {
+      if (!branchObj && bCode !== '100') { problems.push(`${sn} (unknown branch ${bCode})`); return; }
+      const stg: LifecycleStage = item.stage === 'BRANCH_RESERVE' && bCode !== '100' ? 'BRANCH_RESERVE' : 'HQ_STOCK';
+      seen.add(sn);
+      created.push({
         serial: sn,
-        batterySerial: item.batterySerial || (item.type === 'Sound Box' ? `SB-BAT-${sn.replace(/^SB-/i, '')}` : `160525A${String(5709 + idx).padStart(7, '0')}`),
-        batteryInstalledDate: item.batteryInstalledDate || item.stockInDate || today,
+        batterySerial: item.batterySerial || '',
+        batteryInstalledDate: item.batteryInstalledDate || '',
         type: item.type || 'POS Terminal',
-        model: item.model || (item.type === 'Sound Box' ? 'SB-Pro' : 'Wizar POS Q2 Pro'),
+        model: item.model || '',
         stockInDate: item.stockInDate || today,
-        branchId: bCode,
-        branchName: item.branchName || branchObj?.name || 'Head Office (In-Store MS Unit)',
-        staff: item.staff || (branchObj?.staff?.[0] || 'Head Office Admin'),
+        branchId: stg === 'HQ_STOCK' ? '100' : bCode,
+        branchName: stg === 'HQ_STOCK' ? 'Head Office' : branchObj!.name,
+        staff: item.staff || '',
         stage: stg,
-        deploymentStatus: item.deploymentStatus || (stg === 'COMPLETE' ? 'Deployed (Active)' : 'In-Stock (Reserve)'),
-        stockStatus: item.stockStatus || (stg === 'COMPLETE' ? 'Deployed' : 'In-Stock'),
-        mid: item.mid || '',
-        tid: item.tid || '',
-        merchantName: item.merchantName || '',
-        merchantPhone: item.merchantPhone || '',
-        location: item.location || 'Phnom Penh',
-        address: item.address || '',
-        deployedDate: item.deployedDate || today,
-        returnReason: item.returnReason || '',
-        redeployCount: item.redeployCount !== undefined ? item.redeployCount : 0,
-        hoursInStage: item.hoursInStage || 1,
+        ...statusOf(stg),
+        mid: '',
+        tid: '',
+        merchantName: '',
+        merchantPhone: '',
+        location: item.location || '',
+        address: '',
+        deployedDate: '',
+        returnReason: '',
+        redeployCount: 0,
+        hoursInStage: 0,
         updatedAt: today,
-        note: item.note || `Batch registered into Branch Code ${bCode}`,
-        history: item.history || [
-          `${nowTime} | Cycle #1: Batch Stock Intake | Registered into Branch Code ${bCode} (${
-            branchObj?.name || 'HQ'
-          }) — Officer: ${authUsername}`,
-        ],
+        note: item.note || '',
+        history: [`${nowTime} | Stock Intake | Registered into ${stg === 'HQ_STOCK' ? 'HQ stock' : 'Branch Code ' + bCode + ' reserve'} — Officer: ${operatorLabel || 'HQ'}`],
         archived: false,
-      };
+      });
     });
+    if (!created.length) { triggerToast(`Nothing registered: ${problems.slice(0, 5).join(', ')}${problems.length > 5 ? '…' : ''}.`); return; }
 
     setDevices((prev) => [...created, ...prev]);
-    triggerOptimisticSync(
-      created.map((c) => c.serial),
-      `Registered ${created.length} new serial(s) into inventory`,
-      created
-    );
-    addAuditLog(
-      'Batch Stock Intake',
-      `Registered ${created.length} hardware serials into inventory`
-    );
-    const targetBranch = created[0]?.branchId || '100';
-    addNotification(
-      targetBranch !== '100'
-        ? `Assigned from Admin • ${created.length} Serial(s) to Code ${targetBranch}`
-        : `Batch Stock Intake • ${created.length} Serials Added`,
-      `${authUsername} registered and assigned ${created.length} hardware serial(s) to Branch Code ${targetBranch}.`,
-      'STOCK',
-      targetBranch,
-      'inventory'
-    );
-    triggerToast(`Registered ${created.length} new hardware serials!`);
+    triggerOptimisticSync(created.map((c) => c.serial), `Registered ${created.length} new serial(s) into inventory`, created);
+    addAuditLog('Batch Stock Intake', `Registered ${created.length} serial(s) into inventory${problems.length ? `; skipped: ${problems.slice(0, 20).join(', ')}` : ''}`);
+    triggerToast(`Registered ${created.length} new serial(s)` + (problems.length ? `; ${problems.length} skipped (${problems.slice(0, 3).join(', ')}${problems.length > 3 ? '…' : ''})` : '.'));
   };
 
   // Every Request Must Alert Notification (from classic RequestStockModal)
@@ -1891,26 +1737,29 @@ export function App() {
     sbQty: number;
     reason: string;
   }) => {
-    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    const branchObj = branches.find((b) => b.code === reqData.branchId);
+    const nowStr = stampPP();
+    // (22 Oct 2026) a branch account always requests for its own branch, in its own name
+    const branchId = role === 'BRANCH' ? selectedBranch : reqData.branchId;
+    const branchObj = branches.find((b) => b.code === branchId);
+    const posQty = Math.max(0, Math.floor(Number(reqData.posQty) || 0));
+    const sbQty = Math.max(0, Math.floor(Number(reqData.sbQty) || 0));
+    if (!branchObj || branchId === '100') { triggerToast('Choose the branch the stock is for.'); return; }
+    if (posQty + sbQty === 0) { triggerToast('Enter at least one POS Terminal or Sound Box.'); return; }
     const newReq: Requisition = {
-      reqId: `REQ-2026-${String(106 + requisitions.length)}`,
+      reqId: newRecordId('REQ'),
       date: nowStr,
-      branchId: reqData.branchId,
-      branchName: branchObj?.name || `Branch Code ${reqData.branchId}`,
-      staff: reqData.staff || 'Branch Officer',
-      posQty: Number(reqData.posQty) || 0,
-      sbQty: Number(reqData.sbQty) || 0,
+      branchId,
+      branchName: branchObj.name,
+      staff: role === 'BRANCH' ? operatorLabel : reqData.staff || operatorLabel,
+      posQty,
+      sbQty,
       reason: reqData.reason,
       status: 'PENDING_ADMIN',
+      type: 'STOCK_REQUEST',
+      returnSerials: [],
     };
 
     setRequisitions((prev) => [newReq, ...prev]);
-    if (isSupabaseConfigured) {
-      upsertRequisitionToSupabase(newReq).catch((err) =>
-        console.warn('[Supabase Requisition Error]', err)
-      );
-    }
     addAuditLog(
       'Stock Request Submitted',
       `Submitted ${newReq.reqId} for ${newReq.posQty}x POS & ${newReq.sbQty}x Sound Box (Branch Code ${reqData.branchId})`
@@ -1927,117 +1776,56 @@ export function App() {
     triggerToast(`Alert Sent! Request ${newReq.reqId} notified to Admin HQ & Super Admin`);
   };
 
-  // Approve & Receive Requisitions (for RequisitionsTab)
+  // Approve & Dispatch Requisitions (for RequisitionsTab). (22 Oct 2026) With the shared database the server checks every
+  // unit and keeps it allocated in HQ stock until the branch confirms receipt; no unit is ever created here.
   const handleApproveRequisition = (
     reqId: string,
     arrangedDevices?: ArrangedDeviceItem[]
   ) => {
     const targetReq = requisitions.find((r) => r.reqId === reqId);
     if (!targetReq) return;
+    if (role === 'BRANCH') { triggerToast('Only HQ can dispatch stock.'); return; }
+    if (targetReq.status !== 'PENDING_ADMIN' || targetReq.type === 'STOCK_RETURN') { triggerToast(`Request ${reqId} cannot be dispatched (${targetReq.status}).`); return; }
+    const serials = (arrangedDevices || []).map((a) => (a.serial || '').trim()).filter(Boolean);
+    if (!serials.length) { triggerToast('Choose the units to dispatch first.'); return; }
 
-    const updatedReq: Requisition = { ...targetReq, status: 'DISPATCHED', arrangedDevices };
-    setRequisitions((prev) =>
-      prev.map((r) =>
-        r.reqId === reqId ? updatedReq : r
-      )
-    );
+    const finish = (count: number) => {
+      addAuditLog('Requisition Approved & Dispatched', `Dispatched ${count} unit(s) for ${reqId} to Branch Code ${targetReq.branchId}`);
+      triggerToast(`Dispatched ${count} unit(s) for ${reqId} to Branch Code ${targetReq.branchId}. They stay allocated in HQ stock until the branch confirms receipt.`);
+      setFulfillingRequisition(null);
+      setStagedFulfillmentItems(null);
+    };
     if (isSupabaseConfigured) {
-      upsertRequisitionToSupabase(updatedReq).catch((err) =>
-        console.warn('[Supabase Requisition Dispatch Error]', err)
-      );
+      dispatchRequisitionOnServer(reqId, serials)
+        .then((items) => { reloadFromServer(); finish(items.length); })
+        .catch((e) => triggerToast(e instanceof Error ? e.message : String(e)));
+      return;
     }
-
-    if (arrangedDevices && arrangedDevices.length > 0) {
-      const today = new Date().toISOString().split('T')[0];
-      const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-      const branchObj = branches.find((b) => b.code === targetReq.branchId);
-      const defaultStaff =
-        branchObj && branchObj.staff.length > 0 ? branchObj.staff[0] : 'Branch Officer';
-      const actor = role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin HQ';
-
-      setDevices((prev) => {
-        const existingMap = new Map(prev.map((d) => [d.serial.toUpperCase(), d]));
-        const updatedList: Device[] = prev.map((d) => {
-          const matchedArranged = arrangedDevices.find(
-            (a) => a.serial.toUpperCase() === d.serial.toUpperCase()
-          );
-          if (!matchedArranged) return d;
-          const nextCycleNum = (d.history || []).length + 1;
-          return {
-            ...d,
-            stage: 'BRANCH_RESERVE',
-            branchId: targetReq.branchId,
-            branchName: branchObj?.name || `Branch Code ${targetReq.branchId}`,
-            staff: defaultStaff,
-            updatedAt: today,
-            archived: false,
-            batterySerial: matchedArranged.batterySerial || d.batterySerial,
-            model: matchedArranged.model || d.model,
-            history: [
-              `${nowTime} | Cycle #${nextCycleNum}: HQ Stock Requisition Dispatch | Dispatched for ${targetReq.reqId} to Branch Code ${targetReq.branchId} (${branchObj?.name || ''}) — Officer: ${actor}`,
-              ...(d.history || []),
-            ],
-          };
-        });
-
-        // Add any arranged devices that did not previously exist in devices
-        arrangedDevices.forEach((item) => {
-          if (!existingMap.has(item.serial.toUpperCase())) {
-            updatedList.push({
-              serial: item.serial,
-              batterySerial: item.batterySerial,
-              batteryInstalledDate: today,
-              model: item.model,
-              type: item.type,
-              stockInDate: today,
-              branchId: targetReq.branchId,
-              branchName: branchObj?.name || `Branch Code ${targetReq.branchId}`,
-              stage: 'BRANCH_RESERVE',
-              staff: defaultStaff,
-              deploymentStatus: 'In-Stock (Reserve)',
-              stockStatus: 'In-Stock',
-              mid: '',
-              tid: '',
-              merchantName: '',
-              merchantPhone: '',
-              location: 'Phnom Penh',
-              address: '',
-              deployedDate: '',
-              returnReason: '',
-              redeployCount: 0,
-              hoursInStage: 0,
-              updatedAt: today,
-              note: `Dispatched from HQ for Requisition ${targetReq.reqId}`,
-              history: [
-                `${nowTime} | Cycle #1: HQ Stock Requisition Dispatch | Dispatched for ${targetReq.reqId} to Branch Code ${targetReq.branchId} (${branchObj?.name || ''}) — Officer: ${actor}`,
-              ],
-              archived: false,
-            });
-          }
-        });
-
-        return updatedList;
-      });
-    }
-
-    addAuditLog(
-      'Requisition Approved & Dispatched',
-      `Approved ${reqId} for Branch Code ${targetReq.branchId}`
-    );
-    addNotification(
-      `Assigned from Admin • ${reqId} Dispatched to Code ${targetReq.branchId}`,
-      `Admin HQ arranged & assigned ${
-        arrangedDevices?.length || targetReq.posQty + targetReq.sbQty
-      } unit(s) for ${reqId} to Branch Staff at Branch Code ${targetReq.branchId} (${
-        targetReq.branchName
-      }).`,
-      'STOCK',
-      targetReq.branchId,
-      'requisitions'
-    );
-    triggerToast(`Dispatched requisition ${reqId} to Branch Code ${targetReq.branchId}`);
-    setFulfillingRequisition(null);
-    setStagedFulfillmentItems(null);
+    // local preview: the same checks as the server
+    const bySerial = new Map(devices.map((d) => [d.serial.toUpperCase(), d]));
+    const seen = new Set<string>();
+    const errors: string[] = [];
+    let pos = 0; let sb = 0;
+    serials.forEach((sn) => {
+      const key = sn.toUpperCase(); const d = bySerial.get(key);
+      if (seen.has(key)) { errors.push(`${sn} is listed twice`); return; }
+      seen.add(key);
+      if (!d) { errors.push(`${sn} is not in the inventory`); return; }
+      if (d.stage !== 'HQ_STOCK' || d.archived) { errors.push(`${sn} is not in HQ stock`); return; }
+      if (d.customFields?.allocatedTo && d.customFields.allocatedTo !== reqId) { errors.push(`${sn} is allocated to ${d.customFields.allocatedTo}`); return; }
+      if (d.type === 'Sound Box') sb++; else pos++;
+    });
+    if (pos > targetReq.posQty || sb > targetReq.sbQty) errors.push('more units than requested');
+    if (errors.length) { triggerToast(`Not dispatched: ${errors.join('; ')}.`); return; }
+    const nowTime = stampSecPP();
+    const items: ArrangedDeviceItem[] = serials.map((sn) => { const d = bySerial.get(sn.toUpperCase())!; return { serial: d.serial, batterySerial: d.batterySerial || '', type: d.type, model: d.model }; });
+    setDevices((prev) => prev.map((d) => !seen.has(d.serial.toUpperCase()) ? d : {
+      ...d,
+      customFields: { ...(d.customFields || {}), allocatedTo: reqId },
+      history: [`${nowTime} | Dispatched from HQ | Request ${reqId} to Branch Code ${targetReq.branchId} — Officer: ${operatorLabel || 'HQ'}`, ...(d.history || [])],
+    }));
+    setRequisitions((prev) => prev.map((r) => (r.reqId === reqId ? { ...r, status: 'DISPATCHED', arrangedDevices: items } : r)));
+    finish(items.length);
   };
 
   const handleDirectToStockInventory = (
@@ -2055,34 +1843,15 @@ export function App() {
 
   const handleConfirmFulfillment = (selectedSerials: string[]) => {
     if (!fulfillingRequisition) return;
-    const selectedDevices = devices.filter((d) => selectedSerials.includes(d.serial));
-    const staged: ArrangedDeviceItem[] = selectedDevices.map((d, idx) => ({
+    const chosen = new Set(selectedSerials);
+    const selectedDevices = devices.filter((d) => chosen.has(d.serial));
+    // (22 Oct 2026) only the units chosen – no invented battery serials and no blank padding lines
+    const staged: ArrangedDeviceItem[] = selectedDevices.map((d) => ({
       serial: d.serial,
-      batterySerial:
-        d.batterySerial || deriveBatterySerial(d.serial, d.type === 'POS Terminal', idx),
+      batterySerial: d.batterySerial || '',
       type: d.type,
       model: d.model,
     }));
-
-    // Pad remaining quotas if fewer than required were selected
-    const posChosen = staged.filter((s) => s.type === 'POS Terminal').length;
-    for (let i = posChosen; i < fulfillingRequisition.posQty; i++) {
-      staged.push({
-        serial: '',
-        batterySerial: '',
-        type: 'POS Terminal',
-        model: 'Wizar POS Q2 Pro',
-      });
-    }
-    const sbChosen = staged.filter((s) => s.type === 'Sound Box').length;
-    for (let i = sbChosen; i < fulfillingRequisition.sbQty; i++) {
-      staged.push({
-        serial: '',
-        batterySerial: '',
-        type: 'Sound Box',
-        model: 'Sound Box',
-      });
-    }
 
     setStagedFulfillmentItems(staged);
     setActiveTab('requisitions');
@@ -2109,254 +1878,121 @@ export function App() {
         .catch((e) => triggerToast(`Receipt not confirmed: ${e instanceof Error ? e.message : e}`));
       return;
     }
-    let updated: Requisition | null = null;
-    setRequisitions((prev) =>
-      prev.map((r) => {
-        if (r.reqId === reqId) {
-          updated = { ...r, status: 'RECEIVED' };
-          return updated;
-        }
-        return r;
-      })
-    );
-    if (isSupabaseConfigured && updated) {
-      upsertRequisitionToSupabase(updated).catch((err) =>
-        console.warn('[Supabase Requisition Receive Error]', err)
-      );
-    }
+    // local preview: the same rule as the server (only units still allocated in HQ stock move to the branch)
+    const req = requisitions.find((r) => r.reqId === reqId);
+    if (!req || req.status !== 'DISPATCHED' || !inScope({ branchId: req.branchId } as Device)) { triggerToast(`Request ${reqId} cannot be received.`); return; }
+    const arranged = new Set((req.arrangedDevices || []).map((a) => a.serial));
+    const bObj = branches.find((b) => b.code === req.branchId);
+    const nowTime = stampSecPP();
+    setDevices((prev) => prev.map((d) => {
+      if (!arranged.has(d.serial) || d.stage !== 'HQ_STOCK' || (d.customFields?.allocatedTo || reqId) !== reqId) return d;
+      const { allocatedTo: _a, ...cf } = d.customFields || {};
+      return { ...onMove(d, 'BRANCH_RESERVE'), branchId: req.branchId, branchName: bObj?.name || req.branchName, customFields: cf,
+        history: [`${nowTime} | Received at Branch | Request ${reqId} confirmed by ${operatorLabel}`, ...(d.history || [])] };
+    }));
+    setRequisitions((prev) => prev.map((r) => (r.reqId === reqId ? { ...r, status: 'RECEIVED' } : r)));
     addAuditLog('Requisition Received', `Branch confirmed receipt of ${reqId}`);
     triggerToast(`Confirmed receipt of ${reqId}`);
   };
 
-  // Approve & Finalize Return Requisition (Admin / Super Admin receives units into Admin HQ Stock)
+  // Approve & Finalize Return Requisition (HQ receives units). (22 Oct 2026) Only a pending return; with the shared
+  // database the server moves only units still at that branch (a faulty unit stays "Faulty").
   const handleApproveReturnRequisition = (
     reqId: string,
-    returnSerials?: string[],
+    _returnSerials?: string[],
     reason?: string
   ) => {
     const targetReq = requisitions.find((r) => r.reqId === reqId);
     if (!targetReq) return;
-
-    const serialsToReturn = returnSerials || targetReq.returnSerials || [];
-    if (serialsToReturn.length > 0) {
-      handleReturnToAdminStock(
-        serialsToReturn,
-        `Approved Return Request ${reqId}: ${reason || targetReq.reason}`
-      );
-    }
-
-    const updatedReq: Requisition = { ...targetReq, status: 'RECEIVED' };
-    setRequisitions((prev) =>
-      prev.map((r) => (r.reqId === reqId ? updatedReq : r))
-    );
+    if (role === 'BRANCH') { triggerToast('Only HQ can approve a return.'); return; }
+    if (targetReq.type !== 'STOCK_RETURN' || targetReq.status !== 'PENDING_ADMIN') { triggerToast(`Return ${reqId} cannot be approved (${targetReq.status}).`); return; }
+    const serialsToReturn = targetReq.returnSerials || [];
     if (isSupabaseConfigured) {
-      upsertRequisitionToSupabase(updatedReq).catch((err) =>
-        console.warn('[Supabase Return Requisition Approve Error]', err)
-      );
-    }
-
-    addAuditLog(
-      'Return Request Approved & Received',
-      `Admin approved return request ${reqId} for ${serialsToReturn.length} serials back to Admin HQ Stock`
-    );
-
-    addNotification(
-      `Return Approved • ${reqId} Received into Admin HQ`,
-      `Admin received ${serialsToReturn.length} returned unit(s) from Branch Code ${targetReq.branchId} (${targetReq.branchName}) into Central HQ Stock.`,
-      'STOCK',
-      targetReq.branchId,
-      'requisitions'
-    );
-
-    triggerToast(`Approved return ${reqId}! Units received into Admin HQ Stock`);
-  };
-
-  // Merchant CRM Bindings (for MerchantsCrmTab - supports both existing & newly created serials)
-  const handleBindDeviceToMerchant = (
-    serial: string,
-    merchantData: {
-      mid: string;
-      tid: string;
-      merchantName: string;
-      merchantPhone: string;
-      address: string;
-    }
-  ) => {
-    const cleanSn = serial.trim().toUpperCase();
-    const dev = devices.find((d) => d.serial.toUpperCase() === cleanSn);
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-    if (dev) {
-      handleSaveWorkflow(dev.serial, {
-        stage: 'COMPLETE',
-        branchId: dev.branchId === '100' ? selectedBranch : dev.branchId,
-        staff: dev.staff || selectedStaffUser,
-        merchantName: merchantData.merchantName,
-        merchantPhone: merchantData.merchantPhone,
-        address: merchantData.address,
-        mid: merchantData.mid,
-        tid: merchantData.tid,
-        note: `Bound to ${merchantData.merchantName} (${merchantData.mid} / ${merchantData.tid})`,
-        deployedDate: today,
-        batteryInstalledDate: dev.batteryInstalledDate || dev.stockInDate,
-      });
+      receiveReturnOnServer(reqId, reason)
+        .then(({ moved, skipped }) => {
+          reloadFromServer();
+          addAuditLog('Return Request Approved & Received', `Return ${reqId}: ${moved.length} unit(s) received at HQ`);
+          triggerToast(`Return ${reqId}: ${moved.length} unit(s) received at HQ` + (skipped.length ? `; not moved: ${skipped.join(', ')}` : ''));
+        })
+        .catch((e) => triggerToast(e instanceof Error ? e.message : String(e)));
       return;
     }
-
-    // Create & bind new hardware serial if not yet in inventory
-    const midBranchMatch = /^MID-880(\d{3})/.exec(merchantData.mid);
-    const targetBranch = midBranchMatch?.[1] || selectedBranch || '105';
-    const branchObj = branches.find((b) => b.code === targetBranch);
-    const isSb = cleanSn.startsWith('SB');
-    const newDev: Device = {
-      serial: cleanSn,
-      batterySerial: isSb
-        ? `BAT-SB-${cleanSn.replace(/^SB-?/i, '')}`
-        : `BAT-${cleanSn.replace(/^POS-?/i, '')}`,
-      batteryInstalledDate: today,
-      type: isSb ? 'Sound Box' : 'POS Terminal',
-      model: isSb ? 'SB-Pro' : 'PAX A920 Pro',
-      stockInDate: today,
-      branchId: targetBranch,
-      branchName: branchObj?.name || `Branch Code ${targetBranch}`,
-      staff: branchObj?.staff[0] || selectedStaffUser || authUsername,
-      stage: 'COMPLETE',
-      deploymentStatus: 'Deployed (Live)',
-      stockStatus: 'Deployed',
-      mid: merchantData.mid,
-      tid: merchantData.tid,
-      merchantName: merchantData.merchantName,
-      merchantPhone: merchantData.merchantPhone,
-      location: 'Phnom Penh',
-      address: merchantData.address,
-      deployedDate: today,
-      returnReason: '',
-      redeployCount: 0,
-      hoursInStage: 1,
-      updatedAt: today,
-      note: `Bound to ${merchantData.merchantName} (${merchantData.mid} / ${merchantData.tid})`,
-      history: [
-        `${nowTime} | Cycle #1: Installed (Live) | Registered & bound to ${merchantData.merchantName} (${merchantData.mid} / ${merchantData.tid})`,
-      ],
-      archived: false,
-    };
-
-    setDevices((prev) => [newDev, ...prev]);
-    addAuditLog(
-      'Merchant Hardware Bound',
-      `Registered & bound ${cleanSn} to ${merchantData.merchantName} (${merchantData.mid} / ${merchantData.tid})`
-    );
-    triggerToast(`Bound ${cleanSn} to ${merchantData.merchantName}`);
+    const eligible = devices.filter((d) => serialsToReturn.includes(d.serial) && d.branchId === targetReq.branchId &&
+      (d.stage === 'BRANCH_RESERVE' || d.stage === 'CONFIGURING' || d.stage === 'FAULTY'));
+    if (eligible.length) handleReturnToAdminStock(eligible.map((d) => d.serial), `Approved Return Request ${reqId}: ${reason || targetReq.reason}`);
+    setRequisitions((prev) => prev.map((r) => (r.reqId === reqId ? { ...r, status: 'RECEIVED' } : r)));
+    addAuditLog('Return Request Approved & Received', `Return ${reqId}: ${eligible.length} of ${serialsToReturn.length} unit(s) received at HQ`);
+    triggerToast(`Approved return ${reqId}: ${eligible.length} unit(s) received at HQ`);
   };
 
-  const handleBulkBindDevicesToMerchants = (
-    assignments: Array<{
-      serial: string;
-      mid: string;
-      tid: string;
-      merchantName: string;
-      merchantPhone: string;
-      address: string;
-    }>
-  ) => {
-    if (assignments.length === 0) return;
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-    setDevices((prev) => {
-      const mapBySn = new Map<string, Device>();
-      prev.forEach((d) => mapBySn.set(d.serial.toUpperCase(), d));
-
-      const updatedExisting = prev.map((d) => {
-        const match = assignments.find(
-          (a) => a.serial.trim().toUpperCase() === d.serial.toUpperCase()
-        );
-        if (!match) return d;
-        const midBranchMatch = /^MID-880(\d{3})/.exec(match.mid);
-        const targetBranch =
-          d.branchId !== '100'
-            ? d.branchId
-            : midBranchMatch?.[1] || selectedBranch || '105';
-        const branchObj = branches.find((b) => b.code === targetBranch);
-        const nextCycleNum = (d.history || []).length + 1;
-        const hadPrevMerchant =
-          Boolean(d.merchantName?.trim()) &&
-          d.merchantName.trim().toLowerCase() !==
-            match.merchantName.trim().toLowerCase();
-        return {
-          ...d,
-          stage: 'COMPLETE' as LifecycleStage,
-          branchId: targetBranch,
-          branchName: branchObj?.name || d.branchName,
-          merchantName: match.merchantName,
-          merchantPhone: match.merchantPhone,
-          address: match.address,
-          mid: match.mid,
-          tid: match.tid,
-          deployedDate: today,
-          redeployCount: hadPrevMerchant
-            ? (d.redeployCount || 0) + 1
-            : d.redeployCount || 0,
-          updatedAt: today,
-          archived: false,
-          history: [
-            `${nowTime} | Cycle #${nextCycleNum}: Installed (Live) | Bulk bound to ${match.merchantName} (${match.mid} / ${match.tid})`,
-            ...(d.history || []),
-          ],
-        };
-      });
-
-      const newlyCreated: Device[] = assignments
-        .filter((a) => !mapBySn.has(a.serial.trim().toUpperCase()))
-        .map((a) => {
-          const cleanSn = a.serial.trim().toUpperCase();
-          const midBranchMatch = /^MID-880(\d{3})/.exec(a.mid);
-          const targetBranch = midBranchMatch?.[1] || selectedBranch || '105';
-          const branchObj = branches.find((b) => b.code === targetBranch);
-          const isSb = cleanSn.startsWith('SB');
-          return {
-            serial: cleanSn,
-            batterySerial: isSb
-              ? `BAT-SB-${cleanSn.replace(/^SB-?/i, '')}`
-              : `BAT-${cleanSn.replace(/^POS-?/i, '')}`,
-            batteryInstalledDate: today,
-            type: isSb ? 'Sound Box' : 'POS Terminal',
-            model: isSb ? 'SB-Pro' : 'PAX A920 Pro',
-            stockInDate: today,
-            branchId: targetBranch,
-            branchName: branchObj?.name || `Branch Code ${targetBranch}`,
-            staff: branchObj?.staff[0] || selectedStaffUser || authUsername,
-            stage: 'COMPLETE' as LifecycleStage,
-            deploymentStatus: 'Deployed (Live)',
-            stockStatus: 'Deployed',
-            mid: a.mid,
-            tid: a.tid,
-            merchantName: a.merchantName,
-            merchantPhone: a.merchantPhone,
-            location: 'Phnom Penh',
-            address: a.address,
-            deployedDate: today,
-            returnReason: '',
-            redeployCount: 0,
-            hoursInStage: 1,
-            updatedAt: today,
-            note: `Bulk bound to ${a.merchantName}`,
-            history: [
-              `${nowTime} | Cycle #1: Installed (Live) | Bulk bound to ${a.merchantName} (${a.mid} / ${a.tid})`,
-            ],
-            archived: false,
-          };
-        });
-
-      return [...newlyCreated, ...updatedExisting];
+  // Merchant CRM Bindings (22 Oct 2026): only a unit already in the inventory, waiting at a branch (reserve or being set
+  // up), not archived, not allocated and not bound to another MID can be bound. No unit is created here.
+  const bindProblem = (d: Device | undefined, mid: string): string => {
+    if (!d) return 'is not in the inventory (register it first)';
+    if (!inScope(d)) return 'belongs to another branch';
+    if (d.archived) return 'is archived';
+    if (d.customFields?.allocatedTo) return `is allocated to ${d.customFields.allocatedTo}`;
+    if (!(d.stage === 'BRANCH_RESERVE' || d.stage === 'CONFIGURING')) return `is in ${STAGE_META[d.stage].short} (only Branch Reserve or Configuring units can be bound)`;
+    if (d.branchId === '100') return 'is still at Head Office (dispatch it to a branch first)';
+    if (d.mid && d.mid.trim() !== mid.trim()) return `is already bound to MID ${d.mid}`;
+    if (!/^\d{15}$/.test(mid.trim())) return 'needs a 15-digit MID';
+    return '';
+  };
+  const handleBindDeviceToMerchant = (serial: string, merchantData: MerchantBindPayload) => {
+    const cleanSn = serial.trim().toUpperCase();
+    const dev = devices.find((d) => d.serial.toUpperCase() === cleanSn);
+    const problem = bindProblem(dev, merchantData.mid);
+    if (problem) { triggerToast(`Not bound: ${cleanSn} ${problem}.`); return; }
+    handleSaveWorkflow(dev!.serial, {
+      stage: 'COMPLETE',
+      branchId: dev!.branchId,
+      staff: dev!.staff || operatorLabel,
+      merchantName: merchantData.merchantName,
+      merchantPhone: merchantData.merchantPhone,
+      address: merchantData.address,
+      mid: merchantData.mid.trim(),
+      tid: merchantData.tid.trim(),
+      note: `Bound to ${merchantData.merchantName} (MID ${merchantData.mid}${merchantData.tid ? ' / TID ' + merchantData.tid : ''})`,
+      deployedDate: merchantData.deployedDate || todayPP(),
+      batteryInstalledDate: dev!.batteryInstalledDate || '',
+      deploymentStatus: merchantData.deploymentStatus,
+      stockStatus: merchantData.stockStatus,
     });
+  };
 
-    addAuditLog(
-      'Bulk Merchant Binding',
-      `Bound ${assignments.length} hardware serial(s) to production merchant MIDs/TIDs`
-    );
-    triggerToast(`Assigned ${assignments.length} validated merchant hardware record(s)`);
+  const handleBulkBindDevicesToMerchants = (assignments: Array<MerchantBindPayload & { serial: string }>) => {
+    if (assignments.length === 0) return;
+    const today = todayPP();
+    const nowTime = stampSecPP();
+    const bySn = new Map(devices.map((d) => [d.serial.toUpperCase(), d]));
+    const problems: string[] = [];
+    const seen = new Set<string>();
+    const nextMap = new Map<string, Device>();
+    assignments.forEach((a) => {
+      const sn = a.serial.trim().toUpperCase();
+      const d = bySn.get(sn);
+      if (seen.has(sn)) { problems.push(`${sn} is listed twice`); return; }
+      seen.add(sn);
+      const p = bindProblem(d, a.mid);
+      if (p) { problems.push(`${sn} ${p}`); return; }
+      nextMap.set(d!.serial, {
+        ...onMove(d!, 'COMPLETE'),
+        ...(a.deploymentStatus ? { deploymentStatus: a.deploymentStatus } : {}),
+        ...(a.stockStatus ? { stockStatus: a.stockStatus } : {}),
+        merchantName: a.merchantName,
+        merchantPhone: a.merchantPhone,
+        address: a.address,
+        mid: a.mid.trim(),
+        tid: a.tid.trim(),
+        deployedDate: a.deployedDate || today,
+        installedByStaff: d!.installedByStaff || operatorLabel,
+        updatedAt: today,
+        history: [`${nowTime} | Installed (Live) | Bulk bound to ${a.merchantName} (MID ${a.mid}${a.tid ? ' / TID ' + a.tid : ''}) — Officer: ${operatorLabel}`, ...(d!.history || [])],
+      });
+    });
+    if (nextMap.size) setDevices((prev) => prev.map((d) => nextMap.get(d.serial) || d));
+    addAuditLog('Bulk Merchant Binding', `Bound ${nextMap.size} unit(s) to merchants${problems.length ? `; refused: ${problems.slice(0, 20).join('; ')}` : ''}`);
+    triggerToast(`Bound ${nextMap.size} unit(s)` + (problems.length ? `; ${problems.length} refused: ${problems.slice(0, 3).join('; ')}${problems.length > 3 ? '…' : ''}` : '.'));
   };
 
   const handleSaveBranch = (e: React.FormEvent) => {
@@ -2405,7 +2041,7 @@ export function App() {
   const handleSaveUser = (e: React.FormEvent) => {
     e.preventDefault();
     if (!userEmpIdInput.trim() || !userNameInput.trim()) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayPP();
     const bObj = branches.find((b) => b.code === userBranchInput);
 
     if (editingUser) {
@@ -2435,7 +2071,7 @@ export function App() {
       triggerToast(`Updated user ${userNameInput}`);
     } else {
       const newUser: User = {
-        uid: `USR-${Date.now()}`,
+        uid: newRecordId('USR'),
         empId: userEmpIdInput.trim(),
         name: userNameInput.trim(),
         label: `${userNameInput.trim()} (${userEmpIdInput.trim()})`,
@@ -2474,20 +2110,16 @@ export function App() {
       'MID',
       'TID',
       'Serial_Cycles_Count',
+      'Archived',
       ...activeCustom.map((f) => f.label.replace(/\s+/g, '_')),
     ];
     const rows = filteredInventory.map((d) => {
       const bObj = branches.find((b) => b.code === d.branchId);
       const bName = bObj?.name || d.branchName || `Branch ${d.branchId}`;
-      const batSn =
-        d.batterySerial && !d.batterySerial.startsWith('BAT-')
-          ? d.batterySerial
-          : (d.type === 'POS Terminal'
-            ? deriveBatterySerial(d.serial, true)
-            : `SB-BAT-${d.serial.replace(/^SB-/i, '')}`);
+      const batSn = d.batterySerial || '';                             // (22 Oct 2026) the recorded value only
       const customCells = activeCustom.map((f) => {
         if (f.id === 'location') return d.location || '';
-        if (f.id === 'merchantPhone') return d.merchantPhone || '';
+        if (f.id === 'merchantPhone') return d.merchantPhone ? phoneFor(role, d.merchantPhone) : '';
         if (f.id === 'address') return d.address || '';
         return d.customFields?.[f.id] || '';
       });
@@ -2504,18 +2136,16 @@ export function App() {
         d.mid || '',
         d.tid || '',
         String(d.redeployCount || 0),
+        d.archived ? 'Yes' : 'No',
         ...customCells,
-      ]
-        .map(escapeCsvCell)
-        .join(',');
+      ];
     });
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = csvFile([headers, ...rows]);                          // BOM + CRLF, every cell formula-safe
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = `POS_Soundbox_BranchCode_Inventory_${
-      new Date().toISOString().split('T')[0]
+      todayPP()
     }.csv`;
     document.body.appendChild(link);
     link.click();
@@ -2529,13 +2159,13 @@ export function App() {
   };
 
   const handleTriggerMobileSync = async (payload: MobileInstallSyncPayload) => {
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const nowTime = stampSecPP();
     const existingDev = devices.find(
       (d) => d.serial.toUpperCase() === payload.serial.trim().toUpperCase()
     );
     const newEvent: MobileWebhookEvent = {
       eventId:
-        payload.eventId || `WH-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+        payload.eventId || newRecordId('WH'),
       timestamp: nowTime,
       serial: payload.serial,
       previousStage: existingDev?.stage || 'CONFIGURING',
@@ -2562,10 +2192,10 @@ export function App() {
       mid: payload.mid || '',
       tid: payload.tid || '',
       note: payload.note || 'Synced via Mobile Field System API',
-      deployedDate: new Date().toISOString().split('T')[0],
+      deployedDate: todayPP(),
       batteryInstalledDate:
         existingDev?.batteryInstalledDate ||
-        new Date().toISOString().split('T')[0],
+        todayPP(),
     });
 
     try {
@@ -2588,8 +2218,8 @@ export function App() {
     mode: 'SINGLE' | 'BATCH'
   ) => {
     if (eventsToApply.length === 0) return;
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const today = todayPP();
+    const nowTime = stampSecPP();
 
     setDevices((prev) => {
       const existingMap = new Map<string, Device>();
@@ -2701,10 +2331,23 @@ export function App() {
     reason: string,
     replaceStaff?: string
   ) => {
-    const today = new Date().toISOString().split('T')[0];
-    const nowTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const today = todayPP();
+    const nowTime = stampSecPP();
     const faultyDev = devices.find((d) => d.serial === faultySerial);
     if (!faultyDev) return;
+    // (22 Oct 2026) the swap must be possible: the old unit is installed, the new one waits in the same branch
+    const newDev = devices.find((d) => d.serial === replacementSerial);
+    const swapProblem =
+      !inScope(faultyDev) ? `${faultySerial} belongs to another branch`
+      : faultyDev.stage !== 'COMPLETE' ? `${faultySerial} is not installed at a merchant`
+      : !newDev ? `${replacementSerial} is not in the inventory`
+      : newDev.serial === faultyDev.serial ? 'the new unit must be a different unit'
+      : newDev.type !== faultyDev.type ? `${replacementSerial} is a ${newDev.type}, not a ${faultyDev.type}`
+      : !(newDev.stage === 'BRANCH_RESERVE' || newDev.stage === 'CONFIGURING') || newDev.archived || newDev.customFields?.allocatedTo
+        ? `${replacementSerial} is not free branch stock (${STAGE_META[newDev.stage].short})`
+      : newDev.branchId !== faultyDev.branchId ? `${replacementSerial} is in another branch`
+      : newDev.mid ? `${replacementSerial} is already bound to MID ${newDev.mid}` : '';
+    if (swapProblem) { triggerToast(`Not replaced: ${swapProblem}.`); return; }
 
     const originalInstaller = faultyDev.installedByStaff || faultyDev.staff || selectedStaffUser;
     const replacementOfficer = replaceStaff || selectedStaffUser;
@@ -2715,13 +2358,8 @@ export function App() {
         if (d.serial === faultySerial) {
           const nextCycle = (d.history || []).length + 1;
           return {
-            ...d,
-            stage: 'FAULTY',
-            merchantName: '',
-            mid: '',
-            tid: '',
-            merchantPhone: '',
-            address: '',
+            ...onMove(d, 'FAULTY'),
+            deployedDate: '',
             returnReason: reason,
             installedByStaff: originalInstaller,
             replacedByStaff: replacementOfficer,
@@ -2738,12 +2376,11 @@ export function App() {
         if (d.serial === replacementSerial) {
           const nextCycle = (d.history || []).length + 1;
           return {
-            ...d,
-            stage: 'COMPLETE',
+            ...onMove(d, 'COMPLETE'),
             branchId: faultyDev.branchId,
             branchName: faultyDev.branchName,
             staff: replacementOfficer,
-            installedByStaff: originalInstaller,
+            installedByStaff: replacementOfficer,
             replacedByStaff: replacementOfficer,
             replacementDate: today,
             replacedFromSerial: faultySerial,
@@ -2766,32 +2403,11 @@ export function App() {
       })
     );
 
-    if (faultyDev.mid && faultyDev.merchantName) {
-      const histRec: HistoricalMerchantRecord = {
-        recordId: `MREC-${Date.now().toString().slice(-6)}`,
-        merchantName: faultyDev.merchantName,
-        merchantPhone: faultyDev.merchantPhone || '012 000 000',
-        address: faultyDev.address || 'Phnom Penh, Cambodia',
-        mid: faultyDev.mid,
-        tid: faultyDev.tid || `TID-${faultyDev.branchId}01`,
-        deviceType: faultyDev.type,
-        model: faultyDev.model,
-        serial: faultyDev.serial,
-        batterySerial: faultyDev.batterySerial,
-        branchId: faultyDev.branchId,
-        branchName: faultyDev.branchName,
-        installedDate: faultyDev.deployedDate || faultyDev.stockInDate || today,
-        returnedDate: today,
-        activeDurationMonths: 6,
-        returnReason: `Faulty hardware replaced by unit ${replacementSerial} (${reason})`,
-        status: 'RETURNED',
-        handledByStaff: replacementOfficer,
-        installedByStaff: originalInstaller,
-        replacedByStaff: replacementOfficer,
-        returnedByStaff: replacementOfficer,
-        settlementFinalized: true,
-        notes: `Device ${faultySerial} installed by ${originalInstaller}, replaced on-site by ${replacementOfficer} with unit ${replacementSerial}.${isDifferentOfficer ? ` [Personnel Distinction: Installer (${originalInstaller}) ≠ Replacer (${replacementOfficer})]` : ''}`,
-      };
+    if (faultyDev.mid) {
+      const histRec = historyRecordFor(faultyDev, {
+        reason: `Faulty unit replaced by ${replacementSerial} (${reason})`, status: 'RETURNED', actor: replacementOfficer,
+        notes: `Installed by ${originalInstaller}; replaced on site by ${replacementOfficer} with ${replacementSerial}.`,
+      });
       setHistoricalMerchants((hPrev) => [histRec, ...hPrev]);
     }
 
@@ -2812,26 +2428,24 @@ export function App() {
     [users]
   );
 
+  // (22 Oct 2026) merchants = distinct MIDs of installed, active units in the user's scope
   const uniqueMerchantsCount = useMemo(() => {
     const set = new Set<string>();
-    const len = devices.length;
-    for (let i = 0; i < len; i++) {
-      const name = devices[i].merchantName;
-      if (name) set.add(name);
+    for (const d of scopedDevices) {
+      if (d.stage === 'COMPLETE' && !d.archived && d.mid?.trim()) set.add(d.mid.trim());
     }
     return set.size;
-  }, [devices]);
+  }, [scopedDevices]);
+  const activeDeviceCount = useMemo(() => scopedDevices.reduce((n, d) => n + (d.archived ? 0 : 1), 0), [scopedDevices]);
 
   const pendingReqsCount = useMemo(
-    () => requisitions.filter((r) => r.status === 'PENDING_ADMIN').length,
-    [requisitions]
+    () => scopedRequisitions.filter((r) => r.status === 'PENDING_ADMIN').length,
+    [scopedRequisitions]
   );
 
   const outOfSyncWebhooksCount = useMemo(() => {
-    return webhookEvents.filter((evt) => {
-      const dev = devices.find((d) => d.serial.toUpperCase() === evt.serial.toUpperCase());
-      return !dev || dev.stage !== evt.newStage;
-    }).length;
+    const stageBySerial = new Map(devices.map((d) => [d.serial.toUpperCase(), d.stage]));
+    return webhookEvents.filter((evt) => stageBySerial.get(evt.serial.toUpperCase()) !== evt.newStage).length;
   }, [webhookEvents, devices]);
 
   // Show Sign-In Page when signed out (placed AFTER all hooks have executed!)
@@ -2855,7 +2469,7 @@ export function App() {
         role={role}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
-        totalDevices={filteredInventory.length}
+        totalDevices={activeDeviceCount}
         totalMerchants={uniqueMerchantsCount}
         totalHistoricalMerchants={historicalMerchants.length}
         webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
@@ -2936,6 +2550,22 @@ export function App() {
         )}
       </AnimatePresence>
 
+      {/* (22 Oct 2026) messages: every action's result is shown and read out to screen readers */}
+      <div aria-live="polite" role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] w-[min(92vw,560px)] pointer-events-none">
+        {toastMessage && (
+          <div className="pointer-events-auto flex items-start gap-3 rounded-2xl bg-slate-900 text-white text-xs font-semibold px-4 py-3 shadow-2xl">
+            <span className="flex-1 leading-snug">{toastMessage}</span>
+            <button type="button" onClick={() => setToastMessage(null)} aria-label="Dismiss message" className="text-slate-300 hover:text-white font-bold cursor-pointer">✕</button>
+          </div>
+        )}
+      </div>
+      {serverError && (
+        <div role="alert" className="fixed top-0 inset-x-0 z-[70] bg-rose-700 text-white text-xs font-bold px-4 py-2.5 flex items-center justify-center gap-3">
+          <span>{serverError}</span>
+          <button type="button" onClick={() => window.location.reload()} className="underline cursor-pointer">Reload</button>
+        </div>
+      )}
+
       {/* Right Column: Sticky Header at top + Pipeline Bar + Workspace + Footer */}
       <div className="flex-1 w-full min-w-0 flex flex-col justify-between min-h-screen">
         <div>
@@ -2981,7 +2611,7 @@ export function App() {
             }}
             activeTab={activeTab}
             onSelectTab={handleSelectTab}
-            totalDevices={filteredInventory.length}
+            totalDevices={activeDeviceCount}
             totalMerchants={uniqueMerchantsCount}
             totalHistoricalMerchants={historicalMerchants.length}
             webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
@@ -3002,7 +2632,7 @@ export function App() {
             }}
             theme={theme}
             onToggleSidebar={handleToggleSidebar}
-            devices={devices}
+            devices={scopedDevices}
             onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -3058,6 +2688,8 @@ export function App() {
                       onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
                       onOpenExportModal={() => setIsExportModalOpen(true)}
                       onNavigateTab={handleSelectTab}
+                      batteryLifespanMonths={appSettings.batteryLifespanMonths}
+                      batteryWarningMonths={appSettings.batteryWarningMonths}
                     />
                   )}
 
@@ -3093,11 +2725,12 @@ export function App() {
                           'Merchant History Archived',
                           `Recorded returned MID ${rec.mid} (${rec.merchantName}) with reason: ${rec.returnReason}`
                         );
-                        setToastMessage(`Historical record for ${rec.merchantName} saved.`);
+                        triggerToast(`Historical record for ${rec.merchantName} saved.`);
                       }}
                       onReturnDeviceStock={handleReturnSingleDeviceStock}
                       onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
-                      onToast={(msg) => setToastMessage(msg)}
+                      onToast={(msg) => triggerToast(msg)}
+                      operatorLabel={operatorLabel}
                     />
                   )}
 
@@ -3193,6 +2826,7 @@ export function App() {
                       role={role}
                       theme={theme}
                       onToast={(msg) => triggerToast(msg)}
+                      loadServerLogs={isSupabaseConfigured ? loadServerAuditLogs : undefined}
                     />
                   )}
 
@@ -3276,7 +2910,7 @@ export function App() {
                       triggerToast={triggerToast}
                       onApplied={() => {
                         reloadFromServer();
-                        fetchFieldEvents(1000).then((list) => list && setPendingFieldCount(list.filter((e) => e.status === 'PENDING').length));
+                        countPendingFieldEvents().then((n) => n !== null && setPendingFieldCount(n));
                       }}
                       onOpenWorkflow={(sn) => setEditingDeviceSerial(sn)}
                     />
@@ -3316,17 +2950,21 @@ export function App() {
                           'System Settings Updated',
                           'Super Admin updated operational policies, prefix rules and hardware timeouts'
                         );
-                        setToastMessage('System settings and policy configuration saved.');
+                        triggerToast('System settings and policy configuration saved.');
                       }}
                       role={role}
                       theme={theme}
-                      onToast={(msg) => setToastMessage(msg)}
+                      onToast={(msg) => triggerToast(msg)}
                       onExportBackup={handleExportBackup}
                       onImportBackup={handleImportBackup}
                       onResetData={() => {
-                        localStorage.clear();
+                        // (22 Oct 2026) with the shared database this clears only this browser's saved settings; the
+                        // stock, requests and history on the server are not touched
+                        if (isSupabaseConfigured) { clearLocalCaches(); try { localStorage.removeItem(STORAGE_KEY_SETTINGS); } catch {} }
+                        else localStorage.clear();
                         window.location.reload();
                       }}
+                      sharedDatabase={isSupabaseConfigured}
                       initialSubTab={settingsSubTab}
                       onSubTabChange={(st) => setSettingsSubTab(st)}
                       branches={branches}
@@ -3390,8 +3028,8 @@ export function App() {
             <div className="flex items-center gap-4 text-[11px] font-mono">
               <span>{branches.length} Branch Codes Connected</span>
               <span>·</span>
-              <span className="text-emerald-700 font-bold">
-                System Integrity Protected
+              <span className="text-slate-600 font-bold">
+                {isSupabaseConfigured ? 'Access checked by the server' : 'Local preview (not shared)'}
               </span>
             </div>
           </footer>
@@ -3407,6 +3045,7 @@ export function App() {
           onCommitBatch={handleCommitBatch}
           activeBranchId={selectedBranch}
           theme={theme}
+          operatorLabel={operatorLabel}
         />
 
         {/* Classic Request Stock Modal (Triggers Alert Notification) */}
@@ -3417,6 +3056,8 @@ export function App() {
           activeBranchId={selectedBranch}
           onSubmitRequest={handleSubmitStockRequest}
           theme={theme}
+          role={role}
+          operatorLabel={operatorLabel}
         />
 
         {/* Session Lock Modal */}
@@ -3457,6 +3098,7 @@ export function App() {
           }
           onChangeBattery={(dev) => setBatteryModalDevice(dev)}
           customFields={appSettings.customFields}
+          operatorLabel={operatorLabel}
         />
 
         {/* POS Terminal Change Battery Modal (24-Month Lifespan Replacement) */}
@@ -3477,6 +3119,7 @@ export function App() {
           auditLogs={auditLogs}
           theme={theme}
           onToast={(msg) => triggerToast(msg)}
+          role={role}
         />
 
       {/* Branch Code Create/Edit Modal */}

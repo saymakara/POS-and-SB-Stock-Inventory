@@ -11,6 +11,8 @@ import {
 } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { detectDuplicateMids } from '../utils/crmUtils';
+import { todayPP } from '../utils/time';
+import { phoneFor } from '../utils/privacy';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search,
@@ -28,7 +30,6 @@ import {
   Calendar,
   ArchiveRestore,
   Boxes,
-  BatteryCharging,
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
@@ -44,7 +45,8 @@ interface InventoryTabProps {
   devices: Device[];
   allDevices?: Device[];
   branches: Branch[];
-  role: UserRole;
+  /** Signed-in role (from the server). Defaults to the most restricted role. */
+  role?: UserRole;
   selectedBranch: string;
   searchQuery: string;
   onSearchChange: (q: string) => void;
@@ -82,7 +84,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   devices,
   allDevices = [],
   branches,
-  role,
+  role = 'BRANCH',
   selectedBranch,
   searchQuery,
   onSearchChange,
@@ -95,7 +97,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   onSelectDevice,
   onOpenBatchModal,
   onOpenImportModal,
-  onOpenNewStockModal,
   onOpenReqModal,
   onExportCsv,
   onBulkAssignBranch,
@@ -112,9 +113,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   onCancelFulfillment,
 }) => {
   const [selectedSns, setSelectedSns] = useState<string[]>([]);
-  const [targetBulkBranch, setTargetBulkBranch] = useState<string>(
-    fulfillingRequisition?.branchId || (selectedBranch && selectedBranch !== '100' ? selectedBranch : '101')
-  );
+  // No branch is pre-chosen for a bulk transfer: the admin picks the target explicitly.
+  const [targetBulkBranch, setTargetBulkBranch] = useState<string>(fulfillingRequisition?.branchId || '');
 
   useEffect(() => {
     if (fulfillingRequisition?.branchId) {
@@ -128,6 +128,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  const today = todayPP();
 
   const duplicateMidsMap = useMemo(
     () => detectDuplicateMids(allDevices.length > 0 ? allDevices : devices),
@@ -166,7 +167,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       if (!showArchivedView && d.archived) continue;
 
       if (hasBatteryFilter) {
-        const b = getBatteryLifecycleStatus(d);
+        const b = getBatteryLifecycleStatus(d, today);
         if (b.state !== batteryFilter) continue;
       }
 
@@ -180,7 +181,18 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       result.push(d);
     }
     return result;
-  }, [devices, allDevices, showArchivedView, batteryFilter, midDeviceFilter, duplicateMidsMap]);
+  }, [devices, allDevices, showArchivedView, batteryFilter, midDeviceFilter, duplicateMidsMap, today]);
+
+  // Keep only selected serials that are still on screen after a filter / search / view change,
+  // so a bulk action never touches units the operator can no longer see.
+  const visibleSnSet = useMemo(() => new Set(visibleDevices.map((d) => d.serial)), [visibleDevices]);
+  useEffect(() => {
+    setSelectedSns((prev) => {
+      const next = prev.filter((sn) => visibleSnSet.has(sn));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [visibleSnSet]);
+  const selectedSet = useMemo(() => new Set(selectedSns), [selectedSns]);
 
   const totalPages = Math.max(1, Math.ceil(visibleDevices.length / rowsPerPage));
 
@@ -211,7 +223,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
   const allVisibleSelected =
     pagedDevices.length > 0 &&
-    pagedDevices.every((d) => selectedSns.includes(d.serial));
+    pagedDevices.every((d) => selectedSet.has(d.serial));
 
   const toggleSelectAll = () => {
     if (allVisibleSelected) {
@@ -225,9 +237,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   };
 
   const toggleSelectOne = (sn: string) => {
-    setSelectedSns((prev) =>
-      prev.includes(sn) ? prev.filter((item) => item !== sn) : [...prev, sn]
-    );
+    setSelectedSns((prev) => {
+      const set = new Set(prev);
+      if (set.has(sn)) set.delete(sn);
+      else set.add(sn);
+      return Array.from(set);
+    });
   };
 
   const handleSelectTenUnits = () => {
@@ -235,18 +250,33 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     setSelectedSns(firstTen);
   };
 
-  const { selectedPosCount, selectedSbCount } = useMemo(() => {
+  const { selectedPosCount, selectedSbCount, selectedNotEligible } = useMemo(() => {
     let pos = 0;
     let sb = 0;
-    const selectedSet = new Set(selectedSns);
-    for (const d of allDevices) {
+    let notEligible = 0;
+    for (const d of visibleDevices) {
       if (selectedSet.has(d.serial)) {
         if (d.type === 'POS Terminal') pos++;
         else if (d.type === 'Sound Box') sb++;
+        // For a requisition only free Head Office stock can be picked (the server re-checks every unit).
+        const allocatedTo = String(d.customFields?.allocatedTo || '').trim();
+        if (
+          d.stage !== 'HQ_STOCK' ||
+          d.archived ||
+          (allocatedTo && allocatedTo !== fulfillingRequisition?.reqId)
+        )
+          notEligible++;
       }
     }
-    return { selectedPosCount: pos, selectedSbCount: sb };
-  }, [selectedSns, allDevices]);
+    return { selectedPosCount: pos, selectedSbCount: sb, selectedNotEligible: notEligible };
+  }, [selectedSet, visibleDevices, fulfillingRequisition?.reqId]);
+  const fulfillmentError = fulfillingRequisition
+    ? selectedNotEligible > 0
+      ? `${selectedNotEligible} selected unit(s) are not free Head Office stock (wrong stage, archived or allocated to another request).`
+      : selectedPosCount > fulfillingRequisition.posQty || selectedSbCount > fulfillingRequisition.sbQty
+      ? 'More units selected than the branch requested.'
+      : ''
+    : '';
 
   // Double-Step Bulk Action State
   interface PendingBulkAction {
@@ -260,7 +290,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const [pendingBulkAction, setPendingBulkAction] = useState<PendingBulkAction | null>(null);
 
   const handleOpenBulkAssign = () => {
-    if (!selectedSns.length) return;
+    if (!selectedSns.length || !isAdminLike || !targetBulkBranch) return;
     const branchObj = branches.find((b) => b.code === targetBulkBranch);
     setPendingBulkAction({
       type: 'ASSIGN',
@@ -296,7 +326,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   };
 
   const handleOpenBulkRemove = () => {
-    if (!selectedSns.length) return;
+    if (!selectedSns.length || !isAdminLike) return;
     setPendingBulkAction({
       type: 'REMOVE',
       title: 'Bulk Remove from Active Dashboard Inventory',
@@ -306,7 +336,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   };
 
   const handleOpenBulkRestore = () => {
-    if (!selectedSns.length) return;
+    if (!selectedSns.length || !isAdminLike) return;
     setPendingBulkAction({
       type: 'RESTORE',
       title: 'Bulk Restore to Active Dashboard Inventory',
@@ -318,6 +348,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const handleConfirmBulkAction = () => {
     if (!pendingBulkAction) return;
 
+    if (pendingBulkAction.type !== 'RETURN_ADMIN' && !isAdminLike) {
+      setPendingBulkAction(null);
+      return;
+    }
     if (pendingBulkAction.type === 'ASSIGN' && onBulkAssignBranch && pendingBulkAction.targetBranchId) {
       onBulkAssignBranch(
         pendingBulkAction.serials,
@@ -437,7 +471,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               <span>Export CSV</span>
             </motion.button>
 
-            {(onOpenBatchModal || onOpenImportModal) && (
+            {isAdminLike && (onOpenBatchModal || onOpenImportModal) && (
               <motion.button
                 whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.97 }}
@@ -575,7 +609,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       </div>
 
       {/* GUIDED REQUISITION FULFILLMENT BANNER */}
-      {fulfillingRequisition && (
+      {fulfillingRequisition && isAdminLike && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -631,6 +665,11 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {fulfillmentError && (
+              <span role="alert" className="text-[11px] font-semibold text-rose-200 max-w-[260px]">
+                {fulfillmentError}
+              </span>
+            )}
             {onCancelFulfillment && (
               <button
                 type="button"
@@ -643,8 +682,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             {onConfirmFulfillment && (
               <button
                 type="button"
-                disabled={selectedSns.length === 0}
-                onClick={() => onConfirmFulfillment(selectedSns)}
+                disabled={selectedSns.length === 0 || !!fulfillmentError}
+                onClick={() => {
+                  if (!fulfillmentError) onConfirmFulfillment(selectedSns);
+                }}
                 className="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-slate-950 flex items-center gap-1.5 shadow-md cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="w-4 h-4" />
@@ -668,7 +709,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               <span className="px-3 py-1 rounded-xl bg-white text-zinc-900 font-mono text-xs font-bold shadow-2xs">
                 {selectedSns.length} Serial{selectedSns.length === 1 ? '' : 's'} Selected
               </span>
-              {fulfillingRequisition ? (
+              {fulfillingRequisition && isAdminLike ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded-md bg-sky-500/20 text-sky-300 font-mono text-[11px] font-bold border border-sky-400/30">
                     REQ {fulfillingRequisition.reqId}
@@ -679,7 +720,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 </div>
               ) : (
                 <span className="text-xs font-semibold text-white/90">
-                  Batch assign selected units to a target Branch Code, return to Admin Stock, or remove from dashboard:
+                  {isAdminLike
+                    ? 'Batch assign selected units to a target Branch Code, return to Admin Stock, or remove from dashboard:'
+                    : 'Request the return of the selected units to Head Office Admin Stock:'}
                 </span>
               )}
             </div>
@@ -687,7 +730,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               {!showArchivedView ? (
                 <>
-                  {fulfillingRequisition ? (
+                  {!isAdminLike ? null : fulfillingRequisition ? (
                     <div className="flex items-center bg-[#004953] rounded-xl p-1 border border-emerald-400/30 text-white shadow-xs">
                       <div className="px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 text-emerald-200">
                         <Building2 className="w-3.5 h-3.5 text-emerald-300" />
@@ -695,14 +738,17 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       </div>
                       <button
                         type="button"
+                        disabled={!!fulfillmentError}
+                        title={fulfillmentError || undefined}
                         onClick={() => {
+                          if (fulfillmentError) return;
                           if (onConfirmFulfillment) {
                             onConfirmFulfillment(selectedSns);
                           } else {
                             handleOpenBulkAssign();
                           }
                         }}
-                        className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold tracking-wide transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                        className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold tracking-wide transition cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>Assign {selectedSns.length} to Branch Code {fulfillingRequisition.branchId}</span>
@@ -713,8 +759,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       <select
                         value={targetBulkBranch}
                         onChange={(e) => setTargetBulkBranch(e.target.value)}
+                        aria-label="Target branch for bulk transfer"
                         className="bg-transparent text-white text-xs font-semibold px-2.5 py-1.5 outline-none cursor-pointer"
                       >
+                        <option value="" disabled className="bg-[#003857] text-white">
+                          Choose target branch…
+                        </option>
                         {branches
                           .filter((b) => b.code !== '100')
                           .map((b) => (
@@ -728,10 +778,14 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           ))}
                       </select>
                       <button
+                        type="button"
                         onClick={handleOpenBulkAssign}
-                        className="px-3 py-1.5 rounded-lg bg-white text-zinc-900 hover:bg-slate-100 text-xs font-semibold tracking-wide transition cursor-pointer"
+                        disabled={!targetBulkBranch}
+                        className="px-3 py-1.5 rounded-lg bg-white text-zinc-900 hover:bg-slate-100 text-xs font-semibold tracking-wide transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Assign {selectedSns.length} to Branch Code {targetBulkBranch}
+                        {targetBulkBranch
+                          ? `Assign ${selectedSns.length} to Branch Code ${targetBulkBranch}`
+                          : 'Choose a branch first'}
                       </button>
                     </div>
                   )}
@@ -756,7 +810,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     </button>
                   )}
                 </>
-              ) : (
+              ) : !isAdminLike ? null : (
                 <button
                   onClick={handleOpenBulkRestore}
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#133e5e] text-xs font-semibold tracking-wide transition cursor-pointer"
@@ -785,9 +839,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               <tr>
                 <th className="py-2.5 px-3 w-10">
                   <button
+                    type="button"
                     onClick={toggleSelectAll}
                     className="flex items-center justify-center text-white cursor-pointer"
                     title="Select All Visible Serials"
+                    aria-label={allVisibleSelected ? 'Unselect all serials on this page' : 'Select all serials on this page'}
+                    aria-pressed={allVisibleSelected}
                   >
                     {allVisibleSelected ? (
                       <CheckSquare className="w-4 h-4 text-white" />
@@ -818,34 +875,23 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 </tr>
               ) : (
                 pagedDevices.map((dev, index) => {
-                  const isChecked = selectedSns.includes(dev.serial);
+                  const isChecked = selectedSet.has(dev.serial);
                   const meta = STAGE_META[dev.stage];
                   const cycleCount = dev.redeployCount || 0;
-                  const batt = getBatteryLifecycleStatus(dev);
+                  const batt = getBatteryLifecycleStatus(dev, today);
                   const resolvedBranchName =
                     branchNameByCode.get(dev.branchId) ||
                     dev.branchName ||
                     `Branch ${dev.branchId}`;
-                  const formattedBatterySerial =
-                    dev.batterySerial && !dev.batterySerial.startsWith('BAT-')
-                      ? dev.batterySerial
-                      : (dev.type === 'POS Terminal'
-                        ? `160525A${String(5709 + index).padStart(7, '0')}`
-                        : dev.batterySerial || `SB-BAT-${dev.serial.replace(/^SB-/i, '')}`);
+                  // Only the unit's own recorded battery serial is shown; nothing is made up.
+                  const formattedBatterySerial = dev.batterySerial?.trim() || 'Battery serial not recorded';
+                  const shownPhone = dev.merchantPhone ? phoneFor(role, dev.merchantPhone) : '';
 
                   const isSyncingThisDevice = syncingSerials?.has(dev.serial);
 
                   return (
-                    <motion.tr
+                    <tr
                       key={dev.serial}
-                      layout="position"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0, scale: 0.98 }}
-                      transition={{
-                        layout: { type: 'spring', stiffness: 360, damping: 32, mass: 0.75 },
-                        opacity: { duration: 0.2, ease: [0.32, 0.72, 0, 1] },
-                      }}
                       className={`transition-colors interactive-row ${
                         isSyncingThisDevice ? 'optimistic-sync-active' : ''
                       } ${
@@ -858,8 +904,11 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     >
                       <td className="py-2 px-3">
                         <button
+                          type="button"
                           onClick={() => toggleSelectOne(dev.serial)}
                           className="flex items-center justify-center cursor-pointer"
+                          aria-label={`${isChecked ? 'Unselect' : 'Select'} serial ${dev.serial}`}
+                          aria-pressed={isChecked}
                         >
                           {isChecked ? (
                             <CheckSquare className="w-4 h-4 text-zinc-900" />
@@ -971,9 +1020,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                             {(dev.location || dev.merchantPhone || (dev.customFields && Object.keys(dev.customFields).length > 0)) && (
                               <span
                                 className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5"
-                                title={[dev.location, dev.merchantPhone, dev.address].filter(Boolean).join(' • ')}
+                                title={[dev.location, shownPhone, dev.address].filter(Boolean).join(' • ')}
                               >
-                                {[dev.location, dev.merchantPhone].filter(Boolean).join(' • ') ||
+                                {[dev.location, shownPhone].filter(Boolean).join(' • ') ||
                                   (dev.customFields ? Object.entries(dev.customFields)[0]?.[1] : '')}
                               </span>
                             )}
@@ -1062,12 +1111,13 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                                 }
                                 className="p-1 rounded-md border bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700 transition cursor-pointer"
                                 title="Remove from Dashboard"
+                                aria-label={`Remove ${dev.serial} from dashboard`}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )}
 
-                          {showArchivedView && onRestoreToDashboard && (
+                          {showArchivedView && isAdminLike && onRestoreToDashboard && (
                             <button
                               onClick={() => onRestoreToDashboard([dev.serial])}
                               className="px-2.5 py-1.5 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-[11px] font-bold cursor-pointer transition shadow-2xs"
@@ -1077,7 +1127,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           )}
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   );
                 })
               )}
@@ -1129,6 +1179,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               className="p-1.5 rounded-lg border bg-white border-slate-200 text-slate-600 hover:text-zinc-900 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
               title="Previous Page"
+              aria-label="Previous page"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -1143,6 +1194,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               className="p-1.5 rounded-lg border bg-white border-slate-200 text-slate-600 hover:text-zinc-900 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
               title="Next Page"
+              aria-label="Next page"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -1197,6 +1249,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setPendingBulkAction(null)}
+                  aria-label="Close"
                   className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition cursor-pointer"
                 >
                   <X className="w-4 h-4" />

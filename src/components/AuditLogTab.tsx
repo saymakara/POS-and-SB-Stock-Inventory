@@ -1,6 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { UserRole, ThemeMode } from '../types';
-import { escapeCsvCell } from '../utils/crmUtils';
+import type { ServerAuditEntry } from '../services/supabaseService';
+import { csvFile } from '../utils/csv';
+import { todayPP, stampSecPP } from '../utils/time';
 import { motion } from 'motion/react';
 import {
   FileSpreadsheet,
@@ -8,9 +10,10 @@ import {
   ShieldAlert,
   ShieldCheck,
   Building2,
-  Lock,
+  Server,
   RotateCcw,
-  CheckCircle2,
+  RefreshCw,
+  AlertTriangle,
   History,
   ChevronLeft,
   ChevronRight,
@@ -21,92 +24,160 @@ interface AuditLogTabProps {
   role: UserRole;
   theme?: ThemeMode;
   onToast: (msg: string, type?: 'success' | 'warn' | 'info') => void;
+  /**
+   * Loads the audit trail from the server (e.g. `() => fetchAuditLogs(1000)`). When given, the tab shows the
+   * server records; `null` from the loader is shown as an error. When omitted, the local activity log is shown.
+   */
+  loadServerLogs?: () => Promise<ServerAuditEntry[] | null>;
 }
 
-interface ParsedAuditRow {
-  raw: string;
-  timestamp: string;
-  action: string;
-  detail: string;
-  actorRole: 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH' | 'SYSTEM';
+type ActorRole = 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH' | 'OTHER' | 'NOT_RECORDED';
+
+interface AuditRow {
+  key: string;
+  time: string;
+  actor: string;
+  actorEmp: string;
+  actorRole: ActorRole;
   branchCode: string;
-  integrityHash: string;
+  title: string;
+  detail: string;
+  /** Lower-case text used by search and the category filter. */
+  haystack: string;
+  categoryText: string;
 }
+
+const normaliseRole = (r: string | null | undefined): ActorRole => {
+  const v = String(r || '').trim().toUpperCase();
+  if (!v) return 'NOT_RECORDED';
+  if (v === 'SUPER_ADMIN' || v === 'ADMIN' || v === 'BRANCH') return v;
+  return 'OTHER';
+};
+
+const serverTime = (iso: string): string => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? String(iso || '—') : `${stampSecPP(d)}`;
+};
+
+const CATEGORY_WORDS: Record<string, string[]> = {
+  STOCK: ['stock', 'upload', 'assign', 'return', 'install', 'replace', 'battery', 'serial'],
+  REQUEST: ['requisition', 'request', 'dispatch', 'confirm', 'receive'],
+  USER: ['user', 'role', 'session', 'login', 'password', 'staff account'],
+  SYNC: ['sync', 'reconcil', 'health', 'mobile', 'field'],
+};
 
 export const AuditLogTab: React.FC<AuditLogTabProps> = ({
   auditLogs,
-  role,
   theme = 'light',
   onToast,
+  loadServerLogs,
 }) => {
   const isLight = theme === 'light';
+  const serverMode = !!loadServerLogs;
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [actionFilter, setActionFilter] = useState<string>('ALL');
   const [pageSize, setPageSize] = useState<number>(50);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  const parsedRows: ParsedAuditRow[] = useMemo(() => {
-    return auditLogs.map((raw, idx) => {
-      const parts = raw.split('|').map((s) => s.trim());
-      const timestamp = parts[0] || '2026-10-18 00:00:00';
-      const action = parts[1] || 'System Event';
-      const detail = parts.slice(2).join(' | ') || raw;
+  // Server audit trail state
+  const [serverLogs, setServerLogs] = useState<ServerAuditEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadedAt, setLoadedAt] = useState<string | null>(null);
+  const requestSeq = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
-      const lower = `${action} ${detail}`.toLowerCase();
-      let actorRole: 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH' | 'SYSTEM' = 'ADMIN';
-      if (
-        lower.includes('super admin') ||
-        lower.includes('auto-fix') ||
-        lower.includes('god') ||
-        lower.includes('8986')
-      ) {
-        actorRole = 'SUPER_ADMIN';
-      } else if (
-        lower.includes('branch confirmed') ||
-        lower.includes('requisition created') ||
-        lower.includes('mobile') ||
-        lower.includes('staff')
-      ) {
-        actorRole = 'BRANCH';
-      } else if (lower.includes('system boot')) {
-        actorRole = 'SYSTEM';
+  const refreshServerLogs = useCallback(async () => {
+    if (!loadServerLogs) return;
+    const seq = ++requestSeq.current;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const rows = await loadServerLogs();
+      if (!mounted.current || seq !== requestSeq.current) return; // a newer request (or unmount) superseded this one
+      if (rows === null) {
+        setLoadError('The audit log could not be loaded from the server. Check the connection and try again.');
+      } else {
+        setServerLogs(rows);
+        setLoadedAt(stampSecPP());
       }
+    } catch (e) {
+      if (!mounted.current || seq !== requestSeq.current) return;
+      setLoadError(`The audit log could not be loaded from the server${e instanceof Error && e.message ? `: ${e.message}` : '.'}`);
+    } finally {
+      if (mounted.current && seq === requestSeq.current) setLoading(false);
+    }
+  }, [loadServerLogs]);
 
+  useEffect(() => {
+    if (serverMode) void refreshServerLogs();
+  }, [serverMode, refreshServerLogs]);
+
+  const rows: AuditRow[] = useMemo(() => {
+    if (serverMode) {
+      return serverLogs.map((e) => {
+        const actor = (e.actorName || '').trim() || '—';
+        const actorEmp = (e.actorEmp || '').trim();
+        const title = (e.title || e.action || '').trim() || '—';
+        const detail = (e.detail || '').trim();
+        const branchCode = (e.branchId || '').trim() || '—';
+        const categoryText = `${e.action || ''} ${title}`.toLowerCase();
+        const time = serverTime(e.createdAt);
+        return {
+          key: `s-${e.id}`,
+          time,
+          actor,
+          actorEmp,
+          actorRole: normaliseRole(e.role),
+          branchCode,
+          title,
+          detail,
+          categoryText,
+          haystack: `${time} ${actor} ${actorEmp} ${e.role || ''} ${branchCode} ${title} ${detail} ${e.target || ''}`.toLowerCase(),
+        };
+      });
+    }
+    // Local log lines: "timestamp | action | detail". The local log does not record who acted or their role.
+    return auditLogs.map((raw, idx) => {
+      const parts = raw.split('|').map((x) => x.trim());
+      const hasParts = parts.length >= 2;
+      const time = hasParts ? parts[0] || '—' : '—';
+      const title = hasParts ? parts[1] || '—' : 'Activity';
+      const detail = hasParts ? parts.slice(2).join(' | ') : raw;
       const branchMatch = detail.match(/(?:Branch Code|Code|Br\.)\s*(\d{3})/i);
-      const branchCode = branchMatch ? branchMatch[1] : '100';
-
-      const integrityHash = `INTG-${(998000 - idx).toString(16).toUpperCase()}-LOCKED`;
-
+      const branchCode = branchMatch ? branchMatch[1] : '—';
       return {
-        raw,
-        timestamp,
-        action,
-        detail,
-        actorRole,
+        key: `l-${idx}`,
+        time,
+        actor: '—',
+        actorEmp: '',
+        actorRole: 'NOT_RECORDED' as ActorRole,
         branchCode,
-        integrityHash,
+        title,
+        detail,
+        categoryText: title.toLowerCase(),
+        haystack: `${time} ${title} ${detail} ${branchCode}`.toLowerCase(),
       };
     });
-  }, [auditLogs]);
+  }, [serverMode, serverLogs, auditLogs]);
 
-  const filteredRows = parsedRows.filter((row) => {
-    if (roleFilter !== 'ALL' && row.actorRole !== roleFilter) return false;
-    if (actionFilter !== 'ALL') {
-      const actLower = row.action.toLowerCase();
-      if (actionFilter === 'STOCK' && !actLower.includes('stock') && !actLower.includes('upload') && !actLower.includes('assign') && !actLower.includes('return')) return false;
-      if (actionFilter === 'REQUEST' && !actLower.includes('requisition') && !actLower.includes('dispatch') && !actLower.includes('confirm')) return false;
-      if (actionFilter === 'USER' && !actLower.includes('user') && !actLower.includes('role') && !actLower.includes('session')) return false;
-      if (actionFilter === 'SYNC' && !actLower.includes('sync') && !actLower.includes('reconcil') && !actLower.includes('health')) return false;
-    }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      if (!`${row.timestamp} ${row.action} ${row.detail} ${row.branchCode} ${row.integrityHash}`.toLowerCase().includes(q)) {
-        return false;
-      }
-    }
-    return true;
-  });
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const words = actionFilter !== 'ALL' ? CATEGORY_WORDS[actionFilter] || [] : [];
+    return rows.filter((row) => {
+      if (serverMode && roleFilter !== 'ALL' && row.actorRole !== roleFilter) return false;
+      if (words.length > 0 && !words.some((w) => row.categoryText.includes(w))) return false;
+      if (q && !row.haystack.includes(q)) return false;
+      return true;
+    });
+  }, [rows, search, roleFilter, actionFilter, serverMode]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
 
@@ -122,49 +193,28 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
     return filteredRows.slice(start, start + pageSize);
   }, [filteredRows, currentPage, pageSize]);
 
-  const triggerDownload = (filename: string, content: string, mime: string) => {
-    const blob = new Blob([content], { type: mime });
+  const roleText = (r: ActorRole) =>
+    r === 'SUPER_ADMIN' ? 'Super Admin' : r === 'ADMIN' ? 'Admin HQ' : r === 'BRANCH' ? 'Branch Staff' : r === 'OTHER' ? 'Other' : 'Not recorded';
+
+  const handleExportCsv = () => {
+    const headers = serverMode
+      ? ['Time (Phnom Penh)', 'Actor', 'Employee ID', 'Role', 'Branch Code', 'Action', 'Details']
+      : ['Time', 'Branch Code', 'Action', 'Details'];
+    const data = filteredRows.map((r) =>
+      serverMode
+        ? [r.time, r.actor, r.actorEmp, roleText(r.actorRole), r.branchCode, r.title, r.detail]
+        : [r.time, r.branchCode, r.title, r.detail]
+    );
+    const blob = csvFile([headers, ...data]);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = filename;
+    link.download = `${serverMode ? 'Server' : 'Local'}_Audit_Log_${todayPP()}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleExportCsv = () => {
-    const headers = [
-      'Integrity Hash (Immutable)',
-      'Timestamp',
-      'Actor Role',
-      'Branch Code',
-      'Action Type',
-      'Change Review Details',
-    ];
-    const rows = filteredRows.map((r) => [
-      escapeCsvCell(r.integrityHash),
-      escapeCsvCell(r.timestamp),
-      escapeCsvCell(r.actorRole),
-      escapeCsvCell(`Branch Code ${r.branchCode}`),
-      escapeCsvCell(r.action),
-      escapeCsvCell(r.detail),
-    ]);
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
-    triggerDownload(
-      `Staff_Admin_Audit_Log_Review_${Date.now()}.csv`,
-      csv,
-      'text/csv;charset=utf-8;'
-    );
-    onToast(`Exported ${filteredRows.length} Staff & Admin audit records to CSV`);
-  };
-
-  const handleAttemptModifyIntegrity = () => {
-    onToast(
-      'System Integrity Protection: Cryptographic audit logs and core serial hashes are immutable even for Super Admin.',
-      'warn'
-    );
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    onToast(`Exported ${filteredRows.length} audit records to CSV`);
   };
 
   const cardClass = isLight
@@ -182,43 +232,86 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* System Integrity Protection Banner */}
+      {/* Header banner */}
       <div
         className={`${cardClass} p-4 flex flex-col md:flex-row md:items-center justify-between gap-3`}
       >
         <div className="flex items-start sm:items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0">
-            <Lock className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-[#003857]/15 text-[#003857] dark:text-[#5cc8ff] flex items-center justify-center shrink-0">
+            {serverMode ? <Server className="w-5 h-5" aria-hidden="true" /> : <History className="w-5 h-5" aria-hidden="true" />}
           </div>
           <div>
             <div className="flex items-center flex-wrap gap-2">
               <h2 className={`text-sm sm:text-base font-extrabold ${headingClass}`}>
                 Staff, Admin &amp; Super Admin Audit Log
               </h2>
-              <span className="text-xs font-mono font-bold text-emerald-500 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>System Integrity Sealed</span>
+              <span className={`text-xs font-mono font-bold ${subtextClass}`}>
+                {serverMode ? 'Server records' : 'Local activity log'}
               </span>
             </div>
             <p className={`text-xs ${subtextClass} mt-0.5`}>
-              Review and export every change made by Branch Staff, Admin HQ, and Super Admin.{' '}
-              <strong>Note:</strong> Core system integrity hashes and audit ledger entries are read-only and protected from modification by all roles including Super Admin.
+              {serverMode ? (
+                <>
+                  Review and export changes made by Branch Staff, Admin HQ and Super Admin.{' '}
+                  <strong>Audit records are kept on the server and cannot be edited.</strong>
+                  {loadedAt && <> Last loaded {loadedAt}.</>}
+                </>
+              ) : (
+                <>
+                  Activity recorded in this app session. These entries are kept on this device only and do not show who
+                  made each change.
+                </>
+              )}
             </p>
           </div>
         </div>
 
         <div className="flex items-center flex-wrap gap-2 shrink-0">
+          {serverMode && (
+            <button
+              type="button"
+              onClick={() => void refreshServerLogs()}
+              disabled={loading}
+              aria-label="Refresh audit log from the server"
+              className={`px-3.5 py-2 rounded-lg text-xs font-extrabold flex items-center gap-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-wait ${inputClass}`}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+              <span>{loading ? 'Loading…' : 'Refresh'}</span>
+            </button>
+          )}
           <motion.button
             whileTap={{ scale: 0.96 }}
             type="button"
             onClick={handleExportCsv}
-            className="px-3.5 py-2 rounded-lg text-xs font-extrabold bg-[#1cc88a] hover:bg-[#17a673] text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
+            disabled={filteredRows.length === 0}
+            className="px-3.5 py-2 rounded-lg text-xs font-extrabold bg-[#1cc88a] hover:bg-[#17a673] text-white flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <FileSpreadsheet className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Export CSV</span>
           </motion.button>
         </div>
       </div>
+
+      {serverMode && loadError && (
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-300 bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+        >
+          <span className="flex items-center gap-2 font-semibold">
+            <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
+            {loadError}
+            {serverLogs.length > 0 && ' Showing the last records that were loaded.'}
+          </span>
+          <button
+            type="button"
+            onClick={() => void refreshServerLogs()}
+            disabled={loading}
+            className="px-3 py-1.5 rounded-lg font-bold bg-rose-700 hover:bg-rose-800 text-white cursor-pointer disabled:opacity-60"
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
       {/* Filter & Table Card */}
       <div className={`${cardClass} overflow-hidden`}>
@@ -226,15 +319,15 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
           className={`${cardHeaderClass} px-4 py-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3`}
         >
           <div className="flex items-center gap-2">
-            <History className={`w-4 h-4 ${navyTitleClass}`} />
+            <History className={`w-4 h-4 ${navyTitleClass}`} aria-hidden="true" />
             <span className={`text-sm font-extrabold ${navyTitleClass}`}>
-              Change Review Ledger ({filteredRows.length} of {parsedRows.length} Events)
+              Change Review Log ({filteredRows.length} of {rows.length} Events)
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 w-full lg:w-auto">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" aria-hidden="true" />
               <input
                 type="text"
                 value={search}
@@ -242,7 +335,8 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                   setSearch(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search serial, Branch Code, staff..."
+                placeholder={serverMode ? 'Search serial, Branch Code, staff...' : 'Search serial, Branch Code, action...'}
+                aria-label="Search audit log"
                 className={`w-full pl-8 pr-3 py-1.5 text-xs focus:outline-none ${inputClass}`}
               />
             </div>
@@ -253,13 +347,16 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 setRoleFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className={`px-2.5 py-1.5 text-xs focus:outline-none ${inputClass}`}
+              disabled={!serverMode}
+              aria-label="Filter by role"
+              title={serverMode ? undefined : 'The local log does not record roles'}
+              className={`px-2.5 py-1.5 text-xs focus:outline-none disabled:opacity-60 ${inputClass}`}
             >
-              <option value="ALL">All Roles (Staff &amp; Admin)</option>
+              <option value="ALL">{serverMode ? 'All Roles (Staff & Admin)' : 'Roles not recorded'}</option>
               <option value="SUPER_ADMIN">Super Admin</option>
               <option value="ADMIN">Admin HQ</option>
               <option value="BRANCH">Branch Staff</option>
-              <option value="SYSTEM">System Integrity</option>
+              <option value="NOT_RECORDED">Role not recorded</option>
             </select>
 
             <select
@@ -268,12 +365,13 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 setActionFilter(e.target.value);
                 setCurrentPage(1);
               }}
+              aria-label="Filter by action category"
               className={`px-2.5 py-1.5 text-xs focus:outline-none ${inputClass}`}
             >
               <option value="ALL">All Action Categories</option>
               <option value="STOCK">Stock, Bulk Assign &amp; Returns</option>
               <option value="REQUEST">Requisitions &amp; Dispatch</option>
-              <option value="SYNC">Mobile Sync &amp; AI Auto-Fix</option>
+              <option value="SYNC">Mobile &amp; Field Sync</option>
               <option value="USER">IAM Role &amp; User Changes</option>
             </select>
 
@@ -284,7 +382,8 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 setCurrentPage(1);
               }}
               className={`px-2.5 py-1.5 text-xs font-bold focus:outline-none cursor-pointer ${inputClass}`}
-              title="Select view page (50 or 100 rows per page)"
+              title="Rows per page"
+              aria-label="Rows per page"
             >
               <option value={50}>View: 50 / Page</option>
               <option value={100}>View: 100 / Page</option>
@@ -301,7 +400,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
               }}
               className={`px-3 py-1.5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer ${inputClass}`}
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Reset</span>
             </button>
           </div>
@@ -315,13 +414,12 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
           >
             <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white sticky top-0 z-20">
               <tr>
-                <th className="py-3 px-3.5 whitespace-nowrap">Integrity Seal</th>
-                <th className="py-3 px-3.5 whitespace-nowrap">Timestamp</th>
-                <th className="py-3 px-3.5 whitespace-nowrap">Actor Role</th>
+                <th className="py-3 px-3.5 whitespace-nowrap">Time</th>
+                {serverMode && <th className="py-3 px-3.5 whitespace-nowrap">Actor</th>}
+                {serverMode && <th className="py-3 px-3.5 whitespace-nowrap">Role</th>}
                 <th className="py-3 px-3.5 whitespace-nowrap">Branch Code</th>
-                <th className="py-3 px-3.5 whitespace-nowrap">Action Type</th>
+                <th className="py-3 px-3.5 whitespace-nowrap">Action</th>
                 <th className="py-3 px-3.5 min-w-[260px]">Change Details</th>
-                <th className="py-3 px-3.5 text-right whitespace-nowrap">Integrity Lock</th>
               </tr>
             </thead>
             <tbody
@@ -329,76 +427,68 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 isLight ? 'divide-slate-200/80 bg-white' : 'divide-[#182c49] bg-[#11141e]'
               }`}
             >
-              {paginatedRows.map((row, i) => (
+              {paginatedRows.map((row) => (
                 <tr
-                  key={i}
+                  key={row.key}
                   className={
                     isLight
                       ? 'hover:bg-slate-50/90 transition-colors'
                       : 'hover:bg-white/[0.04] transition-colors'
                   }
                 >
-                  <td className="py-2.5 px-3.5 font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                    {row.integrityHash}
-                  </td>
                   <td className={`py-2.5 px-3.5 font-mono whitespace-nowrap ${subtextClass}`}>
-                    {row.timestamp}
+                    {row.time}
                   </td>
-                  <td className="py-2.5 px-3.5 whitespace-nowrap">
-                    {row.actorRole === 'SUPER_ADMIN' ? (
-                      <span className="inline-flex items-center gap-1 font-bold text-amber-500">
-                        <ShieldAlert className="w-3.5 h-3.5" />
-                        <span>Super Admin</span>
-                      </span>
-                    ) : row.actorRole === 'ADMIN' ? (
-                      <span className={`inline-flex items-center gap-1 font-bold ${navyTitleClass}`}>
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        <span>Admin HQ</span>
-                      </span>
-                    ) : row.actorRole === 'BRANCH' ? (
-                      <span className="inline-flex items-center gap-1 font-bold text-emerald-500">
-                        <Building2 className="w-3.5 h-3.5" />
-                        <span>Branch Staff</span>
-                      </span>
-                    ) : (
-                      <span className={`font-bold ${subtextClass}`}>System</span>
-                    )}
-                  </td>
+                  {serverMode && (
+                    <td className={`py-2.5 px-3.5 whitespace-nowrap ${headingClass}`}>
+                      <span className="font-bold">{row.actor}</span>
+                      {row.actorEmp && <span className={`ml-1 font-mono text-[11px] ${subtextClass}`}>({row.actorEmp})</span>}
+                    </td>
+                  )}
+                  {serverMode && (
+                    <td className="py-2.5 px-3.5 whitespace-nowrap">
+                      {row.actorRole === 'SUPER_ADMIN' ? (
+                        <span className="inline-flex items-center gap-1 font-bold text-amber-500">
+                          <ShieldAlert className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>Super Admin</span>
+                        </span>
+                      ) : row.actorRole === 'ADMIN' ? (
+                        <span className={`inline-flex items-center gap-1 font-bold ${navyTitleClass}`}>
+                          <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>Admin HQ</span>
+                        </span>
+                      ) : row.actorRole === 'BRANCH' ? (
+                        <span className="inline-flex items-center gap-1 font-bold text-emerald-500">
+                          <Building2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>Branch Staff</span>
+                        </span>
+                      ) : (
+                        <span className={`font-bold ${subtextClass}`}>{roleText(row.actorRole)}</span>
+                      )}
+                    </td>
+                  )}
                   <td className={`py-2.5 px-3.5 font-mono font-bold whitespace-nowrap ${headingClass}`}>
-                    Branch Code {row.branchCode}
+                    {row.branchCode === '—' ? '—' : `Branch Code ${row.branchCode}`}
                   </td>
                   <td className={`py-2.5 px-3.5 font-extrabold whitespace-nowrap ${headingClass}`}>
-                    {row.action}
+                    {row.title}
                   </td>
                   <td className={`py-2.5 px-3.5 ${subtextClass} max-w-md`}>
-                    {row.detail}
-                  </td>
-                  <td className="py-2.5 px-3.5 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={handleAttemptModifyIntegrity}
-                      title={
-                        role === 'SUPER_ADMIN'
-                          ? 'Protected System Integrity Data (Cannot be deleted even by Super Admin)'
-                          : 'Immutable Audit Record'
-                      }
-                      className={`px-2.5 py-1 rounded text-[10px] font-mono font-bold inline-flex items-center gap-1 cursor-pointer transition-colors ${
-                        isLight
-                          ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          : 'bg-[#07101d] text-slate-400 border border-[#19304f] hover:text-amber-400'
-                      }`}
-                    >
-                      <Lock className="w-3 h-3 text-amber-500" />
-                      <span>Immutable</span>
-                    </button>
+                    {row.detail || '—'}
                   </td>
                 </tr>
               ))}
 
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
-                    No audit records match the selected filter criteria.
+                  <td colSpan={serverMode ? 6 : 4} className="py-12 text-center text-slate-400 text-xs">
+                    {serverMode && loading && rows.length === 0
+                      ? 'Loading audit records from the server…'
+                      : serverMode && loadError && rows.length === 0
+                      ? 'No audit records could be loaded.'
+                      : rows.length === 0
+                      ? 'No audit records yet.'
+                      : 'No audit records match the selected filter criteria.'}
                   </td>
                 </tr>
               )}
@@ -441,6 +531,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                     setPageSize(num);
                     setCurrentPage(1);
                   }}
+                  aria-pressed={pageSize === num}
                   className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition ${
                     pageSize === num
                       ? 'bg-[#004953] text-white shadow-2xs'
@@ -466,8 +557,9 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                   : 'bg-[#1e293b] border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-white'
               }`}
               title="Previous Page"
+              aria-label="Previous page"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             </button>
 
             <span
@@ -490,8 +582,9 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                   : 'bg-[#1e293b] border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-white'
               }`}
               title="Next Page"
+              aria-label="Next page"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>

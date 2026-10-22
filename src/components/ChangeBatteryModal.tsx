@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Device, getBatteryLifecycleStatus, ThemeMode } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
+import { todayPP } from '../utils/time';
 import {
   BatteryCharging,
   X,
   CheckCircle2,
-  AlertOctagon,
   Calendar,
-  History,
   Sparkles,
   ArrowRight,
   ArrowLeft,
@@ -41,52 +40,53 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
 }) => {
   const [step, setStep] = useState<'FORM' | 'PREVIEW'>('FORM');
   const [newBatterySerial, setNewBatterySerial] = useState('');
-  const [installedDate, setInstalledDate] = useState('2026-10-18');
+  const [installedDate, setInstalledDate] = useState(() => todayPP());
   const [reason, setReason] = useState('24-Month Routine Expiry Replacement');
   const [customReason, setCustomReason] = useState('');
   const [error, setError] = useState('');
 
-  const generateFreshBatterySerial = (dev?: Device | null) => {
-    if (dev?.type === 'Sound Box') {
-      const cleanSn = dev.serial.replace(/^SB-?/i, '');
-      const rand = Math.floor(100 + Math.random() * 900);
-      return `SB-BAT-${cleanSn || rand}`;
-    }
-    const rand = Math.floor(5730 + Math.random() * 3000);
-    return `160525A${String(rand).padStart(7, '0')}`;
-  };
-
+  // Reset the form only when a different unit is opened (not on every re-render of the same device object).
+  // The new battery serial is never invented: the operator types or scans the serial printed on the new pack.
+  const deviceSerial = device?.serial || '';
   useEffect(() => {
-    if (device) {
-      setNewBatterySerial(generateFreshBatterySerial(device));
-      setInstalledDate(new Date().toISOString().split('T')[0] || '2026-10-18');
+    if (deviceSerial) {
+      setNewBatterySerial('');
+      setInstalledDate(todayPP());
       setReason('24-Month Routine Expiry Replacement');
       setCustomReason('');
       setError('');
       setStep('FORM');
     }
-  }, [device]);
+  }, [deviceSerial]);
 
   if (!device) return null;
 
-  const currentBatt = getBatteryLifecycleStatus(device);
-  const currentBatterySerial = device.batterySerial || '160525A0005709';
+  const currentBatt = getBatteryLifecycleStatus(device, todayPP());
+  const currentBatterySerial = device.batterySerial || 'Not recorded';
 
+  // Plain date arithmetic on "YYYY-MM-DD" (no UTC conversion, so the date never shifts by a day).
   const calculateNewDueDate = (installDateStr: string) => {
-    try {
-      const d = new Date(installDateStr);
-      d.setMonth(d.getMonth() + 24);
-      return d.toISOString().split('T')[0];
-    } catch {
-      return '24 Months Post-Install';
-    }
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(installDateStr || '');
+    if (!m) return '24 Months Post-Install';
+    const y = +m[1] + 2;
+    const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+    const day = m[2] === '02' && m[3] === '29' && !leap ? '28' : m[3];
+    return `${y}-${m[2]}-${day}`;
   };
 
   const handleAdvanceToPreview = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanSerial = newBatterySerial.trim();
     if (!cleanSerial) {
-      setError('Please enter a valid new battery serial number.');
+      setError('Please enter the serial number printed on the new battery.');
+      return;
+    }
+    if (device.batterySerial && cleanSerial.toUpperCase() === device.batterySerial.trim().toUpperCase()) {
+      setError('This is the serial of the battery already installed. Enter the new battery serial.');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(installedDate)) {
+      setError('Please choose the battery change date.');
       return;
     }
     setError('');
@@ -128,6 +128,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -237,21 +238,6 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
                 <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700">
                   New Battery Serial Number *
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewBatterySerial(generateFreshBatterySerial(device));
-                    setError('');
-                  }}
-                  className="text-[10px] font-bold text-[#003857] hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  <span>
-                    {device?.type === 'Sound Box'
-                      ? 'Auto-Gen Sound Box Battery'
-                      : 'Auto-Gen 160525A Serial'}
-                  </span>
-                </button>
               </div>
               <input
                 type="text"
@@ -270,7 +256,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
                 <p className="text-rose-600 text-[10px] font-bold mt-1">{error}</p>
               ) : (
                 <p className="text-slate-400 text-[10px] mt-1 font-mono">
-                  Sample format: 160525A0005709 (160525A + 7-digit sequence)
+                  Type or scan the serial printed on the new battery pack (e.g. 160525A + 7 digits).
                 </p>
               )}
             </div>
@@ -284,6 +270,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               <input
                 type="date"
                 value={installedDate}
+                max={todayPP()}
                 onChange={(e) => setInstalledDate(e.target.value)}
                 required
                 className="w-full px-3 py-2.5 rounded-xl font-mono text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-[#002f49]"

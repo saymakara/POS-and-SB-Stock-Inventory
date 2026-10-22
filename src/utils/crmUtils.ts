@@ -1,17 +1,13 @@
+import { stampSecPP, clockPP } from './time';
 import { Device } from '../types';
 
-export const MID_REGEX = /^MID-880(\d{3})-(\d{2,4})$/;
+/** A merchant ID is exactly 15 digits (22 Oct 2026: the old MID-880… pattern never matched real MIDs). */
+export const MID_REGEX = /^\d{15}$/;
 export const TID_REGEX = /^(?:TID|KHQR)-(\d{3})(\d{2,5})$/;
 
+/** Phnom Penh time (not the computer's own time zone). */
 export function formatNowTimestamp(includeDate = true): string {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const MM = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  const ss = String(now.getSeconds()).padStart(2, '0');
-  return includeDate ? `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+  return includeDate ? stampSecPP() : clockPP();
 }
 
 export function escapeCsvCell(value: unknown): string {
@@ -43,7 +39,6 @@ export function validateMidTidPair(
 ): MidTidQuickCheck {
   const cleanMid = mid.trim().toUpperCase();
   const cleanTid = tid.trim().toUpperCase();
-  const branchCode = branchId && branchId !== '100' ? branchId : '105';
 
   const midMatch = cleanMid.match(MID_REGEX);
   const tidMatch = cleanTid.match(TID_REGEX);
@@ -51,7 +46,7 @@ export function validateMidTidPair(
   const midValid = Boolean(midMatch);
   const tidValid = Boolean(tidMatch);
 
-  const midBranchMismatch = Boolean(midMatch && branchId !== '100' && midMatch[1] !== branchId);
+  const midBranchMismatch = false;                                   // a 15-digit MID does not carry the branch
   const tidBranchMismatch = Boolean(tidMatch && branchId !== '100' && tidMatch[1] !== branchId);
 
   let tidDuplicateDevice: Device | undefined;
@@ -65,22 +60,9 @@ export function validateMidTidPair(
     }
   }
 
-  // Build deterministic clean suggestions if needed (scan up to 200 devices)
-  const usedTidNums = new Set<number>();
-  const scanLimit = Math.min(allDevices.length, 500);
-  for (let i = 0; i < scanLimit; i++) {
-    const d = allDevices[i];
-    const m = (d.tid || '').trim().toUpperCase().match(TID_REGEX);
-    if (m && m[1] === branchCode) {
-      usedTidNums.add(parseInt(m[2], 10));
-    }
-  }
-  let nextSeq = 1;
-  while (usedTidNums.has(nextSeq)) nextSeq++;
-
-  const seqDigits = cleanMid.replace(/\D/g, '').slice(-2) || String(nextSeq).padStart(2, '0');
-  const suggestedMid = `MID-880${branchCode}-${seqDigits.padStart(2, '0')}`;
-  const suggestedTid = `TID-${branchCode}${String(nextSeq).padStart(2, '0')}`;
+  // (22 Oct 2026) no suggested MIDs or TIDs: they come from the acquiring record, never from this app
+  const suggestedMid = '';
+  const suggestedTid = '';
 
   return {
     midValid,

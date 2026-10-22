@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import {
   HistoricalMerchantRecord,
   Branch,
@@ -10,13 +10,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Store,
   Search,
-  Filter,
   FileDown,
   Building2,
   Calendar,
   Clock,
   RotateCcw,
-  ShieldCheck,
   Cpu,
   Volume2,
   FileText,
@@ -25,7 +23,6 @@ import {
   MapPin,
   CheckCircle2,
   AlertTriangle,
-  ArrowRight,
   UserCheck,
   Copy,
   Check,
@@ -33,8 +30,14 @@ import {
   Hash,
   CreditCard,
   Wrench,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
-import { escapeCsvCell } from '../utils/crmUtils';
+import { csvFile } from '../utils/csv';
+import { newRecordId } from '../utils/ids';
+import { todayPP } from '../utils/time';
+import { canSeeFullContact, phoneFor } from '../utils/privacy';
 
 interface MerchantHistoryTabProps {
   records: HistoricalMerchantRecord[];
@@ -43,6 +46,8 @@ interface MerchantHistoryTabProps {
   selectedBranch: string;
   theme?: ThemeMode;
   devices?: Device[];
+  /** Name of the signed-in staff member, recorded as the officer who logged a return. */
+  operatorLabel?: string;
   onAddRecord?: (record: HistoricalMerchantRecord) => void;
   onReturnDeviceStock?: (
     serial: string,
@@ -54,16 +59,29 @@ interface MerchantHistoryTabProps {
   onToast?: (msg: string) => void;
 }
 
-const COMMON_REASONS = [
-  'ALL',
+const PAGE_SIZE = 50;
+
+/** Reasons that end the merchant relationship are TERMINATED; a unit handed back while the merchant stays is RETURNED. */
+const TERMINATING_REASONS = [
   'Merchant Closed Business',
   'Terminated Contract — Merchant Relocated',
-  'Upgraded from Sound Box to POS Terminal',
-  'Voluntary Return — Switch to Online KHQR Only',
-  'Degraded Battery (≥24M) & Inactivity',
-  'Franchise Ownership Transfer',
+  'Franchise Ownership Transfer / Account Terminated',
   'Seasonal Merchant Termination',
 ];
+const statusForReason = (reason: string): HistoricalMerchantRecord['status'] =>
+  TERMINATING_REASONS.includes(reason) || /closed|terminat/i.test(reason) ? 'TERMINATED' : 'RETURNED';
+
+const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
+
+/** Whole months between two YYYY-MM-DD dates; 0 when either date is missing or the order is wrong. */
+function monthsBetween(from: string, to: string): number {
+  const a = /^(\d{4})-(\d{2})-(\d{2})$/.exec(from || '');
+  const b = /^(\d{4})-(\d{2})-(\d{2})$/.exec(to || '');
+  if (!a || !b) return 0;
+  let m = (+b[1] - +a[1]) * 12 + (+b[2] - +a[2]);
+  if (+b[3] < +a[3]) m -= 1;
+  return Math.max(0, m);
+}
 
 export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   records,
@@ -72,54 +90,107 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   selectedBranch,
   theme = 'light',
   devices = [],
+  operatorLabel = '',
   onAddRecord,
   onReturnDeviceStock,
   onSelectDevice,
   onToast,
 }) => {
   const isLight = theme === 'light';
+  const showFullContact = canSeeFullContact(role);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const handleCopy = (text: string, fieldId: string) => {
     if (!text) return;
-    navigator.clipboard.writeText(text);
+    navigator.clipboard?.writeText(text).catch(() => undefined);
     setCopiedField(fieldId);
     setTimeout(() => setCopiedField(null), 2000);
     if (onToast) onToast(`Copied ${fieldId}: ${text}`);
   };
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredQuery = useDeferredValue(searchQuery);
   const [branchFilter, setBranchFilter] = useState(
     role === 'BRANCH' ? selectedBranch : 'ALL'
   );
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [reasonFilter, setReasonFilter] = useState<string>('ALL');
+  const [page, setPage] = useState(1);
   const [selectedRecord, setSelectedRecord] =
     useState<HistoricalMerchantRecord | null>(null);
   const [isLogReturnModalOpen, setIsLogReturnModalOpen] = useState(false);
 
-  // Form state for logging a historical return
+  const defaultFormBranch =
+    role === 'BRANCH'
+      ? selectedBranch
+      : selectedBranch && selectedBranch !== 'ALL'
+      ? selectedBranch
+      : branches[0]?.code || '';
+
+  // Form state for logging a historical return (every field starts empty – nothing is pre-filled with sample data)
   const [formMerchantName, setFormMerchantName] = useState('');
   const [formMid, setFormMid] = useState('');
   const [formTid, setFormTid] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formAddress, setFormAddress] = useState('');
   const [formType, setFormType] = useState<'POS Terminal' | 'Sound Box'>('POS Terminal');
-  const [formModel, setFormModel] = useState('Wizar POS Q2 Pro');
-  const [formSerial, setFormSerial] = useState('WP5400PQ23200297');
-  const [formBatterySerial, setFormBatterySerial] = useState('160525A0005709');
-  const [formBranchId, setFormBranchId] = useState(
-    role === 'BRANCH' ? selectedBranch : '101'
-  );
-  const [formInstallDate, setFormInstallDate] = useState('2024-05-10');
-  const [formReturnDate, setFormReturnDate] = useState(
-    new Date().toISOString().split('T')[0]
-  );
+  const [formModel, setFormModel] = useState('');
+  const [formSerial, setFormSerial] = useState('');
+  const [formBatterySerial, setFormBatterySerial] = useState('');
+  const [formBranchId, setFormBranchId] = useState(defaultFormBranch);
+  const [formInstallDate, setFormInstallDate] = useState('');
+  const [formReturnDate, setFormReturnDate] = useState(() => todayPP());
   const [formReturnDestination, setFormReturnDestination] = useState<'BRANCH_RESERVE' | 'HQ_STOCK'>('BRANCH_RESERVE');
   const [formReason, setFormReason] = useState('Merchant Closed Business');
   const [formNotes, setFormNotes] = useState('');
   const [formError, setFormError] = useState('');
 
-  const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  const deviceBySerial = useMemo(
+    () => new Map<string, Device>(devices.map((d) => [d.serial.trim().toUpperCase(), d])),
+    [devices]
+  );
+  const formDevice = deviceBySerial.get(formSerial.trim().toUpperCase());
+
+  const resetForm = () => {
+    setFormMerchantName('');
+    setFormMid('');
+    setFormTid('');
+    setFormPhone('');
+    setFormAddress('');
+    setFormType('POS Terminal');
+    setFormModel('');
+    setFormSerial('');
+    setFormBatterySerial('');
+    setFormBranchId(defaultFormBranch);
+    setFormInstallDate('');
+    setFormReturnDate(todayPP());
+    setFormReturnDestination('BRANCH_RESERVE');
+    setFormReason('Merchant Closed Business');
+    setFormNotes('');
+    setFormError('');
+  };
+
+  const openLogReturn = () => {
+    resetForm();
+    setIsLogReturnModalOpen(true);
+  };
+
+  // Fill the form from the device list when the typed serial is a known unit (real data only).
+  const fillFromDevice = () => {
+    const d = formDevice;
+    if (!d) return;
+    setFormType(d.type);
+    if (!formModel.trim()) setFormModel(d.model || '');
+    if (!formBatterySerial.trim()) setFormBatterySerial(d.batterySerial || '');
+    if (!formMerchantName.trim()) setFormMerchantName(d.merchantName || '');
+    if (!formMid.trim()) setFormMid((d.mid || '').replace(/\D/g, '').slice(0, 15));
+    if (!formTid.trim()) setFormTid(d.tid || '');
+    if (!formPhone.trim()) setFormPhone(d.merchantPhone || '');
+    if (!formAddress.trim()) setFormAddress(d.address || '');
+    if (!formInstallDate && /^\d{4}-\d{2}-\d{2}/.test(d.deployedDate || '')) {
+      setFormInstallDate(d.deployedDate.slice(0, 10));
+    }
+    if (role !== 'BRANCH' && d.branchId) setFormBranchId(d.branchId);
+  };
 
   // Branch map
   const branchMap = useMemo(() => {
@@ -128,9 +199,29 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
     return map;
   }, [branches]);
 
+  // One row per return event: the same serial + MID + return date + status is the same return logged twice.
+  const uniqueRecords = useMemo(() => {
+    const seen = new Set<string>();
+    const out: HistoricalMerchantRecord[] = [];
+    for (const rec of records) {
+      const key = [
+        (rec.serial || '').trim().toUpperCase(),
+        (rec.mid || '').trim().toUpperCase(),
+        (rec.returnedDate || '').slice(0, 10),
+        rec.status || '',
+      ].join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(rec);
+    }
+    return out;
+  }, [records]);
+
   // Filtered records
   const filteredRecords = useMemo(() => {
-    return records.filter((rec) => {
+    const q = deferredQuery.toLowerCase().trim();
+    const reasonQ = reasonFilter.toLowerCase().slice(0, 15);
+    return uniqueRecords.filter((rec) => {
       // Role scope
       if (role === 'BRANCH' && rec.branchId !== selectedBranch) {
         return false;
@@ -141,58 +232,64 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       if (typeFilter !== 'ALL' && rec.deviceType !== typeFilter) {
         return false;
       }
-      if (reasonFilter !== 'ALL') {
-        if (!rec.returnReason.toLowerCase().includes(reasonFilter.toLowerCase().slice(0, 15))) {
-          return false;
-        }
+      if (reasonFilter !== 'ALL' && !(rec.returnReason || '').toLowerCase().includes(reasonQ)) {
+        return false;
       }
 
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchName = rec.merchantName.toLowerCase().includes(q);
-        const matchMid = rec.mid.toLowerCase().includes(q);
-        const matchTid = (rec.tid || '').toLowerCase().includes(q);
-        const matchSerial = rec.serial.toLowerCase().includes(q);
-        const matchBat = (rec.batterySerial || '').toLowerCase().includes(q);
-        const matchPhone = (rec.merchantPhone || '').toLowerCase().includes(q);
-        const matchReason = rec.returnReason.toLowerCase().includes(q);
-        if (
-          !matchName &&
-          !matchMid &&
-          !matchTid &&
-          !matchSerial &&
-          !matchBat &&
-          !matchPhone &&
-          !matchReason
-        ) {
-          return false;
-        }
+      if (q) {
+        const hay = [
+          rec.merchantName,
+          rec.mid,
+          rec.tid,
+          rec.serial,
+          rec.batterySerial,
+          // Branch staff cannot search by full phone number (it would reveal a masked number).
+          showFullContact ? rec.merchantPhone : '',
+          rec.returnReason,
+        ]
+          .map((v) => (v || '').toLowerCase())
+          .join(' ');
+        if (!hay.includes(q)) return false;
       }
 
       return true;
     });
-  }, [records, role, selectedBranch, branchFilter, typeFilter, reasonFilter, searchQuery]);
+  }, [uniqueRecords, role, selectedBranch, branchFilter, typeFilter, reasonFilter, deferredQuery, showFullContact]);
 
-  // Analytics KPIs
+  // Paging: back to page 1 whenever the filters or search change.
+  useEffect(() => {
+    setPage(1);
+  }, [deferredQuery, branchFilter, typeFilter, reasonFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedRecords = useMemo(
+    () => filteredRecords.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredRecords, currentPage]
+  );
+
+  // Analytics KPIs (lifespan averages only records that have a known service length)
   const stats = useMemo(() => {
     const total = filteredRecords.length;
-    const posCount = filteredRecords.filter((r) => r.deviceType === 'POS Terminal').length;
-    const sbCount = filteredRecords.filter((r) => r.deviceType === 'Sound Box').length;
-    const avgDuration =
-      total > 0
-        ? Math.round(
-            filteredRecords.reduce((acc, r) => acc + (r.activeDurationMonths || 24), 0) /
-              total
-          )
-        : 0;
-    const closedCount = filteredRecords.filter((r) =>
-      r.returnReason.toLowerCase().includes('closed')
-    ).length;
-
-    return { total, posCount, sbCount, avgDuration, closedCount };
+    let posCount = 0;
+    let sbCount = 0;
+    let closedCount = 0;
+    let monthsSum = 0;
+    let monthsN = 0;
+    for (const r of filteredRecords) {
+      if (r.deviceType === 'POS Terminal') posCount++;
+      else if (r.deviceType === 'Sound Box') sbCount++;
+      if ((r.returnReason || '').toLowerCase().includes('closed')) closedCount++;
+      if (r.activeDurationMonths > 0) {
+        monthsSum += r.activeDurationMonths;
+        monthsN++;
+      }
+    }
+    const avgDuration = monthsN > 0 ? Math.round(monthsSum / monthsN) : 0;
+    return { total, posCount, sbCount, avgDuration, monthsN, closedCount };
   }, [filteredRecords]);
 
-  // Export CSV
+  // Export CSV (phone numbers masked for branch staff, the same as on screen)
   const handleExportCsv = () => {
     if (filteredRecords.length === 0) {
       if (onToast) onToast('No historical merchant records to export.');
@@ -229,7 +326,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       r.merchantName,
       r.mid,
       r.tid,
-      r.merchantPhone,
+      r.merchantPhone ? phoneFor(role, r.merchantPhone) : '',
       r.address,
       r.deviceType,
       r.model,
@@ -239,33 +336,25 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       branchMap.get(r.branchId) || r.branchName,
       r.installedDate,
       r.returnedDate,
-      r.activeDurationMonths,
+      r.activeDurationMonths > 0 ? r.activeDurationMonths : '',
       r.returnReason,
       r.status,
-      r.installedByStaff || r.handledByStaff,
+      r.installedByStaff || r.handledByStaff || '',
       r.replacedByStaff || '',
-      r.returnedByStaff || r.handledByStaff,
-      r.handledByStaff,
+      r.returnedByStaff || r.handledByStaff || '',
+      r.handledByStaff || '',
       r.settlementFinalized ? 'Yes' : 'No',
       r.notes || '',
     ]);
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,\uFEFF' +
-      [headers, ...rows]
-        .map((row) => row.map(escapeCsvCell).join(','))
-        .join('\r\n');
-
-    const encodedUri = encodeURI(csvContent);
+    const url = URL.createObjectURL(csvFile([headers, ...rows]));
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute(
-      'download',
-      `Merchant_Decommission_History_${new Date().toISOString().split('T')[0]}.csv`
-    );
+    link.href = url;
+    link.download = `Merchant_Decommission_History_${todayPP()}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 
     if (onToast) {
       onToast(`Exported ${filteredRecords.length} historical merchant records.`);
@@ -284,61 +373,71 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       setFormError('Merchant ID (MID) must be exactly 15 digits.');
       return;
     }
-
-    const inst = new Date(formInstallDate);
-    const ret = new Date(formReturnDate);
-    const diffMonths = Math.max(
-      1,
-      (ret.getFullYear() - inst.getFullYear()) * 12 +
-        (ret.getMonth() - inst.getMonth())
-    );
+    const serial = formSerial.trim().toUpperCase();
+    if (!serial) {
+      setFormError('Please enter the terminal serial.');
+      return;
+    }
+    if (!formReturnDate) {
+      setFormError('Please enter the return date.');
+      return;
+    }
+    if (formInstallDate && formInstallDate > formReturnDate) {
+      setFormError('The installation date is after the return date.');
+      return;
+    }
+    if (formReturnDate > todayPP()) {
+      setFormError('The return date cannot be in the future.');
+      return;
+    }
 
     const newRecord: HistoricalMerchantRecord = {
-      recordId: `MREC-${Date.now().toString().slice(-6)}`,
+      recordId: newRecordId('MREC'),
       merchantName: formMerchantName.trim(),
-      merchantPhone: formPhone.trim() || '012 000 000',
-      address: formAddress.trim() || 'Phnom Penh, Cambodia',
+      merchantPhone: formPhone.trim(),
+      address: formAddress.trim(),
       mid: cleanMid,
-      tid: formTid.trim() || `TID-${formBranchId}01`,
+      tid: formTid.trim().toUpperCase(),
       deviceType: formType,
-      model: formModel,
-      serial: formSerial.trim(),
-      batterySerial: formType === 'POS Terminal' ? formBatterySerial.trim() : undefined,
+      model: formModel.trim() || formDevice?.model || '',
+      serial: formDevice?.serial || serial,
+      batterySerial: formType === 'POS Terminal' ? formBatterySerial.trim() || undefined : undefined,
       branchId: formBranchId,
       branchName: branchMap.get(formBranchId) || `Branch ${formBranchId}`,
       installedDate: formInstallDate,
       returnedDate: formReturnDate,
-      activeDurationMonths: diffMonths,
+      activeDurationMonths: monthsBetween(formInstallDate, formReturnDate),
       returnReason: formReason,
-      status: 'RETURNED',
-      handledByStaff: 'Field Operations Officer',
-      settlementFinalized: true,
-      notes: formNotes.trim() || 'Logged via Historical Merchant Record Ledger.',
+      status: statusForReason(formReason),
+      handledByStaff: operatorLabel.trim(),
+      returnedByStaff: operatorLabel.trim() || undefined,
+      // A return logged here is not yet settled; settlement is confirmed elsewhere.
+      settlementFinalized: false,
+      notes: formNotes.trim(),
     };
 
     if (onAddRecord) {
       onAddRecord(newRecord);
     }
-    if (formSerial.trim() && onReturnDeviceStock) {
+    // Only a unit that exists in the device list is moved back to stock.
+    if (formDevice && onReturnDeviceStock) {
       onReturnDeviceStock(
-        formSerial.trim(),
+        formDevice.serial,
         formReturnDestination,
         formBranchId,
         formReason
       );
     }
     if (onToast) {
-      onToast(`Logged return record for ${newRecord.merchantName} (${newRecord.mid})`);
+      onToast(
+        formDevice
+          ? `Logged return record for ${newRecord.merchantName} (${newRecord.mid})`
+          : `Logged return record for ${newRecord.merchantName} (${newRecord.mid}). Serial ${serial} is not in the device list, so no stock was moved.`
+      );
     }
 
     setIsLogReturnModalOpen(false);
-    // Reset form
-    setFormMerchantName('');
-    setFormMid('');
-    setFormPhone('');
-    setFormAddress('');
-    setFormNotes('');
-    setFormError('');
+    resetForm();
   };
 
   return (
@@ -368,6 +467,16 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {onAddRecord && (
+            <button
+              type="button"
+              onClick={openLogReturn}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs flex items-center gap-1.5 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Log Return</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleExportCsv}
@@ -403,7 +512,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             <span>{stats.posCount}</span>
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">
-            With 24M battery telemetry
+            {stats.total > 0 ? `${Math.round((stats.posCount / stats.total) * 100)}% of returns` : 'No returns'}
           </div>
         </div>
 
@@ -416,7 +525,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             <span>{stats.sbCount}</span>
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">
-            Returned or upgraded units
+            {stats.total > 0 ? `${Math.round((stats.sbCount / stats.total) * 100)}% of returns` : 'No returns'}
           </div>
         </div>
 
@@ -425,11 +534,11 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             Avg. Active Lifespan
           </div>
           <div className="text-2xl font-black font-mono text-emerald-700 mt-1">
-            {stats.avgDuration} <span className="text-sm font-bold text-slate-500">Months</span>
+            {stats.monthsN > 0 ? stats.avgDuration : '—'} <span className="text-sm font-bold text-slate-500">Months</span>
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
             <Clock className="w-3 h-3 text-emerald-600" />
-            <span>Pre-termination average</span>
+            <span>Average of {stats.monthsN} record(s) with dates</span>
           </div>
         </div>
 
@@ -458,13 +567,16 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search historical merchant, 15D MID, hardware serial, phone..."
+              placeholder={showFullContact ? 'Search historical merchant, 15D MID, hardware serial, phone...' : 'Search historical merchant, 15D MID, hardware serial...'}
+              aria-label="Search historical merchant records"
               className="w-full pl-9 pr-3.5 py-2 rounded-xl text-xs font-medium border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-zinc-700 transition"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                title="Clear search"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 ✕
@@ -478,6 +590,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               value={branchFilter}
               onChange={(e) => setBranchFilter(e.target.value)}
               disabled={role === 'BRANCH'}
+              aria-label="Branch filter"
               className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer disabled:opacity-60"
             >
               <option value="ALL">All Branch Codes (Nationwide)</option>
@@ -494,6 +607,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
+              aria-label="Device type filter"
               className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer"
             >
               <option value="ALL">All Devices</option>
@@ -507,6 +621,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             <select
               value={reasonFilter}
               onChange={(e) => setReasonFilter(e.target.value)}
+              aria-label="Return reason filter"
               className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer"
             >
               <option value="ALL">All Return Reasons</option>
@@ -550,7 +665,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredRecords.map((rec, index) => {
+                pagedRecords.map((rec, index) => {
                   return (
                     <tr
                       key={rec.recordId}
@@ -562,7 +677,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       <td className="py-2 px-3 whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-zinc-900 border border-slate-200 font-mono text-[11px] font-bold">
                           <Calendar className="w-3 h-3 text-slate-500" />
-                          <span>{rec.returnedDate}</span>
+                          <span>{dash(rec.returnedDate)}</span>
                         </div>
                         <div className="mt-1">
                           <span
@@ -582,7 +697,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       {/* Merchant Name */}
                       <td className="py-2 px-3">
                         <div className="text-zinc-900 font-bold text-xs max-w-[190px] truncate" title={rec.merchantName}>
-                          {rec.merchantName}
+                          {dash(rec.merchantName)}
                         </div>
                       </td>
 
@@ -605,15 +720,16 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
 
                       {/* Hardware Serial & Battery Serial directly beneath (no wording) */}
                       <td className="py-2 px-3">
-                        <div
+                        <button
+                          type="button"
                           onClick={() => {
                             if (onSelectDevice) onSelectDevice(rec.serial);
                           }}
-                          className="font-mono text-xs text-zinc-900 font-bold hover:underline cursor-pointer"
+                          className="font-mono text-xs text-zinc-900 font-bold hover:underline cursor-pointer text-left"
                           title="Click to view hardware serial lifecycle"
                         >
                           {rec.serial}
-                        </div>
+                        </button>
                         {rec.batterySerial && (
                           <div className="mt-0.5 font-mono text-[11px] text-slate-600">
                             {rec.batterySerial}
@@ -653,10 +769,10 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       <td className="py-2 px-3 text-center whitespace-nowrap">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-mono">
                           <Clock className="w-3 h-3" />
-                          <span>{rec.activeDurationMonths} Months</span>
+                          <span>{rec.activeDurationMonths > 0 ? `${rec.activeDurationMonths} Months` : '—'}</span>
                         </span>
                         <div className="text-[9px] text-slate-400 mt-0.5">
-                          {rec.installedDate} to {rec.returnedDate}
+                          {dash(rec.installedDate)} to {dash(rec.returnedDate)}
                         </div>
                       </td>
 
@@ -695,6 +811,47 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             </tbody>
           </table>
         </div>
+
+        {/* Paging (50 per page) */}
+        {filteredRecords.length > 0 && (
+          <div className="px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 text-xs text-slate-600">
+            <span>
+              Showing{' '}
+              <strong className="text-zinc-900">{((currentPage - 1) * PAGE_SIZE + 1).toLocaleString()}</strong>
+              {' '}to{' '}
+              <strong className="text-zinc-900">{Math.min(currentPage * PAGE_SIZE, filteredRecords.length).toLocaleString()}</strong>
+              {' '}of{' '}
+              <strong className="text-zinc-900">{filteredRecords.length.toLocaleString()}</strong> records
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage <= 1}
+                aria-label="Previous page"
+                title="Previous page"
+                className="px-2 py-1.5 rounded-lg border bg-white border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Prev</span>
+              </button>
+              <span className="px-2 font-mono text-[11px] font-bold">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage >= totalPages}
+                aria-label="Next page"
+                title="Next page"
+                className="px-2 py-1.5 rounded-lg border bg-white border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Record Detail Modal */}
@@ -721,7 +878,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-base font-bold text-white tracking-tight truncate">
-                        {selectedRecord.merchantName}
+                        {dash(selectedRecord.merchantName)}
                       </h3>
                       <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-white/15 text-white border border-white/20">
                         {selectedRecord.recordId}
@@ -740,6 +897,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   onClick={() => setSelectedRecord(null)}
                   className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
                   title="Close modal"
+                  aria-label="Close record details"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -765,11 +923,13 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       <div className="text-xs text-amber-900/90 dark:text-amber-300/90 mt-0.5 flex items-center gap-1.5 flex-wrap">
                         <span>
                           Active in service for{' '}
-                          <strong>{selectedRecord.activeDurationMonths} months</strong>
+                          <strong>
+                            {selectedRecord.activeDurationMonths > 0 ? `${selectedRecord.activeDurationMonths} months` : '—'}
+                          </strong>
                         </span>
                         <span className="text-amber-400">•</span>
                         <span className="font-mono text-[11px]">
-                          {selectedRecord.installedDate} &rarr; {selectedRecord.returnedDate}
+                          {dash(selectedRecord.installedDate)} &rarr; {dash(selectedRecord.returnedDate)}
                         </span>
                       </div>
                     </div>
@@ -777,7 +937,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="px-3 py-1 rounded-full text-xs font-bold tracking-wide font-mono bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 flex items-center gap-1.5 shadow-2xs">
                       <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
-                      <span>{selectedRecord.status || 'TERMINATED'}</span>
+                      <span>{dash(selectedRecord.status)}</span>
                     </span>
                   </div>
                 </div>
@@ -809,7 +969,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       </span>
                       <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
                         <Store className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
-                        <span>{selectedRecord.merchantName}</span>
+                        <span>{dash(selectedRecord.merchantName)}</span>
                       </div>
                     </div>
 
@@ -834,6 +994,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                             type="button"
                             onClick={() => handleCopy(selectedRecord.mid, 'MID')}
                             title="Copy MID"
+                            aria-label="Copy MID"
                             className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
                           >
                             {copiedField === 'MID' ? (
@@ -856,15 +1017,16 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         <div className="flex items-center justify-between gap-1">
                           <span
                             className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200 truncate"
-                            title={selectedRecord.tid || 'N/A'}
+                            title={selectedRecord.tid || '—'}
                           >
-                            {selectedRecord.tid || 'N/A'}
+                            {dash(selectedRecord.tid)}
                           </span>
                           {selectedRecord.tid && (
                             <button
                               type="button"
                               onClick={() => handleCopy(selectedRecord.tid, 'TID')}
                               title="Copy TID"
+                              aria-label="Copy TID"
                               className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition cursor-pointer"
                             >
                               {copiedField === 'TID' ? (
@@ -885,15 +1047,15 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       </span>
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200">
                         <Phone className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                        {selectedRecord.merchantPhone ? (
+                        {selectedRecord.merchantPhone && showFullContact ? (
                           <a
                             href={`tel:${selectedRecord.merchantPhone}`}
                             className="hover:underline font-mono"
                           >
-                            {selectedRecord.merchantPhone}
+                            {phoneFor(role, selectedRecord.merchantPhone)}
                           </a>
                         ) : (
-                          <span className="text-slate-400 italic">None provided</span>
+                          <span className="font-mono">{phoneFor(role, selectedRecord.merchantPhone)}</span>
                         )}
                       </div>
                     </div>
@@ -905,7 +1067,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       </span>
                       <div className="flex items-start gap-1.5 text-xs text-slate-700 dark:text-slate-300">
                         <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
-                        <span className="leading-snug">{selectedRecord.address || 'N/A'}</span>
+                        <span className="leading-snug">{dash(selectedRecord.address)}</span>
                       </div>
                     </div>
                   </div>
@@ -942,7 +1104,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                           )}
                         </div>
                         <span className="font-bold text-xs text-slate-900 dark:text-white">
-                          {selectedRecord.deviceType} · {selectedRecord.model}
+                          {selectedRecord.deviceType} · {dash(selectedRecord.model)}
                         </span>
                       </div>
                     </div>
@@ -996,9 +1158,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         </span>
                         <span
                           className="font-mono font-bold text-[11px] text-slate-800 dark:text-slate-200 truncate"
-                          title={selectedRecord.batterySerial || 'Integrated'}
+                          title={selectedRecord.batterySerial || '—'}
                         >
-                          {selectedRecord.batterySerial || 'Integrated'}
+                          {dash(selectedRecord.batterySerial)}
                         </span>
                       </div>
 
@@ -1037,7 +1199,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                           className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[140px]"
                           title={selectedRecord.installedByStaff || selectedRecord.handledByStaff}
                         >
-                          {selectedRecord.installedByStaff || selectedRecord.handledByStaff}
+                          {dash(selectedRecord.installedByStaff || selectedRecord.handledByStaff)}
                         </span>
                       </div>
 
@@ -1086,7 +1248,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                               selectedRecord.returnedByStaff || selectedRecord.handledByStaff
                             }
                           >
-                            {selectedRecord.returnedByStaff || selectedRecord.handledByStaff}
+                            {dash(selectedRecord.returnedByStaff || selectedRecord.handledByStaff)}
                           </span>
                           {(selectedRecord.returnedByStaff || selectedRecord.handledByStaff) !==
                             (selectedRecord.installedByStaff || selectedRecord.handledByStaff) && (
@@ -1121,7 +1283,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                             1. Field Installer
                           </span>
                           <strong className="text-slate-900 dark:text-white block mt-0.5">
-                            {inst}
+                            {dash(inst)}
                           </strong>
                         </div>
                         <div className="p-2.5 rounded-xl bg-white/80 dark:bg-white/5 border border-sky-100 dark:border-white/10 shadow-2xs">
@@ -1149,7 +1311,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                                 : 'text-slate-900 dark:text-white'
                             }`}
                           >
-                            {ret}
+                            {dash(ret)}
                           </strong>
                         </div>
                       </div>
@@ -1193,12 +1355,19 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
 
                 {/* Footer Handover & Close */}
                 <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/10">
-                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-xs">
-                    <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center shrink-0">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  {selectedRecord.settlementFinalized ? (
+                    <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-xs">
+                      <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <span>Settlement &amp; Inventory Handover Finalized</span>
                     </div>
-                    <span>Settlement &amp; Inventory Handover Finalized</span>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-xs">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>Settlement not yet confirmed</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2">
                     <button
@@ -1240,6 +1409,8 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsLogReturnModalOpen(false)}
+                  aria-label="Close log return dialog"
+                  title="Close"
                   className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer"
                 >
                   <X className="w-4 h-4" />
@@ -1263,7 +1434,8 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     required
                     value={formMerchantName}
                     onChange={(e) => setFormMerchantName(e.target.value)}
-                    placeholder="e.g. Sihanouk Blvd Minimart"
+                    placeholder="Merchant business name"
+                    aria-label="Merchant name"
                     className="w-full px-3 py-2 rounded-xl text-xs font-medium border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                   />
                 </div>
@@ -1282,7 +1454,8 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         const clean = e.target.value.replace(/\D/g, '').slice(0, 15);
                         setFormMid(clean);
                       }}
-                      placeholder="100000880105001"
+                      placeholder="15-digit MID"
+                      aria-label="MID"
                       className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                     />
                     <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
@@ -1297,7 +1470,8 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       type="text"
                       value={formTid}
                       onChange={(e) => setFormTid(e.target.value)}
-                      placeholder="TID-10501"
+                      placeholder="Issued TID (optional)"
+                      aria-label="Terminal ID"
                       className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                     />
                   </div>
@@ -1310,15 +1484,8 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     </label>
                     <select
                       value={formType}
-                      onChange={(e) => {
-                        const val = e.target.value as 'POS Terminal' | 'Sound Box';
-                        setFormType(val);
-                        setFormModel(
-                          val === 'POS Terminal'
-                            ? 'Wizar POS Q2 Pro'
-                            : 'Smart Sound Box SB-100'
-                        );
-                      }}
+                      onChange={(e) => setFormType(e.target.value as 'POS Terminal' | 'Sound Box')}
+                      aria-label="Device type"
                       className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                     >
                       <option value="POS Terminal">POS Terminal</option>
@@ -1333,6 +1500,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       value={formBranchId}
                       onChange={(e) => setFormBranchId(e.target.value)}
                       disabled={role === 'BRANCH'}
+                      aria-label="Branch code"
                       className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                     >
                       {branches.map((b) => (
@@ -1354,8 +1522,40 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       required
                       value={formSerial}
                       onChange={(e) => setFormSerial(e.target.value)}
-                      placeholder="WP5400PQ23200297"
+                      onBlur={fillFromDevice}
+                      list="history-device-serials"
+                      placeholder="Unit serial number"
+                      aria-label="Terminal serial"
                       className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                    />
+                    <div className={`text-[10px] mt-0.5 ${formSerial.trim() && !formDevice ? 'text-amber-600' : 'text-slate-400'}`}>
+                      {!formSerial.trim()
+                        ? 'Pick a serial from the device list to fill in its details.'
+                        : formDevice
+                        ? `In device list: ${formDevice.model} (Code ${formDevice.branchId})`
+                        : 'Not in device list — the record is saved, but no stock is moved.'}
+                    </div>
+                    <datalist id="history-device-serials">
+                      {devices
+                        .filter((d) => role !== 'BRANCH' || d.branchId === selectedBranch)
+                        .map((d) => (
+                          <option key={d.serial} value={d.serial}>
+                            {d.model} • Code {d.branchId}
+                          </option>
+                        ))}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                      Model
+                    </label>
+                    <input
+                      type="text"
+                      value={formModel}
+                      onChange={(e) => setFormModel(e.target.value)}
+                      placeholder="Device model"
+                      aria-label="Device model"
+                      className="w-full px-3 py-2 rounded-xl text-xs border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                     />
                   </div>
                   {formType === 'POS Terminal' && (
@@ -1367,7 +1567,8 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         type="text"
                         value={formBatterySerial}
                         onChange={(e) => setFormBatterySerial(e.target.value)}
-                        placeholder="160525A0005709"
+                        placeholder="Battery serial (if known)"
+                        aria-label="Battery serial"
                         className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                       />
                     </div>
@@ -1382,7 +1583,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     <input
                       type="date"
                       value={formInstallDate}
+                      max={formReturnDate || todayPP()}
                       onChange={(e) => setFormInstallDate(e.target.value)}
+                      aria-label="Installation date"
                       className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                     />
                   </div>
@@ -1393,7 +1596,10 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     <input
                       type="date"
                       value={formReturnDate}
+                      max={todayPP()}
+                      required
                       onChange={(e) => setFormReturnDate(e.target.value)}
+                      aria-label="Return date"
                       className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                     />
                   </div>
@@ -1406,6 +1612,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   <select
                     value={formReason}
                     onChange={(e) => setFormReason(e.target.value)}
+                    aria-label="Return reason"
                     className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                   >
                     <option value="Merchant Closed Business">Merchant Closed Business</option>
@@ -1449,7 +1656,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     </button>
                   </div>
                   <p className="text-[10px] text-slate-500 mt-1">
-                    Device will be cleared from active merchant and returned to {formReturnDestination === 'HQ_STOCK' ? 'HQ Central Warehouse (Branch 100)' : `Branch ${formBranchId} Reserve`}.
+                    Recorded as <strong>{statusForReason(formReason)}</strong>. Device will be cleared from active merchant and returned to {formReturnDestination === 'HQ_STOCK' ? 'HQ Central Warehouse (Branch 100)' : `Branch ${formBranchId} Reserve`}.
                   </p>
                 </div>
 
@@ -1461,6 +1668,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     rows={2}
                     value={formNotes}
                     onChange={(e) => setFormNotes(e.target.value)}
+                    aria-label="Notes"
                     placeholder="Condition of hardware, accessories returned, power adaptor, clearance notes..."
                     className="w-full px-3 py-2 rounded-xl text-xs border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                   />
