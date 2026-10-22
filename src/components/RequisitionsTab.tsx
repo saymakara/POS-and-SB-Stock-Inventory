@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFlip } from '../utils/useFlip';
+import { useProgressive } from '../utils/useProgressive';
 import { useSort, SortTh } from '../utils/sort';
 import { createPortal } from 'react-dom';
 import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '../types';
@@ -8,7 +9,6 @@ import {
   SendHorizontal,
   CheckCircle2,
   Truck,
-  Check,
   ScrollText,
   BatteryCharging,
   Cpu,
@@ -19,7 +19,6 @@ import {
   ArrowRight,
   ArrowLeft,
   ShieldCheck,
-  RotateCcw,
   Upload,
   Pencil,
 } from 'lucide-react';
@@ -67,7 +66,10 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
     request: (r) => r.reqId, branch: (r) => Number(r.branchId) || r.branchId, qty: (r) => (r.posQty || 0) + (r.sbQty || 0),
     serials: (r) => (r.arrangedDevices || []).length, status: (r) => r.status, date: (r) => r.date,
   });
-  useFlip(flipRef, [sortedReqs]);
+  // (review) long request lists are drawn progressively: 60 rows at once, more while scrolling
+  const { visible: reqVisible, sentinelRef: reqSentinel, hasMore: reqMore } = useProgressive(sortedReqs.length, [reqSort, requisitions.length]);
+  const shownReqs = useMemo(() => sortedReqs.slice(0, reqVisible), [sortedReqs, reqVisible]);
+  useFlip(flipRef, [shownReqs]);
   const isLight = theme === 'light';
   // Dispatching / approving moves Head Office stock: HQ roles only (the server enforces this too).
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -355,7 +357,6 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
     ? 'sb-card-header-light'
     : 'sb-card-header-dark';
 
-  const headingClass = isLight ? 'text-zinc-900' : 'text-white';
   const subtextClass = isLight ? 'text-zinc-500' : 'text-slate-300';
   const navyTitleClass = isLight ? 'text-zinc-900' : 'text-zinc-100';
 
@@ -405,7 +406,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               </tr>
             </thead>
             <tbody ref={flipRef}>
-              {sortedReqs.map((req, rowIdx) => {
+              {shownReqs.map((req, rowIdx) => {
                 const isReturnReq = req.type === 'STOCK_RETURN';
                 const arranged = req.arrangedDevices || [];
                 let chip = 'chip-amber';
@@ -504,6 +505,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               )}
             </tbody>
           </table>
+          {reqMore && <div ref={reqSentinel} className="h-10 flex items-center justify-center text-[11px] text-slate-400">Showing {reqVisible} of {sortedReqs.length}…</div>}
         </div>
       </div>
 

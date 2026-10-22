@@ -36,7 +36,8 @@ export function parseCsv(text: string, delimiter?: string): string[][] {
 export function csvCell(value: unknown): string {
   if (value === null || value === undefined) return '""';
   let s = String(value).replace(/\r?\n|\r/g, ' ').trim();
-  if (/^[=+\-@]/.test(s)) s = `'${s}`;
+  // (review) also a leading tab / '|' and the full-width forms Excel accepts; plain negative numbers stay numbers
+  if (/^[=+@\t|＝＋－＠]/.test(s) || (/^-/.test(s) && !/^-\d+(\.\d+)?$/.test(s))) s = `'${s}`;
   return `"${s.replace(/"/g, '""')}"`;
 }
 /** A CSV file Excel opens with Khmer text intact (UTF-8 BOM, CRLF). */

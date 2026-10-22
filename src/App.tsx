@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useDeferredValue } from 'react';
+import React, { Suspense, useState, useMemo, useEffect, useCallback, useDeferredValue } from 'react';
 import {
   Device,
   Branch,
@@ -37,25 +37,40 @@ import { PipelineBar } from './components/PipelineBar';
 import { KpiCards } from './components/KpiCards';
 import { DashboardTab } from './components/DashboardTab';
 import { InventoryTab } from './components/InventoryTab';
-import { BranchesTab } from './components/BranchesTab';
-import { IamUsersTab } from './components/IamUsersTab';
-import { MerchantsCrmTab } from './components/MerchantsCrmTab';
-import { MerchantHistoryTab } from './components/MerchantHistoryTab';
-import { RequisitionsTab } from './components/RequisitionsTab';
 import { WorkflowModal } from './components/WorkflowModal';
 import { ChangeBatteryModal } from './components/ChangeBatteryModal';
 import { ExportDataModal } from './components/ExportDataModal';
 import { BatchUploadModal } from './components/BatchUploadModal';
 import { RequestStockModal } from './components/RequestStockModal';
 import { SessionLockModal } from './components/SessionLockModal';
-import { MobileSyncTab } from './components/MobileSyncTab';
-import { SettingsTab, SettingsSubTab } from './components/SettingsTab';
-import { LogoPageTab } from './components/LogoPageTab';
-import { AuditLogTab } from './components/AuditLogTab';
+import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { motion, AnimatePresence } from 'motion/react';
 import { flushSync } from 'react-dom';
+
+// (22 Oct 2026, review) Screens other than the Dashboard and Stock Inventory are loaded when first opened, and fetched
+// quietly in the background right after start-up, so the app opens faster and switching tabs is still instant.
+const tabLoaders: Array<() => Promise<unknown>> = [];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyTab<C extends React.ComponentType<any>>(load: () => Promise<{ default: C }>) {
+  tabLoaders.push(load);
+  return React.lazy(load);
+}
+export function prefetchTabs(): void {
+  tabLoaders.forEach((load) => { load().catch(() => { /* loaded again when opened */ }); });
+}
+const BranchesTab = lazyTab(() => import('./components/BranchesTab').then((m) => ({ default: m.BranchesTab })));
+const IamUsersTab = lazyTab(() => import('./components/IamUsersTab').then((m) => ({ default: m.IamUsersTab })));
+const MerchantsCrmTab = lazyTab(() => import('./components/MerchantsCrmTab').then((m) => ({ default: m.MerchantsCrmTab })));
+const MerchantHistoryTab = lazyTab(() => import('./components/MerchantHistoryTab').then((m) => ({ default: m.MerchantHistoryTab })));
+const RequisitionsTab = lazyTab(() => import('./components/RequisitionsTab').then((m) => ({ default: m.RequisitionsTab })));
+const MobileSyncTab = lazyTab(() => import('./components/MobileSyncTab').then((m) => ({ default: m.MobileSyncTab })));
+const LogoPageTab = lazyTab(() => import('./components/LogoPageTab').then((m) => ({ default: m.LogoPageTab })));
+const AuditLogTab = lazyTab(() => import('./components/AuditLogTab').then((m) => ({ default: m.AuditLogTab })));
+const SettingsTab = lazyTab(() => import('./components/SettingsTab').then((m) => ({ default: m.SettingsTab })));
+const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
+const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
 
 /** Runs a page change as a smooth morph/glide where the browser supports View Transitions. */
 function glideTo(update: () => void) {
@@ -65,7 +80,7 @@ function glideTo(update: () => void) {
   try { doc.startViewTransition(() => flushSync(update)); } catch { update(); }
 }
 import { SendHorizontal, Lock } from 'lucide-react';
-import { isSupabaseConfigured, checkSupabaseConnection } from './lib/supabase';
+import { isSupabaseConfigured } from './lib/supabase';
 import {
   fetchDevicesFromSupabase,
   fetchRequisitionsFromSupabase,
@@ -83,10 +98,12 @@ import {
   subscribeToFieldEvents,
   dispatchRequisitionOnServer,
   receiveReturnOnServer,
+  fetchBranchesFromSupabase,
+  saveBranchOnServer,
+  fetchStaffAccounts,
+  StaffAccount,
 } from './services/supabaseService';
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
-import { FieldReviewTab } from './components/FieldReviewTab';
-import { StaffAccountsTab } from './components/StaffAccountsTab';
 import { SetupAlert } from './components/SetupAlert';
 import {
   loadDevicesFromIdb,
@@ -184,8 +201,22 @@ const historyRecordFor = (
     notes: o.notes || '',
   };
 };
+/** Shown for a moment while a screen opened for the first time is fetched. */
+const TabLoading = () => (
+  <div className="space-y-3" aria-busy="true" aria-label="Loading">
+    <div className="skeleton h-10 rounded-xl w-1/3" />
+    <div className="skeleton h-64 rounded-2xl" />
+  </div>
+);
 const TERMINATION_REASON = /clos|terminat|franchise|seasonal|cancel/i;
 const loadServerAuditLogs = () => fetchAuditLogs(1000);
+/** A server staff account in the shape the screens use (no password: sign-in is handled by the server). */
+const staffToUser = (a: StaffAccount, branchName?: string): User => ({
+  uid: a.userId, empId: a.empId, name: a.name, label: `${a.name} (${a.empId})`, accessRole: a.role,
+  branchId: a.branchId, branchName: a.branchId === '100' ? 'Head Office' : branchName || `Branch ${a.branchId}`,
+  position: a.position || '', contact: a.contact || '', status: a.active ? (a.mustChangePassword ? 'Pending' : 'Operating') : 'Suspended',
+  updatedAt: (a.updatedAt || '').slice(0, 10),
+});
 
 
 const INITIAL_NOTIFICATIONS: SystemNotification[] = [];
@@ -201,6 +232,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const getBootSession = () => bootSession.current || null;
   // Always use Light Mode (Single theme as before)
   const theme: ThemeMode = 'light';
+
+  useEffect(() => {                                                  // the other screens arrive while the first one is in use
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+    const t = w.requestIdleCallback ? w.requestIdleCallback(prefetchTabs, { timeout: 2500 }) : window.setTimeout(prefetchTabs, 1200);
+    return () => { if (!w.requestIdleCallback) window.clearTimeout(t); };
+  }, []);
 
   useEffect(() => {
     try {
@@ -321,6 +358,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   const [auditLogs, setAuditLogs] = useState<string[]>(() => {
     try {
+      if (isSupabaseConfigured) return [];                             // (review) the server keeps the audit log
       const saved = localStorage.getItem(STORAGE_KEY_LOGS);
       if (saved) return JSON.parse(saved);
     } catch (e) {
@@ -453,14 +491,17 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
   }, []);
 
-  const [supabaseConnected, setSupabaseConnected] = useState<boolean>(false);
-  const [supabaseLatency, setSupabaseLatency] = useState<number | undefined>();
 
   // (21 Oct 2026) The shared database is the record. Everything is loaded from it (nothing from this browser is pushed
   // up), live changes come in from it, and every change made here goes back to it (see the change watchers below).
   const syncedDevices = React.useRef<Map<string, Device>>(new Map());
   const syncedReqs = React.useRef<Map<string, Requisition>>(new Map());
   const syncedHist = React.useRef<Set<string>>(new Set());
+  // (22 Oct 2026, review) every copy that came FROM the server (load or live feed). Such a copy is never sent back:
+  // before, a screen update that was still running with the previous list could send a unit's old copy back right after
+  // another user changed it – the server refused it as stale, a "changed by someone else" message appeared and the
+  // whole stock was reloaded on every viewer's screen.
+  const serverCopies = React.useRef<WeakSet<object>>(new WeakSet());
   const [serverReady, setServerReady] = useState<boolean>(false);
   const [serverError, setServerError] = useState<string>('');
   const [pendingFieldCount, setPendingFieldCount] = useState<number>(0);
@@ -470,17 +511,34 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const versionAlias = React.useRef<Map<string, Map<number, number>>>(new Map());
   const reloadFromServer = useCallback(async (): Promise<boolean> => {
     versionAlias.current = new Map();
-    const [devs, reqs, hist] = await Promise.all([
+    const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
+    const [devs, reqs, hist, srvBranches, staff] = await Promise.all([
       fetchDevicesFromSupabase(),
       fetchRequisitionsFromSupabase(),
       fetchHistoricalMerchantsFromSupabase(),
+      fetchBranchesFromSupabase(),
+      isAdminProfile ? fetchStaffAccounts() : Promise.resolve(null),
     ]);
+    // (22 Oct 2026, review) the branch list and the staff are the server's: before, both came from a list built into
+    // the app, so a branch added by one admin was never seen by another and the staff counts were not the real accounts
+    if (srvBranches && srvBranches.length) {
+      setBranches((prev) => {
+        const local = new Map(prev.map((b) => [b.id, b]));
+        return srvBranches.map((b) => ({ ...(local.get(b.id) || { staff: [], staffDetails: [] }), id: b.id, code: b.code, name: b.id === '100' ? 'Head Office' : b.name }));
+      });
+    }
+    if (staff) {
+      const bn = new Map((srvBranches || []).map((b) => [b.id, b.name]));
+      setUsers(staff.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId))));
+    }
     if (devs) {
       syncedDevices.current = new Map(devs.map((d) => [d.serial, d]));
+      devs.forEach((d) => serverCopies.current.add(d));
       setDevices(devs);
     }
     if (reqs) {
       syncedReqs.current = new Map(reqs.map((r) => [r.reqId, r]));
+      reqs.forEach((r) => serverCopies.current.add(r));
       setRequisitions(reqs);
     }
     if (hist) {
@@ -488,7 +546,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       setHistoricalMerchants(hist);
     }
     return Boolean(devs && reqs && hist);
-  }, []);
+  }, [profile?.role]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -505,11 +563,76 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       if (countTimer) return;
       countTimer = setTimeout(() => { countTimer = null; countPending(); }, 15000);
     };
+    // (22 Oct 2026, review) Live changes are collected and applied together once per frame: a burst of changes
+    // (a dispatch of 50 units, a bulk approval) is one screen update, not 50 copies of the whole list. The feed is
+    // opened BEFORE the first load, so a change made while the stock is loading is not lost; an older copy of a unit
+    // (lower version) never replaces a newer one.
+    let loadedOnce = false;
+    const pendingDev = new Map<string, Device | null>();               // serial → new copy, or null = deleted
+    const pendingReq = new Map<string, Requisition | null>();
+    let flushHandle: number | null = null;
+    const flush = () => {
+      flushHandle = null;
+      if (!alive || !loadedOnce) return;
+      if (pendingDev.size) {
+        const batch = new Map(pendingDev); pendingDev.clear();
+        batch.forEach((d, serial) => { if (d) syncedDevices.current.set(serial, d); else syncedDevices.current.delete(serial); });
+        setDevices((prev) => {
+          const next: Device[] = [];
+          const seen = new Set<string>();
+          for (const d of prev) {
+            if (!batch.has(d.serial)) { next.push(d); continue; }
+            seen.add(d.serial);
+            const inc = batch.get(d.serial);
+            if (!inc) continue;                                         // deleted on the server
+            if ((d.rowVersion || 0) > (inc.rowVersion || 0)) {
+              next.push(d);                                             // this copy is newer: keep it, and do not send it again
+              syncedDevices.current.set(d.serial, d);
+            } else next.push(inc);
+          }
+          const added: Device[] = [];
+          batch.forEach((d, serial) => { if (d && !seen.has(serial)) added.push(d); });
+          return added.length ? [...added, ...next] : next;
+        });
+      }
+      if (pendingReq.size) {
+        const batch = new Map(pendingReq); pendingReq.clear();
+        batch.forEach((r, id) => { if (r) syncedReqs.current.set(id, r); else syncedReqs.current.delete(id); });
+        setRequisitions((prev) => {
+          const seen = new Set<string>();
+          const next = prev.flatMap((r) => {
+            if (!batch.has(r.reqId)) return [r];
+            seen.add(r.reqId);
+            const inc = batch.get(r.reqId);
+            return inc ? [inc] : [];
+          });
+          const added: Requisition[] = [];
+          batch.forEach((r, id) => { if (r && !seen.has(id)) added.push(r); });
+          return added.length ? [...added, ...next] : next;
+        });
+      }
+    };
+    const scheduleFlush = () => {
+      if (flushHandle !== null || !loadedOnce) return;
+      flushHandle = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(flush) : (setTimeout(flush, 16) as unknown as number);
+    };
+    unsubscribe = subscribeToRealtimeChanges(
+      (d) => { serverCopies.current.add(d); pendingDev.set(d.serial, d); scheduleFlush(); },
+      (r) => { serverCopies.current.add(r); pendingReq.set(r.reqId, r); scheduleFlush(); },
+      {
+        onDeviceDelete: (serial) => { pendingDev.set(serial, null); scheduleFlush(); },
+        onRequisitionDelete: (reqId) => { pendingReq.set(reqId, null); scheduleFlush(); },
+        onHistoryInsert: (rec) => {
+          syncedHist.current.add(rec.recordId);                         // (came from the server: not sent back)
+          setHistoricalMerchants((prev) => (prev.some((h) => h.recordId === rec.recordId) ? prev : [rec, ...prev]));
+        },
+        onReconnect: () => {
+          // the live feed was down for a while: changes made meanwhile were missed
+          reloadFromServer().then((ok) => setServerError(ok ? '' : 'The connection to the server is unstable. Please reload the page.'));
+        },
+      }
+    );
     (async () => {
-      const conn = await checkSupabaseConnection();
-      if (!alive) return;
-      setSupabaseConnected(conn.connected);
-      if (conn.latencyMs !== undefined) setSupabaseLatency(conn.latencyMs);
       const loaded = await reloadFromServer();
       if (!alive) return;
       if (!loaded) {
@@ -517,50 +640,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         return;
       }
       setServerReady(true);
-      unsubscribe = subscribeToRealtimeChanges(
-        (updatedDevice) => {
-          syncedDevices.current.set(updatedDevice.serial, updatedDevice);   // (came from the server: not sent back)
-          setDevices((prev) => {
-            const idx = prev.findIndex((d) => d.serial === updatedDevice.serial);
-            if (idx >= 0) {
-              const next = [...prev];
-              next[idx] = updatedDevice;
-              return next;
-            }
-            return [updatedDevice, ...prev];
-          });
-        },
-        (updatedReq) => {
-          syncedReqs.current.set(updatedReq.reqId, updatedReq);
-          setRequisitions((prev) => {
-            const idx = prev.findIndex((r) => r.reqId === updatedReq.reqId);
-            if (idx >= 0) {
-              const next = [...prev];
-              next[idx] = updatedReq;
-              return next;
-            }
-            return [updatedReq, ...prev];
-          });
-        },
-        {
-          onDeviceDelete: (serial) => {
-            syncedDevices.current.delete(serial);
-            setDevices((prev) => prev.filter((d) => d.serial !== serial));
-          },
-          onRequisitionDelete: (reqId) => {
-            syncedReqs.current.delete(reqId);
-            setRequisitions((prev) => prev.filter((r) => r.reqId !== reqId));
-          },
-          onHistoryInsert: (rec) => {
-            syncedHist.current.add(rec.recordId);                       // (came from the server: not sent back)
-            setHistoricalMerchants((prev) => (prev.some((h) => h.recordId === rec.recordId) ? prev : [rec, ...prev]));
-          },
-          onReconnect: () => {
-            // the live feed was down for a while: changes made meanwhile were missed
-            reloadFromServer().then((ok) => setServerError(ok ? '' : 'The connection to the server is unstable. Please reload the page.'));
-          },
-        }
-      );
+      loadedOnce = true;
+      // changes that arrived while loading: keep only those newer than what was loaded
+      pendingDev.forEach((d, serial) => {
+        const have = syncedDevices.current.get(serial);
+        if (d && have && (have.rowVersion || 0) >= (d.rowVersion || 0)) pendingDev.delete(serial);
+      });
+      scheduleFlush();
       countPending();
       unsubscribeField = subscribeToFieldEvents(() => countPendingSoon());
     })();
@@ -568,6 +654,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return () => {
       alive = false;
       if (countTimer) clearTimeout(countTimer);
+      if (flushHandle !== null) { try { cancelAnimationFrame(flushHandle); } catch { /* not a frame */ } }
       unsubscribe();
       unsubscribeField();
     };
@@ -640,6 +727,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   }, [users]);
 
   useEffect(() => {
+    if (isSupabaseConfigured) return;                                  // (review) never left in a shared browser
     try {
       localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(auditLogs));
     } catch (e) {
@@ -847,14 +935,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   }, [triggerToast, reloadFromServer]);
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
-    const changed = devices.filter((d) => syncedDevices.current.get(d.serial) !== d);
+    const changed = devices.filter((d) => syncedDevices.current.get(d.serial) !== d && !serverCopies.current.has(d));
     if (!changed.length) return;
     changed.forEach((d) => syncedDevices.current.set(d.serial, d));
     pushDevices(changed);
   }, [devices, serverReady, pushDevices]);
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
-    const changed = requisitions.filter((r) => syncedReqs.current.get(r.reqId) !== r);
+    const changed = requisitions.filter((r) => syncedReqs.current.get(r.reqId) !== r && !serverCopies.current.has(r));
     if (!changed.length) return;
     const jobs = changed.map((r) => {
       const prior = syncedReqs.current.get(r.reqId);
@@ -1166,24 +1254,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   // Optimistic UI Background Cloud Sync System (Instant Perception, 60fps)
   const [syncingSerials, setSyncingSerials] = useState<Set<string>>(new Set());
-  const [optimisticSyncState, setOptimisticSyncState] = useState<{
-    isSyncing: boolean;
-    pendingCount: number;
-    lastActionText: string;
-    lastSyncedTime: string | null;
-  }>({
-    isSyncing: false,
-    pendingCount: 0,
-    lastActionText: '',
-    lastSyncedTime: null,
-  });
 
   const devicesRef = React.useRef(devices);
   useEffect(() => {
     devicesRef.current = devices;
   }, [devices]);
 
-  const triggerOptimisticSync = useCallback((serials: string[], actionText: string, syncPayload?: Device[]) => {
+  const triggerOptimisticSync = useCallback((serials: string[], _actionText: string, syncPayload?: Device[]) => {
     // 1. Immediately mark serials for instant row highlight
     setSyncingSerials((prev) => {
       const next = new Set(prev);
@@ -1191,29 +1268,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       return next;
     });
 
-    // 2. Set background syncing state (instant UI perception, non-blocking)
-    setOptimisticSyncState((prev) => ({
-      isSyncing: true,
-      pendingCount: prev.pendingCount + serials.length,
-      lastActionText: actionText,
-      lastSyncedTime: prev.lastSyncedTime,
-    }));
-
     // 3. (21 Oct 2026) saved to the database by the change watcher (devices), with an error shown if refused
     void syncPayload;
 
     // 4. Asynchronous background cloud persistence queue (simulating Supabase/REST commit without blocking user thread)
     setTimeout(() => {
-      setOptimisticSyncState((prev) => {
-        const nextCount = Math.max(0, prev.pendingCount - serials.length);
-        return {
-          isSyncing: nextCount > 0,
-          pendingCount: nextCount,
-          lastActionText: actionText,
-          lastSyncedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        };
-      });
-
       // Clear row highlight gently after brief confirmation window (with the shared database the real save clears it)
       if (isSupabaseConfigured) return;
       setTimeout(() => {
@@ -1908,19 +1967,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     finish(items.length);
   };
 
-  const handleDirectToStockInventory = (
-    req: Requisition,
-    _currentStaged?: ArrangedDeviceItem[]
-  ) => {
-    setFulfillingRequisition(req);
-    setStageFilter('HQ_STOCK');
-    setBranchFilter('100');
-    setActiveTab('inventory');
-    triggerToast(
-      `Directing to Stock Inventory: Select ${req.posQty} POS & ${req.sbQty} Sound Box for Requisition ${req.reqId}`
-    );
-  };
-
   const handleConfirmFulfillment = (selectedSerials: string[]) => {
     if (!fulfillingRequisition) return;
     const chosen = new Set(selectedSerials);
@@ -2073,7 +2119,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     triggerToast(`Bound ${nextMap.size} unit(s)` + (problems.length ? `; ${problems.length} refused: ${problems.slice(0, 3).join('; ')}${problems.length > 3 ? '…' : ''}` : '.'));
   };
 
-  const handleSaveBranch = (e: React.FormEvent) => {
+  const handleSaveBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = branchCodeInput.trim();
     const name = branchNameInput.trim();
@@ -2083,6 +2129,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       .filter(Boolean);
 
     if (!code || !name) return;
+    if (!editingBranch && branches.some((b) => b.code === code)) {
+      triggerToast(`Branch Code ${code} already exists!`);
+      return;
+    }
+    if (!/^[A-Za-z0-9-]{1,10}$/.test(code)) {
+      triggerToast('Branch Code: up to 10 letters or digits.');
+      return;
+    }
+    if (isSupabaseConfigured) {
+      // (22 Oct 2026, review) saved on the server first, so every admin sees the same branches
+      const err = await saveBranchOnServer({ id: editingBranch ? editingBranch.id : code, name });
+      if (err) { triggerToast(`Branch Code ${code} was not saved: ${err}`); return; }
+    }
 
     if (editingBranch) {
       setBranches((prev) =>
@@ -2749,6 +2808,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
               <motion.div key={activeTab} className="tab-view" initial={{ opacity: 0, y: 14, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.7 }} style={{ willChange: 'transform, opacity' }}>
                   <ErrorBoundary>
+                  <Suspense fallback={<TabLoading />}>
                   {activeTab === 'dashboard' && (
                     <DashboardTab
                       devices={scopedDevices}
@@ -3094,6 +3154,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       </button>
                     </div>
                   )}
+                  </Suspense>
                   </ErrorBoundary>
               </motion.div>
             </main>

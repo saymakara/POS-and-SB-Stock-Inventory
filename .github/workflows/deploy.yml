@@ -32,20 +32,16 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
 
       - name: Build Production
         env:
           SECRET_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SECRET_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          SECRET_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           export VITE_SUPABASE_URL="${SECRET_SUPABASE_URL:-https://mrrzfmtaqjdwhwznznie.supabase.co}"
           export VITE_SUPABASE_ANON_KEY="${SECRET_SUPABASE_KEY:-sb_publishable_XloNkOBo9MnkYUJzowb1vg_YRrjG7GB}"
           export VITE_SUPABASE_PUBLISHABLE_KEY="$VITE_SUPABASE_ANON_KEY"
-          if [ -n "$SECRET_GEMINI_KEY" ]; then
-            export GEMINI_API_KEY="$SECRET_GEMINI_KEY"
-          fi
           npm run build
 
       - name: Copy 404 fallback for SPA

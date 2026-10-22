@@ -6,9 +6,7 @@ import {
   Warehouse,
   Store,
   Wrench,
-  Truck,
   CheckCircle2,
-  AlertTriangle,
   RotateCcw,
   SearchX,
 } from 'lucide-react';

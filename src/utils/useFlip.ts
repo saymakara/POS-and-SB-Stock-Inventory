@@ -16,6 +16,7 @@ export function useFlip(ref: RefObject<HTMLElement | null>, deps: ReadonlyArray<
     const root = ref.current;
     if (!root) return;
     const rows = Array.from(root.querySelectorAll<HTMLElement>('[data-flip]'));
+    if (rows.length > MAX_ROWS) { prev.current = new Map(); return; }   // (review) no layout reads for long lists
     const next = new Map<string, number>();
     // read phase: all positions first (one layout), so nothing is forced to recalculate in a loop
     const tops = rows.map((el) => el.offsetTop);
@@ -23,7 +24,7 @@ export function useFlip(ref: RefObject<HTMLElement | null>, deps: ReadonlyArray<
     const before = prev.current;
     prev.current = next;
     const calm = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (calm || rows.length > MAX_ROWS || before.size === 0) return;
+    if (calm || before.size === 0) return;
 
     const moved: HTMLElement[] = [];
     const fresh: HTMLElement[] = [];

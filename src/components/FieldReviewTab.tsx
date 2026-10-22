@@ -3,6 +3,7 @@ import { Smartphone, Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ba
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
+import { useProgressive } from '../utils/useProgressive';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { STAGE_META } from '../data/initialData';
 import {
@@ -31,7 +32,6 @@ const KIND_LABEL: Record<FieldEvent['kind'], string> = {
   SB_MAINT: 'Sound Box maintenance',
   SB_RETURN: 'Sound Box returned',
 };
-const STATUS_CHIP: Record<string, string> = { PENDING: 'chip-slate', APPROVED: 'chip-green', REJECTED: 'chip-red', SUPERSEDED: 'chip-slate', CANCELLED: 'chip-slate' };
 const STATUS_LABEL: Record<string, string> = { PENDING: 'Waiting', APPROVED: 'Approved', REJECTED: 'Rejected', SUPERSEDED: 'Replaced by a newer edit', CANCELLED: 'Withdrawn in the phone app' };
 type Filter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
@@ -93,8 +93,6 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
   const [bulkBusy, setBulkBusy] = useState<'' | 'approve' | 'reject'>('');
   const [bulkReport, setBulkReport] = useState<string[]>([]);
   const [regions, setRegions] = useState<Record<string, string>>({});
-  const [visible, setVisible] = useState(FIRST);
-  const sentinel = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { fetchBranchRegions().then(setRegions); }, []);
 
@@ -180,14 +178,8 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
     merchant: (e) => e.outletName || e.terminalName, branch: (e) => e.branchText, staff: (e) => e.staffName,
     status: (e) => STATUS_LABEL[e.status], date: (e) => e.receivedAt,
   });
-  useEffect(() => { setVisible(FIRST); }, [filter, typeFilter, deferredQuery, scope]);
-  useEffect(() => {          // more rows are drawn as the list is scrolled: a long list opens at once
-    const el = sentinel.current;
-    if (!el || visible >= shown.length) return;
-    const io = new IntersectionObserver((en) => { if (en.some((x) => x.isIntersecting)) setVisible((v) => v + 60); }, { rootMargin: '600px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [visible, shown.length]);
+  // more rows are drawn as the list is scrolled: a long list opens at once
+  const { visible, sentinelRef: sentinel } = useProgressive(shown.length, [filter, typeFilter, deferredQuery, scope, sort], FIRST, 60);
 
   const shownPending = useMemo(() => shown.filter((e) => e.status === 'PENDING'), [shown]);
   const selectedShown = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
@@ -351,7 +343,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
           <SortBtn k="merchant" sort={sort} onSort={toggleSort}>Merchant Name</SortBtn>
           <SortBtn k="branch" sort={sort} onSort={toggleSort}>Branch / Staff</SortBtn>
           <SortBtn k="status" sort={sort} onSort={toggleSort}>Status</SortBtn>
-          <SortBtn k="date" sort={sort} onSort={toggleSort} right>Decision</SortBtn>
+          <span className="text-right">Decision</span>
         </div>
 
         {loadingFirst && (

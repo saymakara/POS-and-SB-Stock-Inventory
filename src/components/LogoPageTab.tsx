@@ -4,32 +4,22 @@ import {
   AppBrandLogo,
   PRESET_META,
   LogoPresetId,
-  SvgFintechPulse,
-  SvgApexPos,
-  SvgBankShield,
-  SvgQuantumSound,
 } from './AppBrandLogo';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import {
   Sparkles,
   Upload,
   Link as LinkIcon,
   Download,
-  Copy,
-  Check,
   RotateCcw,
   CheckCircle2,
   Smartphone,
   CreditCard,
   Volume2,
   Laptop,
-  FileSpreadsheet,
   Image as ImageIcon,
-  ShieldCheck,
   Palette,
   Eye,
-  Sliders,
-  Maximize2,
 } from 'lucide-react';
 
 interface LogoPageTabProps {
@@ -61,7 +51,6 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
     appSettings.customLogoSubtitle || 'Branch Operations Portal'
   );
 
-  const [copiedCode, setCopiedCode] = useState(false);
   const [activeMockup, setActiveMockup] = useState<'sidebar' | 'pos' | 'soundbox' | 'mobile' | 'report'>('sidebar');
   const [canvasBg, setCanvasBg] = useState<'dark' | 'light' | 'transparent' | 'teal'>('dark');
 

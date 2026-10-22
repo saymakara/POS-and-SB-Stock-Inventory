@@ -13,8 +13,6 @@ import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Building2,
-  Users,
-  FilePlus,
   SendHorizontal,
   LayoutDashboard,
   Boxes,
@@ -26,10 +24,8 @@ import {
   Smartphone,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   Menu,
   UserCircle2,
-  ClipboardList,
   History,
   Bell,
   LogOut,
@@ -39,9 +35,6 @@ import {
   X,
   ArrowRight,
   Inbox,
-  Sparkles,
-  Palette,
-  Check,
   Search,
   Cpu,
   Volume2,
@@ -480,8 +473,6 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     branches[0] ||
     { id: '105', code: '105', name: 'Branch Office', staff: ['Branch Staff'] };
 
-  const operatorName =
-    role === 'BRANCH' ? activeStaff : activeAdminStaff.split(' (')[0];
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

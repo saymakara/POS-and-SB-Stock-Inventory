@@ -12,7 +12,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Smartphone,
   Wifi,
-  BatteryCharging,
   Send,
   CheckCircle2,
   MapPin,
@@ -20,7 +19,6 @@ import {
   Cpu,
   Volume2,
   Wrench,
-  Truck,
   AlertTriangle,
   Shuffle,
   ArrowRight,
@@ -38,14 +36,12 @@ import {
   Phone,
   UserCheck,
   FileText,
-  Signal,
   Building2,
   RotateCcw,
   SearchX,
   Copy,
   ExternalLink,
   Radio,
-  Layers,
 } from 'lucide-react';
 
 interface MobileSyncTabProps {
@@ -494,28 +490,9 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
     setReplacementSerial(availableReserveForReplace[0]?.serial || '');
   }, [availableReserveForReplace]);
 
-  // One MID One Serial conflict check for iPhone Simulator
-  const conflictingMids = useMemo(() => {
-    const clean = mid.trim().toUpperCase();
-    if (!clean) return [];
-    return devices.filter(
-      (d) =>
-        d.serial !== selectedSerial &&
-        d.mid &&
-        d.mid.trim().toUpperCase() === clean &&
-        d.stage !== 'FAULTY' &&
-        d.stage !== 'LOST'
-    );
-  }, [mid, devices, selectedSerial]);
-
   const handleSubmitMobileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSerial || isSubmitting) return;
-
-    const isDecoupleAction =
-      mobileSubAction === 'STEP10_TERMINATE' ||
-      mobileSubAction === 'STEP11_REUSE' ||
-      stage === 'LOST';
 
     setIsSubmitting(true);
     setDynamicIslandState('SYNCING');
