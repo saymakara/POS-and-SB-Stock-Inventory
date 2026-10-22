@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, Branch, ArrangedDeviceItem } from '../types';
+import { normalizeMid } from '../utils/display';
 
 /**
  * Maps Supabase snake_case / postgres schema to application Device type
@@ -37,7 +38,7 @@ function mapRowToDevice(row: any): Device {
         ? 'In-Stock (Reserve)'
         : 'In-process'),
     stockStatus: row.stock_status || (stage === 'COMPLETE' ? 'At Merchant' : 'In-Stock'),
-    mid: row.mid || '',
+    mid: normalizeMid(row.mid),
     tid: row.tid || '',
     merchantName: row.merchant_name || '',
     merchantPhone: row.merchant_phone || '',
@@ -78,7 +79,7 @@ function mapDeviceToRow(dev: Device): any {
     merchant_phone: dev.merchantPhone || null,
     location: dev.location || null,
     address: dev.address || null,
-    mid: dev.mid || null,
+    mid: normalizeMid(dev.mid) || null,
     tid: dev.tid || null,
     note: dev.note || null,
     history: dev.history || [],
@@ -138,18 +139,39 @@ function mapRequisitionToRow(req: Requisition): any {
 
 /** Reads a whole table page by page in a stable order (PostgREST returns at most 1000 rows per call). */
 async function fetchAllRows(table: string, orderCol: string, pageSize = 1000, maxTotal = 500000): Promise<any[] | null> {
-  const all: any[] = [];
-  for (let from = 0; from < maxTotal; from += pageSize) {
-    const { data, error } = await supabase.from(table).select('*').order(orderCol, { ascending: true }).range(from, from + pageSize - 1);
-    if (error) {
-      console.warn(`[Supabase] Error reading ${table}:`, error.message);
-      return null;                                                     // never show a part of a list as if it were all of it
-    }
-    if (!data || data.length === 0) break;
-    all.push(...data);
-    if (data.length < pageSize) break;
+  // (22 Oct 2026) the first page also returns the total; the other pages are then read at the same time (faster start)
+  const page = (from: number, withCount: boolean) =>
+    supabase.from(table).select('*', withCount ? { count: 'exact' } : undefined).order(orderCol, { ascending: true }).range(from, from + pageSize - 1);
+  const first = await page(0, true);
+  if (first.error) {
+    console.warn(`[Supabase] Error reading ${table}:`, first.error.message);
+    return null;                                                       // never show a part of a list as if it were all of it
   }
-  return all;
+  const rows: any[] = [...(first.data || [])];
+  if (rows.length < pageSize) return rows;
+  if (first.count == null) {                                           // no total given: read on page by page
+    for (let from = pageSize; from < maxTotal; from += pageSize) {
+      const r = await page(from, false);
+      if (r.error) { console.warn(`[Supabase] Error reading ${table}:`, r.error.message); return null; }
+      rows.push(...(r.data || []));
+      if (!r.data || r.data.length < pageSize) break;
+    }
+    return rows;
+  }
+  const total = Math.min(first.count, maxTotal);
+  if (total <= rows.length) return rows;
+  const starts: number[] = [];
+  for (let from = pageSize; from < total; from += pageSize) starts.push(from);
+  for (let i = 0; i < starts.length; i += 4) {                         // at most 4 pages at a time
+    const res = await Promise.all(starts.slice(i, i + 4).map((f) => page(f, false)));
+    for (const r of res) {
+      if (r.error) { console.warn(`[Supabase] Error reading ${table}:`, r.error.message); return null; }
+      rows.push(...(r.data || []));
+    }
+  }
+  // a row added while reading can shift a page: keep each key once
+  const seen = new Set<string>();
+  return rows.filter((r) => { const k = String(r[orderCol]); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 
 // -----------------------------------------------------------------------------
@@ -294,7 +316,7 @@ function mapRowToHistory(row: any): HistoricalMerchantRecord {
     merchantName: row.merchant_name,
     merchantPhone: row.merchant_phone,
     address: row.address,
-    mid: row.mid,
+    mid: normalizeMid(row.mid),
     tid: row.tid,
     deviceType: row.device_type,
     model: row.model,
@@ -340,7 +362,7 @@ export async function insertHistoricalMerchantToSupabase(rec: HistoricalMerchant
       merchant_name: rec.merchantName,
       merchant_phone: rec.merchantPhone,
       address: rec.address,
-      mid: rec.mid,
+      mid: normalizeMid(rec.mid),
       tid: rec.tid,
       device_type: rec.deviceType,
       model: rec.model,
@@ -432,6 +454,12 @@ export function subscribeToRealtimeChanges(
 // (21 Oct 2026) SAVING WITH A CLEAR ANSWER, REVIEW QUEUE, STAFF ACCOUNTS
 // -----------------------------------------------------------------------------
 
+/** Database refusals in plain words. */
+function friendlyDbError(msg: string, serial?: string): string {
+  if (/mid_digits/.test(msg)) return `the MID${serial ? ' of ' + serial : ''} must be digits only (15 digits; a number shortened by Excel such as "1.00001E+14" cannot be saved)`;
+  return msg;
+}
+
 /** The outcome of a save: '' when saved, otherwise the reason; `versions` holds the new server version of each saved row. */
 export interface SaveResult { error: string; stale: boolean; versions: Map<string, number> }
 
@@ -451,7 +479,7 @@ export async function saveDevicesStrict(devices: Device[]): Promise<SaveResult> 
       const { data, error } = await supabase.from('devices').insert(fresh.slice(i, i + 500).map(mapDeviceToRow)).select('serial,row_version');
       if (error) {
         const dup = /duplicate key|23505/i.test(error.message + (error as any).code);
-        return { error: dup ? 'a unit with this serial already exists in the inventory' : error.message, stale: false, versions };
+        return { error: dup ? 'a unit with this serial already exists in the inventory' : friendlyDbError(error.message), stale: false, versions };
       }
       note(data);
     }
@@ -462,7 +490,7 @@ export async function saveDevicesStrict(devices: Device[]): Promise<SaveResult> 
         const { data, error } = await supabase.from('devices').update(mapDeviceToRow(d)).eq('serial', d.serial).select('serial,row_version');
         if (error) {
           const stale = /STALE_ROW|PT409/.test(error.message + (error as any).code);
-          first = first || { error: stale ? `${d.serial} was changed by someone else just now` : error.message, stale };
+          first = first || { error: stale ? `${d.serial} was changed by someone else just now` : friendlyDbError(error.message, d.serial), stale };
         } else if (!data || data.length === 0) {
           first = first || { error: `you do not have access to change ${d.serial}`, stale: false };
         } else note(data);

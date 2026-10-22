@@ -133,7 +133,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
                   {s.title}
                 </span>
                 <span
-                  className={`font-mono text-xs font-extrabold tabular-nums px-1.5 py-0.2 rounded ${
+                  className={`font-figure text-xs font-extrabold tabular-nums px-1.5 py-0.2 rounded ${
                     isSelected
                       ? 'bg-white/15 text-white'
                       : isLight

@@ -2,9 +2,29 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* (22 Oct 2026) Khmer font shipped with the app. It is used for Khmer letters only (unicode-range), so Latin text
+   always keeps the normal font, and Khmer shows even where Google Fonts is blocked. */
+@font-face {
+  font-family: 'Battambang';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../node_modules/@fontsource/battambang/files/battambang-khmer-400-normal.woff2') format('woff2');
+  unicode-range: U+1780-17FF, U+19E0-19FF, U+200C-200D, U+25CC;
+}
+@font-face {
+  font-family: 'Battambang';
+  font-style: normal;
+  font-weight: 600 800;
+  font-display: swap;
+  src: url('../node_modules/@fontsource/battambang/files/battambang-khmer-700-normal.woff2') format('woff2');
+  unicode-range: U+1780-17FF, U+19E0-19FF, U+200C-200D, U+25CC;
+}
+
 @theme {
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Plus Jakarta Sans', ui-monospace, SFMono-Regular, monospace;
+  /* (22 Oct 2026) Khmer text is drawn in Battambang (Latin fonts have no Khmer letters, so the browser uses the next font) */
+  --font-sans: 'Plus Jakarta Sans', 'Battambang', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Plus Jakarta Sans', 'Battambang', ui-monospace, SFMono-Regular, monospace;
   --font-weight-extrabold: 700;
   --font-weight-black: 750;
 }
@@ -332,8 +352,14 @@ button:active:not(:disabled),
 [role="button"]:active:not(:disabled),
 .tactile-btn:active:not(:disabled),
 .interactive-tab-btn:active {
-  transform: scale(0.98);
-  transition: transform 0.05s var(--ease-apple-spring) !important;
+  transform: scale(0.97);
+  transition: transform 0.06s var(--ease-apple-spring) !important;
+}
+/* release springs back smoothly instead of snapping */
+button:not(:disabled),
+[role="button"] {
+  transition-property: background-color, border-color, color, box-shadow, opacity, transform;
+  transition-duration: 0.18s;
 }
 
 /* Fluid Hover state transitions */
@@ -466,4 +492,133 @@ button:hover:not(:disabled),
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* ==========================================================================
+   4. (22 Oct 2026) Khmer text, clean data tables and the glide / morph motion
+   ========================================================================== */
+
+/* Khmer has stacked vowels and subscripts: it needs more line height than Latin to stay readable */
+.khmer,
+:lang(km) {
+  font-family: 'Battambang', var(--font-sans);
+  line-height: 1.75;
+  letter-spacing: 0;
+}
+
+/* One table style for every list: same sizes, same colours */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+  color: #0f172a;
+}
+.data-table thead th {
+  padding: 10px 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-align: left;
+}
+.data-table tbody td {
+  padding: 10px 10px;
+  vertical-align: middle;
+  border-bottom: 1px solid #edf0f3;
+  background: #ffffff;
+  transition: background-color 0.16s var(--ease-apple-smooth);
+}
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:hover td { background: #f4f8fb; }
+.data-table .cell-main { font-size: 13px; font-weight: 400; color: #0f172a; line-height: 1.4; }
+/* (22 Oct 2026) plain, regular-weight text in tables (no bold), for easy reading */
+.data-table tbody td,
+.data-table tbody td * { font-weight: 400 !important; }
+.data-table tbody td .chip { font-weight: 500 !important; }
+.data-table .cell-sub { font-size: 11px; color: #64748b !important; margin-top: 2px; line-height: 1.35; }
+.data-table .cell-mono { font-family: var(--font-mono); font-size: 12px; color: #0f172a; font-variant-numeric: tabular-nums; }
+.data-table .cell-mono-sub { font-family: var(--font-mono); font-size: 11px; color: #64748b !important; margin-top: 2px; }
+.data-table .chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 9999px;
+  font-size: 10.5px; font-weight: 600; line-height: 1.5; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.chip-green { background: #ecfdf5; color: #047857; border-color: #a7f3d0 !important; }
+.chip-amber { background: #fffbeb; color: #b45309; border-color: #fde68a !important; }
+.chip-red { background: #fff1f2; color: #be123c; border-color: #fecdd3 !important; }
+.chip-slate { background: #f1f5f9; color: #334155; border-color: #e2e8f0 !important; }
+.data-table .row-btn {
+  padding: 5px 12px; border-radius: 8px;
+  font-size: 11.5px; font-weight: 400; white-space: nowrap;
+  color: #003857; background: #eef5f9; border: 1px solid #cfe0ea;
+  cursor: pointer;
+}
+.data-table .row-btn:hover { background: #003857; color: #ffffff; border-color: #003857; }
+.data-table .serial-btn {
+  font-family: var(--font-mono); font-size: 12px; color: #0f172a;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc; cursor: pointer;
+}
+.data-table .serial-btn:hover { border-color: #003857; color: #003857; background: #eef5f9; }
+.data-table th:first-child, .data-table td:first-child { padding-left: 14px; }
+/* the action button stays in view on small screens */
+.data-table .col-actions { position: sticky; right: 0; z-index: 1; padding-right: 14px; }
+
+.data-table .warn-text { color: #b45309 !important; font-weight: 600; }
+
+/* Rows glide in when they first appear (a new page, a filter, a live update) */
+@keyframes rowGlideIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.data-table tbody tr { animation: rowGlideIn 0.26s var(--ease-apple-smooth) both; }
+.data-table tbody tr:nth-child(n + 12) { animation-delay: 0.02s; }
+
+/* Page change: the new page glides in (fallback when the browser has no View Transitions) */
+@keyframes tabGlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@supports not (view-transition-name: a) {
+  .tab-glide { animation: tabGlideIn 0.28s var(--ease-apple-smooth) both; }
+}
+
+/* View Transitions: the page morphs, the sidebar highlight slides to the new item */
+.tab-view { view-transition-name: tab-view; }
+.nav-active-pill { view-transition-name: nav-pill; }
+.nav-active-bar { view-transition-name: nav-bar; }
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-old(tab-view) { animation: 0.14s var(--ease-apple-decel) both vtFadeOut; }
+::view-transition-new(tab-view) { animation: 0.3s var(--ease-apple-smooth) both vtGlideIn; }
+::view-transition-group(nav-pill),
+::view-transition-group(nav-bar) { animation-duration: 0.34s; animation-timing-function: var(--ease-apple-spring); }
+::view-transition-old(nav-pill), ::view-transition-new(nav-pill),
+::view-transition-old(nav-bar), ::view-transition-new(nav-bar) { animation: none; }
+::view-transition-old(nav-pill), ::view-transition-old(nav-bar) { display: none; }
+@keyframes vtFadeOut { to { opacity: 0; } }
+@keyframes vtGlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Modals and drawers open with the same glide */
+@keyframes modalGlideIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.modal-glide { animation: modalGlideIn 0.26s var(--ease-apple-smooth) both; }
+
+/* Whoever asked the device for less motion gets none */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+
+/* (22 Oct 2026) figures in cards and counters: the normal font with even-width digits, so 0 is a plain zero
+   (the code font draws 0 with a dot inside, which is kept only for serials and IDs where 0 and O must differ) */
+.font-figure {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  letter-spacing: -0.01em;
 }

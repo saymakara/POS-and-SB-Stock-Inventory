@@ -222,7 +222,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-base font-black font-mono text-[#002f49]">
+                  <div className="text-base font-black font-figure text-[#002f49]">
                     {currentBatt.monthsUsed} / 24m
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium">

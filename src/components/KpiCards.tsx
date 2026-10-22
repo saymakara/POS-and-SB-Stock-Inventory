@@ -160,13 +160,13 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
                 {STAGE_ICONS[stage]}
               </div>
 
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 font-mono tabular-nums">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 font-figure tabular-nums">
                 {pct}% share
               </span>
             </div>
 
             <div className="flex items-baseline justify-between gap-2 mb-1">
-              <div className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums font-mono leading-none text-[#002f49]">
+              <div className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums font-figure leading-none text-[#002f49]">
                 {count}
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -192,7 +192,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
               />
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] font-bold font-mono text-slate-500">
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] font-bold font-figure text-slate-500">
               <span>
                 POS: <strong className="text-[#002f49]">{posCount}</strong>
               </span>

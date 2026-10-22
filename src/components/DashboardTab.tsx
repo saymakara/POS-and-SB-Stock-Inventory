@@ -498,7 +498,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <span>COMPLETED INSTALLS</span>
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
               </div>
-              <div className="text-2xl font-black font-mono tabular-nums text-zinc-900">
+              <div className="text-2xl font-black font-figure tabular-nums text-zinc-900">
                 {selectedMonthStats.total}{' '}
                 <span className="text-xs font-normal text-slate-500">
                   ({pctOf(selectedMonthStats.total, periodInstallTotal)}% of {periodInstallTotal} in period)
@@ -515,7 +515,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <span>AWAITING INSTALL (NOW)</span>
                 <TrendingUp className="w-3.5 h-3.5 text-zinc-700" aria-hidden="true" />
               </div>
-              <div className="text-2xl font-black font-mono tabular-nums text-zinc-900">
+              <div className="text-2xl font-black font-figure tabular-nums text-zinc-900">
                 {pipeline.reserve + pipeline.configuring}
               </div>
               <div className="text-[11px] text-slate-600 mt-0.5">
@@ -531,7 +531,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <span>AVG STOCK-IN → INSTALL</span>
                 <Clock className="w-3.5 h-3.5 text-slate-600" aria-hidden="true" />
               </div>
-              <div className="text-2xl font-black font-mono tabular-nums text-zinc-900">
+              <div className="text-2xl font-black font-figure tabular-nums text-zinc-900">
                 {selectedAvgCycle ?? '—'}{' '}
                 {selectedAvgCycle && <span className="text-xs font-normal text-slate-500">days</span>}
               </div>
@@ -699,7 +699,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     <div className="text-xs font-bold text-slate-500 mb-2">
                       {row.title}
                     </div>
-                    <div className="text-2xl font-black font-mono text-zinc-900">
+                    <div className="text-2xl font-black font-figure text-zinc-900">
                       {row.avg}
                     </div>
                     <div className="flex items-center justify-between text-[11px] mt-2 pt-2 border-t border-slate-200">
@@ -983,7 +983,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div className="p-6 pt-4">
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="surface-inset-light p-3.5">
-                  <div className="text-2xl font-black font-mono text-emerald-700">
+                  <div className="text-2xl font-black font-figure text-emerald-700">
                     {batterySummary.healthy}
                   </div>
                   <div className="text-[11px] font-mono text-slate-500">
@@ -994,7 +994,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   </div>
                 </div>
                 <div className="surface-inset-light p-3.5">
-                  <div className="text-2xl font-black font-mono text-amber-700">
+                  <div className="text-2xl font-black font-figure text-amber-700">
                     {batterySummary.replaceSoon}
                   </div>
                   <div className="text-[11px] font-mono text-slate-500">
@@ -1005,7 +1005,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   </div>
                 </div>
                 <div className="surface-inset-light p-3.5">
-                  <div className="text-2xl font-black font-mono text-rose-700">
+                  <div className="text-2xl font-black font-figure text-rose-700">
                     {batterySummary.critical}
                   </div>
                   <div className="text-[11px] font-mono text-slate-500">
