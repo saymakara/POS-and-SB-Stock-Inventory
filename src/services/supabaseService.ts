@@ -516,6 +516,20 @@ export async function saveRequisitionStrict(req: Requisition, isNew: boolean): P
   }
 }
 
+/** A super admin deletes units for good (the database allows this for the super admin only). */
+export async function deleteDevicesOnServer(serials: string[]): Promise<string> {
+  if (!isSupabaseConfigured || !serials.length) return '';
+  try {
+    for (let i = 0; i < serials.length; i += 200) {
+      const { error } = await supabase.from('devices').delete().in('serial', serials.slice(i, i + 200));
+      if (error) return error.message;
+    }
+    return '';
+  } catch (err) {
+    return err instanceof Error ? err.message : 'Network error';
+  }
+}
+
 /** HQ dispatches units for a pending stock request; the database checks every unit and keeps them allocated in HQ stock. */
 export async function dispatchRequisitionOnServer(reqId: string, serials: string[], note?: string): Promise<ArrangedDeviceItem[]> {
   const { data, error } = await supabase.rpc('admin_dispatch_requisition', { p_req_id: reqId, p_serials: serials, p_note: note || null });

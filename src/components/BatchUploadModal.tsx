@@ -119,6 +119,55 @@ function parseDeviceType(rawType: string, serial: string): 'POS Terminal' | 'Sou
 
 const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 
+/** A branch picker you can type into: matches the code or any part of the name. */
+const BranchSearch: React.FC<{
+  value: string;
+  branches: Branch[];
+  inputClass: string;
+  onChange: (id: string) => void;
+}> = ({ value, branches, inputClass, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const current = branches.find((b) => b.id === value);
+  const label = current ? `${current.id} · ${current.name}` : '';
+  const list = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return branches.filter((b) => !t || b.id.toLowerCase().includes(t) || b.name.toLowerCase().includes(t)).slice(0, 60);
+  }, [branches, q]);
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-label="Fallback branch"
+        value={open ? q : label}
+        placeholder="Search branch code or name…"
+        onFocus={() => { setQ(''); setOpen(true); }}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && list[0]) { e.preventDefault(); onChange(list[0].id); setOpen(false); (e.target as HTMLInputElement).blur(); }
+          if (e.key === 'Escape') { setOpen(false); (e.target as HTMLInputElement).blur(); }
+        }}
+        className={`w-full rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${inputClass}`}
+      />
+      {open && (
+        <ul role="listbox" className="absolute z-30 mt-1 w-full max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white text-slate-900 shadow-lg py-1 text-xs">
+          {list.length === 0 && <li className="px-3 py-2 text-slate-500">No branch matches.</li>}
+          {list.map((b) => (
+            <li key={b.id} role="option" aria-selected={b.id === value}
+              onMouseDown={(e) => { e.preventDefault(); onChange(b.id); setOpen(false); }}
+              className={`px-3 py-1.5 cursor-pointer hover:bg-slate-100 ${b.id === value ? 'bg-sky-50 font-semibold' : ''}`}>
+              <span className="font-mono">{b.id}</span> · {b.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   isOpen,
   onClose,
@@ -152,7 +201,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   const [posQty, setPosQty] = useState(0);
 
   // Field 2: Sound Box state (Method B / C)
-  const [sbModel, setSbModel] = useState('SB-Pro');
+  const [sbModel, setSbModel] = useState('Q161 Pro');
   const [sbPasteText, setSbPasteText] = useState('');
   const [sbPrefix, setSbPrefix] = useState('');
   const [sbStartNum, setSbStartNum] = useState('');
@@ -293,7 +342,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
       const itemType = parseDeviceType(cell(row, 'type'), serial);
       const isPos = itemType === 'POS Terminal';
-      const rawModel = cell(row, 'model') || (isPos ? posModel : sbModel);
+      const rawModel = isPos ? cell(row, 'model') || posModel : 'Q161 Pro';   // the only Sound Box model
       // Battery serial only as written in the file (blank when the file has none).
       const rawBattery = cell(row, 'batterySerial');
 
@@ -380,7 +429,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         parsed.push({
           serial,
           batterySerial,
-          model: modelPart || selectedModel,
+          model: fixedType === 'Sound Box' ? 'Q161 Pro' : modelPart || selectedModel,
           type: fixedType,
           branchId: curBranch?.id || branchPart,
           branchName: curBranch?.name || '',
@@ -750,23 +799,15 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
                       Fallback Branch
                     </label>
-                    <select
+                    <BranchSearch
                       value={defaultBranchId}
-                      onChange={(e) => {
-                        const nextId = e.target.value;
+                      branches={branches}
+                      inputClass={inputClass}
+                      onChange={(nextId) => {
                         setDefaultBranchId(nextId);
-                        setDefaultStage(
-                          nextId === '100' ? 'HQ_STOCK' : 'BRANCH_RESERVE'
-                        );
+                        setDefaultStage(nextId === '100' ? 'HQ_STOCK' : 'BRANCH_RESERVE');
                       }}
-                      className={`w-full rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${inputClass}`}
-                    >
-                      {branches.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          Branch Code {b.id} — {b.name}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
 
                   <div>
@@ -958,29 +999,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     )}
                   </div>
 
-                  {/* Editable CSV Content Area */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                        <span>CSV Raw Data Editor</span>
-                        <span className="text-[10px] font-normal text-slate-400">
-                          (Paste rows directly or edit uploaded content)
-                        </span>
-                      </label>
-                      <span className="text-[11px] text-[#1e5b88] dark:text-sky-300 font-mono font-bold">
-                        {tableCsvBatch.length} row{tableCsvBatch.length === 1 ? '' : 's'} parsed
-                      </span>
-                    </div>
-                    <textarea
-                      rows={3}
-                      value={tableCsvText}
-                      onChange={(e) => setTableCsvText(e.target.value)}
-                      placeholder={
-                        'Stock_In_Date,Serial_SN,Product_Type,Model,Battery_Serial,Branch_Code,Branch_Name,Lifecycle_Stage,Merchant_Name,MID,TID,Serial_Cycles_Count\n2026-10-18,WP5400PQ23200380,POS Terminal,Wizar POS Q2 Pro,160525A0005790,100,Head Office (In-Store MS Unit),Admin HQ Stock,,,,0\n2026-10-18,SB-00380,Sound Box,SB-Pro,SB-BAT-00380,101,Borei Keyla Branch,Branch Reserve,,,,0'
-                      }
-                      className={`w-full rounded-xl p-2.5 text-xs font-mono placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1e5b88] focus:border-[#1e5b88] border transition ${inputClass}`}
-                    />
-                  </div>
                 </div>
               )}
 
@@ -1081,7 +1099,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         onChange={(e) => setSbModel(e.target.value)}
                         className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border ${inputClass}`}
                       >
-                        <option value="SB-Pro">SB-Pro</option>
+                        <option value="Q161 Pro">Q161 Pro</option>
                         <option value="SB-Max">SB-Max</option>
                         <option value="SB-Standard">SB-Standard</option>
                         <option value="SB-Mini">SB-Mini</option>
@@ -1223,7 +1241,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                             onChange={(e) => setSbModel(e.target.value)}
                             className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border ${inputClass}`}
                           >
-                            <option value="SB-Pro">SB-Pro</option>
+                            <option value="Q161 Pro">Q161 Pro</option>
                             <option value="SB-Max">SB-Max</option>
                             <option value="SB-Standard">SB-Standard</option>
                             <option value="SB-Mini">SB-Mini</option>
@@ -1324,7 +1342,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       Staged Inventory Table Live Preview
                     </span>
                     <span className="text-[11px] font-normal text-slate-500 font-mono">
-                      ({validItems.length} valid: {validPosCount} POS, {validSbCount} Sound Box)
+                      ({validItems.length} valid: {validPosCount} POS, {validSbCount} Sound Box · {activeStagedBatch.length} row{activeStagedBatch.length === 1 ? '' : 's'} read)
                     </span>
                   </span>
                   {(dupCount > 0 || errorCount > 0) && (
@@ -1337,7 +1355,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   )}
                 </div>
 
-                <div className="overflow-x-auto max-h-48 sm:max-h-56">
+                <div className="overflow-auto min-h-[240px] max-h-[62vh]">
                   <table className="w-full text-left text-xs min-w-[800px]">
                     <thead className="glass-table-thead text-[10px] uppercase font-extrabold text-white sticky top-0 z-10">
                       <tr>

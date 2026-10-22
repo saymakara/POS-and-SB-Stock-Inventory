@@ -142,16 +142,21 @@ export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; tr
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ID, name, branch…" aria-label="Search accounts" className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-[#003857]" />
           </div>
         </div>
-        {!list && !err && <div className="p-6 text-sm text-slate-500 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>}
+        {!list && !err && (
+          <div className="p-4 flex flex-col gap-2" aria-busy="true" aria-label="Loading accounts">
+            {Array.from({ length: 6 }, (_, i) => <div key={i} className="h-8 rounded-lg bg-slate-100 animate-pulse" style={{ opacity: 1 - i * 0.12 }} />)}
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wide">
-              <tr><th className="text-left px-3 py-2">Employee ID</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Role</th>
+              <tr><th className="text-right px-3 py-2 w-10">No.</th><th className="text-left px-3 py-2">Employee ID</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Role</th>
                 <th className="text-left px-3 py-2">Branch</th><th className="text-left px-3 py-2">Status</th><th className="px-3 py-2" /></tr>
             </thead>
             <tbody>
-              {shown.map((a) => (
-                <tr key={a.userId} className="border-t border-slate-100">
+              {shown.map((a, rowIdx) => (
+                <tr key={a.userId} className="border-t border-slate-100 row-in">
+                  <td className="px-3 py-2 text-right text-slate-500 tabular-nums">{rowIdx + 1}</td>
                   <td className="px-3 py-2 font-mono font-bold">{a.empId}</td>
                   <td className="px-3 py-2 font-semibold text-slate-800">{a.name}</td>
                   <td className="px-3 py-2">{a.role !== 'BRANCH' && <ShieldCheck className="w-3.5 h-3.5 inline mr-1 text-[#003857]" />}{ROLE_LABEL[a.role]}</td>

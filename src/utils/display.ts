@@ -16,19 +16,23 @@ const parse = (d?: string) => {
   return m ? { y: +m[1], mo: +m[2], d: +m[3] } : null;
 };
 
-/** How long a unit was in service, from the two dates (never a stored or assumed figure). */
+/** How long a unit was in service, counted from the two dates in years, months and days (never a stored figure). */
 export function serviceLength(from?: string, to?: string): string {
   const a = parse(from), b = parse(to);
   if (!a || !b) return '—';
-  const days = Math.round((Date.UTC(b.y, b.mo - 1, b.d) - Date.UTC(a.y, a.mo - 1, a.d)) / 86400000);
-  if (days < 0) return '—';
-  if (days === 0) return 'Same day';
-  if (days < 31) return `${days} day${days === 1 ? '' : 's'}`;
-  let months = (b.y - a.y) * 12 + (b.mo - a.mo) - (b.d < a.d ? 1 : 0);
-  if (months < 1) months = 1;
-  if (months < 12) return `${months} month${months === 1 ? '' : 's'}`;
-  const y = Math.floor(months / 12), m = months % 12;
-  return `${y} yr${y === 1 ? '' : 's'}${m ? ` ${m} mo` : ''}`;
+  if (Date.UTC(b.y, b.mo - 1, b.d) < Date.UTC(a.y, a.mo - 1, a.d)) return '—';
+  let y = b.y - a.y, m = b.mo - a.mo, d = b.d - a.d;
+  if (d < 0) {
+    m -= 1;
+    d += new Date(Date.UTC(b.y, b.mo - 1, 0)).getUTCDate();   // days in the month before the end date
+  }
+  if (m < 0) { y -= 1; m += 12; }
+  if (y === 0 && m === 0 && d === 0) return 'Same day';
+  const parts: string[] = [];
+  if (y) parts.push(`${y} ${y === 1 ? 'year' : 'years'}`);
+  if (m) parts.push(`${m} ${m === 1 ? 'month' : 'months'}`);
+  if (d && !y) parts.push(`${d} ${d === 1 ? 'day' : 'days'}`);
+  return parts.join(' ');
 }
 
 /** Title-case status text for chips (TERMINATED → Terminated). */

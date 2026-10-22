@@ -564,6 +564,7 @@ button:hover:not(:disabled),
 .data-table .serial-btn:hover { border-color: #003857; color: #003857; background: #eef5f9; }
 .data-table th:first-child, .data-table td:first-child { padding-left: 14px; }
 /* the action button stays in view on small screens */
+.data-table th.col-no, .data-table td.col-no { width: 44px; min-width: 44px; text-align: right; color: #64748b; font-variant-numeric: tabular-nums; padding-right: 6px; padding-left: 10px; }
 .data-table .col-actions { position: sticky; right: 0; z-index: 1; padding-right: 14px; }
 
 .data-table .warn-text { color: #b45309 !important; font-weight: 600; }
@@ -622,3 +623,20 @@ button:hover:not(:disabled),
   font-feature-settings: 'tnum' 1, 'lnum' 1;
   letter-spacing: -0.01em;
 }
+
+/* A drop-down filter that is not on "All" is tinted (set by utils/filterMarks.ts) */
+select[data-filtered="true"] {
+  background-color: #e3f0f8 !important;
+  border-color: #003857 !important;
+  color: #003857 !important;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(0, 56, 87, 0.14);
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="dark"] select[data-filtered="true"] { background-color: #0d3a57 !important; color: #e6f4ff !important; border-color: #5cb3e6 !important; }
+}
+
+/* Rows fade in as they are added to a long list */
+@keyframes rowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.row-in { animation: rowIn 0.2s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .row-in { animation: none; } }

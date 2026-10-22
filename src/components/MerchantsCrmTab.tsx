@@ -1156,14 +1156,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             <FileSpreadsheet className="w-3.5 h-3.5" />
             <span>Bulk MID / TID Import</span>
           </button>
-          <button
-            type="button"
-            onClick={handleOpenNewMerchantModal}
-            className="px-3 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 whitespace-nowrap cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white border-[#004469]"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Assign Hardware</span>
-          </button>
         </div>
       </div>
 
@@ -1618,6 +1610,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           <table className="data-table min-w-[900px]">
             <thead className="glass-table-thead">
               <tr>
+                <th className="col-no">No.</th>
                 <th>MID</th>
                 <th>Merchant</th>
                 <th>Staff</th>
@@ -1629,13 +1622,14 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
               </tr>
             </thead>
             <tbody>
-              {pagedMerchants.map((m) => {
+              {pagedMerchants.map((m, rowIdx) => {
                 const chip = m.crmStatus === 'ONBOARDING' ? 'chip-amber' : m.crmStatus === 'ATTENTION' ? 'chip-red' : 'chip-green';
                 const statusLabel = m.crmStatus === 'ONBOARDING' ? 'Pending install' : m.crmStatus === 'ATTENTION' ? 'Faulty / RMA' : 'Live';
                 const installDate = m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate || '—';
                 const deviceCount = m.devices ? m.devices.length : 0;
                 return (
                   <tr key={m.mid}>
+                    <td className="col-no">{(merchantPage - 1) * merchantsPerPage + rowIdx + 1}</td>
                     <td className="whitespace-nowrap">
                       <div className={`cell-mono ${isValidMid(m.mid) ? '' : 'warn-text'}`} title={isValidMid(m.mid) ? 'Merchant ID' : 'This MID is not 15 digits. Please correct it.'}>
                         {m.mid}{isValidMid(m.mid) ? '' : ' ⚠'}
@@ -1646,9 +1640,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       <div className={`cell-main max-w-[230px] truncate ${hasKhmer(m.merchantName) ? 'khmer' : ''}`} title={m.merchantName}>
                         {dash(m.merchantName)}
                       </div>
-                      {m.address && (
-                        <div className={`cell-sub max-w-[230px] truncate ${hasKhmer(m.address) ? 'khmer' : ''}`} title={m.address}>{m.address}</div>
-                      )}
                     </td>
                     <td>
                       <div className={`cell-main font-medium max-w-[190px] truncate ${hasKhmer(m.accountOfficer) ? 'khmer' : ''}`} title={m.accountOfficer}>
@@ -1709,7 +1700,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
               {filteredMerchants.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
+                  <td colSpan={9} className="py-12 text-center">
                     <span className="cell-sub">No merchants match the search or filters.</span>
                   </td>
                 </tr>
@@ -2524,13 +2515,10 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                     }`}
                   >
                     <div className="text-[11px] text-slate-400 font-semibold uppercase">
-                      Contact &amp; Location
+                      Contact
                     </div>
                     <div className="font-mono font-bold text-xs mt-1 text-cyan-400">
                       {phoneFor(role, selectedMerchantProfile.merchantPhone)}
-                    </div>
-                    <div className="text-xs mt-0.5 opacity-85">
-                      {dash(selectedMerchantProfile.address)}
                     </div>
                   </div>
 
@@ -2570,87 +2558,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       {selectedMerchantProfile.liveCount} Units Live at Store
                     </div>
                   </div>
-                </div>
-
-                {/* Single-MID Monthly Hardware Deployment Trend Mini-Chart (Recharts) */}
-                <div
-                  className={`p-4 rounded-2xl border ${
-                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#091729] border-[#1a355a]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-                      <TrendingUp className="w-3.5 h-3.5" />
-                      <span>Monthly Deployment Trend — {selectedMerchantProfile.mid}</span>
-                    </div>
-                    <span className="text-[11px] font-mono text-slate-400">
-                      6-Month POS &amp; Sound Box Rollout
-                    </span>
-                  </div>
-                  {!modalTrendHasData ? (
-                    <div className="h-24 w-full flex items-center justify-center text-center text-[11px] text-slate-400">
-                      No installations recorded for this MID in the last 6 months.
-                    </div>
-                  ) : (
-                  <div className="h-44 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart
-                        data={modalMerchantMonthlyData}
-                        margin={{ top: 6, right: 10, left: -18, bottom: 0 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={isLight ? '#e2e8f0' : 'rgba(255,255,255,0.06)'}
-                          vertical={false}
-                        />
-                        <XAxis
-                          dataKey="month"
-                          tick={{ fill: isLight ? '#002f49' : '#94a3b8', fontSize: 10, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          allowDecimals={false}
-                          tick={{ fill: isLight ? '#5b7083' : '#94a3b8', fontSize: 10, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: isLight ? '#ffffff' : '#001d2e',
-                            borderColor: isLight ? '#cbd8e3' : '#003857',
-                            borderRadius: '8px',
-                            fontSize: '11px',
-                            fontFamily: 'Plus Jakarta Sans, sans-serif',
-                            fontWeight: 600,
-                          }}
-                        />
-                        <Bar
-                          dataKey="posDeployed"
-                          name="POS Terminal"
-                          fill="#003857"
-                          radius={[4, 4, 0, 0]}
-                          barSize={18}
-                        />
-                        <Bar
-                          dataKey="sbDeployed"
-                          name="Sound Box"
-                          fill="#10b981"
-                          radius={[4, 4, 0, 0]}
-                          barSize={18}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="cumulative"
-                          name="Cumulative Units"
-                          stroke="#005a8c"
-                          strokeWidth={2}
-                          dot={{ r: 3 }}
-                        />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                  )}
                 </div>
 
                 {/* Assigned Hardware Units List */}

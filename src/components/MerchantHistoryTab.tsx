@@ -643,11 +643,13 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           <table className="data-table min-w-[900px]">
             <thead className="glass-table-thead">
               <tr>
+                <th className="col-no">No.</th>
                 <th>Returned</th>
+                <th>Type</th>
                 <th>Merchant</th>
-                <th>MID / TID</th>
-                <th>Unit</th>
-                <th>Branch</th>
+                <th>MID</th>
+                <th>Serial Number</th>
+                <th>Branch / Staff</th>
                 <th>In Service</th>
                 <th>Reason</th>
                 <th className="text-right col-actions" aria-label="Actions"></th>
@@ -656,22 +658,25 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             <tbody>
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
+                  <td colSpan={10} className="py-12 text-center">
                     <Store className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="cell-main">No merchant history matches the search or filters.</p>
                     <p className="cell-sub">Adjust the search or filter options.</p>
                   </td>
                 </tr>
               ) : (
-                pagedRecords.map((rec) => {
+                pagedRecords.map((rec, rowIdx) => {
                   const chip = rec.status === 'TERMINATED' ? 'chip-red' : rec.status === 'RETURNED' ? 'chip-amber' : 'chip-slate';
                   const midOk = isValidMid(rec.mid);
                   const officer = rec.returnedByStaff || rec.handledByStaff;
                   return (
                     <tr key={rec.recordId}>
+                      <td className="col-no">{(currentPage - 1) * PAGE_SIZE + rowIdx + 1}</td>
                       <td className="whitespace-nowrap">
                         <div className="cell-mono">{dash(rec.returnedDate)}</div>
-                        <span className={`chip ${chip} mt-1`}>{statusText(rec.status)}</span>
+                      </td>
+                      <td className="whitespace-nowrap">
+                        <span className={`chip ${chip}`}>{statusText(rec.status)}</span>
                       </td>
                       <td>
                         <div className={`cell-main max-w-[160px] truncate ${hasKhmer(rec.merchantName) ? 'khmer' : ''}`} title={rec.merchantName}>
@@ -682,7 +687,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         <div className={`cell-mono ${midOk ? '' : 'warn-text'}`} title={midOk ? 'Merchant ID' : 'This MID is not 15 digits (for example a number shortened by Excel). Please correct it.'}>
                           {dash(rec.mid)}{!midOk && rec.mid ? ' ⚠' : ''}
                         </div>
-                        {rec.tid && <div className="cell-mono-sub">{rec.tid}</div>}
                       </td>
                       <td>
                         <button
@@ -703,8 +707,8 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         </div>
                       </td>
                       <td>
-                        <div className="cell-mono">Code {rec.branchId}</div>
-                        <div className="cell-sub max-w-[140px] truncate" title={rec.branchName}>{rec.branchName}</div>
+                        <div className="cell-main max-w-[190px] truncate" title={`Code ${rec.branchId} · ${rec.branchName}`}>{rec.branchId} · {rec.branchName.replace(' Branch', '')}</div>
+                        <div className={`cell-sub max-w-[190px] truncate ${hasKhmer(officer) ? 'khmer' : ''}`} title={officer}>{dash(officer)}</div>
                       </td>
                       <td className="whitespace-nowrap">
                         <div className="cell-main font-medium">{serviceLength(rec.installedDate, rec.returnedDate)}</div>
@@ -712,7 +716,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       </td>
                       <td>
                         <div className="cell-main font-medium max-w-[170px] truncate" title={rec.returnReason}>{dash(rec.returnReason)}</div>
-                        {officer && <div className="cell-sub max-w-[170px] truncate">by {officer}</div>}
                       </td>
                       <td className="text-right col-actions">
                         <button type="button" onClick={() => setSelectedRecord(rec)} className="row-btn">
