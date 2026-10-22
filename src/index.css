@@ -640,3 +640,89 @@ select[data-filtered="true"] {
 @keyframes rowIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .row-in { animation: rowIn 0.2s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .row-in { animation: none; } }
+
+/* ==========================================================================
+   Motion & responsiveness layer (22 Oct 2026)
+   Only transform and opacity are animated; everything else changes instantly or fades.
+   ========================================================================== */
+
+/* One header style for every table: same size, spacing and full (never cut-off) wording */
+table thead th {
+  padding: 10px 12px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+  line-height: 1.3 !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+table thead th.col-no { width: 44px; text-align: right; }
+
+/* "transition-all" would animate width/height too: keep it to compositor and paint-only properties */
+.transition-all {
+  transition-property: background-color, border-color, color, opacity, transform, box-shadow !important;
+  transition-duration: 0.3s !important;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+
+/* Instant press feedback for rows and navigation items (buttons already depress, see above) */
+.interactive-row,
+.data-table tbody tr[role="button"],
+[role="tab"],
+[role="menuitem"],
+[role="option"],
+nav a,
+.nav-item {
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.2s cubic-bezier(0.32, 0.72, 0, 1), color 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.interactive-row:active,
+.data-table tbody tr[role="button"]:active,
+[role="tab"]:active,
+[role="menuitem"]:active,
+[role="option"]:active,
+nav a:active,
+.nav-item:active {
+  transform: scale(0.985);
+  transition-duration: 0.06s;
+}
+.btn-press { transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease; }
+.btn-press:active:not(:disabled) { transform: scale(0.97); transition-duration: 0.06s; }
+
+/* Hover colour changes glide instead of snapping */
+.data-table tbody td, .interactive-row { transition: background-color 0.22s cubic-bezier(0.32, 0.72, 0, 1); }
+a, summary, label { transition: color 0.2s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s cubic-bezier(0.32, 0.72, 0, 1); }
+
+/* Drawers, modals and dropdowns: composited layers that decelerate like a physical object */
+[role="dialog"], [aria-modal="true"] { will-change: transform, opacity; backface-visibility: hidden; }
+[role="menu"], [role="listbox"], .popover {
+  transform-origin: top center;
+  animation: popIn 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform, opacity;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: translate3d(0, -6px, 0) scale(0.98); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+.gpu { transform: translateZ(0); will-change: transform; }
+
+/* A row that is saving in the background: gentle opacity pulse (GPU only), no layout or paint work */
+@keyframes syncPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.62; } }
+.optimistic-sync-active { animation: syncPulse 1.1s cubic-bezier(0.32, 0.72, 0, 1) infinite !important; background-color: transparent; box-shadow: none; }
+tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; }
+
+/* Odometer digits roll with transform only */
+.odo { display: inline-flex; font-variant-numeric: tabular-nums; line-height: 1; }
+.odo-col { display: inline-block; height: 1em; width: 0.62em; overflow: hidden; }
+.odo-strip { display: flex; flex-direction: column; transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1); will-change: transform; }
+.odo-strip > span { display: block; height: 1em; line-height: 1; text-align: center; }
+
+/* Rows pulled in by progressive loading fade in */
+.row-in { animation: rowFade 0.3s cubic-bezier(0.32, 0.72, 0, 1) both; }
+@keyframes rowFade { from { opacity: 0; } to { opacity: 1; } }
+.row-selected td { background: #eef5f9 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

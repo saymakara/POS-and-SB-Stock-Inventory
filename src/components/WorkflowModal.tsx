@@ -80,6 +80,8 @@ interface WorkflowModalProps {
   onReturnToBranchReserve?: (serial: string, branchId: string, reason: string) => void;
   onRemoveFromDashboard?: (serial: string, reason: string) => void;
   onChangeBattery?: (device: Device) => void;
+  /** Super Admin only: delete this unit from the whole system (database included) */
+  onDeletePermanently?: (serial: string) => void;
   /** Signed-in operator's name/label (recorded as custodian when a unit goes to HQ stock). */
   operatorLabel?: string;
 }
@@ -98,6 +100,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   onReturnToBranchReserve,
   onRemoveFromDashboard,
   onChangeBattery,
+  onDeletePermanently,
   operatorLabel = '',
 }) => {
   const [stage, setStage] = useState<LifecycleStage>('HQ_STOCK');
@@ -1361,6 +1364,20 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 isLight ? 'border-slate-100' : 'border-slate-800/80'
               }`}
             >
+              {role === 'SUPER_ADMIN' && onDeletePermanently && device && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm(`Delete ${device.serial} permanently from the whole system?\n\nThis removes the unit and its history. It cannot be undone.`)) {
+                      onDeletePermanently(device.serial);
+                      onClose();
+                    }
+                  }}
+                  className="btn-press mr-auto px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 cursor-pointer"
+                >
+                  Delete Permanently
+                </button>
+              )}
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 type="button"

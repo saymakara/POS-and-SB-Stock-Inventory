@@ -1848,6 +1848,23 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <option value={120}>2 Hours</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                  Phone App Review: Staff Shown
+                </label>
+                <select
+                  value={formState.phoneReviewScope || 'ALL'}
+                  onChange={(e) =>
+                    setFormState({ ...formState, phoneReviewScope: e.target.value as 'PHNOM_PENH' | 'ALL' })
+                  }
+                  className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                >
+                  <option value="ALL">Phnom Penh and Regional staff</option>
+                  <option value="PHNOM_PENH">Phnom Penh staff only</option>
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">Regional records stay saved; this only changes which records are listed for review.</p>
+              </div>
             </div>
           </div>
         )}

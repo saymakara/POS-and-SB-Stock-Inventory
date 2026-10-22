@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue, useRef } from 'react';
+import { useFlip } from '../utils/useFlip';
 import {
   HistoricalMerchantRecord,
   Branch,
@@ -49,6 +50,8 @@ interface MerchantHistoryTabProps {
   /** Name of the signed-in staff member, recorded as the officer who logged a return. */
   operatorLabel?: string;
   onAddRecord?: (record: HistoricalMerchantRecord) => void;
+  /** Super Admin only: remove every record */
+  onClearAll?: () => void;
   onReturnDeviceStock?: (
     serial: string,
     destination: 'HQ_STOCK' | 'BRANCH_RESERVE',
@@ -92,6 +95,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   devices = [],
   operatorLabel = '',
   onAddRecord,
+  onClearAll,
   onReturnDeviceStock,
   onSelectDevice,
   onToast,
@@ -267,6 +271,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
     () => filteredRecords.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
     [filteredRecords, currentPage]
   );
+
+  const flipRef = useRef<HTMLTableSectionElement>(null);
+  useFlip(flipRef, [pagedRecords]);
 
   // Analytics KPIs (lifespan averages only records that have a known service length)
   const stats = useMemo(() => {
@@ -478,6 +485,15 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <span>Log Return</span>
             </button>
           )}
+          {onClearAll && records.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { if (window.confirm(`Delete all ${records.length} Merchant History record(s)?\n\nThis cannot be undone.`)) onClearAll(); }}
+              className="btn-press px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Clear All History</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleExportCsv}
@@ -644,18 +660,18 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
-                <th>Returned</th>
-                <th>Type</th>
-                <th>Merchant</th>
-                <th>MID</th>
+                <th>Returned Date</th>
+                <th>Record Type</th>
+                <th>Merchant Name</th>
+                <th>Merchant ID (MID)</th>
                 <th>Serial Number</th>
                 <th>Branch / Staff</th>
                 <th>In Service</th>
-                <th>Reason</th>
-                <th className="text-right col-actions" aria-label="Actions"></th>
+                <th>Return Reason</th>
+                <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody ref={flipRef}>
               {filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-12 text-center">
@@ -670,7 +686,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   const midOk = isValidMid(rec.mid);
                   const officer = rec.returnedByStaff || rec.handledByStaff;
                   return (
-                    <tr key={rec.recordId}>
+                    <tr key={rec.recordId} data-flip={rec.recordId}>
                       <td className="col-no">{(currentPage - 1) * PAGE_SIZE + rowIdx + 1}</td>
                       <td className="whitespace-nowrap">
                         <div className="cell-mono">{dash(rec.returnedDate)}</div>

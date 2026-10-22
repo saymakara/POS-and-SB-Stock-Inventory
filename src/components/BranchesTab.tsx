@@ -459,13 +459,13 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <table className="w-full text-left min-w-[980px]">
               <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
                 <tr>
-                  <th className="py-3 px-3.5 w-10 text-center">#</th>
+                  <th className="py-3 px-3.5 w-10 text-center">No.</th>
                   <th className="py-3 px-3 w-10 text-right">No.</th>
                   <th className="py-3 px-3.5">Branch Code</th>
                   <th className="py-3 px-3.5">Branch Name</th>
                   <th className="py-3 px-3.5 text-center">POS Terminal</th>
                   <th className="py-3 px-3.5 text-center">Sound Box</th>
-                  <th className="py-3 px-3.5 text-center">Total Unit</th>
+                  <th className="py-3 px-3.5 text-center">Total Units</th>
                   <th className="py-3 px-3.5 text-center">Branch Reserve</th>
                   <th className="py-3 px-3.5 text-center">Live Installed</th>
                   <th className="py-3 px-3.5 text-center">Staff Officers</th>

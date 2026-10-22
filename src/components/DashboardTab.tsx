@@ -753,11 +753,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <th className="py-3 px-3 w-10 text-right">No.</th>
                   <th className="py-3 px-4">Branch Code</th>
                   <th className="py-3 px-4">Branch Name</th>
-                  <th className="py-3 px-3 text-center">POS</th>
-                  <th className="py-3 px-3 text-center">Soundbox</th>
-                  <th className="py-3 px-3 text-center">Reserve</th>
-                  <th className="py-3 px-3 text-center">Installed</th>
-                  <th className="py-3 px-4 text-right">Installed %</th>
+                  <th className="py-3 px-3 text-center">POS Terminals</th>
+                  <th className="py-3 px-3 text-center">Sound Boxes</th>
+                  <th className="py-3 px-3 text-center">Branch Reserve</th>
+                  <th className="py-3 px-3 text-center">Installed Units</th>
+                  <th className="py-3 px-4 text-right">Installed Rate</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/70">

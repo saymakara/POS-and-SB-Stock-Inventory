@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { STAGE_META } from '../data/initialData';
 import {
+  fetchBranchRegions,
   FieldEvent,
   FieldIssue,
   fetchFieldEvents,
@@ -29,20 +30,16 @@ const KIND_LABEL: Record<FieldEvent['kind'], string> = {
   SB_MAINT: 'Sound Box maintenance',
   SB_RETURN: 'Sound Box returned',
 };
-const STATUS_STYLE: Record<string, string> = {
-  PENDING: 'bg-amber-50 text-amber-800 border-amber-200',
-  APPROVED: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  REJECTED: 'bg-rose-50 text-rose-800 border-rose-200',
-  SUPERSEDED: 'bg-slate-100 text-slate-600 border-slate-200',
-  CANCELLED: 'bg-slate-100 text-slate-600 border-slate-200',
+const STATUS_CHIP: Record<string, string> = {
+  PENDING: 'chip-slate', APPROVED: 'chip-green', REJECTED: 'chip-red', SUPERSEDED: 'chip-slate', CANCELLED: 'chip-slate',
 };
-const STATUS_LABEL: Record<string, string> = { PENDING: 'Waiting for review', APPROVED: 'Approved', REJECTED: 'Rejected', SUPERSEDED: 'Replaced by a newer edit', CANCELLED: 'Withdrawn in the phone app' };
+const STATUS_LABEL: Record<string, string> = { PENDING: 'Waiting', APPROVED: 'Approved', REJECTED: 'Rejected', SUPERSEDED: 'Replaced by a newer edit', CANCELLED: 'Withdrawn in the phone app' };
 type Filter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
-/** POS Terminal = blue, Sound Box = violet: the same colours on the bar, the chip and the tint of every record */
+/** quiet styling: a small coloured dot tells POS Terminal (blue) from Sound Box (violet); everything else stays neutral */
 const TYPE_STYLE = {
-  'POS Terminal': { bar: 'bg-sky-500', chip: 'bg-sky-100 text-sky-800 border-sky-200', tint: 'bg-sky-50/40', ring: 'border-sky-200' },
-  'Sound Box': { bar: 'bg-violet-500', chip: 'bg-violet-100 text-violet-800 border-violet-200', tint: 'bg-violet-50/40', ring: 'border-violet-200' },
+  'POS Terminal': { dot: 'bg-sky-500', on: 'bg-slate-800 text-white border-slate-800' },
+  'Sound Box': { dot: 'bg-violet-500', on: 'bg-slate-800 text-white border-slate-800' },
 } as const;
 
 const fmtTime = (iso: string | null) => {
@@ -58,11 +55,13 @@ interface Props {
   triggerToast: (msg: string) => void;
   onApplied: () => void;
   onOpenWorkflow?: (serial: string) => void;
+  /** Settings: show Phnom Penh staff only, or Phnom Penh and regional staff */
+  scope?: 'PHNOM_PENH' | 'ALL';
 }
 
 interface RowOpt { branchId: string; returnStage: string; note: string; ack: boolean }
 
-export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, triggerToast, onApplied, onOpenWorkflow }) => {
+export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, triggerToast, onApplied, onOpenWorkflow, scope = 'ALL' }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [events, setEvents] = useState<FieldEvent[] | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -77,6 +76,15 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
   const [bulkAck, setBulkAck] = useState(false);
   const [bulkBusy, setBulkBusy] = useState<'' | 'approve' | 'reject'>('');
   const [bulkReport, setBulkReport] = useState<string[]>([]);
+
+  const [regions, setRegions] = useState<Record<string, string>>({});
+  useEffect(() => { fetchBranchRegions().then(setRegions); }, []);
+  /** a record of a regional branch is hidden when the setting is 'Phnom Penh only'; records without a known branch stay visible */
+  const inScope = useCallback((e: FieldEvent) => {
+    if (scope !== 'PHNOM_PENH') return true;
+    const r = regions[String(e.branchId || '')];
+    return !r || /phnom\s*penh/i.test(r);
+  }, [scope, regions]);
 
   const load = useCallback(async () => {
     const list = await fetchFieldEvents(1000);
@@ -104,26 +112,27 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
     return m;
   }, [devices]);
 
+  const scoped = useMemo(() => (events || []).filter(inScope), [events, inScope]);
   const counts = useMemo(() => {
     const c = { PENDING: 0, APPROVED: 0, REJECTED: 0, ALL: 0 };
-    (events || []).forEach((e) => { c.ALL++; if (e.status === 'PENDING' || e.status === 'APPROVED' || e.status === 'REJECTED') c[e.status]++; });
+    scoped.forEach((e) => { c.ALL++; if (e.status === 'PENDING' || e.status === 'APPROVED' || e.status === 'REJECTED') c[e.status]++; });
     return c;
-  }, [events]);
+  }, [scoped]);
   const typeCounts = useMemo(() => {
     const c = { pos: 0, sb: 0 };
-    (events || []).filter((e) => filter === 'ALL' || e.status === filter).forEach((e) => { if (e.deviceType === 'Sound Box') c.sb++; else c.pos++; });
+    scoped.filter((e) => filter === 'ALL' || e.status === filter).forEach((e) => { if (e.deviceType === 'Sound Box') c.sb++; else c.pos++; });
     return c;
-  }, [events, filter]);
+  }, [scoped, filter]);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (events || [])
+    return scoped
       .filter((e) => filter === 'ALL' || e.status === filter)
       .filter((e) => typeFilter === 'ALL' || e.deviceType === typeFilter)
       .filter((e) => !q || [e.serial, e.oldSerial, e.sourceRecordId, e.mid, e.tid, e.outletName, e.terminalName, e.staffName, e.staffId, e.branchText]
         .some((v) => String(v || '').toLowerCase().includes(q)))
       .sort((a, b) => filter === 'PENDING' ? a.receivedAt.localeCompare(b.receivedAt) : b.receivedAt.localeCompare(a.receivedAt));   // waiting: oldest first
-  }, [events, filter, typeFilter, query]);
+  }, [scoped, filter, typeFilter, query]);
 
   const shownPending = useMemo(() => shown.filter((e) => e.status === 'PENDING'), [shown]);
   const selectedShown = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
@@ -211,74 +220,56 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
     if (!problems.length) setBulkNote('');
   };
 
-  const typeBtn = (t: TypeFilter, label: string, n: number, cls: string) => (
+  const typeBtn = (t: TypeFilter, label: string, n: number) => (
     <button key={t} type="button" onClick={() => setTypeFilter(t)} aria-pressed={typeFilter === t}
-      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors ${typeFilter === t ? cls : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}>
-      {label} <span className="opacity-75">({n})</span>
+      className={`btn-press px-2.5 py-1 rounded-lg text-xs font-semibold border cursor-pointer ${typeFilter === t ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}>
+      {t !== 'ALL' && <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle ${TYPE_STYLE[t].dot}`} aria-hidden />}{label} <span className="opacity-70">({n})</span>
     </button>
   );
+  const colCount = isAdmin ? 9 : 8;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#003857] text-white flex items-center justify-center shrink-0"><Smartphone className="w-5 h-5" /></div>
-            <div>
-              <h2 className="text-lg font-extrabold text-slate-900">Phone App Review</h2>
-              <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
-                Records saved in the Merchant Visit phone app, one line per device.
-                {isAdmin ? ' Check the details, then approve to update the stock or reject with a reason. Tick several to decide them together.' : ' An admin reviews each one before the stock is updated.'}
-              </p>
-            </div>
-          </div>
-          <button type="button" onClick={load} className="px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer">
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
-          </button>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-3">
+      <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <Smartphone className="w-4 h-4 text-[#003857]" aria-hidden />
+          <h2 className="text-base font-extrabold text-slate-900 mr-2">Phone App Review</h2>
           {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as Filter[]).map((f) => (
             <button key={f} type="button" onClick={() => setFilter(f)} aria-pressed={filter === f}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold border cursor-pointer transition-colors ${filter === f ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}>
-              {f === 'PENDING' ? 'Waiting' : f === 'ALL' ? 'All' : f === 'APPROVED' ? 'Approved' : 'Rejected'} <span className="opacity-75">({counts[f]})</span>
+              className={`btn-press px-2.5 py-1 rounded-lg text-xs font-semibold border cursor-pointer ${filter === f ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}>
+              {f === 'PENDING' ? 'Waiting' : f === 'ALL' ? 'All' : f === 'APPROVED' ? 'Approved' : 'Rejected'} <span className="opacity-70">({counts[f]})</span>
             </button>
           ))}
-          <span className="hidden sm:block w-px h-6 bg-slate-200 mx-1" aria-hidden />
-          {typeBtn('ALL', 'All devices', typeCounts.pos + typeCounts.sb, 'bg-slate-800 text-white border-slate-800')}
-          {typeBtn('POS Terminal', 'POS Terminal', typeCounts.pos, 'bg-sky-600 text-white border-sky-600')}
-          {typeBtn('Sound Box', 'Sound Box', typeCounts.sb, 'bg-violet-600 text-white border-violet-600')}
-          <div className="relative ml-auto w-full sm:w-64">
+          <span className="hidden sm:block w-px h-5 bg-slate-200 mx-1" aria-hidden />
+          {typeBtn('ALL', 'All devices', typeCounts.pos + typeCounts.sb)}
+          {typeBtn('POS Terminal', 'POS Terminal', typeCounts.pos)}
+          {typeBtn('Sound Box', 'Sound Box', typeCounts.sb)}
+          <span className="text-[11px] text-slate-500 hidden lg:inline">{scope === 'PHNOM_PENH' ? 'Phnom Penh staff only' : 'Phnom Penh and Regional staff'}</span>
+          <div className="relative ml-auto w-full sm:w-56">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Serial, Record ID, MID, staff…" aria-label="Search records"
-              className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-[#003857]" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Serial, MID, staff…" aria-label="Search records"
+              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none focus:border-[#003857]" />
           </div>
+          <button type="button" onClick={load} aria-label="Refresh" className="btn-press p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer"><RefreshCw className="w-3.5 h-3.5" /></button>
         </div>
       </div>
 
-      {isAdmin && shownPending.length > 0 && (
-        <div className="sticky top-2 z-10 bg-white/95 backdrop-blur rounded-2xl border border-slate-200 shadow-xs px-4 py-3 flex flex-wrap items-center gap-3">
-          <button type="button" onClick={() => setSelected(allSelected ? new Set() : new Set(shownPending.map((e) => e.id)))} className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer" aria-pressed={allSelected}>
-            {allSelected ? <CheckSquare className="w-4 h-4 text-[#003857]" /> : <Square className="w-4 h-4 text-slate-400" />}
-            {allSelected ? 'Unselect all' : `Select all waiting (${shownPending.length})`}
-          </button>
-          {selectedShown.length > 0 && (
-            <>
-              <span className="text-xs font-semibold text-slate-500">{selectedShown.length} selected</span>
-              <input value={bulkNote} onChange={(e) => setBulkNote(e.target.value)} maxLength={500} placeholder="Reason (needed to reject)" aria-label="Reason for the selected records"
-                className="flex-1 min-w-[160px] px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs outline-none focus:border-[#003857]" />
-              {selectedShown.some(hasWarn) && (
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
-                  <input type="checkbox" checked={bulkAck} onChange={(e) => setBulkAck(e.target.checked)} /> I checked the warnings
-                </label>
-              )}
-              <button type="button" onClick={() => runBulk('reject')} disabled={!!bulkBusy} className="px-3.5 py-2 rounded-xl text-xs font-extrabold border border-rose-200 text-rose-700 bg-white hover:bg-rose-50 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer">
-                {bulkBusy === 'reject' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} Reject {selectedShown.length}
-              </button>
-              <button type="button" onClick={() => runBulk('approve')} disabled={!!bulkBusy} className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer">
-                {bulkBusy === 'approve' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Approve {selectedShown.length}
-              </button>
-            </>
+      {isAdmin && shownPending.length > 0 && selectedShown.length > 0 && (
+        <div className="sticky top-2 z-10 bg-white/95 backdrop-blur rounded-xl border border-slate-200 shadow-xs px-4 py-2.5 flex flex-wrap items-center gap-3">
+          <span className="text-xs font-semibold text-slate-700">{selectedShown.length} selected</span>
+          <input value={bulkNote} onChange={(e) => setBulkNote(e.target.value)} maxLength={500} placeholder="Reason (needed to reject)" aria-label="Reason for the selected records"
+            className="flex-1 min-w-[160px] px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs outline-none focus:border-[#003857]" />
+          {selectedShown.some(hasWarn) && (
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+              <input type="checkbox" checked={bulkAck} onChange={(e) => setBulkAck(e.target.checked)} /> I checked the warnings
+            </label>
           )}
+          <button type="button" onClick={() => runBulk('reject')} disabled={!!bulkBusy} className="btn-press px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer">
+            {bulkBusy === 'reject' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} Reject {selectedShown.length}
+          </button>
+          <button type="button" onClick={() => runBulk('approve')} disabled={!!bulkBusy} className="btn-press px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer">
+            {bulkBusy === 'approve' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Approve {selectedShown.length}
+          </button>
           {bulkReport.length > 0 && (
             <ul role="status" className="basis-full text-[11px] space-y-0.5">
               {bulkReport.slice(0, 8).map((l, i) => <li key={i} className={i === 0 ? 'font-semibold text-slate-700' : 'text-rose-700'}>{l}</li>)}
@@ -296,135 +287,132 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        <AnimatePresence initial={false}>
-          {shown.map((e) => (
-            <motion.div key={e.id} layout="position" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 24, transition: { duration: 0.18 } }}
-              transition={{ type: 'spring', damping: 30, stiffness: 380, mass: 0.7 }}>
-              <ReviewCard e={e} isAdmin={isAdmin} branches={branches} opt={optOf(e)} onOpt={(patch) => setOpt(e.id, patch)}
+      {shown.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto">
+          <table className="data-table">
+            <thead>
+              <tr className="bg-slate-50 text-slate-600">
+                {isAdmin && (
+                  <th className="col-no" style={{ width: 34 }}>
+                    {shownPending.length > 0 && (
+                      <button type="button" aria-label={allSelected ? 'Unselect all' : 'Select all waiting'} aria-pressed={allSelected} onClick={() => setSelected(allSelected ? new Set() : new Set(shownPending.map((e) => e.id)))} className="cursor-pointer">
+                        {allSelected ? <CheckSquare className="w-4 h-4 text-[#003857]" /> : <Square className="w-4 h-4 text-slate-400" />}
+                      </button>
+                    )}
+                  </th>
+                )}
+                <th className="col-no">No.</th>
+                <th>Device Type</th>
+                <th>Record Type</th>
+                <th>Serial Number</th>
+                <th>Merchant / MID · TID</th>
+                <th>Branch / Staff</th>
+                <th>In Inventory Now</th>
+                <th>Status / Date</th>
+              </tr>
+            </thead>
+            {shown.map((e, idx) => (
+              <ReviewRows key={e.id} no={idx + 1} e={e} isAdmin={isAdmin} branches={branches} opt={optOf(e)} onOpt={(patch) => setOpt(e.id, patch)}
                 checked={selected.has(e.id)} onCheck={() => toggle(e.id)} busy={busyIds.has(e.id) || !!bulkBusy} err={rowErr[e.id] || ''}
                 device={deviceBySerial.get(e.serial.toUpperCase())} oldDevice={e.oldSerial ? deviceBySerial.get(e.oldSerial.toUpperCase()) : undefined}
-                needsBranch={needsBranch(e)} needsReturn={needsReturn(e)} onApprove={() => approveRow(e)} onReject={() => rejectRow(e)} onOpenWorkflow={onOpenWorkflow} />
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+                needsBranch={needsBranch(e)} needsReturn={needsReturn(e)} colCount={colCount}
+                onApprove={() => approveRow(e)} onReject={() => rejectRow(e)} onOpenWorkflow={onOpenWorkflow} />
+            ))}
+          </table>
+        </div>
+      )}
     </div>
   );
 };
 
 const IssueList: React.FC<{ issues: FieldIssue[] }> = ({ issues }) => (
-  <ul className="flex flex-col gap-1">
+  <div className="flex flex-wrap gap-1.5">
     {issues.map((i, k) => (
-      <li key={k} className={`flex items-start gap-1.5 text-[11px] font-semibold rounded-lg px-2 py-1 border ${i.level === 'block' ? 'text-rose-800 bg-rose-50 border-rose-200' : 'text-amber-800 bg-amber-50 border-amber-200'}`}>
-        {i.level === 'block' ? <Ban className="w-3.5 h-3.5 shrink-0 mt-px" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />}
+      <span key={k} className={`inline-flex items-start gap-1 text-[11px] rounded-md px-1.5 py-0.5 border ${i.level === 'block' ? 'text-rose-800 bg-rose-50 border-rose-200' : 'text-amber-800 bg-amber-50/70 border-amber-200'}`}>
+        {i.level === 'block' ? <Ban className="w-3 h-3 shrink-0 mt-0.5" /> : <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />}
         <span>{i.text}</span>
-      </li>
+      </span>
     ))}
-  </ul>
-);
-
-const Fact: React.FC<{ label: string; children: React.ReactNode; mono?: boolean }> = ({ label, children, mono }) => (
-  <div className="min-w-0">
-    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-    <div className={`text-xs text-slate-900 truncate ${mono ? 'font-mono' : ''}`}>{children || '—'}</div>
   </div>
 );
 
-const ReviewCard: React.FC<{
-  e: FieldEvent; isAdmin: boolean; branches: Branch[]; opt: RowOpt; onOpt: (p: Partial<RowOpt>) => void; checked: boolean; onCheck: () => void;
-  busy: boolean; err: string; device?: Device; oldDevice?: Device; needsBranch: boolean; needsReturn: boolean;
+const ReviewRows: React.FC<{
+  no: number; e: FieldEvent; isAdmin: boolean; branches: Branch[]; opt: RowOpt; onOpt: (p: Partial<RowOpt>) => void; checked: boolean; onCheck: () => void;
+  busy: boolean; err: string; device?: Device; oldDevice?: Device; needsBranch: boolean; needsReturn: boolean; colCount: number;
   onApprove: () => void; onReject: () => void; onOpenWorkflow?: (serial: string) => void;
-}> = ({ e, isAdmin, branches, opt, onOpt, checked, onCheck, busy, err, device, oldDevice, needsBranch, needsReturn, onApprove, onReject, onOpenWorkflow }) => {
+}> = ({ no, e, isAdmin, branches, opt, onOpt, checked, onCheck, busy, err, device, oldDevice, needsBranch, needsReturn, colCount, onApprove, onReject, onOpenWorkflow }) => {
   const pending = e.status === 'PENDING';
-  const style = TYPE_STYLE[e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal'];
+  const type = e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal';
   const blocked = e.issues.some((i) => i.level === 'block');
   const warned = e.issues.some((i) => i.level === 'warn');
-  const stageText = (d?: Device) => d ? `${STAGE_META[d.stage]?.short || d.stage} · Branch ${d.branchId}${d.merchantName ? ' · ' + d.merchantName : ''}` : 'Not in the inventory';
-  const TypeIcon = e.deviceType === 'Sound Box' ? Volume2 : Cpu;
+  const stageText = (d?: Device) => d ? `${STAGE_META[d.stage]?.short || d.stage} · Branch ${d.branchId}` : 'Not in the inventory';
   const merchant = [e.outletName, e.terminalName && e.terminalName !== e.outletName ? e.terminalName : ''].filter(Boolean).join(' · ');
+  const showControls = pending && isAdmin;
+  const showSecond = showControls || (pending && e.issues.length > 0) || !pending;
+  const line = showSecond ? { borderBottom: 0 } : undefined;
 
   return (
-    <div className={`relative rounded-2xl border shadow-xs overflow-hidden ${style.ring} ${style.tint} bg-white ${checked ? 'ring-2 ring-[#003857]/40' : ''}`}>
-      <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${style.bar}`} aria-hidden />
-      <div className="pl-5 pr-4 py-3.5 flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {isAdmin && pending && (
-            <button type="button" onClick={onCheck} aria-pressed={checked} aria-label={`Select ${e.serial}`} className="cursor-pointer">
-              {checked ? <CheckSquare className="w-4.5 h-4.5 text-[#003857]" /> : <Square className="w-4.5 h-4.5 text-slate-400" />}
-            </button>
-          )}
-          <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md border inline-flex items-center gap-1 ${style.chip}`}><TypeIcon className="w-3 h-3" aria-hidden />{e.deviceType}</span>
-          <span className="text-[11px] font-semibold text-slate-700">{KIND_LABEL[e.kind]}</span>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${STATUS_STYLE[e.status]}`}>{STATUS_LABEL[e.status]}</span>
-          {e.revision > 1 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border bg-sky-50 text-sky-800 border-sky-200">Edited (revision {e.revision})</span>}
-          <span className="ml-auto text-[11px] text-slate-500">{fmtTime(e.recordedAt)} · {e.sourceRecordId}{e.unitNo > 1 ? ' #' + e.unitNo : ''}</span>
-        </div>
-
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <button type="button" onClick={() => device && onOpenWorkflow?.(device.serial)} disabled={!device || !onOpenWorkflow} className={`font-mono text-sm font-extrabold text-slate-900 ${device && onOpenWorkflow ? 'hover:underline cursor-pointer' : 'cursor-default'}`} title={device ? 'Open this device' : undefined}>{e.serial}</button>
-          {e.oldSerial && <span className="text-xs text-slate-600">replaces <span className="font-mono font-semibold text-slate-800">{e.oldSerial}</span></span>}
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2.5">
-          <Fact label="Merchant">{merchant}</Fact>
-          <Fact label="MID" mono>{e.mid}</Fact>
-          <Fact label="TID" mono>{e.tid}</Fact>
-          <Fact label="Staff">{e.staffName ? `${e.staffName}${e.staffId ? ` (${e.staffId})` : ''}` : ''}</Fact>
-          <Fact label="Phone app branch">{e.branchText}</Fact>
-          <Fact label="In the inventory now">{stageText(device)}</Fact>
-          {e.oldSerial && <Fact label={`Taken out · ${e.oldSerial}`}>{stageText(oldDevice)}</Fact>}
-          {e.newBattery && <Fact label="Battery" mono>{`${e.oldBattery || '—'} → ${e.newBattery}`}</Fact>}
-        </div>
-
-        {pending && e.issues.length > 0 && <IssueList issues={e.issues} />}
-
-        {!pending && (
-          <div className="text-xs text-slate-600">{STATUS_LABEL[e.status]}{e.reviewedByName ? ` by ${e.reviewedByName}` : ''}{e.reviewedAt ? ` · ${fmtTime(e.reviewedAt)}` : ''}{e.reviewNote ? ` · ${e.reviewNote}` : ''}</div>
+    <motion.tbody layout="position" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ type: 'spring', damping: 32, stiffness: 400, mass: 0.7 }}
+      className={checked ? 'row-selected' : ''}>
+      <tr>
+        {isAdmin && (
+          <td className="col-no" style={line}>
+            {pending && <button type="button" onClick={onCheck} aria-pressed={checked} aria-label={`Select ${e.serial}`} className="cursor-pointer">{checked ? <CheckSquare className="w-4 h-4 text-[#003857]" /> : <Square className="w-4 h-4 text-slate-400" />}</button>}
+          </td>
         )}
-
-        {pending && isAdmin && (
-          <div className="flex flex-wrap items-end gap-2.5 pt-2.5 border-t border-slate-200/80">
-            {needsBranch && (
-              <label className="text-[11px] font-semibold text-slate-600 flex flex-col gap-1">
-                Branch of this installation
-                <select value={opt.branchId} onChange={(x) => onOpt({ branchId: x.target.value })} className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900 min-w-[170px]">
-                  <option value="">Choose a branch…</option>
-                  {branches.map((b) => <option key={b.id} value={b.id}>{b.id} · {b.name}</option>)}
-                </select>
-              </label>
+        <td className="col-no" style={line}>{no}</td>
+        <td style={line}><span className="inline-flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${TYPE_STYLE[type].dot}`} aria-hidden />{type}</span></td>
+        <td style={line}>{KIND_LABEL[e.kind]}{e.revision > 1 && <span className="cell-sub">Edited (revision {e.revision})</span>}</td>
+        <td style={line}>
+          <button type="button" onClick={() => device && onOpenWorkflow?.(device.serial)} disabled={!device || !onOpenWorkflow} className={`cell-mono ${device && onOpenWorkflow ? 'hover:underline cursor-pointer' : 'cursor-default'}`}>{e.serial}</button>
+          {e.oldSerial && <div className="cell-mono-sub">replaces {e.oldSerial}</div>}
+          {e.newBattery && <div className="cell-mono-sub">battery {e.oldBattery || '—'} → {e.newBattery}</div>}
+        </td>
+        <td style={line}>{merchant || '—'}<div className="cell-mono-sub">{[e.mid, e.tid].filter(Boolean).join(' · ') || '—'}</div></td>
+        <td style={line}>{e.branchText || '—'}<div className="cell-sub">{e.staffName ? `${e.staffName}${e.staffId ? ` (${e.staffId})` : ''}` : '—'}</div></td>
+        <td style={line}>{stageText(device)}{e.oldSerial && <div className="cell-sub">Old: {stageText(oldDevice)}</div>}</td>
+        <td style={line}><span className={`chip ${STATUS_CHIP[e.status]}`}>{STATUS_LABEL[e.status]}</span><div className="cell-sub">{fmtTime(e.recordedAt)}</div></td>
+      </tr>
+      {showSecond && (
+        <tr>
+          <td colSpan={colCount} style={{ paddingTop: 0, paddingBottom: 8 }}>
+            {pending && e.issues.length > 0 && <div className="mb-1.5"><IssueList issues={e.issues} /></div>}
+            {!pending && (
+              <div className="text-xs text-slate-600">{STATUS_LABEL[e.status]}{e.reviewedByName ? ` by ${e.reviewedByName}` : ''}{e.reviewedAt ? ` · ${fmtTime(e.reviewedAt)}` : ''}{e.reviewNote ? ` · ${e.reviewNote}` : ''}</div>
             )}
-            {needsReturn && (
-              <label className="text-[11px] font-semibold text-slate-600 flex flex-col gap-1">
-                {e.kind === 'REPLACE' ? 'Device taken out goes to' : 'Returned sound box goes to'}
-                <select value={opt.returnStage} onChange={(x) => onOpt({ returnStage: x.target.value })} className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-900">
-                  <option value="FAULTY">Faulty / repair</option>
-                  <option value="BRANCH_RESERVE">Branch reserve (working)</option>
-                  <option value="HQ_STOCK">Back to HQ stock</option>
-                </select>
-              </label>
+            {showControls && (
+              <div className="flex flex-wrap items-center gap-2">
+                {needsBranch && (
+                  <select value={opt.branchId} onChange={(x) => onOpt({ branchId: x.target.value })} aria-label="Branch of this installation" className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 min-w-[150px]">
+                    <option value="">Branch of installation…</option>
+                    {branches.map((b) => <option key={b.id} value={b.id}>{b.id} · {b.name}</option>)}
+                  </select>
+                )}
+                {needsReturn && (
+                  <select value={opt.returnStage} onChange={(x) => onOpt({ returnStage: x.target.value })} aria-label={e.kind === 'REPLACE' ? 'Device taken out goes to' : 'Returned sound box goes to'} className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs text-slate-900">
+                    <option value="FAULTY">Old unit → Faulty / repair</option>
+                    <option value="BRANCH_RESERVE">Old unit → Branch reserve</option>
+                    <option value="HQ_STOCK">Old unit → Back to HQ stock</option>
+                  </select>
+                )}
+                <input value={opt.note} onChange={(x) => onOpt({ note: x.target.value })} maxLength={500} placeholder="Reason (needed to reject)" aria-label="Reason" className="flex-1 min-w-[140px] px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs text-slate-900" />
+                {(warned || /warning/i.test(err)) && !blocked && (
+                  <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={opt.ack} onChange={(x) => onOpt({ ack: x.target.checked })} /> I checked the warnings
+                  </label>
+                )}
+                <button type="button" onClick={onReject} disabled={busy} className="btn-press px-3 py-1 rounded-lg text-xs font-bold border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer">
+                  {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} Reject
+                </button>
+                <button type="button" onClick={onApprove} disabled={blocked || busy} className="btn-press px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 flex items-center gap-1.5 cursor-pointer">
+                  {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Approve
+                </button>
+              </div>
             )}
-            <label className="text-[11px] font-semibold text-slate-600 flex flex-col gap-1 flex-1 min-w-[150px]">
-              Reason (needed to reject)
-              <input value={opt.note} onChange={(x) => onOpt({ note: x.target.value })} maxLength={500} className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-normal text-slate-900" />
-            </label>
-            {(warned || /warning/i.test(err)) && !blocked && (
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer pb-1.5">
-                <input type="checkbox" checked={opt.ack} onChange={(x) => onOpt({ ack: x.target.checked })} /> I checked the warnings
-              </label>
-            )}
-            <div className="flex gap-2 ml-auto">
-              <button type="button" onClick={onReject} disabled={busy} className="px-3.5 py-2 rounded-xl text-xs font-extrabold border border-rose-200 text-rose-700 bg-white hover:bg-rose-50 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer">
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />} Reject
-              </button>
-              <button type="button" onClick={onApprove} disabled={blocked || busy} className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-50 flex items-center gap-1.5 cursor-pointer">
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Approve
-              </button>
-            </div>
-            {err && <div role="alert" className="basis-full text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{err}</div>}
-          </div>
-        )}
-      </div>
-    </div>
+            {err && <div role="alert" className="mt-1.5 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-1.5">{err}</div>}
+          </td>
+        </tr>
+      )}
+    </motion.tbody>
   );
 };

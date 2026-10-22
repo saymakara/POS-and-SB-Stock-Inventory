@@ -58,7 +58,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
       title: STAGE_META.HQ_STOCK.short,
       count: counts.hq,
       icon: Warehouse,
-      accentColor: isLight ? 'text-zinc-800' : 'text-zinc-200',
+      accentColor: isLight ? 'text-indigo-700' : 'text-indigo-300',
       hidden: role === 'BRANCH',
     },
     {

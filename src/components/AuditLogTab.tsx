@@ -415,11 +415,11 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
             <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white sticky top-0 z-20">
               <tr>
                 <th className="py-3 px-3.5 w-10 text-right">No.</th>
-                <th className="py-3 px-3.5 whitespace-nowrap">Time</th>
+                <th className="py-3 px-3.5 whitespace-nowrap">Date &amp; Time</th>
                 {serverMode && <th className="py-3 px-3.5 whitespace-nowrap">Actor</th>}
                 {serverMode && <th className="py-3 px-3.5 whitespace-nowrap">Role</th>}
                 <th className="py-3 px-3.5 whitespace-nowrap">Branch Code</th>
-                <th className="py-3 px-3.5 whitespace-nowrap">Action</th>
+                <th className="py-3 px-3.5 whitespace-nowrap">Action Type</th>
                 <th className="py-3 px-3.5 min-w-[260px]">Change Details</th>
               </tr>
             </thead>
