@@ -68,7 +68,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   const flipRef = useRef<HTMLTableSectionElement>(null);
   const { sorted: sortedReqs, sort: reqSort, toggle: reqToggle } = useSort<Requisition>(requisitions, {
     request: (r) => r.reqId, branch: (r) => Number(r.branchId) || r.branchId, qty: (r) => (r.posQty || 0) + (r.sbQty || 0),
-    serials: (r) => (r.arrangedDevices || []).length, status: (r) => r.status, date: (r) => r.date,
+    serials: (r) => (r.arrangedDevices || []).length, status: (r) => r.status, date: (r) => r.date, reason: (r) => r.reason || '',
   });
   // (review) long request lists are drawn progressively: 60 rows at once, more while scrolling
   const pg = usePager(sortedReqs.length, [reqSort]);
@@ -399,16 +399,18 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="data-table min-w-[960px]">
+          <table className="data-table min-w-[900px]">
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
-                <SortTh k="request" sort={reqSort} onSort={reqToggle}>Request ID &amp; Reason</SortTh>
-                <SortTh k="branch" sort={reqSort} onSort={reqToggle}>Branch / Requested By</SortTh>
-                <SortTh k="qty" sort={reqSort} onSort={reqToggle}>Quantity Requested</SortTh>
-                <SortTh k="serials" sort={reqSort} onSort={reqToggle}>Serial Numbers</SortTh>
+                <SortTh k="request" sort={reqSort} onSort={reqToggle}>Request ID</SortTh>
+                <SortTh k="date" sort={reqSort} onSort={reqToggle}>Date</SortTh>
+                <SortTh k="branch" sort={reqSort} onSort={reqToggle}>Branch / Staff</SortTh>
+                <SortTh k="qty" sort={reqSort} onSort={reqToggle}>Quantity</SortTh>
+                <SortTh k="serials" sort={reqSort} onSort={reqToggle}>Serials</SortTh>
+                <SortTh k="reason" sort={reqSort} onSort={reqToggle}>Reason</SortTh>
                 <SortTh k="status" sort={reqSort} onSort={reqToggle}>Status</SortTh>
-                <th className="text-right col-actions">Actions</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody ref={flipRef}>
@@ -426,9 +428,8 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 ) : null;
 
                 const rejectBtn = isAdmin && onRejectRequisition && req.status === 'PENDING_ADMIN' ? (
-                  <button type="button" onClick={() => { setRejectingReq(req); setRejectText(''); }} className="row-btn inline-flex items-center gap-1" title="Reject this request with a reason (for example no stock)">
-                    <Ban className="w-3 h-3" aria-hidden />
-                    <span>Reject</span>
+                  <button type="button" onClick={() => { setRejectingReq(req); setRejectText(''); }} className="row-btn inline-flex items-center !px-2" title="Reject this request with a reason (for example no stock)" aria-label="Reject">
+                    <Ban className="w-3.5 h-3.5" aria-hidden />
                   </button>
                 ) : null;
 
@@ -455,9 +456,9 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         {editBtn}
                         {rejectBtn}
                         {isAdmin ? (
-                          <button type="button" onClick={() => openArrangeModal(req)} className="row-btn inline-flex items-center gap-1" title="Choose the serials and dispatch to the branch">
-                            <Truck className="w-3 h-3" aria-hidden />
-                            <span>Dispatch</span>
+                          <button type="button" onClick={() => openArrangeModal(req)} className="row-btn inline-flex items-center gap-1 !px-2.5" title="Choose the serials and dispatch to the branch" aria-label="Dispatch">
+                            <Truck className="w-3.5 h-3.5" aria-hidden />
+                            <span className="hidden 2xl:inline">Dispatch</span>
                           </button>
                         ) : <span className="cell-sub">Awaiting HQ</span>}
                       </div>
@@ -486,19 +487,14 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     <td className="col-no">{pg.start + rowIdx + 1}</td>
                     <td>
                       <div className="cell-mono whitespace-nowrap">{req.reqId}</div>
-                      <div className="cell-sub whitespace-nowrap">{isReturnReq ? 'Return' : 'Request'} · {req.date}</div>
-                      {req.status === 'REJECTED' ? (
-                        <div className="cell-sub max-w-[240px] truncate !text-rose-700"
-                          title={`Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}${req.reason ? `\nRequest reason: ${req.reason}` : ''}`}>
-                          Rejected: {req.rejectReason || 'no reason recorded'}
-                        </div>
-                      ) : req.reason ? <div className="cell-sub max-w-[240px] truncate" title={req.reason}>{req.reason}</div> : null}
+                      <div className="cell-sub whitespace-nowrap">{isReturnReq ? 'Stock return' : 'Stock request'}</div>
                     </td>
+                    <td className="whitespace-nowrap tabular-nums text-[12px] text-slate-700">{req.date}</td>
                     <td>
-                      <div className="cell-main max-w-[220px] truncate" title={`Code ${req.branchId} · ${req.branchName}`}>
+                      <div className="cell-main max-w-[170px] truncate" title={`Code ${req.branchId} · ${req.branchName}`}>
                         {req.branchId} · {req.branchName.replace(' Branch', '')}
                       </div>
-                      <div className="cell-sub max-w-[220px] truncate">{req.staff}</div>
+                      <div className="cell-sub max-w-[170px] truncate">{req.staff}</div>
                     </td>
                     <td className="whitespace-nowrap">
                       {req.posQty > 0 && <div className="cell-main flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />POS Terminal × {req.posQty}</div>}
@@ -507,30 +503,38 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     <td className="whitespace-nowrap">
                       {serialList.length > 0 ? (
                         <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap" title={serialList.join(', ')}>
-                          {serialList.slice(0, 2).map((sn) => (
+                          {serialList.slice(0, 1).map((sn) => (
                             <span key={sn} className="cell-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">{sn}</span>
                           ))}
-                          {serialList.length > 2 && <span className="cell-sub !mt-0 pl-0.5">+{serialList.length - 2} more</span>}
+                          {serialList.length > 1 && <span className="cell-sub !mt-0 pl-0.5">+{serialList.length - 1} more</span>}
                         </div>
                       ) : (
                         <span className="cell-sub">{isReturnReq ? 'No serials listed' : 'Not arranged yet'}</span>
                       )}
                     </td>
+                    <td>
+                      <div className="khmer max-w-[128px] truncate" title={req.reason || ''}>{req.reason || <span className="cell-sub">—</span>}</div>
+                      {req.status === 'REJECTED' && (
+                        <div className="cell-sub khmer max-w-[128px] truncate" title={`Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}`}>
+                          Rejected: {req.rejectReason || 'no reason recorded'}
+                        </div>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap"><span className={`chip ${chip}`}>{statusLabel}</span></td>
-                    <td className="text-right col-actions">{actionBtn}</td>
+                    <td className="text-right whitespace-nowrap">{actionBtn}</td>
                   </tr>
                 );
               })}
 
               {requisitions.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center"><span className="cell-sub">No stock requests found.</span></td>
+                  <td colSpan={9} className="py-10 text-center"><span className="cell-sub">No stock requests found.</span></td>
                 </tr>
               )}
             </tbody>
           </table>
-          <Pager pg={pg} label="requests" />
         </div>
+        <Pager pg={pg} label="requests" />
       </div>
 
       {/* Reject a pending request */}

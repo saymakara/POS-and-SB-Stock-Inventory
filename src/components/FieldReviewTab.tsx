@@ -1,4 +1,3 @@
-import { ScanField } from './ScanField';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Smartphone, Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown } from 'lucide-react';
@@ -60,7 +59,7 @@ interface Props {
   scope?: 'PHNOM_PENH' | 'ALL';
 }
 
-interface RowOpt { branchId?: string; returnStage?: string; note?: string; ack?: boolean; vSerial?: string; vMid?: string }
+interface RowOpt { branchId?: string; returnStage?: string; note?: string; ack?: boolean }
 
 const needsReturnOf = (e: FieldEvent) => (e.kind === 'REPLACE' && !!e.oldSerial) || e.kind === 'SB_RETURN';
 const needsBranchOf = (e: FieldEvent) => e.kind === 'INSTALL' || e.kind === 'REPLACE';
@@ -71,8 +70,6 @@ const resolve = (e: FieldEvent, o?: RowOpt) => ({
   returnStage: o?.returnStage ?? ('HQ_STOCK'),
   note: o?.note ?? '',
   ack: o?.ack ?? false,
-  vSerial: o?.vSerial ?? '',
-  vMid: o?.vMid ?? '',
 });
 /** How the phone app says the serial / MID was entered: unit.serial_input / unit.mid_input = "SCAN" or "TYPED" (missing = not reported). */
 type How = 'SCAN' | 'TYPED' | '';
@@ -82,13 +79,6 @@ const entryOf = (e: FieldEvent): { serial: How; mid: How } => {
   return { serial: howOf(u.serial_input), mid: howOf(u.mid_input) };
 };
 const howText = (h: How) => (h === 'SCAN' ? 'Scanned' : h === 'TYPED' ? 'Typed by hand' : 'Not reported');
-const normId = (v: string) => v.replace(/\s+/g, '').toUpperCase();
-/** Optional check by the admin: a typed or scanned serial / MID must equal the record, or the record is not approved. */
-const verifyProblem = (e: FieldEvent, o: ReturnType<typeof resolve>): string => {
-  if (o.vSerial.trim() && normId(o.vSerial) !== normId(e.serial)) return 'the serial typed or scanned does not match this record';
-  if (o.vMid.trim() && normId(o.vMid) !== normId(e.mid || '')) return 'the MID typed or scanned does not match this record';
-  return '';
-};
 
 export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, triggerToast, onApplied, onOpenWorkflow, scope = 'PHNOM_PENH' }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -189,7 +179,8 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
       .filter((e) => typeFilter === 'ALL' || e.deviceType === typeFilter)
       .filter((e) => !q || [e.serial, e.oldSerial, e.sourceRecordId, e.mid, e.tid, e.outletName, e.terminalName, e.staffName, e.staffId, e.branchText]
         .some((v) => String(v || '').toLowerCase().includes(q)))
-      .sort((a, b) => filter === 'PENDING' ? a.receivedAt.localeCompare(b.receivedAt) : b.receivedAt.localeCompare(a.receivedAt));
+      // newest first (date and time sent); the devices of one entry stay together, in their order
+      .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt) || b.sourceRecordId.localeCompare(a.sourceRecordId) || a.unitNo - b.unitNo);
   }, [scoped, filter, typeFilter, deferredQuery]);
 
   const { sorted: shown, sort, toggle: toggleSort } = useSort(shownBase, {
@@ -218,12 +209,10 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
     const o = resolve(e, optsRef.current[e.id]);
     if (hasBlock(e)) return 'cannot be approved as it is (see the red note)';
     if (needsBranchOf(e) && !o.branchId) return 'choose the branch first';
-    const vp = verifyProblem(e, o);
-    if (vp) return vp;
     const ack = ackAll || o.ack;
     if (hasWarn(e) && !ack) return 'tick "I checked the warnings" first';
     try {
-      await approveFieldEvent(e.id, o.note || ((o.vSerial.trim() || o.vMid.trim()) ? 'Serial and MID verified by the admin' : ''), { branch_id: o.branchId || undefined, return_stage: needsReturnOf(e) ? o.returnStage : undefined, acknowledge: ack });
+      await approveFieldEvent(e.id, o.note, { branch_id: o.branchId || undefined, return_stage: needsReturnOf(e) ? o.returnStage : undefined, acknowledge: ack });
       markDone(e.id, 'APPROVED');
       return '';
     } catch (x) {
@@ -531,8 +520,6 @@ const ReviewRow = memo(function ReviewRow({ e, units = 1, no, isAdmin, branches,
                       </select>
                     </label>
                   )}
-                  <ScanField label="Verify serial (optional)" value={r.vSerial} onChange={(v) => onOpt(e.id, { vSerial: v })} expected={e.serial} />
-                  {e.mid && <ScanField label="Verify MID (optional)" value={r.vMid} onChange={(v) => onOpt(e.id, { vMid: v })} expected={e.mid} normalize={(v) => v.replace(/\D/g, '')} />}
                   <label className="flex flex-col gap-1 text-slate-600">Reason (needed to reject)
                     <input value={r.note} onChange={(x) => onOpt(e.id, { note: x.target.value })} maxLength={500} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900" />
                   </label>

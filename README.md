@@ -96,5 +96,5 @@ The tests use a stand-in of the Supabase API, so they never touch live data.
 - Search by serial / MID / TID shows everything (inventory, Merchant History, stock requests, Phone App records, audit trail).
 - 50 / 100 rows per page on every table; "Clear filters" on every tab with filters; pop-ups centred with the page behind locked.
 - Stock Requests: Reject with a reason (database function `admin_reject_requisition`, migration `20261023_01_reject_requisition.sql`, already applied).
-- Phone App Review: date sent above the serial; optional serial / MID verification by typing or scanning.
+- Phone App Review: Date Sent column; one row per device (MID); "Entered by" shows whether the phone scanned or typed each number (no verify boxes in the dashboard).
 - Terminate in the Merchant 360 view clears every merchant field on the unit and keeps the old merchant in Merchant History.
