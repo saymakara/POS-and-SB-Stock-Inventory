@@ -187,7 +187,7 @@ const historyRecordFor = (
     installedDate,
     returnedDate,
     activeDurationMonths: monthsBetween(installedDate, returnedDate),
-    returnReason: o.reason,
+    returnReason: o.reason.replace(/^Returned:\s*/i, ''),
     status: o.status,
     handledByStaff: o.actor,
     installedByStaff: d.installedByStaff || undefined,
@@ -353,6 +353,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   });
 
   const [traceQuery, setTraceQuery] = useState('');
+  const [workflowPreset, setWorkflowPreset] = useState<'' | 'RETURN'>('');
   const [auditLogs, setAuditLogs] = useState<string[]>(() => {
     try {
       if (isSupabaseConfigured) return [];                             // (review) the server keeps the audit log
@@ -1350,7 +1351,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
     const histRec = leftMerchant
       ? historyRecordFor(d, {
-          reason: updates.note.trim() || (updates.stage === 'LOST' ? 'Device lost at merchant' : 'Taken back from merchant'),
+          reason: (updates.note.trim().replace(/^Returned:\s*/i, '')) || (updates.stage === 'LOST' ? 'Device lost at merchant' : 'Taken back from merchant'),
           status: updates.stage === 'LOST' || TERMINATION_REASON.test(updates.note) ? 'TERMINATED' : 'RETURNED',
           actor,
           notes: `Unit moved to ${stageLabel}.`,
@@ -1376,7 +1377,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       ...moved,
       ...(updates.deploymentStatus ? { deploymentStatus: updates.deploymentStatus } : {}),
       ...(updates.stockStatus ? { stockStatus: updates.stockStatus } : {}),
-      installedByStaff: updates.stage === 'COMPLETE' && d.stage !== 'COMPLETE' ? updates.staff || actor : d.installedByStaff,
+      installedByStaff: updates.stage === 'COMPLETE' && d.stage !== 'COMPLETE' ? updates.staff || actor : leftMerchant ? '' : d.installedByStaff,
+      replacedByStaff: leftMerchant ? '' : d.replacedByStaff,   // (23 Oct 2026) a returned unit keeps no merchant details: they live on in Merchant History
       returnedByStaff: leftMerchant ? actor : d.returnedByStaff,
       returnedDate: leftMerchant ? today : d.returnedDate,
       customFields: { ...(d.customFields || {}), ...(updates.customFields || {}) },
@@ -1529,7 +1531,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const moving = targets.filter((d) => !skipped.includes(d));
     if (!moving.length) { triggerToast('Nothing to return: the units are already in HQ stock, lost or allocated to a request.'); return; }
     const why = reason || 'Returned to HQ stock';
-    const records = moving.filter((d) => d.mid).map((d) => historyRecordFor(d, {
+    const records = moving.filter((d) => d.mid || d.merchantName).map((d) => historyRecordFor(d, {
       reason: why, status: TERMINATION_REASON.test(why) ? 'TERMINATED' : 'RETURNED', actor, notes: 'Returned to HQ.' }));
     const movedMap = new Map(moving.map((d) => {
       const to: LifecycleStage = d.stage === 'FAULTY' ? 'FAULTY' : 'HQ_STOCK';
@@ -1649,16 +1651,17 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       if (!canMove(d.stage, 'BRANCH_RESERVE') || d.customFields?.allocatedTo) { problems.push(`${d.serial} (${d.customFields?.allocatedTo ? 'allocated to ' + d.customFields.allocatedTo : STAGE_META[d.stage].short})`); return; }
       if (role === 'BRANCH' && d.stage === 'HQ_STOCK') { problems.push(`${d.serial} (HQ stock)`); return; }
       const why = reason || `Returned to Branch Code ${bId} reserve`;
-      if (d.mid) records.push(historyRecordFor(d, { reason: why, status: TERMINATION_REASON.test(why) ? 'TERMINATED' : 'RETURNED', actor, notes: 'Unit kept in branch reserve.' }));
+      const hadMerchant = !!(d.mid || d.merchantName);
+      if (hadMerchant) records.push(historyRecordFor(d, { reason: why, status: TERMINATION_REASON.test(why) ? 'TERMINATED' : 'RETURNED', actor, notes: 'Unit kept in branch reserve.' }));
       nextMap.set(d.serial, {
         ...onMove(d, 'BRANCH_RESERVE'),
         branchId: bId,
         branchName: bObj.name,
-        returnedByStaff: d.mid ? actor : d.returnedByStaff,
-        returnedDate: d.mid ? today : d.returnedDate,
-        deployedDate: d.mid ? '' : d.deployedDate,
+        returnedByStaff: hadMerchant ? actor : d.returnedByStaff,
+        returnedDate: hadMerchant ? today : d.returnedDate,
+        deployedDate: hadMerchant ? '' : d.deployedDate,
         updatedAt: today,
-        redeployCount: d.mid ? (d.redeployCount || 0) + 1 : d.redeployCount || 0,
+        redeployCount: hadMerchant ? (d.redeployCount || 0) + 1 : d.redeployCount || 0,
         history: [`${nowTime} | Return to Branch Reserve | ${why} — Officer: ${actor}`, ...(d.history || [])],
       });
     });
@@ -2945,6 +2948,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
                   {shownTab === 'inventory' && (
                     <InventoryTab
+                      onReturnDevice={(sn) => { setWorkflowPreset('RETURN'); setEditingDeviceSerial(sn); }}
                       devices={filteredInventory}
                       allDevices={scopedDevices}
                       branches={branches}
@@ -3287,8 +3291,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           branches={branches}
           role={role}
           theme={theme}
-          onClose={() => setEditingDeviceSerial(null)}
-          onSave={handleSaveWorkflow}
+          onClose={() => { setEditingDeviceSerial(null); setWorkflowPreset(''); }}
+          preset={workflowPreset}
+          onSave={(sn, u) => { setWorkflowPreset(''); handleSaveWorkflow(sn, u); }}
           onDeletePermanently={(sn) => handleDeletePermanently([sn])}
           onReturnToAdminStock={(sn, reason) =>
             handleReturnToAdminStock([sn], reason)

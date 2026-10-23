@@ -74,7 +74,7 @@ async function api(route) {
     return pg(route, req, url, all, 'serial');
   }
   if (path === '/rest/v1/requisitions') return pg(route, req, url, me && me.profile.role === 'BRANCH' ? state.reqs.filter(r => r.branch_id === me.profile.branch_id) : state.reqs, 'req_id');
-  if (path === '/rest/v1/historical_merchants') return json(200, []);
+  if (path === '/rest/v1/historical_merchants') { if (method !== 'GET') { state.histSaved = (state.histSaved || []).concat(Array.isArray(body) ? body : [body]); return json(201, []); } return json(200, []); }
   if (path === '/rest/v1/branches' ) return json(200, []);
   if (path === '/rest/v1/field_events') {
     const st = url.searchParams.get('status') || '';
@@ -124,6 +124,12 @@ async function api(route) {
   ok(!errs.length, 'search by a GPS value does not crash');
   await p.fill('input[placeholder^="Search Serial SN"]', ''); await sleep(300);
   // ---- 23 Oct 2026 additions
+  await p.getByRole('button', { name: 'Select serial WP0001' }).click(); await sleep(300);
+  await p.getByRole('button', { name: 'Select serial WP0002' }).click(); await sleep(300);
+  const sel = await p.locator('button[aria-label^="Unselect serial"]').count();
+  ok(sel === 2, 'Stock Inventory: several units can be selected (2 ticked) ' + sel);
+  await p.locator('button[aria-label^="Unselect serial"]').first().click(); await sleep(200);
+  await p.locator('button[aria-label^="Unselect serial"]').first().click(); await sleep(200);
   const bodyTxt = async () => p.textContent('body');
   ok(/Sok Dara/.test(await bodyTxt()) && /Terminated & Returned/.test(await bodyTxt()), 'Stock Inventory: installer name above the branch code; Terminated & Returned summary card is back');
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/inventory.png' });
@@ -159,6 +165,15 @@ async function api(route) {
     ok((await p.evaluate(() => getComputedStyle(document.body).overflow)) === 'hidden', 'the page behind a pop-up does not scroll');
     await p.keyboard.press('Escape'); await p.locator('button[aria-label="Close merchant profile"]').click().catch(() => {}); await sleep(400);
   }
+  // (23 Oct 2026) Return: merchant details removed, unit back to stock, merchant kept in Merchant History
+  await p.getByText('Stock Inventory', { exact: true }).first().click(); await sleep(900);
+  await p.getByRole('button', { name: 'Return WP0002' }).click(); await sleep(900);
+  ok(/Return to Stock/.test(await p.textContent('body')) && /Merchant History/.test(await p.textContent('body')), 'Return opens straight on "Return to Stock" with the merchant-removal note');
+  await p.getByRole('button', { name: /Review Changes/ }).click(); await sleep(600);
+  await p.getByRole('button', { name: /Confirm & Commit Changes/ }).click(); await sleep(1800);
+  const wp2 = state.devices.find((d) => d.serial === 'WP0002');
+  ok(wp2.stage === 'BRANCH_RESERVE' && !wp2.mid && !wp2.merchant_name && !wp2.tid, 'returned unit is back in branch reserve with no merchant details ' + JSON.stringify({ st: wp2.stage, mid: wp2.mid, m: wp2.merchant_name }));
+  ok((state.histSaved || []).some((h) => JSON.stringify(h).includes('Lucky Mart')), 'the old merchant (Lucky Mart) is kept in Merchant History');
   // (22 Oct 2026) dispatch goes through the server function; the request status is never saved directly
   await p.getByText('Stock Requests', { exact: true }).first().click(); await sleep(1200);
   await p.getByRole('button', { name: 'Dispatch', exact: true }).first().click(); await sleep(800);

@@ -83,6 +83,8 @@ interface WorkflowModalProps {
   onDeletePermanently?: (serial: string) => void;
   /** Signed-in operator's name/label (recorded as custodian when a unit goes to HQ stock). */
   operatorLabel?: string;
+  /** 'RETURN': open straight on Return (from the Return button in Stock Inventory) */
+  preset?: '' | 'RETURN';
 }
 
 export const WorkflowModal: React.FC<WorkflowModalProps> = ({
@@ -98,6 +100,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   onRequestReturnToAdminStock,
   onReturnToBranchReserve,
   onRemoveFromDashboard,
+  preset = '',
   onChangeBattery,
   onDeletePermanently,
   operatorLabel = '',
@@ -122,6 +125,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
   // Double-Step Verification State
   const [modalStep, setModalStep] = useState<'EDIT' | 'PREVIEW'>('EDIT');
+  // (23 Oct 2026) Return: the merchant's details are removed (kept in Merchant History) and the unit goes back to stock
+  const [returnMode, setReturnMode] = useState(false);
+  const [returnTo, setReturnTo] = useState<'BRANCH_RESERVE' | 'HQ_STOCK'>('BRANCH_RESERVE');
+  const [returnReason, setReturnReason] = useState('Merchant Closed Business');
   interface PendingPayload {
     actionType: 'SAVE' | 'RETURN_BRANCH_RESERVE' | 'RETURN_ADMIN_STOCK' | 'REMOVE_DASHBOARD';
     actionTitle: string;
@@ -187,9 +194,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
       setModalStep('EDIT');
       setPendingPayload(null);
+      const canRet = (device.stage === 'COMPLETE' || device.stage === 'CONFIGURING') && Boolean(device.mid || device.merchantName);
+      setReturnMode(preset === 'RETURN' && canRet);
+      setReturnTo('BRANCH_RESERVE');
+      setReturnReason('Merchant Closed Business');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deviceSerial]);
+  }, [deviceSerial, preset]);
+  const canReturn = !!device && (device.stage === 'COMPLETE' || device.stage === 'CONFIGURING') && Boolean(device.mid || device.merchantName);
 
   /** Stages this unit may move to from where it is now (plus staying put). Branch users never move a unit into HQ stock. */
   const stageOptions = useMemo(() => {
@@ -228,6 +240,19 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       setMidError(msg);
       return;
     };
+
+    if (returnMode) {                                                   // Return: merchant details removed, unit back to stock
+      const why = `Returned: ${returnReason}${note.trim() ? ' – ' + note.trim() : ''}`;
+      if (returnTo === 'HQ_STOCK' && isAdminLike) {
+        setPendingPayload({ ...quickMove('HQ_STOCK', 'RETURN_ADMIN_STOCK', 'Return to Stock · Admin HQ (Code 100)', '100', operatorLabel.trim(), why), note: why });
+      } else {
+        if (!device.branchId || device.branchId === '100') return fail('This unit has no branch to hold it. Return it to Admin HQ stock instead.');
+        setPendingPayload({ ...quickMove('BRANCH_RESERVE', 'RETURN_BRANCH_RESERVE', `Return to Stock · Branch Code ${device.branchId} reserve`, device.branchId, device.staff || '', why), note: why });
+      }
+      setMidError('');
+      setModalStep('PREVIEW');
+      return;
+    }
 
     // 1. The move itself must be allowed by the device life cycle.
     const stageErr = role === 'SUPER_ADMIN' ? '' : moveError(device.stage, stage, STAGE_META);   // the super admin may move a unit to any stage
@@ -734,11 +759,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </label>
                 <div className="relative">
                   <select
-                    value={stage}
+                    value={returnMode ? '__RETURN__' : stage}
                     aria-label="Lifecycle stage"
-                    onChange={(e) =>
-                      handleStageChange(e.target.value as LifecycleStage)
-                    }
+                    onChange={(e) => {
+                      if (e.target.value === '__RETURN__') { setReturnMode(true); setMidError(''); return; }
+                      setReturnMode(false);
+                      handleStageChange(e.target.value as LifecycleStage);
+                    }}
                     className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
                       isLight
                         ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
@@ -761,6 +788,11 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         </option>
                       );
                     })}
+                    {canReturn && (
+                      <option value="__RETURN__" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>
+                        Return (remove merchant, back to stock)
+                      </option>
+                    )}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
                 </div>
@@ -801,6 +833,39 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {returnMode && (
+              <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'}`}>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  <RotateCcw className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Return to Stock</span>
+                </div>
+                <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
+                  The merchant's name, MID, TID, phone, address and installer are removed from this unit and kept in <strong>Merchant History</strong>. The unit goes back to stock:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setReturnTo('BRANCH_RESERVE')} aria-pressed={returnTo === 'BRANCH_RESERVE'}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
+                    <Building2 className="w-3.5 h-3.5" /><span>Branch Code {device.branchId} reserve</span>
+                  </button>
+                  {isAdminLike ? (
+                    <button type="button" onClick={() => setReturnTo('HQ_STOCK')} aria-pressed={returnTo === 'HQ_STOCK'}
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 cursor-pointer ${returnTo === 'HQ_STOCK' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
+                      <RotateCcw className="w-3.5 h-3.5" /><span>Admin HQ stock (Code 100)</span>
+                    </button>
+                  ) : (
+                    <span className="px-3 py-2 rounded-xl text-[11px] border border-dashed border-slate-300 text-slate-500 flex items-center justify-center text-center">To send it to HQ, use a stock return request afterwards</span>
+                  )}
+                </div>
+                <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Reason for the return *
+                  <select value={returnReason} onChange={(e) => setReturnReason(e.target.value)} aria-label="Reason for the return"
+                    className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none cursor-pointer ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#181c26] border-slate-700/80 text-white'}`}>
+                    {['Merchant Closed Business', 'Merchant Relocated', 'Merchant Requested Return', 'Upgraded / Replaced Hardware', 'Voluntary KHQR Switch', 'Seasonal End', 'Other'].map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </label>
+              </div>
+            )}
 
             {/* When Terminate / Return is selected, staff must return device to physical stock */}
             {stage === 'FAULTY' && (
@@ -881,6 +946,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               </div>
             )}
 
+            {/* (23 Oct 2026) Return: the merchant, officer and battery fields are not needed */}
+            {!returnMode && (<>
             {/* Row 2: Staff Officer & Deployment Date */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
@@ -1336,6 +1403,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               </div>
             </div>
 
+            </>)}
             {/* Row 5: Audit Note */}
             <div className="flex flex-col gap-1">
               <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
