@@ -573,8 +573,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       {/* Search & Filter Toolbar */}
       <div className="surface-card p-4 rounded-2xl shadow-xs space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-          {/* Search */}
-          <div className="md:col-span-5 relative">
+          {/* Search, with Clear filters right next to it */}
+          <div className="md:col-span-5 flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -595,6 +596,10 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 ✕
               </button>
             )}
+          </div>
+            <ClearFiltersButton
+              active={!!searchQuery || typeFilter !== 'ALL' || reasonFilter !== 'ALL' || branchFilter !== (role === 'BRANCH' ? selectedBranch : 'ALL')}
+              onClear={() => { setSearchQuery(''); setTypeFilter('ALL'); setReasonFilter('ALL'); setBranchFilter(role === 'BRANCH' ? selectedBranch : 'ALL'); }} />
           </div>
 
           {/* Branch Code Filter */}
@@ -645,11 +650,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <option value="Battery">Battery Expiry / Inactive</option>
               <option value="Seasonal">Seasonal End</option>
             </select>
-          </div>
-          <div className="md:col-span-2 flex justify-end">
-            <ClearFiltersButton
-              active={!!searchQuery || typeFilter !== 'ALL' || reasonFilter !== 'ALL' || branchFilter !== (role === 'BRANCH' ? selectedBranch : 'ALL')}
-              onClear={() => { setSearchQuery(''); setTypeFilter('ALL'); setReasonFilter('ALL'); setBranchFilter(role === 'BRANCH' ? selectedBranch : 'ALL'); }} />
           </div>
         </div>
       </div>

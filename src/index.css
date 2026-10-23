@@ -24,7 +24,8 @@
 @theme {
   /* (22 Oct 2026) Khmer text is drawn in Battambang (Latin fonts have no Khmer letters, so the browser uses the next font) */
   --font-sans: 'Plus Jakarta Sans', 'Battambang', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Plus Jakarta Sans', 'Battambang', ui-monospace, SFMono-Regular, monospace;
+  /* (23 Oct 2026) IDs, serials and MIDs use the normal font with even-width digits: a plain 0 (no dot inside) */
+  --font-mono: 'Plus Jakarta Sans', 'Battambang', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-weight-extrabold: 700;
   --font-weight-black: 750;
 }
@@ -70,7 +71,9 @@
   pre,
   .font-mono {
     font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    letter-spacing: 0.01em;
   }
 }
 
@@ -337,7 +340,8 @@ button:not(:disabled),
               border-color 0.18s var(--ease-apple-spring),
               color 0.18s var(--ease-apple-spring),
               box-shadow 0.22s var(--ease-apple-spring),
-              opacity 0.18s var(--ease-apple-spring);
+              opacity 0.18s var(--ease-apple-spring),
+              scale 0.22s var(--ease-apple-spring);
 }
 
 /* Prevent any button label inheriting body letter-spacing:0 which collapses bold strokes */
@@ -575,7 +579,6 @@ button:hover:not(:disabled),
   to { opacity: 1; transform: none; }
 }
 .data-table tbody tr { animation: rowGlideIn 0.26s var(--ease-apple-smooth) both; }
-.data-table tbody tr:nth-child(n + 12) { animation-delay: 0.02s; }
 
 /* Page change: the new page glides in (fallback when the browser has no View Transitions) */
 @keyframes tabGlideIn {
@@ -748,3 +751,32 @@ html { scrollbar-gutter: stable; }
 /* while any pop-up is open the page behind it does not scroll, and the pop-up scrolls on its own */
 body:has(.fixed.inset-0) { overflow: hidden; }
 .fixed.inset-0 { overscroll-behavior: contain; }
+
+/* ==========================================================================
+   6. (23 Oct 2026) Smooth everywhere: every tap answers with a soft press, colours glide instead of jumping,
+      and rows glide in one after another when a page, filter or sort changes. GPU-only properties
+      (opacity, transform / scale), so the motion stays smooth on phones and slow computers.
+   ========================================================================== */
+@layer base {
+  button, [role="button"], a, select, input, textarea, .chip, .row-btn {
+    transition-property: background-color, color, border-color, box-shadow, opacity, scale;
+    transition-duration: 0.22s;
+    transition-timing-function: var(--ease-apple-smooth, cubic-bezier(0.32, 0.72, 0, 1));
+  }
+  button:not(:disabled):active, [role="button"]:active, .row-btn:active { scale: 0.97; transition-duration: 0.08s; }
+}
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+/* rows glide in one after another (a short cascade, then all together, so a long page never waits) */
+.data-table tbody tr:nth-child(2) { animation-delay: 0.015s; }
+.data-table tbody tr:nth-child(3) { animation-delay: 0.03s; }
+.data-table tbody tr:nth-child(4) { animation-delay: 0.045s; }
+.data-table tbody tr:nth-child(5) { animation-delay: 0.06s; }
+.data-table tbody tr:nth-child(6) { animation-delay: 0.075s; }
+.data-table tbody tr:nth-child(7) { animation-delay: 0.09s; }
+.data-table tbody tr:nth-child(8) { animation-delay: 0.105s; }
+.data-table tbody tr:nth-child(n + 9) { animation-delay: 0.12s; }
+/* a status that changes (Pending → Rejected) cross-fades its colour */
+.data-table .chip { transition: background-color 0.3s var(--ease-apple-smooth), color 0.3s var(--ease-apple-smooth), border-color 0.3s var(--ease-apple-smooth); }
+/* cards lift gently under the pointer */
+.surface-card { transition: box-shadow 0.25s var(--ease-apple-smooth), translate 0.25s var(--ease-apple-smooth), border-color 0.25s var(--ease-apple-smooth); }

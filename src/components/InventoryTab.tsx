@@ -469,6 +469,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 setShowArchivedView((prev) => !prev);
                 setSelectedSns([]);
               }}
+              title={showArchivedView ? 'Showing the units removed from the dashboard – tap to show the active stock again' : 'Show the units removed from the dashboard'}
+              aria-pressed={showArchivedView}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold tracking-wide border transition cursor-pointer ${
                 showArchivedView
                   ? 'bg-amber-400 text-zinc-900 border-amber-300'
@@ -477,9 +479,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             >
               <ArchiveRestore className="w-3.5 h-3.5" />
               <span>
-                {showArchivedView
-                  ? 'Back to Active Stock'
-                  : `Removed (${archivedCount})`}
+                {`Removed from Dashboard (${archivedCount})`}
               </span>
               {archivedCount > 0 && !showArchivedView && (
                 <span className="w-2 h-2 rounded-full natural-red-point" />

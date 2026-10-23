@@ -8,10 +8,10 @@ export const ClearFiltersButton: React.FC<{ active: boolean; onClear: () => void
     onClick={onClear}
     disabled={!active}
     title={active ? 'Clear the search and all filters' : 'No filter is applied'}
-    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs border transition shrink-0 ${
+    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs border transition-colors shrink-0 whitespace-nowrap ${
       active
-        ? 'bg-white text-[#003857] border-[#003857]/40 hover:bg-[#003857] hover:text-white cursor-pointer'
-        : 'bg-slate-50 text-slate-400 border-slate-200 cursor-default'
+        ? 'bg-[#003857] text-white border-[#003857] hover:bg-[#002a42] shadow-xs cursor-pointer'
+        : 'bg-slate-100 text-slate-400 border-slate-200 cursor-default'
     } ${className}`}
   >
     <FilterX className="w-3.5 h-3.5" />
