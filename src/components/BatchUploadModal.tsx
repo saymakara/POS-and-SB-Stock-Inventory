@@ -373,7 +373,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         stockInDate,
         merchantName: cell(row, 'merchantName'),
         mid: normalizeMid(cell(row, 'mid')),
-        tid: cell(row, 'tid'),
+        tid: /^\d{15}$/.test(normalizeMid(cell(row, 'mid'))) ? normalizeMid(cell(row, 'mid')).slice(-8) : cell(row, 'tid'),
         redeployCount,
         isDuplicate: false,
         error: errors.join('; ') || undefined,

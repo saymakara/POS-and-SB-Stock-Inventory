@@ -1,3 +1,4 @@
+import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useFlip } from '../utils/useFlip';
 import { useSort, SortTh } from '../utils/sort';
@@ -744,7 +745,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
   // High-Throughput Merchant Pagination (Limits DOM elements to 25 / 50 / 100)
   const [merchantPage, setMerchantPage] = useState(1);
-  const [merchantsPerPage, setMerchantsPerPage] = useState(25);
+  const [merchantsPerPage, setMerchantsPerPage] = useState(50);
 
   const totalMerchantPages = Math.max(1, Math.ceil(filteredMerchants.length / merchantsPerPage));
 
@@ -1568,19 +1569,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           <option value="2+">2+ Devices / In Swap</option>
         </select>
 
-        <motion.button
-          whileTap={{ scale: 0.94 }}
-          type="button"
-          onClick={handleResetFilters}
-          className={`px-3 py-2 rounded-xl text-xs font-semibold border transition flex items-center justify-center gap-1.5 ${
-            isLight
-              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-              : 'bg-[#10233d] hover:bg-[#163054] text-slate-300 border-[#1e3e6b]'
-          }`}
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset CRM Filters</span>
-        </motion.button>
+        <ClearFiltersButton active={!!search || branchFilter !== (role === 'BRANCH' ? activeBranchId : 'ALL') || statusFilter !== 'ALL' || bundleFilter !== 'ALL' || deviceCountFilter !== 'ALL'} onClear={handleResetFilters} />
       </div>
 
       {/* Merchant 360 Registry Table (22 Oct 2026: one clean style, Khmer in Battambang) */}
@@ -1730,8 +1719,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                       : 'bg-zinc-800 border-white/10 text-slate-200'
                   }`}
                 >
-                  <option value={15}>15</option>
-                  <option value={25}>25</option>
                   <option value={50}>50</option>
                   <option value={100}>100</option>
                 </select>
@@ -2847,7 +2834,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] opacity-90 mb-2">
-                    Terminating this merchant will immediately decouple and return the following serials to inventory:
+                    Terminating clears the merchant name, MID, TID, phone, address and installer from each serial in Stock Inventory, and keeps the old merchant details in Merchant History:
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {terminateModalMerchant.devices.map((d) => (

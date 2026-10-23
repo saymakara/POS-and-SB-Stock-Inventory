@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFlip } from '../utils/useFlip';
-import { useProgressive } from '../utils/useProgressive';
+import { usePager } from '../utils/usePager';
+import { Pager } from './Pager';
 import { useSort, SortTh } from '../utils/sort';
 import { createPortal } from 'react-dom';
 import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '../types';
@@ -21,6 +22,7 @@ import {
   ShieldCheck,
   Upload,
   Pencil,
+  Ban,
 } from 'lucide-react';
 
 interface RequisitionsTabProps {
@@ -30,6 +32,7 @@ interface RequisitionsTabProps {
   onOpenRequestModal: () => void;
   onApproveRequisition: (reqId: string, arrangedDevices?: ArrangedDeviceItem[]) => void;
   onApproveReturnRequisition?: (reqId: string, returnSerials?: string[], reason?: string) => void;
+  onRejectRequisition?: (reqId: string, reason: string) => void;
   onReceiveRequisition: (reqId: string) => void;
   onEditRequisition?: (reqId: string, changes: { posQty: number; sbQty: number; reason: string }) => void;
   theme?: ThemeMode;
@@ -54,6 +57,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   onOpenRequestModal,
   onApproveRequisition,
   onApproveReturnRequisition,
+  onRejectRequisition,
   onReceiveRequisition,
   onEditRequisition,
   theme = 'light',
@@ -67,8 +71,8 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
     serials: (r) => (r.arrangedDevices || []).length, status: (r) => r.status, date: (r) => r.date,
   });
   // (review) long request lists are drawn progressively: 60 rows at once, more while scrolling
-  const { visible: reqVisible, sentinelRef: reqSentinel, hasMore: reqMore } = useProgressive(sortedReqs.length, [reqSort, requisitions.length]);
-  const shownReqs = useMemo(() => sortedReqs.slice(0, reqVisible), [sortedReqs, reqVisible]);
+  const pg = usePager(sortedReqs.length, [reqSort]);
+  const shownReqs = useMemo(() => sortedReqs.slice(pg.start, pg.end), [sortedReqs, pg.start, pg.end]);
   useFlip(flipRef, [shownReqs]);
   const isLight = theme === 'light';
   // Dispatching / approving moves Head Office stock: HQ roles only (the server enforces this too).
@@ -78,6 +82,8 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   const [arrangeStep, setArrangeStep] = useState<'ARRANGE' | 'PREVIEW'>('ARRANGE');
   const [dispatchErrors, setDispatchErrors] = useState<string[]>([]);
   const [shortfall, setShortfall] = useState('');
+  const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
+  const [rejectText, setRejectText] = useState('');
 
   useEffect(() => {
     if (externalArrangingReq && externalStagedItems) {
@@ -420,24 +426,35 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   </button>
                 ) : null;
 
+                const rejectBtn = isAdmin && onRejectRequisition && req.status === 'PENDING_ADMIN' ? (
+                  <button type="button" onClick={() => { setRejectingReq(req); setRejectText(''); }} className="row-btn inline-flex items-center gap-1" title="Reject this request with a reason (for example no stock)">
+                    <Ban className="w-3 h-3" aria-hidden />
+                    <span>Reject</span>
+                  </button>
+                ) : null;
+
                 if (req.status === 'PENDING_ADMIN') {
                   if (isReturnReq) {
                     statusLabel = 'Return pending';
                     actionBtn = isAdmin ? (
-                      <button
-                        type="button"
-                        onClick={() => onApproveReturnRequisition?.(req.reqId, req.returnSerials, req.reason)}
-                        className="row-btn inline-flex items-center gap-1"
-                        title="Approve and receive the returned units into Head Office stock"
-                      >
-                        <CheckCircle2 className="w-3 h-3" aria-hidden />
-                        <span>Approve &amp; Receive</span>
-                      </button>
+                      <div className="inline-flex items-center gap-1.5">
+                        {rejectBtn}
+                        <button
+                          type="button"
+                          onClick={() => onApproveReturnRequisition?.(req.reqId, req.returnSerials, req.reason)}
+                          className="row-btn inline-flex items-center gap-1"
+                          title="Approve and receive the returned units into Head Office stock"
+                        >
+                          <CheckCircle2 className="w-3 h-3" aria-hidden />
+                          <span>Approve &amp; Receive</span>
+                        </button>
+                      </div>
                     ) : <span className="cell-sub">Awaiting HQ</span>;
                   } else {
                     actionBtn = (
                       <div className="inline-flex items-center gap-1.5">
                         {editBtn}
+                        {rejectBtn}
                         {isAdmin ? (
                           <button type="button" onClick={() => openArrangeModal(req)} className="row-btn inline-flex items-center gap-1" title="Choose the serials and dispatch to the branch">
                             <Truck className="w-3 h-3" aria-hidden />
@@ -456,6 +473,9 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       <span>Confirm Receipt</span>
                     </button>
                   );
+                } else if (req.status === 'REJECTED') {
+                  chip = 'chip-red';
+                  statusLabel = 'Rejected';
                 } else if (req.status === 'RECEIVED') {
                   chip = 'chip-green';
                   statusLabel = isReturnReq ? 'Received at HQ' : 'Received';
@@ -464,11 +484,16 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 const serialList = isReturnReq ? (req.returnSerials || []) : arranged.map((a) => a.serial);
                 return (
                   <tr key={req.reqId} data-flip={req.reqId}>
-                    <td className="col-no">{rowIdx + 1}</td>
+                    <td className="col-no">{pg.start + rowIdx + 1}</td>
                     <td>
                       <div className="cell-mono whitespace-nowrap">{req.reqId}</div>
                       <div className="cell-sub whitespace-nowrap">{isReturnReq ? 'Return' : 'Request'} · {req.date}</div>
                       {req.reason && <div className="cell-sub max-w-[220px] truncate" title={req.reason}>{req.reason}</div>}
+                      {req.status === 'REJECTED' && (
+                        <div className="cell-sub max-w-[220px] !text-rose-700" title={`${req.rejectReason || ''}${req.rejectedBy ? ` · ${req.rejectedBy}` : ''}`}>
+                          <span className="khmer">Rejected: {req.rejectReason || 'no reason recorded'}</span>
+                        </div>
+                      )}
                     </td>
                     <td>
                       <div className="cell-main max-w-[220px] truncate" title={`Code ${req.branchId} · ${req.branchName}`}>
@@ -505,9 +530,52 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               )}
             </tbody>
           </table>
-          {reqMore && <div ref={reqSentinel} className="h-10 flex items-center justify-center text-[11px] text-slate-400">Showing {reqVisible} of {sortedReqs.length}…</div>}
+          <Pager pg={pg} label="requests" />
         </div>
       </div>
+
+      {/* Reject a pending request */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {rejectingReq && (
+              <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setRejectingReq(null); }}>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  className="w-full max-w-md rounded-2xl bg-white text-slate-900 shadow-2xl overflow-hidden" role="dialog" aria-modal="true" aria-label="Reject request"
+                >
+                  <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white">
+                    <div>
+                      <div className="text-sm font-semibold">Reject {rejectingReq.type === 'STOCK_RETURN' ? 'stock return' : 'stock request'}</div>
+                      <div className="text-xs text-white/75 font-mono">{rejectingReq.reqId} · Code {rejectingReq.branchId}</div>
+                    </div>
+                    <button type="button" onClick={() => setRejectingReq(null)} aria-label="Close" className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"><X className="w-4 h-4" /></button>
+                  </div>
+                  <div className="p-5 flex flex-col gap-3 text-xs">
+                    <div className="text-slate-600">The branch will see this reason. A rejected request cannot be dispatched.</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['No stock available at Head Office', 'Quantity is more than the branch needs', 'Request is not clear, please submit again', 'Not approved by management'].map((t) => (
+                        <button key={t} type="button" onClick={() => setRejectText(t)} className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 cursor-pointer">{t}</button>
+                      ))}
+                    </div>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-slate-500">Reason (required)</span>
+                      <textarea rows={3} maxLength={500} value={rejectText} onChange={(e) => setRejectText(e.target.value)} className="khmer rounded-lg border border-slate-300 px-3 py-2" />
+                    </label>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                      <button type="button" onClick={() => setRejectingReq(null)} className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer">Cancel</button>
+                      <button type="button" disabled={rejectText.trim().length < 3}
+                        onClick={() => { onRejectRequisition?.(rejectingReq.reqId, rejectText.trim()); setRejectingReq(null); }}
+                        className="px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-800 disabled:opacity-45 text-white cursor-pointer">Reject request</button>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
 
       {/* Edit a pending request */}
       {typeof document !== 'undefined' &&

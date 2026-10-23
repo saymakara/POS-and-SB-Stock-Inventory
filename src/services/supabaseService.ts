@@ -114,6 +114,9 @@ function mapRowToRequisition(row: any): Requisition {
     arrangedDevices: Array.isArray(row.arranged_devices) ? row.arranged_devices : [],
     type: row.type === 'STOCK_RETURN' ? 'STOCK_RETURN' : 'STOCK_REQUEST',
     returnSerials: Array.isArray(row.return_serials) ? row.return_serials.map(String) : [],
+    rejectReason: row.reject_reason || undefined,
+    rejectedBy: row.rejected_by || undefined,
+    rejectedAt: row.rejected_at || undefined,
   };
 }
 
@@ -472,6 +475,12 @@ export async function dispatchRequisitionOnServer(reqId: string, serials: string
   return (data && data.arranged) || [];
 }
 
+/** HQ rejects a pending request with a reason (no stock, quantity not allowed, unclear request ...). The database keeps who and when. */
+export async function rejectRequisitionOnServer(reqId: string, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_reject_requisition', { p_req_id: reqId, p_reason: reason });
+  if (error) throw new Error(error.message);
+}
+
 /** HQ approves a branch's stock return; the database moves only units still at that branch. */
 export async function receiveReturnOnServer(reqId: string, note?: string): Promise<{ moved: string[]; skipped: string[] }> {
   const { data, error } = await supabase.rpc('admin_receive_return', { p_req_id: reqId, p_note: note || null });
@@ -606,4 +615,22 @@ export async function saveBranchOnServer(b: { id: string; name: string }): Promi
   } catch (err) {
     return err instanceof Error ? err.message : 'Network error';
   }
+}
+
+/** Everything the server holds about one serial / MID / TID: Phone App records and audit entries (read-only, one small query each). */
+export async function traceOnServer(q: string): Promise<{ events: FieldEvent[]; audit: ServerAuditEntry[]; ok: boolean }> {
+  const term = q.trim().replace(/[^A-Za-z0-9\-_ ]/g, '');
+  if (!isSupabaseConfigured || term.length < 4) return { events: [], audit: [], ok: true };
+  const [ev, au] = await Promise.all([
+    supabase.from('field_events').select('*')
+      .or(`serial.ilike.%${term}%,old_serial.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,old_battery.ilike.%${term}%,new_battery.ilike.%${term}%`)
+      .order('received_at', { ascending: false }).limit(60),
+    supabase.from('audit_logs').select('*').or(`detail.ilike.%${term}%,target.ilike.%${term}%`).order('created_at', { ascending: false }).limit(60),
+  ]);
+  return {
+    ok: !ev.error && !au.error,
+    events: ev.error ? [] : (ev.data || []).map(mapFieldEvent),
+    audit: au.error ? [] : (au.data || []).map((r: any) => ({ id: r.id, title: r.title, detail: r.detail, role: r.role, branchId: r.branch_id, createdAt: r.created_at,
+      actorEmp: r.actor_emp, actorName: r.actor_name, action: r.action, target: r.target })),
+  };
 }

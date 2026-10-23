@@ -65,7 +65,7 @@ const STAGE_STYLES: Record<
     accentBar: 'bg-rose-700',
     iconBox: 'bg-rose-50 text-rose-800 border-rose-200',
     ringActive: 'ring-2 ring-rose-700 border-rose-700',
-    subtitle: 'Faulty / Awaiting Repair',
+    subtitle: 'Summary only · not a stock status',
   },
   LOST: {
     accentBar: 'bg-amber-600',
@@ -74,6 +74,9 @@ const STAGE_STYLES: Record<
     subtitle: 'Lost / Unrecoverable',
   },
 };
+
+/** Summary cards: the stock stages plus the Terminated & Returned count (summary only, not a filter or a Stock Inventory status). */
+const CARD_ORDER: LifecycleStage[] = [...STAGE_ORDER.filter((s) => s !== 'LOST'), 'FAULTY', 'LOST'];
 
 export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
   devices,
@@ -107,8 +110,8 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
   }, [devices]);
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-5">
-      {STAGE_ORDER.map((stage, idx) => {
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-5">
+      {CARD_ORDER.map((stage, idx) => {
         const meta = STAGE_META[stage];
         const style = STAGE_STYLES[stage];
         const stageStat = statsByStage[stage] || { count: 0, posCount: 0, sbCount: 0 };
@@ -117,7 +120,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
         const sbCount = stageStat.sbCount;
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
         const isSelected = activeStageFilter === stage;
-        const clickable = !!onSelectStage;
+        const clickable = !!onSelectStage && stage !== 'FAULTY';   // Terminated & Returned is a summary only: it is not a Stock Inventory status
         const select = () => onSelectStage && onSelectStage(isSelected ? 'ALL' : stage);
         const a11yLabel = `${meta.short}: ${count} units (${pct}% of ${total}), POS ${posCount}, Sound Box ${sbCount}.${
           clickable ? (isSelected ? ' Selected. Press to clear the filter.' : ' Press to filter the inventory by this stage.') : ''

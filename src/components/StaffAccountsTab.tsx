@@ -1,6 +1,8 @@
+import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useSort, SortTh } from '../utils/sort';
-import { useProgressive } from '../utils/useProgressive';
+import { usePager } from '../utils/usePager';
+import { Pager } from './Pager';
 import { UserCog, Plus, Search, Loader2, KeyRound, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { StaffAccount, fetchStaffAccounts, saveStaffAccount } from '../services/supabaseService';
@@ -56,7 +58,7 @@ export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; tr
     status: (a) => (a.active ? (a.mustChangePassword ? 'Active · first password' : 'Active') : 'Off'),
   });
   // the first rows appear at once; the rest are added as the list is scrolled
-  const { visible, sentinelRef: sentinel } = useProgressive(shown.length, [dq, stSort]);
+  const pg = usePager(shown.length, [dq, stSort]);
   const openEdit = useCallback((a: StaffAccount) => {
     setIsNew(false); setFormErr('');
     setForm({ emp_id: a.empId, name: a.name, role: a.role, branch_id: a.branchId, position: a.position || '', contact: a.contact || '', active: a.active, password: '' });
@@ -154,11 +156,12 @@ export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; tr
 
       {err && <div role="alert" className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">{err}</div>}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-3 border-b border-slate-100">
+        <div className="p-3 border-b border-slate-100 flex flex-wrap items-center gap-2">
           <div className="relative w-full sm:w-72">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ID, name, branch…" aria-label="Search accounts" className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-[#003857]" />
           </div>
+          <ClearFiltersButton active={!!q} onClear={() => setQ('')} />
         </div>
         {!list && !err && (
           <div className="p-4 flex flex-col gap-2" aria-busy="true" aria-label="Loading accounts">
@@ -177,13 +180,13 @@ export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; tr
                 <th className="px-3 py-2 text-right">Actions</th></tr>
             </thead>
             <tbody>
-              {shown.slice(0, visible).map((a, rowIdx) => (
-                <StaffRow key={a.userId} a={a} no={rowIdx + 1} branchLabel={branchName(a.branchId)} editable={isAdmin && canEdit(a)} onEdit={openEdit} />
+              {shown.slice(pg.start, pg.end).map((a, rowIdx) => (
+                <StaffRow key={a.userId} a={a} no={pg.start + rowIdx + 1} branchLabel={branchName(a.branchId)} editable={isAdmin && canEdit(a)} onEdit={openEdit} />
               ))}
               {list && shown.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-slate-500">No accounts match the search.</td></tr>}
             </tbody>
           </table>
-          {visible < shown.length && <div ref={sentinel} className="h-10 flex items-center justify-center text-[11px] text-slate-400">Showing {visible} of {shown.length}…</div>}
+          <Pager pg={pg} label="accounts" />
         </div>
       </div>
     </div>

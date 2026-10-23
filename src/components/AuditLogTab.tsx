@@ -1,3 +1,4 @@
+import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSort, SortTh } from '../utils/sort';
 import { UserRole, ThemeMode } from '../types';
@@ -380,6 +381,8 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
               <option value="USER">IAM Role &amp; User Changes</option>
             </select>
 
+            <ClearFiltersButton active={!!search || roleFilter !== 'ALL' || actionFilter !== 'ALL'} onClear={() => { setSearch(''); setRoleFilter('ALL'); setActionFilter('ALL'); setCurrentPage(1); }} />
+
             <select
               value={pageSize}
               onChange={(e) => {
@@ -392,7 +395,6 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
             >
               <option value={50}>View: 50 / Page</option>
               <option value={100}>View: 100 / Page</option>
-              <option value={25}>View: 25 / Page</option>
             </select>
 
             <button

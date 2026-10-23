@@ -1,9 +1,12 @@
+import { ScanField } from './ScanField';
+import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Smartphone, Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
-import { useProgressive } from '../utils/useProgressive';
+import { usePager } from '../utils/usePager';
+import { Pager } from './Pager';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { STAGE_META } from '../data/initialData';
 import {
@@ -39,7 +42,6 @@ const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as co
 const SPRING = { type: 'spring', stiffness: 420, damping: 38, mass: 0.7 } as const;
 const GRID = 'grid items-center gap-x-3 grid-cols-[24px_30px_104px_130px_minmax(120px,1fr)_minmax(110px,1fr)_minmax(120px,1fr)_104px_150px]';
 const CACHE_KEY = 'fe_review_cache_v1';
-const FIRST = 40;
 
 const fmtTime = (iso: string | null) => {
   if (!iso) return '';
@@ -58,7 +60,7 @@ interface Props {
   scope?: 'PHNOM_PENH' | 'ALL';
 }
 
-interface RowOpt { branchId?: string; returnStage?: string; note?: string; ack?: boolean }
+interface RowOpt { branchId?: string; returnStage?: string; note?: string; ack?: boolean; vSerial?: string; vMid?: string }
 
 const needsReturnOf = (e: FieldEvent) => (e.kind === 'REPLACE' && !!e.oldSerial) || e.kind === 'SB_RETURN';
 const needsBranchOf = (e: FieldEvent) => e.kind === 'INSTALL' || e.kind === 'REPLACE';
@@ -69,7 +71,24 @@ const resolve = (e: FieldEvent, o?: RowOpt) => ({
   returnStage: o?.returnStage ?? ('HQ_STOCK'),
   note: o?.note ?? '',
   ack: o?.ack ?? false,
+  vSerial: o?.vSerial ?? '',
+  vMid: o?.vMid ?? '',
 });
+/** How the phone app says the serial / MID was entered: unit.serial_input / unit.mid_input = "SCAN" or "TYPED" (missing = not reported). */
+type How = 'SCAN' | 'TYPED' | '';
+const howOf = (v: unknown): How => { const t = String(v ?? '').trim().toUpperCase(); return t === 'SCAN' || t === 'SCANNED' ? 'SCAN' : t === 'TYPED' || t === 'TYPE' || t === 'MANUAL' ? 'TYPED' : ''; };
+const entryOf = (e: FieldEvent): { serial: How; mid: How } => {
+  const u = (e.payload && (e.payload.unit || e.payload)) || {};
+  return { serial: howOf(u.serial_input), mid: howOf(u.mid_input) };
+};
+const howText = (h: How) => (h === 'SCAN' ? 'Scanned' : h === 'TYPED' ? 'Typed by hand' : 'Not reported');
+const normId = (v: string) => v.replace(/\s+/g, '').toUpperCase();
+/** Optional check by the admin: a typed or scanned serial / MID must equal the record, or the record is not approved. */
+const verifyProblem = (e: FieldEvent, o: ReturnType<typeof resolve>): string => {
+  if (o.vSerial.trim() && normId(o.vSerial) !== normId(e.serial)) return 'the serial typed or scanned does not match this record';
+  if (o.vMid.trim() && normId(o.vMid) !== normId(e.mid || '')) return 'the MID typed or scanned does not match this record';
+  return '';
+};
 
 export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, triggerToast, onApplied, onOpenWorkflow, scope = 'PHNOM_PENH' }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -179,7 +198,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
     status: (e) => STATUS_LABEL[e.status], date: (e) => e.receivedAt,
   });
   // more rows are drawn as the list is scrolled: a long list opens at once
-  const { visible, sentinelRef: sentinel } = useProgressive(shown.length, [filter, typeFilter, deferredQuery, scope, sort], FIRST, 60);
+  const pg = usePager(shown.length, [filter, typeFilter, deferredQuery, scope, sort]);
 
   const shownPending = useMemo(() => shown.filter((e) => e.status === 'PENDING'), [shown]);
   const selectedShown = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
@@ -199,10 +218,12 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
     const o = resolve(e, optsRef.current[e.id]);
     if (hasBlock(e)) return 'cannot be approved as it is (see the red note)';
     if (needsBranchOf(e) && !o.branchId) return 'choose the branch first';
+    const vp = verifyProblem(e, o);
+    if (vp) return vp;
     const ack = ackAll || o.ack;
     if (hasWarn(e) && !ack) return 'tick "I checked the warnings" first';
     try {
-      await approveFieldEvent(e.id, o.note, { branch_id: o.branchId || undefined, return_stage: needsReturnOf(e) ? o.returnStage : undefined, acknowledge: ack });
+      await approveFieldEvent(e.id, o.note || ((o.vSerial.trim() || o.vMid.trim()) ? 'Serial and MID verified by the admin' : ''), { branch_id: o.branchId || undefined, return_stage: needsReturnOf(e) ? o.returnStage : undefined, acknowledge: ack });
       markDone(e.id, 'APPROVED');
       return '';
     } catch (x) {
@@ -265,7 +286,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
     </button>
   );
   const loadingFirst = !events && !loadError;
-  const visibleRows = shown.slice(0, visible);
+  const visibleRows = shown.slice(pg.start, pg.end);
 
   return (
     <div className="flex flex-col gap-3">
@@ -292,6 +313,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Serial, MID, staff…" aria-label="Search records"
               className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none focus:border-[#003857]" />
           </div>
+          <ClearFiltersButton className="!py-1.5" active={!!query || typeFilter !== 'ALL' || filter !== 'PENDING'} onClear={() => { setQuery(''); setTypeFilter('ALL'); setFilter('PENDING'); }} />
           <button type="button" onClick={load} aria-label="Refresh" className="btn-press p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer"><RefreshCw className="w-3.5 h-3.5" /></button>
         </div>
       </section>
@@ -359,13 +381,13 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
 
         <AnimatePresence initial={false}>
           {visibleRows.map((e, idx) => (
-            <ReviewRow key={e.id} e={e} no={idx + 1} isAdmin={isAdmin} branches={branches} o={opts[e.id]} checked={selected.has(e.id)} isOpen={open === e.id}
+            <ReviewRow key={e.id} e={e} no={pg.start + idx + 1} isAdmin={isAdmin} branches={branches} o={opts[e.id]} checked={selected.has(e.id)} isOpen={open === e.id}
               busy={busyIds.has(e.id) || !!bulkBusy} err={rowErr[e.id] || ''}
               device={deviceBySerial.get(e.serial.toUpperCase())} oldDevice={e.oldSerial ? deviceBySerial.get(e.oldSerial.toUpperCase()) : undefined}
               onOpt={setOpt} onCheck={toggle} onToggle={toggleOpen} onApprove={approveRow} onReject={rejectRow} onOpenWorkflow={onOpenWorkflow} />
           ))}
         </AnimatePresence>
-        {visible < shown.length && <div ref={sentinel} className="h-10 flex items-center justify-center text-[11px] text-slate-400">Showing {visible} of {shown.length}…</div>}
+        <Pager pg={pg} label="records" />
        </div>
       </section>
     </div>
@@ -407,6 +429,7 @@ const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked
   const needsReturn = needsReturnOf(e);
   const stageText = (d?: Device) => d ? `${STAGE_META[d.stage]?.short || d.stage} · Branch ${d.branchId}${d.merchantName ? ' · ' + d.merchantName : ''}` : 'Not in the inventory';
   const merchant = [e.outletName, e.terminalName && e.terminalName !== e.outletName ? e.terminalName : ''].filter(Boolean).join(' · ');
+  const entry = entryOf(e);
   const canApprove = !blocks && !busy && (!needsBranch || !!r.branchId);
 
   return (
@@ -424,7 +447,11 @@ const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked
         <span className="truncate" title={KIND_LABEL[e.kind]}>{KIND_LABEL[e.kind]}</span>
         <button type="button" onClick={() => onToggle(e.id)} aria-expanded={isOpen} className="text-left font-mono truncate cursor-pointer hover:underline inline-flex items-center gap-1" title="Open the details">
           <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
-          <span className="truncate">{e.serial}</span>
+          <span className="flex flex-col min-w-0 leading-tight">
+            <span className="truncate font-sans text-[11px] text-slate-500 no-underline">{fmtTime(e.receivedAt)}</span>
+            <span className="truncate">{e.serial}</span>
+            {entry.serial && <span className={`font-sans text-[10px] ${entry.serial === 'SCAN' ? 'text-emerald-700' : 'text-amber-700'}`}>{entry.serial === 'SCAN' ? 'Scanned' : 'Typed'}</span>}
+          </span>
         </button>
         <span className="truncate" title={merchant}>{merchant || '—'}</span>
         <span className="truncate" title={`${e.branchText} ${e.staffName}`}>{e.branchText || '—'}<span className="block text-[11px] text-slate-500 truncate">{e.staffName || '—'}</span></span>
@@ -455,6 +482,7 @@ const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked
             <Section title="Details">
               <Line k="Record">{e.sourceRecordId}{e.unitNo > 1 ? ` · unit ${e.unitNo}` : ''} · {fmtTime(e.recordedAt)}</Line>
               <Line k="Staff">{e.staffName ? `${e.staffName}${e.staffId ? ` (${e.staffId})` : ''}` : ''}</Line>
+              <Line k="Entered by">{`Serial: ${howText(entry.serial)} · MID: ${howText(entry.mid)}`}</Line>
               <Line k="MID · TID" mono>{[e.mid, e.tid].filter(Boolean).join(' · ')}</Line>
               {e.oldSerial && <Line k="Replaces" mono>{e.oldSerial}</Line>}
               {e.newBattery && <Line k="Battery" mono>{`${e.oldBattery || '—'} → ${e.newBattery}`}</Line>}
@@ -491,6 +519,8 @@ const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked
                       </select>
                     </label>
                   )}
+                  <ScanField label="Verify serial (optional)" value={r.vSerial} onChange={(v) => onOpt(e.id, { vSerial: v })} expected={e.serial} />
+                  {e.mid && <ScanField label="Verify MID (optional)" value={r.vMid} onChange={(v) => onOpt(e.id, { vMid: v })} expected={e.mid} normalize={(v) => v.replace(/\D/g, '')} />}
                   <label className="flex flex-col gap-1 text-slate-600">Reason (needed to reject)
                     <input value={r.note} onChange={(x) => onOpt(e.id, { note: x.target.value })} maxLength={500} className="px-2 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900" />
                   </label>

@@ -391,6 +391,7 @@ interface HeaderProps {
   onSelectDevice?: (serial: string) => void;
   searchQuery?: string;
   onSearchChange?: (q: string) => void;
+  onTrace?: (q: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = React.memo(({
@@ -419,6 +420,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   onSelectDevice,
   searchQuery,
   onSearchChange,
+  onTrace,
 }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -651,6 +653,16 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   transition={{ duration: 0.15, ease: 'easeOut' }}
                   className="absolute left-0 top-full mt-2 w-full min-w-[340px] sm:min-w-[420px] max-w-[500px] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden z-50 divide-y divide-slate-100"
                 >
+                  {onTrace && localSearch.trim().length >= 4 && (
+                    <button
+                      type="button"
+                      onClick={() => { setIsSearchFocused(false); onTrace(localSearch.trim()); }}
+                      className="w-full px-4 py-2.5 text-left text-xs text-[#003857] bg-sky-50 hover:bg-sky-100 flex items-center gap-2 cursor-pointer"
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Show everything about &ldquo;{localSearch.trim()}&rdquo; (status, history, requests, phone records)</span>
+                    </button>
+                  )}
                   {/* Results List */}
                   <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 custom-scrollbar p-1.5">
                     {searchResults.devices.length === 0 && searchResults.branches.length === 0 ? (
