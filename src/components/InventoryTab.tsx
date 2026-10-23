@@ -60,6 +60,8 @@ interface InventoryTabProps {
   branchFilter: string;
   onBranchFilterChange: (b: string) => void;
   onSelectDevice: (sn: string) => void;
+  /** (23 Oct 2026) Return: the merchant's details are removed (kept in Merchant History) and the unit goes back to stock */
+  onReturnDevice?: (sn: string) => void;
   onOpenBatchModal?: () => void;
   onOpenImportModal?: () => void;
   onOpenNewStockModal?: () => void;
@@ -99,6 +101,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   branchFilter,
   onBranchFilterChange,
   onSelectDevice,
+  onReturnDevice,
   onOpenBatchModal,
   onOpenImportModal,
   onOpenReqModal,
@@ -770,160 +773,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
         </motion.div>
       )}
 
-      {/* MULTI-SELECTION & BULK ASSIGNMENT COMMAND BAR (Dark Charcoal matching Sidebar) */}
-      <AnimatePresence>
-        {selectedSns.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="rounded-2xl p-4 border shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-[#18191e] text-white border-zinc-700/80"
-          >
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="px-3 py-1 rounded-xl bg-white text-zinc-900 font-mono text-xs font-bold shadow-2xs">
-                {selectedSns.length} Serial{selectedSns.length === 1 ? '' : 's'} Selected
-              </span>
-              {fulfillingRequisition && isAdminLike ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-md bg-sky-500/20 text-sky-300 font-mono text-[11px] font-bold border border-sky-400/30">
-                    REQ {fulfillingRequisition.reqId}
-                  </span>
-                  <span className="text-xs font-semibold text-white">
-                    Direct connect to Requester: <strong className="text-emerald-400 font-bold">Branch Code {fulfillingRequisition.branchId} ({fulfillingRequisition.branchName})</strong>
-                  </span>
-                </div>
-              ) : (
-                <span className="text-xs font-semibold text-white/90">
-                  {isAdminLike
-                    ? 'Batch assign selected units to a target Branch Code, return to Admin Stock, or remove from dashboard:'
-                    : 'Request the return of the selected units to Head Office Admin Stock:'}
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {!showArchivedView ? (
-                <>
-                  {!isAdminLike ? null : fulfillingRequisition ? (
-                    <div className="flex items-center bg-[#004953] rounded-xl p-1 border border-emerald-400/30 text-white shadow-xs">
-                      <div className="px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 text-emerald-200">
-                        <Building2 className="w-3.5 h-3.5 text-emerald-300" />
-                        <span>Requester: Branch Code {fulfillingRequisition.branchId}</span>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={!!fulfillmentError}
-                        title={fulfillmentError || undefined}
-                        onClick={() => {
-                          if (fulfillmentError) return;
-                          if (onConfirmFulfillment) {
-                            onConfirmFulfillment(selectedSns);
-                          } else {
-                            handleOpenBulkAssign();
-                          }
-                        }}
-                        className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold tracking-wide transition cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Assign {selectedSns.length} to Branch Code {fulfillingRequisition.branchId}</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center bg-[#24262d] rounded-xl p-1 border border-white/15">
-                      <select
-                        value={targetBulkBranch}
-                        onChange={(e) => setTargetBulkBranch(e.target.value)}
-                        aria-label="Target branch for bulk transfer"
-                        className="bg-transparent text-white text-xs font-semibold px-2.5 py-1.5 outline-none cursor-pointer"
-                      >
-                        <option value="" disabled className="bg-[#003857] text-white">
-                          Choose target branch…
-                        </option>
-                        {branches
-                          .filter((b) => b.code !== '100')
-                          .map((b) => (
-                            <option
-                              key={b.code}
-                              value={b.code}
-                              className="bg-[#003857] text-white"
-                            >
-                              Assign to Branch Code {b.code} ({b.name})
-                            </option>
-                          ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleOpenBulkAssign}
-                        disabled={!targetBulkBranch}
-                        className="px-3 py-1.5 rounded-lg bg-white text-zinc-900 hover:bg-slate-100 text-xs font-semibold tracking-wide transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {targetBulkBranch
-                          ? `Assign ${selectedSns.length} to Branch Code ${targetBulkBranch}`
-                          : 'Choose a branch first'}
-                      </button>
-                    </div>
-                  )}
-
-                  {!fulfillingRequisition && (
-                    <button
-                      onClick={handleOpenBulkReturnAdmin}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-900 text-xs font-semibold tracking-wide transition cursor-pointer"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>{isAdminLike ? 'Return to Admin Stock' : 'Request Return to Admin Stock'}</span>
-                    </button>
-                  )}
-
-                  {!fulfillingRequisition && isAdminLike && (
-                    <button
-                      onClick={handleOpenBulkRemove}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remove from Dashboard</span>
-                    </button>
-                  )}
-                  {role === 'SUPER_ADMIN' && onDeletePermanently && (
-                    <button
-                      onClick={handleOpenBulkDelete}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-900 hover:bg-rose-800 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete Permanently</span>
-                    </button>
-                  )}
-                </>
-              ) : !isAdminLike ? null : (
-                <>
-                {role === 'SUPER_ADMIN' && onDeletePermanently && (
-                  <button
-                    onClick={handleOpenBulkDelete}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-900 hover:bg-rose-800 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Permanently</span>
-                  </button>
-                )}
-                <button
-                  onClick={handleOpenBulkRestore}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#133e5e] text-xs font-semibold tracking-wide transition cursor-pointer"
-                >
-                  <ArchiveRestore className="w-3.5 h-3.5" />
-                  <span>Restore {selectedSns.length} to Active Dashboard</span>
-                </button>
-                </>
-              )}
-
-              <button
-                onClick={() => setSelectedSns([])}
-                className="px-2.5 py-2 rounded-xl bg-white/12 hover:bg-white/22 text-xs font-semibold tracking-wide transition cursor-pointer"
-              >
-                Clear
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Restyled Glassmorphic Medium-Navy Hardware Serial Ledger Table */}
       <div className="surface-card rounded-2xl border border-slate-200/90 overflow-hidden no-scrollbar">
@@ -1000,7 +849,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         <button
                           type="button"
                           onClick={() => toggleSelectOne(dev.serial)}
-                          className="flex items-center justify-center cursor-pointer"
+                          className="flex items-center justify-center cursor-pointer p-2 -m-2 rounded-md"
                           aria-label={`${isChecked ? 'Unselect' : 'Select'} serial ${dev.serial}`}
                           aria-pressed={isChecked}
                         >
@@ -1184,6 +1033,17 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                             Manage
                           </button>
 
+                          {!showArchivedView && onReturnDevice && (dev.stage === 'COMPLETE' || dev.stage === 'CONFIGURING') && (dev.mid || dev.merchantName) && (
+                            <button
+                              onClick={() => onReturnDevice(dev.serial)}
+                              className="px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
+                              title="Return: remove the merchant's details (kept in Merchant History) and put the unit back in stock"
+                              aria-label={`Return ${dev.serial}`}
+                            >
+                              Return
+                            </button>
+                          )}
+
                           {!showArchivedView &&
                             isAdminLike &&
                             onRemoveFromDashboard && (
@@ -1286,6 +1146,166 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* MULTI-SELECTION & BULK ASSIGNMENT COMMAND BAR (Dark Charcoal matching Sidebar) */}
+      <AnimatePresence>
+        {selectedSns.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 36, mass: 0.6 }}
+            role="region"
+            aria-label="Selected units"
+            // (23 Oct 2026) under the table, held at the bottom of the screen: the table no longer jumps down after the
+            // first tick, so the next units can be ticked where they are
+            className="sticky bottom-4 z-40 max-h-[45vh] overflow-y-auto rounded-2xl p-4 border shadow-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-[#18191e] text-white border-zinc-700/80"
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="px-3 py-1 rounded-xl bg-white text-zinc-900 font-mono text-xs font-bold shadow-2xs">
+                {selectedSns.length} Serial{selectedSns.length === 1 ? '' : 's'} Selected
+              </span>
+              {fulfillingRequisition && isAdminLike ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-md bg-sky-500/20 text-sky-300 font-mono text-[11px] font-bold border border-sky-400/30">
+                    REQ {fulfillingRequisition.reqId}
+                  </span>
+                  <span className="text-xs font-semibold text-white">
+                    Direct connect to Requester: <strong className="text-emerald-400 font-bold">Branch Code {fulfillingRequisition.branchId} ({fulfillingRequisition.branchName})</strong>
+                  </span>
+                </div>
+              ) : (
+                <span className="text-xs font-semibold text-white/90">
+                  {isAdminLike
+                    ? 'Batch assign selected units to a target Branch Code, return to Admin Stock, or remove from dashboard:'
+                    : 'Request the return of the selected units to Head Office Admin Stock:'}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {!showArchivedView ? (
+                <>
+                  {!isAdminLike ? null : fulfillingRequisition ? (
+                    <div className="flex items-center bg-[#004953] rounded-xl p-1 border border-emerald-400/30 text-white shadow-xs">
+                      <div className="px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 text-emerald-200">
+                        <Building2 className="w-3.5 h-3.5 text-emerald-300" />
+                        <span>Requester: Branch Code {fulfillingRequisition.branchId}</span>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!!fulfillmentError}
+                        title={fulfillmentError || undefined}
+                        onClick={() => {
+                          if (fulfillmentError) return;
+                          if (onConfirmFulfillment) {
+                            onConfirmFulfillment(selectedSns);
+                          } else {
+                            handleOpenBulkAssign();
+                          }
+                        }}
+                        className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold tracking-wide transition cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Assign {selectedSns.length} to Branch Code {fulfillingRequisition.branchId}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center bg-[#24262d] rounded-xl p-1 border border-white/15">
+                      <select
+                        value={targetBulkBranch}
+                        onChange={(e) => setTargetBulkBranch(e.target.value)}
+                        aria-label="Target branch for bulk transfer"
+                        className="bg-transparent text-white text-xs font-semibold px-2.5 py-1.5 outline-none cursor-pointer"
+                      >
+                        <option value="" disabled className="bg-[#003857] text-white">
+                          Choose target branch…
+                        </option>
+                        {branches
+                          .filter((b) => b.code !== '100')
+                          .map((b) => (
+                            <option
+                              key={b.code}
+                              value={b.code}
+                              className="bg-[#003857] text-white"
+                            >
+                              Assign to Branch Code {b.code} ({b.name})
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleOpenBulkAssign}
+                        disabled={!targetBulkBranch}
+                        className="px-3 py-1.5 rounded-lg bg-white text-zinc-900 hover:bg-slate-100 text-xs font-semibold tracking-wide transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {targetBulkBranch
+                          ? `Assign ${selectedSns.length} to Branch Code ${targetBulkBranch}`
+                          : 'Choose a branch first'}
+                      </button>
+                    </div>
+                  )}
+
+                  {!fulfillingRequisition && (
+                    <button
+                      onClick={handleOpenBulkReturnAdmin}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-900 text-xs font-semibold tracking-wide transition cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>{isAdminLike ? 'Return to Admin Stock' : 'Request Return to Admin Stock'}</span>
+                    </button>
+                  )}
+
+                  {!fulfillingRequisition && isAdminLike && (
+                    <button
+                      onClick={handleOpenBulkRemove}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove from Dashboard</span>
+                    </button>
+                  )}
+                  {role === 'SUPER_ADMIN' && onDeletePermanently && (
+                    <button
+                      onClick={handleOpenBulkDelete}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-900 hover:bg-rose-800 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Permanently</span>
+                    </button>
+                  )}
+                </>
+              ) : !isAdminLike ? null : (
+                <>
+                {role === 'SUPER_ADMIN' && onDeletePermanently && (
+                  <button
+                    onClick={handleOpenBulkDelete}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-900 hover:bg-rose-800 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Permanently</span>
+                  </button>
+                )}
+                <button
+                  onClick={handleOpenBulkRestore}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#133e5e] text-xs font-semibold tracking-wide transition cursor-pointer"
+                >
+                  <ArchiveRestore className="w-3.5 h-3.5" />
+                  <span>Restore {selectedSns.length} to Active Dashboard</span>
+                </button>
+                </>
+              )}
+
+              <button
+                onClick={() => setSelectedSns([])}
+                className="px-2.5 py-2 rounded-xl bg-white/12 hover:bg-white/22 text-xs font-semibold tracking-wide transition cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* DOUBLE-STEP BULK ACTION CONFIRMATION & IMPACT PREVIEW MODAL */}
       <AnimatePresence>
