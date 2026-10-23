@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Pager as PagerState } from '../utils/usePager';
 import { PAGE_SIZES } from '../utils/usePager';
+import { glideIn } from '../utils/glide';
 
 /** The same page bar under every table: rows shown, page buttons and 50 / 100 rows per page. */
 export const Pager: React.FC<{ pg: PagerState; label?: string }> = ({ pg, label = 'rows' }) => {
@@ -10,6 +11,7 @@ export const Pager: React.FC<{ pg: PagerState; label?: string }> = ({ pg, label 
   const go = (p: number) => {
     pg.setPage(p);
     const box = bar.current?.parentElement;
+    requestAnimationFrame(() => glideIn(box?.querySelector('tbody') || box));
     if (box && box.getBoundingClientRect().top < 0) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   if (pg.total === 0) return null;

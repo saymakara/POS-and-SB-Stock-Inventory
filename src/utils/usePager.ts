@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState } from 'react';
 
 export const PAGE_SIZES = [50, 100] as const;
 
@@ -17,7 +17,7 @@ export function usePager(total: number, resetOn: ReadonlyArray<unknown> = []) {
     page: safe, pages, pageSize, total,
     start: (safe - 1) * pageSize,
     end: Math.min(total, safe * pageSize),
-    setPage: (p: number) => setPage(Math.max(1, Math.min(pages, p))),
+    setPage: (p: number) => startTransition(() => setPage(Math.max(1, Math.min(pages, p)))),   // drawn in the background: no freeze
     setPageSize: (n: number) => setPageSize(n === 100 ? 100 : 50),
   }), [safe, pages, pageSize, total]);
 }

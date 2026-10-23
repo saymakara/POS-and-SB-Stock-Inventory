@@ -1,4 +1,5 @@
 import { RefObject, useLayoutEffect, useRef } from 'react';
+import { glideIn } from './glide';
 
 /**
  * FLIP (First, Last, Invert, Play) for table rows.
@@ -38,8 +39,15 @@ export function useFlip(ref: RefObject<HTMLElement | null>, deps: ReadonlyArray<
       el.style.willChange = 'transform';
       moved.push(el);
     });
-    fresh.forEach((el) => { el.style.opacity = '0'; el.style.transition = 'none'; });
     if (!moved.length && !fresh.length) return;
+    // (23 Oct 2026) a big change (new page, new filter, a sort that moves many rows): the whole list glides in as ONE
+    // layer instead of dozens of row animations, which is what made page changes stutter
+    if (fresh.length + moved.length > 12) {
+      moved.forEach((el) => { el.style.transition = ''; el.style.transform = ''; el.style.willChange = ''; });
+      glideIn(root);
+      return;
+    }
+    fresh.forEach((el) => { el.style.opacity = '0'; el.style.transition = 'none'; });
     void root.offsetHeight;                          // commit the inverted state once
     requestAnimationFrame(() => {                    // Play: release to the new position on the GPU
       moved.forEach((el) => {
