@@ -386,12 +386,12 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                 className={`px-2.5 py-1.5 rounded-md font-bold transition cursor-pointer text-[11px] flex items-center gap-1 ${
                   statusFilter === 'LOW_RESERVE'
                     ? 'bg-white text-amber-700 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    : 'text-amber-700 hover:text-amber-800'
                 }`}
               >
                 <span>Low Reserve</span>
                 {metrics.lowReserveCount > 0 && (
-                  <span className={`min-w-4 h-4 px-1 rounded-full text-[9px] flex items-center justify-center font-bold transition-colors ${statusFilter === 'LOW_RESERVE' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'}`}>
+                  <span className={`min-w-4 h-4 px-1 rounded-full text-[9px] flex items-center justify-center font-bold transition-colors ${statusFilter === 'LOW_RESERVE' ? 'bg-amber-100 text-amber-700' : 'bg-amber-50 text-amber-700'}`}>
                     {metrics.lowReserveCount}
                   </span>
                 )}

@@ -294,7 +294,9 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
             <span className={`w-1.5 h-1.5 rounded-full ${live ? 'bg-emerald-500 sync-dot' : 'bg-slate-300'}`} aria-hidden />{live ? 'Live' : 'Connecting…'}
           </span>
           {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as Filter[]).map((f) => (
-            <button key={f} type="button" onClick={() => setFilter(f)} aria-pressed={filter === f} className={pill(filter === f)}>
+            <button key={f} type="button" onClick={() => setFilter(f)} aria-pressed={filter === f}
+              className={`relative isolate btn-press px-2.5 py-1 rounded-lg text-xs font-semibold border cursor-pointer ${filter === f ? 'text-white border-[#003857]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}>
+              {filter === f && <motion.span layoutId="fr-status-pill" aria-hidden className="absolute inset-0 -z-10 rounded-[7px] bg-[#003857]" transition={SPRING} />}
               {f === 'PENDING' ? 'Waiting' : f === 'ALL' ? 'All' : f === 'APPROVED' ? 'Approved' : 'Rejected'} <span className="opacity-70">({counts[f]})</span>
             </button>
           ))}
