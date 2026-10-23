@@ -36,8 +36,7 @@ export const ScanField: React.FC<{ label: string; value: string; onChange: (v: s
     <label className="flex flex-col gap-1 text-slate-600">{label}
       <span className="flex items-center gap-1.5">
         <input value={value} onChange={(e) => onChange(e.target.value)} maxLength={40} autoComplete="off" inputMode={mono ? 'text' : undefined}
-          className={`flex-1 min-w-0 px-2 py-1.5 rounded-lg border bg-white text-xs text-slate-900 ${mono ? 'font-mono' : ''} ${filled ? (ok ? 'border-emerald-500' : 'border-rose-400') : 'border-slate-300'}`}
-          placeholder="Type or scan" />
+          className={`flex-1 min-w-0 px-2 py-1.5 rounded-lg border bg-white text-xs text-slate-900 ${mono ? 'font-mono' : ''} ${filled ? (ok ? 'border-emerald-500' : 'border-rose-400') : 'border-slate-300'}`} />
         {canScan && <button type="button" onClick={() => { setCamErr(''); setCam(true); }} aria-label={`Scan ${label}`} className="p-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 cursor-pointer"><ScanLine className="w-4 h-4" /></button>}
       </span>
       {filled && expected !== undefined && <span className={ok ? 'text-emerald-700' : 'text-rose-700'}>{ok ? 'Matches the record' : 'Does not match the record'}</span>}
