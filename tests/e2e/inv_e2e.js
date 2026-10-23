@@ -185,6 +185,7 @@ async function api(route) {
   ok(/POS Terminal/.test(txt) && await p.isVisible('button:has-text("All devices")') && await p.isVisible('button:has-text("Sound Box (")'), 'type filter: All / POS Terminal / Sound Box');
   ok(!/Open the location|Remarks/.test(txt), 'no location link and no remarks in the review cards');
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/review.png' });
+  { const order = await p.locator('section[aria-label="Records"] button[aria-expanded]').allTextContents(); ok(/WP0002/.test(order[0] || '') && /WP0001/.test(order[1] || '') && /WP0003/.test(order[2] || ''), 'Phone App Review: newest first (by date and time sent), devices of one entry together ' + JSON.stringify(order)); }
   ok(/Device 1 of 2/.test(await card('WP0001').first().textContent()) && /Device 2 of 2/.test(await card('WP0003').first().textContent()) && /200123456789099/.test(await card('WP0003').first().textContent()), 'two devices of one entry are two rows, each with its own MID');
   ok(/Scanned/.test(await card('WP0001').first().textContent()), 'Phone App Review shows Scanned for a serial the phone scanned');
   await card('WP0001').locator('button[aria-expanded]').first().click(); await sleep(400);
@@ -192,12 +193,7 @@ async function api(route) {
   await card('WP0001').locator('button[aria-expanded]').first().click(); await sleep(300);
   ok(/21 Oct 2026|Oct 2026/.test(await card('WP0001').first().textContent()), 'Phone App Review shows the Date Sent in its own column');
   await card('WP0001').locator('button[aria-expanded]').first().click(); await sleep(500);
-  await card('WP0001').getByLabel('Verify serial (optional)').fill('WRONG1'); await sleep(200);
-  ok(/Does not match the record/.test(await card('WP0001').textContent()), 'typed/scanned serial that differs is flagged');
-  await card('WP0001').getByRole('button', { name: 'Approve', exact: true }).click(); await sleep(700);
-  ok(/does not match this record/.test(await card('WP0001').textContent()) && state.events[0].status === 'PENDING', 'approval is refused while the verified serial does not match');
-  await card('WP0001').getByLabel('Verify serial (optional)').fill('wp0001'); await sleep(200);
-  ok(/Matches the record/.test(await card('WP0001').textContent()), 'matching serial is confirmed');
+  ok(!/Verify serial|Verify MID/.test(await card('WP0001').textContent()), 'no Verify serial / Verify MID boxes in the review (checked on the phone)');
   await card('WP0002').getByRole('button', { name: 'Approve', exact: true }).click(); await sleep(600);
   ok(/checked the warnings/.test(await p.textContent('body')), 'a record with warnings: approval needs the "I checked the warnings" box');
   const devGets = () => state.calls.filter(c => c.startsWith('GET /rest/v1/devices')).length; const before = devGets();
