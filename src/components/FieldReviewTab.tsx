@@ -40,7 +40,7 @@ type Filter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
 const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as const;
 const SPRING = { type: 'spring', stiffness: 420, damping: 38, mass: 0.7 } as const;
-const GRID = 'grid items-center gap-x-3 grid-cols-[24px_30px_104px_130px_minmax(120px,1fr)_minmax(110px,1fr)_minmax(120px,1fr)_104px_150px]';
+const GRID = 'grid items-center gap-x-3 grid-cols-[22px_26px_96px_100px_120px_minmax(120px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_88px_132px]';
 const CACHE_KEY = 'fe_review_cache_v1';
 
 const fmtTime = (iso: string | null) => {
@@ -194,7 +194,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
 
   const { sorted: shown, sort, toggle: toggleSort } = useSort(shownBase, {
     type: (e) => e.deviceType, kind: (e) => KIND_LABEL[e.kind], serial: (e) => e.serial,
-    merchant: (e) => e.outletName || e.terminalName, branch: (e) => e.branchText, staff: (e) => e.staffName,
+    merchant: (e) => e.terminalName || e.outletName, branch: (e) => e.branchText, staff: (e) => e.staffName,
     status: (e) => STATUS_LABEL[e.status], date: (e) => e.receivedAt,
   });
   // more rows are drawn as the list is scrolled: a long list opens at once
@@ -287,6 +287,12 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
   );
   const loadingFirst = !events && !loadError;
   const visibleRows = shown.slice(pg.start, pg.end);
+  // one row per device (one MID): how many devices the phone entry has, for "Device 2 of 3"
+  const unitCount = useMemo(() => {
+    const m = new Map<string, number>();
+    (events || []).forEach((x) => { if (x.status === 'CANCELLED' || x.status === 'SUPERSEDED') return; m.set(x.sourceRecordId, Math.max(m.get(x.sourceRecordId) || 0, x.unitNo)); });
+    return m;
+  }, [events]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -351,7 +357,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
 
       {/* Section 3 — the records */}
       <section className="bg-white rounded-2xl border border-slate-300 shadow-xs overflow-x-auto" aria-label="Records">
-       <div className="min-w-[980px]">
+       <div className="min-w-[990px]">
         <div className={`${GRID} bg-[#003857] text-white border-b border-slate-300 text-[11px] font-extrabold uppercase tracking-wider px-3 py-2.5`} role="row">
           <span>{isAdmin && shownPending.length > 0 && (
             <button type="button" aria-label={allSelected ? 'Unselect all' : 'Select all waiting'} aria-pressed={allSelected} onClick={() => setSelected(allSelected ? new Set() : new Set(shownPending.map((e) => e.id)))} className="cursor-pointer flex">
@@ -361,8 +367,9 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
           <span className="text-right">No.</span>
           <SortBtn k="type" sort={sort} onSort={toggleSort}>Device Type</SortBtn>
           <SortBtn k="kind" sort={sort} onSort={toggleSort}>Record Type</SortBtn>
+          <SortBtn k="date" sort={sort} onSort={toggleSort}>Date Sent</SortBtn>
           <SortBtn k="serial" sort={sort} onSort={toggleSort}>Serial Number</SortBtn>
-          <SortBtn k="merchant" sort={sort} onSort={toggleSort}>Merchant Name</SortBtn>
+          <SortBtn k="merchant" sort={sort} onSort={toggleSort}>Terminal / MID</SortBtn>
           <SortBtn k="branch" sort={sort} onSort={toggleSort}>Branch / Staff</SortBtn>
           <SortBtn k="status" sort={sort} onSort={toggleSort}>Status</SortBtn>
           <span className="text-right">Decision</span>
@@ -381,7 +388,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
 
         <AnimatePresence initial={false}>
           {visibleRows.map((e, idx) => (
-            <ReviewRow key={e.id} e={e} no={pg.start + idx + 1} isAdmin={isAdmin} branches={branches} o={opts[e.id]} checked={selected.has(e.id)} isOpen={open === e.id}
+            <ReviewRow key={e.id} e={e} units={unitCount.get(e.sourceRecordId) || 1} no={pg.start + idx + 1} isAdmin={isAdmin} branches={branches} o={opts[e.id]} checked={selected.has(e.id)} isOpen={open === e.id}
               busy={busyIds.has(e.id) || !!bulkBusy} err={rowErr[e.id] || ''}
               device={deviceBySerial.get(e.serial.toUpperCase())} oldDevice={e.oldSerial ? deviceBySerial.get(e.oldSerial.toUpperCase()) : undefined}
               onOpt={setOpt} onCheck={toggle} onToggle={toggleOpen} onApprove={approveRow} onReject={rejectRow} onOpenWorkflow={onOpenWorkflow} />
@@ -397,7 +404,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
 const SortBtn: React.FC<{ k: string; sort: SortState | null; onSort: (k: string) => void; children: React.ReactNode; right?: boolean }> = ({ k, sort, onSort, children, right }) => {
   const a = sort?.key === k; const I = !a ? ChevronsUpDown : sort!.dir === 'asc' ? ArrowUp : ArrowDown;
   return <button type="button" onClick={() => onSort(k)} aria-sort={a ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'} title="Sort: ascending, descending, original order"
-    className={`inline-flex items-center gap-1 cursor-pointer uppercase font-extrabold tracking-wider ${right ? 'justify-end' : ''}`}><span>{children}</span><I className={`w-3 h-3 shrink-0 ${a ? 'opacity-100' : 'opacity-50'}`} aria-hidden /></button>;
+    className={`inline-flex items-center gap-1 cursor-pointer uppercase font-extrabold tracking-wider whitespace-nowrap ${right ? 'justify-end' : ''}`}><span>{children}</span><I className={`w-3 h-3 shrink-0 ${a ? 'opacity-100' : 'opacity-50'}`} aria-hidden /></button>;
 };
 
 /* ---------- one record: a clean line that opens into three labelled sections ---------- */
@@ -413,13 +420,14 @@ const Line: React.FC<{ k: string; children: React.ReactNode; mono?: boolean }> =
 );
 
 interface RowProps {
+  units?: number;
   e: FieldEvent; no: number; isAdmin: boolean; branches: Branch[]; o?: RowOpt; checked: boolean; isOpen: boolean; busy: boolean; err: string;
   device?: Device; oldDevice?: Device;
   onOpt: (id: number, p: Partial<RowOpt>) => void; onCheck: (id: number) => void; onToggle: (id: number) => void;
   onApprove: (e: FieldEvent) => void; onReject: (e: FieldEvent) => void; onOpenWorkflow?: (serial: string) => void;
 }
 
-const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked, isOpen, busy, err, device, oldDevice, onOpt, onCheck, onToggle, onApprove, onReject, onOpenWorkflow }: RowProps) {
+const ReviewRow = memo(function ReviewRow({ e, units = 1, no, isAdmin, branches, o, checked, isOpen, busy, err, device, oldDevice, onOpt, onCheck, onToggle, onApprove, onReject, onOpenWorkflow }: RowProps) {
   const pending = e.status === 'PENDING';
   const type = e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal';
   const r = resolve(e, o);
@@ -444,16 +452,20 @@ const ReviewRow = memo(function ReviewRow({ e, no, isAdmin, branches, o, checked
         )}</span>
         <span className="text-right text-slate-400 tabular-nums">{no}</span>
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><span className={`w-1.5 h-1.5 rounded-full ${type === 'Sound Box' ? 'bg-violet-500' : 'bg-sky-500'}`} aria-hidden />{type}</span>
-        <span className="truncate" title={KIND_LABEL[e.kind]}>{KIND_LABEL[e.kind]}</span>
+        <span className="truncate leading-tight" title={KIND_LABEL[e.kind]}>{KIND_LABEL[e.kind]}
+          {units > 1 && <span className="block text-[11px] text-slate-500">Device {e.unitNo} of {units}</span>}</span>
+        <span className="tabular-nums text-slate-700 whitespace-nowrap" title={fmtTime(e.receivedAt)}>{fmtTime(e.receivedAt)}</span>
         <button type="button" onClick={() => onToggle(e.id)} aria-expanded={isOpen} className="text-left font-mono truncate cursor-pointer hover:underline inline-flex items-center gap-1" title="Open the details">
           <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
           <span className="flex flex-col min-w-0 leading-tight">
-            <span className="truncate font-sans text-[11px] text-slate-500 no-underline">{fmtTime(e.receivedAt)}</span>
             <span className="truncate">{e.serial}</span>
             {entry.serial && <span className={`font-sans text-[10px] ${entry.serial === 'SCAN' ? 'text-emerald-700' : 'text-amber-700'}`}>{entry.serial === 'SCAN' ? 'Scanned' : 'Typed'}</span>}
           </span>
         </button>
-        <span className="truncate" title={merchant}>{merchant || '—'}</span>
+        <span className="min-w-0 leading-tight" title={merchant}>
+          <span className="block truncate khmer">{e.terminalName || e.outletName || '—'}</span>
+          {e.mid && <span className="block truncate font-mono text-[11px] text-slate-500" title={`MID ${e.mid}`}>{e.mid}</span>}
+        </span>
         <span className="truncate" title={`${e.branchText} ${e.staffName}`}>{e.branchText || '—'}<span className="block text-[11px] text-slate-500 truncate">{e.staffName || '—'}</span></span>
         <span className="text-slate-600 leading-tight">
           {STATUS_LABEL[e.status].length > 12 ? 'Closed' : STATUS_LABEL[e.status]}

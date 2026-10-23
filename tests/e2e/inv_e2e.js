@@ -16,8 +16,9 @@ const state = { devices: [dev('WP0001', 'BRANCH_RESERVE', '105', { row_version: 
   events: [{ id: 7, source_record_id: 'POS-20261021-0001', unit_no: 1, revision: 1, kind: 'INSTALL', device_type: 'POS Terminal', serial: 'WP0001', old_serial: null, mid: '200123456789012', tid: '56789012',
     terminal_name: 'Till 1', outlet_name: 'Sokha Mart', branch_text: 'Toul Kork', branch_id: '105', staff_id: 'STF001', staff_name: 'Sok Dara', recorded_at: '2026-10-21T09:00:00+07:00', latitude: 11.55, longitude: 104.92,
     remarks: 'Installed', payload: { unit: { serial_input: 'SCAN', mid_input: 'TYPED' } }, issues: [], status: 'PENDING', received_at: '2026-10-21T02:01:00Z' },
-    { id: 8, source_record_id: 'POS-20261021-0002', unit_no: 1, revision: 1, kind: 'INSTALL', device_type: 'POS Terminal', serial: 'WP0002', mid: '200999', tid: '999', outlet_name: 'Other', branch_text: 'Toul Kork', branch_id: '105',
-      staff_name: 'Sok Dara', recorded_at: '2026-10-21T10:00:00+07:00', payload: {}, issues: [{ code: 'ALREADY_INSTALLED', level: 'warn', text: 'Serial WP0002 is already installed at Lucky Mart (MID 200100000000001).' }], status: 'PENDING', received_at: '2026-10-21T03:00:00Z' }],
+        { id: 8, source_record_id: 'POS-20261021-0002', unit_no: 1, revision: 1, kind: 'INSTALL', device_type: 'POS Terminal', serial: 'WP0002', mid: '200999', tid: '999', outlet_name: 'Other', branch_text: 'Toul Kork', branch_id: '105',
+      staff_name: 'Sok Dara', recorded_at: '2026-10-21T10:00:00+07:00', payload: {}, issues: [{ code: 'ALREADY_INSTALLED', level: 'warn', text: 'Serial WP0002 is already installed at Lucky Mart (MID 200100000000001).' }], status: 'PENDING', received_at: '2026-10-21T03:00:00Z' },
+    { id: 9, source_record_id: 'POS-20261021-0001', unit_no: 2, revision: 1, kind: 'INSTALL', device_type: 'POS Terminal', serial: 'WP0003', mid: '200123456789099', tid: '56789099', terminal_name: 'Till 2', outlet_name: 'Sokha Mart', branch_text: 'Toul Kork', branch_id: '105', staff_name: 'Sok Dara', recorded_at: '2026-10-21T09:00:00+07:00', payload: {}, issues: [], status: 'PENDING', received_at: '2026-10-21T02:01:00Z' }],
   calls: [], saved: [], audit: [] };
 
 // PostgREST-like reading: order by the key, "key=gt.X", offset/limit, at most MAX_ROWS rows, count=exact
@@ -160,7 +161,7 @@ async function api(route) {
   }
   // (22 Oct 2026) dispatch goes through the server function; the request status is never saved directly
   await p.getByText('Stock Requests', { exact: true }).first().click(); await sleep(1200);
-  await p.click('text=Arrange & Dispatch'); await sleep(800);
+  await p.getByRole('button', { name: 'Dispatch', exact: true }).first().click(); await sleep(800);
   const arr = await p.textContent('body');
   ok(/WP0100/.test(arr), 'auto-match picks the free HQ unit WP0100');
   await p.click('text=Review Dispatch'); await sleep(600);
@@ -174,20 +175,22 @@ async function api(route) {
   await p.getByRole('button', { name: 'No stock available at Head Office' }).click(); await p.getByRole('button', { name: 'Reject request' }).click(); await sleep(1200);
   ok(state.reject && state.reject.p_req_id === 'REQ-20261022-ZZZ999' && /No stock/.test(state.reject.p_reason), 'reject → admin_reject_requisition with the reason ' + JSON.stringify(state.reject));
   ok(/Rejected: No stock available/.test(await p.textContent('body')), 'the rejected request shows its reason');
+  if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/requests2.png' });
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/requests.png' });
   // review queue
   await p.click('text=Phone App Review'); await sleep(1500);
   const txt = await p.textContent('body');
-  ok(/Phone App Review/.test(txt) && /WP0001/.test(txt) && /WP0002/.test(txt) && /Waiting \(2\)/.test(txt), 'Phone App Review lists the 2 waiting records');
+  ok(/Phone App Review/.test(txt) && /WP0001/.test(txt) && /WP0002/.test(txt) && /Waiting \(3\)/.test(txt), 'Phone App Review lists the 3 waiting records (one row per MID)');
   const card = (sn) => p.locator('div.border-b', { hasText: sn }).last();
   ok(/POS Terminal/.test(txt) && await p.isVisible('button:has-text("All devices")') && await p.isVisible('button:has-text("Sound Box (")'), 'type filter: All / POS Terminal / Sound Box');
   ok(!/Open the location|Remarks/.test(txt), 'no location link and no remarks in the review cards');
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/review.png' });
+  ok(/Device 1 of 2/.test(await card('WP0001').first().textContent()) && /Device 2 of 2/.test(await card('WP0003').first().textContent()) && /200123456789099/.test(await card('WP0003').first().textContent()), 'two devices of one entry are two rows, each with its own MID');
   ok(/Scanned/.test(await card('WP0001').first().textContent()), 'Phone App Review shows Scanned for a serial the phone scanned');
   await card('WP0001').locator('button[aria-expanded]').first().click(); await sleep(400);
   ok(/Serial: Scanned · MID: Typed by hand/.test(await card('WP0001').textContent()), 'details say how the serial and the MID were entered');
   await card('WP0001').locator('button[aria-expanded]').first().click(); await sleep(300);
-  ok(/21 Oct 2026|Oct 2026/.test(await card('WP0001').first().textContent()), 'Phone App Review shows the date sent above the serial');
+  ok(/21 Oct 2026|Oct 2026/.test(await card('WP0001').first().textContent()), 'Phone App Review shows the Date Sent in its own column');
   await card('WP0001').locator('button[aria-expanded]').first().click(); await sleep(500);
   await card('WP0001').getByLabel('Verify serial (optional)').fill('WRONG1'); await sleep(200);
   ok(/Does not match the record/.test(await card('WP0001').textContent()), 'typed/scanned serial that differs is flagged');
@@ -204,10 +207,10 @@ async function api(route) {
   ok(state.approve && state.approve.p_id === 8 && state.approve.p_opt.acknowledge === true && state.events[1].status === 'APPROVED', 'approved with the warnings confirmed → the database applies it ' + JSON.stringify(state.approve));
   // several at once: tick WP0001, reject without a reason is refused, then with a reason
   await p.getByRole('button', { name: /Select all waiting/ }).click(); await sleep(300);
-  ok(await p.isVisible('button:has-text("Reject 1")') && await p.isVisible('button:has-text("Approve 1")'), 'select several: bulk Approve / Reject buttons appear');
-  await p.getByRole('button', { name: /^Reject 1/ }).click(); await sleep(400);
+  ok(await p.isVisible('button:has-text("Reject 2")') && await p.isVisible('button:has-text("Approve 2")'), 'select several: bulk Approve / Reject buttons appear');
+  await p.getByRole('button', { name: /^Reject 2/ }).click(); await sleep(400);
   ok(/Write the reason/.test(await p.textContent('body')), 'bulk reject needs a reason');
-  await p.fill('input[aria-label="Reason for the selected records"]', 'Wrong serial – please correct in the app'); await p.getByRole('button', { name: /^Reject 1/ }).click(); await sleep(1500);
+  await p.fill('input[aria-label="Reason for the selected records"]', 'Wrong serial – please correct in the app'); await p.getByRole('button', { name: /^Reject 2/ }).click(); await sleep(1500);
   ok(state.events[0].status === 'REJECTED' && /Wrong serial/.test(state.events[0].review_note), 'bulk reject with the reason');
   // a change refused by the server is said, not hidden
   state.refuse = true;
@@ -232,7 +235,7 @@ async function api(route) {
   await p.click('text=Phone App Review'); await sleep(1500);
   ok((await p.getByRole('button', { name: 'Approve', exact: true }).count()) === 0 && /Phone App Review/.test(await p.textContent('body')), 'branch staff: review list read-only');
   await p.getByText('Stock Requests', { exact: true }).first().click(); await sleep(1200);
-  ok(!(await p.isVisible('text=Arrange & Dispatch')), 'branch staff: no dispatch actions');
+  ok((await p.getByRole('button', { name: 'Dispatch', exact: true }).count()) === 0, 'branch staff: no dispatch actions');
   await p.getByText('Stock Inventory', { exact: true }).first().click(); await sleep(1200);
   const inv = await p.textContent('body');
   ok(/WP0001/.test(inv) && !/WP0100/.test(inv), 'branch staff sees only its own branch units');

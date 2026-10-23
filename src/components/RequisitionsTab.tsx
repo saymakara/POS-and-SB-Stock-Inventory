@@ -399,7 +399,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="data-table min-w-[900px]">
+          <table className="data-table min-w-[960px]">
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
@@ -420,9 +420,8 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 let actionBtn: React.ReactNode = null;
                 const canEdit = Boolean(onEditRequisition) && req.status === 'PENDING_ADMIN' && !isReturnReq;
                 const editBtn = canEdit ? (
-                  <button type="button" onClick={() => openEdit(req)} className="row-btn inline-flex items-center gap-1" title="Edit the quantity or reason">
-                    <Pencil className="w-3 h-3" aria-hidden />
-                    <span>Edit</span>
+                  <button type="button" onClick={() => openEdit(req)} className="row-btn inline-flex items-center !px-2" title="Edit the quantity or reason" aria-label="Edit">
+                    <Pencil className="w-3.5 h-3.5" aria-hidden />
                   </button>
                 ) : null;
 
@@ -458,7 +457,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         {isAdmin ? (
                           <button type="button" onClick={() => openArrangeModal(req)} className="row-btn inline-flex items-center gap-1" title="Choose the serials and dispatch to the branch">
                             <Truck className="w-3 h-3" aria-hidden />
-                            <span>Arrange &amp; Dispatch</span>
+                            <span>Dispatch</span>
                           </button>
                         ) : <span className="cell-sub">Awaiting HQ</span>}
                       </div>
@@ -488,12 +487,12 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     <td>
                       <div className="cell-mono whitespace-nowrap">{req.reqId}</div>
                       <div className="cell-sub whitespace-nowrap">{isReturnReq ? 'Return' : 'Request'} · {req.date}</div>
-                      {req.reason && <div className="cell-sub max-w-[220px] truncate" title={req.reason}>{req.reason}</div>}
-                      {req.status === 'REJECTED' && (
-                        <div className="cell-sub max-w-[220px] !text-rose-700" title={`${req.rejectReason || ''}${req.rejectedBy ? ` · ${req.rejectedBy}` : ''}`}>
-                          <span className="khmer">Rejected: {req.rejectReason || 'no reason recorded'}</span>
+                      {req.status === 'REJECTED' ? (
+                        <div className="cell-sub max-w-[240px] truncate !text-rose-700"
+                          title={`Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}${req.reason ? `\nRequest reason: ${req.reason}` : ''}`}>
+                          Rejected: {req.rejectReason || 'no reason recorded'}
                         </div>
-                      )}
+                      ) : req.reason ? <div className="cell-sub max-w-[240px] truncate" title={req.reason}>{req.reason}</div> : null}
                     </td>
                     <td>
                       <div className="cell-main max-w-[220px] truncate" title={`Code ${req.branchId} · ${req.branchName}`}>
@@ -505,13 +504,13 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       {req.posQty > 0 && <div className="cell-main flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />POS Terminal × {req.posQty}</div>}
                       {req.sbQty > 0 && <div className="cell-main flex items-center gap-1.5"><Volume2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" aria-hidden />Sound Box × {req.sbQty}</div>}
                     </td>
-                    <td className="max-w-[300px]">
+                    <td className="whitespace-nowrap">
                       {serialList.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {serialList.slice(0, 4).map((sn) => (
-                            <span key={sn} className="cell-mono px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">{sn}</span>
+                        <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap" title={serialList.join(', ')}>
+                          {serialList.slice(0, 2).map((sn) => (
+                            <span key={sn} className="cell-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">{sn}</span>
                           ))}
-                          {serialList.length > 4 && <span className="cell-sub self-center" title={serialList.join(', ')}>+{serialList.length - 4} more</span>}
+                          {serialList.length > 2 && <span className="cell-sub !mt-0 pl-0.5">+{serialList.length - 2} more</span>}
                         </div>
                       ) : (
                         <span className="cell-sub">{isReturnReq ? 'No serials listed' : 'Not arranged yet'}</span>

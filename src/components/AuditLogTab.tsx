@@ -450,36 +450,36 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                   </td>
                   {serverMode && (
                     <td className={`py-2.5 px-3.5 whitespace-nowrap ${headingClass}`}>
-                      <span className="font-bold">{row.actor}</span>
+                      <span className="">{row.actor}</span>
                       {row.actorEmp && <span className={`ml-1 font-mono text-[11px] ${subtextClass}`}>({row.actorEmp})</span>}
                     </td>
                   )}
                   {serverMode && (
                     <td className="py-2.5 px-3.5 whitespace-nowrap">
                       {row.actorRole === 'SUPER_ADMIN' ? (
-                        <span className="inline-flex items-center gap-1 font-bold text-amber-500">
+                        <span className="inline-flex items-center gap-1 text-amber-500">
                           <ShieldAlert className="w-3.5 h-3.5" aria-hidden="true" />
                           <span>Super Admin</span>
                         </span>
                       ) : row.actorRole === 'ADMIN' ? (
-                        <span className={`inline-flex items-center gap-1 font-bold ${navyTitleClass}`}>
+                        <span className={`inline-flex items-center gap-1 ${navyTitleClass}`}>
                           <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
                           <span>Admin HQ</span>
                         </span>
                       ) : row.actorRole === 'BRANCH' ? (
-                        <span className="inline-flex items-center gap-1 font-bold text-emerald-500">
+                        <span className="inline-flex items-center gap-1 text-emerald-500">
                           <Building2 className="w-3.5 h-3.5" aria-hidden="true" />
                           <span>Branch Staff</span>
                         </span>
                       ) : (
-                        <span className={`font-bold ${subtextClass}`}>{roleText(row.actorRole)}</span>
+                        <span className={`${subtextClass}`}>{roleText(row.actorRole)}</span>
                       )}
                     </td>
                   )}
-                  <td className={`py-2.5 px-3.5 font-mono font-bold whitespace-nowrap ${headingClass}`}>
+                  <td className={`py-2.5 px-3.5 font-mono whitespace-nowrap ${headingClass}`}>
                     {row.branchCode === '—' ? '—' : `Branch Code ${row.branchCode}`}
                   </td>
-                  <td className={`py-2.5 px-3.5 font-extrabold whitespace-nowrap ${headingClass}`}>
+                  <td className={`py-2.5 px-3.5 whitespace-nowrap ${headingClass}`}>
                     {row.title}
                   </td>
                   <td className={`py-2.5 px-3.5 ${subtextClass} max-w-md`}>
