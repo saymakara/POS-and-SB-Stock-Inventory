@@ -1,3 +1,4 @@
+import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useFlip } from '../utils/useFlip';
 import { useSort, SortTh } from '../utils/sort';
@@ -128,7 +129,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const [showArchivedView, setShowArchivedView] = useState<boolean>(false);
   const [batteryFilter, setBatteryFilter] = useState<'ALL' | 'EXPIRED' | 'DUE_SOON' | 'HEALTHY'>('ALL');
   const [midDeviceFilter, setMidDeviceFilter] = useState<'ALL' | 'SINGLE' | 'MULTIPLE'>('ALL');
-  const [rowsPerPage, setRowsPerPage] = useState<number>(25);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(50);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
@@ -578,8 +579,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               title="Select view page (100 Row Max)"
             >
-              <option value={15}>View: 15 Rows / Page</option>
-              <option value={25}>View: 25 Rows / Page</option>
               <option value={50}>View: 50 Rows / Page</option>
               <option value={100}>View: 100 Rows / Page (Max)</option>
             </select>
@@ -668,6 +667,16 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               <span>Scoped to Branch Code: {selectedBranch}</span>
             </div>
           )}
+          <div className="sm:col-span-2 md:col-span-3 lg:col-span-6 flex justify-end">
+            <ClearFiltersButton
+              active={!!searchQuery || stageFilter !== 'ALL' || typeFilter !== 'ALL' || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}
+              onClear={() => {
+                onSearchChange(''); onStageFilterChange('ALL'); onTypeFilterChange('ALL');
+                if (isAdminLike) onBranchFilterChange('ALL');
+                setBatteryFilter('ALL'); setMidDeviceFilter('ALL'); setCurrentPage(1);
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -1074,9 +1083,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       </td>
 
                       <td className="py-2 px-3">
-                        <div className="text-xs text-zinc-900 max-w-[200px] truncate" title={`${dev.branchId} · ${resolvedBranchName}`}>
-                          <span className="font-mono text-[11px] text-slate-600">{dev.branchId}</span>
-                          <span> · {resolvedBranchName.replace(' Branch', '')}</span>
+                        <div className="khmer text-xs text-slate-700 max-w-[200px] leading-snug" title={`${dev.installedByStaff || dev.staff || '-'} · ${dev.branchId} · ${resolvedBranchName}`}>
+                          <div className="truncate text-[11px] text-slate-500">{dev.installedByStaff || dev.staff || '-'}</div>
+                          <div className="truncate">
+                            <span className="font-mono text-[11px] text-slate-600">{dev.branchId}</span>
+                            <span> · {resolvedBranchName.replace(' Branch', '')}</span>
+                          </div>
                         </div>
                       </td>
 
@@ -1092,7 +1104,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         {dev.merchantName ? (
                           <div className="flex flex-col max-w-[175px]">
                             <span
-                              className="text-zinc-900 text-xs font-semibold truncate cursor-pointer"
+                              className="khmer text-slate-700 text-xs font-normal truncate cursor-pointer"
                               title={`${dev.merchantName} · Installed: ${dev.installedByStaff || dev.staff || '-'}${dev.replacedByStaff ? ` · Replaced: ${dev.replacedByStaff}` : ''}${dev.returnedByStaff ? ` · Returned: ${dev.returnedByStaff}` : ''}`}
                             >
                               {dev.merchantName}
@@ -1223,7 +1235,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
             <div className="hidden md:flex items-center gap-1 pl-3 border-l border-slate-200">
               <span className="text-[11px] text-slate-400 font-semibold">Rows:</span>
-              {[15, 25, 50, 100].map((num) => (
+              {[50, 100].map((num) => (
                 <button
                   key={num}
                   type="button"

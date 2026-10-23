@@ -34,7 +34,7 @@ export function statusOf(stage: LifecycleStage): { deploymentStatus: string; sto
 }
 /** A unit that is no longer at a merchant keeps no merchant details (they live on in Merchant History). */
 export function unbound<T extends Device>(d: T): T {
-  return { ...d, mid: '', tid: '', merchantName: '', merchantPhone: '', address: '' };
+  return { ...d, mid: '', tid: '', merchantName: '', merchantPhone: '', address: '', location: '', installedByStaff: '', replacedByStaff: '', deployedDate: '' };
 }
 /** The fields to apply when a unit moves to `to` (status texts; merchant cleared when it leaves the merchant). */
 export function onMove<T extends Device>(d: T, to: LifecycleStage): T {

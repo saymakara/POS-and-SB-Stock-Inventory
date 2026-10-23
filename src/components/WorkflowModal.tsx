@@ -285,7 +285,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         branchId: finalBranchId,
         merchantName: merchantName.trim(),
         mid: mid.trim(),
-        tid: tid.trim(),
+        tid: (/^\d{15}$/.test(mid.trim()) ? mid.trim().slice(-8) : tid.trim()),
         merchantPhone: phoneVal,
         location: locVal,
         address: addrVal,
@@ -986,6 +986,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   onChange={(e) => {
                     const clean = e.target.value.replace(/\D/g, '').slice(0, 15);
                     setMid(clean);
+                    setTid(clean.length >= 8 ? clean.slice(-8) : '');
                     if (midError) setMidError('');
                   }}
                   maxLength={15}
@@ -1016,9 +1017,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={tid}
-                  onChange={(e) => setTid(e.target.value)}
-                  placeholder="e.g. TID-10101"
+                  value={mid.length >= 8 ? mid.slice(-8) : tid}
+                  readOnly
+                  title="Filled automatically: the last 8 digits of the MID"
+                  placeholder="Automatic: last 8 digits of MID"
                   className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                     isLight
                       ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'

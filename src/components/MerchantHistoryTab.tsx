@@ -1,4 +1,7 @@
-import React, { useState, useMemo, useEffect, useDeferredValue, useRef } from 'react';
+import { ClearFiltersButton } from './ClearFiltersButton';
+import { usePager } from '../utils/usePager';
+import { Pager } from './Pager';
+import React, { useState, useMemo, useDeferredValue, useRef } from 'react';
 import { useFlip } from '../utils/useFlip';
 import { useSort, SortTh } from '../utils/sort';
 import {
@@ -32,8 +35,6 @@ import {
   CreditCard,
   Wrench,
   Plus,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react';
 import { csvFile } from '../utils/csv';
 import { hasKhmer, isValidMid, serviceLength, statusText } from '../utils/display';
@@ -63,7 +64,6 @@ interface MerchantHistoryTabProps {
   onToast?: (msg: string) => void;
 }
 
-const PAGE_SIZE = 50;
 
 /** Reasons that end the merchant relationship are TERMINATED; a unit handed back while the merchant stays is RETURNED. */
 const TERMINATING_REASONS = [
@@ -119,7 +119,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   );
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [reasonFilter, setReasonFilter] = useState<string>('ALL');
-  const [page, setPage] = useState(1);
   const [selectedRecord, setSelectedRecord] =
     useState<HistoricalMerchantRecord | null>(null);
   const [isLogReturnModalOpen, setIsLogReturnModalOpen] = useState(false);
@@ -266,16 +265,8 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   });
 
   // Paging: back to page 1 whenever the filters or search change.
-  useEffect(() => {
-    setPage(1);
-  }, [deferredQuery, branchFilter, typeFilter, reasonFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pagedRecords = useMemo(
-    () => filteredRecords.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [filteredRecords, currentPage]
-  );
+  const pg = usePager(filteredRecords.length, [deferredQuery, branchFilter, typeFilter, reasonFilter]);
+  const pagedRecords = useMemo(() => filteredRecords.slice(pg.start, pg.end), [filteredRecords, pg.start, pg.end]);
 
   const flipRef = useRef<HTMLTableSectionElement>(null);
   useFlip(flipRef, [pagedRecords]);
@@ -655,6 +646,11 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <option value="Seasonal">Seasonal End</option>
             </select>
           </div>
+          <div className="md:col-span-2 flex justify-end">
+            <ClearFiltersButton
+              active={!!searchQuery || typeFilter !== 'ALL' || reasonFilter !== 'ALL' || branchFilter !== (role === 'BRANCH' ? selectedBranch : 'ALL')}
+              onClear={() => { setSearchQuery(''); setTypeFilter('ALL'); setReasonFilter('ALL'); setBranchFilter(role === 'BRANCH' ? selectedBranch : 'ALL'); }} />
+          </div>
         </div>
       </div>
 
@@ -692,7 +688,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   const officer = rec.returnedByStaff || rec.handledByStaff;
                   return (
                     <tr key={rec.recordId} data-flip={rec.recordId}>
-                      <td className="col-no">{(currentPage - 1) * PAGE_SIZE + rowIdx + 1}</td>
+                      <td className="col-no">{pg.start + rowIdx + 1}</td>
                       <td className="whitespace-nowrap">
                         <div className="cell-mono">{dash(rec.returnedDate)}</div>
                       </td>
@@ -751,46 +747,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           </table>
         </div>
 
-        {/* Paging (50 per page) */}
-        {filteredRecords.length > 0 && (
-          <div className="px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 text-xs text-slate-600">
-            <span>
-              Showing{' '}
-              <strong className="text-zinc-900">{((currentPage - 1) * PAGE_SIZE + 1).toLocaleString()}</strong>
-              {' '}to{' '}
-              <strong className="text-zinc-900">{Math.min(currentPage * PAGE_SIZE, filteredRecords.length).toLocaleString()}</strong>
-              {' '}of{' '}
-              <strong className="text-zinc-900">{filteredRecords.length.toLocaleString()}</strong> records
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage <= 1}
-                aria-label="Previous page"
-                title="Previous page"
-                className="px-2 py-1.5 rounded-lg border bg-white border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>Prev</span>
-              </button>
-              <span className="px-2 font-mono text-[11px] font-bold">
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage >= totalPages}
-                aria-label="Next page"
-                title="Next page"
-                className="px-2 py-1.5 rounded-lg border bg-white border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
-              >
-                <span>Next</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        <Pager pg={pg} label="records" />
       </div>
 
       {/* Record Detail Modal */}

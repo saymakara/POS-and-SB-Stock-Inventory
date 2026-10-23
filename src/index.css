@@ -737,3 +737,14 @@ tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; 
 .sort-btn { color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; background: none; border: 0; padding: 0; text-align: inherit; }
 .sort-btn:hover { opacity: 0.85; }
 .sort-btn:active { transform: none !important; }
+
+/* ==========================================================================
+   5. (23 Oct 2026) steady scrolling and pop-ups that stay put
+   ========================================================================== */
+/* the scroll bar is always reserved, so the page never shifts sideways when a list gets longer or shorter */
+html { scrollbar-gutter: stable; }
+/* the browser must not "correct" the scroll position when rows above are redrawn: that was the small jump while scrolling */
+.data-table, .data-table tbody, .overflow-x-auto, .overflow-y-auto { overflow-anchor: none; }
+/* while any pop-up is open the page behind it does not scroll, and the pop-up scrolls on its own */
+body:has(.fixed.inset-0) { overflow: hidden; }
+.fixed.inset-0 { overscroll-behavior: contain; }

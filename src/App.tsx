@@ -30,6 +30,9 @@ import { todayPP, stampPP, stampSecPP } from './utils/time';
 import { newRecordId } from './utils/ids';
 import { canMove, moveError, statusOf, onMove } from './utils/stages';
 import { csvFile } from './utils/csv';
+import { tidFromMid } from './utils/tid';
+import { TraceModal } from './components/TraceModal';
+import { SaveGuard, throttled, watchNewVersion } from './utils/saveGuard';
 import { phoneFor } from './utils/privacy';
 import type { MerchantBindPayload } from './components/MerchantsCrmTab';
 import { Header, Sidebar } from './components/Header';
@@ -97,6 +100,7 @@ import {
   fetchAuditLogs,
   subscribeToFieldEvents,
   dispatchRequisitionOnServer,
+  rejectRequisitionOnServer,
   receiveReturnOnServer,
   fetchBranchesFromSupabase,
   saveBranchOnServer,
@@ -356,6 +360,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return createInitialRequisitions();
   });
 
+  const [traceQuery, setTraceQuery] = useState('');
   const [auditLogs, setAuditLogs] = useState<string[]>(() => {
     try {
       if (isSupabaseConfigured) return [];                             // (review) the server keeps the audit log
@@ -905,6 +910,22 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // the database. A change the server refuses (e.g. not your branch) is said plainly and the lists are reloaded, so the
   // screen never shows something that was not saved.
   const saveQueue = React.useRef<Promise<void>>(Promise.resolve());
+  // (23 Oct 2026) protection against runaway save loops: see utils/saveGuard.ts
+  const guard = React.useRef(new SaveGuard());
+  const [savePaused, setSavePaused] = useState(false);
+  const [newVersion, setNewVersion] = useState(false);
+  useEffect(() => watchNewVersion(() => setNewVersion(true)), []);
+  const reloadAfterFailure = React.useMemo(() => throttled(() => reloadFromServer(), () => guard.current.backoffMs()), [reloadFromServer]);
+  /** Counts a failed save; when too many fail in a row, saving is paused and the user is asked to reload. */
+  const noteSaveFailure = useCallback((what: string) => {
+    const opened = guard.current.fail();
+    if (opened) {
+      setSavePaused(true);
+      window.setTimeout(() => { setSavePaused(guard.current.isOpen()); }, 121_000);
+      triggerToast(`${what} failed several times, so saving is paused for 2 minutes. Please reload the page.`);
+    }
+    return opened;
+  }, [triggerToast]);
   const pushDevices = useCallback((changed: Device[]) => {
     // (22 Oct 2026) optimistic UI: the screen already shows the change; these rows pulse until the server confirms it
     const syncSerials = changed.map((d) => d.serial);
@@ -912,6 +933,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const settle = () => window.setTimeout(() => setSyncingSerials((prev) => { const n = new Set(prev); syncSerials.forEach((sn) => n.delete(sn)); return n; }), 450);
     // saves run one after another, so a second edit of a unit waits for the first and uses its new version
     saveQueue.current = saveQueue.current.then(async () => {
+      if (guard.current.isOpen()) return;                              // paused: nothing is sent while the breaker is open
       const sent = changed.map((d) => {
         const aliases = versionAlias.current.get(d.serial);
         let v = d.rowVersion || 0;
@@ -926,13 +948,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         versionAlias.current.get(d.serial)!.set(d.rowVersion || 0, nv);
       });
       if (res.error) {
-        triggerToast(res.stale
-          ? `Not saved: ${res.error}. The latest data was loaded – please check it and make your change again.`
-          : `Not saved to the server: ${/row-level security|permission|42501/i.test(res.error) ? 'you do not have access to change this device' : res.error}. The list was reloaded.`);
-        await reloadFromServer();
-      }
+        if (!noteSaveFailure('Saving')) {
+          triggerToast(res.stale
+            ? `Not saved: ${res.error}. The latest data was loaded – please check it and make your change again.`
+            : `Not saved to the server: ${/row-level security|permission|42501/i.test(res.error) ? 'you do not have access to change this device' : res.error}. The list was reloaded.`);
+          await reloadAfterFailure();
+        }
+      } else guard.current.ok();
     }).catch(() => undefined).then(() => { settle(); });
-  }, [triggerToast, reloadFromServer]);
+  }, [triggerToast, noteSaveFailure, reloadAfterFailure]);
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
     const changed = devices.filter((d) => syncedDevices.current.get(d.serial) !== d && !serverCopies.current.has(d));
@@ -944,6 +968,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (!isSupabaseConfigured || !serverReady) return;
     const changed = requisitions.filter((r) => syncedReqs.current.get(r.reqId) !== r && !serverCopies.current.has(r));
     if (!changed.length) return;
+    if (guard.current.isOpen()) return;
     const jobs = changed.map((r) => {
       const prior = syncedReqs.current.get(r.reqId);
       syncedReqs.current.set(r.reqId, r);
@@ -954,23 +979,27 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     Promise.all(jobs).then((errs) => {
       const err = errs.find(Boolean);
       if (err) {
-        triggerToast(`Request not saved to the server: ${/row-level security|permission|42501/i.test(err) ? 'you do not have access to this request' : err}. The list was reloaded.`);
-        reloadFromServer();
-      }
+        if (!noteSaveFailure('Saving requests')) {
+          triggerToast(`Request not saved to the server: ${/row-level security|permission|42501/i.test(err) ? 'you do not have access to this request' : err}. The list was reloaded.`);
+          void reloadAfterFailure();
+        }
+      } else guard.current.ok();
     });
-  }, [requisitions, serverReady, triggerToast, reloadFromServer]);
+  }, [requisitions, serverReady, triggerToast, noteSaveFailure, reloadAfterFailure]);
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
     const fresh = historicalMerchants.filter((h) => !syncedHist.current.has(h.recordId));
-    if (!fresh.length) return;
+    if (!fresh.length || guard.current.isOpen()) return;
     fresh.forEach((h) => syncedHist.current.add(h.recordId));
     Promise.all(fresh.map((h) => insertHistoricalMerchantToSupabase(h))).then((oks) => {
       if (oks.some((x) => !x)) {
-        triggerToast('A merchant history record was not saved to the server. The list was reloaded.');
-        reloadFromServer();                                            // the screen never keeps a record the server does not have
-      }
+        if (!noteSaveFailure('Saving merchant history')) {
+          triggerToast('A merchant history record was not saved to the server. The list was reloaded.');
+          void reloadAfterFailure();                                   // the screen never keeps a record the server does not have
+        }
+      } else guard.current.ok();
     });
-  }, [historicalMerchants, serverReady, triggerToast, reloadFromServer]);
+  }, [historicalMerchants, serverReady, triggerToast, noteSaveFailure, reloadAfterFailure]);
 
   const handleExportBackup = useCallback(() => {
     const backupData = {
@@ -1967,6 +1996,25 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     finish(items.length);
   };
 
+  const handleRejectRequisition = (reqId: string, reason: string) => {
+    const target = requisitions.find((r) => r.reqId === reqId);
+    if (!target) return;
+    if (role === 'BRANCH') { triggerToast('Only HQ can reject a request.'); return; }
+    if (target.status !== 'PENDING_ADMIN') { triggerToast(`Request ${reqId} is already ${target.status} and cannot be rejected.`); return; }
+    const why = reason.trim();
+    if (why.length < 3) { triggerToast('Write the reason for rejecting this request.'); return; }
+    const finish = () => { addAuditLog('Requisition Rejected', `Request ${reqId} from Branch Code ${target.branchId} rejected: ${why}`); triggerToast(`Request ${reqId} rejected. The branch can see the reason.`); };
+    if (isSupabaseConfigured) {
+      rejectRequisitionOnServer(reqId, why).then(() => {
+        setRequisitions((prev) => prev.map((r) => (r.reqId === reqId && r.status === 'PENDING_ADMIN' ? { ...r, status: 'REJECTED', rejectReason: why, rejectedBy: operatorLabel || 'HQ', rejectedAt: stampSecPP() } : r)));
+        finish();
+      }).catch((e) => triggerToast(e instanceof Error ? e.message : String(e)));   
+      return;
+    }
+    setRequisitions((prev) => prev.map((r) => (r.reqId === reqId ? { ...r, status: 'REJECTED', rejectReason: why, rejectedBy: operatorLabel || 'HQ', rejectedAt: stampSecPP() } : r)));
+    finish();
+  };
+
   const handleConfirmFulfillment = (selectedSerials: string[]) => {
     if (!fulfillingRequisition) return;
     const chosen = new Set(selectedSerials);
@@ -2075,7 +2123,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       merchantPhone: merchantData.merchantPhone,
       address: merchantData.address,
       mid: merchantData.mid.trim(),
-      tid: merchantData.tid.trim(),
+      tid: tidFromMid(merchantData.mid, merchantData.tid),
       note: `Bound to ${merchantData.merchantName} (MID ${merchantData.mid}${merchantData.tid ? ' / TID ' + merchantData.tid : ''})`,
       deployedDate: merchantData.deployedDate || todayPP(),
       batteryInstalledDate: dev!.batteryInstalledDate || '',
@@ -2107,7 +2155,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         merchantPhone: a.merchantPhone,
         address: a.address,
         mid: a.mid.trim(),
-        tid: a.tid.trim(),
+        tid: tidFromMid(a.mid, a.tid),
         deployedDate: a.deployedDate || today,
         installedByStaff: d!.installedByStaff || operatorLabel,
         updatedAt: today,
@@ -2309,7 +2357,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       previousStage: existingDev?.stage || 'CONFIGURING',
       newStage: payload.stage,
       mid: payload.mid || '',
-      tid: payload.tid || '',
+      tid: tidFromMid(payload.mid, payload.tid),
       merchantName: payload.merchantName || '',
       merchantPhone: payload.merchantPhone || '',
       address: payload.address || '',
@@ -2328,7 +2376,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       merchantPhone: payload.merchantPhone,
       address: payload.address,
       mid: payload.mid || '',
-      tid: payload.tid || '',
+      tid: tidFromMid(payload.mid, payload.tid),
       note: payload.note || 'Synced via Mobile Field System API',
       deployedDate: todayPP(),
       batteryInstalledDate:
@@ -2377,7 +2425,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           branchName: bObj?.name || d.branchName,
           staff: evt.installerStaff || d.staff,
           mid: evt.mid || d.mid,
-          tid: evt.tid || d.tid,
+          tid: tidFromMid(evt.mid || d.mid, evt.tid || d.tid),
           merchantName: evt.merchantName || d.merchantName,
           merchantPhone: evt.merchantPhone || d.merchantPhone,
           address: evt.address || d.address,
@@ -2703,6 +2751,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           <button type="button" onClick={() => window.location.reload()} className="underline cursor-pointer">Reload</button>
         </div>
       )}
+      {!serverError && (savePaused || newVersion) && (
+        <div role="alert" className={`fixed top-0 inset-x-0 z-[70] text-white text-xs font-bold px-4 py-2.5 flex items-center justify-center gap-3 ${savePaused ? 'bg-rose-700' : 'bg-[#003857]'}`}>
+          <span>{savePaused ? 'Saving is paused because several saves failed. Your last change may not be saved – please reload the page.' : 'A new version of this system is available. Please reload to use it.'}</span>
+          <button type="button" onClick={() => window.location.reload()} className="underline cursor-pointer">Reload now</button>
+        </div>
+      )}
 
       {/* Right Column: Sticky Header at top + Pipeline Bar + Workspace + Footer */}
       <div className="flex-1 w-full min-w-0 flex flex-col justify-between min-h-screen">
@@ -2774,6 +2828,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            onTrace={setTraceQuery}
           />
 
           {/* Classic Pipeline Stage Filter Bar */}
@@ -2806,7 +2861,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
               {/* Robust Responsive Tab Content with Error Boundary */}
               {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
-              <motion.div key={activeTab} className="tab-view" initial={{ opacity: 0, y: 14, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.7 }} style={{ willChange: 'transform, opacity' }}>
+              <motion.div key={activeTab} className="tab-view" initial={{ opacity: 0, y: 14, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.7 }}>
                   <ErrorBoundary>
                   <Suspense fallback={<TabLoading />}>
                   {activeTab === 'dashboard' && (
@@ -2880,6 +2935,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       onOpenRequestModal={() => setIsReqModalOpen(true)}
                       onApproveRequisition={handleApproveRequisition}
                       onApproveReturnRequisition={handleApproveReturnRequisition}
+                      onRejectRequisition={handleRejectRequisition}
                       onReceiveRequisition={handleReceiveRequisition}
                       theme={theme}
                       onEditRequisition={handleEditRequisition}
@@ -3167,10 +3223,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             </div>
             <div className="flex items-center gap-4 text-[11px] font-mono">
               <span>{branches.length} Branch Codes Connected</span>
-              <span>·</span>
-              <span className="text-slate-600 font-bold">
-                {isSupabaseConfigured ? 'Access checked by the server' : 'Local preview (not shared)'}
-              </span>
+              {!isSupabaseConfigured && (
+                <>
+                  <span>·</span>
+                  <span className="text-slate-600 font-bold">Local preview (not shared)</span>
+                </>
+              )}
             </div>
           </footer>
         </div>
@@ -3199,6 +3257,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           role={role}
           operatorLabel={operatorLabel}
         />
+
+        {traceQuery && (
+          <TraceModal
+            query={traceQuery}
+            devices={scopedDevices}
+            history={historicalMerchants}
+            requisitions={requisitions}
+            isAdmin={role === 'SUPER_ADMIN' || role === 'ADMIN'}
+            onOpenDevice={(sn) => setEditingDeviceSerial(sn)}
+            onClose={() => setTraceQuery('')}
+          />
+        )}
 
         {/* Session Lock Modal */}
         <SessionLockModal

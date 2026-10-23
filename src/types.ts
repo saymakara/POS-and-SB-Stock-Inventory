@@ -194,7 +194,10 @@ export interface Requisition {
   posQty: number;
   sbQty: number;
   reason: string;
-  status: 'PENDING_ADMIN' | 'DISPATCHED' | 'RECEIVED';
+  status: 'PENDING_ADMIN' | 'DISPATCHED' | 'RECEIVED' | 'REJECTED';
+  rejectReason?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
   arrangedDevices?: ArrangedDeviceItem[];
   type?: 'STOCK_REQUEST' | 'STOCK_RETURN';
   returnSerials?: string[];

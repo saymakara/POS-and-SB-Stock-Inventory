@@ -1,3 +1,6 @@
+import { ClearFiltersButton } from './ClearFiltersButton';
+import { usePager } from '../utils/usePager';
+import { Pager } from './Pager';
 import { useSort, SortTh } from '../utils/sort';
 import { csvFile } from '../utils/csv';
 import React, { useState, useMemo } from 'react';
@@ -193,6 +196,9 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
     reserve: (b) => b.reserveCount, live: (b) => b.completeCount, staff: (b) => b.staffCount, status: (b) => (b.lowReserve ? 1 : 0),
   });
 
+  const pg = usePager(enrichedBranches.length, [searchQuery, statusFilter, brSort]);
+  const pagedBranches = useMemo(() => enrichedBranches.slice(pg.start, pg.end), [enrichedBranches, pg.start, pg.end]);
+
   const inspectedBranch = useMemo(
     () => enrichedBranches.find((b) => b.code === inspectedBranchCode) || null,
     [enrichedBranches, inspectedBranchCode]
@@ -337,6 +343,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            <ClearFiltersButton active={!!searchQuery || statusFilter !== 'ALL'} onClear={() => { setSearchQuery(''); setStatusFilter('ALL'); }} />
             {/* Search Input */}
             <div className="relative min-w-[210px]">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -448,7 +455,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         {/* View Mode 1: Table by Branch (Default) */}
         {displayLayout === 'TABLE' ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[980px]">
+            <table className="data-table min-w-[980px]">
               <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
                 <tr>
                   <th className="py-3 px-3.5 w-10 text-center"><span className="sr-only">Expand</span></th>
@@ -477,7 +484,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  enrichedBranches.map((b, rowIdx) => {
+                  pagedBranches.map((b, rowIdx) => {
                     const isHQ = b.code === '100';
                     const isExpanded = expandedBranchCode === b.code;
                     const totalUnits = Math.max(b.totalDevices, 1);
@@ -508,7 +515,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                             </button>
                           </td>
 
-                          <td className="py-3 px-3 text-right text-slate-500 tabular-nums">{rowIdx + 1}</td>
+                          <td className="py-3 px-3 text-right text-slate-500 tabular-nums">{pg.start + rowIdx + 1}</td>
 
                           {/* Branch Code */}
                           <td className="py-3 px-3.5 font-mono">
@@ -532,7 +539,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
                           {/* Branch Name */}
                           <td className="py-3 px-3.5">
-                            <div className="text-zinc-900 text-xs font-bold">
+                            <div className="khmer text-zinc-900 text-xs">
                               {b.name}
                             </div>
                             <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
@@ -559,7 +566,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
                           {/* Total Unit */}
                           <td className="py-3 px-3.5 text-center">
-                            <span className="font-mono text-xs text-zinc-900 font-bold">
+                            <span className="font-mono text-xs text-zinc-900">
                               {b.totalDevices}
                             </span>
                             <span className="text-[10px] text-slate-400 block font-sans">
@@ -756,7 +763,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         ) : (
           /* View Mode 2: Cards Grid */
           <div className="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {enrichedBranches.map((b, idx) => {
+            {pagedBranches.map((b, idx) => {
               const isHQ = b.code === '100';
               const totalUnits = Math.max(b.totalDevices, 1);
               const completePct = Math.round((b.completeCount / totalUnits) * 100);
@@ -905,6 +912,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             })}
           </div>
         )}
+        <Pager pg={pg} label="branches" />
       </div>
 
       {/* Inspect Branch Modal Drawer */}

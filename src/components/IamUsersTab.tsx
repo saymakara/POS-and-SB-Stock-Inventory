@@ -1,4 +1,7 @@
-import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
+import { ClearFiltersButton } from './ClearFiltersButton';
+import { usePager } from '../utils/usePager';
+import { Pager } from './Pager';
+import React, { useState, useMemo, useRef, useDeferredValue } from 'react';
 import { useSort, SortTh } from '../utils/sort';
 import { useFlip } from '../utils/useFlip';
 import { User, Branch, UserRole, UserStatus, ThemeMode } from '../types';
@@ -118,23 +121,9 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
     branch: (u) => branchNameByCode.get(u.branchId) || u.branchName, role: (u) => u.accessRole, status: (u) => u.status,
   });
 
-  // The first rows appear at once; the rest are added as the list is scrolled (a long directory no longer blocks the screen)
-  const PAGE = 40;
-  const [visible, setVisible] = useState(PAGE);
-  const sentinelRef = useRef<HTMLTableRowElement | null>(null);
-
+  const pg = usePager(filteredUsers.length, [branchFilter, roleFilter, statusFilter, deferredSearch, uSort]);
   const flipRef = useRef<HTMLTableSectionElement>(null);
-  useFlip(flipRef, [filteredUsers, visible]);
-  useEffect(() => { setVisible(PAGE); }, [branchFilter, roleFilter, statusFilter, deferredSearch]);
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || visible >= filteredUsers.length) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) setVisible((v) => v + 60);
-    }, { rootMargin: '400px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [visible, filteredUsers.length]);
+  useFlip(flipRef, [filteredUsers, pg.start, pg.end]);
 
   const toggleSelect = (uid: string) => {
     setSelectedIds((prev) =>
@@ -231,6 +220,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
           <option value="Pending">Pending</option>
           <option value="Suspended">Suspended</option>
         </select>
+        <ClearFiltersButton active={!!searchQuery || branchFilter !== 'ALL' || roleFilter !== 'ALL' || statusFilter !== 'ALL'} onClear={() => { setSearchQuery(''); setBranchFilter('ALL'); setRoleFilter('ALL'); setStatusFilter('ALL'); }} />
       </div>
 
       {selectedIds.length > 0 && isAdminLike && (
@@ -287,7 +277,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
               </tr>
             </thead>
             <tbody ref={flipRef} className="divide-y divide-slate-200/70 text-xs bg-white">
-              {filteredUsers.slice(0, visible).map((u, rowIdx) => {
+              {filteredUsers.slice(pg.start, pg.end).map((u, rowIdx) => {
                 const isSelected = selectedIds.includes(u.uid);
                 const resolvedBranchName =
                   branchNameByCode.get(u.branchId) ||
@@ -307,7 +297,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                         )}
                       </button>
                     </td>
-                    <td className="py-3 px-2 text-right text-slate-500 tabular-nums">{rowIdx + 1}</td>
+                    <td className="py-3 px-2 text-right text-slate-500 tabular-nums">{pg.start + rowIdx + 1}</td>
                     <td className="py-3 px-3 font-mono font-bold text-zinc-900">
                       {u.empId}
                     </td>
@@ -380,19 +370,13 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                   </tr>
                 );
               })}
-              {visible < filteredUsers.length && (
-                <tr ref={sentinelRef}>
-                  <td colSpan={10} className="py-3 text-center text-[11px] text-slate-500">
-                    Showing {visible} of {filteredUsers.length} · loading more…
-                  </td>
-                </tr>
-              )}
               {filteredUsers.length === 0 && (
                 <tr><td colSpan={10} className="py-10 text-center text-xs text-slate-500">No staff match the search or filters.</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        <Pager pg={pg} label="staff" />
       </div>
 
       {/* Double-Step Deletion Confirmation Modal */}
