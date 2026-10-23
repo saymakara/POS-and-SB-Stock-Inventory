@@ -180,6 +180,23 @@ async function api(route) {
     for (let k = 0; k < 3; k++) { await p.getByText(t === 'Dashboard' ? 'Stock Inventory' : 'Dashboard', { exact: true }).first().click(); await sleep(300); await lt(); await el.click(); await sleep(400); const l = await lt(); tot += l.total; worst = Math.max(worst, l.max); }
     console.log(`PROFILE ${t}: long tasks avg ${Math.round(tot / 3)} ms, longest ${worst} ms`);
   }
+  // (23 Oct 2026) smoothness: frame gaps while the screen changes (a gap over 34 ms is a visible stutter at 60 fps)
+  const frames = async (label, act) => {
+    await p.evaluate(() => { window.__fg = []; let last = performance.now(); window.__fgOn = true; const f = (t) => { window.__fg.push(t - last); last = t; if (window.__fgOn) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+    await act();
+    await sleep(700);
+    const g = await p.evaluate(() => { window.__fgOn = false; return window.__fg.slice(1); });
+    const drop = g.filter((x) => x > 34).length, worst = Math.round(Math.max(0, ...g)), sorted = g.slice().sort((a, b) => a - b), p95 = Math.round(sorted[Math.floor(sorted.length * 0.95)] || 0);
+    console.log(`SMOOTH ${label}: ${g.length} frames, stutters ${drop}, worst frame ${worst} ms, p95 ${p95} ms`);
+    return { drop, worst };
+  };
+  for (const t of ['Stock Inventory', 'Merchant Deployment', 'Stock Requests', 'Phone App Review', 'Dashboard']) {
+    await frames('open ' + t, async () => { await p.getByText(t, { exact: true }).first().click(); });
+  }
+  await p.getByText('Stock Inventory', { exact: true }).first().click(); await sleep(800);
+  await frames('scroll Stock Inventory', async () => { for (let i = 0; i < 12; i++) { await p.mouse.wheel(0, 120); await sleep(40); } });
+  await frames('next page Stock Inventory', async () => { const nb = p.locator('button[aria-label="Next page"]').first(); if (await nb.count()) await nb.click(); });
+  await frames('next page again', async () => { const nb = p.locator('button[aria-label="Next page"]').first(); if (await nb.count()) await nb.click(); });
   // repeated tab switching (leak / stability)
   { const r = await timed('20 quick tab switches (wall time incl. test-driver waits)', async () => { for (let i = 0; i < 20; i++) { await p.getByText(tabs[i % 4], { exact: true }).first().click(); await sleep(60); } await sleep(500); }, 20000); ok(r.l.total < 3000 && r.l.max < 400, 'main thread during 20 switches: ' + r.l.total + ' ms busy, longest freeze ' + r.l.max + ' ms (limits 3000 / 400)'); }
   const heap2 = await p.evaluate(() => (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : -1));

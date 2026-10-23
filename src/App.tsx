@@ -50,7 +50,6 @@ import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { motion, AnimatePresence } from 'motion/react';
-import { flushSync } from 'react-dom';
 
 // (22 Oct 2026, review) Screens other than the Dashboard and Stock Inventory are loaded when first opened, and fetched
 // quietly in the background right after start-up, so the app opens faster and switching tabs is still instant.
@@ -75,13 +74,6 @@ const SettingsTab = lazyTab(() => import('./components/SettingsTab').then((m) =>
 const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
 
-/** Runs a page change as a smooth morph/glide where the browser supports View Transitions. */
-function glideTo(update: () => void) {
-  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
-  const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if (!doc.startViewTransition || reduce || document.visibilityState !== 'visible') { update(); return; }
-  try { doc.startViewTransition(() => flushSync(update)); } catch { update(); }
-}
 import { SendHorizontal, Lock } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import {
@@ -779,7 +771,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [activeTab, setActiveTabRaw] = useState<string>('dashboard');
   // (22 Oct 2026) changing page glides: the browser morphs the old page into the new one (View Transitions);
   // older browsers get a short CSS glide-in instead. Respects "reduce motion".
-  const setActiveTab = useCallback((tab: string) => glideTo(() => setActiveTabRaw(tab)), []);
+  const setActiveTab = useCallback((tab: string) => setActiveTabRaw(tab), []);
+  // (23 Oct 2026) the menu highlight moves at once; the new page is prepared in the background (React keeps drawing
+  // frames meanwhile, so nothing freezes) and glides in when ready
+  const shownTab = useDeferredValue(activeTab);
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('policy');
 
   const handleSelectTab = (tabId: string, subTab?: string) => {
@@ -2861,10 +2856,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
               {/* Robust Responsive Tab Content with Error Boundary */}
               {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
-              <motion.div key={activeTab} className="tab-view" initial={{ opacity: 0, y: 14, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.7 }}>
+              <motion.div key={shownTab} className="tab-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 36, mass: 0.6 }}>
                   <ErrorBoundary>
                   <Suspense fallback={<TabLoading />}>
-                  {activeTab === 'dashboard' && (
+                  {shownTab === 'dashboard' && (
                     <DashboardTab
                       devices={scopedDevices}
                       allDevices={devices}
@@ -2881,7 +2876,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {activeTab === 'merchants' && (
+                  {shownTab === 'merchants' && (
                     <MerchantsCrmTab
                       role={role}
                       devices={scopedDevices}
@@ -2899,7 +2894,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {activeTab === 'merchant_history' && (
+                  {shownTab === 'merchant_history' && (
                     <MerchantHistoryTab
                       records={historicalMerchants}
                       branches={branches}
@@ -2923,11 +2918,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {(activeTab === 'dashboard' || activeTab === 'merchants' || activeTab === 'inventory') && (
+                  {(shownTab === 'dashboard' || shownTab === 'merchants' || shownTab === 'inventory') && (
                     <SetupAlert devices={scopedDevices} role={role} onOpen={(sn) => setEditingDeviceSerial(sn)} />
                   )}
 
-                  {activeTab === 'requisitions' && (
+                  {shownTab === 'requisitions' && (
                     <RequisitionsTab
                       role={role}
                       requisitions={scopedRequisitions}
@@ -2948,7 +2943,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {activeTab === 'inventory' && (
+                  {shownTab === 'inventory' && (
                     <InventoryTab
                       devices={filteredInventory}
                       allDevices={scopedDevices}
@@ -2986,7 +2981,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {activeTab === 'branches' && (
+                  {shownTab === 'branches' && (
                     <BranchesTab
                       branches={branches}
                       devices={devices}
@@ -3015,7 +3010,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {activeTab === 'audit_log' && (
+                  {shownTab === 'audit_log' && (
                     <AuditLogTab
                       auditLogs={auditLogs}
                       role={role}
@@ -3025,10 +3020,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {(activeTab === 'users' || activeTab === 'iam') && isSupabaseConfigured && (
+                  {(shownTab === 'users' || shownTab === 'iam') && isSupabaseConfigured && (
                     <StaffAccountsTab role={role} branches={branches} triggerToast={triggerToast} />
                   )}
-                  {(activeTab === 'users' || activeTab === 'iam') && !isSupabaseConfigured && (
+                  {(shownTab === 'users' || shownTab === 'iam') && !isSupabaseConfigured && (
                     <IamUsersTab
                       users={users}
                       branches={branches}
@@ -3097,7 +3092,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {activeTab === 'mobile_sync' && isSupabaseConfigured && (
+                  {shownTab === 'mobile_sync' && isSupabaseConfigured && (
                     <FieldReviewTab
                       role={role}
                       branches={branches}
@@ -3111,7 +3106,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       scope={appSettings.phoneReviewScope || 'PHNOM_PENH'}
                     />
                   )}
-                  {activeTab === 'mobile_sync' && !isSupabaseConfigured && (
+                  {shownTab === 'mobile_sync' && !isSupabaseConfigured && (
                     <MobileSyncTab
                       devices={devices}
                       branches={branches}
@@ -3127,7 +3122,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {activeTab === 'brand_logo' && (
+                  {shownTab === 'brand_logo' && (
                     <LogoPageTab
                       appSettings={appSettings}
                       onUpdateAppSettings={setAppSettings}
@@ -3137,7 +3132,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {activeTab === 'settings' && role === 'SUPER_ADMIN' && (
+                  {shownTab === 'settings' && role === 'SUPER_ADMIN' && (
                     <SettingsTab
                       settings={appSettings}
                       onUpdateSettings={(newSettings) => {
@@ -3190,7 +3185,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {activeTab === 'settings' && role !== 'SUPER_ADMIN' && (
+                  {shownTab === 'settings' && role !== 'SUPER_ADMIN' && (
                     <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm max-w-lg mx-auto my-12">
                       <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-3">
                         <Lock className="w-6 h-6" />

@@ -131,7 +131,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'branches',
           label: 'Branch Codes',
           icon: Building2,
-          count: totalBranches,
         },
         {
           id: 'users',
@@ -247,8 +246,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       {/* (22 Oct 2026) the highlight is its own layer, so it morphs from the old item to the new one */}
                       {isActive && (
                         <>
-                          <div aria-hidden className="nav-active-pill absolute inset-0 rounded-xl bg-white/12 border border-white/15 shadow-xs -z-10" />
-                          <div aria-hidden className="nav-active-bar absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90" />
+                          <motion.div layoutId="nav-active-pill" aria-hidden className="absolute inset-0 rounded-xl bg-white/12 border border-white/15 shadow-xs -z-10" transition={{ type: 'spring', stiffness: 520, damping: 40, mass: 0.6 }} />
+                          <motion.div layoutId="nav-active-bar" aria-hidden className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90" transition={{ type: 'spring', stiffness: 520, damping: 40, mass: 0.6 }} />
                         </>
                       )}
 

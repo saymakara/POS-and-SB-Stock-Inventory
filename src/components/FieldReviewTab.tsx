@@ -1,5 +1,5 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
-import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { Smartphone, Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
@@ -103,7 +103,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
   const [bulkReport, setBulkReport] = useState<string[]>([]);
   const [regions, setRegions] = useState<Record<string, string>>({});
 
-  useEffect(() => { fetchBranchRegions().then(setRegions); }, []);
+  useEffect(() => { fetchBranchRegions().then((g) => startTransition(() => setRegions(g))); }, []);   // (drawn in the background: no stutter)
 
   // keep a small copy of the waiting records so the next visit paints instantly
   useEffect(() => {
@@ -115,11 +115,11 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
   }, [events]);
 
   const merge = useCallback((pending: FieldEvent[] | null, reviewed: FieldEvent[] | null) => {
-    setEvents((prev) => {
+    startTransition(() => setEvents((prev) => {
       const keepPending = pending ?? (prev || []).filter((e) => e.status === 'PENDING');
       const keepReviewed = reviewed ?? (prev || []).filter((e) => e.status !== 'PENDING');
       return [...keepPending, ...keepReviewed];
-    });
+    }));
   }, []);
 
   const load = useCallback(async () => {
@@ -128,7 +128,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
     if (!pending) { setLoadError('The records could not be loaded. Please check the connection and tap Refresh.'); return; }
     merge(pending, null);
     const reviewed = await fetchReviewedFieldEvents(600);       // the rest follows in the background
-    if (reviewed) { merge(null, reviewed); setReviewedReady(true); }
+    if (reviewed) { merge(null, reviewed); startTransition(() => setReviewedReady(true)); }
   }, [merge]);
 
   useEffect(() => {
@@ -432,7 +432,7 @@ const ReviewRow = memo(function ReviewRow({ e, units = 1, no, isAdmin, branches,
   const canApprove = !blocks && !busy && (!needsBranch || !!r.branchId);
 
   return (
-    <motion.div layout="position" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: 24, transition: { duration: 0.16 } }} transition={SPRING}
+    <motion.div initial={false} animate={{ opacity: 1 }} exit={{ opacity: 0, x: 24, transition: { duration: 0.16 } }} transition={SPRING}
       className={`border-b border-slate-300 ${checked ? 'bg-sky-50/50' : isOpen ? 'bg-slate-50/70' : 'bg-white'}`}>
       {/* the clean line */}
       <div className={`${GRID} px-3 py-2.5 text-xs`}>

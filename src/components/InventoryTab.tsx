@@ -220,10 +220,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     }
   }, [totalPages, currentPage]);
 
+  // (23 Oct 2026) the next page is drawn in the background (the screen keeps moving), then glides in
+  const shownPage = React.useDeferredValue(currentPage);
   const pagedDevices = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
+    const start = (shownPage - 1) * rowsPerPage;
     return visibleDevices.slice(start, start + rowsPerPage);
-  }, [visibleDevices, currentPage, rowsPerPage]);
+  }, [visibleDevices, shownPage, rowsPerPage]);
 
   const flipRef = useRef<HTMLTableSectionElement>(null);
   useFlip(flipRef, [pagedDevices]);

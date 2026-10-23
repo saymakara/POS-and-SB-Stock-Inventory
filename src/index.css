@@ -578,7 +578,7 @@ button:hover:not(:disabled),
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
-.data-table tbody tr { animation: rowGlideIn 0.26s var(--ease-apple-smooth) both; }
+/* (23 Oct 2026) rows are no longer animated one by one (that stuttered); a page change glides the whole list (utils/glide.ts) */
 
 /* Page change: the new page glides in (fallback when the browser has no View Transitions) */
 @keyframes tabGlideIn {
@@ -767,15 +767,6 @@ body:has(.fixed.inset-0) { overflow: hidden; }
 }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-/* rows glide in one after another (a short cascade, then all together, so a long page never waits) */
-.data-table tbody tr:nth-child(2) { animation-delay: 0.015s; }
-.data-table tbody tr:nth-child(3) { animation-delay: 0.03s; }
-.data-table tbody tr:nth-child(4) { animation-delay: 0.045s; }
-.data-table tbody tr:nth-child(5) { animation-delay: 0.06s; }
-.data-table tbody tr:nth-child(6) { animation-delay: 0.075s; }
-.data-table tbody tr:nth-child(7) { animation-delay: 0.09s; }
-.data-table tbody tr:nth-child(8) { animation-delay: 0.105s; }
-.data-table tbody tr:nth-child(n + 9) { animation-delay: 0.12s; }
 /* a status that changes (Pending → Rejected) cross-fades its colour */
 .data-table .chip { transition: background-color 0.3s var(--ease-apple-smooth), color 0.3s var(--ease-apple-smooth), border-color 0.3s var(--ease-apple-smooth); }
 /* cards lift gently under the pointer */
