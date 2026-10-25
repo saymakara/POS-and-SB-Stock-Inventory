@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export type LogoPresetId = 'merchant-store';
+export type LogoPresetId = 'quantum-sound' | 'fintech-pulse' | 'apex-pos' | 'bank-shield' | 'merchant-store';
 
 export interface AppBrandLogoProps {
   logoUrl?: string;
@@ -22,255 +22,188 @@ const SIZE_MAP = {
 };
 
 /**
- * Official System Logo: Verified Merchant Storefront
- * Pure 2D Flat Vector Emblem inspired directly by the verified storefront identity:
- * Features a modern squircle (rounded square) deep sapphire canvas, pure white store facade,
- * 5-stripe scalloped emerald and mint canopy, navy door with mint knob,
- * dual-pane showcase windows, and verified checkmark badge with smooth 2D animations.
+ * 1. Official Browser Preset: Quantum SoundBox Wave (Original Flagship)
+ * 4 Clean Equalizer Audio Frequency Bars in dark obsidian squircle, identical to the browser favicon,
+ * enhanced with smooth 2D audio equalizer pulse micro-animations.
  */
-export const SvgMerchantStore: React.FC<{ className?: string; animated?: boolean }> = ({
+export const SvgQuantumSound: React.FC<{ className?: string; animated?: boolean }> = ({
   className = 'w-full h-full',
   animated = true,
 }) => (
   <svg
-    viewBox="0 0 100 100"
+    viewBox="0 0 48 48"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     className={className}
     aria-hidden="true"
   >
     <defs>
-      {/* Deep royal sapphire background */}
-      <radialGradient id="vms_bg" cx="50%" cy="40%" r="65%">
-        <stop offset="0%" stopColor="#145b8e" />
-        <stop offset="55%" stopColor="#0e4773" />
-        <stop offset="100%" stopColor="#082c4a" />
-      </radialGradient>
-
-      {/* Subtle linear 2D shimmer across awning and facade */}
-      <linearGradient id="vms_shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
-        <stop offset="50%" stopColor="#ffffff" stopOpacity="0.32" />
-        <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+      <linearGradient id="soundSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#0d1117" />
+        <stop offset="100%" stopColor="#161b22" />
       </linearGradient>
-
-      {/* Clip path for the 2D light sweep */}
-      <clipPath id="vms_store_clip">
-        <rect x="20" y="22" width="60" height="50" rx="4" />
-      </clipPath>
+      <linearGradient id="soundWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#38bdf8" />
+        <stop offset="100%" stopColor="#34d399" />
+      </linearGradient>
     </defs>
 
     <style>{`
-      @keyframes vms_badge_pulse {
-        0%, 100% {
-          transform: scale(1);
-        }
-        50% {
-          transform: scale(1.06);
-        }
+      @keyframes eq_bounce_1 {
+        0%, 100% { height: 8px; y: 20px; }
+        50% { height: 16px; y: 16px; }
       }
-      @keyframes vms_radar_ring {
-        0% {
-          transform: scale(1);
-          opacity: 0.85;
-          stroke-width: 1.5;
-        }
-        60% {
-          transform: scale(1.42);
-          opacity: 0;
-          stroke-width: 0.5;
-        }
-        100% {
-          transform: scale(1.42);
-          opacity: 0;
-          stroke-width: 0;
-        }
+      @keyframes eq_bounce_2 {
+        0%, 100% { height: 20px; y: 14px; }
+        50% { height: 10px; y: 19px; }
       }
-      @keyframes vms_squircle_rim {
-        0%, 100% {
-          opacity: 0.18;
-        }
-        50% {
-          opacity: 0.45;
-        }
+      @keyframes eq_bounce_3 {
+        0%, 100% { height: 26px; y: 11px; }
+        50% { height: 18px; y: 15px; }
       }
-      @keyframes vms_knob_beacon {
-        0%, 100% {
-          opacity: 0.8;
-          transform: scale(1);
-        }
-        50% {
-          opacity: 1;
-          transform: scale(1.3);
-        }
+      @keyframes eq_bounce_4 {
+        0%, 100% { height: 14px; y: 17px; }
+        50% { height: 24px; y: 12px; }
       }
-      @keyframes vms_knob_ring {
-        0% {
-          transform: scale(1);
-          opacity: 0.6;
-        }
-        50% {
-          transform: scale(1.9);
-          opacity: 0;
-        }
-        100% {
-          transform: scale(1.9);
-          opacity: 0;
-        }
-      }
-      @keyframes vms_glint {
-        0%, 25% {
-          opacity: 0.2;
-        }
-        40% {
-          opacity: 0.8;
-        }
-        60%, 100% {
-          opacity: 0.2;
-        }
-      }
-      @keyframes vms_awning_glow {
-        0%, 100% {
-          fill: #5ce2c0;
-        }
-        50% {
-          fill: #7af3d6;
-        }
-      }
-      @keyframes vms_flat_shimmer {
-        0% {
-          transform: translateX(-90px) skewX(-15deg);
-        }
-        28% {
-          transform: translateX(130px) skewX(-15deg);
-        }
-        100% {
-          transform: translateX(130px) skewX(-15deg);
-        }
-      }
-      .vms-badge {
-        transform-origin: 75px 68px;
-        ${animated ? 'animation: vms_badge_pulse 2.8s ease-in-out infinite;' : ''}
-      }
-      .vms-radar {
-        transform-origin: 75px 68px;
-        ${animated ? 'animation: vms_radar_ring 2.8s ease-out infinite;' : ''}
-      }
-      .vms-rim {
-        ${animated ? 'animation: vms_squircle_rim 3.6s ease-in-out infinite;' : ''}
-      }
-      .vms-knob {
-        transform-origin: 41px 58px;
-        ${animated ? 'animation: vms_knob_beacon 2.4s ease-in-out infinite;' : ''}
-      }
-      .vms-knob-halo {
-        transform-origin: 41px 58px;
-        ${animated ? 'animation: vms_knob_ring 2.4s ease-out infinite;' : ''}
-      }
-      .vms-glint {
-        ${animated ? 'animation: vms_glint 3.2s ease-in-out infinite;' : ''}
-      }
-      .vms-awning-mint {
-        ${animated ? 'animation: vms_awning_glow 3.6s ease-in-out infinite;' : ''}
-      }
-      .vms-shimmer-bar {
-        ${animated ? 'animation: vms_flat_shimmer 5.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;' : ''}
-      }
+      .eq-bar-1 { ${animated ? 'animation: eq_bounce_1 1.6s ease-in-out infinite;' : ''} }
+      .eq-bar-2 { ${animated ? 'animation: eq_bounce_2 1.4s ease-in-out infinite 0.15s;' : ''} }
+      .eq-bar-3 { ${animated ? 'animation: eq_bounce_3 1.8s ease-in-out infinite 0.3s;' : ''} }
+      .eq-bar-4 { ${animated ? 'animation: eq_bounce_4 1.5s ease-in-out infinite 0.1s;' : ''} }
     `}</style>
 
-    {/* Squircle (Rounded Square) Background Container */}
-    <rect x="3" y="3" width="94" height="94" rx="22" fill="url(#vms_bg)" />
-    <rect x="3" y="3" width="94" height="94" rx="22" stroke="rgba(255, 255, 255, 0.16)" strokeWidth="1" />
+    <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#soundSimpleBg)" />
+    <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" strokeOpacity="0.12" strokeWidth="1" />
 
-    {/* Inner Subtle Squircle Accent Rim */}
-    <rect className="vms-rim" x="7" y="7" width="86" height="86" rx="18" stroke="#1b6ca6" strokeWidth="0.8" />
+    {/* 4 Clean Equalizer Audio Frequency Bars */}
+    <rect className="eq-bar-1" x="13" y="20" width="4" height="8" rx="2" fill="url(#soundWaveGrad)" />
+    <rect className="eq-bar-2" x="19" y="14" width="4" height="20" rx="2" fill="url(#soundWaveGrad)" />
+    <rect className="eq-bar-3" x="25" y="11" width="4" height="26" rx="2" fill="url(#soundWaveGrad)" />
+    <rect className="eq-bar-4" x="31" y="17" width="4" height="14" rx="2" fill="url(#soundWaveGrad)" />
+  </svg>
+);
 
-    {/* Storefront Group */}
-    <g>
-      {/* White Store Building Facade */}
-      <path
-        d="M 27,37 L 73,37 L 73,65 Q 73,69 69,69 L 31,69 Q 27,69 27,65 Z"
-        fill="#ffffff"
-      />
+/**
+ * 2. Preset: Fintech Pulse (Simple, Clean POS Terminal + Sound Box Wave)
+ */
+export const SvgFintechPulse: React.FC<{ className?: string; animated?: boolean }> = ({
+  className = 'w-full h-full',
+}) => (
+  <svg
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    aria-hidden="true"
+  >
+    <defs>
+      <linearGradient id="simplePulseBg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#003844" />
+        <stop offset="100%" stopColor="#005d6e" />
+      </linearGradient>
+      <linearGradient id="simplePulseWaves" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#10b981" />
+        <stop offset="100%" stopColor="#38bdf8" />
+      </linearGradient>
+    </defs>
 
-      {/* Doorway */}
-      <rect x="32" y="47.5" width="12" height="21.5" rx="1.5" fill="#0b375b" />
-      {/* Doorknob with 2D beacon pulse and halo */}
-      <circle className="vms-knob-halo" cx="41" cy="58" r="2.2" fill="#00d9a3" opacity="0.4" />
-      <circle className="vms-knob" cx="41" cy="58" r="1.2" fill="#00d9a3" />
+    <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#simplePulseBg)" />
+    <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" strokeOpacity="0.14" strokeWidth="1" />
 
-      {/* Windows (Two Panes) */}
-      <rect x="48" y="47.5" width="10" height="12" rx="1.2" fill="#0b375b" />
-      <rect x="59.5" y="47.5" width="10" height="12" rx="1.2" fill="#0b375b" />
+    <rect x="11" y="11" width="16" height="26" rx="4.5" fill="#ffffff" />
+    <rect x="13.5" y="14" width="11" height="8.5" rx="2" fill="#002b36" />
+    <circle cx="16.5" cy="27" r="1.5" fill="#005d6e" />
+    <rect x="20" y="26" width="4.5" height="2" rx="1" fill="#005d6e" />
+    <rect x="14.5" y="31.5" width="9" height="1.5" rx="0.75" fill="#cbd5e1" />
 
-      {/* Window Daylight Glint Highlights */}
-      <line className="vms-glint" x1="49.5" y1="57.5" x2="56.5" y2="49.5" stroke="#5ce2c0" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
-      <line className="vms-glint" x1="61" y1="57.5" x2="68" y2="49.5" stroke="#5ce2c0" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+    <path
+      d="M31 18C33.2 20.2 34.5 23 34.5 26C34.5 29 33.2 31.8 31 34"
+      stroke="url(#simplePulseWaves)"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+    />
+    <path
+      d="M36 13.5C39.5 17 41.5 21.2 41.5 26C41.5 30.8 39.5 35 36 38.5"
+      stroke="url(#simplePulseWaves)"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeOpacity="0.8"
+    />
+  </svg>
+);
 
-      {/* Scalloped Awning Stripes (5 Vertical Stripes) */}
-      {/* Stripe 1 (Leftmost): Dark Teal */}
-      <path
-        d="M 23,28 L 33.8,28 L 33.8,37 Q 28.4,42 23,37 Z"
-        fill="#009e7e"
-      />
-      {/* Stripe 2: Mint Teal */}
-      <path
-        className="vms-awning-mint"
-        d="M 33.8,28 L 44.6,28 L 44.6,37 Q 39.2,42 33.8,37 Z"
-        fill="#5ce2c0"
-      />
-      {/* Stripe 3 (Center): Dark Teal */}
-      <path
-        d="M 44.6,28 L 55.4,28 L 55.4,37 Q 50,42 44.6,37 Z"
-        fill="#009e7e"
-      />
-      {/* Stripe 4: Mint Teal */}
-      <path
-        className="vms-awning-mint"
-        d="M 55.4,28 L 66.2,28 L 66.2,37 Q 60.8,42 55.4,37 Z"
-        fill="#5ce2c0"
-      />
-      {/* Stripe 5 (Rightmost): Dark Teal */}
-      <path
-        d="M 66.2,28 L 77,28 L 77,37 Q 71.6,42 66.2,37 Z"
-        fill="#009e7e"
-      />
+/**
+ * 3. Preset: Apex Terminal (Minimal Flat Payment Card & Wave)
+ */
+export const SvgApexPos: React.FC<{ className?: string; animated?: boolean }> = ({
+  className = 'w-full h-full',
+}) => (
+  <svg
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    aria-hidden="true"
+  >
+    <defs>
+      <linearGradient id="apexSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#090d16" />
+        <stop offset="100%" stopColor="#1e293b" />
+      </linearGradient>
+      <linearGradient id="apexAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#00e5ff" />
+        <stop offset="100%" stopColor="#10b981" />
+      </linearGradient>
+    </defs>
+    <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#apexSimpleBg)" />
+    <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" strokeOpacity="0.12" strokeWidth="1" />
 
-      {/* Top Roof Fascia Beam */}
-      <rect x="22" y="24" width="56" height="5" rx="2.5" fill="#ffffff" />
+    <rect x="10" y="14" width="21" height="20" rx="3.5" fill="#1e293b" stroke="white" strokeWidth="1.8" />
+    <circle cx="16" cy="20" r="2.5" fill="url(#apexAccent)" />
+    <path d="M14 27.5H27" stroke="white" strokeOpacity="0.4" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M34 19C36.5 21 38 23.5 38 26C38 28.5 36.5 31 34 33" stroke="url(#apexAccent)" strokeWidth="2.5" strokeLinecap="round" />
+  </svg>
+);
 
-      {/* Pure 2D Flat Shimmer Sweep Across Storefront */}
-      <g clipPath="url(#vms_store_clip)">
-        <rect
-          className="vms-shimmer-bar"
-          x="10"
-          y="22"
-          width="26"
-          height="50"
-          fill="url(#vms_shimmer)"
-          pointerEvents="none"
-        />
-      </g>
-    </g>
+/**
+ * 4. Preset: Bank Vault Shield (Clean Security & Integrity)
+ */
+export const SvgBankShield: React.FC<{ className?: string; animated?: boolean }> = ({
+  className = 'w-full h-full',
+}) => (
+  <svg
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    aria-hidden="true"
+  >
+    <defs>
+      <linearGradient id="shieldSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#0a2540" />
+        <stop offset="100%" stopColor="#00182c" />
+      </linearGradient>
+      <linearGradient id="shieldGold" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fbbf24" />
+        <stop offset="100%" stopColor="#f59e0b" />
+      </linearGradient>
+    </defs>
+    <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#shieldSimpleBg)" />
+    <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" strokeOpacity="0.12" strokeWidth="1" />
 
-    {/* Verified Checkmark Badge with 2D Radar Ping and Pulse */}
-    <g>
-      {/* Separation Outer Mask Halo */}
-      <circle cx="75" cy="68" r="15" fill="#082a47" />
-      {/* Radar Ring expanding from badge center */}
-      <circle className="vms-radar" cx="75" cy="68" r="12" fill="none" stroke="#00d9a3" strokeWidth="1.5" />
-      {/* Emerald Badge Disc with Checkmark */}
-      <g className="vms-badge">
-        <circle cx="75" cy="68" r="12" fill="#14ab84" />
-        <path
-          d="M 69,68 L 73.5,72.5 L 81.5,63"
-          stroke="#ffffff"
-          strokeWidth="3.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </g>
-    </g>
+    <path
+      d="M24 10L36 15V24C36 31 30.5 36.5 24 38.5C17.5 36.5 12 31 12 24V15L24 10Z"
+      fill="#0c3254"
+      stroke="url(#shieldGold)"
+      strokeWidth="2.2"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M19 24.5L22.5 28L29 20"
+      stroke="white"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
@@ -283,20 +216,44 @@ export const PRESET_META: Record<
     Component: React.FC<{ className?: string; animated?: boolean }>;
   }
 > = {
+  'quantum-sound': {
+    name: 'Sound Box Wave',
+    description: 'Clean acoustic sound frequency equalizer bars inside dark obsidian squircle, identical to the browser favicon.',
+    tag: 'Official Browser Logo',
+    Component: SvgQuantumSound,
+  },
+  'fintech-pulse': {
+    name: 'Simple Fintech Pulse',
+    description: 'Clean minimalist POS terminal silhouette with bold dual acoustic broadcast arcs.',
+    tag: 'POS Terminal',
+    Component: SvgFintechPulse,
+  },
+  'apex-pos': {
+    name: 'Apex Minimal',
+    description: 'Modern geometric payment card contour with contactless NFC audio wave.',
+    tag: 'Minimal Modern',
+    Component: SvgApexPos,
+  },
+  'bank-shield': {
+    name: 'Vault Shield',
+    description: 'Clean institutional security shield with verified settlement checkmark.',
+    tag: 'Executive Vault',
+    Component: SvgBankShield,
+  },
   'merchant-store': {
-    name: 'Verified Merchant Hub',
-    description: 'Official system logo with 5-stripe scalloped emerald and mint canopy, navy apertures, and animated verified checkmark badge.',
-    tag: 'Official System Logo',
-    Component: SvgMerchantStore,
+    name: 'Sound Box Wave',
+    description: 'Clean acoustic sound frequency equalizer bars inside dark obsidian squircle.',
+    tag: 'Official Browser Logo',
+    Component: SvgQuantumSound,
   },
 };
 
 /**
- * Official Brand Logo Component (Pure 2D squircle with smooth micro-animations, zero 3D)
+ * Official Brand Logo Component (Roll back to original browser soundbox equalizer bars)
  */
 export const AppBrandLogo: React.FC<AppBrandLogoProps> = ({
   logoUrl,
-  presetId = 'merchant-store',
+  presetId = 'quantum-sound',
   size = 'md',
   className = '',
   showGlow = false,
@@ -305,7 +262,7 @@ export const AppBrandLogo: React.FC<AppBrandLogoProps> = ({
 }) => {
   const [imgError, setImgError] = useState(false);
   const sizeStyle = SIZE_MAP[size] || SIZE_MAP.md;
-  const ActiveComponent = PRESET_META[presetId]?.Component || SvgMerchantStore;
+  const ActiveComponent = PRESET_META[presetId]?.Component || SvgQuantumSound;
 
   React.useEffect(() => {
     setImgError(false);
@@ -318,7 +275,7 @@ export const AppBrandLogo: React.FC<AppBrandLogoProps> = ({
       {/* Subtle Ambient Backlight Glow */}
       {showGlow && (
         <span
-          className={`absolute inset-0 rounded-xl bg-gradient-to-tr from-sky-500/15 to-emerald-500/10 ${sizeStyle.glow} -z-10 pointer-events-none opacity-80`}
+          className={`absolute inset-0 rounded-xl bg-gradient-to-tr from-sky-500/20 to-emerald-500/15 ${sizeStyle.glow} -z-10 pointer-events-none opacity-80`}
         />
       )}
 

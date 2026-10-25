@@ -24,7 +24,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   customLogoTitle: 'POS & Sound Box Stock',
   customLogoSubtitle: 'Branch Operations Portal',
   phoneReviewScope: 'PHNOM_PENH',
-  logoPresetId: 'merchant-store',
+  logoPresetId: 'quantum-sound',
   telegramRegionalGroups: [
     {
       id: 'rg-pp',

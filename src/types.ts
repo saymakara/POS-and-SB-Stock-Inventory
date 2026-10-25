@@ -325,7 +325,7 @@ export interface AppSettings {
   customLogoSubtitle?: string;
   /** Phone App Review: which staff's records are shown — Phnom Penh only, or Phnom Penh and the provinces */
   phoneReviewScope?: 'PHNOM_PENH' | 'ALL';
-  logoPresetId?: 'merchant-store';
+  logoPresetId?: 'quantum-sound' | 'fintech-pulse' | 'apex-pos' | 'bank-shield' | 'merchant-store';
   telegramRegionalGroups?: TelegramRegionalGroup[];
 }
 
