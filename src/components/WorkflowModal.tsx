@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import type { User as AppUser } from '../types';
 import {
   Device,
   Branch,
@@ -32,6 +33,7 @@ import {
   Clock,
   Sparkles,
   FileText,
+  Search,
   SearchX,
   ArrowRight,
   ArrowLeft,
@@ -50,6 +52,7 @@ interface WorkflowModalProps {
   device: Device | null;
   devices?: Device[];
   branches: Branch[];
+  users?: AppUser[];
   role: UserRole;
   theme?: ThemeMode;
   customFields?: CustomFieldDefinition[];
@@ -95,6 +98,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   device,
   devices = [],
   branches,
+  users = [],
   role,
   theme = 'light',
   customFields = DEFAULT_CUSTOM_FIELDS,
@@ -225,8 +229,68 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
   if (!device) return null;
 
-  const selectedBranchObj = branches.find((b) => b.code === branchId);
-  const availableStaff = selectedBranchObj ? selectedBranchObj.staff : [];
+  // selectedBranchObj resolved dynamically
+  const [staffQuery, setStaffQuery] = useState('');
+
+  const allStaffOptions = useMemo(() => {
+    const list: Array<{ name: string; empId?: string; branchId: string; telegram?: string; label: string; isCurrentBranch: boolean }> = [];
+    const seen = new Set<string>();
+
+    if (users && users.length > 0) {
+      for (const u of users) {
+        if (u.status === 'Suspended') continue;
+        const cleanName = u.name.trim();
+        if (!cleanName || seen.has(cleanName.toLowerCase())) continue;
+        seen.add(cleanName.toLowerCase());
+        list.push({
+          name: cleanName,
+          empId: u.empId,
+          branchId: u.branchId,
+          telegram: u.telegramUsername,
+          label: `${cleanName}${u.empId ? ` (${u.empId})` : ''}`,
+          isCurrentBranch: String(u.branchId).trim() === String(branchId).trim(),
+        });
+      }
+    }
+
+    for (const b of branches) {
+      for (const s of b.staff || []) {
+        const clean = s.trim();
+        if (!clean || seen.has(clean.toLowerCase())) continue;
+        seen.add(clean.toLowerCase());
+        list.push({
+          name: clean,
+          branchId: b.code || b.id,
+          label: clean,
+          isCurrentBranch: String(b.code || b.id).trim() === String(branchId).trim(),
+        });
+      }
+    }
+
+    if (staff && !seen.has(staff.trim().toLowerCase())) {
+      list.push({
+        name: staff.trim(),
+        branchId,
+        label: staff.trim(),
+        isCurrentBranch: true,
+      });
+    }
+
+    return list.sort((a, b) => {
+      if (a.isCurrentBranch && !b.isCurrentBranch) return -1;
+      if (!a.isCurrentBranch && b.isCurrentBranch) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [users, branches, branchId, staff]);
+
+  const availableStaff = useMemo(() => {
+    return allStaffOptions.map((s) => s.name);
+  }, [allStaffOptions]);
+
+  const branchStaffList = useMemo(() => {
+    return allStaffOptions.filter((s) => s.isCurrentBranch);
+  }, [allStaffOptions]);
+
 
   const handleStageChange = (newStage: LifecycleStage) => {
     setStage(newStage);
@@ -997,15 +1061,46 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             {/* Row 2: Staff Officer & Deployment Date */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  <User className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                  <span>Assigned Branch Staff Officer</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <User className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
+                    <span>Assigned Branch Staff Officer</span>
+                  </label>
+                  {staff && (
+                    <button
+                      type="button"
+                      onClick={() => setStaff('')}
+                      className="text-[11px] text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick Staff Search / Filter */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={staffQuery}
+                    onChange={(e) => setStaffQuery(e.target.value)}
+                    placeholder="Search staff name, ID, or @telegram..."
+                    className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border outline-none mb-1.5 ${
+                      isLight
+                        ? 'bg-white border-slate-200 text-slate-900 focus:border-[#003857]'
+                        : 'bg-[#181c26] border-slate-700 text-white focus:border-sky-500'
+                    }`}
+                  />
+                </div>
+
                 <div className="relative">
                   <select
                     value={staff}
                     aria-label="Assigned branch staff officer"
-                    onChange={(e) => setStaff(e.target.value)}
+                    onChange={(e) => {
+                      setStaff(e.target.value);
+                      setStaffQuery('');
+                    }}
                     className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
                       isLight
                         ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
@@ -1023,24 +1118,66 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       -- Unassigned --
                     </option>
                     {staff && !availableStaff.includes(staff) && (
-                      <option value={staff}>{staff}</option>
+                      <option value={staff}>{staff} (Assigned)</option>
                     )}
-                    {availableStaff.map((st) => (
-                      <option
-                        key={st}
-                        value={st}
-                        className={
-                          isLight
-                            ? 'bg-white text-slate-900'
-                            : 'bg-slate-900 text-white'
-                        }
-                      >
-                        {st}
-                      </option>
-                    ))}
+
+                    {/* Current branch staff */}
+                    {allStaffOptions
+                      .filter((s) => s.isCurrentBranch && (!staffQuery || s.name.toLowerCase().includes(staffQuery.toLowerCase()) || (s.empId && s.empId.includes(staffQuery)) || (s.telegram && s.telegram.toLowerCase().includes(staffQuery.toLowerCase()))))
+                      .map((st) => (
+                        <option
+                          key={st.name}
+                          value={st.name}
+                          className={isLight ? 'bg-white text-slate-900 font-bold' : 'bg-slate-900 text-white font-bold'}
+                        >
+                          ⭐ {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''} · Branch ${branchId}
+                        </option>
+                      ))}
+
+                    {/* Other branches & HQ staff */}
+                    {allStaffOptions
+                      .filter((s) => !s.isCurrentBranch && (!staffQuery || s.name.toLowerCase().includes(staffQuery.toLowerCase()) || (s.empId && s.empId.includes(staffQuery)) || (s.telegram && s.telegram.toLowerCase().includes(staffQuery.toLowerCase()))))
+                      .map((st) => (
+                        <option
+                          key={st.name}
+                          value={st.name}
+                          className={isLight ? 'bg-white text-slate-600' : 'bg-slate-900 text-slate-300'}
+                        >
+                          {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''} · Branch ${st.branchId}
+                        </option>
+                      ))}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
                 </div>
+
+                {/* Branch Staff Quick-Pick Chips */}
+                {branchStaffList.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Quick Pick:</span>
+                    {branchStaffList.map((st) => (
+                      <button
+                        key={st.name}
+                        type="button"
+                        onClick={() => setStaff(st.name)}
+                        className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold border transition cursor-pointer flex items-center gap-1 ${
+                          staff === st.name
+                            ? 'bg-[#003857] text-white border-[#003857] shadow-2xs'
+                            : isLight
+                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                            : 'bg-white/10 hover:bg-white/15 text-slate-200 border-white/10'
+                        }`}
+                        title={`Assign directly to ${st.name}`}
+                      >
+                        <span>{st.name}</span>
+                        {st.telegram && (
+                          <span className={`text-[9.5px] font-mono ${staff === st.name ? 'text-sky-200' : 'text-sky-600'}`}>
+                            @${st.telegram.replace(/^@/, '')}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-1">

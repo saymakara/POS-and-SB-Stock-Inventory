@@ -1995,6 +1995,63 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     triggerToast(`Restored ${serials.length} serial(s) to active dashboard`);
   };
 
+  const reloadStaffAccounts = useCallback(async () => {
+    try {
+      const staffList = await fetchStaffAccounts(500, 0);
+      if (staffList && staffList.length > 0) {
+        setBranches((prev) => {
+          const bn = new Map(prev.map((b) => [b.id, b.name]));
+          const nextUsers = staffList.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId)));
+          setUsers(nextUsers);
+
+          const byBranch = new Map<string, string[]>();
+          for (const s of staffList) {
+            if (!s.active) continue;
+            const bId = String(s.branchId).trim();
+            const displayName = s.name.trim();
+            if (!byBranch.has(bId)) byBranch.set(bId, []);
+            const list = byBranch.get(bId)!;
+            if (!list.includes(displayName)) list.push(displayName);
+          }
+
+          return prev.map((b) => {
+            const sList = byBranch.get(String(b.code).trim()) || byBranch.get(String(b.id).trim()) || [];
+            const combined = Array.from(new Set([...sList, ...(b.staff || [])]));
+            return {
+              ...b,
+              staff: combined.length > 0 ? combined : b.staff,
+            };
+          });
+        });
+      }
+    } catch (err) {
+      console.error('Error reloading staff accounts:', err);
+    }
+  }, []);
+
+  const handleBulkAssignStaff = useCallback((serials: string[], staffName: string) => {
+    if (!serials.length || !staffName.trim()) return;
+    const cleanStaff = staffName.trim();
+    const today = todayPP();
+
+    for (const sn of serials) {
+      const dev = devices.find((d) => d.serial === sn);
+      if (dev) {
+        handleSaveWorkflow(sn, {
+          stage: dev.stage,
+          branchId: dev.branchId,
+          staff: cleanStaff,
+          merchantName: dev.merchantName || '',
+          mid: dev.mid || '',
+          tid: dev.tid || '',
+          note: `Assigned configure officer to ${cleanStaff}`,
+          deployedDate: dev.deployedDate || today,
+        });
+      }
+    }
+    triggerToast(`Assigned ${serials.length} unit(s) to ${cleanStaff}`);
+  }, [devices, handleSaveWorkflow, triggerToast]);
+
   const staffTelegramMap = useMemo(() => {
     const map = new Map<string, string>();
     users.forEach((u) => {
@@ -3472,6 +3529,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       operatorLabel={operatorLabel || profile?.name || 'System Admin'}
                       onNotifyConfigReady={handleNotifyConfigReady}
                       onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
+                      onAssignStaff={handleBulkAssignStaff}
                       regionalGroups={appSettings.telegramRegionalGroups}
                       users={users}
                       onCompleteDeployment={(sn) => {
@@ -3590,7 +3648,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                   )}
 
                   {(shownTab === 'users' || shownTab === 'iam') && isSupabaseConfigured && (
-                    <StaffAccountsTab role={role} branches={branches} triggerToast={triggerToast} />
+                    <StaffAccountsTab role={role} branches={branches} triggerToast={triggerToast} onStaffUpdated={reloadStaffAccounts} />
                   )}
                   {(shownTab === 'users' || shownTab === 'iam') && !isSupabaseConfigured && (
                     <IamUsersTab
@@ -3858,6 +3916,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           device={editingDevice}
           devices={devices}
           branches={branches}
+          users={users}
           role={role}
           theme={theme}
           onClose={() => { setEditingDeviceSerial(null); setWorkflowPreset(''); }}

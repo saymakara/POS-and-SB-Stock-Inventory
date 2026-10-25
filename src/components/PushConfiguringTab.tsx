@@ -20,6 +20,7 @@ interface PushConfiguringTabProps {
   onSelectDevice?: (serial: string) => void;
   onCompleteDeployment?: (serial: string) => void;
   onReturnToReserve?: (serial: string, branchId: string, reason?: string) => void;
+  onAssignStaff?: (serials: string[], staffName: string) => void;
   regionalGroups?: TelegramRegionalGroup[];
   theme?: ThemeMode;
   users?: User[];
@@ -34,6 +35,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   onSelectDevice,
   onCompleteDeployment,
   onReturnToReserve,
+  onAssignStaff,
   regionalGroups,
   theme = 'light',
   users = [],
@@ -488,6 +490,27 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             </div>
 
             <div className="flex items-center gap-2 ml-auto">
+              {isAdminLike && onAssignStaff && (
+                <div className="relative">
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        onAssignStaff(selectedSns, e.target.value);
+                        setSelectedSns([]);
+                      }
+                    }}
+                    defaultValue=""
+                    className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-semibold text-white outline-none cursor-pointer"
+                  >
+                    <option value="" disabled className="bg-slate-900 text-slate-300">Assign to Staff...</option>
+                    {users.filter(u => u.status !== 'Suspended').map((u) => (
+                      <option key={u.uid} value={u.name} className="bg-slate-900 text-white font-medium">
+                        {u.name} (Code {u.branchId}){u.telegramUsername ? ` · @${u.telegramUsername.replace(/^@/, '')}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {isAdminLike && onNotifyConfigReady && (
                 <button
                   type="button"

@@ -52,7 +52,8 @@ export const StaffAccountsTab: React.FC<{
   branches: Branch[];
   triggerToast: (m: string) => void;
   onlineOperators?: OnlineOperatorPresence[];
-}> = ({ role, branches, triggerToast, onlineOperators = [] }) => {
+  onStaffUpdated?: () => void;
+}> = ({ role, branches, triggerToast, onlineOperators = [], onStaffUpdated }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [list, setList] = useState<StaffAccount[] | null>(() => {
     try {
@@ -203,6 +204,7 @@ export const StaffAccountsTab: React.FC<{
       triggerToast(isNew ? `Account ${cleanEmp} created` : `Account ${cleanEmp} saved`);
       setForm(null);
       load();
+      if (onStaffUpdated) onStaffUpdated();
     } catch (x) {
       setFormErr(x instanceof Error ? x.message : String(x));
     } finally {
