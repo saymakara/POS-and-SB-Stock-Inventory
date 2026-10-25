@@ -515,7 +515,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         aria-pressed={active}
         className={`relative isolate btn-press px-3 py-1.5 rounded-xl text-xs font-normal border transition-all cursor-pointer ${
           active
-            ? 'text-white border-slate-800'
+            ? 'text-white border-[#003857]'
             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900'
         }`}
       >
@@ -523,15 +523,15 @@ export const FieldReviewTab: React.FC<Props> = ({
           <motion.span
             layoutId="fr-type-pill"
             aria-hidden
-            className="absolute inset-0 -z-10 rounded-[11px] bg-slate-800"
+            className="absolute inset-0 -z-10 rounded-[11px] bg-linear-to-r from-[#003857] to-[#004e75] shadow-xs"
             transition={SPRING}
           />
         )}
         {t !== 'ALL' && (
-          <span className={`inline-block w-2 h-2 rounded-full mr-1.5 align-middle ${DOT[t]}`} aria-hidden />
+          <span className={`inline-block w-2 h-2 rounded-full mr-1.5 align-middle ${active ? (t === 'POS Terminal' ? 'bg-sky-300' : 'bg-purple-300') : DOT[t]}`} aria-hidden />
         )}
         <span>{label}</span>{' '}
-        <span className={`font-mono tabular-nums ${active ? 'text-slate-300' : 'text-slate-400'}`}>({n})</span>
+        <span className={`font-mono tabular-nums ${active ? 'text-sky-200' : 'text-slate-400'}`}>({n})</span>
       </button>
     );
   };
@@ -587,14 +587,14 @@ export const FieldReviewTab: React.FC<Props> = ({
                     <motion.span
                       layoutId="fr-status-pill"
                       aria-hidden
-                      className="absolute inset-0 -z-10 rounded-lg bg-slate-800 shadow-xs"
+                      className="absolute inset-0 -z-10 rounded-lg bg-linear-to-r from-[#003857] to-[#004e75] shadow-xs"
                       transition={SPRING}
                     />
                   )}
                   <span>
                     {f === 'PENDING' ? 'Waiting' : f === 'ALL' ? 'All' : f === 'APPROVED' ? 'Approved' : 'Rejected'}
                   </span>{' '}
-                  <span className={`font-mono tabular-nums font-normal ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                  <span className={`font-mono tabular-nums font-normal ${isActive ? 'text-sky-200' : 'text-slate-400'}`}>
                     ({counts[f]})
                   </span>
                 </button>
