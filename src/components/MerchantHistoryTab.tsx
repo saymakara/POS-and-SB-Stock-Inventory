@@ -2,6 +2,7 @@ import { ClearFiltersButton } from './ClearFiltersButton';
 import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
 import React, { useState, useMemo, useDeferredValue, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useFlip } from '../utils/useFlip';
 import { useSort, SortTh } from '../utils/sort';
 import {
@@ -750,21 +751,31 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
         <Pager pg={pg} label="records" />
       </div>
 
-      {/* Record Detail Modal */}
-      <AnimatePresence>
-        {selectedRecord && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
-              className={`w-full max-w-2xl rounded-2xl border-0 shadow-2xl overflow-hidden my-8 transform-gpu will-change-gpu ${
-                isLight
-                  ? 'bg-white text-slate-800'
-                  : 'bg-[#12151e] text-slate-100'
-              }`}
-            >
+      {/* Record Detail Modal (Portaled to document.body like Stock Inventory Manage Modal) */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <>
+            <AnimatePresence>
+              {selectedRecord && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setSelectedRecord(null)}
+                    className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 14 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 12 }}
+                    transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                    className={`relative w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] z-10 border-0 flex flex-col ${
+                      isLight
+                        ? 'bg-white text-slate-800'
+                        : 'bg-[#12151e] text-slate-100'
+                    }`}
+                  >
               {/* Prestigious Navy Header Bar */}
               <div className="navy-header-bar rounded-t-2xl px-6 py-4.5 text-white flex items-center justify-between border-b border-white/10">
                 <div className="flex items-center gap-3.5 min-w-0">
@@ -799,7 +810,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 </button>
               </div>
 
-              <div className="p-6 space-y-4 text-xs">
+              <div className="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1">
                 {/* Status banner */}
                 <div
                   className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
@@ -1589,7 +1600,10 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+            </AnimatePresence>
+          </>,
+          document.body
+        )}
     </div>
   );
 };

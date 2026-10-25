@@ -781,20 +781,19 @@ html { scroll-behavior: smooth; }
 .fixed.inset-0 > .max-w-2xl { max-width: 64rem !important; }
 .fixed.inset-0 > .max-w-3xl { max-width: 72rem !important; }
 
-/* Apple-grade spring motion when switching tabs and table frames */
+/* Apple-grade spring motion when switching tabs (uses transform: none at end so position:fixed modals never get trapped) */
 .tab-view {
-  will-change: transform, opacity;
-  animation: appleTabGlide 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: appleTabGlide 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes appleTabGlide {
   from {
     opacity: 0;
-    transform: translate3d(0, 8px, 0) scale(0.996);
+    transform: translate3d(0, 6px, 0);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: none;
   }
 }
 

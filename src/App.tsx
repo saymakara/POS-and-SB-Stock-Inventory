@@ -3281,7 +3281,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
               {/* Robust Responsive Tab Content with Error Boundary */}
               {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
-              <motion.div key={shownTab} className="tab-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 36, mass: 0.6 }}>
+              <div key={shownTab} className="tab-view">
                   <ErrorBoundary>
                   <Suspense fallback={<TabLoading />}>
                   {shownTab === 'dashboard' && (
@@ -3652,7 +3652,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                   )}
                   </Suspense>
                   </ErrorBoundary>
-              </motion.div>
+              </div>
             </main>
           </div>
 

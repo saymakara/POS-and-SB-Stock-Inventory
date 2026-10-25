@@ -1785,7 +1785,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       </div>
 
       {/* Bulk MID/TID Validation & Pre-Assignment Studio Modal */}
-      <AnimatePresence>
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
         {validatorModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/70 backdrop-blur-md">
             <motion.div
@@ -2425,22 +2427,34 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+          </AnimatePresence>,
+          document.body
+        )}
 
-      {/* Merchant 360 Detail Modal */}
-      <AnimatePresence>
-        {selectedMerchantProfile && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              className={`w-full max-w-5xl rounded-3xl border overflow-hidden shadow-2xl ${
-                isLight
-                  ? 'bg-white border-slate-200 text-slate-800'
-                  : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
-              }`}
-            >
+      {/* Merchant 360 Detail Modal (Portaled to document.body like Stock Inventory Manage Modal) */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {selectedMerchantProfile && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setSelectedMid(null)}
+                  className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 14 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 12 }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  className={`relative w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] z-10 border-0 flex flex-col ${
+                    isLight
+                      ? 'bg-white text-slate-800'
+                      : 'bg-[#12151e] text-slate-100'
+                  }`}
+                >
               <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
                 <div>
                   <div className="flex items-center gap-2 text-xs text-cyan-400 font-mono">
@@ -2815,7 +2829,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+          </AnimatePresence>,
+          document.body
+        )}
 
       {/* Bind Additional Hardware Serial Modal (with Real-Time TID Duplicate & Format Check) */}
       {typeof document !== 'undefined' &&
@@ -2935,7 +2951,10 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
         )}
 
       {/* Terminate Merchant & Return Hardware Modal */}
-      <AnimatePresence>
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <>
+            <AnimatePresence>
         {terminateModalMerchant && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-md">
             <motion.form
@@ -3280,7 +3299,10 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             </motion.form>
           </div>
         )}
-      </AnimatePresence>
+            </AnimatePresence>
+          </>,
+          document.body
+        )}
     </div>
   );
 };
