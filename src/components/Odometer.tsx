@@ -42,6 +42,7 @@ export function useAnimatedNumber(
 
   const currentValRef = useRef<number>(displayValue);
   const targetValRef = useRef<number>(targetClean);
+  const animatingTargetRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const timerRef = useRef<any>(null);
 
@@ -51,12 +52,25 @@ export function useAnimatedNumber(
     if (prefersReducedMotion) {
       setDisplayValue(targetClean);
       currentValRef.current = targetClean;
+      animatingTargetRef.current = targetClean;
       return;
+    }
+
+    // Deduplication: if already animating towards this target or already reached it, do not restart!
+    if (animatingTargetRef.current === targetClean) {
+      if (rafRef.current !== null || timerRef.current !== null || currentValRef.current === targetClean) {
+        return;
+      }
     }
 
     const startVal = currentValRef.current;
     const endVal = targetClean;
-    if (startVal === endVal) return;
+    if (startVal === endVal) {
+      animatingTargetRef.current = endVal;
+      return;
+    }
+
+    animatingTargetRef.current = endVal;
 
     // Small step counts (<= 15) finish slightly quicker so they don't drag
     const delta = Math.abs(endVal - startVal);

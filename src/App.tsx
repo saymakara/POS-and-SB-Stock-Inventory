@@ -629,13 +629,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
   }, [profile?.emp_id, profile?.name, profile?.role, profile?.branch_id, authUsername]);
   const [serverDeviceTotal, setServerDeviceTotal] = useState<number | null>(null);
-  const [serverStageSummary, setServerStageSummary] = useState<DeviceStageSummary | null>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_STAGE_SUMMARY);
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return null;
-  });
+  const [serverStageSummary, setServerStageSummary] = useState<DeviceStageSummary | null>(null);
 
   // versions this browser's own saves produced (serial → sent version → new version): a later edit of the same unit
   // made from the older copy is sent with the right version, while a change by someone else is still refused
@@ -646,10 +640,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const [devs, reqs, hist, srvBranches] = await Promise.all([
       fetchDevicesFromSupabase(1000, 0, (firstBatch, total) => {
         setServerDeviceTotal(total);
-        syncedDevices.current = new Map(firstBatch.map((d) => [d.serial, d]));
-        firstBatch.forEach((d) => serverCopies.current.add(d));
-        setDevices(firstBatch);
-        setServerReady(true);
+        if (total >= 10000) {
+          syncedDevices.current = new Map(firstBatch.map((d) => [d.serial, d]));
+          firstBatch.forEach((d) => serverCopies.current.add(d));
+          setDevices(firstBatch);
+          setServerReady(true);
+        }
       }),
       fetchRequisitionsFromSupabase(),
       fetchHistoricalMerchantsFromSupabase(),
