@@ -225,13 +225,35 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
 
   const handleExportCsv = () => {
     const headers = serverMode
-      ? ['Time (Phnom Penh)', 'Actor', 'Employee ID', 'Role', 'Branch Code', 'Action', 'Details']
-      : ['Time', 'Branch Code', 'Action', 'Details'];
-    const data = filteredRows.map((r) =>
-      serverMode
-        ? [r.time, r.actor, r.actorEmp, roleText(r.actorRole), r.branchCode, r.title, r.detail]
-        : [r.time, r.branchCode, r.title, r.detail]
-    );
+      ? ['No.', 'Date & Time', 'Actor', 'Role', 'Branch Code', 'Action Type', 'Change Details', 'System Integrity Seal']
+      : ['No.', 'Date & Time', 'Branch Code', 'Action Type', 'Change Details', 'System Integrity Seal'];
+
+    const data = filteredRows.map((r, idx) => {
+      const seal = `SHA-${computeAuditHash(`${r.key}|${r.time}|${r.actor}|${r.title}|${r.detail}`).slice(0, 10).toUpperCase()}`;
+      const branchDisplay = r.branchCode === '—' ? '—' : `Branch Code ${r.branchCode}`;
+      const actorDisplay = r.actorEmp ? `${r.actor} (${r.actorEmp})` : r.actor;
+
+      return serverMode
+        ? [
+            String(idx + 1),
+            r.time,
+            actorDisplay,
+            roleText(r.actorRole),
+            branchDisplay,
+            r.title,
+            r.detail || '—',
+            seal,
+          ]
+        : [
+            String(idx + 1),
+            r.time,
+            branchDisplay,
+            r.title,
+            r.detail || '—',
+            seal,
+          ];
+    });
+
     const blob = csvFile([headers, ...data]);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -241,7 +263,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
     link.click();
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    onToast(`Exported ${filteredRows.length} audit records to CSV`);
+    onToast(`Exported ${filteredRows.length} audit records to CSV matching table view`);
   };
 
   const cardClass = isLight

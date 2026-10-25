@@ -1,3 +1,4 @@
+import { STAGE_META } from '../data/initialData';
 import React, { useMemo, useState } from 'react';
 import { Device, Requisition, User, ThemeMode, UserRole } from '../types';
 import { csvFile } from '../utils/csv';
@@ -95,51 +96,46 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
     if (!canExport) return;
     setDownloadingId('devices-csv');
     const headers = [
-      'Serial No',
-      'Device Category',
-      'Model',
+      'No.',
       'Stock-In Date',
+      'Serial Number',
+      'Battery Serial',
+      'Device Type',
+      'Model',
+      'Branch Code & Name',
+      'Staff',
       'Lifecycle Stage',
-      'Archived',
-      'Branch Code',
-      'Branch Name',
-      'Responsible Officer',
-      'Installed By Officer',
-      'Replaced By Officer',
-      'Returned By Officer',
-      'Merchant Business Name',
+      'Merchant Name',
       'Merchant ID (MID)',
       'Terminal ID (TID)',
-      'Merchant Phone',
-      'Address',
-      'Deployed Date',
-      'Returned Date',
-      'Return Reason',
-      'Redeploy Count',
+      'Serial Cycles',
+      'Note',
     ];
-    const rows = devices.map((d) => [
-      d.serial,
-      d.type,
-      d.model,
-      d.stockInDate,
-      d.stage,
-      d.archived ? 'Yes' : 'No',
-      d.branchId,
-      d.branchName,
-      d.staff,
-      d.installedByStaff || '',
-      d.replacedByStaff || '',
-      d.returnedByStaff || '',
-      d.merchantName || '',
-      d.mid || '',
-      d.tid || '',
-      d.merchantPhone ? phoneFor(role, d.merchantPhone) : '',
-      d.address || '',
-      d.deployedDate || '',
-      d.returnedDate || '',
-      d.returnReason || '',
-      d.redeployCount || 0,
-    ]);
+    const rows = devices.map((d, idx) => {
+      const bName = d.branchName || `Branch ${d.branchId}`;
+      const branchDisplay = `${d.branchId} · ${bName.replace(' Branch', '')}`;
+      const staffDisplay = d.installedByStaff || d.staff || '-';
+      const cycleCount = d.redeployCount || 0;
+      const cycleDisplay = `${cycleCount} Cycle${cycleCount === 1 ? '' : 's'}`;
+      const batteryDisplay = d.batterySerial?.trim() || (d.type === 'POS Terminal' ? 'No battery serial' : '');
+
+      return [
+        String(idx + 1),
+        d.stockInDate || d.updatedAt || '',
+        d.serial,
+        batteryDisplay,
+        d.type,
+        d.model || '',
+        branchDisplay,
+        staffDisplay,
+        STAGE_META[d.stage]?.short || d.stage,
+        d.merchantName || 'Unassigned',
+        d.mid || '-',
+        d.tid || '-',
+        cycleDisplay,
+        d.note || '',
+      ];
+    });
     triggerDownload(`Hardware_Inventory_Registry_${todayPP()}.csv`, csvFile([headers, ...rows]));
     finish(`Exported ${devices.length} hardware serial records to CSV`);
   };
@@ -147,7 +143,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   const handleExportMerchantsCsv = () => {
     if (!canExport) return;
     setDownloadingId('merchants-csv');
-    // One row per MID, from installed (COMPLETE), non-archived units only – the same rule as the merchant count.
+    // Group active merchant profiles matching Merchants CRM table
     const map = new Map<
       string,
       {
@@ -191,27 +187,37 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
     }
 
     const headers = [
+      'No.',
       'Merchant ID (MID)',
       'Merchant Name',
-      'Contact Phone',
-      'Branch Code',
-      'Branch Name',
-      'Store Address',
-      'POS Units',
-      'Sound Box Units',
-      'Assigned Serials',
+      'Staff Name',
+      'Branch Code & Name',
+      'Device Type',
+      'Serial Number',
+      'Installed Date',
+      'Status',
     ];
-    const rows = Array.from(map.values()).map((m) => [
-      m.mid,
-      m.merchantName,
-      m.merchantPhone ? phoneFor(role, m.merchantPhone) : '',
-      m.branchId,
-      m.branchName,
-      m.address,
-      m.posCount,
-      m.sbCount,
-      m.serials.join('; '),
-    ]);
+    const rows = Array.from(map.values()).map((m, idx) => {
+      const branchDisplay = `${m.branchId} · ${m.branchName.replace(' Branch', '')}`;
+      const deviceTypeDisplay = [
+        m.posCount > 0 ? `POS Terminal${m.posCount > 1 ? ` ×${m.posCount}` : ''}` : '',
+        m.sbCount > 0 ? `Sound Box${m.sbCount > 1 ? ` ×${m.sbCount}` : ''}` : '',
+      ].filter(Boolean).join(', ') || '-';
+      const staffDisplay = (devices.find((d) => d.mid === m.mid)?.installedByStaff) || (devices.find((d) => d.mid === m.mid)?.staff) || '-';
+      const installDate = (devices.find((d) => d.mid === m.mid && Boolean(d.deployedDate))?.deployedDate) || '-';
+
+      return [
+        String(idx + 1),
+        m.mid,
+        m.merchantName || '-',
+        staffDisplay,
+        branchDisplay,
+        deviceTypeDisplay,
+        m.serials.join(', '),
+        installDate,
+        'Live',
+      ];
+    });
     triggerDownload(`Merchant_Deployment_CRM_${todayPP()}.csv`, csvFile([headers, ...rows]));
     finish(`Exported ${rows.length} merchant deployment profiles to CSV`);
   };
@@ -220,27 +226,33 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
     if (!canExport) return;
     setDownloadingId('reqs-csv');
     const headers = [
+      'No.',
       'Request ID',
-      'Date Time',
-      'Branch Code',
-      'Branch Name',
-      'Officer Name',
-      'POS Terminal Qty',
-      'Sound Box Qty',
-      'Reason & Notes',
-      'Request Status',
+      'Date',
+      'Branch / Staff',
+      'Quantity',
+      'Serials',
+      'Reason',
+      'Status',
     ];
-    const rows = requisitions.map((r) => [
-      r.reqId,
-      r.date,
-      r.branchId,
-      r.branchName,
-      r.staff,
-      r.posQty,
-      r.sbQty,
-      r.reason,
-      r.status,
-    ]);
+    const rows = requisitions.map((r, idx) => {
+      const bName = (r.branchName || `Branch ${r.branchId}`).replace(' Branch', '');
+      const branchStaff = `${r.branchId} · ${bName} (${r.staff || '-'})`;
+      const qtyFormatted = `POS: ${r.posQty || 0}, SB: ${r.sbQty || 0} (Total: ${(r.posQty || 0) + (r.sbQty || 0)})`;
+      const serials = (r.arrangedDevices || []).map((ad) => ad.serial).join(', ') || '-';
+      const statusLabel = r.status === 'RECEIVED' ? 'Received' : r.status === 'DISPATCHED' ? 'Dispatched' : r.status === 'REJECTED' ? 'Rejected' : 'Pending';
+
+      return [
+        String(idx + 1),
+        r.reqId,
+        r.date,
+        branchStaff,
+        qtyFormatted,
+        serials,
+        r.reason || '-',
+        statusLabel,
+      ];
+    });
     triggerDownload(`Branch_Stock_Requests_${todayPP()}.csv`, csvFile([headers, ...rows]));
     finish(`Exported ${requisitions.length} stock requisitions to CSV`);
   };
@@ -249,25 +261,27 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
     if (!canExport) return;
     setDownloadingId('users-csv');
     const headers = [
+      'No.',
       'Employee ID',
-      'Full Name',
-      'Access Role',
-      'Branch Code',
-      'Branch Name',
-      'Position',
-      'Phone Contact',
+      'Staff Name',
+      'System Role',
+      'Branch Code & Name',
+      'Location',
       'Account Status',
     ];
-    const rows = users.map((u) => [
-      u.empId,
-      u.name,
-      u.accessRole,
-      u.branchId,
-      u.branchName,
-      u.position,
-      u.contact ? phoneFor(role, u.contact) : '',
-      u.status,
-    ]);
+    const rows = users.map((u, idx) => {
+      const bName = (u.branchName || `Branch ${u.branchId}`).replace(' Branch', '');
+      const branchDisplay = `${u.branchId} · ${bName}`;
+      return [
+        String(idx + 1),
+        u.empId,
+        u.name,
+        u.accessRole || (u as any).role || 'Branch Staff',
+        branchDisplay,
+        (u as any).location || 'Phnom Penh',
+        u.status || 'Active',
+      ];
+    });
     triggerDownload(`Staff_Access_Directory_${todayPP()}.csv`, csvFile([headers, ...rows]));
     finish(`Exported ${users.length} staff access records to CSV`);
   };

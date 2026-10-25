@@ -301,56 +301,40 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       return;
     }
     const headers = [
-      'Record ID',
+      'No.',
+      'Returned Date',
+      'Record Type',
       'Merchant Name',
-      'MID',
-      'TID',
-      'Contact Phone',
-      'Address',
-      'Device Type',
-      'Model',
-      'Terminal Serial',
-      'Battery Serial',
-      'Branch Code',
-      'Branch Name',
-      'Installation Date',
-      'Decommission / Return Date',
-      'Active Months in Service',
-      'Return / Termination Reason',
-      'Status',
-      'Installed By Officer',
-      'Replaced By Officer',
-      'Returned By Officer',
-      'Officer in Charge',
-      'Settlement Finalized',
-      'Audit Notes',
+      'Merchant ID (MID)',
+      'Serial Number',
+      'Device Type & Model',
+      'Branch / Staff',
+      'In Service',
+      'Return Reason',
     ];
 
-    const rows = filteredRecords.map((r) => [
-      r.recordId,
-      r.merchantName,
-      r.mid,
-      r.tid,
-      r.merchantPhone ? phoneFor(role, r.merchantPhone) : '',
-      r.address,
-      r.deviceType,
-      r.model,
-      r.serial,
-      r.batterySerial || '',
-      r.branchId,
-      branchMap.get(r.branchId) || r.branchName,
-      r.installedDate,
-      r.returnedDate,
-      r.installedDate && r.returnedDate ? monthsBetween(r.installedDate.slice(0, 10), r.returnedDate.slice(0, 10)) : '',
-      r.returnReason,
-      r.status,
-      r.installedByStaff || r.handledByStaff || '',
-      r.replacedByStaff || '',
-      r.returnedByStaff || r.handledByStaff || '',
-      r.handledByStaff || '',
-      r.settlementFinalized ? 'Yes' : 'No',
-      r.notes || '',
-    ]);
+    const rows = filteredRecords.map((r, idx) => {
+      const bName = (branchMap.get(r.branchId) || r.branchName || `Branch ${r.branchId}`).replace(' Branch', '');
+      const officer = r.returnedByStaff || r.handledByStaff || '-';
+      const branchStaff = `${r.branchId} · ${bName} (${officer})`;
+      const typeModel = `${r.deviceType}${r.model ? ' · ' + r.model : ''}`;
+      const inService = r.installedDate
+        ? `${serviceLength(r.installedDate, r.returnedDate)} (since ${r.installedDate})`
+        : serviceLength(r.installedDate, r.returnedDate);
+
+      return [
+        String(idx + 1),
+        r.returnedDate || '-',
+        statusText(r.status),
+        r.merchantName || '-',
+        r.mid || '-',
+        r.serial,
+        typeModel,
+        branchStaff,
+        inService,
+        r.returnReason || '-',
+      ];
+    });
 
     const url = URL.createObjectURL(csvFile([headers, ...rows]));
     const link = document.createElement('a');
@@ -362,7 +346,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 
     if (onToast) {
-      onToast(`Exported ${filteredRecords.length} historical merchant records.`);
+      onToast(`Exported ${filteredRecords.length} historical merchant records matching table view.`);
     }
   };
 

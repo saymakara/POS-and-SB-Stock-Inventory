@@ -1,3 +1,4 @@
+import { csvFile } from '../utils/csv';
 import React, { useState, useMemo, useRef } from 'react';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
@@ -22,6 +23,7 @@ import {
   Calendar,
   KeyRound,
   User,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface PushConfiguringTabProps {
@@ -268,7 +270,45 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     setSelectedSns([]);
   };
 
-  return (
+    const handleExportCsv = () => {
+    if (filteredDevices.length === 0) return;
+    const headers = [
+      'No.',
+      'Date of Request Push',
+      'Hardware Serial & Model',
+      'Merchant Name & MID / TID',
+      'Configure By (Staff)',
+      'Branch',
+    ];
+    const rows = filteredDevices.map((dev, idx) => {
+      const bObj = branches.find((b) => b.code === dev.branchId);
+      const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
+      const requestPushDate = dev.deployedDate || (dev.updatedAt ? dev.updatedAt.slice(0, 10) : '') || dev.stockInDate || todayPP();
+      const serialModel = `${dev.serial} (${dev.model || dev.type})`;
+      const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
+      const staffName = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
+      const branchDisplay = `${dev.branchId} · ${bName.replace(' Branch', '')}`;
+
+      return [
+        String(idx + 1),
+        requestPushDate,
+        serialModel,
+        merchantMidTid,
+        staffName,
+        branchDisplay,
+      ];
+    });
+    const url = URL.createObjectURL(csvFile([headers, ...rows]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Push_Configuring_Queue_${todayPP()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+return (
     <div className="space-y-6 pb-24">
       {/* 1. HERO HEADER WITH LIVE PIPELINE STATS */}
       <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-linear-to-br from-[#002238] via-[#003857] to-[#004e75] text-white shadow-xl border border-white/10">
@@ -519,8 +559,20 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
               {filteredDevices.length}
             </span>
           </div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">
-            Assigned By: <strong className="text-zinc-900 dark:text-white">{operatorLabel}</strong>
+          <div className="flex items-center gap-3">
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">
+              Assigned By: <strong className="text-zinc-900 dark:text-white">{operatorLabel}</strong>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={filteredDevices.length === 0}
+              className="px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs disabled:opacity-50"
+              title="Export Push Queue Table to CSV (matching table columns)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Export CSV</span>
+            </button>
           </div>
         </div>
 

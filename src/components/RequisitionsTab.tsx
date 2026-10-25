@@ -5,6 +5,8 @@ import { Pager } from './Pager';
 import { useSort, SortTh } from '../utils/sort';
 import { createPortal } from 'react-dom';
 import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '../types';
+import { csvFile } from '../utils/csv';
+import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   SendHorizontal,
@@ -23,6 +25,7 @@ import {
   Upload,
   Pencil,
   Ban,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface RequisitionsTabProps {
@@ -366,6 +369,46 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   const subtextClass = isLight ? 'text-zinc-500' : 'text-slate-300';
   const navyTitleClass = isLight ? 'text-zinc-900' : 'text-zinc-100';
 
+    const handleExportCsv = () => {
+    if (shownReqs.length === 0) return;
+    const headers = [
+      'No.',
+      'Request ID',
+      'Date',
+      'Branch / Staff',
+      'Quantity',
+      'Serials',
+      'Reason',
+      'Status',
+    ];
+    const rows = shownReqs.map((r, idx) => {
+      const bName = (r.branchName || `Branch ${r.branchId}`).replace(' Branch', '');
+      const branchStaff = `${r.branchId} · ${bName} (${r.staff || '-'})`;
+      const qtyFormatted = `POS: ${r.posQty || 0}, SB: ${r.sbQty || 0} (Total: ${(r.posQty || 0) + (r.sbQty || 0)})`;
+      const serials = (r.arrangedDevices || []).map((ad) => ad.serial).join(', ') || '-';
+      const statusLabel = r.status === 'RECEIVED' ? 'Received' : r.status === 'DISPATCHED' ? 'Dispatched' : r.status === 'REJECTED' ? 'Rejected' : 'Pending';
+
+      return [
+        String(idx + 1),
+        r.reqId,
+        r.date,
+        branchStaff,
+        qtyFormatted,
+        serials,
+        r.reason || '-',
+        statusLabel,
+      ];
+    });
+    const url = URL.createObjectURL(csvFile([headers, ...rows]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Branch_Stock_Requests_${todayPP()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   return (
     <div className="flex flex-col gap-4">
       {/* Requisitions DataTable Card */}
@@ -386,6 +429,17 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              type="button"
+              onClick={handleExportCsv}
+              disabled={shownReqs.length === 0}
+              className="px-3 py-1.5 rounded-md text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-2xs transition disabled:opacity-50"
+              title="Export Stock Requests Table to CSV (matching table columns)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Export CSV</span>
+            </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}
               type="button"

@@ -43,7 +43,7 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { parseCsv } from '../utils/csv';
+import { parseCsv, csvFile } from '../utils/csv';
 import { hasKhmer, isValidMidForType, midRuleError, normalizeMid } from '../utils/display';
 import { newRecordId } from '../utils/ids';
 import { lastMonthsPP, todayPP } from '../utils/time';
@@ -1091,7 +1091,55 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     setNewMerchantModalOpen(false);
   };
 
-  return (
+    const handleExportCsv = () => {
+    if (filteredMerchants.length === 0) {
+      return;
+    }
+    const headers = [
+      'No.',
+      'Merchant ID (MID)',
+      'Merchant Name',
+      'Staff Name',
+      'Branch Code & Name',
+      'Device Type',
+      'Serial Number',
+      'Installed Date',
+      'Status',
+    ];
+    const rows = filteredMerchants.map((m, idx) => {
+      const statusLabel = m.crmStatus === 'ONBOARDING' ? 'Pending install' : m.crmStatus === 'ATTENTION' ? 'Faulty / RMA' : 'Live';
+      const installDate = m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate || '—';
+      const branchFormatted = `${m.branchId} · ${m.branchName.replace(' Branch', '')}`;
+      const typeDisplay = [
+        m.posCount > 0 ? `POS Terminal${m.posCount > 1 ? ` ×${m.posCount}` : ''}` : '',
+        m.sbCount > 0 ? `Sound Box${m.sbCount > 1 ? ` ×${m.sbCount}` : ''}` : '',
+      ].filter(Boolean).join(', ') || '-';
+      const serials = m.devices.map((d) => d.serial).join(', ') || '-';
+
+      return [
+        String(idx + 1),
+        m.mid,
+        m.merchantName || '—',
+        m.accountOfficer || '—',
+        branchFormatted,
+        typeDisplay,
+        serials,
+        installDate,
+        statusLabel,
+      ];
+    });
+
+    const url = URL.createObjectURL(csvFile([headers, ...rows]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Merchant_CRM_Registry_${todayPP()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+
+return (
     <div className="flex flex-col gap-4">
       {/* One shared list of bindable serials for every serial input on this tab */}
       <datalist id="crm-bindable-serials">
@@ -1592,6 +1640,26 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
       {/* Merchant 360 Registry Table (22 Oct 2026: one clean style, Khmer in Battambang) */}
       <div className={`${cardClass} border rounded-xl overflow-hidden`}>
+        <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black uppercase tracking-wider text-[#003857] dark:text-sky-400">
+              Merchant 360 Registry
+            </span>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
+              {filteredMerchants.length} Merchant{filteredMerchants.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={filteredMerchants.length === 0}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs disabled:opacity-50"
+            title="Export Merchant 360 Registry Table to CSV (matching table columns)"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Export CSV</span>
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="data-table min-w-[900px]">
             <thead className="glass-table-thead">

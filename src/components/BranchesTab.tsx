@@ -3,6 +3,7 @@ import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
 import { useSort, SortTh } from '../utils/sort';
 import { csvFile } from '../utils/csv';
+import { todayPP } from '../utils/time';
 import React, { useState, useMemo } from 'react';
 import { Branch, Device, User, UserRole, ThemeMode } from '../types';
 import { STAGE_META } from '../data/initialData';
@@ -206,27 +207,33 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
   const handleExportCsv = () => {
     const headers = [
+      'No.',
       'Branch Code',
       'Branch Name',
-      'POS Terminal Count',
-      'Sound Box Count',
-      'Total Unit',
-      'Reserve Units',
-      'Live Complete Units',
-      'In-Flight Units',
-      'Terminated / Return Units',
-      'Assigned Staff Count',
+      'POS Terminal',
+      'Sound Box',
+      'Total Units',
+      'Branch Reserve',
+      'Live Installed',
+      'Staff Officers',
       'Reserve Status',
     ];
-    const rows = enrichedBranches.map((b) => [
-      b.code, b.name, b.posCount, b.sbCount, b.totalDevices, b.reserveCount, b.completeCount, b.inFlightCount,
-      b.faultyCount, b.staffCount, b.lowReserve ? 'Low Reserve Alert' : 'Healthy',
+    const rows = enrichedBranches.map((b, idx) => [
+      String(idx + 1),
+      b.code,
+      b.name,
+      String(b.posCount),
+      String(b.sbCount),
+      String(b.totalDevices),
+      String(b.reserveCount),
+      String(b.completeCount),
+      String(b.staffCount),
+      b.lowReserve ? 'Low Reserve Alert' : 'Healthy',
     ]);
-    // (22 Oct 2026, review) proper CSV: names with commas, quotes or '#' no longer break or cut the file, Khmer stays intact
     const url = URL.createObjectURL(csvFile([headers, ...rows]));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Branch_Codes_Inventory_Table_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `Branch_Codes_Inventory_Table_${todayPP()}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

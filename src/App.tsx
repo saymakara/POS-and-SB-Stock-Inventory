@@ -2787,25 +2787,29 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const activeCustomExact = (appSettings.customFields || []).filter((f) => f.enabled && (!f.targetTab || f.targetTab === 'all' || f.targetTab === 'inventory'));
     const headersExactTable = [
       'No.',
-      'Date',
-      'Type',
-      'Model',
-      'Device Serial',
+      'Stock-In Date',
+      'Serial Number',
       'Battery Serial',
-      'Branch Code',
-      'Branch Name',
-      'Location',
-      'Status',
-      'Merchant Name',
-      'MID',
-      'TID',
+      'Device Type',
+      'Model',
+      'Branch Code & Name',
       'Staff',
+      'Lifecycle Stage',
+      'Merchant Name',
+      'Merchant ID (MID)',
+      'Terminal ID (TID)',
+      'Serial Cycles',
       'Note',
       ...activeCustomExact.map((f) => f.label),
     ];
     const rowsExactTable = exportListExact.map((d, idx) => {
       const bObj = branches.find((b) => b.code === d.branchId);
       const bName = bObj?.name || d.branchName || `Branch ${d.branchId}`;
+      const branchDisplay = `${d.branchId} · ${bName.replace(' Branch', '')}`;
+      const staffDisplay = d.installedByStaff || d.staff || '-';
+      const cycleCount = d.redeployCount || 0;
+      const cycleDisplay = `${cycleCount} Cycle${cycleCount === 1 ? '' : 's'}`;
+      const batteryDisplay = d.batterySerial?.trim() || (d.type === 'POS Terminal' ? 'No battery serial' : '');
       const customCells = activeCustomExact.map((f) => {
         if (f.id === 'location') return d.location || '';
         if (f.id === 'merchantPhone') return d.merchantPhone ? phoneFor(role, d.merchantPhone) : '';
@@ -2814,19 +2818,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       });
       return [
         String(idx + 1),
-        d.updatedAt || d.stockInDate || '',
+        d.stockInDate || d.updatedAt || '',
+        d.serial,
+        batteryDisplay,
         d.type,
         d.model || '',
-        d.serial,
-        d.batterySerial || '',
-        d.branchId,
-        bName,
-        d.location || '',
-        STAGE_META[d.stage].short,
-        d.merchantName || '',
-        d.mid || '',
-        d.tid || '',
-        d.staff || '',
+        branchDisplay,
+        staffDisplay,
+        STAGE_META[d.stage]?.short || d.stage,
+        d.merchantName || 'Unassigned',
+        d.mid || '-',
+        d.tid || '-',
+        cycleDisplay,
         d.note || '',
         ...customCells,
       ];
@@ -2842,68 +2845,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     URL.revokeObjectURL(urlExact);
     addAuditLog('Inventory CSV Exported', `Exported ${exportListExact.length} hardware serials matching table view`);
     triggerToast(`Exported ${exportListExact.length} rows to CSV (matching table columns)`);
-    if (Boolean(true)) return;
-    const exportList = onlyStage ? filteredInventory.filter((d) => d.stage === onlyStage) : filteredInventory;
-    const activeCustom = (appSettings.customFields || []).filter((f) => f.enabled);
-    const headers = [
-      'Stock_In_Date',
-      'Serial_SN',
-      'Product_Type',
-      'Model',
-      'Battery_Serial',
-      'Branch_Code',
-      'Branch_Name',
-      'Lifecycle_Stage',
-      'Merchant_Name',
-      'MID',
-      'TID',
-      'Serial_Cycles_Count',
-      'Archived',
-      ...activeCustom.map((f) => f.label.replace(/\s+/g, '_')),
-    ];
-    const rows = exportList.map((d) => {
-      const bObj = branches.find((b) => b.code === d.branchId);
-      const bName = bObj?.name || d.branchName || `Branch ${d.branchId}`;
-      const batSn = d.batterySerial || '';                             // (22 Oct 2026) the recorded value only
-      const customCells = activeCustom.map((f) => {
-        if (f.id === 'location') return d.location || '';
-        if (f.id === 'merchantPhone') return d.merchantPhone ? phoneFor(role, d.merchantPhone) : '';
-        if (f.id === 'address') return d.address || '';
-        return d.customFields?.[f.id] || '';
-      });
-      return [
-        d.stockInDate,
-        d.serial,
-        d.type,
-        d.model,
-        batSn,
-        d.branchId,
-        bName,
-        STAGE_META[d.stage].short,
-        d.merchantName || '',
-        d.mid || '',
-        d.tid || '',
-        String(d.redeployCount || 0),
-        d.archived ? 'Yes' : 'No',
-        ...customCells,
-      ];
-    });
-    const blob = csvFile([headers, ...rows]);                          // BOM + CRLF, every cell formula-safe
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `POS_Soundbox_Inventory_${onlyStage ? STAGE_META[onlyStage].short.replace(/[^A-Za-z0-9]+/g, '_') + '_' : ''}${
-      todayPP()
-    }.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    addAuditLog(
-      'Inventory CSV Exported',
-      `Exported ${exportList.length} hardware serials${onlyStage ? ` (${STAGE_META[onlyStage].short})` : ''}`
-    );
-    triggerToast(`Exported ${exportList.length} serials to CSV${onlyStage ? ` · ${STAGE_META[onlyStage].short}` : ''}`);
   };
 
   const handleTriggerMobileSync = async (payload: MobileInstallSyncPayload) => {
