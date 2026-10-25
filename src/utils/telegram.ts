@@ -412,12 +412,11 @@ export async function sendDeviceConfigTelegramAlert(
     `• *Configure By:* *${staffDisplay}*`,
     `• *Branch:* Code \`${info.branchId || '100'}\` (${info.branchName || 'Branch'})`,
     target.isRegional ? `• *Destination Regional Group:* *${target.groupName}*` : null,
-    `• *Hardware Serial:* \`${info.serial}\` (${devType}${devModel})`,
+    `• *Serial Number:* \`${info.serial}\` (${devType}${devModel})`,
     `• *Merchant Name:* *${info.merchantName || 'Configured Merchant'}*`,
     `• *MID:* \`${info.mid || '—'}\`  |  *TID:* \`${info.tid || '—'}\``,
-    mention ? `\n👉 *Attention ${mention}:* Please power ON and open device \`${info.serial}\` now to wait for app push! (Ref: \`${pushId}\`)` : null,
+    mention ? `\n👉 *Attention ${mention}:* Please power ON and open the device now to wait for app push!` : null,
     `• *Timestamp:* ${stampSecPP()}`,
-    `🔎 *Search in Telegram:* \`${pushId}\``,
   ]
     .filter(Boolean)
     .join('\n');
@@ -556,14 +555,14 @@ export async function sendBatchDeviceConfigTelegramAlert(
     // Build 1 consolidated Telegram notification (instead of 10 separate pop-up messages!)
     const lines = [
       `📲 *Branch Code ${sampleBranch} (${sampleBranchName}) — Configuration Queue*`,
-      `🆔 *Batch Push Tracking ID:* \`${batchPushId}\``,
+      `🆔 *Push Tracking ID:* \`${batchPushId}\``,
       `• *${dest.isRegional ? 'Regional Group' : 'Destination'}:* *${groupName}*`,
       `• *Total Devices:* *${dest.devices.length} units to configure*`,
       `• *Assigned By:* *${actor}*`,
       `• *Action Required:* Assigned officers please *OPEN devices* and connect to network to wait for App Push!`,
       `• *Attached File:* 📁 \`${fileName}\` (tap file to open device & merchant list)`,
       ``,
-      `📋 *Device Queue (${dest.devices.length} units) — [Ref: \`${batchPushId}\`]:*`,
+      `📋 *Device Queue (${dest.devices.length} units):*`,
     ];
 
     // List all devices (up to 10) with full details
@@ -582,7 +581,6 @@ export async function sendBatchDeviceConfigTelegramAlert(
 
     lines.push(
       ``,
-      `🔎 *Search in Telegram:* \`${batchPushId}\``,
       `• *Timestamp:* ${timestamp}`
     );
 

@@ -2293,8 +2293,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       const mName = dev.merchantName || 'Merchant Profile';
 
       addNotification(
-        `Open Device for App Push • ${dev.serial} [${pushId}]`,
-        `Assigned By: ${operator}. Configure By (Staff): ${staffTarget}. Push Tracking ID: ${pushId}. Please power ON and open ${dev.type} SN ${dev.serial} (${mName}) to wait for app push.`,
+        `Open Device for App Push • ${dev.serial}`,
+        `Assigned By: ${operator}. Configure By: ${staffTarget}. Push Tracking ID: ${pushId}. Please power ON and open ${dev.type} (${mName}) to wait for app push.`,
         'REQUEST',
         dev.branchId,
         'inventory'
