@@ -24,6 +24,7 @@ export interface TechnicalErrorPopupPayload {
 const STORAGE_KEY_TG_WEBHOOK = 'crm_telegram_webhook_url_v1';
 const STORAGE_KEY_TG_BOT_TOKEN = 'crm_telegram_bot_token_v1';
 const STORAGE_KEY_TG_CHAT_ID = 'crm_telegram_chat_id_v1';
+const STORAGE_KEY_TG_CONFIG_CHAT_ID = 'crm_telegram_config_chat_id_v1';
 
 let currentContext: ErrorLoggerContext = {
   staffId: 'UNKNOWN_STAFF',
@@ -67,24 +68,30 @@ export function getTelegramWebhookConfig(): {
   webhookUrl: string;
   botToken: string;
   chatId: string;
+  configChatId: string;
 } {
   let storedWebhook = '';
   let storedToken = '';
   let storedChatId = '';
+  let storedConfigChatId = '';
   try {
     if (typeof localStorage !== 'undefined') {
       storedWebhook = localStorage.getItem(STORAGE_KEY_TG_WEBHOOK) || '';
       storedToken = localStorage.getItem(STORAGE_KEY_TG_BOT_TOKEN) || '';
       storedChatId = localStorage.getItem(STORAGE_KEY_TG_CHAT_ID) || '';
+      storedConfigChatId = localStorage.getItem(STORAGE_KEY_TG_CONFIG_CHAT_ID) || '';
     }
   } catch {
     // ignore storage access errors
   }
   const env = (import.meta as any).env || {};
+  const primaryChatId = (storedChatId || env.VITE_TELEGRAM_CHAT_ID || '').trim();
+  const cfgChatId = (storedConfigChatId || env.VITE_TELEGRAM_CONFIG_CHAT_ID || primaryChatId).trim();
   return {
     webhookUrl: (storedWebhook || env.VITE_TELEGRAM_WEBHOOK_URL || '').trim(),
     botToken: (storedToken || env.VITE_TELEGRAM_BOT_TOKEN || '').trim(),
-    chatId: (storedChatId || env.VITE_TELEGRAM_CHAT_ID || '').trim(),
+    chatId: primaryChatId || cfgChatId,
+    configChatId: cfgChatId || primaryChatId,
   };
 }
 
@@ -92,6 +99,7 @@ export function saveTelegramWebhookConfig(config: {
   webhookUrl?: string;
   botToken?: string;
   chatId?: string;
+  configChatId?: string;
 }): void {
   try {
     if (typeof localStorage === 'undefined') return;
@@ -103,6 +111,9 @@ export function saveTelegramWebhookConfig(config: {
     }
     if (config.chatId !== undefined) {
       localStorage.setItem(STORAGE_KEY_TG_CHAT_ID, config.chatId.trim());
+    }
+    if (config.configChatId !== undefined) {
+      localStorage.setItem(STORAGE_KEY_TG_CONFIG_CHAT_ID, config.configChatId.trim());
     }
   } catch {
     // ignore storage errors
@@ -302,7 +313,8 @@ export async function sendDeviceConfigTelegramAlert(info: {
   staff: string;
   actor: string;
 }): Promise<boolean> {
-  const { webhookUrl, botToken, chatId } = getTelegramWebhookConfig();
+  const { webhookUrl, botToken, chatId, configChatId } = getTelegramWebhookConfig();
+  const targetChatId = configChatId || chatId;
   const timestamp = stampSecPP();
   const formattedText = [
     `📲 *Under Configuring — Ready for App Push*`,
@@ -317,13 +329,13 @@ export async function sendDeviceConfigTelegramAlert(info: {
   ].join('\n');
 
   try {
-    if (botToken && chatId) {
+    if (botToken && targetChatId) {
       const tgUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
       const res = await fetch(tgUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: chatId,
+          chat_id: targetChatId,
           text: formattedText,
           parse_mode: 'Markdown',
         }),
@@ -336,7 +348,7 @@ export async function sendDeviceConfigTelegramAlert(info: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: chatId || undefined,
+          chat_id: targetChatId || undefined,
           text: formattedText,
           type: 'DEVICE_CONFIG_APP_PUSH',
           ...info,

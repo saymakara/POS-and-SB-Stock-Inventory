@@ -11,6 +11,12 @@ import {
   DEFAULT_CUSTOM_FIELDS,
 } from '../types';
 import { LogoPageTab } from './LogoPageTab';
+import {
+  getTelegramWebhookConfig,
+  saveTelegramWebhookConfig,
+  sendDeviceConfigTelegramAlert,
+  sendTelegramErrorAlert,
+} from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Settings,
@@ -112,6 +118,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   };
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const initialTg = getTelegramWebhookConfig();
+  const [tgBotToken, setTgBotToken] = useState(initialTg.botToken);
+  const [tgConfigChatId, setTgConfigChatId] = useState(initialTg.configChatId);
+  const [tgErrorChatId, setTgErrorChatId] = useState(initialTg.chatId);
+  const [tgWebhookUrl, setTgWebhookUrl] = useState(initialTg.webhookUrl);
+  const [tgTesting, setTgTesting] = useState<'' | 'config' | 'error'>('');
 
   // Custom Field Manager State
   const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
@@ -295,6 +307,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateSettings(formState);
+    saveTelegramWebhookConfig({
+      botToken: tgBotToken,
+      configChatId: tgConfigChatId,
+      chatId: tgErrorChatId,
+      webhookUrl: tgWebhookUrl,
+    });
     setSavedSuccess(true);
     if (onToast) onToast('System settings and policy configuration saved.');
     setTimeout(() => setSavedSuccess(false), 3000);
@@ -1899,6 +1917,153 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <option value="PHNOM_PENH">Phnom Penh staff only</option>
                 </select>
                 <p className="mt-1 text-[11px] text-slate-500">Regional records stay saved; this only changes which records are listed for review.</p>
+              </div>
+
+              {/* Telegram Group & System Error Alert Connection Panel */}
+              <div className="pt-4 mt-4 border-t border-slate-200 space-y-3">
+                <div>
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#003857]">
+                    Telegram Group &amp; System Error Alert Connection
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Connect a Telegram Bot to automatically alert your Telegram Group when a device is <strong>Under Configuring (Ready for App Push)</strong> and when a <strong>System / Database Error</strong> occurs.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                    1. Telegram Bot Token (from @BotFather)
+                  </label>
+                  <input
+                    type="password"
+                    value={tgBotToken}
+                    onChange={(e) => setTgBotToken(e.target.value)}
+                    placeholder="e.g. 7123456789:AAF-xyz1234567890abcdef..."
+                    className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                      2. Under Configuring Group Chat ID
+                    </label>
+                    <input
+                      type="text"
+                      value={tgConfigChatId}
+                      onChange={(e) => setTgConfigChatId(e.target.value)}
+                      placeholder="e.g. -1001987654321"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Group where POS staff receive &ldquo;Open device &amp; wait for app push&rdquo; alerts.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                      3. System Error Alert Group Chat ID
+                    </label>
+                    <input
+                      type="text"
+                      value={tgErrorChatId}
+                      onChange={(e) => setTgErrorChatId(e.target.value)}
+                      placeholder="e.g. -1001987654321 (or same group)"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Group or admin chat where system/API error codes are reported.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                    Optional Custom Webhook URL (Leave blank if using Bot Token above)
+                  </label>
+                  <input
+                    type="text"
+                    value={tgWebhookUrl}
+                    onChange={(e) => setTgWebhookUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={tgTesting !== ''}
+                    onClick={async () => {
+                      saveTelegramWebhookConfig({
+                        botToken: tgBotToken,
+                        configChatId: tgConfigChatId,
+                        chatId: tgErrorChatId,
+                        webhookUrl: tgWebhookUrl,
+                      });
+                      setTgTesting('config');
+                      const ok = await sendDeviceConfigTelegramAlert({
+                        serial: 'SN-TEST-0001',
+                        type: 'POS Terminal',
+                        model: 'PAX A920 Pro',
+                        mid: '200000000012345',
+                        tid: 'TID-10001',
+                        merchantName: 'Test Merchant (Telegram Connection Check)',
+                        branchId: '100',
+                        branchName: 'Head Office',
+                        staff: 'Assigned POS Officer',
+                        actor: 'System Admin',
+                      });
+                      setTgTesting('');
+                      if (onToast) {
+                        onToast(
+                          ok
+                            ? 'Sent test "Under Configuring" alert to Telegram group!'
+                            : 'Could not send Telegram message. Check Bot Token & Group Chat ID.'
+                        );
+                      }
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer transition disabled:opacity-50"
+                  >
+                    {tgTesting === 'config' ? 'Sending...' : 'Test "Under Configuring" Group Alert'}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={tgTesting !== ''}
+                    onClick={async () => {
+                      saveTelegramWebhookConfig({
+                        botToken: tgBotToken,
+                        configChatId: tgConfigChatId,
+                        chatId: tgErrorChatId,
+                        webhookUrl: tgWebhookUrl,
+                      });
+                      setTgTesting('error');
+                      const ok = await sendTelegramErrorAlert({
+                        id: 'TEST-ERR-01',
+                        code: 'ERR-TEST-CONNECTION',
+                        operation: 'Telegram System Error Alert Check',
+                        message: 'This is a test alert verifying that system errors are connected to your Telegram group.',
+                        staffId: 'ADMIN',
+                        staffName: 'System Admin',
+                        branchId: '100',
+                        timestamp: new Date().toISOString(),
+                        target: 'SN-TEST-0001',
+                      });
+                      setTgTesting('');
+                      if (onToast) {
+                        onToast(
+                          ok
+                            ? 'Sent test "System Error" alert to Telegram group!'
+                            : 'Could not send Telegram error alert. Check Bot Token & Chat ID.'
+                        );
+                      }
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-700 hover:bg-rose-800 text-white cursor-pointer transition disabled:opacity-50"
+                  >
+                    {tgTesting === 'error' ? 'Sending...' : 'Test "System Error" Telegram Alert'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
