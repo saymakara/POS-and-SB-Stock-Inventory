@@ -737,12 +737,12 @@ export const FieldReviewTab: React.FC<Props> = ({
               type="button"
               onClick={() => runBulk('reject')}
               disabled={!!bulkBusy}
-              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-normal border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-normal border border-slate-300 text-slate-700 bg-slate-100 hover:bg-slate-200 dark:border-slate-700 dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
             >
               {bulkBusy === 'reject' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                <XCircle className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               )}{' '}
               Reject {selectedShown.length}
             </button>
@@ -1157,7 +1157,7 @@ const ReviewRow = memo(function ReviewRow({
                 type="button"
                 onClick={() => onReject(e)}
                 disabled={busy}
-                className="btn-press px-2.5 py-1 rounded-lg text-xs font-normal border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 cursor-pointer"
+                className="btn-press px-2.5 py-1 rounded-lg text-xs font-normal border border-slate-300 text-slate-700 bg-slate-100 hover:bg-slate-200 dark:border-slate-700 dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-60 cursor-pointer"
               >
                 Reject
               </button>
