@@ -572,11 +572,11 @@ export const FieldReviewTab: React.FC<Props> = ({
           <div className="mr-2 flex items-center gap-2">
             <h2 className="text-sm font-medium text-slate-900">Phone App Review</h2>
             <span
-              className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200"
+              className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90"
               title="New records from the phone app appear here as they are saved"
             >
               <span
-                className={`w-1.5 h-1.5 rounded-full ${live ? 'bg-emerald-500 sync-dot' : 'bg-slate-400'}`}
+                className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
                 aria-hidden
               />
               {live ? 'Live' : 'Connected'}
@@ -594,21 +594,21 @@ export const FieldReviewTab: React.FC<Props> = ({
                   onClick={() => setFilter(f)}
                   aria-pressed={isActive}
                   className={`relative isolate btn-press px-3 py-1.5 rounded-lg text-xs font-normal transition-colors cursor-pointer ${
-                    isActive ? 'text-slate-900 font-medium' : 'text-slate-600 hover:text-slate-900'
+                    isActive ? 'text-white' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   {isActive && (
                     <motion.span
                       layoutId="fr-status-pill"
                       aria-hidden
-                      className="absolute inset-0 -z-10 rounded-lg bg-white border border-slate-200/90 shadow-2xs"
+                      className="absolute inset-0 -z-10 rounded-lg bg-slate-800 shadow-xs"
                       transition={SPRING}
                     />
                   )}
                   <span>
                     {f === 'PENDING' ? 'Waiting' : f === 'ALL' ? 'All' : f === 'APPROVED' ? 'Approved' : 'Rejected'}
                   </span>{' '}
-                  <span className="font-mono tabular-nums text-slate-400">
+                  <span className={`font-mono tabular-nums font-normal ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
                     ({counts[f]})
                   </span>
                 </button>
@@ -627,7 +627,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               type="button"
               onClick={() => setInputFilter('ALL')}
               className={`px-2 py-1 rounded-lg text-xs font-normal cursor-pointer transition ${
-                inputFilter === 'ALL' ? 'bg-white text-slate-800 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
+                inputFilter === 'ALL' ? 'bg-slate-800 text-white shadow-xs' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               All Inputs
