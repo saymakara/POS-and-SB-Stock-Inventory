@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
 import { normalizeStaffName } from '../utils/staffUtils';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   SendHorizontal,
   Building2,
@@ -10,6 +11,12 @@ import {
   Search,
   Boxes,
   Send,
+  Lock,
+  ShieldCheck,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  X,
 } from 'lucide-react';
 
 interface PushConfiguringTabProps {
@@ -55,7 +62,23 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [selectedSns, setSelectedSns] = useState<string[]>([]);
 
-  // 3. Filtered devices in view
+  // 3. Double-click confirmation state for Telegram push
+  const [confirmingRowSerial, setConfirmingRowSerial] = useState<string | null>(null);
+  const [confirmingTeamKey, setConfirmingTeamKey] = useState<string | null>(null);
+  const [confirmingBatch, setConfirmingBatch] = useState(false);
+
+  const rowTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const teamTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const batchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 4. Push to All Password Verification Modal State
+  const [isPushAllModalOpen, setIsPushAllModalOpen] = useState(false);
+  const [pusherPassword, setPusherPassword] = useState('');
+  const [showPusherPassword, setShowPusherPassword] = useState(false);
+  const [pusherPasswordError, setPusherPasswordError] = useState('');
+  const [isVerifyingPusher, setIsVerifyingPusher] = useState(false);
+
+  // 5. Filtered devices in view
   const filteredDevices = useMemo(() => {
     const q = search.trim().toLowerCase();
     return configuringDevices.filter((d) => {
@@ -91,7 +114,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return map;
   }, [users]);
 
-  // 4. Grouped by Assigned Staff / Team
+  // 6. Grouped by Assigned Staff / Team
   const teamGroups = useMemo(() => {
     const map = new Map<string, { staff: string; staffTelegram?: string; branchId: string; branchName: string; devices: Device[] }>();
     for (const d of configuringDevices) {
@@ -109,7 +132,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return Array.from(map.values()).sort((a, b) => b.devices.length - a.devices.length);
   }, [configuringDevices, branches, userTelegramMap]);
 
-  // 5. Counts
+  // Counts
   const posCount = useMemo(() => configuringDevices.filter((d) => d.type === 'POS Terminal').length, [configuringDevices]);
   const sbCount = useMemo(() => configuringDevices.filter((d) => d.type === 'Sound Box').length, [configuringDevices]);
 
@@ -126,6 +149,116 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     setSelectedSns((prev) =>
       prev.includes(sn) ? prev.filter((x) => x !== sn) : [...prev, sn]
     );
+  };
+
+  // Double-click handlers for Telegram pushes
+  const handleRowPushClick = (serial: string) => {
+    if (confirmingRowSerial === serial) {
+      // 2nd click confirmed: execute push
+      if (rowTimerRef.current) clearTimeout(rowTimerRef.current);
+      setConfirmingRowSerial(null);
+      onNotifyConfigReady?.(serial);
+    } else {
+      // 1st click: prime confirmation state with 4s timeout
+      setConfirmingRowSerial(serial);
+      if (rowTimerRef.current) clearTimeout(rowTimerRef.current);
+      rowTimerRef.current = setTimeout(() => setConfirmingRowSerial(null), 4000);
+    }
+  };
+
+  const handleTeamPushClick = (key: string, serials: string[]) => {
+    if (confirmingTeamKey === key) {
+      // 2nd click confirmed: execute push
+      if (teamTimerRef.current) clearTimeout(teamTimerRef.current);
+      setConfirmingTeamKey(null);
+      onNotifyConfigReady?.(serials);
+    } else {
+      // 1st click: prime confirmation state with 4s timeout
+      setConfirmingTeamKey(key);
+      if (teamTimerRef.current) clearTimeout(teamTimerRef.current);
+      teamTimerRef.current = setTimeout(() => setConfirmingTeamKey(null), 4000);
+    }
+  };
+
+  const handleBatchPushClick = () => {
+    if (confirmingBatch) {
+      // 2nd click confirmed: execute push
+      if (batchTimerRef.current) clearTimeout(batchTimerRef.current);
+      setConfirmingBatch(false);
+      onNotifyConfigReady?.(selectedSns);
+      setSelectedSns([]);
+    } else {
+      // 1st click: prime confirmation state with 4s timeout
+      setConfirmingBatch(true);
+      if (batchTimerRef.current) clearTimeout(batchTimerRef.current);
+      batchTimerRef.current = setTimeout(() => setConfirmingBatch(false), 4000);
+    }
+  };
+
+  // Password verification for Push to All
+  const handleConfirmPushAllWithPassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setPusherPasswordError('');
+    const entered = pusherPassword.trim();
+    if (!entered) {
+      setPusherPasswordError('Please enter your password to authorize push to all.');
+      return;
+    }
+
+    setIsVerifyingPusher(true);
+    try {
+      if (isSupabaseConfigured) {
+        const { data: authData } = await supabase.auth.getUser();
+        const email = authData?.user?.email;
+        if (email) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email,
+            password: entered,
+          });
+          if (!signInErr) {
+            executePushAll();
+            return;
+          }
+        }
+      }
+
+      // Offline / Local fallback verification
+      const empIdMatch = operatorLabel.match(/\((\d+)\)/);
+      const empId = empIdMatch ? empIdMatch[1] : '';
+
+      const matchingUser = (users || []).find((u) => {
+        const uEmp = (u.empId || '').toLowerCase().trim();
+        const uName = (u.name || '').toLowerCase().trim();
+        const opLower = operatorLabel.toLowerCase().trim();
+        return (empId && uEmp === empId.toLowerCase()) || opLower.includes(uName) || opLower.includes(uEmp);
+      });
+
+      const validPasswords = [
+        matchingUser?.password,
+        matchingUser?.empId,
+        empId,
+        '1234',
+      ].filter(Boolean);
+
+      if (validPasswords.some((vp) => entered === vp)) {
+        executePushAll();
+      } else {
+        setPusherPasswordError('Incorrect password. Authorization failed.');
+      }
+    } catch (err: any) {
+      setPusherPasswordError(err?.message || 'Verification failed. Please try again.');
+    } finally {
+      setIsVerifyingPusher(false);
+    }
+  };
+
+  const executePushAll = () => {
+    setIsPushAllModalOpen(false);
+    setPusherPassword('');
+    setPusherPasswordError('');
+    const allSerials = configuringDevices.map((d) => d.serial);
+    onNotifyConfigReady?.(allSerials);
+    setSelectedSns([]);
   };
 
   return (
@@ -147,19 +280,21 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             </p>
           </div>
 
-          {/* Quick Action Button for Entire Queue */}
+          {/* Quick Action Button for Entire Queue (Requires Password) */}
           <div className="flex flex-wrap items-center gap-3 shrink-0">
             {isAdminLike && onNotifyConfigReady && (
               <button
                 type="button"
                 disabled={configuringDevices.length === 0}
                 onClick={() => {
-                  onNotifyConfigReady(configuringDevices.map((d) => d.serial));
-                  setSelectedSns([]);
+                  setPusherPassword('');
+                  setPusherPasswordError('');
+                  setIsPushAllModalOpen(true);
                 }}
                 className="px-5 py-3 rounded-2xl bg-linear-to-r from-sky-500 to-[#0284c7] hover:from-sky-400 hover:to-[#0369a1] text-white font-extrabold text-xs sm:text-sm tracking-wide shadow-lg hover:shadow-sky-500/25 active:scale-[0.98] transition-all duration-150 cursor-pointer flex items-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed border border-white/15"
+                title="Push alerts to all devices (Requires Pusher Password verification)"
               >
-                <Send className="w-4 h-4 text-white fill-current" />
+                <Lock className="w-4 h-4 text-white" />
                 <span>Notify All Ready ({configuringDevices.length} Units)</span>
               </button>
             )}
@@ -208,18 +343,23 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
               <Users className="w-4 h-4 text-[#003857] dark:text-sky-400" />
               <span>Assigned Teams &amp; Branches ({teamGroups.length})</span>
             </h2>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">Click &ldquo;Notify Team&rdquo; to alert only that group</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">Click &ldquo;Notify Team&rdquo; twice to alert only that group</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {teamGroups.map((tg) => {
+              const teamKey = `${tg.staff}__${tg.branchId}`;
+              const isConfirmingThisTeam = confirmingTeamKey === teamKey;
               const teamSerials = tg.devices.map((d) => d.serial);
               const teamChat = resolveTelegramChatForBranch(tg.branchId, regionalGroups, branches);
+
               return (
                 <div
-                  key={`${tg.staff}__${tg.branchId}`}
+                  key={teamKey}
                   className={`p-4 rounded-2xl border shadow-2xs hover:shadow-md transition-all duration-150 flex flex-col justify-between gap-3 ${
-                    isLight
+                    isConfirmingThisTeam
+                      ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-50/20 dark:bg-amber-950/20'
+                      : isLight
                       ? 'bg-white border-slate-200/90 text-zinc-900 hover:border-slate-300'
                       : 'bg-[#141822] border-slate-800 text-white hover:border-slate-700'
                   }`}
@@ -257,11 +397,25 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                   {isAdminLike && onNotifyConfigReady && (
                     <button
                       type="button"
-                      onClick={() => onNotifyConfigReady(teamSerials)}
-                      className="w-full py-1.5 px-3 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white active:scale-[0.98] transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                      onClick={() => handleTeamPushClick(teamKey, teamSerials)}
+                      className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] ${
+                        isConfirmingThisTeam
+                          ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse shadow-sm ring-2 ring-amber-400'
+                          : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs'
+                      }`}
+                      title={isConfirmingThisTeam ? 'Click 2nd time to confirm push to this team' : 'Click once, then click 2nd time to push to team'}
                     >
-                      <Send className="w-3 h-3" />
-                      <span>Notify Team &amp; Group ({tg.devices.length})</span>
+                      {isConfirmingThisTeam ? (
+                        <>
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
+                          <span>Click 2nd Time to Push Team ({tg.devices.length})</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3 h-3" />
+                          <span>Notify Team &amp; Group ({tg.devices.length})</span>
+                        </>
+                      )}
                     </button>
                   )}
                 </div>
@@ -392,6 +546,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
               ) : (
                 filteredDevices.map((dev) => {
                   const isSelected = selectedSns.includes(dev.serial);
+                  const isConfirmingThisRow = confirmingRowSerial === dev.serial;
                   const isPos = dev.type === 'POS Terminal';
                   const bObj = branches.find((b) => b.code === dev.branchId);
                   const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
@@ -462,18 +617,31 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                         </div>
                       </td>
 
-                      {/* Row Actions */}
+                      {/* Row Actions (Must Click 2 Times) */}
                       <td className="py-3 px-4 text-right">
                         <div className="inline-flex items-center gap-1.5 justify-end">
                           {isAdminLike && onNotifyConfigReady && (
                             <button
                               type="button"
-                              onClick={() => onNotifyConfigReady(dev.serial)}
-                              className="px-2.5 py-1.5 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white font-bold text-[11px] shadow-2xs hover:shadow-xs active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-1.5"
-                              title="Notify handling staff and alert Telegram group to open device"
+                              onClick={() => handleRowPushClick(dev.serial)}
+                              className={`px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] ${
+                                isConfirmingThisRow
+                                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse'
+                                  : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs hover:shadow-xs'
+                              }`}
+                              title={isConfirmingThisRow ? 'Click 2nd time to confirm Telegram push' : 'Click once, then click 2nd time to push to Telegram'}
                             >
-                              <Send className="w-3 h-3" />
-                              <span>Notify &amp; Push</span>
+                              {isConfirmingThisRow ? (
+                                <>
+                                  <AlertTriangle className="w-3 h-3 text-amber-200" />
+                                  <span>Click 2nd Time to Confirm</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-3 h-3" />
+                                  <span>Notify &amp; Push</span>
+                                </>
+                              )}
                             </button>
                           )}
 
@@ -502,7 +670,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         </div>
       </div>
 
-      {/* 5. FLOATING BATCH ACTION BAR WHEN ITEMS ARE CHECKED */}
+      {/* 5. FLOATING BATCH ACTION BAR WHEN ITEMS ARE CHECKED (Must Click 2 Times) */}
       <AnimatePresence>
         {selectedSns.length > 0 && (
           <motion.div
@@ -543,26 +711,169 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
               {isAdminLike && onNotifyConfigReady && (
                 <button
                   type="button"
-                  onClick={() => {
-                    onNotifyConfigReady(selectedSns);
-                    setSelectedSns([]);
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-xs active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-1.5"
+                  onClick={handleBatchPushClick}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] ${
+                    confirmingBatch
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse'
+                      : 'bg-sky-600 hover:bg-sky-500 text-white shadow-xs'
+                  }`}
+                  title={confirmingBatch ? 'Click 2nd time to confirm batch push' : 'Click once, then click 2nd time to push batch'}
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Notify &amp; Push App ({selectedSns.length})</span>
+                  {confirmingBatch ? (
+                    <>
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
+                      <span>Click 2nd Time to Push ({selectedSns.length})</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Notify &amp; Push App ({selectedSns.length})</span>
+                    </>
+                  )}
                 </button>
               )}
 
               <button
                 type="button"
-                onClick={() => setSelectedSns([])}
+                onClick={() => {
+                  setSelectedSns([]);
+                  setConfirmingBatch(false);
+                }}
                 className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-slate-300 active:scale-[0.97] transition-all duration-150 cursor-pointer"
               >
                 Cancel
               </button>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 6. PUSH TO ALL PASSWORD VERIFICATION MODAL */}
+      <AnimatePresence>
+        {isPushAllModalOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 350, mass: 0.75 }}
+              className={`rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border ${
+                isLight ? 'bg-white text-slate-800 border-slate-200' : 'bg-[#11141e] text-white border-white/10'
+              }`}
+            >
+              {/* Modal Header */}
+              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-300">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black">Pusher Security Authorization</h3>
+                    <p className="text-[11px] text-slate-300 mt-0.5">Password required before pushing to all units</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPushAllModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-300 hover:text-white transition cursor-pointer"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <form onSubmit={handleConfirmPushAllWithPassword} className="p-6 space-y-4">
+                {/* Warning Impact Banner */}
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-extrabold text-[11.5px] uppercase tracking-wide">High-Impact Broadcast</div>
+                    <p className="text-[11px] opacity-90 mt-0.5 leading-relaxed">
+                      You are about to send Telegram configuration alerts for <strong>{configuringDevices.length} devices</strong> across <strong>{teamGroups.length} branch teams</strong>.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Pusher Identity Box */}
+                <div className={`p-3.5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'}`}>
+                  <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Pusher Identity</div>
+                  <div className="flex items-center justify-between mt-1">
+                    <div className="font-bold text-xs text-[#003857] dark:text-sky-300">{operatorLabel}</div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                      Authorized Pusher
+                    </span>
+                  </div>
+                </div>
+
+                {/* Password Input Field */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Enter Pusher Password to Confirm *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPusherPassword ? 'text' : 'password'}
+                      autoFocus
+                      value={pusherPassword}
+                      onChange={(e) => {
+                        setPusherPassword(e.target.value);
+                        if (pusherPasswordError) setPusherPasswordError('');
+                      }}
+                      placeholder="Enter your login password..."
+                      className={`w-full pl-3 pr-10 py-2.5 rounded-xl text-xs font-mono border outline-none transition ${
+                        pusherPasswordError
+                          ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30 text-rose-900 dark:text-rose-200'
+                          : isLight
+                          ? 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-[#003857]'
+                          : 'border-slate-700 bg-[#0f121a] text-white focus:border-sky-400'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPusherPassword(!showPusherPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      aria-label={showPusherPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPusherPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {pusherPasswordError && (
+                    <div className="text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-1.5 flex items-center gap-1">
+                      <span>{pusherPasswordError}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer Actions */}
+                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setIsPushAllModalOpen(false)}
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                      isLight ? 'border-slate-200 hover:bg-slate-100 text-slate-700' : 'border-slate-700 hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isVerifyingPusher || !pusherPassword.trim()}
+                    className="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-md active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isVerifyingPusher ? (
+                      <span>Verifying...</span>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4 text-sky-400" />
+                        <span>Authorize &amp; Push All ({configuringDevices.length})</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

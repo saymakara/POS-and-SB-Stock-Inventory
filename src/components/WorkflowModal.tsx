@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { User as AppUser } from '../types';
 import {
   Device,
@@ -43,6 +43,7 @@ import {
   SlidersHorizontal,
   MapPin,
   Phone,
+  AlertCircle,
   Hash,
   Type,
   Send,
@@ -135,7 +136,21 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
   // Dynamic Custom Fields State
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  // Telegram notification double-click safeguard
+  const [confirmingNotify, setConfirmingNotify] = useState(false);
+  const notifyTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const handleNotifyWith2Clicks = () => {
+    if (confirmingNotify) {
+      if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+      setConfirmingNotify(false);
+      if (device) onNotifyConfigReady?.(device.serial);
+    } else {
+      setConfirmingNotify(true);
+      if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+      notifyTimerRef.current = setTimeout(() => setConfirmingNotify(false), 4000);
+    }
+  };
 
   // Double-Step Verification State
   const [modalStep, setModalStep] = useState<'EDIT' | 'PREVIEW'>('EDIT');
@@ -819,12 +834,25 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     {isAdminLike && stage === 'CONFIGURING' && onNotifyConfigReady && (
                       <button
                         type="button"
-                        onClick={() => onNotifyConfigReady(device.serial)}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer"
-                        title="Send notification to handling staff to open device for app push and alert Telegram group"
+                        onClick={handleNotifyWith2Clicks}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-[0.97] ${
+                          confirmingNotify
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-400 animate-pulse shadow-sm'
+                            : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-xs'
+                        }`}
+                        title={confirmingNotify ? 'Click 2nd time to confirm Telegram notification' : 'Click once, then click 2nd time to send Telegram alert'}
                       >
-                        <Send className="w-3.5 h-3.5" />
-                        <span>Notify Staff &amp; Alert Telegram (Open Device for App Push)</span>
+                        {confirmingNotify ? (
+                          <>
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-200" />
+                            <span>Click 2nd Time to Confirm Push</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" />
+                            <span>Notify Staff &amp; Alert Telegram (Open Device for App Push)</span>
+                          </>
+                        )}
                       </button>
                     )}
 
