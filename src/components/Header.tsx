@@ -11,7 +11,7 @@ import {
 import { AppBrandLogo } from './AppBrandLogo';
 import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
-import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Building2,
   SendHorizontal,
@@ -221,8 +221,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           )}
         </div>
 
-        {/* Clean Grouped Navigation Items with Apple Tactile Feedback */}
-        <LayoutGroup id={isMobileView ? 'sb-nav-mobile' : 'sb-nav-desktop'}>
+        {/* Modern High-Performance Grouped Navigation */}
           <nav className="py-4 px-3 flex flex-col gap-4">
           {navGroups.map((group) => (
             <div key={group.heading} className="flex flex-col gap-1">
@@ -249,41 +248,26 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         !isMobileView && collapsed
                           ? 'px-0 justify-center py-2'
                           : 'px-3 justify-between py-2'
-                      } rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 z-10 ${
+                      } rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-all duration-150 ease-out z-10 ${
                         isActive
-                          ? 'font-medium text-white border border-transparent'
-                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] border border-transparent'
+                          ? 'font-semibold text-white bg-linear-to-r from-white/[0.14] via-white/[0.09] to-white/[0.04] border border-white/[0.18] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22),0_4px_14px_-2px_rgba(0,0,0,0.35)] backdrop-blur-md'
+                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
                       }`}
                     >
-                      {/* Unified active pill + white indicator bar with smooth spring layout transition */}
+                      {/* Modern active indicator bar - pure CSS, zero layout flying glitch */}
                       {isActive && (
-
-                          <motion.div
-                            layoutId={isMobileView ? 'mobile-nav-active' : 'desktop-nav-active'}
-                            aria-hidden
-                            className="absolute inset-0 rounded-xl bg-white/12 border border-white/15 shadow-xs -z-10 pointer-events-none"
-                            transition={{
-                              type: 'spring',
-                              stiffness: 380,
-                              damping: 32,
-                              mass: 0.5,
-                            }}
-                          >
-                            <span
-                              aria-hidden
-                              className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90 shadow-2xs"
-                            />
-                          </motion.div>
-
-
+                        <span
+                          aria-hidden
+                          className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-linear-to-b from-sky-400 via-white to-sky-300 shadow-[0_0_8px_rgba(255,255,255,0.8),0_0_12px_rgba(56,189,248,0.6)] pointer-events-none"
+                        />
                       )}
 
                       <div className="relative flex items-center gap-2.5 min-w-0">
                         <div
                           className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                             isActive
-                              ? 'bg-white/20 text-white shadow-xs'
-                              : 'bg-white/[0.05] text-zinc-400 group-hover:text-zinc-200 group-hover:bg-white/[0.08]'
+                              ? 'bg-linear-to-br from-white/25 to-white/10 text-white shadow-xs border border-white/30 scale-[1.02]'
+                              : 'bg-white/[0.05] text-zinc-400 group-hover:text-zinc-100 group-hover:bg-white/[0.08] group-hover:border-white/10 border border-transparent'
                           }`}
                         >
                           <Icon className="w-3.5 h-3.5" />
@@ -298,10 +282,10 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         <span
                           className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-colors ${
                             isActive
-                              ? 'bg-white text-zinc-900 font-semibold shadow-2xs'
+                              ? 'bg-white text-zinc-900 font-bold shadow-2xs'
                               : item.highlight
                               ? 'bg-white/15 text-white border border-white/20 font-medium'
-                              : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06]'
+                              : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white'
                           }`}
                         >
                           {item.count}
@@ -314,7 +298,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             </div>
           ))}
           </nav>
-        </LayoutGroup>
+
       </div>
 
       {/* Bottom Collapse Control (Desktop Only) with Tactile Apple Spring Feedback */}
