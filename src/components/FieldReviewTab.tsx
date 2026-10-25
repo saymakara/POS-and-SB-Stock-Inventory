@@ -137,7 +137,6 @@ export const FieldReviewTab: React.FC<Props> = ({
   onPendingCountChange,
 }) => {
   const [activeScope, setActiveScope] = useState<'ALL' | 'PHNOM_PENH'>(scope === 'ALL' ? 'ALL' : 'PHNOM_PENH');
-  const [inputFilter, setInputFilter] = useState<'ALL' | 'SCAN' | 'TYPED'>('ALL');
   useEffect(() => {
     setActiveScope(scope === 'ALL' ? 'ALL' : 'PHNOM_PENH');
   }, [scope]);
@@ -331,19 +330,6 @@ export const FieldReviewTab: React.FC<Props> = ({
     return c;
   }, [scoped, filter]);
 
-  const inputCounts = useMemo(() => {
-    let scan = 0;
-    let typed = 0;
-    scoped
-      .filter((e) => filter === 'ALL' || e.status === filter)
-      .filter((e) => typeFilter === 'ALL' || e.deviceType === typeFilter)
-      .forEach((e) => {
-        const entry = entryOf(e);
-        if (entry.serial === 'SCAN') scan++;
-        else if (entry.serial === 'TYPED') typed++;
-      });
-    return { scan, typed };
-  }, [scoped, filter, typeFilter]);
 
   const shownBase = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
@@ -385,7 +371,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     date: (e) => e.receivedAt,
   });
 
-  const pg = usePager(shown.length, [filter, typeFilter, inputFilter, deferredQuery, activeScope, sort]);
+  const pg = usePager(shown.length, [filter, typeFilter, deferredQuery, activeScope, sort]);
 
   const shownPending = useMemo(() => shown.filter((e) => e.status === 'PENDING'), [shown]);
   const selectedShown = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
@@ -622,39 +608,6 @@ export const FieldReviewTab: React.FC<Props> = ({
           {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
           {typePill('Sound Box', 'Sound Box', typeCounts.sb)}
 
-          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
-            <button
-              type="button"
-              onClick={() => setInputFilter('ALL')}
-              className={`px-2 py-1 rounded-lg text-xs font-normal cursor-pointer transition ${
-                inputFilter === 'ALL' ? 'bg-slate-800 text-white shadow-xs' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              All Inputs
-            </button>
-            <button
-              type="button"
-              onClick={() => setInputFilter('SCAN')}
-              className={`px-2 py-1 rounded-lg text-xs font-normal flex items-center gap-1 cursor-pointer transition ${
-                inputFilter === 'SCAN' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-emerald-700 hover:bg-emerald-50'
-              }`}
-              title="Filter to devices where serial was scanned via barcode scanner"
-            >
-              <ScanLine className="w-3 h-3" />
-              <span>Scan ({inputCounts.scan})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setInputFilter('TYPED')}
-              className={`px-2 py-1 rounded-lg text-xs font-normal flex items-center gap-1 cursor-pointer transition ${
-                inputFilter === 'TYPED' ? 'bg-amber-600 text-white shadow-2xs' : 'text-amber-700 hover:bg-amber-50'
-              }`}
-              title="Filter to devices where serial was manually typed"
-            >
-              <Keyboard className="w-3 h-3" />
-              <span>Typed ({inputCounts.typed})</span>
-            </button>
-          </div>
 
           {/* Scope Toggle: Phnom Penh Staff Only vs All Branches */}
           <button
@@ -685,7 +638,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           </div>
           <ClearFiltersButton
             className="!py-1.5"
-            active={!!query || typeFilter !== 'ALL' || filter !== 'PENDING' || inputFilter !== 'ALL'}
+            active={!!query || typeFilter !== 'ALL' || filter !== 'PENDING'}
             onClear={() => {
               setQuery('');
               setTypeFilter('ALL');
