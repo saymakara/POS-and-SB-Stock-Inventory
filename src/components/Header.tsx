@@ -219,6 +219,22 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               <X className="w-5 h-5" />
             </motion.button>
           )}
+
+          {/* Mobile Phone Brand Logo (Always visible on mobile/phone screens) */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            type="button"
+            onClick={() => onSelectTab('dashboard')}
+            className="md:hidden flex items-center shrink-0 cursor-pointer p-0.5 rounded-xl hover:opacity-90 active:scale-95 transition"
+            title="Dashboard"
+          >
+            <AppBrandLogo
+              logoUrl={appSettings?.customLogoUrl}
+              presetId={appSettings?.logoPresetId}
+              size="sm"
+              showGlow
+            />
+          </motion.button>
         </div>
 
         {/* Modern High-Performance Grouped Navigation */}

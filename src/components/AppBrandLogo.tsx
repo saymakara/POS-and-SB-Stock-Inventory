@@ -69,38 +69,92 @@ export const SvgMerchantStore: React.FC<{ className?: string; animated?: boolean
           transform: scale(1.06);
         }
       }
+      @keyframes vms_radar_ring {
+        0% {
+          transform: scale(1);
+          opacity: 0.85;
+          stroke-width: 1.5;
+        }
+        60% {
+          transform: scale(1.42);
+          opacity: 0;
+          stroke-width: 0.5;
+        }
+        100% {
+          transform: scale(1.42);
+          opacity: 0;
+          stroke-width: 0;
+        }
+      }
       @keyframes vms_squircle_rim {
         0%, 100% {
-          opacity: 0.16;
+          opacity: 0.18;
         }
         50% {
-          opacity: 0.38;
+          opacity: 0.45;
         }
       }
       @keyframes vms_knob_beacon {
         0%, 100% {
-          opacity: 0.85;
+          opacity: 0.8;
           transform: scale(1);
         }
         50% {
           opacity: 1;
-          transform: scale(1.2);
+          transform: scale(1.3);
+        }
+      }
+      @keyframes vms_knob_ring {
+        0% {
+          transform: scale(1);
+          opacity: 0.6;
+        }
+        50% {
+          transform: scale(1.9);
+          opacity: 0;
+        }
+        100% {
+          transform: scale(1.9);
+          opacity: 0;
+        }
+      }
+      @keyframes vms_glint {
+        0%, 25% {
+          opacity: 0.2;
+        }
+        40% {
+          opacity: 0.8;
+        }
+        60%, 100% {
+          opacity: 0.2;
+        }
+      }
+      @keyframes vms_awning_glow {
+        0%, 100% {
+          fill: #5ce2c0;
+        }
+        50% {
+          fill: #7af3d6;
         }
       }
       @keyframes vms_flat_shimmer {
         0% {
-          transform: translateX(-90px);
+          transform: translateX(-90px) skewX(-15deg);
         }
-        25% {
-          transform: translateX(120px);
+        28% {
+          transform: translateX(130px) skewX(-15deg);
         }
         100% {
-          transform: translateX(120px);
+          transform: translateX(130px) skewX(-15deg);
         }
       }
       .vms-badge {
         transform-origin: 75px 68px;
         ${animated ? 'animation: vms_badge_pulse 2.8s ease-in-out infinite;' : ''}
+      }
+      .vms-radar {
+        transform-origin: 75px 68px;
+        ${animated ? 'animation: vms_radar_ring 2.8s ease-out infinite;' : ''}
       }
       .vms-rim {
         ${animated ? 'animation: vms_squircle_rim 3.6s ease-in-out infinite;' : ''}
@@ -108,6 +162,16 @@ export const SvgMerchantStore: React.FC<{ className?: string; animated?: boolean
       .vms-knob {
         transform-origin: 41px 58px;
         ${animated ? 'animation: vms_knob_beacon 2.4s ease-in-out infinite;' : ''}
+      }
+      .vms-knob-halo {
+        transform-origin: 41px 58px;
+        ${animated ? 'animation: vms_knob_ring 2.4s ease-out infinite;' : ''}
+      }
+      .vms-glint {
+        ${animated ? 'animation: vms_glint 3.2s ease-in-out infinite;' : ''}
+      }
+      .vms-awning-mint {
+        ${animated ? 'animation: vms_awning_glow 3.6s ease-in-out infinite;' : ''}
       }
       .vms-shimmer-bar {
         ${animated ? 'animation: vms_flat_shimmer 5.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;' : ''}
@@ -131,12 +195,17 @@ export const SvgMerchantStore: React.FC<{ className?: string; animated?: boolean
 
       {/* Doorway */}
       <rect x="32" y="47.5" width="12" height="21.5" rx="1.5" fill="#0b375b" />
-      {/* Doorknob with 2D beacon pulse */}
+      {/* Doorknob with 2D beacon pulse and halo */}
+      <circle className="vms-knob-halo" cx="41" cy="58" r="2.2" fill="#00d9a3" opacity="0.4" />
       <circle className="vms-knob" cx="41" cy="58" r="1.2" fill="#00d9a3" />
 
       {/* Windows (Two Panes) */}
       <rect x="48" y="47.5" width="10" height="12" rx="1.2" fill="#0b375b" />
       <rect x="59.5" y="47.5" width="10" height="12" rx="1.2" fill="#0b375b" />
+
+      {/* Window Daylight Glint Highlights */}
+      <line className="vms-glint" x1="49.5" y1="57.5" x2="56.5" y2="49.5" stroke="#5ce2c0" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+      <line className="vms-glint" x1="61" y1="57.5" x2="68" y2="49.5" stroke="#5ce2c0" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
 
       {/* Scalloped Awning Stripes (5 Vertical Stripes) */}
       {/* Stripe 1 (Leftmost): Dark Teal */}
@@ -146,6 +215,7 @@ export const SvgMerchantStore: React.FC<{ className?: string; animated?: boolean
       />
       {/* Stripe 2: Mint Teal */}
       <path
+        className="vms-awning-mint"
         d="M 33.8,28 L 44.6,28 L 44.6,37 Q 39.2,42 33.8,37 Z"
         fill="#5ce2c0"
       />
@@ -156,6 +226,7 @@ export const SvgMerchantStore: React.FC<{ className?: string; animated?: boolean
       />
       {/* Stripe 4: Mint Teal */}
       <path
+        className="vms-awning-mint"
         d="M 55.4,28 L 66.2,28 L 66.2,37 Q 60.8,42 55.4,37 Z"
         fill="#5ce2c0"
       />
@@ -174,7 +245,7 @@ export const SvgMerchantStore: React.FC<{ className?: string; animated?: boolean
           className="vms-shimmer-bar"
           x="10"
           y="22"
-          width="22"
+          width="26"
           height="50"
           fill="url(#vms_shimmer)"
           pointerEvents="none"
@@ -182,20 +253,23 @@ export const SvgMerchantStore: React.FC<{ className?: string; animated?: boolean
       </g>
     </g>
 
-    {/* Verified Checkmark Badge with 2D Pulse */}
-    <g className="vms-badge">
+    {/* Verified Checkmark Badge with 2D Radar Ping and Pulse */}
+    <g>
       {/* Separation Outer Mask Halo */}
       <circle cx="75" cy="68" r="15" fill="#082a47" />
-      {/* Emerald Badge Disc */}
-      <circle cx="75" cy="68" r="12" fill="#14ab84" />
-      {/* Clean White Checkmark */}
-      <path
-        d="M 69,68 L 73.5,72.5 L 81.5,63"
-        stroke="#ffffff"
-        strokeWidth="3.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      {/* Radar Ring expanding from badge center */}
+      <circle className="vms-radar" cx="75" cy="68" r="12" fill="none" stroke="#00d9a3" strokeWidth="1.5" />
+      {/* Emerald Badge Disc with Checkmark */}
+      <g className="vms-badge">
+        <circle cx="75" cy="68" r="12" fill="#14ab84" />
+        <path
+          d="M 69,68 L 73.5,72.5 L 81.5,63"
+          stroke="#ffffff"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
     </g>
   </svg>
 );

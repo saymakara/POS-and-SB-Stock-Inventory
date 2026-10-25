@@ -3507,6 +3507,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       <div className="flex-1 w-full min-w-0 flex flex-col justify-between min-h-screen">
         <div>
           <Header
+            appSettings={appSettings}
             role={role}
             onSetRole={handleRoleChange}
             branches={branches}
