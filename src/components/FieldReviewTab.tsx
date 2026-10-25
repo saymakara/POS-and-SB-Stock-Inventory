@@ -626,7 +626,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setInputFilter('ALL')}
-              className={`px-2 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
+              className={`px-2 py-1 rounded-lg text-xs font-normal cursor-pointer transition ${
                 inputFilter === 'ALL' ? 'bg-white text-slate-800 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -635,7 +635,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setInputFilter('SCAN')}
-              className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
+              className={`px-2 py-1 rounded-lg text-xs font-normal flex items-center gap-1 cursor-pointer transition ${
                 inputFilter === 'SCAN' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-emerald-700 hover:bg-emerald-50'
               }`}
               title="Filter to devices where serial was scanned via barcode scanner"
@@ -646,7 +646,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setInputFilter('TYPED')}
-              className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
+              className={`px-2 py-1 rounded-lg text-xs font-normal flex items-center gap-1 cursor-pointer transition ${
                 inputFilter === 'TYPED' ? 'bg-amber-600 text-white shadow-2xs' : 'text-amber-700 hover:bg-amber-50'
               }`}
               title="Filter to devices where serial was manually typed"
@@ -1061,7 +1061,7 @@ const ReviewRow = memo(function ReviewRow({
             {entry.serial === 'SCAN' ? (
               <span
                 title="Serial was scanned using mobile barcode scanner"
-                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/90 whitespace-nowrap shadow-2xs"
+                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-emerald-50 text-emerald-700 border border-emerald-200/90 whitespace-nowrap shadow-2xs"
               >
                 <ScanLine className="w-2.5 h-2.5 text-emerald-600" aria-hidden="true" />
                 <span>Scan</span>
@@ -1069,7 +1069,7 @@ const ReviewRow = memo(function ReviewRow({
             ) : entry.serial === 'TYPED' ? (
               <span
                 title="Serial was typed manually by hand on mobile keyboard"
-                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/90 whitespace-nowrap shadow-2xs"
+                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-amber-50 text-amber-700 border border-amber-200/90 whitespace-nowrap shadow-2xs"
               >
                 <Keyboard className="w-2.5 h-2.5 text-amber-600" aria-hidden="true" />
                 <span>Typed</span>
@@ -1077,7 +1077,7 @@ const ReviewRow = memo(function ReviewRow({
             ) : (
               <span
                 title="Scan type not reported"
-                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-slate-50 text-slate-500 border border-slate-200/80 whitespace-nowrap"
+                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-slate-50 text-slate-500 border border-slate-200/80 whitespace-nowrap"
               >
                 <span>Not reported</span>
               </span>
@@ -1092,7 +1092,7 @@ const ReviewRow = memo(function ReviewRow({
                 <span className="truncate">{e.oldSerial}</span>
                 {entry.oldSerial && (
                   <span
-                    className={`px-1 py-0.2 rounded text-[9px] font-bold ${
+                    className={`px-1 py-0.2 rounded text-[9px] font-normal ${
                       entry.oldSerial === 'SCAN'
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         : 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -1113,10 +1113,10 @@ const ReviewRow = memo(function ReviewRow({
             <span className="flex items-center gap-1.5 truncate font-mono text-[11px] font-normal text-slate-500" title={`MID ${e.mid}`}>
               <span className="truncate">{e.mid}</span>
               {entry.mid === 'SCAN' && (
-                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="MID was scanned via barcode scanner">Scan</span>
+                <span className="px-1 py-0.2 rounded text-[9px] font-normal bg-emerald-50 text-emerald-700 border border-emerald-200" title="MID was scanned via barcode scanner">Scan</span>
               )}
               {entry.mid === 'TYPED' && (
-                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title="MID was typed manually">Typed</span>
+                <span className="px-1 py-0.2 rounded text-[9px] font-normal bg-amber-50 text-amber-700 border border-amber-200" title="MID was typed manually">Typed</span>
               )}
             </span>
           )}
