@@ -157,90 +157,8 @@ export function extractTechnicalError(
 /**
  * Sends the exact error message, technical error code, and staff ID to the configured Telegram webhook.
  */
-export async function sendTelegramErrorAlert(payload: TechnicalErrorPopupPayload): Promise<boolean> {
-  const { webhookUrl, botToken, chatId } = getTelegramWebhookConfig();
-  const formattedText = [
-    `🚨 *POS & Sound Box Inventory — Technical Error*`,
-    `• *Error Code:* \`${payload.code}\``,
-    `• *Operation:* ${payload.operation}`,
-    `• *Staff ID:* \`${payload.staffId}\` (${payload.staffName})`,
-    `• *Branch Code:* \`${payload.branchId}\``,
-    payload.target ? `• *Target Serial/ID:* \`${payload.target}\`` : '',
-    `• *Timestamp:* ${payload.timestamp}`,
-    `• *Error Message:* \`${payload.message}\``,
-  ]
-    .filter(Boolean)
-    .join('\n');
-
-  try {
-    // 1. Direct Telegram Bot Token + Chat ID
-    if (botToken && chatId) {
-      const tgUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
-      const res = await fetch(tgUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: formattedText,
-          parse_mode: 'Markdown',
-        }),
-      });
-      if (res.ok) return true;
-    }
-
-    // 2. Direct Webhook URL (Telegram sendMessage URL or custom webhook endpoint)
-    if (webhookUrl) {
-      let urlChatId = chatId;
-      try {
-        const parsedUrl = new URL(webhookUrl);
-        if (!urlChatId && parsedUrl.searchParams.get('chat_id')) {
-          urlChatId = parsedUrl.searchParams.get('chat_id') || '';
-        }
-      } catch {
-        // relative or non-standard URL
-      }
-      const res = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: urlChatId || undefined,
-          text: formattedText,
-          parse_mode: 'Markdown',
-          errorCode: payload.code,
-          operation: payload.operation,
-          errorMessage: payload.message,
-          staffId: payload.staffId,
-          staffName: payload.staffName,
-          branchId: payload.branchId,
-          target: payload.target,
-          timestamp: payload.timestamp,
-        }),
-      });
-      if (res.ok) return true;
-    }
-
-    // 3. Fallback to backend /api/v1/debug/telegram webhook relay when running with local Express server
-    if (typeof window !== 'undefined' && !isSupabaseConfigured) {
-      const res = await fetch('/api/v1/debug/telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: formattedText,
-          errorCode: payload.code,
-          operation: payload.operation,
-          errorMessage: payload.message,
-          staffId: payload.staffId,
-          staffName: payload.staffName,
-          branchId: payload.branchId,
-          target: payload.target,
-          timestamp: payload.timestamp,
-        }),
-      });
-      if (res.ok) return true;
-    }
-  } catch {
-    // Never throw from inside the error webhook reporter
-  }
+export async function sendTelegramErrorAlert(_payload: TechnicalErrorPopupPayload): Promise<boolean> {
+  // System error alerts to Telegram disabled per user policy: alerts reserved strictly for POS and Sound Box Under Configuring
   return false;
 }
 
@@ -284,12 +202,7 @@ export async function reportCaughtError(
     triggerTechnicalErrorPopup(payload);
   }
 
-  // 2. Dispatch error details + staffId to the Telegram debug webhook asynchronously
-  void sendTelegramErrorAlert(payload).then((sent) => {
-    payload.telegramSent = sent;
-  });
-
-  // 3. Error-Only Database Audit Log (only write to Supabase on actual failure, with circuit guard against recursion)
+  // 2. Error-Only Database Audit Log (only write to Supabase on actual failure, with circuit guard against recursion)
   if (isSupabaseConfigured && !options?.skipDbLog && operation !== 'writeErrorAuditLog') {
     try {
       await supabase.from('audit_logs').insert({
@@ -475,7 +388,7 @@ export async function detectTelegramGroupChats(
             `✅ *POS & Sound Box Inventory Connected!*`,
             `• *Bot:* @${botUsername}`,
             `• *Linked Chat:* ${target.title} (\`${target.id}\`)`,
-            `• *Active Alerts:* Under Configuring (App Push) & System Error Alerts`,
+            `• *Active Alerts:* POS & Sound Box Under Configuring (App Push Alerts)`,
           ].join('\n'),
           parse_mode: 'Markdown',
         }),
