@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User } from '../types';
+import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
 import { normalizeStaffName } from '../utils/staffUtils';
+import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -17,6 +18,10 @@ import {
   Eye,
   EyeOff,
   X,
+  AlertCircle,
+  Calendar,
+  KeyRound,
+  User,
 } from 'lucide-react';
 
 interface PushConfiguringTabProps {
@@ -31,7 +36,7 @@ interface PushConfiguringTabProps {
   onAssignStaff?: (serials: string[], staffName: string) => void;
   regionalGroups?: TelegramRegionalGroup[];
   theme?: ThemeMode;
-  users?: User[];
+  users?: AppUser[];
 }
 
 export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(({
@@ -93,7 +98,9 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         (d.staff || '').toLowerCase().includes(q) ||
         (d.installedByStaff || '').toLowerCase().includes(q) ||
         (d.branchName || '').toLowerCase().includes(q) ||
-        d.branchId.toLowerCase().includes(q)
+        d.branchId.toLowerCase().includes(q) ||
+        (d.deployedDate || '').toLowerCase().includes(q) ||
+        (d.stockInDate || '').toLowerCase().includes(q)
       );
     });
   }, [configuringDevices, search, branchFilter, typeFilter]);
@@ -412,7 +419,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                         </>
                       ) : (
                         <>
-                          <Send className="w-3 h-3" />
+                          <Send className="w-3.5 h-3.5" />
                           <span>Notify Team &amp; Group ({tg.devices.length})</span>
                         </>
                       )}
@@ -435,7 +442,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search serial, merchant, MID, TID, staff..."
+              placeholder="Search serial, merchant, MID, TID, staff, date..."
               className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs border outline-none transition-all duration-150 ${
                 isLight
                   ? 'border-slate-200 bg-slate-50 text-zinc-900 focus:bg-white focus:border-[#003857]'
@@ -490,7 +497,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         </div>
       </div>
 
-      {/* 4. HARDWARE QUEUE TABLE */}
+      {/* 4. HARDWARE QUEUE TABLE WITH DATE OF REQUEST PUSH */}
       <div className={`rounded-2xl border shadow-xs overflow-hidden ${isLight ? 'border-slate-200/90 bg-white' : 'border-slate-800 bg-[#141822]'}`}>
         <div className={`p-4 border-b flex items-center justify-between gap-3 ${isLight ? 'border-slate-100 text-slate-700' : 'border-slate-800 text-slate-300'}`}>
           <div className="flex items-center gap-2">
@@ -523,6 +530,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                     className="rounded border-slate-300 cursor-pointer accent-[#003857]"
                   />
                 </th>
+                <th className="py-3 px-4">Date of Request Push</th>
                 <th className="py-3 px-4">Hardware Serial &amp; Model</th>
                 <th className="py-3 px-4">Merchant Name &amp; MID / TID</th>
                 <th className="py-3 px-4">Configure By (Staff)</th>
@@ -533,7 +541,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             <tbody className={`divide-y ${isLight ? 'divide-slate-100' : 'divide-slate-800/60'}`}>
               {filteredDevices.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     <Boxes className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     <div className="text-sm font-bold text-slate-600 dark:text-slate-300">No devices in Push Configuring queue</div>
                     <div className="text-xs text-slate-400 mt-0.5">
@@ -551,6 +559,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                   const bObj = branches.find((b) => b.code === dev.branchId);
                   const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
                   const staffName = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
+                  const requestPushDate = dev.deployedDate || (dev.updatedAt ? dev.updatedAt.slice(0, 10) : '') || dev.stockInDate || todayPP();
 
                   return (
                     <tr
@@ -573,6 +582,18 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                           aria-label={`Select ${dev.serial}`}
                           className="rounded border-slate-300 cursor-pointer accent-[#003857]"
                         />
+                      </td>
+
+                      {/* Date of Request Push */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-mono text-xs font-bold border transition-colors ${
+                          isLight
+                            ? 'bg-slate-100/90 text-slate-800 border-slate-200'
+                            : 'bg-slate-800/80 text-slate-200 border-slate-700/80'
+                        }`}>
+                          <Calendar className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
+                          <span>{requestPushDate}</span>
+                        </div>
                       </td>
 
                       {/* Serial & Model */}
@@ -748,7 +769,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         )}
       </AnimatePresence>
 
-      {/* 6. PUSH TO ALL PASSWORD VERIFICATION MODAL */}
+      {/* 6. PUSH TO ALL PASSWORD VERIFICATION MODAL (Follows Standard Popup Consistency) */}
       <AnimatePresence>
         {isPushAllModalOpen && (
           <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -757,59 +778,92 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ type: 'spring', damping: 28, stiffness: 350, mass: 0.75 }}
-              className={`rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border ${
-                isLight ? 'bg-white text-slate-800 border-slate-200' : 'bg-[#11141e] text-white border-white/10'
+              className={`w-full max-w-lg rounded-3xl border-0 shadow-2xl overflow-hidden my-8 transform-gpu will-change-gpu gpu-modal-container ${
+                isLight ? 'bg-white text-slate-800' : 'bg-[#11141e] text-white'
               }`}
             >
-              {/* Modal Header */}
-              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-300">
-                    <Lock className="w-4 h-4" />
+              {/* Standard Signature Navy Header Bar */}
+              <div className="px-6 py-4.5 bg-[#002f49] rounded-t-3xl text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-sky-300 shadow-xs">
+                    <Lock className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black">Pusher Security Authorization</h3>
-                    <p className="text-[11px] text-slate-300 mt-0.5">Password required before pushing to all units</p>
+                    <h3 className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
+                      <span>Pusher Security Authorization</span>
+                    </h3>
+                    <p className="text-xs text-slate-300 font-mono mt-0.5">
+                      Password required before pushing to all units
+                    </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsPushAllModalOpen(false)}
-                  className="p-1 rounded-lg text-slate-300 hover:text-white transition cursor-pointer"
                   aria-label="Close"
+                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Modal Body */}
-              <form onSubmit={handleConfirmPushAllWithPassword} className="p-6 space-y-4">
+              {/* Standard Stepper & Safeguard Status Bar */}
+              <div className={`px-6 py-2.5 border-b flex items-center justify-between text-xs ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4 rounded-full bg-[#004953] text-white flex items-center justify-center text-[10px] font-black">
+                    1
+                  </span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200">
+                    Security Authorization
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
+                  <span>Double-Step Safeguard Active</span>
+                </div>
+              </div>
+
+              {/* Modal Body Form */}
+              <form onSubmit={handleConfirmPushAllWithPassword} className="p-6 flex flex-col gap-4 text-xs">
                 {/* Warning Impact Banner */}
                 <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5">
                   <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <div className="font-extrabold text-[11.5px] uppercase tracking-wide">High-Impact Broadcast</div>
+                    <div className="font-extrabold text-[11.5px] uppercase tracking-wide">High-Impact Broadcast Safeguard</div>
                     <p className="text-[11px] opacity-90 mt-0.5 leading-relaxed">
-                      You are about to send Telegram configuration alerts for <strong>{configuringDevices.length} devices</strong> across <strong>{teamGroups.length} branch teams</strong>.
+                      You are about to send Telegram configuration alerts for <strong>{configuringDevices.length} device{configuringDevices.length === 1 ? '' : 's'}</strong> across <strong>{teamGroups.length} branch team{teamGroups.length === 1 ? '' : 's'}</strong>.
                     </p>
                   </div>
                 </div>
 
                 {/* Pusher Identity Box */}
-                <div className={`p-3.5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-slate-800'}`}>
-                  <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Pusher Identity</div>
-                  <div className="flex items-center justify-between mt-1">
-                    <div className="font-bold text-xs text-[#003857] dark:text-sky-300">{operatorLabel}</div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
-                      Authorized Pusher
+                <div className={`p-3.5 rounded-2xl border ${
+                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#181c26] border-slate-700/80'
+                }`}>
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                    <span className="flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
+                      <span>Active Pusher Operator</span>
                     </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-extrabold bg-[#003857]/10 text-[#003857] dark:bg-sky-500/20 dark:text-sky-300 border border-[#003857]/20">
+                      Authorized Admin
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white">
+                    {operatorLabel}
                   </div>
                 </div>
 
                 {/* Password Input Field */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Enter Pusher Password to Confirm *
+                <div className="flex flex-col gap-1.5">
+                  <label className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
+                      <span>Enter Pusher Password to Confirm *</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">Identity verification</span>
                   </label>
                   <div className="relative">
                     <input
@@ -821,37 +875,42 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                         if (pusherPasswordError) setPusherPasswordError('');
                       }}
                       placeholder="Enter your login password..."
-                      className={`w-full pl-3 pr-10 py-2.5 rounded-xl text-xs font-mono border outline-none transition ${
+                      className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono border outline-none transition ${
                         pusherPasswordError
-                          ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30 text-rose-900 dark:text-rose-200'
+                          ? 'border-rose-500 focus:border-rose-500 bg-rose-50/40 text-rose-900 dark:text-rose-200'
                           : isLight
-                          ? 'border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-[#003857]'
-                          : 'border-slate-700 bg-[#0f121a] text-white focus:border-sky-400'
+                          ? 'border-slate-200 bg-slate-50/70 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#003857]/20 focus:border-[#003857]'
+                          : 'border-slate-700 bg-[#181c26] text-white focus:border-sky-400'
                       }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPusherPassword(!showPusherPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
                       aria-label={showPusherPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPusherPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   {pusherPasswordError && (
-                    <div className="text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-1.5 flex items-center gap-1">
+                    <div className="text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       <span>{pusherPasswordError}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Modal Footer Actions */}
-                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                {/* Standard Full-Width Footer Action Strip */}
+                <div className={`px-6 py-4 -mx-6 -mb-6 mt-2 flex items-center justify-between text-xs border-t ${
+                  isLight ? 'bg-slate-50 border-slate-200/90' : 'bg-[#0e111a] border-slate-800'
+                }`}>
                   <button
                     type="button"
                     onClick={() => setIsPushAllModalOpen(false)}
                     className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                      isLight ? 'border-slate-200 hover:bg-slate-100 text-slate-700' : 'border-slate-700 hover:bg-slate-800 text-slate-300'
+                      isLight
+                        ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                        : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
                     }`}
                   >
                     Cancel
@@ -859,7 +918,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                   <button
                     type="submit"
                     disabled={isVerifyingPusher || !pusherPassword.trim()}
-                    className="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-md active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-md active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10"
                   >
                     {isVerifyingPusher ? (
                       <span>Verifying...</span>
