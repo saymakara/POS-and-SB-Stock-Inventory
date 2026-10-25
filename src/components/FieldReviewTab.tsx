@@ -1,6 +1,6 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
-import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine, Keyboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -47,7 +47,7 @@ const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as co
 const SPRING = { type: 'spring', stiffness: 460, damping: 36, mass: 0.65 } as const;
 const FRAME_SPRING = { type: 'spring', stiffness: 380, damping: 34, mass: 0.7 } as const;
 const GRID =
-  'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_128px_minmax(130px,1.05fr)_minmax(120px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
+  'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_128px_minmax(150px,1.1fr)_minmax(130px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
 const CACHE_KEY = 'fe_review_cache_v3';
 
 /** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */
@@ -116,9 +116,13 @@ const howOf = (v: unknown): How => {
   const t = String(v ?? '').trim().toUpperCase();
   return t === 'SCAN' || t === 'SCANNED' ? 'SCAN' : t === 'TYPED' || t === 'TYPE' || t === 'MANUAL' ? 'TYPED' : '';
 };
-const entryOf = (e: FieldEvent): { serial: How; mid: How } => {
+const entryOf = (e: FieldEvent): { serial: How; mid: How; oldSerial: How } => {
   const u = (e.payload && (e.payload.unit || e.payload)) || {};
-  return { serial: howOf(u.serial_input), mid: howOf(u.mid_input) };
+  return {
+    serial: howOf(u.serial_input || u.serialInput || u.scan_type || u.scanType || e.payload?.serial_input),
+    mid: howOf(u.mid_input || u.midInput || e.payload?.mid_input),
+    oldSerial: howOf(u.old_serial_input || u.oldSerialInput || e.payload?.old_serial_input),
+  };
 };
 const howText = (h: How) => (h === 'SCAN' ? 'Scanned' : h === 'TYPED' ? 'Typed by hand' : 'Not reported');
 
@@ -133,6 +137,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   onPendingCountChange,
 }) => {
   const [activeScope, setActiveScope] = useState<'ALL' | 'PHNOM_PENH'>(scope === 'ALL' ? 'ALL' : 'PHNOM_PENH');
+  const [inputFilter, setInputFilter] = useState<'ALL' | 'SCAN' | 'TYPED'>('ALL');
   useEffect(() => {
     setActiveScope(scope === 'ALL' ? 'ALL' : 'PHNOM_PENH');
   }, [scope]);
@@ -326,6 +331,20 @@ export const FieldReviewTab: React.FC<Props> = ({
     return c;
   }, [scoped, filter]);
 
+  const inputCounts = useMemo(() => {
+    let scan = 0;
+    let typed = 0;
+    scoped
+      .filter((e) => filter === 'ALL' || e.status === filter)
+      .filter((e) => typeFilter === 'ALL' || e.deviceType === typeFilter)
+      .forEach((e) => {
+        const entry = entryOf(e);
+        if (entry.serial === 'SCAN') scan++;
+        else if (entry.serial === 'TYPED') typed++;
+      });
+    return { scan, typed };
+  }, [scoped, filter, typeFilter]);
+
   const shownBase = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     return scoped
@@ -366,7 +385,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     date: (e) => e.receivedAt,
   });
 
-  const pg = usePager(shown.length, [filter, typeFilter, deferredQuery, activeScope, sort]);
+  const pg = usePager(shown.length, [filter, typeFilter, inputFilter, deferredQuery, activeScope, sort]);
 
   const shownPending = useMemo(() => shown.filter((e) => e.status === 'PENDING'), [shown]);
   const selectedShown = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
@@ -603,6 +622,40 @@ export const FieldReviewTab: React.FC<Props> = ({
           {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
           {typePill('Sound Box', 'Sound Box', typeCounts.sb)}
 
+          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+            <button
+              type="button"
+              onClick={() => setInputFilter('ALL')}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                inputFilter === 'ALL' ? 'bg-white text-slate-800 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              All Inputs
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputFilter('SCAN')}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
+                inputFilter === 'SCAN' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-emerald-700 hover:bg-emerald-50'
+              }`}
+              title="Filter to devices where serial was scanned via barcode scanner"
+            >
+              <ScanLine className="w-3 h-3" />
+              <span>Scan ({inputCounts.scan})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputFilter('TYPED')}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
+                inputFilter === 'TYPED' ? 'bg-amber-600 text-white shadow-2xs' : 'text-amber-700 hover:bg-amber-50'
+              }`}
+              title="Filter to devices where serial was manually typed"
+            >
+              <Keyboard className="w-3 h-3" />
+              <span>Typed ({inputCounts.typed})</span>
+            </button>
+          </div>
+
           {/* Scope Toggle: Phnom Penh Staff Only vs All Branches */}
           <button
             type="button"
@@ -632,7 +685,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           </div>
           <ClearFiltersButton
             className="!py-1.5"
-            active={!!query || typeFilter !== 'ALL' || filter !== 'PENDING'}
+            active={!!query || typeFilter !== 'ALL' || filter !== 'PENDING' || inputFilter !== 'ALL'}
             onClear={() => {
               setQuery('');
               setTypeFilter('ALL');
@@ -987,28 +1040,84 @@ const ReviewRow = memo(function ReviewRow({
         <span className="tabular-nums font-normal text-slate-600 whitespace-nowrap" title={fmtTime(e.receivedAt)}>
           {fmtTime(e.receivedAt)}
         </span>
-        <button
-          type="button"
-          onClick={() => onToggle(e.id)}
-          aria-expanded={isOpen}
-          className="text-left font-mono font-normal text-slate-800 truncate cursor-pointer hover:underline inline-flex items-center gap-1.5"
-          title="Open record details"
-        >
-          <ChevronDown
-            className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${
-              isOpen ? 'rotate-180 text-slate-700' : ''
-            }`}
-            aria-hidden
-          />
-          <span className="truncate">{e.serial}</span>
-        </button>
+        <div className="flex flex-col min-w-0 pr-1">
+          <button
+            type="button"
+            onClick={() => onToggle(e.id)}
+            aria-expanded={isOpen}
+            className="text-left font-mono text-slate-800 truncate cursor-pointer hover:underline inline-flex items-center gap-1.5 group"
+            title="Open record details"
+          >
+            <ChevronDown
+              className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${
+                isOpen ? 'rotate-180 text-slate-700' : ''
+              }`}
+              aria-hidden
+            />
+            <span className="truncate font-semibold text-slate-900 group-hover:text-[#003857]">{e.serial}</span>
+          </button>
+
+          <div className="pl-5 mt-0.5 flex items-center gap-1.5 flex-wrap">
+            {entry.serial === 'SCAN' ? (
+              <span
+                title="Serial was scanned using mobile barcode scanner"
+                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/90 whitespace-nowrap shadow-2xs"
+              >
+                <ScanLine className="w-2.5 h-2.5 text-emerald-600" aria-hidden="true" />
+                <span>Scan</span>
+              </span>
+            ) : entry.serial === 'TYPED' ? (
+              <span
+                title="Serial was typed manually by hand on mobile keyboard"
+                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/90 whitespace-nowrap shadow-2xs"
+              >
+                <Keyboard className="w-2.5 h-2.5 text-amber-600" aria-hidden="true" />
+                <span>Typed</span>
+              </span>
+            ) : (
+              <span
+                title="Scan type not reported"
+                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-slate-50 text-slate-500 border border-slate-200/80 whitespace-nowrap"
+              >
+                <span>Not reported</span>
+              </span>
+            )}
+
+            {e.oldSerial && (
+              <span
+                className="text-[10px] text-slate-400 font-mono inline-flex items-center gap-1 truncate"
+                title={`Replaces old unit ${e.oldSerial}${entry.oldSerial ? ` (${entry.oldSerial === 'SCAN' ? 'Scanned' : 'Typed'})` : ''}`}
+              >
+                <span>←</span>
+                <span className="truncate">{e.oldSerial}</span>
+                {entry.oldSerial && (
+                  <span
+                    className={`px-1 py-0.2 rounded text-[9px] font-bold ${
+                      entry.oldSerial === 'SCAN'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}
+                  >
+                    {entry.oldSerial === 'SCAN' ? 'Scan' : 'Typed'}
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
+        </div>
         <span className="min-w-0 leading-snug" title={merchant}>
           <span className="block truncate khmer font-normal text-slate-800">
             {e.terminalName || e.outletName || '—'}
           </span>
           {e.mid && (
-            <span className="block truncate font-mono text-[11px] font-normal text-slate-500" title={`MID ${e.mid}`}>
-              {e.mid}
+            <span className="flex items-center gap-1.5 truncate font-mono text-[11px] font-normal text-slate-500" title={`MID ${e.mid}`}>
+              <span className="truncate">{e.mid}</span>
+              {entry.mid === 'SCAN' && (
+                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="MID was scanned via barcode scanner">Scan</span>
+              )}
+              {entry.mid === 'TYPED' && (
+                <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title="MID was typed manually">Typed</span>
+              )}
             </span>
           )}
         </span>
