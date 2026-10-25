@@ -193,6 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               logoUrl={appSettings?.customLogoUrl}
               presetId={appSettings?.logoPresetId}
               size="md"
+              showGlow
             />
 
             {(isMobileView || !collapsed) && (

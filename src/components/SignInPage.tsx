@@ -193,6 +193,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
             logoUrl={appSettings?.customLogoUrl}
             presetId={appSettings?.logoPresetId}
             size="md"
+            showGlow
           />
           <div>
             <div className="text-sm font-extrabold tracking-tight text-zinc-900">
