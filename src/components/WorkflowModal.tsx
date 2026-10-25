@@ -12,6 +12,7 @@ import {
   DEFAULT_CUSTOM_FIELDS,
 } from '../types';
 import { STAGE_META } from '../data/initialData';
+import { normalizeStaffName, extractEmpIdFromName } from '../utils/staffUtils';
 import { todayPP } from '../utils/time';
 import { phoneFor, canSeeFullContact } from '../utils/privacy';
 import { isValidMidForType, midRuleError } from '../utils/display';
@@ -184,7 +185,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       setStage(device.stage);
       setTerminateDestination('BRANCH_RESERVE');
       setBranchId(device.branchId);
-      setStaff(device.staff || '');
+      setStaff(device.staff ? normalizeStaffName(device.staff) : '');
       setMerchantName(device.merchantName || '');
       setMid(device.mid || '');
       setTid(device.tid || '');
@@ -231,47 +232,80 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const [staffQuery, setStaffQuery] = useState('');
 
   const allStaffOptions = useMemo(() => {
-    const list: Array<{ name: string; empId?: string; branchId: string; telegram?: string; label: string; isCurrentBranch: boolean }> = [];
-    const seen = new Set<string>();
+    const list: Array<{
+      name: string;
+      empId?: string;
+      branchId: string;
+      telegram?: string;
+      label: string;
+      isCurrentBranch: boolean;
+    }> = [];
+    const seenNames = new Set<string>();
+    const seenEmpIds = new Set<string>();
 
+    // 1. Primary Staff Directory & IAM Accounts
     if (users && users.length > 0) {
       for (const u of users) {
         if (u.status === 'Suspended') continue;
-        const cleanName = u.name.trim();
-        if (!cleanName || seen.has(cleanName.toLowerCase())) continue;
-        seen.add(cleanName.toLowerCase());
+        const baseName = normalizeStaffName(u.name);
+        if (!baseName) continue;
+        const nameKey = baseName.toLowerCase();
+        const empIdKey = u.empId?.trim().toLowerCase();
+
+        if (seenNames.has(nameKey) || (empIdKey && seenEmpIds.has(empIdKey))) {
+          continue;
+        }
+        seenNames.add(nameKey);
+        if (empIdKey) seenEmpIds.add(empIdKey);
+
+        const uBranch = String(u.branchId || '').trim();
         list.push({
-          name: cleanName,
-          empId: u.empId,
-          branchId: u.branchId,
-          telegram: u.telegramUsername,
-          label: `${cleanName}${u.empId ? ` (${u.empId})` : ''}`,
-          isCurrentBranch: String(u.branchId).trim() === String(branchId).trim(),
+          name: baseName,
+          empId: u.empId?.trim(),
+          branchId: uBranch,
+          telegram: u.telegramUsername?.trim(),
+          label: `${baseName}${u.empId ? ` (${u.empId})` : ''}`,
+          isCurrentBranch: uBranch === String(branchId).trim(),
         });
       }
     }
 
+    // 2. Branch staff fallback (without duplicating any user already registered)
     for (const b of branches) {
+      const bCode = String(b.code || b.id || '').trim();
       for (const s of b.staff || []) {
-        const clean = s.trim();
-        if (!clean || seen.has(clean.toLowerCase())) continue;
-        seen.add(clean.toLowerCase());
+        const baseName = normalizeStaffName(s);
+        if (!baseName) continue;
+        const nameKey = baseName.toLowerCase();
+        const embeddedEmpId = extractEmpIdFromName(s)?.toLowerCase();
+
+        if (seenNames.has(nameKey) || (embeddedEmpId && seenEmpIds.has(embeddedEmpId))) {
+          continue;
+        }
+        seenNames.add(nameKey);
+        if (embeddedEmpId) seenEmpIds.add(embeddedEmpId);
+
         list.push({
-          name: clean,
-          branchId: b.code || b.id,
-          label: clean,
-          isCurrentBranch: String(b.code || b.id).trim() === String(branchId).trim(),
+          name: baseName,
+          empId: embeddedEmpId,
+          branchId: bCode,
+          label: `${baseName}${embeddedEmpId ? ` (${embeddedEmpId})` : ''}`,
+          isCurrentBranch: bCode === String(branchId).trim(),
         });
       }
     }
 
-    if (staff && !seen.has(staff.trim().toLowerCase())) {
-      list.push({
-        name: staff.trim(),
-        branchId,
-        label: staff.trim(),
-        isCurrentBranch: true,
-      });
+    // 3. Currently assigned staff on this device (if not in list yet)
+    if (staff) {
+      const baseStaff = normalizeStaffName(staff);
+      if (baseStaff && !seenNames.has(baseStaff.toLowerCase())) {
+        list.push({
+          name: baseStaff,
+          branchId: String(branchId).trim(),
+          label: baseStaff,
+          isCurrentBranch: true,
+        });
+      }
     }
 
     return list.sort((a, b) => {
@@ -411,7 +445,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       stockStatus: moved.stockStatus,
       branchId: finalBranchId,
       branchName: targetBranch ? targetBranch.name : `Branch Code ${finalBranchId}`,
-      staff: finalStaff,
+      staff: normalizeStaffName(finalStaff),
       merchantName: moved.merchantName,
       merchantPhone: moved.merchantPhone,
       location: moved.location,
@@ -1125,7 +1159,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           value={st.name}
                           className={isLight ? 'bg-white text-slate-900 font-bold' : 'bg-slate-900 text-white font-bold'}
                         >
-                          ⭐ {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''} · Branch ${branchId}
+                          ⭐ {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''} · Branch {branchId}
                         </option>
                       ))}
 
@@ -1138,7 +1172,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           value={st.name}
                           className={isLight ? 'bg-white text-slate-600' : 'bg-slate-900 text-slate-300'}
                         >
-                          {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''} · Branch ${st.branchId}
+                          {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''} · Branch {st.branchId}
                         </option>
                       ))}
                   </select>

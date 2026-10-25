@@ -30,6 +30,7 @@ import { todayPP, stampPP, stampSecPP } from './utils/time';
 import { newRecordId } from './utils/ids';
 import { canMove, moveError, statusOf, onMove } from './utils/stages';
 import { csvFile } from './utils/csv';
+import { deduplicateStaffList } from './utils/staffUtils';
 import { tidFromMid } from './utils/tid';
 import { TraceModal } from './components/TraceModal';
 import { SaveGuard, throttled, watchNewVersion } from './utils/saveGuard';
@@ -302,6 +303,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         return parsed.map((b) => ({
           ...b,
           name: b.id === '100' ? 'Head Office' : b.name,
+          staff: deduplicateStaffList(b.staff || []),
         }));
       }
     } catch (e) {
@@ -580,6 +582,25 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         if (staffList) {
           const bn = new Map((srvBranches || []).map((b) => [b.id, b.name]));
           setUsers(staffList.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId))));
+          setBranches((prev) => {
+            const byBranch = new Map<string, string[]>();
+            for (const s of staffList) {
+              if (!s.active) continue;
+              const bId = String(s.branchId).trim();
+              const displayName = s.name.trim();
+              if (!byBranch.has(bId)) byBranch.set(bId, []);
+              const list = byBranch.get(bId)!;
+              if (!list.includes(displayName)) list.push(displayName);
+            }
+            return prev.map((b) => {
+              const sList = byBranch.get(String(b.code).trim()) || byBranch.get(String(b.id).trim()) || [];
+              const combined = deduplicateStaffList([...sList, ...(b.staff || [])]);
+              return {
+                ...b,
+                staff: combined.length > 0 ? combined : b.staff,
+              };
+            });
+          });
         }
       });
     }
@@ -2016,7 +2037,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
           return prev.map((b) => {
             const sList = byBranch.get(String(b.code).trim()) || byBranch.get(String(b.id).trim()) || [];
-            const combined = Array.from(new Set([...sList, ...(b.staff || [])]));
+            const combined = deduplicateStaffList([...sList, ...(b.staff || [])]);
             return {
               ...b,
               staff: combined.length > 0 ? combined : b.staff,

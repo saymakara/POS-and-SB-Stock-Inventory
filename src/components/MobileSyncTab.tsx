@@ -8,6 +8,7 @@ import {
   MobileInstallSyncPayload,
 } from '../types';
 import { STAGE_META } from '../data/initialData';
+import { deduplicateStaffList } from '../utils/staffUtils';
 import {
   reportCaughtError,
   subscribeTechnicalErrorPopup,
@@ -1343,7 +1344,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                               : 'bg-black/40 border-rose-500/40 text-white'
                           }`}
                         >
-                          {(branches.find((b) => b.id === branchId)?.staff || [activeStaff]).map((st) => (
+                          {(deduplicateStaffList(branches.find((b) => b.id === branchId)?.staff || [activeStaff])).map((st) => (
                             <option key={st} value={st} className="bg-zinc-900 text-white">
                               {st}
                             </option>
@@ -1429,7 +1430,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                               : 'bg-black/40 border-amber-500/40 text-white'
                           }`}
                         >
-                          {(branches.find((b) => b.id === branchId)?.staff || [activeStaff]).map((st) => (
+                          {(deduplicateStaffList(branches.find((b) => b.id === branchId)?.staff || [activeStaff])).map((st) => (
                             <option key={st} value={st} className="bg-zinc-900 text-white">
                               {st}
                             </option>

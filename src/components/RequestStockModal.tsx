@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Branch, ThemeMode, UserRole } from '../types';
+import { deduplicateStaffList } from '../utils/staffUtils';
 import {
   X,
   SendHorizontal,
@@ -65,7 +66,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
   // BRANCH users: branch is always their own (server-assigned), never selectable.
   const effectiveBranchId = isAdmin ? selectedBranchId : activeBranchId;
   const currentBranch = branches.find((b) => b.id === effectiveBranchId);
-  const staffList = currentBranch?.staff || [];
+  const staffList = deduplicateStaffList(currentBranch?.staff || []);
   // BRANCH users: requester is always the signed-in operator (read-only).
   const effectiveStaff = isAdmin ? selectedStaff : operatorLabel.trim();
 
@@ -336,7 +337,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     <option value="" disabled>
                       {staffList.length ? 'Choose staff officer…' : 'No staff registered for this branch'}
                     </option>
-                    {staffList.map((s) => (
+                    {staffList.map((s: string) => (
                       <option
                         key={s}
                         value={s}

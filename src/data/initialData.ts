@@ -72,12 +72,12 @@ export function buildInitialUsers(): User[] {
 export function buildInitialBranches(users: User[]): Branch[] {
   return RAW_BRANCHES.map(b => {
     const branchUsers = users.filter(u => u.branchId === b.id);
-    const staff = branchUsers.filter(u => u.status !== 'Suspended').map(u => u.label);
+    const staff = branchUsers.filter(u => u.status !== 'Suspended').map(u => u.name);
     return {
       id: b.id,
       code: b.id,
       name: b.name,
-      staff: staff.length > 0 ? staff : (branchUsers.map(u => u.label)),
+      staff: Array.from(new Set(staff.length > 0 ? staff : branchUsers.map(u => u.name))),
       staffDetails: branchUsers
     };
   });

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
+import { normalizeStaffName } from '../utils/staffUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   SendHorizontal,
@@ -93,7 +94,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   const teamGroups = useMemo(() => {
     const map = new Map<string, { staff: string; staffTelegram?: string; branchId: string; branchName: string; devices: Device[] }>();
     for (const d of configuringDevices) {
-      const staffName = d.staff || d.installedByStaff || 'Unassigned Staff';
+      const rawStaff = d.staff || d.installedByStaff || 'Unassigned Staff';
+      const staffName = normalizeStaffName(rawStaff);
       const bObj = branches.find((b) => b.code === d.branchId);
       const bName = bObj ? bObj.name : (d.branchName || `Branch ${d.branchId}`);
       const key = `${staffName}__${d.branchId}`;
