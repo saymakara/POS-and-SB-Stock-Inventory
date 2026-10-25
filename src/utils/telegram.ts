@@ -10,7 +10,7 @@
  * mapped fall back to the default group chat ID.
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { stampSecPP, todayPP } from './time';
+import { stampSecPP } from './time';
 import type { Branch, TelegramRegionalGroup } from '../types';
 
 // -----------------------------------------------------------------------------
@@ -343,6 +343,20 @@ export function formatTelegramMention(raw?: string | null): string {
   return `@${clean}`;
 }
 
+/**
+ * Generates a unique, human-friendly Push Tracking ID (e.g. PUSH-261025-4819).
+ * Format: PUSH-YYMMDD-XXXX (4-digit random number)
+ * Super easy to search and find in Telegram search!
+ */
+export function generatePushTrackingId(): string {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `PUSH-${yy}${mm}${dd}-${rand}`;
+}
+
 export interface DeviceConfigTelegramAlertInfo {
   serial: string;
   type?: string;
@@ -358,6 +372,9 @@ export interface DeviceConfigTelegramAlertInfo {
   staffTelegram?: string;
   actor?: string;
   adminOperator?: string;
+  /** Unique Tracking ID generated for this push alert (e.g. PUSH-261025-4819). Searchable in Telegram. */
+  pushId?: string;
+  pushTrackingId?: string;
   /** Send to this chat instead of resolving one from the branch (used by "Test Group"). */
   targetChatId?: string;
   targetGroupName?: string;
@@ -369,6 +386,7 @@ export interface DeviceConfigTelegramAlertResult {
   ok: boolean;
   resolvedChatId?: string;
   groupName?: string;
+  pushId?: string;
   error?: string;
 }
 
@@ -385,8 +403,10 @@ export async function sendDeviceConfigTelegramAlert(
   const devModel = info.model ? ` · ${info.model}` : '';
   const mention = formatTelegramMention(info.staffTelegram);
   const staffDisplay = info.staff || info.staffName || 'Branch Officer';
+  const pushId = info.pushId || info.pushTrackingId || generatePushTrackingId();
   const text = [
     `📲 *Under Configuring — Ready for App Push*`,
+    `🆔 *Push Tracking ID:* \`${pushId}\``,
     `• *Action Required:* Please *OPEN the device* and connect to network to wait for pushing the app!`,
     `• *Assigned By:* *${info.actor || info.adminOperator || 'System Admin'}*`,
     `• *Configure By:* *${staffDisplay}*`,
@@ -395,8 +415,9 @@ export async function sendDeviceConfigTelegramAlert(
     `• *Hardware Serial:* \`${info.serial}\` (${devType}${devModel})`,
     `• *Merchant Name:* *${info.merchantName || 'Configured Merchant'}*`,
     `• *MID:* \`${info.mid || '—'}\`  |  *TID:* \`${info.tid || '—'}\``,
-    mention ? `\n👉 *Attention ${mention}:* Please power ON and open device \`${info.serial}\` now to wait for app push!` : null,
+    mention ? `\n👉 *Attention ${mention}:* Please power ON and open device \`${info.serial}\` now to wait for app push! (Ref: \`${pushId}\`)` : null,
     `• *Timestamp:* ${stampSecPP()}`,
+    `🔎 *Search in Telegram:* \`${pushId}\``,
   ]
     .filter(Boolean)
     .join('\n');
@@ -406,6 +427,7 @@ export async function sendDeviceConfigTelegramAlert(
     ok: res.ok,
     resolvedChatId: res.resolvedChatId || target.chatId,
     groupName: target.groupName,
+    pushId,
     error: res.ok ? undefined : res.error || 'Failed to dispatch Telegram alert',
   };
 }
@@ -423,6 +445,8 @@ export interface BatchDeviceConfigItem {
   staff?: string;
   staffName?: string;
   staffTelegram?: string;
+  pushId?: string;
+  pushTrackingId?: string;
 }
 
 export interface BatchDeviceConfigTelegramAlertInfo {
@@ -431,12 +455,16 @@ export interface BatchDeviceConfigTelegramAlertInfo {
   actor?: string;
   regionalGroups?: TelegramRegionalGroup[];
   branches?: Branch[];
+  /** Optional pre-generated Batch Push Tracking ID (e.g. PUSH-261025-4819). */
+  pushId?: string;
+  pushTrackingId?: string;
 }
 
 export interface BatchDeviceConfigTelegramAlertResult {
   ok: boolean;
   totalUnits: number;
   groupsSent: number;
+  pushId?: string;
   details: Array<{ chatId: string; groupName: string; units: number; ok: boolean; error?: string }>;
   error?: string;
 }
@@ -447,10 +475,12 @@ export interface BatchDeviceConfigTelegramAlertResult {
 export function buildDeviceConfigCsv(
   devices: BatchDeviceConfigItem[],
   branchId?: string,
-  actor?: string
+  actor?: string,
+  batchPushId?: string
 ): string {
   const headers = [
     'No.',
+    'Push Tracking ID',
     'Serial Number',
     'Device Type',
     'Model',
@@ -465,8 +495,10 @@ export function buildDeviceConfigCsv(
   ];
 
   const rows = devices.map((d, idx) => {
+    const rowPushId = d.pushTrackingId || d.pushId || batchPushId || '—';
     return [
       String(idx + 1),
+      rowPushId,
       d.serial,
       d.deviceType || d.type || 'POS Terminal',
       d.model || '—',
@@ -500,6 +532,7 @@ export async function sendBatchDeviceConfigTelegramAlert(
   const config = getTelegramWebhookConfig();
   const timestamp = stampSecPP();
   const actor = info.actor || info.adminOperator || 'System Admin';
+  const batchPushId = info.pushId || info.pushTrackingId || generatePushTrackingId();
 
   // chat ID → devices (+ every group name that routes there, so a shared chat is labelled correctly)
   const destinations = new Map<string, { names: Set<string>; isRegional: boolean; devices: BatchDeviceConfigItem[] }>();
@@ -517,19 +550,20 @@ export async function sendBatchDeviceConfigTelegramAlert(
     const groupName = Array.from(dest.names).join(' + ');
     const sampleBranch = dest.devices[0]?.branchId || '100';
     const sampleBranchName = dest.devices[0]?.branchName || groupName;
-    const fileName = `Branch_${sampleBranch}_Config_Queue_${todayPP()}.csv`;
-    const fileCsv = buildDeviceConfigCsv(dest.devices, sampleBranch, actor);
+    const fileName = `Branch_${sampleBranch}_Config_Queue_${batchPushId}.csv`;
+    const fileCsv = buildDeviceConfigCsv(dest.devices, sampleBranch, actor, batchPushId);
 
     // Build 1 consolidated Telegram notification (instead of 10 separate pop-up messages!)
     const lines = [
       `📲 *Branch Code ${sampleBranch} (${sampleBranchName}) — Configuration Queue*`,
+      `🆔 *Batch Push Tracking ID:* \`${batchPushId}\``,
       `• *${dest.isRegional ? 'Regional Group' : 'Destination'}:* *${groupName}*`,
       `• *Total Devices:* *${dest.devices.length} units to configure*`,
       `• *Assigned By:* *${actor}*`,
       `• *Action Required:* Assigned officers please *OPEN devices* and connect to network to wait for App Push!`,
       `• *Attached File:* 📁 \`${fileName}\` (tap file to open device & merchant list)`,
       ``,
-      `📋 *Device Queue (${dest.devices.length} units):*`,
+      `📋 *Device Queue (${dest.devices.length} units) — [Ref: \`${batchPushId}\`]:*`,
     ];
 
     // List all devices (up to 10) with full details
@@ -546,7 +580,11 @@ export async function sendBatchDeviceConfigTelegramAlert(
       lines.push(`... and ${dest.devices.length - 10} more units in attached configuration file.`);
     }
 
-    lines.push(``, `• *Timestamp:* ${timestamp}`);
+    lines.push(
+      ``,
+      `🔎 *Search in Telegram:* \`${batchPushId}\``,
+      `• *Timestamp:* ${timestamp}`
+    );
 
     const res = await dispatchTelegramDocument(
       config.botToken,
@@ -564,6 +602,7 @@ export async function sendBatchDeviceConfigTelegramAlert(
     ok: groupsSent > 0,
     totalUnits: info.devices.length,
     groupsSent,
+    pushId: batchPushId,
     details,
     error: groupsSent > 0 ? undefined : details.find((d) => d.error)?.error || 'All regional group dispatches failed.',
   };

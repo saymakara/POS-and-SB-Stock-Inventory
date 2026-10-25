@@ -3,6 +3,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
+import { generatePushTrackingId } from '../utils/telegram';
 import { normalizeStaffName } from '../utils/staffUtils';
 import { todayPP, stampSecPP, clockPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
@@ -28,6 +29,8 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   RotateCw,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface PushConfiguringTabProps {
@@ -84,6 +87,29 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
   const STORAGE_KEY_PUSHED_CONFIGURING = 'crm_pos_pushed_configuring_serials_v1';
   const STORAGE_KEY_PUSH_TIMESTAMPS = 'crm_pos_push_timestamps_v1';
+  const STORAGE_KEY_PUSH_TRACKING = 'crm_pos_push_tracking_v1';
+
+  const [pushTrackingMap, setPushTrackingMap] = useState<Record<string, { pushId: string; pushTime: string; pushedBy: string }>>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_PUSH_TRACKING);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      // ignore
+    }
+    return {};
+  });
+
+  const [copiedPushId, setCopiedPushId] = useState<string | null>(null);
+
+  const handleCopyPushId = (id: string) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(id).catch(() => {});
+    }
+    setCopiedPushId(id);
+    setTimeout(() => {
+      setCopiedPushId((curr) => (curr === id ? null : curr));
+    }, 2000);
+  };
 
   const [pushedSerialsLocal, setPushedSerialsLocal] = useState<Set<string>>(() => {
     try {
@@ -130,15 +156,29 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     }
   }, [pushedSerials]);
 
-  const recordPushedSerials = useCallback((serials: string[]) => {
+  const recordPushedSerials = useCallback((serials: string[], batchId?: string) => {
     if (serials.length === 0) return;
     const nowStamp = stampSecPP();
+    const assignedPushId = batchId || generatePushTrackingId();
 
     setPushTimestamps((prev) => {
       const next = { ...prev };
       serials.forEach((sn) => { next[sn] = nowStamp; });
       try {
         localStorage.setItem(STORAGE_KEY_PUSH_TIMESTAMPS, JSON.stringify(next));
+      } catch (e) {
+        // ignore
+      }
+      return next;
+    });
+
+    setPushTrackingMap((prev) => {
+      const next = { ...prev };
+      serials.forEach((sn) => {
+        next[sn] = { pushId: assignedPushId, pushTime: nowStamp, pushedBy: operatorLabel || 'System Admin' };
+      });
+      try {
+        localStorage.setItem(STORAGE_KEY_PUSH_TRACKING, JSON.stringify(next));
       } catch (e) {
         // ignore
       }
@@ -157,7 +197,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     });
 
     onMarkPushed?.(serials);
-  }, [onMarkPushed]);
+  }, [onMarkPushed, operatorLabel]);
 
   const isDevicePushed = useCallback((serial: string): boolean => {
     return (
@@ -166,6 +206,23 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       Boolean(pushTimestamps[serial])
     );
   }, [pushedSerials, pushedSerialsLocal, pushTimestamps]);
+
+  const getDevicePushId = useCallback((dev: Device): string | null => {
+    if (dev.pushTrackingId) return dev.pushTrackingId;
+    if (pushTrackingMap[dev.serial]?.pushId) return pushTrackingMap[dev.serial].pushId;
+    if (isDevicePushed(dev.serial)) {
+      const existingDate = pushTimestamps[dev.serial] || dev.updatedAt;
+      const dStr = existingDate ? existingDate.slice(2, 10).replace(/-/g, '') : todayPP().slice(2).replace(/-/g, '');
+      let hash = 0;
+      for (let i = 0; i < dev.serial.length; i++) {
+        hash = ((hash << 5) - hash) + dev.serial.charCodeAt(i);
+        hash |= 0;
+      }
+      const randCode = String(Math.abs(hash) % 9000 + 1000);
+      return `PUSH-${dStr}-${randCode}`;
+    }
+    return null;
+  }, [pushTrackingMap, isDevicePushed, pushTimestamps]);
 
   const rowTimerRef = useRef<NodeJS.Timeout | null>(null);
   const teamTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -238,7 +295,9 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       if (branchFilter !== 'ALL' && d.branchId !== branchFilter) return false;
       if (typeFilter !== 'ALL' && d.type !== typeFilter) return false;
       if (!q) return true;
+      const pushId = (getDevicePushId(d) || '').toLowerCase();
       return (
+        pushId.includes(q) ||
         d.serial.toLowerCase().includes(q) ||
         (d.merchantName || '').toLowerCase().includes(q) ||
         (d.mid || '').toLowerCase().includes(q) ||
@@ -251,7 +310,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         (d.stockInDate || '').toLowerCase().includes(q)
       );
     });
-  }, [configuringDevices, search, branchFilter, typeFilter]);
+  }, [configuringDevices, search, branchFilter, typeFilter, getDevicePushId]);
 
   // Lookup map for staff Telegram handles
   const userTelegramMap = useMemo(() => {
@@ -438,7 +497,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       rowConfirmExpiresRef.current = 0;
 
       // Record push timestamp and mark pushed
-      recordPushedSerials([serial]);
+      const pushId = generatePushTrackingId();
+      recordPushedSerials([serial], pushId);
 
       // 1-minute cooldown before another push
       const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
@@ -467,7 +527,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       teamConfirmExpiresRef.current = 0;
 
       // Record push timestamp and mark pushed for all units in team
-      recordPushedSerials(serials);
+      const pushId = generatePushTrackingId();
+      recordPushedSerials(serials, pushId);
 
       // 1-minute cooldown for this team and all devices in it
       const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
@@ -502,7 +563,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       batchConfirmExpiresRef.current = 0;
 
       // Record push timestamp and mark pushed for all selected units
-      recordPushedSerials(selectedSns);
+      const pushId = generatePushTrackingId();
+      recordPushedSerials(selectedSns, pushId);
 
       // 1-minute cooldown for batch and selected devices
       const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
@@ -592,7 +654,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     setPusherPassword('');
     setPusherPasswordError('');
     const allSerials = configuringDevices.map((d) => d.serial);
-    recordPushedSerials(allSerials);
+    const pushId = generatePushTrackingId();
+    recordPushedSerials(allSerials, pushId);
     const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
     setPushedCooldowns((prev) => {
       const next: Record<string, number> = { ...prev, batch: cooldownExp };
@@ -609,6 +672,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     if (filteredDevices.length === 0) return;
     const headers = [
       'No.',
+      'Push Tracking ID',
       'Date & Time of Request Push',
       'Serial & Model',
       'Merchant Name & MID / TID',
@@ -619,6 +683,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     const rows = filteredDevices.map((dev, idx) => {
       const bObj = branches.find((b) => b.code === dev.branchId);
       const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
+      const devPushId = getDevicePushId(dev) || 'Pending Push';
       const reqInfo = getRequestPushDateTime(dev);
       const serialModel = `${dev.serial} (${dev.model || dev.type})`;
       const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
@@ -628,6 +693,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
       return [
         String(idx + 1),
+        devPushId,
         reqInfo.full,
         serialModel,
         merchantMidTid,
@@ -651,6 +717,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     if (tg.devices.length === 0) return;
     const headers = [
       'No.',
+      'Push Tracking ID',
       'Date & Time of Request Push',
       'Serial & Model',
       'Merchant Name & MID / TID',
@@ -663,6 +730,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     const rows = tg.devices.map((dev, idx) => {
       const bObj = branches.find((b) => b.code === dev.branchId);
       const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
+      const devPushId = getDevicePushId(dev) || 'Pending Push';
       const reqInfo = getRequestPushDateTime(dev);
       const serialModel = `${dev.serial} (${dev.model || dev.type})`;
       const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
@@ -670,6 +738,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       const assignedBy = getAssignedBy(dev);
       return [
         String(idx + 1),
+        devPushId,
         reqInfo.full,
         serialModel,
         merchantMidTid,
@@ -980,7 +1049,7 @@ return (
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search serial, merchant, MID, TID, staff, date..."
+              placeholder="Search Push ID (PUSH-...), serial, MID, TID, staff, date..."
               className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs border outline-none transition-all duration-150 ${
                 isLight
                   ? 'border-slate-200 bg-slate-50 text-zinc-900 focus:bg-white focus:border-[#003857]'
@@ -1175,6 +1244,7 @@ return (
                     className="rounded border-slate-300 cursor-pointer accent-[#003857]"
                   />
                 </th>
+                <th className="py-3 px-4">Push Tracking ID</th>
                 <th className="py-3 px-4">Date &amp; Time of Request Push</th>
                 <th className="py-3 px-4">Serial &amp; Model</th>
                 <th className="py-3 px-4">Merchant Name &amp; MID / TID</th>
@@ -1187,7 +1257,7 @@ return (
             <tbody className={`divide-y ${isLight ? 'divide-slate-100' : 'divide-slate-800/60'}`}>
               {filteredDevices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     <Boxes className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     <div className="text-sm font-bold text-slate-600 dark:text-slate-300">No devices in Push Configuring queue</div>
                     <div className="text-xs text-slate-400 mt-0.5">
@@ -1207,6 +1277,7 @@ return (
                   const staffName = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
                   const assignedBy = getAssignedBy(dev);
                   const requestPushInfo = getRequestPushDateTime(dev);
+                  const devPushId = getDevicePushId(dev);
 
                   return (
                     <tr
@@ -1229,6 +1300,44 @@ return (
                           aria-label={`Select ${dev.serial}`}
                           className="rounded border-slate-300 cursor-pointer accent-[#003857]"
                         />
+                      </td>
+
+                      {/* Push Tracking ID */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {devPushId ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition shadow-2xs ${
+                                isLight
+                                  ? 'bg-sky-50 text-sky-900 border-sky-200/90'
+                                  : 'bg-sky-950/60 text-sky-200 border-sky-800'
+                              }`}
+                              title={`Push Tracking ID: ${devPushId} (Search in Telegram)`}
+                            >
+                              <span className="text-sky-600 dark:text-sky-400 font-black">#</span>
+                              <span>{devPushId}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyPushId(devPushId);
+                              }}
+                              className="p-1 rounded-md text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                              title="Copy Push Tracking ID (to find in Telegram)"
+                            >
+                              {copiedPushId === devPushId ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            Pending Push
+                          </span>
+                        )}
                       </td>
 
                       {/* Date & Time of Request Push */}

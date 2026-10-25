@@ -116,6 +116,7 @@ import {
   TechnicalErrorPayload,
   sendDeviceConfigTelegramAlert,
   sendBatchDeviceConfigTelegramAlert,
+  generatePushTrackingId,
 } from './utils/errorLogger';
 import { SetupAlert } from './components/SetupAlert';
 import {
@@ -139,6 +140,7 @@ const STORAGE_KEY_HISTORICAL_MERCHANTS = 'crm_pos_historical_merchants_v20';
 const STORAGE_KEY_SETTINGS = 'crm_pos_settings_v20';
 const STORAGE_KEY_AUTH_SESSION = 'crm_pos_auth_session_v20';
 const STORAGE_KEY_PUSHED_CONFIGURING = 'crm_pos_pushed_configuring_serials_v1';
+export const STORAGE_KEY_PUSH_TRACKING = 'crm_pos_push_tracking_v1';
 
 interface StoredAuthSession {
   role: UserRole;
@@ -334,6 +336,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       localStorage.removeItem('crm_pos_devices_v11');
       const saved = localStorage.getItem(STORAGE_KEY_DEVICES);
       if (saved) {
+        let pushTrackingMap: Record<string, { pushId: string; pushTime: string; pushedBy: string }> = {};
+        try {
+          const rawPt = localStorage.getItem(STORAGE_KEY_PUSH_TRACKING);
+          if (rawPt) pushTrackingMap = JSON.parse(rawPt);
+        } catch (e) {}
+
         const parsed: Device[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.map((d, idx) => {
@@ -357,12 +365,16 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               : d.serial === 'WP5400PQ23200305' || (d.stage === 'FAULTY' && !d.merchantName && d.returnReason === 'Merchant Closed Business')
               ? 'BRANCH_RESERVE'
               : d.stage) as LifecycleStage;
+            const ptRecord = pushTrackingMap[serial] || pushTrackingMap[d.serial];
             return {
               ...d,
               serial,
               batterySerial,
               mid,
               stage,
+              pushTrackingId: d.pushTrackingId || ptRecord?.pushId,
+              pushDate: d.pushDate || ptRecord?.pushTime,
+              pushedBy: d.pushedBy || ptRecord?.pushedBy,
               type: (isSoundBox ? 'Sound Box' : 'POS Terminal') as Device['type'],
               model: d.model || (isSoundBox ? 'Aisino S90' : 'Wizar POS Q2 Pro'),
               branchName: d.branchId === '100' ? 'Head Office' : d.branchName,
@@ -1688,6 +1700,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         }
         return nextSet;
       });
+      try {
+        const rawPt = localStorage.getItem(STORAGE_KEY_PUSH_TRACKING);
+        if (rawPt) {
+          const ptMap = JSON.parse(rawPt);
+          if (ptMap[serial]) {
+            delete ptMap[serial];
+            localStorage.setItem(STORAGE_KEY_PUSH_TRACKING, JSON.stringify(ptMap));
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
     }
 
     addAuditLog('Serial Cycle Updated', `Updated serial ${serial}: ${STAGE_META[d.stage].short} → ${stageLabel} (Branch Code ${updates.branchId})`);
@@ -2210,6 +2234,57 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (targets.length === 0) return;
 
     const operator = operatorLabel || profile?.name || 'System Admin';
+    const nowTime = stampSecPP();
+
+    // 1. Resolve or generate unique Push Tracking ID (e.g. PUSH-261025-4819)
+    let pushId = '';
+    try {
+      const rawTracking = localStorage.getItem(STORAGE_KEY_PUSH_TRACKING);
+      if (rawTracking) {
+        const trackingMap = JSON.parse(rawTracking);
+        for (const sn of list) {
+          if (trackingMap[sn]?.pushId) {
+            pushId = trackingMap[sn].pushId;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    if (!pushId) {
+      pushId = generatePushTrackingId();
+    }
+
+    // 2. Persist push tracking metadata in localStorage so it persists across reloads
+    try {
+      const rawTracking = localStorage.getItem(STORAGE_KEY_PUSH_TRACKING);
+      const trackingMap: Record<string, { pushId: string; pushTime: string; pushedBy: string }> = rawTracking ? JSON.parse(rawTracking) : {};
+      list.forEach((sn) => {
+        trackingMap[sn] = { pushId, pushTime: nowTime, pushedBy: operator };
+      });
+      localStorage.setItem(STORAGE_KEY_PUSH_TRACKING, JSON.stringify(trackingMap));
+    } catch (e) {
+      // ignore
+    }
+
+    // 3. Update in-memory devices state with push tracking metadata and history event
+    setDevices((prev) =>
+      prev.map((d) =>
+        list.includes(d.serial)
+          ? {
+              ...d,
+              pushTrackingId: pushId,
+              pushDate: nowTime,
+              pushedBy: operator,
+              history: [
+                `${nowTime} | App Push Notified | Push ID: ${pushId} — Officer: ${operator}`,
+                ...(d.history || []),
+              ],
+            }
+          : d
+      )
+    );
 
     if (targets.length === 1) {
       const dev = targets[0];
@@ -2218,8 +2293,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       const mName = dev.merchantName || 'Merchant Profile';
 
       addNotification(
-        `Open Device for App Push • ${dev.serial}`,
-        `Assigned By: ${operator}. Configure By (Staff): ${staffTarget}. Please power ON and open ${dev.type} SN ${dev.serial} (${mName}) to wait for app push.`,
+        `Open Device for App Push • ${dev.serial} [${pushId}]`,
+        `Assigned By: ${operator}. Configure By (Staff): ${staffTarget}. Push Tracking ID: ${pushId}. Please power ON and open ${dev.type} SN ${dev.serial} (${mName}) to wait for app push.`,
         'REQUEST',
         dev.branchId,
         'inventory'
@@ -2238,17 +2313,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         staffName: staffTarget,
         staffTelegram: singleStaffTg,
         adminOperator: operator,
+        pushId,
       });
 
       addAuditLog(
         'App Push Notification Sent',
-        `Assigned by ${operator}. Configure by staff (${staffTarget}): alert sent for ${dev.type} ${dev.serial} (${mName})`
+        `Assigned by ${operator}. Push ID: ${pushId}. Configure by staff (${staffTarget}): alert sent for ${dev.type} ${dev.serial} (${mName})`
       );
 
       triggerToast(
         res.ok
-          ? `Notification sent to ${staffTarget} & Telegram (${res.groupName || 'Group'}): Open ${dev.serial} to wait for app push!`
-          : `In-app alert recorded for SN ${dev.serial}. (Telegram: ${res.error || 'Check settings'})`
+          ? `[${pushId}] Notification sent to ${staffTarget} & Telegram (${res.groupName || 'Group'}): Open ${dev.serial} to wait for app push!`
+          : `[${pushId}] In-app alert recorded for SN ${dev.serial}. (Telegram: ${res.error || 'Check settings'})`
       );
     } else {
       // Bulk notification for multiple devices (supporting ~200 units daily across multiple teams)
@@ -2263,8 +2339,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       for (const [staffKey, groupDevs] of byStaff.entries()) {
         const sampleB = groupDevs[0]?.branchId || '100';
         addNotification(
-          `Batch App Push Ready (${groupDevs.length} Units)`,
-          `Assigned By: ${operator}. Configure By: ${staffKey}. Please power ON and open ${groupDevs.length} assigned device(s) to wait for app push.`,
+          `Batch App Push Ready (${groupDevs.length} Units) [${pushId}]`,
+          `Assigned By: ${operator}. Configure By: ${staffKey}. Batch Tracking ID: ${pushId}. Please power ON and open ${groupDevs.length} assigned device(s) to wait for app push.`,
           'REQUEST',
           sampleB,
           'inventory'
@@ -2286,8 +2362,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             branchName: d.branchName,
             staff: sName,
             staffTelegram: tg,
+            pushId,
           };
         }),
+        pushId,
         adminOperator: operator,
         regionalGroups: appSettings.telegramRegionalGroups,
         branches: branches,
@@ -2295,13 +2373,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
       addAuditLog(
         'Bulk App Push Notification Sent',
-        `Assigned by ${operator}. Notified ${targets.length} device(s) ready for app push across ${byStaff.size} assigned team(s) and ${res.groupsSent} Telegram regional group(s).`
+        `Assigned by ${operator}. Batch Push ID: ${pushId}. Notified ${targets.length} device(s) ready for app push across ${byStaff.size} assigned team(s) and ${res.groupsSent} Telegram regional group(s).`
       );
 
       triggerToast(
         res.ok
-          ? `Sent batch App Push alert for ${targets.length} unit(s) across ${res.groupsSent} regional Telegram group(s)!`
-          : `Sent in-app batch alert for ${targets.length} units. (Telegram: ${res.error || 'Check settings'})`
+          ? `[${pushId}] Sent batch App Push alert for ${targets.length} unit(s) across ${res.groupsSent} regional Telegram group(s)!`
+          : `[${pushId}] Sent in-app batch alert for ${targets.length} units. (Telegram: ${res.error || 'Check settings'})`
       );
     }
   };

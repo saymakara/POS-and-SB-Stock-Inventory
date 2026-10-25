@@ -79,6 +79,10 @@ export interface Device {
   customFields?: Record<string, string>;
   /** Server version of the row (22 Oct 2026): a save from an out-of-date copy is refused. */
   rowVersion?: number;
+  /** Unique Tracking ID generated when device is notified & pushed (e.g. PUSH-261025-4819). Searchable in Telegram. */
+  pushTrackingId?: string;
+  pushDate?: string;
+  pushedBy?: string;
 }
 
 export interface SystemNotification {
