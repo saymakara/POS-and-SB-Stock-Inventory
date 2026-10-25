@@ -1142,13 +1142,6 @@ const ReviewRow = memo(function ReviewRow({
           >
             {STATUS_LABEL[e.status].length > 12 ? 'Closed' : STATUS_LABEL[e.status]}
           </span>
-          {(blocks > 0 || warns > 0) && pending && (
-            <span className="block text-[10.5px] font-normal mt-0.5 text-slate-500">
-              {blocks > 0 && <span className="text-rose-600">{blocks} to fix</span>}
-              {blocks > 0 && warns > 0 && ' · '}
-              {warns > 0 && <span className="text-amber-600">{warns} to check</span>}
-            </span>
-          )}
         </span>
         <span className="flex justify-end gap-1.5">
           {pending && isAdmin ? (
