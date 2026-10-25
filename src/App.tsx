@@ -119,9 +119,13 @@ import {
 } from './utils/errorLogger';
 import { SetupAlert } from './components/SetupAlert';
 import {
-  loadDevicesFromIdb,
   saveDevicesToIdb,
   clearDevicesFromIdb,
+  loadFullCacheFromIdb,
+  saveRequisitionsToIdb,
+  saveHistoricalMerchantsToIdb,
+  saveBranchesToIdb,
+  saveFullSnapshotToIdb,
 } from './utils/idbStorage';
 
 const STORAGE_KEY_DEVICES = 'crm_pos_devices_v20';
@@ -324,63 +328,64 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   });
 
   const [devices, setDevices] = useState<Device[]>(() => {
-    if (isSupabaseConfigured) return [];                               // (21 Oct 2026) the stock comes from the database only
     try {
       // Purge any legacy benchmark cache
       localStorage.removeItem('crm_pos_devices_v11');
       const saved = localStorage.getItem(STORAGE_KEY_DEVICES);
       if (saved) {
         const parsed: Device[] = JSON.parse(saved);
-        return parsed.map((d, idx) => {
-          const isSoundBox = d.type === 'Sound Box';
-          // Normalize serial to WP5400PQ format if old POS-
-          const serial = d.serial.startsWith('POS-')
-            ? `WP5400PQ${23200297 + idx}`
-            : d.serial;
-          // Ensure 15-digit MID
-          let mid = d.mid || '';
-          if (mid && !/^\d{15}$/.test(mid)) {
-            const digits = mid.replace(/\D/g, '');
-            mid = `100000880${d.branchId || '101'}${digits.slice(-3).padStart(3, '0')}`;
-          }
-          // Normalize battery serial to standard format
-          const batterySerial = !d.batterySerial || d.batterySerial.startsWith('BAT-')
-            ? (isSoundBox ? `SB-BAT-${serial}` : `160525A${String(5709 + idx).padStart(7, '0')}`)
-            : d.batterySerial;
-          const stage = ((d.stage as string) === 'OUT_FOR_INSTALL'
-            ? 'CONFIGURING'
-            : d.serial === 'WP5400PQ23200305' || (d.stage === 'FAULTY' && !d.merchantName && d.returnReason === 'Merchant Closed Business')
-            ? 'BRANCH_RESERVE'
-            : d.stage) as LifecycleStage;
-          return {
-            ...d,
-            serial,
-            batterySerial,
-            mid,
-            stage,
-            type: (isSoundBox ? 'Sound Box' : 'POS Terminal') as Device['type'],
-            model: d.model || (isSoundBox ? 'Aisino S90' : 'Wizar POS Q2 Pro'),
-            branchName: d.branchId === '100' ? 'Head Office' : d.branchName,
-          };
-        });
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((d, idx) => {
+            const isSoundBox = d.type === 'Sound Box';
+            // Normalize serial to WP5400PQ format if old POS-
+            const serial = d.serial.startsWith('POS-')
+              ? `WP5400PQ${23200297 + idx}`
+              : d.serial;
+            // Ensure 15-digit MID
+            let mid = d.mid || '';
+            if (mid && !/^\d{15}$/.test(mid)) {
+              const digits = mid.replace(/\D/g, '');
+              mid = `100000880${d.branchId || '101'}${digits.slice(-3).padStart(3, '0')}`;
+            }
+            // Normalize battery serial to standard format
+            const batterySerial = !d.batterySerial || d.batterySerial.startsWith('BAT-')
+              ? (isSoundBox ? `SB-BAT-${serial}` : `160525A${String(5709 + idx).padStart(7, '0')}`)
+              : d.batterySerial;
+            const stage = ((d.stage as string) === 'OUT_FOR_INSTALL'
+              ? 'CONFIGURING'
+              : d.serial === 'WP5400PQ23200305' || (d.stage === 'FAULTY' && !d.merchantName && d.returnReason === 'Merchant Closed Business')
+              ? 'BRANCH_RESERVE'
+              : d.stage) as LifecycleStage;
+            return {
+              ...d,
+              serial,
+              batterySerial,
+              mid,
+              stage,
+              type: (isSoundBox ? 'Sound Box' : 'POS Terminal') as Device['type'],
+              model: d.model || (isSoundBox ? 'Aisino S90' : 'Wizar POS Q2 Pro'),
+              branchName: d.branchId === '100' ? 'Head Office' : d.branchName,
+            };
+          });
+        }
       }
     } catch (e) {
       console.error(e);
     }
+    if (isSupabaseConfigured) return [];
     return buildInitialDevices(buildInitialBranches(buildInitialUsers()));
   });
 
   const [requisitions, setRequisitions] = useState<Requisition[]>(() => {
-    if (isSupabaseConfigured) return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_REQS);
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
     }
+    if (isSupabaseConfigured) return [];
     return createInitialRequisitions();
   });
-
   const [traceQuery, setTraceQuery] = useState('');
   const [workflowPreset, setWorkflowPreset] = useState<'' | 'RETURN'>('');
   const [auditLogs, setAuditLogs] = useState<string[]>(() => {
@@ -419,16 +424,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   });
 
   const [historicalMerchants, setHistoricalMerchants] = useState<HistoricalMerchantRecord[]>(() => {
-    if (isSupabaseConfigured) return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_HISTORICAL_MERCHANTS);
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
     }
+    if (isSupabaseConfigured) return [];
     return INITIAL_HISTORICAL_MERCHANTS;
   });
-
   const [appSettings, setAppSettings] = useState<AppSettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SETTINGS);
@@ -456,14 +460,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [sseConnected, setSseConnected] = useState<boolean>(true);
 
   useEffect(() => {
-    if (isSupabaseConfigured) return;
-    try {
-      localStorage.setItem(
-        STORAGE_KEY_HISTORICAL_MERCHANTS,
-        JSON.stringify(historicalMerchants)
-      );
-    } catch (e) {
-      console.error(e);
+    if (historicalMerchants.length > 0) {
+      saveHistoricalMerchantsToIdb(historicalMerchants).catch(() => {});
+      try {
+        if (historicalMerchants.length <= 2000) {
+          localStorage.setItem(
+            STORAGE_KEY_HISTORICAL_MERCHANTS,
+            JSON.stringify(historicalMerchants)
+          );
+        }
+      } catch (e) {
+        console.error(e);
+      }
     }
   }, [historicalMerchants]);
 
@@ -649,6 +657,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       syncedHist.current = new Set(hist.map((h) => h.recordId));
       setHistoricalMerchants(hist);
     }
+    if (devs || reqs || hist || srvBranches) {
+      saveFullSnapshotToIdb({
+        devices: devs || undefined,
+        requisitions: reqs || undefined,
+        historicalMerchants: hist || undefined,
+        branches: (srvBranches as any) || undefined,
+      }).catch(() => {});
+    }
     return Boolean(devs && reqs && hist);
   }, [profile?.role]);
 
@@ -764,19 +780,37 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
   }, [reloadFromServer]);
 
-  // High-Volume Device Hydration from IndexedDB (supports up to 500,000+ rows)
+  // Instant Cache Hydration from IndexedDB (runs on initial mount for instant UI load)
   useEffect(() => {
-    if (isSupabaseConfigured) return;                                  // (21 Oct 2026) the database is the record
     let isMounted = true;
-    loadDevicesFromIdb()
-      .then((idbDevices) => {
+    loadFullCacheFromIdb()
+      .then((cache) => {
         if (!isMounted) return;
-        if (idbDevices && idbDevices.length > 0) {
-          setDevices(idbDevices);
+        if (cache.devices && cache.devices.length > 0) {
+          cache.devices.forEach((d) => {
+            syncedDevices.current.set(d.serial, d);
+            serverCopies.current.add(d);
+          });
+          setDevices((prev) => (prev.length === 0 ? cache.devices! : prev));
+          setServerDeviceTotal((prev) => (prev === null ? cache.devices!.length : prev));
+        }
+        if (cache.requisitions && cache.requisitions.length > 0) {
+          cache.requisitions.forEach((r) => {
+            syncedReqs.current.set(r.reqId, r);
+            serverCopies.current.add(r);
+          });
+          setRequisitions((prev) => (prev.length === 0 ? cache.requisitions! : prev));
+        }
+        if (cache.historicalMerchants && cache.historicalMerchants.length > 0) {
+          cache.historicalMerchants.forEach((h) => syncedHist.current.add(h.recordId));
+          setHistoricalMerchants((prev) => (prev.length === 0 ? cache.historicalMerchants! : prev));
+        }
+        if (cache.branches && cache.branches.length > 0) {
+          setBranches((prev) => (prev.length === 0 ? cache.branches! : prev));
         }
       })
       .catch((err) => {
-        console.warn('[IndexedDB Load Devices Warning]', err);
+        console.warn('[IndexedDB Cache Hydration Warning]', err);
       });
     return () => {
       isMounted = false;
@@ -784,40 +818,43 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   }, []);
 
   useEffect(() => {
-    if (isSupabaseConfigured) return;                                  // (22 Oct 2026) stock data is never cached in the browser
     if (devices.length > 0) {
       saveDevicesToIdb(devices).catch((err) =>
         console.warn('[IndexedDB Save Devices Warning]', err)
       );
-    } else {
-      clearDevicesFromIdb().catch(() => {});
-    }
-
-    try {
-      if (devices.length <= 5000) {
-        localStorage.setItem(STORAGE_KEY_DEVICES, JSON.stringify(devices));
-      } else {
-        localStorage.removeItem(STORAGE_KEY_DEVICES);
+      try {
+        if (devices.length <= 5000) {
+          localStorage.setItem(STORAGE_KEY_DEVICES, JSON.stringify(devices));
+        } else {
+          localStorage.removeItem(STORAGE_KEY_DEVICES);
+        }
+      } catch (e) {
+        // LocalStorage Quota Exceeded (Gracefully handled; IndexedDB stores up to 500K)
       }
-    } catch (e) {
-      // LocalStorage Quota Exceeded (Gracefully handled; IndexedDB stores up to 500K)
+    } else if (!isSupabaseConfigured) {
+      clearDevicesFromIdb().catch(() => {});
     }
   }, [devices]);
 
   useEffect(() => {
-    if (isSupabaseConfigured) return;
-    try {
-      localStorage.setItem(STORAGE_KEY_REQS, JSON.stringify(requisitions));
-    } catch (e) {
-      console.error(e);
+    if (requisitions.length > 0) {
+      saveRequisitionsToIdb(requisitions).catch(() => {});
+      try {
+        localStorage.setItem(STORAGE_KEY_REQS, JSON.stringify(requisitions));
+      } catch (e) {
+        console.error(e);
+      }
     }
   }, [requisitions]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_BRANCHES, JSON.stringify(branches));
-    } catch (e) {
-      console.error(e);
+    if (branches.length > 0) {
+      saveBranchesToIdb(branches).catch(() => {});
+      try {
+        localStorage.setItem(STORAGE_KEY_BRANCHES, JSON.stringify(branches));
+      } catch (e) { 
+        console.error(e);
+      }
     }
   }, [branches]);
 
