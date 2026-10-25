@@ -522,6 +522,9 @@ export const FieldReviewTab: React.FC<Props> = ({
             transition={SPRING}
           />
         )}
+        {t !== 'ALL' && (
+          <span className={`inline-block w-2 h-2 rounded-full mr-1.5 align-middle ${DOT[t]}`} aria-hidden />
+        )}
         <span>{label}</span>{' '}
         <span className={`font-mono tabular-nums ${active ? 'text-slate-300' : 'text-slate-400'}`}>({n})</span>
       </button>
@@ -681,12 +684,12 @@ export const FieldReviewTab: React.FC<Props> = ({
               type="button"
               onClick={() => runBulk('reject')}
               disabled={!!bulkBusy}
-              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-normal border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-normal border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
             >
               {bulkBusy === 'reject' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <XCircle className="w-3.5 h-3.5 text-slate-500" />
+                <XCircle className="w-3.5 h-3.5 text-rose-600" />
               )}{' '}
               Reject {selectedShown.length}
             </button>
@@ -694,7 +697,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               type="button"
               onClick={() => runBulk('approve')}
               disabled={!!bulkBusy}
-              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-normal bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-normal bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
             >
               {bulkBusy === 'approve' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -967,7 +970,10 @@ const ReviewRow = memo(function ReviewRow({
         </span>
         <span className="text-right text-slate-500 font-mono font-normal tabular-nums">{no}</span>
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-normal text-slate-700">
-          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" aria-hidden />
+          <span
+            className={`w-2 h-2 rounded-full ${type === 'Sound Box' ? 'bg-violet-600' : 'bg-sky-600'}`}
+            aria-hidden
+          />
           {type}
         </span>
         <span className="truncate leading-snug font-normal text-slate-700" title={KIND_LABEL[e.kind]}>
@@ -1042,7 +1048,7 @@ const ReviewRow = memo(function ReviewRow({
                 type="button"
                 onClick={() => onReject(e)}
                 disabled={busy}
-                className="btn-press px-2.5 py-1 rounded-lg text-xs font-normal border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
+                className="btn-press px-2.5 py-1 rounded-lg text-xs font-normal border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 cursor-pointer"
               >
                 Reject
               </button>
@@ -1057,7 +1063,7 @@ const ReviewRow = memo(function ReviewRow({
                     ? 'Open the line and choose the branch'
                     : undefined
                 }
-                className="btn-press px-2.5 py-1 rounded-lg text-xs font-normal bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-45 cursor-pointer inline-flex items-center gap-1"
+                className="btn-press px-2.5 py-1 rounded-lg text-xs font-normal bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-45 cursor-pointer inline-flex items-center gap-1"
               >
                 {busy && <Loader2 className="w-3 h-3 animate-spin" />}Approve
               </button>
