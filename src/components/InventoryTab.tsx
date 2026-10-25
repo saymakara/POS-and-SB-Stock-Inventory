@@ -22,7 +22,7 @@ import {
   Search,
   Filter,
   Plus,
-  FileDown,
+  FileSpreadsheet,
   CheckSquare,
   Square,
   Building2,
@@ -596,9 +596,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               whileTap={{ scale: 0.97 }}
               onClick={() => setShowExportMenu((v) => !v)}
               aria-expanded={showExportMenu}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold tracking-wide bg-white/12 hover:bg-white/20 text-white border border-white/20 transition cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
             >
-              <FileDown className="w-3.5 h-3.5" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Export CSV</span>
             </motion.button>
 

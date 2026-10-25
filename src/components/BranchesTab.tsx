@@ -26,7 +26,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Download,
+  FileSpreadsheet,
   Package,
 } from 'lucide-react';
 
@@ -439,10 +439,11 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <button
               type="button"
               onClick={handleExportCsv}
-              className="p-2 rounded-lg border bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
               title="Export Branch Codes Table to CSV"
             >
-              <Download className="w-3.5 h-3.5" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Export CSV</span>
             </button>
 
             {/* Add Branch Button (Admin) */}

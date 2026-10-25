@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Store,
   Search,
-  FileDown,
+  FileSpreadsheet,
   Building2,
   Clock,
   RotateCcw,
@@ -478,9 +478,10 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           <button
             type="button"
             onClick={handleExportCsv}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-zinc-800 border border-slate-200 shadow-2xs flex items-center gap-1.5 transition cursor-pointer"
+            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
+            title="Export Merchant Decommission History Table to CSV (matching table columns)"
           >
-            <FileDown className="w-4 h-4 text-zinc-700" />
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Export CSV</span>
           </button>
         </div>

@@ -434,10 +434,10 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               type="button"
               onClick={handleExportCsv}
               disabled={shownReqs.length === 0}
-              className="px-3 py-1.5 rounded-md text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-2xs transition disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-2xs transition disabled:opacity-50"
               title="Export Stock Requests Table to CSV (matching table columns)"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Export CSV</span>
             </motion.button>
             <motion.button
