@@ -1185,9 +1185,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         <option
                           key={`${st.name}__${st.empId || ''}__${st.branchId}`}
                           value={st.name}
-                          className={isLight ? 'bg-white text-slate-900 font-bold' : 'bg-slate-900 text-white font-bold'}
+                          className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
                         >
-                          ⭐ {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''} · Branch {branchId}
+                          {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''}
                         </option>
                       ))}
                     {allStaffOptions.length === 0 && (
