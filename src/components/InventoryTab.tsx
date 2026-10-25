@@ -154,7 +154,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const [serverMatchedTotal, setServerMatchedTotal] = useState<number | null>(null);
 
   const isServerPaginated = Boolean(
-    onFetchServerPage && typeof serverTotalDevices === 'number' && serverTotalDevices > 100
+    onFetchServerPage && typeof serverTotalDevices === 'number' && serverTotalDevices > 10000
   );
 
   // Fetch the active server page when the dataset exceeds 100 rows (up to 500,000+ rows)

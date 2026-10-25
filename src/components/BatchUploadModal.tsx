@@ -775,7 +775,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   // When the database has more rows than the in-memory page (e.g. up to 500,000 rows), query the primary-key B-Tree index
   // for candidate CSV serials so duplicates against the full 500K-row database are flagged with exact Row & Column numbers.
   React.useEffect(() => {
-    if (!isOpen || rawStagedItems.length === 0 || existingDevices.length < 100) {
+    if (!isOpen || rawStagedItems.length === 0 || existingDevices.length < 10000) {
       setServerExistingSerials(new Set());
       return;
     }
@@ -878,7 +878,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     // Strict Pre-Validation Gate: Never ping the database if any error or duplicate exists in the batch
     if (validItems.length === 0 || isUploadHalted || isCommittingBatches) return;
 
-    if (existingDevices.length >= 100) {
+    if (existingDevices.length >= 10000) {
       const serverDups = await checkExistingSerialsOnServer(validItems.map((i) => i.serial));
       if (serverDups.size > 0) {
         setServerExistingSerials((prev) => {

@@ -522,7 +522,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     versionAlias.current = new Map();
     const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
     const [devs, reqs, hist, srvBranches, staff] = await Promise.all([
-      fetchDevicesPageFromSupabase({ page: 1, pageSize: 100 }),
+      fetchDevicesFromSupabase(),
       fetchRequisitionsFromSupabase(),
       fetchHistoricalMerchantsFromSupabase(),
       fetchBranchesFromSupabase(),
@@ -541,14 +541,17 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       setUsers(staff.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId))));
     }
     if (devs) {
-      const devRows = devs.rows;
-      setServerDeviceTotal(devs.total);
+      const devRows = devs;
+      setServerDeviceTotal(devRows.length);
       syncedDevices.current = new Map(devRows.map((d) => [d.serial, d]));
       devRows.forEach((d) => serverCopies.current.add(d));
       setDevices(devRows);
-      if (devs.total > devRows.length) {
+      if (devRows.length >= 10000) {
         fetchDeviceStageCountsFromSupabase().then((summary) => {
-          if (summary) setServerStageSummary(summary);
+          if (summary) {
+            setServerStageSummary(summary);
+            setServerDeviceTotal(summary.all + summary.archived);
+          }
         });
       } else {
         setServerStageSummary(null);
@@ -1229,7 +1232,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   // Refresh 500K-row server stage counts when branch scope changes on a large dataset
   useEffect(() => {
-    if (!isSupabaseConfigured || !serverDeviceTotal || serverDeviceTotal <= 100) return;
+    if (!isSupabaseConfigured || !serverDeviceTotal || serverDeviceTotal <= 10000) return;
     let cancelled = false;
     const effectiveBranch = role === 'BRANCH' ? selectedBranch : branchFilter;
     fetchDeviceStageCountsFromSupabase(effectiveBranch).then((summary) => {
@@ -1274,7 +1277,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // When searching from the global header bar on a >100-row dataset outside InventoryTab, fetch matching page from server
   useEffect(() => {
     const q = deferredSearchQuery.trim();
-    if (!isSupabaseConfigured || !serverDeviceTotal || serverDeviceTotal <= 100 || q.length < 2 || shownTab === 'inventory') {
+    if (!isSupabaseConfigured || !serverDeviceTotal || serverDeviceTotal <= 10000 || q.length < 2 || shownTab === 'inventory') {
       return;
     }
     const timer = setTimeout(() => {

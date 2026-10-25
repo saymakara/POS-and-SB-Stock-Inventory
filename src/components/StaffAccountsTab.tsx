@@ -24,7 +24,7 @@ function makePassword(): string {
   return s.slice(0, 5) + '-' + s.slice(5) + (/\d/.test(s) ? '' : '7');
 }
 
-const STAFF_CACHE_KEY = 'staff_accounts_cache_v1';                 // shown at once on the next visit, cleared at sign-out
+const STAFF_CACHE_KEY = 'staff_accounts_cache_v2';                 // shown at once on the next visit, cleared at sign-out
 
 export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; triggerToast: (m: string) => void }> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';

@@ -40,7 +40,7 @@ type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
 const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as const;
 const SPRING = { type: 'spring', stiffness: 420, damping: 38, mass: 0.7 } as const;
 const GRID = 'grid items-center gap-x-3 grid-cols-[22px_26px_96px_100px_120px_minmax(120px,1fr)_minmax(100px,1fr)_minmax(100px,1fr)_88px_132px]';
-const CACHE_KEY = 'fe_review_cache_v1';
+const CACHE_KEY = 'fe_review_cache_v2';
 
 const fmtTime = (iso: string | null) => {
   if (!iso) return '';
@@ -80,7 +80,8 @@ const entryOf = (e: FieldEvent): { serial: How; mid: How } => {
 };
 const howText = (h: How) => (h === 'SCAN' ? 'Scanned' : h === 'TYPED' ? 'Typed by hand' : 'Not reported');
 
-export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, triggerToast, onApplied, onOpenWorkflow, scope = 'PHNOM_PENH' }) => {
+export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, triggerToast, onApplied, onOpenWorkflow, scope = 'ALL' }) => {
+  const [activeScope, setActiveScope] = useState<'ALL' | 'PHNOM_PENH'>(scope === 'ALL' ? 'ALL' : 'ALL');
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [events, setEvents] = useState<FieldEvent[] | null>(() => {
     try { const c = sessionStorage.getItem(CACHE_KEY); return c ? (JSON.parse(c) as FieldEvent[]) : null; } catch { return null; }   // instant first paint
@@ -152,13 +153,13 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
   }, [devices]);
 
   const inScope = useCallback((e: FieldEvent) => {
-    if (scope !== 'PHNOM_PENH') return true;
+    if (activeScope !== 'PHNOM_PENH') return true;
     if (/province|provincial|regional/i.test(e.branchText || '')) return false;
     if (!e.branchId) return true;                                   // no branch given yet: kept visible for review
     if (Object.keys(regions).length === 0) return true;             // regions still loading
     const r = regions[String(e.branchId)];
     return r !== undefined && (r === '' || /phnom\s*penh/i.test(r));                          // not a Phnom Penh branch of this system = regional
-  }, [scope, regions]);
+  }, [activeScope, regions]);
   const scoped = useMemo(() => (events || []).filter(inScope), [events, inScope]);
 
   const counts = useMemo(() => {
@@ -189,7 +190,7 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
     status: (e) => STATUS_LABEL[e.status], date: (e) => e.receivedAt,
   });
   // more rows are drawn as the list is scrolled: a long list opens at once
-  const pg = usePager(shown.length, [filter, typeFilter, deferredQuery, scope, sort]);
+  const pg = usePager(shown.length, [filter, typeFilter, deferredQuery, activeScope, sort]);
 
   const shownPending = useMemo(() => shown.filter((e) => e.status === 'PENDING'), [shown]);
   const selectedShown = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
@@ -304,13 +305,20 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
           {typePill('ALL', 'All devices', typeCounts.pos + typeCounts.sb)}
           {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
           {typePill('Sound Box', 'Sound Box', typeCounts.sb)}
-          <span className="text-[11px] text-slate-500 hidden xl:inline">{scope === 'PHNOM_PENH' ? 'Phnom Penh staff only' : 'Phnom Penh and Regional staff'}</span>
+          <button
+            type="button"
+            onClick={() => setActiveScope((prev) => (prev === 'ALL' ? 'PHNOM_PENH' : 'ALL'))}
+            className="btn-press px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer"
+            title="Click to switch between All Branches (Phnom Penh + Regional) and Phnom Penh staff only"
+          >
+            {activeScope === 'PHNOM_PENH' ? 'Phnom Penh staff only' : 'All Branches (Phnom Penh & Regional)'}
+          </button>
           <div className="relative ml-auto w-full sm:w-56">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Serial, MID, staff…" aria-label="Search records"
               className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs outline-none focus:border-[#003857]" />
           </div>
-          <ClearFiltersButton className="!py-1.5" active={!!query || typeFilter !== 'ALL' || filter !== 'PENDING'} onClear={() => { setQuery(''); setTypeFilter('ALL'); setFilter('PENDING'); }} />
+          <ClearFiltersButton className="!py-1.5" active={!!query || typeFilter !== 'ALL' || filter !== 'PENDING' || activeScope !== 'ALL'} onClear={() => { setQuery(''); setTypeFilter('ALL'); setFilter('PENDING'); setActiveScope('ALL'); }} />
           <button type="button" onClick={load} aria-label="Refresh" className="btn-press p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer"><RefreshCw className="w-3.5 h-3.5" /></button>
         </div>
       </section>

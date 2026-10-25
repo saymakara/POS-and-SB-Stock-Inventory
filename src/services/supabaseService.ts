@@ -454,6 +454,30 @@ export async function fetchDevicesPageFromSupabase(
 
 export async function fetchDevicesFromSupabase(limit = 100, offset = 0): Promise<Device[] | null> {
   if (!isSupabaseConfigured) return null;
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  try {
+    const all: Device[] = [];
+    let curOffset = Math.max(0, offset);
+    while (true) {
+      const res = await fetchPaginatedRows('devices', 'serial', {
+        limit: safeLimit,
+        offset: curOffset,
+        ascending: true,
+      });
+      if (!res) return all.length > 0 ? all : null;
+      all.push(...res.rows.map(mapRowToDevice));
+      if (res.rows.length < safeLimit || all.length >= res.count || all.length >= 10000) break;
+      curOffset += safeLimit;
+    }
+    return all;
+  } catch (err) {
+    await reportCaughtError('fetchDevicesFromSupabase', err, { showPopup: false });
+    return null;
+  }
+}
+
+async function _unusedFetchDevicesSinglePage(limit = 100, offset = 0): Promise<Device[] | null> {
+  if (!isSupabaseConfigured) return null;
   try {
     const res = await fetchPaginatedRows('devices', 'serial', { limit, offset, ascending: true });
     return res ? res.rows.map(mapRowToDevice) : null;
@@ -513,6 +537,32 @@ export async function fetchRequisitionsPageFromSupabase(
 }
 
 export async function fetchRequisitionsFromSupabase(limit = 100, offset = 0): Promise<Requisition[] | null> {
+  if (!isSupabaseConfigured) return null;
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  try {
+    const allRows: any[] = [];
+    let curOffset = Math.max(0, offset);
+    while (true) {
+      const res = await fetchPaginatedRows('requisitions', 'req_id', {
+        limit: safeLimit,
+        offset: curOffset,
+        ascending: true,
+      });
+      if (!res) return allRows.length > 0 ? allRows.map(mapRowToRequisition) : null;
+      allRows.push(...res.rows);
+      if (res.rows.length < safeLimit || allRows.length >= res.count || allRows.length >= 2000) break;
+      curOffset += safeLimit;
+    }
+    return allRows
+      .map(mapRowToRequisition)
+      .sort((x, y) => String(y.date).localeCompare(String(x.date)) || y.reqId.localeCompare(x.reqId));
+  } catch (err) {
+    await reportCaughtError('fetchRequisitionsFromSupabase', err, { showPopup: false });
+    return null;
+  }
+}
+
+async function _unusedFetchRequisitionsSinglePage(limit = 100, offset = 0): Promise<Requisition[] | null> {
   if (!isSupabaseConfigured) return null;
   try {
     const res = await fetchPaginatedRows('requisitions', 'req_id', { limit, offset, ascending: true });
@@ -1152,7 +1202,62 @@ export async function fetchBranchRegions(): Promise<Record<string, string>> {
 }
 
 /** Waiting records fetched with strict server-side limit() and range(offset, offset + limit - 1). */
-export async function fetchPendingFieldEvents(limit = 50, offset = 0): Promise<FieldEvent[] | null> {
+export async function fetchPendingFieldEvents(limit = 100, offset = 0): Promise<FieldEvent[] | null> {
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeOffset = Math.max(0, offset);
+  try {
+    const all: any[] = [];
+    let curOffset = safeOffset;
+    while (true) {
+      const { data, error } = await supabase
+        .from('field_events')
+        .select('*')
+        .eq('status', 'PENDING')
+        .order('received_at', { ascending: false })
+        .limit(safeLimit)
+        .range(curOffset, curOffset + safeLimit - 1);
+      if (error) throw error;
+      const rows = data || [];
+      all.push(...rows);
+      if (rows.length < safeLimit || all.length >= 2000) break;
+      curOffset += safeLimit;
+    }
+    return all.map(mapFieldEvent);
+  } catch (err) {
+    await reportCaughtError('fetchPendingFieldEvents', err, { showPopup: false });
+    return null;
+  }
+}
+
+export async function fetchReviewedFieldEvents(limit = 100, offset = 0): Promise<FieldEvent[] | null> {
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeOffset = Math.max(0, offset);
+  try {
+    const all: any[] = [];
+    let curOffset = safeOffset;
+    while (true) {
+      const { data, error } = await supabase
+        .from('field_events')
+        .select('*')
+        .neq('status', 'PENDING')
+        .order('received_at', { ascending: false })
+        .limit(safeLimit)
+        .range(curOffset, curOffset + safeLimit - 1);
+      if (error) throw error;
+      const rows = data || [];
+      all.push(...rows);
+      if (rows.length < safeLimit || all.length >= 1000) break;
+      curOffset += safeLimit;
+    }
+    return all.map(mapFieldEvent);
+  } catch (err) {
+    await reportCaughtError('fetchReviewedFieldEvents', err, { showPopup: false });
+    return null;
+  }
+}
+
+// Legacy single-page helper kept for internal reference
+async function _unusedFetchPendingSinglePage(limit = 50, offset = 0): Promise<FieldEvent[] | null> {
   const safeLimit = Math.max(1, Math.min(limit, 100));
   const safeOffset = Math.max(0, offset);
   try {
@@ -1172,7 +1277,7 @@ export async function fetchPendingFieldEvents(limit = 50, offset = 0): Promise<F
 }
 
 /** Reviewed records fetched with strict server-side limit() and range(offset, offset + limit - 1). */
-export async function fetchReviewedFieldEvents(limit = 50, offset = 0): Promise<FieldEvent[] | null> {
+async function _unusedFetchReviewedSinglePage(limit = 50, offset = 0): Promise<FieldEvent[] | null> {
   const safeLimit = Math.max(1, Math.min(limit, 100));
   const safeOffset = Math.max(0, offset);
   try {
@@ -1320,6 +1425,31 @@ const mapStaff = (r: any): StaffAccount => ({
 });
 
 export async function fetchStaffAccounts(limit = 100, offset = 0): Promise<StaffAccount[] | null> {
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  try {
+    const all: any[] = [];
+    let curOffset = Math.max(0, offset);
+    while (true) {
+      const { data, error } = await supabase
+        .from('staff_profiles')
+        .select('*')
+        .order('emp_id')
+        .limit(safeLimit)
+        .range(curOffset, curOffset + safeLimit - 1);
+      if (error) throw error;
+      const rows = data || [];
+      all.push(...rows);
+      if (rows.length < safeLimit || all.length >= 2000) break;
+      curOffset += safeLimit;
+    }
+    return all.map(mapStaff);
+  } catch (err) {
+    await reportCaughtError('fetchStaffAccounts', err, { showPopup: false });
+    return null;
+  }
+}
+
+async function _unusedFetchStaffSinglePage(limit = 100, offset = 0): Promise<StaffAccount[] | null> {
   const safeLimit = Math.max(1, Math.min(limit, 100));
   const safeOffset = Math.max(0, offset);
   try {
