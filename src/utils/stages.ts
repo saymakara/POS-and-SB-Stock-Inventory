@@ -10,9 +10,9 @@
 import { Device, LifecycleStage } from '../types';
 
 export const ALLOWED_NEXT: Record<LifecycleStage, LifecycleStage[]> = {
-  HQ_STOCK: ['BRANCH_RESERVE', 'LOST'],
+  HQ_STOCK: ['BRANCH_RESERVE', 'CONFIGURING', 'LOST'],
   BRANCH_RESERVE: ['CONFIGURING', 'COMPLETE', 'HQ_STOCK', 'LOST'],
-  CONFIGURING: ['COMPLETE', 'BRANCH_RESERVE', 'LOST'],
+  CONFIGURING: ['COMPLETE', 'BRANCH_RESERVE', 'HQ_STOCK', 'LOST'],
   COMPLETE: ['BRANCH_RESERVE', 'HQ_STOCK', 'LOST'],
   FAULTY: ['HQ_STOCK', 'BRANCH_RESERVE', 'LOST'],      // only for units that were already marked faulty before: they can leave this stage
   LOST: ['HQ_STOCK', 'BRANCH_RESERVE'],
@@ -26,7 +26,7 @@ export function moveError(from: LifecycleStage, to: LifecycleStage, labels: Reco
 export function statusOf(stage: LifecycleStage): { deploymentStatus: string; stockStatus: string } {
   switch (stage) {
     case 'COMPLETE': return { deploymentStatus: 'Deployed', stockStatus: 'At Merchant' };
-    case 'CONFIGURING': return { deploymentStatus: 'In-process', stockStatus: 'In-Stock' };
+    case 'CONFIGURING': return { deploymentStatus: 'Under Configuring', stockStatus: 'In-Stock' };
     case 'FAULTY': return { deploymentStatus: 'Faulty / Returned', stockStatus: 'Faulty' };
     case 'LOST': return { deploymentStatus: 'Lost', stockStatus: 'Lost' };
     default: return { deploymentStatus: 'In-Stock (Reserve)', stockStatus: 'In-Stock' };

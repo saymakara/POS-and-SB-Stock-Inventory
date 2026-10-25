@@ -391,6 +391,8 @@ interface HeaderProps {
   searchQuery?: string;
   onSearchChange?: (q: string) => void;
   onTrace?: (q: string) => void;
+  onlineOperators?: Array<{ id: string; name: string; role: string; branchId: string; location?: string; onlineAt: string }>;
+  pingMs?: number | null;
 }
 
 export const Header: React.FC<HeaderProps> = React.memo(({
@@ -420,8 +422,11 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   searchQuery,
   onSearchChange,
   onTrace,
+  onlineOperators = [],
+  pingMs = null,
 }) => {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [onlineOpen, setOnlineOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -814,6 +819,84 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               </span>
             </div>
           )}
+
+          {/* 33 Branch Codes Connected (Green Positive Status) + Fast Ping + Who is Online Now */}
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold shrink-0 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{branches.length} Branch Codes Connected</span>
+            {pingMs !== null && (
+              <span className="ml-1 pl-1.5 border-l border-emerald-200 font-mono text-[10px] text-emerald-800">
+                {pingMs}ms
+              </span>
+            )}
+          </div>
+
+          {/* Live System Presence (Who Is Online Using the System) */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setOnlineOpen((o) => !o)}
+              title="See who is currently using the system"
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 border-emerald-200 cursor-pointer transition"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{Math.max(1, onlineOperators.length)} Online</span>
+            </button>
+            <AnimatePresence>
+              {onlineOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+                  className="absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl border bg-white border-slate-200 text-zinc-900 overflow-hidden z-50 divide-y divide-slate-100"
+                >
+                  <div className="px-4 py-2.5 bg-emerald-50/80 flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-emerald-900 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      Active System Operators ({Math.max(1, onlineOperators.length)})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setOnlineOpen(false)}
+                      className="text-xs text-slate-500 hover:text-slate-800 font-bold cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
+                    {onlineOperators.length > 0 ? (
+                      onlineOperators.map((op) => (
+                        <div key={op.id} className="px-2.5 py-2 rounded-xl hover:bg-slate-50 flex items-center justify-between gap-2 text-xs">
+                          <div className="min-w-0">
+                            <div className="font-bold text-zinc-900 truncate">{op.name}</div>
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              {op.role} · Branch {op.branchId} · {op.location || 'Phnom Penh'}
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono text-[10px] font-bold shrink-0">
+                            Active
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-2.5 py-2 rounded-xl bg-slate-50 flex items-center justify-between gap-2 text-xs">
+                        <div>
+                          <div className="font-bold text-zinc-900">{role !== 'BRANCH' ? activeAdminStaff : activeStaff} (You)</div>
+                          <div className="text-[10px] text-slate-500 font-mono">
+                            {role} · Branch {activeBranchId} · Phnom Penh
+                          </div>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono text-[10px] font-bold">
+                          Online
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Request Stock Action Button in Signature Navy Blue */}
           <motion.button

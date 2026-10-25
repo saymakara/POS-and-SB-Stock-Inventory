@@ -284,3 +284,69 @@ export async function reportCaughtError(
 
   return payload;
 }
+
+/**
+ * Policy #11: Sends a Telegram Group notification when Admin finishes setting up a Merchant Profile
+ * on an Under Configuring device, alerting the assigned staff to open the POS Terminal / device
+ * and wait for pushing the app to the device.
+ */
+export async function sendDeviceConfigTelegramAlert(info: {
+  serial: string;
+  type: string;
+  model: string;
+  mid: string;
+  tid: string;
+  merchantName: string;
+  branchId: string;
+  branchName: string;
+  staff: string;
+  actor: string;
+}): Promise<boolean> {
+  const { webhookUrl, botToken, chatId } = getTelegramWebhookConfig();
+  const timestamp = stampSecPP();
+  const formattedText = [
+    `📲 *Under Configuring — Ready for App Push*`,
+    `• *Action Required:* Please *OPEN the device* and connect to network to wait for pushing the app!`,
+    `• *Assigned Staff:* *${info.staff || 'Branch Officer'}*`,
+    `• *Branch:* Code \`${info.branchId}\` (${info.branchName})`,
+    `• *Hardware Serial:* \`${info.serial}\` (${info.type} · ${info.model})`,
+    `• *Merchant Name:* *${info.merchantName || 'Configured Merchant'}*`,
+    `• *MID:* \`${info.mid || '—'}\`  |  *TID:* \`${info.tid || '—'}\``,
+    `• *Configured By:* ${info.actor}`,
+    `• *Timestamp:* ${timestamp}`,
+  ].join('\n');
+
+  try {
+    if (botToken && chatId) {
+      const tgUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+      const res = await fetch(tgUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: formattedText,
+          parse_mode: 'Markdown',
+        }),
+      });
+      if (res.ok) return true;
+    }
+
+    if (webhookUrl) {
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId || undefined,
+          text: formattedText,
+          type: 'DEVICE_CONFIG_APP_PUSH',
+          ...info,
+          timestamp,
+        }),
+      });
+      if (res.ok) return true;
+    }
+  } catch {
+    // Non-blocking notification
+  }
+  return false;
+}

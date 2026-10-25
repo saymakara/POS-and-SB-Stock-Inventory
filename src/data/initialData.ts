@@ -62,6 +62,7 @@ export function buildInitialUsers(): User[] {
         status,
         updatedAt: '2026-10-18',
         password: empId,
+        location: 'Phnom Penh',
       });
     });
   });
@@ -92,16 +93,16 @@ export const STAGE_META: Record<LifecycleStage, StageInfo> = {
   },
   BRANCH_RESERVE: {
     label: 'Branch Reserve',
-    badgeClassLight: 'bg-[#003857] text-white border-[#002840] font-bold dark:bg-[#003857] dark:text-white dark:border-[#004b75]',
-    badgeClassDark: 'bg-[#003857] text-white border-[#004b75] font-bold',
+    badgeClassLight: 'bg-sky-100 text-sky-800 border-sky-300 font-bold dark:bg-sky-500/20 dark:text-sky-200 dark:border-sky-400/40',
+    badgeClassDark: 'bg-sky-500/20 text-sky-200 border-sky-400/40 font-bold',
     short: 'Branch Reserve',
-    color: '#003857'
+    color: '#0284c7'
   },
   CONFIGURING: {
-    label: 'Configuring',
-    badgeClassLight: 'bg-slate-100 text-slate-800 border-slate-300 font-bold',
+    label: 'Under Configuring',
+    badgeClassLight: 'bg-indigo-50 text-indigo-800 border-indigo-200 font-bold',
     badgeClassDark: 'bg-slate-800 text-slate-100 border-slate-700 font-bold',
-    short: 'Branch Config',
+    short: 'Under Configuring',
     color: '#475569'
   },
   COMPLETE: {

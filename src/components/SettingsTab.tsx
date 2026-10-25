@@ -123,6 +123,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [modalFieldDescription, setModalFieldDescription] = useState('');
   const [modalFieldRequired, setModalFieldRequired] = useState(false);
   const [modalFieldOptions, setModalFieldOptions] = useState('');
+  const [modalFieldTargetTab, setModalFieldTargetTab] = useState<'inventory' | 'merchants' | 'branches' | 'staff' | 'requisitions' | 'all'>('all');
   const [customFieldPreviewValues, setCustomFieldPreviewValues] = useState<Record<string, string>>({});
 
   const currentCustomFields: CustomFieldDefinition[] =
@@ -169,11 +170,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     setModalFieldDescription(preset?.description || '');
     setModalFieldRequired(preset?.required || false);
     setModalFieldOptions(preset?.options ? preset.options.join(', ') : '');
+    setModalFieldTargetTab(preset?.targetTab || 'all');
     setIsFieldModalOpen(true);
   };
 
   const handleOpenEditField = (field: CustomFieldDefinition) => {
     setEditingFieldId(field.id);
+    setModalFieldTargetTab(field.targetTab || 'all');
     setModalFieldLabel(field.label);
     setModalFieldKey(field.id);
     setModalFieldType(field.type);
@@ -212,6 +215,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             description: modalFieldDescription.trim(),
             required: modalFieldRequired,
             options: optionsArray,
+            targetTab: modalFieldTargetTab,
           };
         }
         return f;
@@ -230,6 +234,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 description: modalFieldDescription.trim(),
                 required: modalFieldRequired,
                 options: optionsArray,
+            targetTab: modalFieldTargetTab,
               }
             : f
         );
@@ -244,6 +249,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           enabled: true,
           options: optionsArray,
           isSystem: false,
+          targetTab: modalFieldTargetTab,
         };
         nextFields = [...currentCustomFields, newField];
       }
@@ -1131,6 +1137,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       placeholder: 'Select cellular operator',
                       description: 'Cellular network provider provisioned in the POS terminal.',
                       isSystem: false,
+          targetTab: modalFieldTargetTab,
                     },
                     {
                       id: 'boothNumber',
@@ -1139,6 +1146,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       placeholder: 'e.g. 2nd Floor, Kiosk B-14',
                       description: 'Specific booth, mall floor, or market stall identifier.',
                       isSystem: false,
+          targetTab: modalFieldTargetTab,
                     },
                     {
                       id: 'merchantTier',
@@ -1149,6 +1157,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       placeholder: 'Select tier',
                       description: 'Business tier for priority support and SLA dispatch.',
                       isSystem: false,
+          targetTab: modalFieldTargetTab,
                     },
                     {
                       id: 'installationContact',
@@ -1157,6 +1166,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       placeholder: 'e.g. Mr. Sokha (Store Supervisor)',
                       description: 'Authorized on-site person to receive and sign for hardware handovers.',
                       isSystem: false,
+          targetTab: modalFieldTargetTab,
                     },
                     {
                       id: 'contractId',
@@ -1165,6 +1175,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       placeholder: 'e.g. CTR-2026-9920',
                       description: 'Merchant acquiring legal contract reference code.',
                       isSystem: false,
+          targetTab: modalFieldTargetTab,
                     },
                   ].map((preset) => {
                     const isExisting = currentCustomFields.find((f) => f.id === preset.id);
@@ -1253,6 +1264,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                 </h4>
                                 <span className="font-mono text-[10px] text-slate-400">
                                   ({field.id})
+                                </span>
+                                <span className="font-mono text-[9.5px] uppercase font-bold px-1.5 py-0.2 rounded bg-sky-50 text-sky-800 border border-sky-200">
+                                  Tab: {field.targetTab || 'all'}
                                 </span>
                                 <span className="font-mono text-[9.5px] uppercase font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
                                   {field.type}
@@ -1533,7 +1547,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="w-full max-w-lg rounded-3xl border bg-white border-slate-200 shadow-2xl overflow-hidden text-slate-900"
+                    className="w-full max-w-2xl rounded-3xl border bg-white border-slate-200 shadow-2xl overflow-hidden text-slate-900"
                   >
                     <div className="px-6 py-4 bg-[#003857] border-b border-white/10 flex items-center justify-between text-white">
                       <div>
@@ -1554,6 +1568,27 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     </div>
 
                     <form onSubmit={handleSaveFieldModal} className="p-6 space-y-4 text-xs">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">
+                          Target Table / Tab *
+                        </label>
+                        <select
+                          value={modalFieldTargetTab}
+                          onChange={(e) =>
+                            setModalFieldTargetTab(
+                              e.target.value as 'inventory' | 'merchants' | 'branches' | 'staff' | 'requisitions' | 'all'
+                            )
+                          }
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 cursor-pointer"
+                        >
+                          <option value="all">All Tables &amp; Workflows (Global)</option>
+                          <option value="inventory">Stock Inventory Table &amp; CSV</option>
+                          <option value="merchants">Merchant Deployment (360 CRM)</option>
+                          <option value="branches">Branch Codes Directory</option>
+                          <option value="staff">Staff Directory Table</option>
+                          <option value="requisitions">Stock Requests Table</option>
+                        </select>
+                      </div>
                       <div>
                         <label className="block font-bold text-slate-700 mb-1">
                           Field Label Title *

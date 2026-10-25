@@ -24,10 +24,34 @@ export const supabase: SupabaseClient = createClient(clientUrl, clientKey, {
   },
   realtime: {
     params: {
-      eventsPerSecond: 10,
+      eventsPerSecond: 25,
+    },
+  },
+  global: {
+    headers: {
+      'x-client-info': 'pos-sb-inventory-fast/2.0',
     },
   },
 });
+
+// Pre-warm DNS + TLS handshake to the Supabase origin immediately on module load for faster ms ping
+if (isSupabaseConfigured && typeof document !== 'undefined') {
+  try {
+    const origin = new URL(clientUrl).origin;
+    const dnsLink = document.createElement('link');
+    dnsLink.rel = 'dns-prefetch';
+    dnsLink.href = origin;
+    document.head.appendChild(dnsLink);
+
+    const preconnectLink = document.createElement('link');
+    preconnectLink.rel = 'preconnect';
+    preconnectLink.href = origin;
+    preconnectLink.crossOrigin = 'anonymous';
+    document.head.appendChild(preconnectLink);
+  } catch {
+    // ignore URL parse errors
+  }
+}
 
 export async function checkSupabaseConnection(): Promise<{
   connected: boolean;
@@ -43,8 +67,8 @@ export async function checkSupabaseConnection(): Promise<{
 
   const start = performance.now();
   try {
-    const { error } = await supabase.from('branches').select('id').limit(1);
-    const latencyMs = Math.round(performance.now() - start);
+    const { error } = await supabase.from('branches').select('id', { head: true, count: 'estimated' }).limit(1);
+    const latencyMs = Math.max(1, Math.round(performance.now() - start));
 
     if (error) {
       return { connected: false, error: error.message, latencyMs };

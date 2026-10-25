@@ -29,6 +29,8 @@ import {
   Upload,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
+  Send,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -43,7 +45,7 @@ import {
   Legend,
 } from 'recharts';
 import { parseCsv } from '../utils/csv';
-import { hasKhmer, isValidMid, normalizeMid } from '../utils/display';
+import { hasKhmer, isValidMid, isValidMidForType, midRuleError, normalizeMid } from '../utils/display';
 import { newRecordId } from '../utils/ids';
 import { lastMonthsPP, todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';
@@ -66,7 +68,7 @@ export interface MerchantBindPayload {
 }
 
 /** Only units waiting at a branch (reserve or being set up) may be bound, and never one that belongs to another MID. */
-const BINDABLE_STAGES = ['BRANCH_RESERVE', 'CONFIGURING'] as const;
+const BINDABLE_STAGES = ['HQ_STOCK', 'BRANCH_RESERVE', 'CONFIGURING'] as const;
 function bindBlockReason(d: Device | undefined, targetMid: string): string {
   if (!d) return 'Serial is not in the device list. Register the unit in stock first.';
   if (d.archived) return `Serial ${d.serial} is archived.`;
@@ -129,6 +131,13 @@ interface MerchantsCrmTabProps {
     reason: string,
     notes?: string
   ) => void;
+  onReplaceMerchantDevice?: (
+    oldSerial: string,
+    newSerial: string,
+    replacedByStaff: string,
+    reason: string
+  ) => void;
+  onNotifyConfigReady?: (serial: string) => void;
   theme?: ThemeMode;
 }
 
@@ -177,6 +186,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   allDevices,
   branches,
   activeBranchId,
+  activeStaff,
+  onReplaceMerchantDevice,
+  onNotifyConfigReady,
   onOpenWorkflow,
   onBindDeviceToMerchant,
   onBulkBindDevicesToMerchants,
@@ -202,6 +214,10 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   const [terminateDestination, setTerminateDestination] = useState<'BRANCH_RESERVE' | 'HQ_STOCK'>('BRANCH_RESERVE');
   const [terminateReason, setTerminateReason] = useState<string>('Merchant Closed Business');
   const [terminateNotes, setTerminateNotes] = useState<string>('');
+  const [replaceModalDevice, setReplaceModalDevice] = useState<Device | null>(null);
+  const [replaceNewSerial, setReplaceNewSerial] = useState<string>('');
+  const [replaceStaffName, setReplaceStaffName] = useState<string>('');
+  const [replaceReason, setReplaceReason] = useState<string>('Broken / Hardware Malfunction');
 
   // Modal state for onboarding a brand-new Merchant Profile with a reserve serial
   const [newMerchantModalOpen, setNewMerchantModalOpen] = useState(false);
@@ -491,7 +507,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       }
 
       // 3. MID Validation - Must be 15 digits
-      const is15Digit = MID_REGEX.test(midClean);
+      const is15Digit = isValidMidForType(midClean, deviceMatch?.type);
       if (!midClean) {
         issues.push({
           code: 'MID_FORMAT_MISMATCH',
@@ -502,7 +518,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
         issues.push({
           code: 'MID_FORMAT_MISMATCH',
           severity: 'ERROR',
-          message: `MID must be exactly 15 numeric digits (currently ${midClean.length} characters). Correct it from the merchant's record.`,
+          message: midRuleError(midClean, deviceMatch?.type) || `MID must be 15 numeric digits (starting with 2 for POS Terminal or 6 for Sound Box).`,
         });
       }
 
@@ -627,8 +643,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   const singleBindValidation = useMemo(() => {
     if (!bindModalMerchant) return { valid: true, errors: [] as string[] };
     const errs: string[] = [];
-    if (!/^\d{15}$/.test(bindModalMerchant.mid.trim())) {
-      errs.push(`This merchant's MID (${bindModalMerchant.mid}) is not a 15-digit MID. Correct the MID before binding more units.`);
+    const targetBindDev = selectedReserveSerial ? deviceBySerial.get(selectedReserveSerial.trim().toUpperCase()) : undefined;
+    if (!isValidMidForType(bindModalMerchant.mid.trim(), targetBindDev?.type)) {
+      errs.push(midRuleError(bindModalMerchant.mid.trim(), targetBindDev?.type) || `This merchant's MID (${bindModalMerchant.mid}) is invalid.`);
     }
     if (!bindModalMerchant.merchantName.trim()) {
       errs.push('This merchant has no business name on record. Add it before binding.');
@@ -659,8 +676,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
     if (!midClean) {
       errs.push('Merchant ID (MID) is required (15 numeric digits).');
-    } else if (!MID_REGEX.test(midClean)) {
-      errs.push(`MID must be exactly 15 numeric digits (currently ${midClean.length} digits).`);
+    } else if (!isValidMidForType(midClean, deviceBySerial.get(newMerchSerial.trim().toUpperCase())?.type)) {
+      errs.push(midRuleError(midClean, deviceBySerial.get(newMerchSerial.trim().toUpperCase())?.type));
     }
     if (!tidClean) {
       errs.push('Terminal ID (TID) is required.');
@@ -695,7 +712,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     return merchantProfiles.filter((m) => {
       if (branchFilter !== 'ALL' && m.branchId !== branchFilter) return false;
       if (statusFilter !== 'ALL' && m.crmStatus !== statusFilter) return false;
-      if (bundleFilter === 'BUNDLE_BOTH' && (m.posCount === 0 || m.sbCount === 0)) return false;
+      if (bundleFilter === 'BUNDLE_BOTH' && !m.devices.some((d) => Boolean(d.replacedByStaff || d.replacedPrevSerial))) return false;
       if (bundleFilter === 'POS_ONLY' && (m.posCount === 0 || m.sbCount > 0)) return false;
       if (bundleFilter === 'SB_ONLY' && (m.sbCount === 0 || m.posCount > 0)) return false;
       if (deviceCountFilter === '1' && m.devices.length !== 1) return false;
@@ -732,7 +749,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       if (m.crmStatus === 'ACTIVE') active++;
       else if (m.crmStatus === 'ONBOARDING') onboarding++;
       else if (m.crmStatus === 'ATTENTION') attention++;
-      if (m.posCount > 0 && m.sbCount > 0) bundle++;
+      if (m.devices.some((d) => Boolean(d.replacedByStaff || d.replacedPrevSerial))) bundle++;
     }
     return {
       totalMerchants: len,
@@ -1131,7 +1148,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             }`}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Bulk MID / TID Import</span>
+            {role !== 'BRANCH' && <span>Bulk MID / TID Import</span>}
+            {role === 'BRANCH' && <span>MID / TID Fleet Audit</span>}
           </button>
         </div>
       </div>
@@ -1161,7 +1179,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
         <div className={`${cardClass} rounded-xl p-4 flex flex-col justify-between`}>
           <div className="flex items-center justify-between">
             <span className={`text-xs font-semibold ${subtextClass}`}>
-              POS + Sound Box Bundles
+              Device Replacements &amp; Swaps
             </span>
             <div className="w-8 h-8 rounded-lg bg-emerald-500/12 text-emerald-400 flex items-center justify-center">
               <Layers className="w-4 h-4" />
@@ -1173,8 +1191,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
             {bundleMerchants}
           </div>
           <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
-            <span>Dual Hardware</span>
-            <span className="text-[#003857] dark:text-[#7cc4ed] font-semibold">Full Suite</span>
+            <span>POS (2…) &bull; SB (6…)</span>
+            <span className="text-[#003857] dark:text-[#7cc4ed] font-semibold">Swapped Units</span>
+            {/* Removed Full Suite */}
           </div>
         </div>
 
@@ -1554,7 +1573,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
           className={`rounded-xl px-3 py-2 text-xs border focus:outline-none ${inputClass}`}
         >
           <option value="ALL">All Hardware Configurations</option>
-          <option value="BUNDLE_BOTH">Dual Bundle (POS + Sound Box)</option>
+          <option value="BUNDLE_BOTH">Replaced / Swapped Hardware</option>
           <option value="POS_ONLY">POS Terminal Only</option>
           <option value="SB_ONLY">Sound Box Only</option>
         </select>
@@ -1599,8 +1618,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                   <tr key={m.mid} data-flip={m.mid}>
                     <td className="col-no">{(merchantPage - 1) * merchantsPerPage + rowIdx + 1}</td>
                     <td className="whitespace-nowrap">
-                      <div className={`cell-mono ${isValidMid(m.mid) ? '' : 'warn-text'}`} title={isValidMid(m.mid) ? 'Merchant ID' : 'This MID is not 15 digits. Please correct it.'}>
-                        {m.mid}{isValidMid(m.mid) ? '' : ' ⚠'}
+                      <div className={`cell-mono ${isValidMidForType(m.mid, m.devices[0]?.type) ? '' : 'warn-text'}`} title={isValidMidForType(m.mid, m.devices[0]?.type) ? `Merchant ID (${m.devices[0]?.type === 'Sound Box' ? 'Starts with 6' : 'Starts with 2'})` : midRuleError(m.mid, m.devices[0]?.type)}>
+                        {m.mid}{isValidMidForType(m.mid, m.devices[0]?.type) ? '' : ' ⚠'}
+                        {/* Validated by device type */}
                       </div>
                       {deviceCount > 1 && <div className="cell-sub">{deviceCount} units</div>}
                     </td>
@@ -2415,7 +2435,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              className={`w-full max-w-3xl rounded-3xl border overflow-hidden shadow-2xl ${
+              className={`w-full max-w-5xl rounded-3xl border overflow-hidden shadow-2xl ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-800'
                   : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
@@ -2532,6 +2552,138 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                       Assigned Hardware Serials &amp; Terminal IDs (TID)
                     </h4>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {onReplaceMerchantDevice && selectedMerchantProfile.devices.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const dev = selectedMerchantProfile.devices[0];
+                            setReplaceModalDevice(dev);
+                            const branchCandidates = availableReserveDevices.filter(
+                              (c) => c.type === dev.type && c.branchId === dev.branchId
+                            );
+                            const fallbackCandidates = availableReserveDevices.filter(
+                              (c) => c.type === dev.type
+                            );
+                            const firstPick = branchCandidates[0] || fallbackCandidates[0];
+                            setReplaceNewSerial(firstPick ? firstPick.serial : '');
+                            setReplaceStaffName(activeStaff || dev.staff || selectedMerchantProfile.accountOfficer || '');
+                            setReplaceReason('Broken / Hardware Malfunction');
+                          }}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Record Device Replacement (Broken / Swap)</span>
+                        </button>
+                      )}
+                      {role !== 'BRANCH' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const target = selectedMerchantProfile;
+                            setSelectedMid(null);
+                            handleOpenBindModal(target);
+                          }}
+                          className="text-xs font-bold text-cyan-400 hover:underline flex items-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Bind Additional Serial</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {replaceModalDevice && onReplaceMerchantDevice && (
+                    <div className={`mb-4 p-4 rounded-2xl border-2 border-amber-400/70 ${isLight ? 'bg-amber-50/90 text-slate-900' : 'bg-amber-950/30 text-slate-100'} flex flex-col gap-3`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-extrabold text-amber-700 dark:text-amber-300">
+                          <RefreshCw className="w-4 h-4" />
+                          <span>Device Replacement &amp; Broken Hardware Swap Tracker</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setReplaceModalDevice(null)}
+                          className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <p className="text-[11px] opacity-85">
+                        Swapping broken device <strong className="font-mono">{replaceModalDevice.serial}</strong> on MID <strong className="font-mono">{selectedMerchantProfile.mid}</strong>. The new serial will replace the broken serial on the front table while recording the staff member and previous serial in 360 history.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase mb-1">Broken Serial (Out)</label>
+                          <select
+                            value={replaceModalDevice.serial}
+                            onChange={(e) => {
+                              const found = selectedMerchantProfile.devices.find((d) => d.serial === e.target.value);
+                              if (found) setReplaceModalDevice(found);
+                            }}
+                            className={`w-full rounded-xl px-2.5 py-1.5 border font-mono text-xs ${inputClass}`}
+                          >
+                            {selectedMerchantProfile.devices.map((d) => (
+                              <option key={d.serial} value={d.serial}>{d.serial} ({d.type})</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase mb-1">New Replacement Serial (In) *</label>
+                          <input
+                            type="text"
+                            list="crm-bindable-serials"
+                            value={replaceNewSerial}
+                            onChange={(e) => setReplaceNewSerial(e.target.value.toUpperCase())}
+                            placeholder="Select or type new SN..."
+                            className={`w-full rounded-xl px-2.5 py-1.5 border font-mono text-xs ${inputClass}`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase mb-1">Staff Who Replaced Device *</label>
+                          <input
+                            type="text"
+                            value={replaceStaffName}
+                            onChange={(e) => setReplaceStaffName(e.target.value)}
+                            placeholder="Staff full name..."
+                            className={`w-full rounded-xl px-2.5 py-1.5 border text-xs ${inputClass}`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase mb-1">Replacement Reason *</label>
+                          <select
+                            value={replaceReason}
+                            onChange={(e) => setReplaceReason(e.target.value)}
+                            className={`w-full rounded-xl px-2.5 py-1.5 border text-xs ${inputClass}`}
+                          >
+                            <option value="Broken / Hardware Malfunction">Broken / Hardware Malfunction</option>
+                            <option value="Battery Degraded / Power Fault">Battery Degraded / Power Fault</option>
+                            <option value="Screen / Printer / Audio Fault">Screen / Printer / Audio Fault</option>
+                            <option value="Connectivity / SIM Module Fault">Connectivity / SIM Module Fault</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          disabled={!replaceNewSerial.trim() || !replaceStaffName.trim() || replaceNewSerial.trim().toUpperCase() === replaceModalDevice.serial.toUpperCase()}
+                          onClick={() => {
+                            onReplaceMerchantDevice(
+                              replaceModalDevice.serial,
+                              replaceNewSerial.trim().toUpperCase(),
+                              replaceStaffName.trim(),
+                              replaceReason
+                            );
+                            setReplaceModalDevice(null);
+                          }}
+                          className="px-4 py-1.5 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer disabled:opacity-40"
+                        >
+                          Confirm Device Replacement &amp; Update Front Table
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="hidden">
+                    <h4>
+                    </h4>
                     <button
                       type="button"
                       onClick={() => {
@@ -2601,6 +2753,11 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                                         {dev.replacedByStaff}
                                       </strong>
                                     </span>
+                                    {dev.replacedPrevSerial && (
+                                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono font-bold bg-sky-50 text-sky-800 border border-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30">
+                                        Replaced Old SN: {dev.replacedPrevSerial}{dev.replacedDate ? ` (${dev.replacedDate})` : ''}
+                                      </span>
+                                    )}
                                     {dev.replacedByStaff !== (dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer) && (
                                       <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30">
                                         Different Person
@@ -2672,7 +2829,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
                   exit={{ opacity: 0, scale: 0.95, y: 12 }}
                   transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
                   onSubmit={handleConfirmBindDevice}
-                  className={`w-full max-w-md rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
+                  className={`w-full max-w-2xl rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
                     isLight
                       ? 'bg-white border-slate-200 text-slate-800'
                       : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
@@ -2787,7 +2944,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
               onSubmit={handleConfirmTerminate}
-              className={`w-full max-w-lg rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
+              className={`w-full max-w-2xl rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-800'
                   : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
@@ -2971,7 +3128,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
               onSubmit={handleCreateNewMerchant}
-              className={`w-full max-w-lg rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
+              className={`w-full max-w-2xl rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-800'
                   : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'

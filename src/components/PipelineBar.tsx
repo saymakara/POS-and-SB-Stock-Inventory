@@ -64,14 +64,14 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
       title: STAGE_META.BRANCH_RESERVE.short,
       count: counts.reserve,
       icon: Store,
-      accentColor: isLight ? 'text-[#003857]' : 'text-[#7cc4ed]',
+      accentColor: isLight ? 'text-sky-700' : 'text-sky-300',
     },
     {
       id: 'CONFIGURING',
       title: STAGE_META.CONFIGURING.short,
       count: counts.config,
       icon: Wrench,
-      accentColor: 'text-[#d99b00] dark:text-[#f6c23e]',
+      accentColor: 'text-indigo-600 dark:text-indigo-400',
     },
     {
       id: 'COMPLETE',

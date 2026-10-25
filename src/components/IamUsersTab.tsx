@@ -118,7 +118,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
   }, [users, branchFilter, roleFilter, statusFilter, deferredSearch, branchNameByCode]);
   const { sorted: filteredUsers, sort: uSort, toggle: uToggle } = useSort<(typeof users)[number]>(matchedUsers, {
     emp: (u) => Number(u.empId) || u.empId, name: (u) => u.name, position: (u) => u.position, code: (u) => Number(u.branchId) || u.branchId,
-    branch: (u) => branchNameByCode.get(u.branchId) || u.branchName, role: (u) => u.accessRole, status: (u) => u.status,
+    branch: (u) => branchNameByCode.get(u.branchId) || u.branchName, location: (u) => u.location || 'Phnom Penh', role: (u) => u.accessRole, status: (u) => u.status,
   });
 
   const pg = usePager(filteredUsers.length, [branchFilter, roleFilter, statusFilter, deferredSearch, uSort]);
@@ -271,6 +271,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                 <SortTh k="position" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Position</SortTh>
                 <SortTh k="code" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Branch Code</SortTh>
                 <SortTh k="branch" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Branch Name</SortTh>
+                <SortTh k="location" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Location</SortTh>
                 <SortTh k="role" sort={uSort} onSort={uToggle} className="py-3.5 px-3">System Role</SortTh>
                 <SortTh k="status" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Account Status</SortTh>
                 <th className="py-3.5 px-4 text-right">Actions</th>
@@ -316,6 +317,11 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                     </td>
                     <td className="py-3 px-3 font-bold text-zinc-900">
                       {resolvedBranchName}
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200 font-bold text-[11px]">
+                        {u.location || 'Phnom Penh'}
+                      </span>
                     </td>
                     <td className="py-3 px-3">
                       {u.accessRole === 'SUPER_ADMIN' ? (
@@ -394,7 +400,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              className="relative w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 z-10"
+              className="relative w-full max-w-xl bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 z-10"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Device, LifecycleStage, STAGE_ORDER, ThemeMode } from '../types';
+import { Device, HistoricalMerchantRecord, LifecycleStage, STAGE_ORDER, ThemeMode } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { motion } from 'motion/react';
 import { Odometer } from './Odometer';
@@ -14,9 +14,11 @@ import {
 
 interface KpiCardsProps {
   devices: Device[];
+  historicalMerchants?: HistoricalMerchantRecord[];
   theme?: ThemeMode;
   activeStageFilter?: string;
   onSelectStage?: (stage: LifecycleStage | 'ALL') => void;
+  onOpenHistoryTab?: () => void;
   serverStatsByStage?: Record<LifecycleStage, { count: number; posCount: number; sbCount: number }>;
   serverTotal?: number;
 }
@@ -40,22 +42,22 @@ const STAGE_STYLES: Record<
   }
 > = {
   HQ_STOCK: {
-    accentBar: 'bg-indigo-600',
-    iconBox: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    ringActive: 'ring-2 ring-indigo-600 border-indigo-600',
+    accentBar: 'bg-slate-600',
+    iconBox: 'bg-slate-100 text-slate-700 border-slate-200',
+    ringActive: 'ring-2 ring-slate-600 border-slate-600',
     subtitle: 'Branch Code 100 Vault',
   },
   BRANCH_RESERVE: {
-    accentBar: 'bg-[#003857]',
-    iconBox: 'bg-[#003857]/15 text-[#003857] border-[#003857]/25 dark:bg-[#003857]/40 dark:text-[#7cc4ed]',
-    ringActive: 'ring-2 ring-[#003857] border-[#003857]',
+    accentBar: 'bg-sky-600',
+    iconBox: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/20 dark:text-sky-300',
+    ringActive: 'ring-2 ring-sky-600 border-sky-600',
     subtitle: 'Branch Code Buffer',
   },
   CONFIGURING: {
-    accentBar: 'bg-slate-500',
-    iconBox: 'bg-slate-100 text-slate-700 border-slate-200',
-    ringActive: 'ring-2 ring-[#18191e] border-[#18191e]',
-    subtitle: 'Merchant Setup',
+    accentBar: 'bg-indigo-600',
+    iconBox: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    ringActive: 'ring-2 ring-indigo-600 border-indigo-600',
+    subtitle: 'Under Configuring · App Push',
   },
   COMPLETE: {
     accentBar: 'bg-emerald-700',
@@ -67,7 +69,7 @@ const STAGE_STYLES: Record<
     accentBar: 'bg-rose-700',
     iconBox: 'bg-rose-50 text-rose-800 border-rose-200',
     ringActive: 'ring-2 ring-rose-700 border-rose-700',
-    subtitle: 'Summary only · not a stock status',
+    subtitle: 'Merchant History & Swaps',
   },
   LOST: {
     accentBar: 'bg-amber-600',
@@ -77,18 +79,21 @@ const STAGE_STYLES: Record<
   },
 };
 
-/** Summary cards: the stock stages plus the Terminated & Returned count (summary only, not a filter or a Stock Inventory status). */
+/** Summary cards: the stock stages plus the Terminated & Returned count (reflected from Merchant History). */
 const CARD_ORDER: LifecycleStage[] = [...STAGE_ORDER.filter((s) => s !== 'LOST'), 'FAULTY', 'LOST'];
 
 export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
   devices,
+  historicalMerchants = [],
   activeStageFilter = 'ALL',
   onSelectStage,
+  onOpenHistoryTab,
   serverStatsByStage,
   serverTotal,
 }) => {
-  const { total, statsByStage } = React.useMemo(() => {
+  const { total, statsByStage, replacedCount } = React.useMemo(() => {
     let activeTotal = 0;
+    let swaps = 0;
     const stats: Record<LifecycleStage, { count: number; posCount: number; sbCount: number }> = {
       HQ_STOCK: { count: 0, posCount: 0, sbCount: 0 },
       BRANCH_RESERVE: { count: 0, posCount: 0, sbCount: 0 },
@@ -102,6 +107,9 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
       const d = devices[i];
       if (d.archived) continue;
       activeTotal++;
+      if (d.replacedByStaff || d.replacedFromSerial || d.replacementDate) {
+        swaps++;
+      }
       const s = stats[d.stage];
       if (s) {
         s.count++;
@@ -110,11 +118,34 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
       }
     }
 
-    if (serverStatsByStage && typeof serverTotal === 'number') {
-      return { total: serverTotal, statsByStage: serverStatsByStage };
+    // Policy #9: Card Summary Terminate and Returned reflects Merchant History count directly
+    let histPos = 0;
+    let histSb = 0;
+    for (let i = 0; i < historicalMerchants.length; i++) {
+      const h = historicalMerchants[i];
+      if (h.deviceType === 'Sound Box') histSb++;
+      else histPos++;
     }
-    return { total: activeTotal, statsByStage: stats };
-  }, [devices, serverStatsByStage, serverTotal]);
+    const historyStat = {
+      count: historicalMerchants.length,
+      posCount: histPos,
+      sbCount: histSb,
+    };
+
+    if (serverStatsByStage && typeof serverTotal === 'number') {
+      return {
+        total: serverTotal,
+        statsByStage: {
+          ...serverStatsByStage,
+          FAULTY: historyStat,
+        },
+        replacedCount: swaps,
+      };
+    }
+
+    stats.FAULTY = historyStat;
+    return { total: activeTotal, statsByStage: stats, replacedCount: swaps };
+  }, [devices, historicalMerchants, serverStatsByStage, serverTotal]);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-5">
@@ -125,12 +156,24 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
         const count = stageStat.count;
         const posCount = stageStat.posCount;
         const sbCount = stageStat.sbCount;
-        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        const pct = total > 0 ? Math.min(100, Math.round((count / total) * 100)) : 0;
         const isSelected = activeStageFilter === stage;
-        const clickable = !!onSelectStage && stage !== 'FAULTY';   // Terminated & Returned is a summary only: it is not a Stock Inventory status
-        const select = () => onSelectStage && onSelectStage(isSelected ? 'ALL' : stage);
-        const a11yLabel = `${meta.short}: ${count} units (${pct}% of ${total}), POS ${posCount}, Sound Box ${sbCount}.${
-          clickable ? (isSelected ? ' Selected. Press to clear the filter.' : ' Press to filter the inventory by this stage.') : ''
+        const clickable = stage === 'FAULTY' ? !!onOpenHistoryTab : !!onSelectStage;
+        const select = () => {
+          if (stage === 'FAULTY') {
+            if (onOpenHistoryTab) onOpenHistoryTab();
+          } else if (onSelectStage) {
+            onSelectStage(isSelected ? 'ALL' : stage);
+          }
+        };
+        const a11yLabel = `${meta.short}: ${count} units, POS ${posCount}, Sound Box ${sbCount}.${
+          clickable
+            ? stage === 'FAULTY'
+              ? ' Press to open Merchant History.'
+              : isSelected
+              ? ' Selected. Press to clear the filter.'
+              : ' Press to filter the inventory by this stage.'
+            : ''
         }`;
 
         return (
@@ -153,11 +196,11 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
             }
             role={clickable ? 'button' : 'group'}
             tabIndex={clickable ? 0 : undefined}
-            aria-pressed={clickable ? isSelected : undefined}
+            aria-pressed={clickable && stage !== 'FAULTY' ? isSelected : undefined}
             aria-label={a11yLabel}
-            className={`surface-card relative overflow-hidden rounded-xl p-3 sm:p-4 transition-all duration-150 select-none group shadow-md hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003857] ${clickable ? 'cursor-pointer' : ''} ${
-              isSelected ? style.ringActive : 'hover:border-zinc-400'
-            }`}
+            className={`surface-card relative overflow-hidden rounded-xl p-3 sm:p-4 transition-all duration-150 select-none group shadow-md hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003857] ${
+              clickable ? 'cursor-pointer' : ''
+            } ${isSelected ? style.ringActive : 'hover:border-zinc-400'}`}
           >
             <div
               className={`absolute top-0 left-0 right-0 h-1 ${style.accentBar} opacity-90 group-hover:opacity-100 transition-opacity`}
@@ -171,9 +214,18 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
                 {STAGE_ICONS[stage]}
               </div>
 
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 font-figure tabular-nums">
-                {pct}% share
-              </span>
+              {stage === 'FAULTY' ? (
+                <span
+                  className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md font-figure tabular-nums"
+                  title="Includes Merchant History records and Device Replacements"
+                >
+                  Swaps: {replacedCount}
+                </span>
+              ) : (
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 font-figure tabular-nums">
+                  {pct}% share
+                </span>
+              )}
             </div>
 
             <div className="flex items-baseline justify-between gap-2 mb-1">
@@ -181,7 +233,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
                 <Odometer value={count} />
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Units
+                {stage === 'FAULTY' ? 'Records' : 'Units'}
               </span>
             </div>
 

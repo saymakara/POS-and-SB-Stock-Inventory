@@ -771,3 +771,33 @@ html { scroll-behavior: smooth; }
 .data-table .chip { transition: background-color 0.3s var(--ease-apple-smooth), color 0.3s var(--ease-apple-smooth), border-color 0.3s var(--ease-apple-smooth); }
 /* cards lift gently under the pointer */
 .surface-card { transition: box-shadow 0.25s var(--ease-apple-smooth), translate 0.25s var(--ease-apple-smooth), border-color 0.25s var(--ease-apple-smooth); }
+
+/* ==========================================================================
+   7. Enlarged Pop-Up Screens Everywhere & Apple-Grade Enterprise Motion
+   ========================================================================== */
+.fixed.inset-0 > .max-w-md { max-width: 42rem !important; }
+.fixed.inset-0 > .max-w-lg { max-width: 48rem !important; }
+.fixed.inset-0 > .max-w-xl { max-width: 56rem !important; }
+.fixed.inset-0 > .max-w-2xl { max-width: 64rem !important; }
+.fixed.inset-0 > .max-w-3xl { max-width: 72rem !important; }
+
+/* Apple-grade spring motion when switching tabs and table frames */
+.tab-view {
+  will-change: transform, opacity;
+  animation: appleTabGlide 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes appleTabGlide {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.996);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.data-table tbody tr {
+  transition: background-color 0.18s cubic-bezier(0.22, 1, 0.36, 1), transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}

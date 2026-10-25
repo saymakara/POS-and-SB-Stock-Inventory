@@ -27,7 +27,7 @@ import {
   Ban,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { normalizeMid } from '../utils/display';
+import { normalizeMid, isValidMidForType, midRuleError } from '../utils/display';
 import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
 import { CSV_BATCH_SIZE, CSV_BATCH_DELAY_MS, checkExistingSerialsOnServer } from '../services/supabaseService';
@@ -481,12 +481,12 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       const normalizedMidVal = normalizeMid(rawMidInput);
       const rawTidInput = cell(row, 'tid');
 
-      if (rawMidInput && !/^\d{15}$/.test(normalizedMidVal)) {
+      if (rawMidInput && !isValidMidForType(normalizedMidVal, itemType)) {
         addErr(
           colNumber('mid', 10),
           colLabel('mid', 'MID'),
           'INVALID_TYPE',
-          `Invalid MID "${rawMidInput}" (must be a 15-digit numeric Merchant ID)`
+          midRuleError(normalizedMidVal, itemType) || `Invalid MID "${rawMidInput}"`
         );
       }
       if (rawTidInput && !/^[A-Za-z0-9_-]{4,16}$/.test(rawTidInput)) {
@@ -541,7 +541,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         branchId: targetBranch?.id || cell(row, 'branchCode'),
         branchName: targetBranch?.name || cell(row, 'branchName'),
         staff: staffLabel,
-        stage: stage || fallbackStage,
+        stage: ((stage || fallbackStage) === 'HQ_STOCK' || (stage || fallbackStage) === 'BRANCH_RESERVE') && (rawMerchantName || normalizedMidVal) ? 'CONFIGURING' : (stage || fallbackStage),
         stockInDate,
         merchantName: rawMerchantName,
         mid: normalizedMidVal,
@@ -955,7 +955,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.94, y: 14 }}
         transition={{ type: 'spring', damping: 28, stiffness: 350, mass: 0.75 }}
-        className={`${modalBoxClass} border-0 rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] transform-gpu will-change-gpu gpu-modal-container`}
+        className={`${modalBoxClass} border-0 rounded-3xl w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] transform-gpu will-change-gpu gpu-modal-container`}
       >
         {/* Header (Signature Navy Bar) */}
         <div className="navy-header-bar rounded-t-3xl px-6 py-4 flex items-center justify-between text-white">
@@ -1183,7 +1183,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     >
                       <option value="HQ_STOCK">Admin HQ Stock (Branch Code 100)</option>
                       <option value="BRANCH_RESERVE">Branch Reserve (Stock-In)</option>
-                      <option value="CONFIGURING">Configuring</option>
+                      <option value="CONFIGURING">Under Configuring (Merchant Setup)</option>
+                      <option value="COMPLETE">Installed Live (Active Store)</option>
+                      <option value="LOST">Device Lost / Missing</option>
                     </select>
                   </div>
                 </div>

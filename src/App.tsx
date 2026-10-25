@@ -102,12 +102,17 @@ import {
   saveBranchOnServer,
   fetchStaffAccounts,
   StaffAccount,
+  renameDeviceSerialOnServer,
+  subscribeToOnlinePresence,
+  measureSupabasePingMs,
+  OnlineOperatorPresence,
 } from './services/supabaseService';
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
 import {
   setErrorLoggerContext,
   subscribeTechnicalErrorPopup,
   TechnicalErrorPayload,
+  sendDeviceConfigTelegramAlert,
 } from './utils/errorLogger';
 import { SetupAlert } from './components/SetupAlert';
 import {
@@ -512,6 +517,36 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [serverReady, setServerReady] = useState<boolean>(false);
   const [serverError, setServerError] = useState<string>('');
   const [pendingFieldCount, setPendingFieldCount] = useState<number>(0);
+  const [onlineOperators, setOnlineOperators] = useState<OnlineOperatorPresence[]>([]);
+  const [pingMs, setPingMs] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    measureSupabasePingMs().then((ms) => {
+      if (alive && ms !== null) setPingMs(ms);
+    });
+    const pingTimer = window.setInterval(() => {
+      measureSupabasePingMs().then((ms) => {
+        if (alive && ms !== null) setPingMs(ms);
+      });
+    }, 45000);
+    const unsubPresence = subscribeToOnlinePresence(
+      {
+        id: profile?.emp_id || authUsername || 'OP-100',
+        name: profile?.name || authUsername || 'System Operator',
+        role: profile?.role || 'SUPER_ADMIN',
+        branchId: profile?.branch_id || '100',
+        location: 'Phnom Penh',
+      },
+      (list) => {
+        if (alive) setOnlineOperators(list);
+      }
+    );
+    return () => {
+      alive = false;
+      window.clearInterval(pingTimer);
+      unsubPresence();
+    };
+  }, [profile?.emp_id, profile?.name, profile?.role, profile?.branch_id, authUsername]);
   const [serverDeviceTotal, setServerDeviceTotal] = useState<number | null>(null);
   const [serverStageSummary, setServerStageSummary] = useState<DeviceStageSummary | null>(null);
 
@@ -1449,6 +1484,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (!d) return;
     if (!inScope(d)) { triggerToast('This unit belongs to another branch.'); return; }
     if (role === 'BRANCH' && updates.branchId !== d.branchId) { triggerToast('Branch staff cannot move a unit to another branch.'); return; }
+    if ((d.stage === 'HQ_STOCK' || d.stage === 'BRANCH_RESERVE') && (updates.stage === 'HQ_STOCK' || updates.stage === 'BRANCH_RESERVE') && (updates.mid?.trim() || updates.merchantName?.trim())) {
+      updates = { ...updates, stage: 'CONFIGURING' };
+    }
     const err = role === 'SUPER_ADMIN' ? '' : moveError(d.stage, updates.stage, STAGE_META);   // the super admin may move a unit to any stage
     if (err) { triggerToast(err); return; }
     const today = todayPP();
@@ -1940,6 +1978,158 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     triggerToast(`Restored ${serials.length} serial(s) to active dashboard`);
   };
 
+  // Notify Handling Staff & Telegram Group when a device Under Configuring is ready for App Push (#11)
+  const handleNotifyConfigReady = (serial: string) => {
+    const dev = devices.find((d) => d.serial === serial);
+    if (!dev) return;
+    const staffTarget = dev.staff || 'Assigned Branch Staff';
+    const bName = dev.branchName || `Branch ${dev.branchId}`;
+    const mName = dev.merchantName || 'Merchant Profile';
+    addNotification(
+      `Open Device for App Push • ${dev.serial}`,
+      `Admin configured ${mName} (${dev.mid || 'MID Pending'}) on ${dev.type} SN ${dev.serial} (${bName}). Staff (${staffTarget}): Please power ON and open the device now to wait for app push.`,
+      'REQUEST',
+      dev.branchId,
+      'inventory'
+    );
+    void sendDeviceConfigTelegramAlert({
+      serial: dev.serial,
+      deviceType: dev.type,
+      mid: dev.mid || '—',
+      tid: dev.tid || '—',
+      merchantName: mName,
+      branchId: dev.branchId,
+      branchName: bName,
+      staffName: staffTarget,
+      adminOperator: operatorLabel || 'Admin HQ',
+    });
+    addAuditLog(
+      'App Push Notification Sent',
+      `Notified staff (${staffTarget}) and alerted Telegram group to open ${dev.type} ${dev.serial} (${mName}) for app push`
+    );
+    triggerToast(`Notification sent to ${staffTarget} & Telegram group alerted: Open ${dev.serial} to wait for app push!`);
+  };
+
+  // Super Admin & Admin: Edit / Rename Device Serial Number if uploaded wrong (#28)
+  const handleRenameSerial = async (oldSerial: string, newSerial: string) => {
+    if (role === 'BRANCH') {
+      triggerToast('Only Admin and Super Admin can edit device serial numbers.');
+      return;
+    }
+    const cleanOld = oldSerial.trim().toUpperCase();
+    const cleanNew = newSerial.trim().toUpperCase();
+    if (!cleanNew || cleanOld === cleanNew) return;
+    if (devices.some((d) => d.serial.toUpperCase() === cleanNew)) {
+      triggerToast(`Serial ${cleanNew} already exists in inventory.`);
+      return;
+    }
+    if (isSupabaseConfigured) {
+      const err = await renameDeviceSerialOnServer(cleanOld, cleanNew);
+      if (err) {
+        triggerToast(`Could not rename serial: ${err}`);
+        return;
+      }
+    }
+    const nowTime = stampSecPP();
+    const today = todayPP();
+    setDevices((prev) =>
+      prev.map((d) =>
+        d.serial.toUpperCase() === cleanOld
+          ? {
+              ...d,
+              serial: cleanNew,
+              updatedAt: today,
+              history: [
+                `${nowTime} | Serial Corrected | Renamed serial ${cleanOld} → ${cleanNew} — Officer: ${operatorLabel || 'Admin'}`,
+                ...(d.history || []),
+              ],
+            }
+          : d
+      )
+    );
+    setEditingDeviceSerial(cleanNew);
+    addAuditLog('Serial Number Corrected', `Corrected device serial ${cleanOld} → ${cleanNew}`);
+    triggerToast(`Serial number updated: ${cleanOld} → ${cleanNew}`);
+  };
+
+  // Merchant Deployment 360 View: Record Broken Device Replacement & Update Front Table Serial (#23)
+  const handleReplaceMerchantDevice = (
+    oldSerial: string,
+    newSerial: string,
+    replacedByStaff: string,
+    reason: string
+  ) => {
+    const oldDev = devices.find((d) => d.serial.toUpperCase() === oldSerial.trim().toUpperCase());
+    const newDev = devices.find((d) => d.serial.toUpperCase() === newSerial.trim().toUpperCase());
+    if (!oldDev || !newDev) {
+      triggerToast('Select both the current broken device and the replacement serial.');
+      return;
+    }
+    const today = todayPP();
+    const nowTime = stampSecPP();
+    const staffActor = replacedByStaff.trim() || operatorLabel || 'Field Staff';
+    const why = reason.trim() || 'Broken hardware replaced at merchant';
+    const histRec = historyRecordFor(oldDev, {
+      reason: `Device Replaced by ${newDev.serial}: ${why}`,
+      status: 'RETURNED',
+      actor: staffActor,
+      notes: `Replaced broken serial ${oldDev.serial} with ${newDev.serial} by ${staffActor}.`,
+    });
+    const updatedOld: Device = {
+      ...onMove(oldDev, 'FAULTY'),
+      returnedByStaff: staffActor,
+      returnedDate: today,
+      returnReason: `Replaced by ${newDev.serial} (${why})`,
+      deployedDate: '',
+      redeployCount: (oldDev.redeployCount || 0) + 1,
+      updatedAt: today,
+      note: `Broken / Replaced by ${newDev.serial} (${why}) — Staff: ${staffActor}`,
+      history: [
+        `${nowTime} | Device Replacement (Out) | Broken unit replaced by ${newDev.serial} for ${oldDev.merchantName} (${oldDev.mid}) · Reason: ${why} — Staff: ${staffActor}`,
+        ...(oldDev.history || []),
+      ],
+    };
+    const updatedNew: Device = {
+      ...onMove(newDev, 'COMPLETE'),
+      branchId: oldDev.branchId,
+      branchName: oldDev.branchName,
+      staff: staffActor,
+      mid: oldDev.mid,
+      tid: oldDev.tid,
+      merchantName: oldDev.merchantName,
+      merchantPhone: oldDev.merchantPhone,
+      address: oldDev.address,
+      location: oldDev.location,
+      deployedDate: today,
+      installedByStaff: oldDev.installedByStaff || staffActor,
+      replacedByStaff: staffActor,
+      replacedPrevSerial: oldDev.serial,
+      replacedDate: today,
+      updatedAt: today,
+      note: `Replacement for broken SN ${oldDev.serial} (${why}) — Replaced by: ${staffActor}`,
+      history: [
+        `${nowTime} | Device Replacement (Live) | Swapped in to replace broken SN ${oldDev.serial} at ${oldDev.merchantName} (MID ${oldDev.mid}) · Reason: ${why} — Staff: ${staffActor}`,
+        ...(newDev.history || []),
+      ],
+    };
+    setDevices((prev) =>
+      prev.map((d) => {
+        if (d.serial === oldDev.serial) return updatedOld;
+        if (d.serial === newDev.serial) return updatedNew;
+        return d;
+      })
+    );
+    setHistoricalMerchants((prev) => [histRec, ...prev]);
+    addAuditLog(
+      'Merchant Device Replacement',
+      `Replaced broken ${oldDev.serial} with ${newDev.serial} for ${oldDev.merchantName} (MID ${oldDev.mid}) — Staff: ${staffActor}`
+    );
+    triggerOptimisticSync([oldDev.serial, newDev.serial], `Replaced ${oldDev.serial} -> ${newDev.serial}`);
+    triggerToast(`Device replaced! Front table updated to new serial ${newDev.serial} (Replaced by ${staffActor}).`);
+  };
+  const _unusedRestoreEnd = () => {
+  };
+
   // Batch Stock Upload Handler (from classic BatchUploadModal). (22 Oct 2026) HQ only; new serials only – a serial that
   // already exists is never overwritten, and nothing is filled in with sample values.
   const handleCommitBatch = (newBatchItems: Partial<Device>[]) => {
@@ -1957,7 +2147,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       const bCode = item.branchId || '100';
       const branchObj = branches.find((b) => b.code === bCode || b.id === bCode);
       if (!branchObj && bCode !== '100') { problems.push(`${sn} (unknown branch ${bCode})`); return; }
-      const stg: LifecycleStage = item.stage === 'BRANCH_RESERVE' && bCode !== '100' ? 'BRANCH_RESERVE' : 'HQ_STOCK';
+      const hasMerchantInfo = Boolean((item.mid && item.mid.trim()) || (item.merchantName && item.merchantName.trim()));
+      const rawStage: LifecycleStage = item.stage || (bCode !== '100' ? 'BRANCH_RESERVE' : 'HQ_STOCK');
+      const stg: LifecycleStage = (rawStage === 'HQ_STOCK' || rawStage === 'BRANCH_RESERVE') && hasMerchantInfo ? 'CONFIGURING' : rawStage;
       seen.add(sn);
       created.push({
         serial: sn,
@@ -1971,9 +2163,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         staff: item.staff || '',
         stage: stg,
         ...statusOf(stg),
-        mid: '',
-        tid: '',
-        merchantName: '',
+        mid: (stg === 'CONFIGURING' || stg === 'COMPLETE') ? (item.mid || '') : '',
+        tid: (stg === 'CONFIGURING' || stg === 'COMPLETE') ? (item.tid || (item.mid ? tidFromMid(item.mid) : '')) : '',
+        merchantName: (stg === 'CONFIGURING' || stg === 'COMPLETE') ? (item.merchantName || '') : '',
         merchantPhone: '',
         location: item.location || '',
         address: '',
@@ -2393,6 +2585,66 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   };
 
   const handleExportInventoryCsv = (onlyStage?: LifecycleStage) => {
+    const exportListExact = onlyStage ? filteredInventory.filter((d) => d.stage === onlyStage) : filteredInventory;
+    const activeCustomExact = (appSettings.customFields || []).filter((f) => f.enabled && (!f.targetTab || f.targetTab === 'all' || f.targetTab === 'inventory'));
+    const headersExactTable = [
+      'No.',
+      'Date',
+      'Type',
+      'Model',
+      'Device Serial',
+      'Battery Serial',
+      'Branch Code',
+      'Branch Name',
+      'Location',
+      'Status',
+      'Merchant Name',
+      'MID',
+      'TID',
+      'Staff',
+      'Note',
+      ...activeCustomExact.map((f) => f.label),
+    ];
+    const rowsExactTable = exportListExact.map((d, idx) => {
+      const bObj = branches.find((b) => b.code === d.branchId);
+      const bName = bObj?.name || d.branchName || `Branch ${d.branchId}`;
+      const customCells = activeCustomExact.map((f) => {
+        if (f.id === 'location') return d.location || '';
+        if (f.id === 'merchantPhone') return d.merchantPhone ? phoneFor(role, d.merchantPhone) : '';
+        if (f.id === 'address') return d.address || '';
+        return d.customFields?.[f.id] || '';
+      });
+      return [
+        String(idx + 1),
+        d.updatedAt || d.stockInDate || '',
+        d.type,
+        d.model || '',
+        d.serial,
+        d.batterySerial || '',
+        d.branchId,
+        bName,
+        d.location || '',
+        STAGE_META[d.stage].short,
+        d.merchantName || '',
+        d.mid || '',
+        d.tid || '',
+        d.staff || '',
+        d.note || '',
+        ...customCells,
+      ];
+    });
+    const blobExact = csvFile([headersExactTable, ...rowsExactTable]);
+    const urlExact = URL.createObjectURL(blobExact);
+    const linkExact = document.createElement('a');
+    linkExact.href = urlExact;
+    linkExact.download = `POS_Soundbox_Inventory_${onlyStage ? STAGE_META[onlyStage].short.replace(/[^A-Za-z0-9]+/g, '_') + '_' : ''}${todayPP()}.csv`;
+    document.body.appendChild(linkExact);
+    linkExact.click();
+    document.body.removeChild(linkExact);
+    URL.revokeObjectURL(urlExact);
+    addAuditLog('Inventory CSV Exported', `Exported ${exportListExact.length} hardware serials matching table view`);
+    triggerToast(`Exported ${exportListExact.length} rows to CSV (matching table columns)`);
+    if (Boolean(true)) return;
     const exportList = onlyStage ? filteredInventory.filter((d) => d.stage === onlyStage) : filteredInventory;
     const activeCustom = (appSettings.customFields || []).filter((f) => f.enabled);
     const headers = [
@@ -2975,6 +3227,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onTrace={setTraceQuery}
+            onlineOperators={onlineOperators}
+            pingMs={pingMs}
           />
 
           {/* Classic Pipeline Stage Filter Bar */}
@@ -2999,6 +3253,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                 activeStageFilter={stageFilter}
                 serverStatsByStage={serverStageSummary?.byStage}
                 serverTotal={serverStageSummary?.all}
+                historicalMerchants={historicalMerchants}
+                onOpenHistoryTab={() => handleSelectTab('merchant_history')}
                 onSelectStage={(st) => {
                   setStageFilter(st);
                   if (activeTab !== 'inventory' && st !== 'ALL') {
@@ -3043,6 +3299,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                         handleBulkBindDevicesToMerchants
                       }
                       onTerminateMerchant={handleTerminateMerchant}
+                      onReplaceMerchantDevice={handleReplaceMerchantDevice}
+                      onNotifyConfigReady={handleNotifyConfigReady}
                       theme={theme}
                     />
                   )}
@@ -3147,6 +3405,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                           : undefined
                       }
                       onFetchServerPage={handleFetchInventoryPage}
+                      onNotifyConfigReady={handleNotifyConfigReady}
                     />
                   )}
 
@@ -3273,6 +3532,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       }}
                       onOpenWorkflow={(sn) => setEditingDeviceSerial(sn)}
                       scope={appSettings.phoneReviewScope || 'PHNOM_PENH'}
+                      onPendingCountChange={(n) => setPendingFieldCount(n)}
                     />
                   )}
                   {shownTab === 'mobile_sync' && !isSupabaseConfigured && (
@@ -3386,7 +3646,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               Copyright © POS &amp; Sound Box Stock Management System 2026
             </div>
             <div className="flex items-center gap-4 text-[11px] font-mono">
-              <span>{branches.length} Branch Codes Connected</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {branches.length} Branch Codes Connected
+              </span>
               {!isSupabaseConfigured && (
                 <>
                   <span>·</span>
@@ -3474,6 +3737,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           }
           onChangeBattery={(dev) => setBatteryModalDevice(dev)}
           customFields={appSettings.customFields}
+          onRenameSerial={handleRenameSerial}
+          onNotifyConfigReady={handleNotifyConfigReady}
           operatorLabel={operatorLabel}
         />
 

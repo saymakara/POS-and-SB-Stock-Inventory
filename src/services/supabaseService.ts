@@ -456,18 +456,40 @@ export async function fetchDevicesFromSupabase(limit = 100, offset = 0): Promise
   if (!isSupabaseConfigured) return null;
   const safeLimit = Math.max(1, Math.min(limit, 100));
   try {
-    const all: Device[] = [];
-    let curOffset = Math.max(0, offset);
-    while (true) {
-      const res = await fetchPaginatedRows('devices', 'serial', {
-        limit: safeLimit,
-        offset: curOffset,
-        ascending: true,
-      });
-      if (!res) return all.length > 0 ? all : null;
-      all.push(...res.rows.map(mapRowToDevice));
-      if (res.rows.length < safeLimit || all.length >= res.count || all.length >= 10000) break;
-      curOffset += safeLimit;
+    const first = await fetchPaginatedRows('devices', 'serial', {
+      limit: safeLimit,
+      offset: Math.max(0, offset),
+      ascending: true,
+    });
+    if (!first) return null;
+    const all: Device[] = first.rows.map(mapRowToDevice);
+    const totalToFetch = Math.min(first.count, 10000);
+    if (first.rows.length < safeLimit || all.length >= totalToFetch) {
+      return all;
+    }
+
+    // Fetch remaining pages in parallel batches of 4 for 4x faster initial hydration over HTTP/2
+    const offsets: number[] = [];
+    for (let nextOff = Math.max(0, offset) + safeLimit; nextOff < totalToFetch; nextOff += safeLimit) {
+      offsets.push(nextOff);
+    }
+    const CONCURRENCY = 4;
+    for (let i = 0; i < offsets.length; i += CONCURRENCY) {
+      const chunk = offsets.slice(i, i + CONCURRENCY);
+      const pages = await Promise.all(
+        chunk.map((off) =>
+          fetchPaginatedRows('devices', 'serial', {
+            limit: safeLimit,
+            offset: off,
+            ascending: true,
+          })
+        )
+      );
+      for (const p of pages) {
+        if (p && p.rows.length > 0) {
+          all.push(...p.rows.map(mapRowToDevice));
+        }
+      }
     }
     return all;
   } catch (err) {
@@ -1406,6 +1428,7 @@ export interface StaffAccount {
   branchId: string;
   position: string | null;
   contact: string | null;
+  location?: string | null;
   active: boolean;
   mustChangePassword: boolean;
   updatedAt: string;
@@ -1419,6 +1442,7 @@ const mapStaff = (r: any): StaffAccount => ({
   branchId: r.branch_id,
   position: r.position,
   contact: r.contact,
+  location: r.location || 'Phnom Penh',
   active: !!r.active,
   mustChangePassword: !!r.must_change_password,
   updatedAt: r.updated_at,
@@ -1507,6 +1531,7 @@ export async function saveStaffAccount(p: {
   branch_id: string;
   position?: string;
   contact?: string;
+  location?: string;
   active: boolean;
   password?: string;
 }): Promise<StaffAccount> {
@@ -1611,4 +1636,155 @@ export async function traceOnServer(
     await reportCaughtError('traceOnServer', err, { target: term, showPopup: false });
     return { events: [], audit: [], ok: false };
   }
+}
+
+/**
+ * Policy #28: Allows Super Admin and Admin to rename/correct a device serial number on Supabase
+ * in case it was uploaded wrong. Inserts the new serial row (or updates primary key) and removes the old serial row.
+ */
+export async function renameDeviceSerialOnServer(
+  oldSerial: string,
+  newSerial: string,
+  updatedDevice: Device
+): Promise<string> {
+  if (!isSupabaseConfigured) return '';
+  const cleanOld = oldSerial.trim();
+  const cleanNew = newSerial.trim().toUpperCase();
+  if (!cleanOld || !cleanNew || cleanOld === cleanNew) return '';
+
+  try {
+    const newRow = mapDeviceToRow({ ...updatedDevice, serial: cleanNew, rowVersion: undefined });
+    delete newRow.row_version;
+
+    // 1. Check if newSerial already exists
+    const { data: existing } = await supabase
+      .from('devices')
+      .select('serial')
+      .eq('serial', cleanNew)
+      .maybeSingle();
+    if (existing && existing.serial) {
+      return `Serial "${cleanNew}" already exists in the database.`;
+    }
+
+    // 2. Insert the corrected serial row
+    const { error: insertErr } = await supabase.from('devices').insert(newRow);
+    if (insertErr) {
+      throw insertErr;
+    }
+
+    // 3. Delete the old mistyped serial row
+    const { error: deleteErr } = await supabase.from('devices').delete().eq('serial', cleanOld);
+    if (deleteErr) {
+      throw deleteErr;
+    }
+    return '';
+  } catch (err) {
+    await reportCaughtError('renameDeviceSerialOnServer', err, { target: `${cleanOld} -> ${cleanNew}` });
+    return err instanceof Error ? err.message : String((err as any)?.message || 'Failed to rename serial');
+  }
+}
+
+/**
+ * Policy #25: Measures live round-trip connection ping (ms) with Supabase PostgREST using a lightweight head query,
+ * warming the HTTP/2 / TLS connection pool for faster subsequent table queries.
+ */
+export async function measureSupabasePingMs(): Promise<number | null> {
+  if (!isSupabaseConfigured) return null;
+  const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  try {
+    const { error } = await supabase
+      .from('branches')
+      .select('id', { head: true, count: 'estimated' })
+      .limit(1);
+    if (error) return null;
+    const end = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    return Math.max(1, Math.round(end - start));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Policy #32: Live System Presence — see who is currently online and using the system in real time.
+ */
+export interface OnlineOperatorPresence {
+  uid: string;
+  empId: string;
+  name: string;
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH';
+  branchId: string;
+  branchName: string;
+  activeTab: string;
+  onlineAt: string;
+}
+
+export function subscribeToOnlinePresence(
+  currentOperator: OnlineOperatorPresence,
+  onPresenceSync: (operators: OnlineOperatorPresence[]) => void
+): { updateTab: (tab: string) => void; unsubscribe: () => void } {
+  if (!isSupabaseConfigured) {
+    onPresenceSync([currentOperator]);
+    return {
+      updateTab: (tab: string) => {
+        onPresenceSync([{ ...currentOperator, activeTab: tab }]);
+      },
+      unsubscribe: () => {},
+    };
+  }
+
+  let latestPayload: OnlineOperatorPresence = { ...currentOperator };
+  const channel = supabase.channel('online_operators_presence', {
+    config: {
+      presence: {
+        key: currentOperator.empId || currentOperator.uid,
+      },
+    },
+  });
+
+  const emitPresenceList = () => {
+    try {
+      const state = channel.presenceState<OnlineOperatorPresence>();
+      const byEmp = new Map<string, OnlineOperatorPresence>();
+      Object.values(state).forEach((entries) => {
+        if (Array.isArray(entries)) {
+          entries.forEach((entry) => {
+            if (entry && (entry.empId || entry.uid)) {
+              byEmp.set(entry.empId || entry.uid, entry);
+            }
+          });
+        }
+      });
+      if (!byEmp.has(latestPayload.empId || latestPayload.uid)) {
+        byEmp.set(latestPayload.empId || latestPayload.uid, latestPayload);
+      }
+      onPresenceSync(Array.from(byEmp.values()));
+    } catch {
+      onPresenceSync([latestPayload]);
+    }
+  };
+
+  channel
+    .on('presence', { event: 'sync' }, emitPresenceList)
+    .on('presence', { event: 'join' }, emitPresenceList)
+    .on('presence', { event: 'leave' }, emitPresenceList)
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        try {
+          await channel.track(latestPayload);
+          emitPresenceList();
+        } catch {
+          onPresenceSync([latestPayload]);
+        }
+      }
+    });
+
+  return {
+    updateTab: (tab: string) => {
+      latestPayload = { ...latestPayload, activeTab: tab };
+      void channel.track(latestPayload).catch(() => {});
+    },
+    unsubscribe: () => {
+      supabase.removeChannel(channel);
+    },
+  };
 }

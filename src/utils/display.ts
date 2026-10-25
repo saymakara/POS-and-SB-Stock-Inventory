@@ -8,6 +8,40 @@ export const hasKhmer = (s: string | null | undefined): boolean => /[ក-៿᧠-
 /** A merchant ID is 15 digits. Anything else (for example "1.00001E+14" from Excel) needs checking. */
 export const isValidMid = (mid: string | null | undefined): boolean => /^\d{15}$/.test(String(mid || '').trim());
 
+/**
+ * Policy #17: POS Terminal MID must start with 2 (15 digits starting with 2)
+ * and Sound Box MID must start with 6 (15 digits starting with 6).
+ */
+export const isValidMidForType = (
+  mid: string | null | undefined,
+  type?: 'POS Terminal' | 'Sound Box' | string
+): boolean => {
+  const s = String(mid || '').trim();
+  if (!/^\d{15}$/.test(s)) return false;
+  if (type === 'POS Terminal') return s.startsWith('2');
+  if (type === 'Sound Box') return s.startsWith('6');
+  return s.startsWith('2') || s.startsWith('6');
+};
+
+export const midRuleError = (
+  mid: string | null | undefined,
+  type?: 'POS Terminal' | 'Sound Box' | string
+): string => {
+  const s = String(mid || '').trim();
+  if (!s) return '15-digit MID is required';
+  if (!/^\d{15}$/.test(s)) return `MID must be exactly 15 numeric digits (currently ${s.length} chars)`;
+  if (type === 'POS Terminal' && !s.startsWith('2')) {
+    return 'POS Terminal MID must start with number 2 (e.g. 2XXXXXXXXXXXXXX)';
+  }
+  if (type === 'Sound Box' && !s.startsWith('6')) {
+    return 'Sound Box MID must start with number 6 (e.g. 6XXXXXXXXXXXXXX)';
+  }
+  if (!type && !s.startsWith('2') && !s.startsWith('6')) {
+    return 'MID must start with 2 (for POS Terminal) or 6 (for Sound Box)';
+  }
+  return '';
+};
+
 /** "1.00001E+14" and similar: a number Excel shortened, the real digits are lost. */
 export const isExcelNumber = (v: string | null | undefined): boolean => /^\d+(\.\d+)?e\+\d+$/i.test(String(v || '').trim());
 

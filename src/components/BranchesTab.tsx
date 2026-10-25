@@ -544,7 +544,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                             </div>
                             <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
                               <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span>Phnom Penh &amp; Regional Network</span>
+                              <span>Phnom Penh</span>
                             </div>
                           </td>
 
@@ -806,7 +806,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                         </h3>
                         <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                           <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>Phnom Penh &amp; Regional Network</span>
+                          <span>Phnom Penh</span>
                         </div>
                       </div>
 
@@ -923,7 +923,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
-              className="w-full max-w-3xl rounded-2xl border p-6 max-h-[85vh] overflow-y-auto shadow-2xl bg-white border-slate-200 text-slate-900"
+              className="w-full max-w-5xl rounded-2xl border p-6 sm:p-8 max-h-[92vh] overflow-y-auto shadow-2xl bg-white border-slate-200 text-slate-900"
             >
               <div className="flex items-start justify-between gap-4 pb-4 mb-4 border-b border-slate-200">
                 <div>

@@ -35,6 +35,7 @@ export interface User {
   updatedAt: string;
   username?: string;
   password?: string;
+  location?: string;
 }
 
 export interface Device {
@@ -330,6 +331,7 @@ export interface CustomFieldDefinition {
   required?: boolean;
   enabled: boolean;
   isSystem?: boolean;
+  targetTab?: 'inventory' | 'merchants' | 'branches' | 'staff' | 'requisitions' | 'all';
   description?: string;
 }
 

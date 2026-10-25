@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { detectDuplicateMids } from '../utils/crmUtils';
+import { isValidMidForType, midRuleError } from '../utils/display';
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -42,6 +43,7 @@ import {
   ArrowRight,
   Upload,
   Truck,
+  Send,
 } from 'lucide-react';
 
 interface InventoryTabProps {
@@ -78,6 +80,7 @@ interface InventoryTabProps {
   onRestoreToDashboard?: (serials: string[]) => void;
   onDeletePermanently?: (serials: string[]) => void;
   onChangeBattery?: (serial: string) => void;
+  onNotifyConfigReady?: (serial: string) => void;
   theme?: ThemeMode;
   customFields?: CustomFieldDefinition[];
   syncingSerials?: Set<string>;
@@ -125,6 +128,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   onRestoreToDashboard,
   onDeletePermanently,
   onChangeBattery,
+  onNotifyConfigReady,
   theme,
   customFields,
   syncingSerials,
@@ -560,8 +564,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 setSelectedSns([]);
               }}
               title={showArchivedView ? 'Showing the units removed from the dashboard – tap to show the active stock again' : 'Show the units removed from the dashboard'}
-              aria-pressed={showArchivedView}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold tracking-wide border transition cursor-pointer ${
+              data-archived={showArchivedView}
+              data-archived={showArchivedView}
+              className={`hidden ${
                 showArchivedView
                   ? 'bg-amber-400 text-zinc-900 border-amber-300'
                   : 'bg-white/12 hover:bg-white/20 text-white border-white/20'
@@ -1059,22 +1064,22 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                             <div className="inline-flex items-center gap-1">
                               <span
                                 className={`px-1.5 py-0.5 rounded border text-[10px] whitespace-nowrap ${
-                                  /^\d{15}$/.test(dev.mid)
+                                  isValidMidForType(dev.mid, dev.type)
                                     ? 'text-slate-700 bg-slate-100/90 border-slate-200 dark:text-slate-200 dark:bg-white/10 dark:border-white/10'
                                     : 'text-rose-700 bg-rose-50 border-rose-300 dark:text-rose-300 dark:bg-rose-500/20 dark:border-rose-500/30'
                                 }`}
                                 title={
-                                  /^\d{15}$/.test(dev.mid)
+                                  isValidMidForType(dev.mid, dev.type)
                                     ? `Merchant ID: ${dev.mid} (15 Digits Standard)`
-                                    : `Invalid MID: ${dev.mid.length} digits (Policy requires 15 digits)`
+                                    : midRuleError(dev.mid, dev.type)
                                 }
                               >
                                 {dev.mid}
                               </span>
-                              {!/^\d{15}$/.test(dev.mid) && (
+                              {!isValidMidForType(dev.mid, dev.type) && (
                                 <span
                                   className="text-[9px] font-bold text-rose-600 bg-rose-100 px-1 py-0.2 rounded"
-                                  title="MID must be exactly 15 numeric digits"
+                                  title={midRuleError(dev.mid, dev.type)}
                                 >
                                   !15D
                                 </span>
@@ -1118,7 +1123,17 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                             Manage
                           </button>
 
-                          {!showArchivedView && onReturnDevice && (dev.stage === 'COMPLETE' || dev.stage === 'CONFIGURING') && (dev.mid || dev.merchantName) && (
+                          {!showArchivedView && isAdminLike && onNotifyConfigReady && dev.stage === 'CONFIGURING' && (
+                            <button
+                              onClick={() => onNotifyConfigReady(dev.serial)}
+                              className="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-2xs transition cursor-pointer whitespace-nowrap inline-flex items-center gap-1"
+                              title="Notify Staff & Telegram Group: Open device to wait for app push"
+                            >
+                              <Send className="w-3 h-3" />
+                              <span>Notify &amp; Push App</span>
+                            </button>
+                          )}
+                          {false && !showArchivedView && onReturnDevice && (dev.stage === 'COMPLETE' || dev.stage === 'CONFIGURING') && (dev.mid || dev.merchantName) && (
                             <button
                               onClick={() => onReturnDevice(dev.serial)}
                               className="px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
@@ -1131,7 +1146,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
                           {!showArchivedView &&
                             isAdminLike &&
-                            onRemoveFromDashboard && (
+                            false && onRemoveFromDashboard && (
                               <button
                                 onClick={() =>
                                   onRemoveFromDashboard(
@@ -1341,7 +1356,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     </button>
                   )}
 
-                  {!fulfillingRequisition && isAdminLike && (
+                  {false && !fulfillingRequisition && isAdminLike && (
                     <button
                       onClick={handleOpenBulkRemove}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
@@ -1411,7 +1426,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={{ type: 'spring', damping: 28, stiffness: 380 }}
-              className="relative w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden my-6 z-10 border bg-white border-slate-200 text-slate-800"
+              className="relative w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden my-6 z-10 border bg-white border-slate-200 text-slate-800"
             >
               {/* Navy Header */}
               <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white border-b border-white/10">

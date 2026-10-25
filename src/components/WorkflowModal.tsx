@@ -13,6 +13,7 @@ import {
 import { STAGE_META } from '../data/initialData';
 import { todayPP } from '../utils/time';
 import { phoneFor, canSeeFullContact } from '../utils/privacy';
+import { isValidMidForType, midRuleError } from '../utils/display';
 import { ALLOWED_NEXT, canMove, moveError, onMove } from '../utils/stages';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -42,6 +43,8 @@ import {
   Phone,
   Hash,
   Type,
+  Send,
+  Pencil,
 } from 'lucide-react';
 
 interface WorkflowModalProps {
@@ -79,6 +82,8 @@ interface WorkflowModalProps {
   onReturnToBranchReserve?: (serial: string, branchId: string, reason: string) => void;
   onRemoveFromDashboard?: (serial: string, reason: string) => void;
   onChangeBattery?: (device: Device) => void;
+  onNotifyConfigReady?: (serial: string) => void;
+  onRenameSerial?: (oldSerial: string, newSerial: string) => Promise<string>;
   /** Super Admin only: delete this unit from the whole system (database included) */
   onDeletePermanently?: (serial: string) => void;
   /** Signed-in operator's name/label (recorded as custodian when a unit goes to HQ stock). */
@@ -102,6 +107,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   onRemoveFromDashboard,
   preset = '',
   onChangeBattery,
+  onNotifyConfigReady,
+  onRenameSerial,
   onDeletePermanently,
   operatorLabel = '',
 }) => {
@@ -118,6 +125,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const [batteryInstalledDate, setBatteryInstalledDate] = useState('');
   const [batterySerial, setBatterySerial] = useState('');
   const [midError, setMidError] = useState('');
+  const [editedSerial, setEditedSerial] = useState('');
+  const [renamingSerial, setRenamingSerial] = useState(false);
+  const [serialRenameMsg, setSerialRenameMsg] = useState('');
 
   // Dynamic Custom Fields State
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
@@ -156,7 +166,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const isLight = theme === 'light';
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
   // (22 Oct 2026) once a unit is installed, only Admin HQ can change the merchant's details (branch staff add them while installing)
-  const merchantLocked = role === 'BRANCH' && device?.stage === 'COMPLETE' && Boolean(device?.mid || device?.merchantName);
+  const merchantLocked = !isAdminLike;
   const showFullPhone = canSeeFullContact(role);
 
   const activeCustomFields = useMemo(() => {
@@ -178,6 +188,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       setDeployedDate(device.deployedDate || '');
       setNote('');
       setMidError('');
+      setEditedSerial(device.serial);
+      setSerialRenameMsg('');
       // Only the unit's own recorded battery data; blank when not recorded (never a made-up serial/date).
       setBatterySerial(device.batterySerial || '');
       setBatteryInstalledDate(device.batteryInstalledDate || device.stockInDate || '');
@@ -201,7 +213,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceSerial, preset]);
-  const canReturn = !!device && (device.stage === 'COMPLETE' || device.stage === 'CONFIGURING') && Boolean(device.mid || device.merchantName);
+  const canReturn = false;
 
   /** Stages this unit may move to from where it is now (plus staying put). Branch users never move a unit into HQ stock. */
   const stageOptions = useMemo(() => {
@@ -250,6 +262,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         setPendingPayload({ ...quickMove('BRANCH_RESERVE', 'RETURN_BRANCH_RESERVE', `Return to Stock · Branch Code ${device.branchId} reserve`, device.branchId, device.staff || '', why), note: why });
       }
       setMidError('');
+      setEditedSerial(device.serial);
+      setSerialRenameMsg('');
       setModalStep('PREVIEW');
       return;
     }
@@ -259,8 +273,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     if (stageErr) return fail(stageErr);
     if (!stageOptions.includes(stage)) return fail('Only Admin HQ can move a unit into Head Office stock.');
 
-    if (stage !== 'FAULTY' && stage !== 'LOST' && mid.trim() && !/^\d{15}$/.test(mid.trim())) {
-      return fail('MID must be exactly 15 numeric digits.');
+    if (stage !== 'FAULTY' && stage !== 'LOST' && mid.trim() && !isValidMidForType(mid.trim(), device.type)) {
+      return fail(midRuleError(mid.trim(), device.type) || 'Invalid MID format.');
     }
 
     // FAULTY stays FAULTY (it is never converted to another stage here). The choice only says where the faulty unit
@@ -279,7 +293,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     }
     if (stage === 'COMPLETE') {
       if (!merchantName.trim()) return fail('Enter the merchant name for an installed unit.');
-      if (!/^\d{15}$/.test(mid.trim())) return fail('Enter the 15-digit MID for an installed unit.');
+      if (!isValidMidForType(mid.trim(), device.type)) return fail(midRuleError(mid.trim(), device.type) || 'Enter a valid 15-digit MID for an installed unit.');
       if (!deployedDate) return fail('Choose the installation date.');
     }
 
@@ -499,7 +513,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     device.stage !== 'HQ_STOCK' &&
     (role === 'SUPER_ADMIN' || canMove(device.stage, 'HQ_STOCK')) &&
     (isAdminLike ? !!onReturnToAdminStock : !!onRequestReturnToAdminStock);
-  const hasQuickActions = canReturnToReserve || canReturnToHq || (isAdminLike && !!onRemoveFromDashboard);
+  const hasQuickActions = canReturnToReserve || canReturnToHq || (isAdminLike && stage === 'CONFIGURING' && !!onNotifyConfigReady);
 
   return (
     <AnimatePresence>
@@ -519,7 +533,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 12 }}
           transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
-          className={`relative w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[88vh] z-10 border-0 flex flex-col ${
+          className={`relative w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] z-10 border-0 flex flex-col ${
             isLight
               ? 'bg-white text-slate-800'
               : 'bg-[#12151e] text-slate-100'
@@ -710,7 +724,18 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       </button>
                     )}
 
-                    {isAdminLike && onRemoveFromDashboard && (
+                    {isAdminLike && stage === 'CONFIGURING' && onNotifyConfigReady && (
+                      <button
+                        type="button"
+                        onClick={() => onNotifyConfigReady(device.serial)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer"
+                        title="Send notification to handling staff to open device for app push and alert Telegram group"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Notify Staff &amp; Alert Telegram (Open Device for App Push)</span>
+                      </button>
+                    )}
+                    {false && isAdminLike && onRemoveFromDashboard && (
                       <button
                         type="button"
                         onClick={() => {
@@ -751,6 +776,62 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
               {/* Form Body */}
               <form onSubmit={handleSubmit} className="p-4 sm:p-5 flex flex-col gap-3 overflow-y-auto max-h-[calc(88vh-130px)] custom-scrollbar">
+            {/* Row 0: Admin / Super Admin Serial Number Correction (#28) */}
+            {isAdminLike && onRenameSerial && (
+              <div className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${isLight ? 'bg-slate-50/90 border-slate-200' : 'bg-[#181c26] border-slate-700/80'}`}>
+                <div className="flex flex-col gap-0.5">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+                    <Pencil className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
+                    <span>Hardware Serial Number (Super Admin / Admin Correction)</span>
+                  </label>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Correct the serial number if it was uploaded or scanned with a typo.
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <input
+                    type="text"
+                    value={editedSerial}
+                    onChange={(e) => {
+                      setEditedSerial(e.target.value.toUpperCase());
+                      setSerialRenameMsg('');
+                    }}
+                    aria-label="Edit hardware serial number"
+                    className={`w-48 rounded-xl px-3 py-1.5 text-xs font-mono font-bold border focus:outline-none ${
+                      isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-[#121620] border-slate-700 text-white'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    disabled={renamingSerial || !editedSerial.trim() || editedSerial.trim().toUpperCase() === device.serial.toUpperCase()}
+                    onClick={async () => {
+                      const nextSn = editedSerial.trim().toUpperCase();
+                      if (!nextSn || nextSn === device.serial.toUpperCase()) return;
+                      setRenamingSerial(true);
+                      setSerialRenameMsg('');
+                      try {
+                        const err = await onRenameSerial(device.serial, nextSn);
+                        if (err) {
+                          setSerialRenameMsg(err);
+                        } else {
+                          setSerialRenameMsg('Serial updated!');
+                        }
+                      } finally {
+                        setRenamingSerial(false);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {renamingSerial ? 'Updating…' : 'Update Serial'}
+                  </button>
+                </div>
+                {serialRenameMsg && (
+                  <div className={`text-[11px] font-semibold sm:col-span-2 ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {serialRenameMsg}
+                  </div>
+                )}
+              </div>
+            )}
             {/* Row 1: Lifecycle Stage & Assigned Branch */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
@@ -1031,7 +1112,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 <input
                   type="text"
                   value={merchantName}
-                  onChange={(e) => setMerchantName(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMerchantName(val);
+                    if (isAdminLike && val.trim() && (stage === 'HQ_STOCK' || stage === 'BRANCH_RESERVE')) {
+                      setStage('CONFIGURING');
+                    }
+                  }}
                   placeholder="e.g. Brown Coffee BKK"
                   className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                     isLight
@@ -1053,6 +1140,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   onChange={(e) => {
                     const clean = e.target.value.replace(/\D/g, '').slice(0, 15);
                     setMid(clean);
+                    if (isAdminLike && clean.length > 0 && (stage === 'HQ_STOCK' || stage === 'BRANCH_RESERVE')) {
+                      setStage('CONFIGURING');
+                    }
                     setTid(clean.length >= 8 ? clean.slice(-8) : '');
                     if (midError) setMidError('');
                   }}
@@ -1072,7 +1162,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   {midError ? (
                     <span className="text-rose-600 font-semibold">{midError}</span>
                   ) : (
-                    <span className="text-slate-400">Must be 15 numeric digits</span>
+                    <span className="text-slate-400">
+                      {device.type === 'Sound Box' ? '15 digits starting with 6' : '15 digits starting with 2'}
+                    </span>
                   )}
                   <span className="font-mono text-slate-400">{mid.length}/15</span>
                 </div>
