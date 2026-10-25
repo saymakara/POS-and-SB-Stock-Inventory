@@ -6,6 +6,7 @@ import { Pager } from './Pager';
 import { UserCog, Plus, Search, Loader2, KeyRound, ShieldCheck, RefreshCw, MapPin } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { StaffAccount, fetchStaffAccounts, saveStaffAccount, OnlineOperatorPresence } from '../services/supabaseService';
+import { saveStaffAlias } from '../utils/staffUtils';
 
 /**
  * Accounts & Access / Staff Directory: sign-in accounts of the inventory dashboard, kept in the database.
@@ -180,6 +181,10 @@ export const StaffAccountsTab: React.FC<{
     setBusy(true);
     try {
       const cleanEmp = form.emp_id.trim();
+      const existingAccount = (list || []).find((a) => a.empId.trim().toLowerCase() === cleanEmp.toLowerCase());
+      if (existingAccount && existingAccount.name.trim().toLowerCase() !== form.name.trim().toLowerCase()) {
+        saveStaffAlias(existingAccount.name.trim(), form.name.trim());
+      }
       const cleanLoc = (form.location || 'Phnom Penh').trim();
       await saveStaffAccount({
         emp_id: cleanEmp,

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
 import { generatePushTrackingId } from '../utils/telegram';
-import { normalizeStaffName } from '../utils/staffUtils';
+import { normalizeStaffName, resolveStaffFromDirectory } from '../utils/staffUtils';
 import { todayPP, stampSecPP, clockPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -333,7 +333,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     const map = new Map<string, { staff: string; staffTelegram?: string; branchId: string; branchName: string; devices: Device[] }>();
     for (const d of configuringDevices) {
       const rawStaff = d.staff || d.installedByStaff || 'Unassigned Staff';
-      const staffName = normalizeStaffName(rawStaff);
+      const staffName = normalizeStaffName(resolveStaffFromDirectory(rawStaff, d.branchId, users));
       const bObj = branches.find((b) => b.code === d.branchId);
       const bName = bObj ? bObj.name : (d.branchName || `Branch ${d.branchId}`);
       const key = `${staffName}__${d.branchId}`;
@@ -687,7 +687,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       const reqInfo = getRequestPushDateTime(dev);
       const serialModel = `${dev.serial} (${dev.model || dev.type})`;
       const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
-      const staffName = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
+      const staffName = resolveStaffFromDirectory(dev.staff || dev.installedByStaff, dev.branchId, users) || 'Assigned Branch Staff';
       const assignedBy = getAssignedBy(dev);
       const branchDisplay = `${dev.branchId} · ${bName.replace(' Branch', '')}`;
 

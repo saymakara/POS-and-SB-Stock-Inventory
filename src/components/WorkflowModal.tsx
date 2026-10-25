@@ -12,7 +12,7 @@ import {
   DEFAULT_CUSTOM_FIELDS,
 } from '../types';
 import { STAGE_META } from '../data/initialData';
-import { normalizeStaffName, extractEmpIdFromName } from '../utils/staffUtils';
+import { normalizeStaffName, extractEmpIdFromName, resolveStaffFromDirectory } from '../utils/staffUtils';
 import { todayPP } from '../utils/time';
 import { phoneFor, canSeeFullContact } from '../utils/privacy';
 import { isValidMidForType, midRuleError } from '../utils/display';
@@ -236,7 +236,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       setStage(device.stage);
       setTerminateDestination('BRANCH_RESERVE');
       setBranchId(device.branchId);
-      setStaff(device.staff ? normalizeStaffName(device.staff) : '');
+      setStaff(device.staff ? resolveStaffFromDirectory(device.staff, device.branchId, users) : '');
       setMerchantName(device.merchantName || '');
       setMid(device.mid || '');
       setTid(device.tid || '');
@@ -352,7 +352,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
     // 3. Currently assigned staff on this device (if already recorded)
     if (staff) {
-      const baseStaff = normalizeStaffName(staff);
+      const baseStaff = normalizeStaffName(resolveStaffFromDirectory(staff, targetBranchId, users));
       if (baseStaff && !seenNames.has(baseStaff.toLowerCase())) {
         list.push({
           name: baseStaff,

@@ -30,7 +30,7 @@ import { todayPP, stampPP, stampSecPP } from './utils/time';
 import { newRecordId } from './utils/ids';
 import { canMove, moveError, statusOf, onMove } from './utils/stages';
 import { csvFile } from './utils/csv';
-import { deduplicateStaffList, normalizeStaffName } from './utils/staffUtils';
+import { deduplicateStaffList, normalizeStaffName, resolveStaffFromDirectory, getStaffAliases } from './utils/staffUtils';
 import { tidFromMid } from './utils/tid';
 import { TraceModal } from './components/TraceModal';
 import { SaveGuard, throttled, watchNewVersion } from './utils/saveGuard';
@@ -652,7 +652,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       fetchStaffAccounts().then((staffList) => {
         if (staffList) {
           const bn = new Map((srvBranches || []).map((b) => [b.id, b.name]));
-          setUsers(staffList.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId))));
+          const nextUsers = staffList.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId)));
+          setUsers(nextUsers);
           setBranches((prev) => {
             const byBranch = new Map<string, string[]>();
             for (const s of staffList) {
@@ -665,13 +666,20 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             }
             return prev.map((b) => {
               const sList = byBranch.get(String(b.code).trim()) || byBranch.get(String(b.id).trim()) || [];
-              const combined = deduplicateStaffList([...sList, ...(b.staff || [])]);
+              const combined = sList.length > 0 ? sList : deduplicateStaffList(b.staff || []);
               return {
                 ...b,
-                staff: combined.length > 0 ? combined : b.staff,
+                staff: combined,
               };
             });
           });
+          // Synchronize devices staff dynamically with Staff Directory
+          setDevices((prevDevs) =>
+            prevDevs.map((d) => {
+              const resolved = resolveStaffFromDirectory(d.staff, d.branchId, nextUsers);
+              return resolved && resolved !== d.staff ? { ...d, staff: resolved } : d;
+            })
+          );
         }
       });
     }
@@ -2168,12 +2176,20 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             if (!list.includes(displayName)) list.push(displayName);
           }
 
+          // Synchronize devices staff dynamically with Staff Directory
+          setDevices((prevDevs) =>
+            prevDevs.map((d) => {
+              const resolved = resolveStaffFromDirectory(d.staff, d.branchId, nextUsers);
+              return resolved && resolved !== d.staff ? { ...d, staff: resolved } : d;
+            })
+          );
+
           return prev.map((b) => {
             const sList = byBranch.get(String(b.code).trim()) || byBranch.get(String(b.id).trim()) || [];
-            const combined = deduplicateStaffList([...sList, ...(b.staff || [])]);
+            const combined = sList.length > 0 ? sList : deduplicateStaffList(b.staff || []);
             return {
               ...b,
-              staff: combined.length > 0 ? combined : b.staff,
+              staff: combined,
             };
           });
         });
@@ -2218,6 +2234,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         }
       }
     });
+    const aliases = getStaffAliases();
+    for (const [alias, canonical] of Object.entries(aliases)) {
+      const canonicalTg = map.get(canonical.toLowerCase().trim());
+      if (canonicalTg && !map.has(alias.toLowerCase().trim())) {
+        map.set(alias.toLowerCase().trim(), canonicalTg);
+      }
+    }
     return map;
   }, [users]);
 
