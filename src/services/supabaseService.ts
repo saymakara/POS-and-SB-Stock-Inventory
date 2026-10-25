@@ -1,19 +1,33 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, ArrangedDeviceItem } from '../types';
 import { normalizeMid } from '../utils/display';
+import { reportCaughtError } from '../utils/errorLogger';
+
+/** Batch size and inter-batch delay for CSV / bulk device inserts (prevents connection pool exhaustion & payload timeouts). */
+export const CSV_BATCH_SIZE = 100;
+export const CSV_BATCH_DELAY_MS = 150;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+export interface PaginatedResult<T> {
+  rows: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
 
 /**
  * Maps Supabase snake_case / postgres schema to application Device type
  */
 function mapRowToDevice(row: any): Device {
   const stage = (row.stage || 'HQ_STOCK') as LifecycleStage;
-  // (22 Oct 2026) every custom value as text: approved phone records store GPS as numbers, which broke search
   const cf: Record<string, string> = {};
-  Object.entries((row.custom_fields && typeof row.custom_fields === 'object') ? row.custom_fields : {}).forEach(([k, v]) => {
-    if (v !== null && v !== undefined) cf[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);
-  });
+  Object.entries(row.custom_fields && typeof row.custom_fields === 'object' ? row.custom_fields : {}).forEach(
+    ([k, v]) => {
+      if (v !== null && v !== undefined) cf[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    }
+  );
   return {
-    // (21 Oct 2026) officers and dates written by the database (approved phone app records) live in custom_fields
     installedByStaff: cf.installedByStaff || undefined,
     replacedByStaff: cf.replacedByStaff || undefined,
     returnedByStaff: cf.returnedByStaff || undefined,
@@ -27,7 +41,9 @@ function mapRowToDevice(row: any): Device {
     model: row.model || '',
     stockInDate: row.stock_in_date || '',
     branchId: row.branch_id || '100',
-    branchName: row.branch_name || (row.branch_id === '100' || !row.branch_id ? 'Head Office' : `Branch Code ${row.branch_id}`),
+    branchName:
+      row.branch_name ||
+      (row.branch_id === '100' || !row.branch_id ? 'Head Office' : `Branch Code ${row.branch_id}`),
     staff: row.staff || '',
     stage,
     deploymentStatus:
@@ -84,15 +100,29 @@ function mapDeviceToRow(dev: Device): any {
     note: dev.note || null,
     history: dev.history || [],
     archived: Boolean(dev.archived),
-    custom_fields: Object.assign({}, dev.customFields || {}, Object.fromEntries(
-      (['installedByStaff', 'replacedByStaff', 'returnedByStaff', 'returnedDate', 'replacementDate', 'replacedFromSerial'] as const)
-        .filter((k) => dev[k]).map((k) => [k, String(dev[k])]))),
+    custom_fields: Object.assign(
+      {},
+      dev.customFields || {},
+      Object.fromEntries(
+        (
+          [
+            'installedByStaff',
+            'replacedByStaff',
+            'returnedByStaff',
+            'returnedDate',
+            'replacementDate',
+            'replacedFromSerial',
+          ] as const
+        )
+          .filter((k) => dev[k])
+          .map((k) => [k, String(dev[k])])
+      )
+    ),
     return_reason: dev.returnReason || null,
     deployment_status: dev.deploymentStatus || null,
     stock_status: dev.stockStatus || null,
     hours_in_stage: dev.hoursInStage || 0,
     integrity_hash: dev.integrityHash || null,
-    // updated_at and the version are set by the database; the version sent back is the one this copy was read at
     ...(dev.rowVersion ? { row_version: dev.rowVersion } : {}),
   };
 }
@@ -141,100 +171,363 @@ function mapRequisitionToRow(req: Requisition): any {
 }
 
 /**
- * Reads a whole table in a stable order (22 Oct 2026, review).
- * The server may return fewer rows per call than asked (its "max rows" setting) or a table may change while it is read.
- * Before, a lower server limit silently cut the list after the first page, and a server that ignored the page range
- * made the reader loop until the browser ran out of memory. Now: the page size is whatever the server really returns,
- * pages are read 4 at a time, the result is checked against the server's total, and if anything does not add up the
- * table is read again key by key ("after the last serial"), which cannot skip or repeat a row. Returns null on any error,
- * so a part of a list is never shown as if it were all of it.
+ * Strict Server-Side Paginated table reader using Supabase limit() and range(offset, offset + limit - 1).
+ * Never downloads the entire dataset to slice locally; only fetches the active page.
  */
-async function fetchAllRows(table: string, orderCol: string, pageSize = 1000, maxTotal = 500000): Promise<any[] | null> {
-  const warn = (msg: string) => { console.warn(`[Supabase] Error reading ${table}:`, msg); return null; };
-  const first = await supabase.from(table).select('*', { count: 'exact' }).order(orderCol, { ascending: true }).range(0, pageSize - 1);
-  if (first.error) return warn(first.error.message);
-  const firstRows: any[] = first.data || [];
-  const total = first.count;
-  if (total != null && firstRows.length >= total) return firstRows.slice(0, total);
-  if (firstRows.length === 0) return total ? keyset(pageSize) : [];
-  const step = Math.min(firstRows.length, pageSize);                 // the server's real page size
-  if (total == null && firstRows.length < pageSize) return firstRows;  // no total given and a short first page: that is all
-  if (total == null || firstRows.length > pageSize) return keyset(step);
-  const rows: any[] = [...firstRows];
-  const starts: number[] = [];
-  for (let from = step; from < Math.min(total, maxTotal); from += step) starts.push(from);
-  for (let i = 0; i < starts.length; i += 4) {
-    const res = await Promise.all(starts.slice(i, i + 4).map((f) =>
-      supabase.from(table).select('*').order(orderCol, { ascending: true }).range(f, f + step - 1)));
-    for (const r of res) {
-      if (r.error) return warn(r.error.message);
-      rows.push(...(r.data || []));
-    }
-  }
-  const seen = new Set<string>();
-  const unique = rows.filter((r) => { const k = String(r[orderCol]); if (seen.has(k)) return false; seen.add(k); return true; });
-  if (unique.length >= Math.min(total, maxTotal)) return unique;
-  return keyset(step);                                               // a row moved while reading: read again by key
+async function fetchPaginatedRows(
+  table: string,
+  orderCol: string,
+  options: {
+    limit?: number;
+    offset?: number;
+    ascending?: boolean;
+    filters?: (query: any) => any;
+  } = {}
+): Promise<{ rows: any[]; count: number } | null> {
+  const limit = Math.max(1, Math.min(options.limit || 50, 100));
+  const offset = Math.max(0, options.offset || 0);
+  const ascending = options.ascending !== false;
 
-  async function keyset(size: number): Promise<any[] | null> {
-    const out: any[] = [];
-    let last: string | null = null;
-    while (out.length < maxTotal) {
-      let q = supabase.from(table).select('*').order(orderCol, { ascending: true }).limit(size);
-      if (last !== null) q = q.gt(orderCol, last);
-      const r = await q;
-      if (r.error) return warn(r.error.message);
-      const data: any[] = r.data || [];
-      if (!data.length) break;
-      const nextLast = String(data[data.length - 1][orderCol]);
-      if (nextLast === last) break;                                   // the server did not move on: stop, never loop
-      out.push(...data);
-      last = nextLast;
-      if (data.length < size) break;
-    }
-    return out;
-  }
-}
-
-// -----------------------------------------------------------------------------
-// BRANCHES API
-// -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
-// DEVICES API
-// -----------------------------------------------------------------------------
-
-export async function fetchDevicesFromSupabase(): Promise<Device[] | null> {
-  if (!isSupabaseConfigured) return null;
   try {
-    const rows = await fetchAllRows('devices', 'serial');             // ordered by the key: no row is skipped or read twice
-    return rows ? rows.map(mapRowToDevice) : null;
+    let q: any = supabase
+      .from(table)
+      .select('*', { count: 'exact' })
+      .order(orderCol, { ascending });
+
+    if (options.filters) {
+      q = options.filters(q);
+    }
+
+    const { data, error, count } = await q.limit(limit).range(offset, offset + limit - 1);
+    if (error) {
+      throw error;
+    }
+    return {
+      rows: data || [],
+      count: typeof count === 'number' ? count : (data || []).length,
+    };
   } catch (err) {
-    console.warn('[Supabase] Exception fetching devices:', err);
+    await reportCaughtError(`fetchPaginatedRows(${table})`, err, { target: table, showPopup: false });
     return null;
   }
 }
 
 // -----------------------------------------------------------------------------
-// REQUISITIONS API
+// DEVICES API (Strict Server-Side Pagination + Batch 100 Inserts)
 // -----------------------------------------------------------------------------
 
-export async function fetchRequisitionsFromSupabase(): Promise<Requisition[] | null> {
+export interface DeviceQueryParams {
+  page?: number;
+  pageSize?: number;
+  stage?: string;
+  type?: string;
+  branchId?: string;
+  search?: string;
+  archived?: boolean;
+  orderCol?: string;
+  ascending?: boolean;
+  afterSerial?: string;
+}
+
+export interface DeviceStageBreakdown {
+  count: number;
+  posCount: number;
+  sbCount: number;
+}
+
+export interface DeviceStageSummary {
+  all: number;
+  hq: number;
+  reserve: number;
+  config: number;
+  complete: number;
+  faulty: number;
+  lost: number;
+  archived: number;
+  byStage: Record<LifecycleStage, DeviceStageBreakdown>;
+}
+
+const ALL_LIFECYCLE_STAGES: LifecycleStage[] = [
+  'HQ_STOCK',
+  'BRANCH_RESERVE',
+  'CONFIGURING',
+  'COMPLETE',
+  'FAULTY',
+  'LOST',
+];
+
+function createEmptyStageSummary(): DeviceStageSummary {
+  return {
+    all: 0,
+    hq: 0,
+    reserve: 0,
+    config: 0,
+    complete: 0,
+    faulty: 0,
+    lost: 0,
+    archived: 0,
+    byStage: {
+      HQ_STOCK: { count: 0, posCount: 0, sbCount: 0 },
+      BRANCH_RESERVE: { count: 0, posCount: 0, sbCount: 0 },
+      CONFIGURING: { count: 0, posCount: 0, sbCount: 0 },
+      COMPLETE: { count: 0, posCount: 0, sbCount: 0 },
+      FAULTY: { count: 0, posCount: 0, sbCount: 0 },
+      LOST: { count: 0, posCount: 0, sbCount: 0 },
+    },
+  };
+}
+
+/**
+ * Fetches exact 500K-row server-side stage & hardware-type counts without downloading device rows.
+ * Uses RPC `get_device_stage_counts` when deployed, with automatic fallback to indexed PostgREST head count queries.
+ */
+export async function fetchDeviceStageCountsFromSupabase(
+  branchId?: string
+): Promise<DeviceStageSummary | null> {
   if (!isSupabaseConfigured) return null;
+  const normalizedBranch = branchId && branchId !== 'ALL' ? branchId : null;
 
   try {
-    const rows = await fetchAllRows('requisitions', 'req_id');
-    if (!rows) return null;
-    return rows.map(mapRowToRequisition)
+    const { data, error } = await supabase.rpc('get_device_stage_counts', {
+      p_branch_id: normalizedBranch,
+    });
+    if (!error && data && typeof data === 'object') {
+      const summary = createEmptyStageSummary();
+      summary.archived = Number((data as any).archived) || 0;
+      const stagesObj = (data as any).stages || {};
+      for (const st of ALL_LIFECYCLE_STAGES) {
+        const item = stagesObj[st];
+        if (item) {
+          const count = Number(item.count) || 0;
+          const posCount = Number(item.posCount) || 0;
+          const sbCount = Number(item.sbCount) || 0;
+          summary.byStage[st] = { count, posCount, sbCount };
+          summary.all += count;
+        }
+      }
+      summary.hq = summary.byStage.HQ_STOCK.count;
+      summary.reserve = summary.byStage.BRANCH_RESERVE.count;
+      summary.config = summary.byStage.CONFIGURING.count;
+      summary.complete = summary.byStage.COMPLETE.count;
+      summary.faulty = summary.byStage.FAULTY.count;
+      summary.lost = summary.byStage.LOST.count;
+      return summary;
+    }
+  } catch {
+    // Fallback to head-only exact count queries below if RPC is not yet installed
+  }
+
+  try {
+    const countQuery = async (opts: { archived: boolean; stage?: LifecycleStage; type?: string }) => {
+      let q: any = supabase
+        .from('devices')
+        .select('serial', { count: 'exact', head: true })
+        .eq('archived', opts.archived);
+      if (normalizedBranch) q = q.eq('branch_id', normalizedBranch);
+      if (opts.stage) q = q.eq('stage', opts.stage);
+      if (opts.type) q = q.eq('type', opts.type);
+      const { count, error } = await q;
+      if (error) throw error;
+      return typeof count === 'number' ? count : 0;
+    };
+
+    const [archivedCount, ...stageBreakdowns] = await Promise.all([
+      countQuery({ archived: true }),
+      ...ALL_LIFECYCLE_STAGES.map(async (st) => {
+        const [posCount, sbCount] = await Promise.all([
+          countQuery({ archived: false, stage: st, type: 'POS Terminal' }),
+          countQuery({ archived: false, stage: st, type: 'Sound Box' }),
+        ]);
+        return { stage: st, count: posCount + sbCount, posCount, sbCount };
+      }),
+    ]);
+
+    const summary = createEmptyStageSummary();
+    summary.archived = archivedCount;
+    for (const item of stageBreakdowns) {
+      summary.byStage[item.stage] = {
+        count: item.count,
+        posCount: item.posCount,
+        sbCount: item.sbCount,
+      };
+      summary.all += item.count;
+    }
+    summary.hq = summary.byStage.HQ_STOCK.count;
+    summary.reserve = summary.byStage.BRANCH_RESERVE.count;
+    summary.config = summary.byStage.CONFIGURING.count;
+    summary.complete = summary.byStage.COMPLETE.count;
+    summary.faulty = summary.byStage.RETURNED_FAULTY.count;
+    summary.lost = summary.byStage.LOST.count;
+    return summary;
+  } catch (err) {
+    await reportCaughtError('fetchDeviceStageCountsFromSupabase', err, { showPopup: false });
+    return null;
+  }
+}
+
+/**
+ * Checks an array of candidate CSV serial numbers against the full 500K-row `public.devices` table
+ * using B-Tree primary key index `.in('serial', chunk)` lookups in chunks of 200.
+ */
+export async function checkExistingSerialsOnServer(serials: string[]): Promise<Set<string>> {
+  const existing = new Set<string>();
+  if (!isSupabaseConfigured || serials.length === 0) return existing;
+
+  const uniqueSerials = Array.from(
+    new Set(serials.map((s) => String(s || '').trim().toUpperCase()).filter(Boolean))
+  );
+  const CHUNK_SIZE = 200;
+
+  try {
+    for (let i = 0; i < uniqueSerials.length; i += CHUNK_SIZE) {
+      const chunk = uniqueSerials.slice(i, i + CHUNK_SIZE);
+      const { data, error } = await supabase
+        .from('devices')
+        .select('serial')
+        .in('serial', chunk);
+
+      if (error) {
+        throw error;
+      }
+      for (const row of data || []) {
+        if (row && row.serial) {
+          existing.add(String(row.serial).trim().toUpperCase());
+        }
+      }
+    }
+  } catch (err) {
+    await reportCaughtError('checkExistingSerialsOnServer', err, { showPopup: false });
+  }
+  return existing;
+}
+
+export async function fetchDevicesPageFromSupabase(
+  params: DeviceQueryParams = {}
+): Promise<PaginatedResult<Device> | null> {
+  if (!isSupabaseConfigured) return null;
+  const pageSize = params.pageSize === 100 ? 100 : 50;
+  const page = Math.max(1, params.page || 1);
+  const offset = (page - 1) * pageSize;
+  const orderCol = params.orderCol || 'serial';
+  const ascending = params.ascending !== false;
+
+  const deviceOffset = params.afterSerial ? 0 : offset;
+  const res = await fetchPaginatedRows('devices', orderCol, {
+    limit: pageSize,
+    offset: deviceOffset,
+    ascending,
+    filters: (q) => {
+      let query = q;
+      if (params.afterSerial) {
+        query = query.gt('serial', params.afterSerial);
+      }
+      if (params.archived !== undefined) {
+        query = query.eq('archived', params.archived);
+      }
+      if (params.stage && params.stage !== 'ALL') {
+        query = query.eq('stage', params.stage);
+      }
+      if (params.type && params.type !== 'ALL') {
+        query = query.eq('type', params.type);
+      }
+      if (params.branchId && params.branchId !== 'ALL') {
+        query = query.eq('branch_id', params.branchId);
+      }
+      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      if (term) {
+        query = query.or(
+          `serial.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,merchant_name.ilike.%${term}%,model.ilike.%${term}%,battery_serial.ilike.%${term}%,branch_id.ilike.%${term}%,staff.ilike.%${term}%`
+        );
+      }
+      return query;
+    },
+  });
+
+  if (!res) return null;
+  return {
+    rows: res.rows.map(mapRowToDevice),
+    total: res.count,
+    page,
+    pageSize,
+  };
+}
+
+export async function fetchDevicesFromSupabase(limit = 100, offset = 0): Promise<Device[] | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const res = await fetchPaginatedRows('devices', 'serial', { limit, offset, ascending: true });
+    return res ? res.rows.map(mapRowToDevice) : null;
+  } catch (err) {
+    await reportCaughtError('fetchDevicesFromSupabase', err, { showPopup: false });
+    return null;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// REQUISITIONS API (Strict Server-Side Pagination)
+// -----------------------------------------------------------------------------
+
+export interface RequisitionQueryParams {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  type?: string;
+  branchId?: string;
+  search?: string;
+}
+
+export async function fetchRequisitionsPageFromSupabase(
+  params: RequisitionQueryParams = {}
+): Promise<PaginatedResult<Requisition> | null> {
+  if (!isSupabaseConfigured) return null;
+  const pageSize = params.pageSize === 100 ? 100 : 50;
+  const page = Math.max(1, params.page || 1);
+  const offset = (page - 1) * pageSize;
+
+  const res = await fetchPaginatedRows('requisitions', 'req_id', {
+    limit: pageSize,
+    offset,
+    ascending: false,
+    filters: (q) => {
+      let query = q;
+      if (params.status && params.status !== 'ALL') query = query.eq('status', params.status);
+      if (params.type && params.type !== 'ALL') query = query.eq('type', params.type);
+      if (params.branchId && params.branchId !== 'ALL') query = query.eq('branch_id', params.branchId);
+      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      if (term) {
+        query = query.or(`req_id.ilike.%${term}%,branch_name.ilike.%${term}%,staff.ilike.%${term}%,reason.ilike.%${term}%`);
+      }
+      return query;
+    },
+  });
+
+  if (!res) return null;
+  return {
+    rows: res.rows
+      .map(mapRowToRequisition)
+      .sort((x, y) => String(y.date).localeCompare(String(x.date)) || y.reqId.localeCompare(x.reqId)),
+    total: res.count,
+    page,
+    pageSize,
+  };
+}
+
+export async function fetchRequisitionsFromSupabase(limit = 100, offset = 0): Promise<Requisition[] | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const res = await fetchPaginatedRows('requisitions', 'req_id', { limit, offset, ascending: true });
+    if (!res) return null;
+    return res.rows
+      .map(mapRowToRequisition)
       .sort((x, y) => String(y.date).localeCompare(String(x.date)) || y.reqId.localeCompare(x.reqId));
   } catch (err) {
-    console.warn('[Supabase] Exception fetching requisitions:', err);
+    await reportCaughtError('fetchRequisitionsFromSupabase', err, { showPopup: false });
     return null;
   }
 }
 
 // -----------------------------------------------------------------------------
-// HISTORICAL MERCHANTS API
+// HISTORICAL MERCHANTS API (Strict Server-Side Pagination)
 // -----------------------------------------------------------------------------
 
 function mapRowToHistory(row: any): HistoricalMerchantRecord {
@@ -265,17 +558,63 @@ function mapRowToHistory(row: any): HistoricalMerchantRecord {
   };
 }
 
-export async function fetchHistoricalMerchantsFromSupabase(): Promise<HistoricalMerchantRecord[] | null> {
+export interface HistoricalMerchantsQueryParams {
+  page?: number;
+  pageSize?: number;
+  branchId?: string;
+  deviceType?: string;
+  reason?: string;
+  search?: string;
+}
+
+export async function fetchHistoricalMerchantsPageFromSupabase(
+  params: HistoricalMerchantsQueryParams = {}
+): Promise<PaginatedResult<HistoricalMerchantRecord> | null> {
   if (!isSupabaseConfigured) return null;
+  const pageSize = params.pageSize === 100 ? 100 : 50;
+  const page = Math.max(1, params.page || 1);
+  const offset = (page - 1) * pageSize;
 
+  const res = await fetchPaginatedRows('historical_merchants', 'returned_date', {
+    limit: pageSize,
+    offset,
+    ascending: false,
+    filters: (q) => {
+      let query = q;
+      if (params.branchId && params.branchId !== 'ALL') query = query.eq('branch_id', params.branchId);
+      if (params.deviceType && params.deviceType !== 'ALL') query = query.eq('device_type', params.deviceType);
+      if (params.reason && params.reason !== 'ALL') query = query.ilike('return_reason', `%${params.reason.slice(0, 15)}%`);
+      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      if (term) {
+        query = query.or(
+          `merchant_name.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,serial.ilike.%${term}%,battery_serial.ilike.%${term}%,return_reason.ilike.%${term}%`
+        );
+      }
+      return query;
+    },
+  });
+
+  if (!res) return null;
+  return {
+    rows: res.rows.map(mapRowToHistory),
+    total: res.count,
+    page,
+    pageSize,
+  };
+}
+
+export async function fetchHistoricalMerchantsFromSupabase(
+  limit = 100,
+  offset = 0
+): Promise<HistoricalMerchantRecord[] | null> {
+  if (!isSupabaseConfigured) return null;
   try {
-    const data = await fetchAllRows('historical_merchants', 'record_id');
-    if (!data) return null;
-    data.sort((x: any, y: any) => String(y.returned_date || '').localeCompare(String(x.returned_date || '')));
-
-    return data.map(mapRowToHistory);
+    const res = await fetchPaginatedRows('historical_merchants', 'record_id', { limit, offset, ascending: false });
+    if (!res) return null;
+    res.rows.sort((x: any, y: any) => String(y.returned_date || '').localeCompare(String(x.returned_date || '')));
+    return res.rows.map(mapRowToHistory);
   } catch (err) {
-    console.warn('[Supabase] Exception fetching historical merchants:', err);
+    await reportCaughtError('fetchHistoricalMerchantsFromSupabase', err, { showPopup: false });
     return null;
   }
 }
@@ -310,16 +649,13 @@ export async function insertHistoricalMerchantToSupabase(rec: HistoricalMerchant
       notes: rec.notes,
     };
 
-    // a new record is inserted (an existing record is never overwritten from a browser copy)
     const { error } = await supabase.from('historical_merchants').insert(row);
-
     if (error) {
-      console.warn('[Supabase] Error inserting historical merchant:', error.message);
-      return false;
+      throw error;
     }
     return true;
   } catch (err) {
-    console.warn('[Supabase] Exception inserting historical merchant:', err);
+    await reportCaughtError('insertHistoricalMerchantToSupabase', err, { target: rec.serial || rec.recordId });
     return false;
   }
 }
@@ -329,7 +665,6 @@ export async function insertHistoricalMerchantToSupabase(rec: HistoricalMerchant
 // -----------------------------------------------------------------------------
 
 let channelSeq = 0;
-/** Each subscription gets its own channel name: two screens on one name would make the client refuse the second. */
 const channelName = (base: string) => `${base}_${Date.now().toString(36)}_${++channelSeq}`;
 
 export function subscribeToRealtimeChanges(
@@ -338,9 +673,7 @@ export function subscribeToRealtimeChanges(
   extra?: {
     onDeviceDelete?: (serial: string) => void;
     onRequisitionDelete?: (reqId: string) => void;
-    /** A merchant-history record added on the server (e.g. by approving a phone app record). */
     onHistoryInsert?: (rec: HistoricalMerchantRecord) => void;
-    /** Called when the live feed comes back after a drop: changes made meanwhile were missed, so reload. */
     onReconnect?: () => void;
   }
 ): () => void {
@@ -362,14 +695,18 @@ export function subscribeToRealtimeChanges(
         if (id) extra?.onRequisitionDelete?.(id);
         return;
       }
-      if (payload.new && (payload.new as any).req_id && onRequisitionChange) onRequisitionChange(mapRowToRequisition(payload.new));
+      if (payload.new && (payload.new as any).req_id && onRequisitionChange)
+        onRequisitionChange(mapRowToRequisition(payload.new));
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'historical_merchants' }, (payload) => {
       if (payload.new && (payload.new as any).record_id) extra?.onHistoryInsert?.(mapRowToHistory(payload.new));
     })
     .subscribe((status) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') dropped = true;
-      else if (status === 'SUBSCRIBED' && dropped) { dropped = false; extra?.onReconnect?.(); }
+      else if (status === 'SUBSCRIBED' && dropped) {
+        dropped = false;
+        extra?.onReconnect?.();
+      }
     });
 
   return () => {
@@ -378,259 +715,770 @@ export function subscribeToRealtimeChanges(
 }
 
 // -----------------------------------------------------------------------------
-// (21 Oct 2026) SAVING WITH A CLEAR ANSWER, REVIEW QUEUE, STAFF ACCOUNTS
+// SAVING WITH BATCH INSERTS (100 ROWS PER BATCH + DELAY), REVIEW QUEUE, STAFF
 // -----------------------------------------------------------------------------
 
-/** Database refusals in plain words. */
 function friendlyDbError(msg: string, serial?: string): string {
-  if (/mid_digits/.test(msg)) return `the MID${serial ? ' of ' + serial : ''} must be digits only (15 digits; a number shortened by Excel such as "1.00001E+14" cannot be saved)`;
+  if (/mid_digits/.test(msg))
+    return `the MID${serial ? ' of ' + serial : ''} must be digits only (15 digits; a number shortened by Excel such as "1.00001E+14" cannot be saved)`;
   return msg;
 }
 
-/** The outcome of a save: '' when saved, otherwise the reason; `versions` holds the new server version of each saved row. */
-export interface SaveResult { error: string; stale: boolean; versions: Map<string, number> }
+export interface SaveResult {
+  error: string;
+  stale: boolean;
+  versions: Map<string, number>;
+}
 
 /**
- * Saves devices (22 Oct 2026). A unit read from the server carries its version and is updated only if nobody changed it
- * since (the database refuses a stale copy). A unit without a version is new and is inserted – it never overwrites a
- * unit that already exists.
+ * Saves devices using Batch Inserts of 100 rows at a time with a slight delay (150ms) between batches,
+ * protecting the Supabase connection pool and preventing payload timeouts on large CSV uploads.
+ * Wrapped in try/catch with Error-Only Logging (no logs on success).
  */
-export async function saveDevicesStrict(devices: Device[]): Promise<SaveResult> {
+export async function saveDevicesStrict(
+  devices: Device[],
+  onBatchProgress?: (inserted: number, total: number, batchNum: number, totalBatches: number) => void
+): Promise<SaveResult> {
   const versions = new Map<string, number>();
   if (!isSupabaseConfigured || devices.length === 0) return { error: '', stale: false, versions };
-  const note = (data: any[] | null) => (data || []).forEach((r: any) => versions.set(r.serial, Number(r.row_version)));
+  const note = (data: any[] | null) =>
+    (data || []).forEach((r: any) => versions.set(r.serial, Number(r.row_version)));
+
   try {
     const fresh = devices.filter((d) => !d.rowVersion);
     const known = devices.filter((d) => d.rowVersion);
-    for (let i = 0; i < fresh.length; i += 500) {
-      const { data, error } = await supabase.from('devices').insert(fresh.slice(i, i + 500).map(mapDeviceToRow)).select('serial,row_version');
+    const totalBatches = Math.max(1, Math.ceil(fresh.length / CSV_BATCH_SIZE));
+
+    for (let i = 0; i < fresh.length; i += CSV_BATCH_SIZE) {
+      const batchSlice = fresh.slice(i, i + CSV_BATCH_SIZE);
+      const batchNum = Math.floor(i / CSV_BATCH_SIZE) + 1;
+
+      const { data, error } = await supabase
+        .from('devices')
+        .insert(batchSlice.map(mapDeviceToRow))
+        .select('serial,row_version');
+
       if (error) {
         const dup = /duplicate key|23505/i.test(error.message + (error as any).code);
-        return { error: dup ? 'a unit with this serial already exists in the inventory' : friendlyDbError(error.message), stale: false, versions };
+        const friendly = dup
+          ? 'a unit with this serial already exists in the inventory'
+          : friendlyDbError(error.message);
+        await reportCaughtError('saveDevicesStrict.batchInsert', error, {
+          target: batchSlice[0]?.serial,
+        });
+        return { error: friendly, stale: false, versions };
       }
+
       note(data);
+      const insertedSoFar = Math.min(fresh.length, i + batchSlice.length);
+      if (onBatchProgress) {
+        onBatchProgress(insertedSoFar, fresh.length, batchNum, totalBatches);
+      }
+
+      // Slight delay between batches of 100 rows so we never exhaust the connection pool
+      if (i + CSV_BATCH_SIZE < fresh.length) {
+        await sleep(CSV_BATCH_DELAY_MS);
+      }
     }
-    // one row per call (a few at a time): a refused stale row names itself, and the other rows are kept
+
     let first: { error: string; stale: boolean } | null = null;
     for (let i = 0; i < known.length && !first; i += 6) {
-      await Promise.all(known.slice(i, i + 6).map(async (d) => {
-        const { data, error } = await supabase.from('devices').update(mapDeviceToRow(d)).eq('serial', d.serial).select('serial,row_version');
-        if (error) {
-          const stale = /STALE_ROW|PT409/.test(error.message + (error as any).code);
-          first = first || { error: stale ? `${d.serial} was changed by someone else just now` : friendlyDbError(error.message, d.serial), stale };
-        } else if (!data || data.length === 0) {
-          first = first || { error: `you do not have access to change ${d.serial}`, stale: false };
-        } else note(data);
-      }));
+      await Promise.all(
+        known.slice(i, i + 6).map(async (d) => {
+          try {
+            const { data, error } = await supabase
+              .from('devices')
+              .update(mapDeviceToRow(d))
+              .eq('serial', d.serial)
+              .select('serial,row_version');
+            if (error) {
+              const stale = /STALE_ROW|PT409/.test(error.message + (error as any).code);
+              first = first || {
+                error: stale
+                  ? `${d.serial} was changed by someone else just now`
+                  : friendlyDbError(error.message, d.serial),
+                stale,
+              };
+              await reportCaughtError('saveDevicesStrict.update', error, { target: d.serial });
+            } else if (!data || data.length === 0) {
+              const accessErr = `you do not have access to change ${d.serial}`;
+              first = first || { error: accessErr, stale: false };
+              await reportCaughtError(
+                'saveDevicesStrict.updateAccess',
+                { code: '42501', message: accessErr },
+                { target: d.serial }
+              );
+            } else {
+              note(data);
+            }
+          } catch (innerErr) {
+            first = first || {
+              error: innerErr instanceof Error ? innerErr.message : 'Network error',
+              stale: false,
+            };
+            await reportCaughtError('saveDevicesStrict.updateException', innerErr, { target: d.serial });
+          }
+        })
+      );
     }
     return first ? { ...(first as { error: string; stale: boolean }), versions } : { error: '', stale: false, versions };
   } catch (err) {
+    await reportCaughtError('saveDevicesStrict', err, { target: devices[0]?.serial });
     return { error: err instanceof Error ? err.message : 'Network error', stale: false, versions };
   }
 }
 
-/** Saves a new request (status, units and returns change only through the functions below). */
+/** Saves a new or edited requisition (Error-Only Logging). */
 export async function saveRequisitionStrict(req: Requisition, isNew: boolean): Promise<string> {
   if (!isSupabaseConfigured) return '';
   try {
     const row = mapRequisitionToRow(req);
     const { error } = isNew
       ? await supabase.from('requisitions').insert(row)
-      : await supabase.from('requisitions').update({ reason: row.reason, staff: row.staff, pos_qty: row.pos_qty, sb_qty: row.sb_qty }).eq('req_id', req.reqId);
-    return error ? error.message : '';
-  } catch (err) {
-    return err instanceof Error ? err.message : 'Network error';
-  }
-}
-
-/** A super admin deletes units for good (the database allows this for the super admin only). */
-export async function deleteDevicesOnServer(serials: string[]): Promise<string> {
-  if (!isSupabaseConfigured || !serials.length) return '';
-  try {
-    for (let i = 0; i < serials.length; i += 200) {
-      const { error } = await supabase.from('devices').delete().in('serial', serials.slice(i, i + 200));
-      if (error) return error.message;
+      : await supabase
+          .from('requisitions')
+          .update({ reason: row.reason, staff: row.staff, pos_qty: row.pos_qty, sb_qty: row.sb_qty })
+          .eq('req_id', req.reqId);
+    if (error) {
+      throw error;
     }
     return '';
   } catch (err) {
-    return err instanceof Error ? err.message : 'Network error';
+    await reportCaughtError('saveRequisitionStrict', err, { target: req.reqId });
+    return err instanceof Error ? err.message : String((err as any)?.message || 'Network error');
   }
 }
 
-/** Super Admin: delete every Merchant History record in the database. Returns '' on success or the reason. */
+/** Super Admin deletes units permanently in batches of 100 with delay (Error-Only Logging). */
+export async function deleteDevicesOnServer(serials: string[]): Promise<string> {
+  if (!isSupabaseConfigured || !serials.length) return '';
+  try {
+    for (let i = 0; i < serials.length; i += CSV_BATCH_SIZE) {
+      const { error } = await supabase.from('devices').delete().in('serial', serials.slice(i, i + CSV_BATCH_SIZE));
+      if (error) {
+        throw error;
+      }
+      if (i + CSV_BATCH_SIZE < serials.length) {
+        await sleep(CSV_BATCH_DELAY_MS);
+      }
+    }
+    return '';
+  } catch (err) {
+    await reportCaughtError('deleteDevicesOnServer', err, { target: serials[0] });
+    return err instanceof Error ? err.message : String((err as any)?.message || 'Network error');
+  }
+}
+
+/** Super Admin: delete all Merchant History records (Error-Only Logging). */
 export async function deleteAllHistoricalMerchantsOnServer(): Promise<string> {
   if (!isSupabaseConfigured) return '';
   try {
     const { error } = await supabase.from('historical_merchants').delete().not('record_id', 'is', null);
-    return error ? error.message : '';
+    if (error) {
+      throw error;
+    }
+    return '';
   } catch (err) {
-    return err instanceof Error ? err.message : 'Network error';
+    await reportCaughtError('deleteAllHistoricalMerchantsOnServer', err);
+    return err instanceof Error ? err.message : String((err as any)?.message || 'Network error');
   }
 }
 
-/** HQ dispatches units for a pending stock request; the database checks every unit and keeps them allocated in HQ stock. */
-export async function dispatchRequisitionOnServer(reqId: string, serials: string[], note?: string): Promise<ArrangedDeviceItem[]> {
-  const { data, error } = await supabase.rpc('admin_dispatch_requisition', { p_req_id: reqId, p_serials: serials, p_note: note || null });
-  if (error) throw new Error(error.message);
-  return (data && data.arranged) || [];
-}
-
-/** HQ rejects a pending request with a reason (no stock, quantity not allowed, unclear request ...). The database keeps who and when. */
-export async function rejectRequisitionOnServer(reqId: string, reason: string): Promise<void> {
-  const { error } = await supabase.rpc('admin_reject_requisition', { p_req_id: reqId, p_reason: reason });
-  if (error) throw new Error(error.message);
-}
-
-/** HQ approves a branch's stock return; the database moves only units still at that branch. */
-export async function receiveReturnOnServer(reqId: string, note?: string): Promise<{ moved: string[]; skipped: string[] }> {
-  const { data, error } = await supabase.rpc('admin_receive_return', { p_req_id: reqId, p_note: note || null });
-  if (error) throw new Error(error.message);
-  return { moved: (data && data.moved) || [], skipped: (data && data.skipped) || [] };
-}
-
-/** A branch confirms receipt of a dispatched request (the database moves the units). */
-export async function confirmReceiptOnServer(reqId: string): Promise<{ moved: string[]; skipped: string[] }> {
-  const { data, error } = await supabase.rpc('branch_confirm_receipt', { p_req_id: reqId });
-  if (error) throw new Error(error.message);
-  return { moved: (data && data.moved) || [], skipped: (data && data.skipped) || [] };
-}
-
-/** An entry in the server's audit log (who and when are stamped by the database). */
-export async function writeAuditLog(title: string, detail: string, action?: string, target?: string): Promise<void> {
-  if (!isSupabaseConfigured) return;
+export async function dispatchRequisitionOnServer(
+  reqId: string,
+  serials: string[],
+  note?: string
+): Promise<ArrangedDeviceItem[]> {
   try {
-    await supabase.from('audit_logs').insert({ title: title.slice(0, 160), detail, action: action || null, target: target || null });
-  } catch {
-    /* the local log keeps it */
+    const { data, error } = await supabase.rpc('admin_dispatch_requisition', {
+      p_req_id: reqId,
+      p_serials: serials,
+      p_note: note || null,
+    });
+    if (error) throw error;
+    return (data && data.arranged) || [];
+  } catch (err) {
+    await reportCaughtError('dispatchRequisitionOnServer', err, { target: reqId });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
+export async function rejectRequisitionOnServer(reqId: string, reason: string): Promise<void> {
+  try {
+    const { error } = await supabase.rpc('admin_reject_requisition', { p_req_id: reqId, p_reason: reason });
+    if (error) throw error;
+  } catch (err) {
+    await reportCaughtError('rejectRequisitionOnServer', err, { target: reqId });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
+export async function receiveReturnOnServer(
+  reqId: string,
+  note?: string
+): Promise<{ moved: string[]; skipped: string[] }> {
+  try {
+    const { data, error } = await supabase.rpc('admin_receive_return', { p_req_id: reqId, p_note: note || null });
+    if (error) throw error;
+    return { moved: (data && data.moved) || [], skipped: (data && data.skipped) || [] };
+  } catch (err) {
+    await reportCaughtError('receiveReturnOnServer', err, { target: reqId });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
+export async function confirmReceiptOnServer(reqId: string): Promise<{ moved: string[]; skipped: string[] }> {
+  try {
+    const { data, error } = await supabase.rpc('branch_confirm_receipt', { p_req_id: reqId });
+    if (error) throw error;
+    return { moved: (data && data.moved) || [], skipped: (data && data.skipped) || [] };
+  } catch (err) {
+    await reportCaughtError('confirmReceiptOnServer', err, { target: reqId });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
+/**
+ * Error-Only Audit Logging (25 Oct 2026).
+ * To protect the Supabase log ingestion quota, routine 'Success' or 'Info' operations DO NOT write to the database.
+ * Only actual errors (where action === 'ERROR' or title/detail indicates a failure) are written to Supabase.
+ */
+export async function writeAuditLog(
+  title: string,
+  detail: string,
+  action?: string,
+  target?: string
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const isError =
+    action === 'ERROR' || /\b(error|failed|failure|exception|refused|halted)\b/i.test(`${title} ${action || ''}`);
+  if (!isError) {
+    // Error-Only logging model: do not ping the database on successful or informational operations
+    return;
+  }
+  try {
+    const { error } = await supabase.from('audit_logs').insert({
+      title: title.slice(0, 160),
+      detail,
+      action: action || 'ERROR',
+      target: target || null,
+    });
+    if (error) throw error;
+  } catch (err) {
+    await reportCaughtError('writeErrorAuditLog', err, { skipDbLog: true, showPopup: false });
   }
 }
 
 export interface ServerAuditEntry {
-  id: number; title: string; detail: string; role: string | null; branchId: string | null; createdAt: string;
-  actorEmp: string | null; actorName: string | null; action: string | null; target: string | null;
+  id: number;
+  title: string;
+  detail: string;
+  role: string | null;
+  branchId: string | null;
+  createdAt: string;
+  actorEmp: string | null;
+  actorName: string | null;
+  action: string | null;
+  target: string | null;
 }
-export async function fetchAuditLogs(limit = 1000): Promise<ServerAuditEntry[] | null> {
+
+export async function fetchAuditLogs(limit = 50, offset = 0): Promise<ServerAuditEntry[] | null> {
   if (!isSupabaseConfigured) return null;
-  const { data, error } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(limit);
-  if (error) return null;
-  return (data || []).map((r: any) => ({ id: r.id, title: r.title, detail: r.detail, role: r.role, branchId: r.branch_id, createdAt: r.created_at,
-    actorEmp: r.actor_emp, actorName: r.actor_name, action: r.action, target: r.target }));
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeOffset = Math.max(0, offset);
+  try {
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(safeLimit)
+      .range(safeOffset, safeOffset + safeLimit - 1);
+    if (error) throw error;
+    return (data || []).map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      detail: r.detail,
+      role: r.role,
+      branchId: r.branch_id,
+      createdAt: r.created_at,
+      actorEmp: r.actor_emp,
+      actorName: r.actor_name,
+      action: r.action,
+      target: r.target,
+    }));
+  } catch (err) {
+    await reportCaughtError('fetchAuditLogs', err, { showPopup: false });
+    return null;
+  }
+}
+
+export async function fetchAuditLogsPageFromSupabase(params: {
+  page?: number;
+  pageSize?: number;
+  role?: string;
+  search?: string;
+}): Promise<PaginatedResult<ServerAuditEntry> | null> {
+  if (!isSupabaseConfigured) return null;
+  const pageSize = params.pageSize === 100 ? 100 : 50;
+  const page = Math.max(1, params.page || 1);
+  const offset = (page - 1) * pageSize;
+
+  const res = await fetchPaginatedRows('audit_logs', 'created_at', {
+    limit: pageSize,
+    offset,
+    ascending: false,
+    filters: (q) => {
+      let query = q;
+      if (params.role && params.role !== 'ALL') {
+        query = query.eq('role', params.role);
+      }
+      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      if (term) {
+        query = query.or(
+          `title.ilike.%${term}%,detail.ilike.%${term}%,actor_name.ilike.%${term}%,actor_emp.ilike.%${term}%,branch_id.ilike.%${term}%,target.ilike.%${term}%`
+        );
+      }
+      return query;
+    },
+  });
+
+  if (!res) return null;
+  return {
+    rows: res.rows.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      detail: r.detail,
+      role: r.role,
+      branchId: r.branch_id,
+      createdAt: r.created_at,
+      actorEmp: r.actor_emp,
+      actorName: r.actor_name,
+      action: r.action,
+      target: r.target,
+    })),
+    total: res.count,
+    page,
+    pageSize,
+  };
 }
 
 export type FieldEventStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUPERSEDED' | 'CANCELLED';
-export interface FieldIssue { code: string; level: 'warn' | 'block'; text: string }
+export interface FieldIssue {
+  code: string;
+  level: 'warn' | 'block';
+  text: string;
+}
 export interface FieldEvent {
-  id: number; sourceRecordId: string; unitNo: number; revision: number;
-  kind: 'INSTALL' | 'REPLACE' | 'BATTERY' | 'SB_MAINT' | 'SB_RETURN'; deviceType: 'POS Terminal' | 'Sound Box';
-  serial: string; oldSerial: string | null; oldBattery: string | null; newBattery: string | null; mid: string | null; tid: string | null;
-  terminalName: string | null; outletName: string | null; branchText: string | null; branchId: string | null; staffId: string | null; staffName: string | null;
-  recordedAt: string; latitude: number | null; longitude: number | null; remarks: string | null; payload: any; issues: FieldIssue[];
-  status: FieldEventStatus; reviewedByName: string | null; reviewedAt: string | null; reviewNote: string | null; applied: any; receivedAt: string;
+  id: number;
+  sourceRecordId: string;
+  unitNo: number;
+  revision: number;
+  kind: 'INSTALL' | 'REPLACE' | 'BATTERY' | 'SB_MAINT' | 'SB_RETURN';
+  deviceType: 'POS Terminal' | 'Sound Box';
+  serial: string;
+  oldSerial: string | null;
+  oldBattery: string | null;
+  newBattery: string | null;
+  mid: string | null;
+  tid: string | null;
+  terminalName: string | null;
+  outletName: string | null;
+  branchText: string | null;
+  branchId: string | null;
+  staffId: string | null;
+  staffName: string | null;
+  recordedAt: string;
+  latitude: number | null;
+  longitude: number | null;
+  remarks: string | null;
+  payload: any;
+  issues: FieldIssue[];
+  status: FieldEventStatus;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  applied: any;
+  receivedAt: string;
 }
+
 function mapFieldEvent(r: any): FieldEvent {
-  return { id: r.id, sourceRecordId: r.source_record_id, unitNo: r.unit_no, revision: r.revision, kind: r.kind, deviceType: r.device_type,
-    serial: r.serial, oldSerial: r.old_serial, oldBattery: r.old_battery, newBattery: r.new_battery, mid: r.mid, tid: r.tid,
-    terminalName: r.terminal_name, outletName: r.outlet_name, branchText: r.branch_text, branchId: r.branch_id, staffId: r.staff_id, staffName: r.staff_name,
-    recordedAt: r.recorded_at, latitude: r.latitude, longitude: r.longitude, remarks: r.remarks, payload: r.payload || {}, issues: Array.isArray(r.issues) ? r.issues : [],
-    status: r.status, reviewedByName: r.reviewed_by_name, reviewedAt: r.reviewed_at, reviewNote: r.review_note, applied: r.applied, receivedAt: r.received_at };
+  return {
+    id: r.id,
+    sourceRecordId: r.source_record_id,
+    unitNo: r.unit_no,
+    revision: r.revision,
+    kind: r.kind,
+    deviceType: r.device_type,
+    serial: r.serial,
+    oldSerial: r.old_serial,
+    oldBattery: r.old_battery,
+    newBattery: r.new_battery,
+    mid: r.mid,
+    tid: r.tid,
+    terminalName: r.terminal_name,
+    outletName: r.outlet_name,
+    branchText: r.branch_text,
+    branchId: r.branch_id,
+    staffId: r.staff_id,
+    staffName: r.staff_name,
+    recordedAt: r.recorded_at,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    remarks: r.remarks,
+    payload: r.payload || {},
+    issues: Array.isArray(r.issues) ? r.issues : [],
+    status: r.status,
+    reviewedByName: r.reviewed_by_name,
+    reviewedAt: r.reviewed_at,
+    reviewNote: r.review_note,
+    applied: r.applied,
+    receivedAt: r.received_at,
+  };
 }
-/** branch id -> region ('Phnom Penh' or a province), used to show Phnom Penh or regional records in Phone App Review. */
+
 export async function fetchBranchRegions(): Promise<Record<string, string>> {
-  const { data, error } = await supabase.from('branches').select('id,region');
-  if (error) return {};
-  const m: Record<string, string> = {};
-  (data || []).forEach((b: any) => { m[String(b.id)] = String(b.region || ''); });
-  return m;
+  try {
+    const { data, error } = await supabase.from('branches').select('id,region').limit(100).range(0, 99);
+    if (error) throw error;
+    const m: Record<string, string> = {};
+    (data || []).forEach((b: any) => {
+      m[String(b.id)] = String(b.region || '');
+    });
+    return m;
+  } catch (err) {
+    await reportCaughtError('fetchBranchRegions', err, { showPopup: false });
+    return {};
+  }
 }
-/** Waiting records only: small and fast, so the review list can paint first. */
-export async function fetchPendingFieldEvents(): Promise<FieldEvent[] | null> {
-  const { data, error } = await supabase.from('field_events').select('*').eq('status', 'PENDING').order('received_at', { ascending: true }).limit(5000);
-  return error ? null : (data || []).map(mapFieldEvent);
+
+/** Waiting records fetched with strict server-side limit() and range(offset, offset + limit - 1). */
+export async function fetchPendingFieldEvents(limit = 50, offset = 0): Promise<FieldEvent[] | null> {
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeOffset = Math.max(0, offset);
+  try {
+    const { data, error } = await supabase
+      .from('field_events')
+      .select('*')
+      .eq('status', 'PENDING')
+      .order('received_at', { ascending: true })
+      .limit(safeLimit)
+      .range(safeOffset, safeOffset + safeLimit - 1);
+    if (error) throw error;
+    return (data || []).map(mapFieldEvent);
+  } catch (err) {
+    await reportCaughtError('fetchPendingFieldEvents', err, { showPopup: false });
+    return null;
+  }
 }
-/** Already reviewed records (approved / rejected / withdrawn), loaded in the background after the waiting ones. */
-export async function fetchReviewedFieldEvents(limit = 600): Promise<FieldEvent[] | null> {
-  const { data, error } = await supabase.from('field_events').select('*').neq('status', 'PENDING').order('received_at', { ascending: false }).limit(limit);
-  return error ? null : (data || []).map(mapFieldEvent);
+
+/** Reviewed records fetched with strict server-side limit() and range(offset, offset + limit - 1). */
+export async function fetchReviewedFieldEvents(limit = 50, offset = 0): Promise<FieldEvent[] | null> {
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeOffset = Math.max(0, offset);
+  try {
+    const { data, error } = await supabase
+      .from('field_events')
+      .select('*')
+      .neq('status', 'PENDING')
+      .order('received_at', { ascending: false })
+      .limit(safeLimit)
+      .range(safeOffset, safeOffset + safeLimit - 1);
+    if (error) throw error;
+    return (data || []).map(mapFieldEvent);
+  } catch (err) {
+    await reportCaughtError('fetchReviewedFieldEvents', err, { showPopup: false });
+    return null;
+  }
 }
-/** The number of records waiting for review (counted by the database, not limited by a page). */
+
+export async function fetchFieldEventsPageFromSupabase(params: {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  deviceType?: string;
+  search?: string;
+}): Promise<PaginatedResult<FieldEvent> | null> {
+  if (!isSupabaseConfigured) return null;
+  const pageSize = params.pageSize === 100 ? 100 : 50;
+  const page = Math.max(1, params.page || 1);
+  const offset = (page - 1) * pageSize;
+
+  const res = await fetchPaginatedRows('field_events', 'received_at', {
+    limit: pageSize,
+    offset,
+    ascending: false,
+    filters: (q) => {
+      let query = q;
+      if (params.status && params.status !== 'ALL') query = query.eq('status', params.status);
+      if (params.deviceType && params.deviceType !== 'ALL') query = query.eq('device_type', params.deviceType);
+      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      if (term) {
+        query = query.or(
+          `serial.ilike.%${term}%,old_serial.ilike.%${term}%,source_record_id.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,outlet_name.ilike.%${term}%,terminal_name.ilike.%${term}%,staff_name.ilike.%${term}%,staff_id.ilike.%${term}%`
+        );
+      }
+      return query;
+    },
+  });
+
+  if (!res) return null;
+  return {
+    rows: res.rows.map(mapFieldEvent),
+    total: res.count,
+    page,
+    pageSize,
+  };
+}
+
 export async function countPendingFieldEvents(): Promise<number | null> {
-  const { count, error } = await supabase.from('field_events').select('id', { count: 'exact', head: true }).eq('status', 'PENDING');
-  return error ? null : count || 0;
+  try {
+    const { count, error } = await supabase
+      .from('field_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'PENDING');
+    if (error) throw error;
+    return count || 0;
+  } catch (err) {
+    await reportCaughtError('countPendingFieldEvents', err, { showPopup: false });
+    return null;
+  }
 }
+
 export function subscribeToFieldEvents(onChange: (e: FieldEvent) => void): () => void {
   if (!isSupabaseConfigured) return () => {};
-  const channel = supabase.channel(channelName('field_events_feed'))
+  const channel = supabase
+    .channel(channelName('field_events_feed'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'field_events' }, (payload) => {
       if (payload.new && (payload.new as any).id) onChange(mapFieldEvent(payload.new));
     })
     .subscribe();
-  return () => { supabase.removeChannel(channel); };
-}
-export async function recheckFieldEvent(id: number, branchId?: string): Promise<FieldIssue[]> {
-  const { data, error } = await supabase.rpc('field_recheck', { p_id: id, p_branch: branchId || null });
-  if (error) throw new Error(error.message);
-  return Array.isArray(data) ? data : [];
-}
-export async function approveFieldEvent(id: number, note: string, opt: { branch_id?: string; return_stage?: string; acknowledge?: boolean }): Promise<any> {
-  const { data, error } = await supabase.rpc('field_approve', { p_id: id, p_note: note || null, p_opt: opt });
-  if (error) throw new Error(error.message);
-  return data;
-}
-export async function rejectFieldEvent(id: number, note: string): Promise<void> {
-  const { error } = await supabase.rpc('field_reject', { p_id: id, p_note: note });
-  if (error) throw new Error(error.message);
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
-export interface StaffAccount {
-  userId: string; empId: string; name: string; role: 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH'; branchId: string;
-  position: string | null; contact: string | null; active: boolean; mustChangePassword: boolean; updatedAt: string;
-}
-const mapStaff = (r: any): StaffAccount => ({ userId: r.user_id, empId: r.emp_id, name: r.name, role: r.role, branchId: r.branch_id, position: r.position,
-  contact: r.contact, active: !!r.active, mustChangePassword: !!r.must_change_password, updatedAt: r.updated_at });
-export async function fetchStaffAccounts(): Promise<StaffAccount[] | null> {
-  const { data, error } = await supabase.from('staff_profiles').select('*').order('emp_id');
-  if (error) return null;
-  return (data || []).map(mapStaff);
-}
-export async function saveStaffAccount(p: { emp_id: string; name: string; role: string; branch_id: string; position?: string; contact?: string; active: boolean; password?: string }): Promise<StaffAccount> {
-  const body: any = Object.assign({}, p); if (!body.password) delete body.password;
-  const { data, error } = await supabase.rpc('admin_save_staff', { p: body });
-  if (error) throw new Error(error.message);
-  return mapStaff(data);
-}
-/** The branch list kept on the server (the record for every screen; 22 Oct 2026). */
-export async function fetchBranchesFromSupabase(): Promise<{ id: string; code: string; name: string; region: string }[] | null> {
-  if (!isSupabaseConfigured) return null;
-  const { data, error } = await supabase.from('branches').select('id,code,name,region,active').order('id');
-  if (error) return null;
-  return (data || []).filter((b: any) => b.active !== false)
-    .map((b: any) => ({ id: String(b.id), code: String(b.code || b.id), name: String(b.name || ''), region: String(b.region || '') }));
-}
-/** Admin HQ creates or renames a branch on the server. Returns '' when saved, otherwise the reason. */
-export async function saveBranchOnServer(b: { id: string; name: string }): Promise<string> {
-  if (!isSupabaseConfigured) return '';
+export async function recheckFieldEvent(id: number, branchId?: string): Promise<FieldIssue[]> {
   try {
-    const { error } = await supabase.from('branches').upsert({ id: b.id, code: b.id, name: b.name, active: true, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-    return error ? error.message : '';
+    const { data, error } = await supabase.rpc('field_recheck', { p_id: id, p_branch: branchId || null });
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
   } catch (err) {
-    return err instanceof Error ? err.message : 'Network error';
+    await reportCaughtError('recheckFieldEvent', err, { target: String(id) });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
   }
 }
 
-/** Everything the server holds about one serial / MID / TID: Phone App records and audit entries (read-only, one small query each). */
-export async function traceOnServer(q: string): Promise<{ events: FieldEvent[]; audit: ServerAuditEntry[]; ok: boolean }> {
+export async function approveFieldEvent(
+  id: number,
+  note: string,
+  opt: { branch_id?: string; return_stage?: string; acknowledge?: boolean }
+): Promise<any> {
+  try {
+    const { data, error } = await supabase.rpc('field_approve', { p_id: id, p_note: note || null, p_opt: opt });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    await reportCaughtError('approveFieldEvent', err, { target: String(id) });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
+export async function rejectFieldEvent(id: number, note: string): Promise<void> {
+  try {
+    const { error } = await supabase.rpc('field_reject', { p_id: id, p_note: note });
+    if (error) throw error;
+  } catch (err) {
+    await reportCaughtError('rejectFieldEvent', err, { target: String(id) });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
+export interface StaffAccount {
+  userId: string;
+  empId: string;
+  name: string;
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH';
+  branchId: string;
+  position: string | null;
+  contact: string | null;
+  active: boolean;
+  mustChangePassword: boolean;
+  updatedAt: string;
+}
+
+const mapStaff = (r: any): StaffAccount => ({
+  userId: r.user_id,
+  empId: r.emp_id,
+  name: r.name,
+  role: r.role,
+  branchId: r.branch_id,
+  position: r.position,
+  contact: r.contact,
+  active: !!r.active,
+  mustChangePassword: !!r.must_change_password,
+  updatedAt: r.updated_at,
+});
+
+export async function fetchStaffAccounts(limit = 100, offset = 0): Promise<StaffAccount[] | null> {
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeOffset = Math.max(0, offset);
+  try {
+    const { data, error } = await supabase
+      .from('staff_profiles')
+      .select('*')
+      .order('emp_id')
+      .limit(safeLimit)
+      .range(safeOffset, safeOffset + safeLimit - 1);
+    if (error) throw error;
+    return (data || []).map(mapStaff);
+  } catch (err) {
+    await reportCaughtError('fetchStaffAccounts', err, { showPopup: false });
+    return null;
+  }
+}
+
+export async function fetchStaffAccountsPageFromSupabase(params: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}): Promise<PaginatedResult<StaffAccount> | null> {
+  if (!isSupabaseConfigured) return null;
+  const pageSize = params.pageSize === 100 ? 100 : 50;
+  const page = Math.max(1, params.page || 1);
+  const offset = (page - 1) * pageSize;
+
+  const res = await fetchPaginatedRows('staff_profiles', 'emp_id', {
+    limit: pageSize,
+    offset,
+    ascending: true,
+    filters: (q) => {
+      let query = q;
+      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      if (term) {
+        query = query.or(`emp_id.ilike.%${term}%,name.ilike.%${term}%,branch_id.ilike.%${term}%,role.ilike.%${term}%`);
+      }
+      return query;
+    },
+  });
+
+  if (!res) return null;
+  return {
+    rows: res.rows.map(mapStaff),
+    total: res.count,
+    page,
+    pageSize,
+  };
+}
+
+export async function saveStaffAccount(p: {
+  emp_id: string;
+  name: string;
+  role: string;
+  branch_id: string;
+  position?: string;
+  contact?: string;
+  active: boolean;
+  password?: string;
+}): Promise<StaffAccount> {
+  try {
+    const body: any = Object.assign({}, p);
+    if (!body.password) delete body.password;
+    const { data, error } = await supabase.rpc('admin_save_staff', { p: body });
+    if (error) throw error;
+    return mapStaff(data);
+  } catch (err) {
+    await reportCaughtError('saveStaffAccount', err, { target: p.emp_id });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
+export async function fetchBranchesFromSupabase(
+  limit = 100,
+  offset = 0
+): Promise<{ id: string; code: string; name: string; region: string }[] | null> {
+  if (!isSupabaseConfigured) return null;
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeOffset = Math.max(0, offset);
+  try {
+    const { data, error } = await supabase
+      .from('branches')
+      .select('id,code,name,region,active')
+      .order('id')
+      .limit(safeLimit)
+      .range(safeOffset, safeOffset + safeLimit - 1);
+    if (error) throw error;
+    return (data || [])
+      .filter((b: any) => b.active !== false)
+      .map((b: any) => ({
+        id: String(b.id),
+        code: String(b.code || b.id),
+        name: String(b.name || ''),
+        region: String(b.region || ''),
+      }));
+  } catch (err) {
+    await reportCaughtError('fetchBranchesFromSupabase', err, { showPopup: false });
+    return null;
+  }
+}
+
+export async function saveBranchOnServer(b: { id: string; name: string }): Promise<string> {
+  if (!isSupabaseConfigured) return '';
+  try {
+    const { error } = await supabase
+      .from('branches')
+      .upsert({ id: b.id, code: b.id, name: b.name, active: true, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    if (error) throw error;
+    return '';
+  } catch (err) {
+    await reportCaughtError('saveBranchOnServer', err, { target: b.id });
+    return err instanceof Error ? err.message : String((err as any)?.message || 'Network error');
+  }
+}
+
+export async function traceOnServer(
+  q: string
+): Promise<{ events: FieldEvent[]; audit: ServerAuditEntry[]; ok: boolean }> {
   const term = q.trim().replace(/[^A-Za-z0-9\-_ ]/g, '');
   if (!isSupabaseConfigured || term.length < 4) return { events: [], audit: [], ok: true };
-  const [ev, au] = await Promise.all([
-    supabase.from('field_events').select('*')
-      .or(`serial.ilike.%${term}%,old_serial.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,old_battery.ilike.%${term}%,new_battery.ilike.%${term}%`)
-      .order('received_at', { ascending: false }).limit(60),
-    supabase.from('audit_logs').select('*').or(`detail.ilike.%${term}%,target.ilike.%${term}%`).order('created_at', { ascending: false }).limit(60),
-  ]);
-  return {
-    ok: !ev.error && !au.error,
-    events: ev.error ? [] : (ev.data || []).map(mapFieldEvent),
-    audit: au.error ? [] : (au.data || []).map((r: any) => ({ id: r.id, title: r.title, detail: r.detail, role: r.role, branchId: r.branch_id, createdAt: r.created_at,
-      actorEmp: r.actor_emp, actorName: r.actor_name, action: r.action, target: r.target })),
-  };
+  try {
+    const [ev, au] = await Promise.all([
+      supabase
+        .from('field_events')
+        .select('*')
+        .or(
+          `serial.ilike.%${term}%,old_serial.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,old_battery.ilike.%${term}%,new_battery.ilike.%${term}%`
+        )
+        .order('received_at', { ascending: false })
+        .limit(50)
+        .range(0, 49),
+      supabase
+        .from('audit_logs')
+        .select('*')
+        .or(`detail.ilike.%${term}%,target.ilike.%${term}%`)
+        .order('created_at', { ascending: false })
+        .limit(50)
+        .range(0, 49),
+    ]);
+    if (ev.error) throw ev.error;
+    if (au.error) throw au.error;
+    return {
+      ok: true,
+      events: (ev.data || []).map(mapFieldEvent),
+      audit: (au.data || []).map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        detail: r.detail,
+        role: r.role,
+        branchId: r.branch_id,
+        createdAt: r.created_at,
+        actorEmp: r.actor_emp,
+        actorName: r.actor_name,
+        action: r.action,
+        target: r.target,
+      })),
+    };
+  } catch (err) {
+    await reportCaughtError('traceOnServer', err, { target: term, showPopup: false });
+    return { events: [], audit: [], ok: false };
+  }
 }

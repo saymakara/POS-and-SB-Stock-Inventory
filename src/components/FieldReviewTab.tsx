@@ -124,10 +124,10 @@ export const FieldReviewTab: React.FC<Props> = ({ role, branches, devices, trigg
 
   const load = useCallback(async () => {
     setLoadError('');
-    const pending = await fetchPendingFieldEvents();            // the waiting records first: this is what the admin needs now
+    const pending = await fetchPendingFieldEvents(100, 0);            // the waiting records first: this is what the admin needs now
     if (!pending) { setLoadError('The records could not be loaded. Please check the connection and tap Refresh.'); return; }
     merge(pending, null);
-    const reviewed = await fetchReviewedFieldEvents(600);       // the rest follows in the background
+    const reviewed = await fetchReviewedFieldEvents(100, 0);       // the rest follows in the background (paginated)
     if (reviewed) { merge(null, reviewed); startTransition(() => setReviewedReady(true)); }
   }, [merge]);
 

@@ -17,6 +17,8 @@ interface KpiCardsProps {
   theme?: ThemeMode;
   activeStageFilter?: string;
   onSelectStage?: (stage: LifecycleStage | 'ALL') => void;
+  serverStatsByStage?: Record<LifecycleStage, { count: number; posCount: number; sbCount: number }>;
+  serverTotal?: number;
 }
 
 const STAGE_ICONS: Record<LifecycleStage, React.ReactNode> = {
@@ -82,6 +84,8 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
   devices,
   activeStageFilter = 'ALL',
   onSelectStage,
+  serverStatsByStage,
+  serverTotal,
 }) => {
   const { total, statsByStage } = React.useMemo(() => {
     let activeTotal = 0;
@@ -106,8 +110,11 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
       }
     }
 
+    if (serverStatsByStage && typeof serverTotal === 'number') {
+      return { total: serverTotal, statsByStage: serverStatsByStage };
+    }
     return { total: activeTotal, statsByStage: stats };
-  }, [devices]);
+  }, [devices, serverStatsByStage, serverTotal]);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-5">

@@ -78,6 +78,10 @@ import { SendHorizontal, Lock } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import {
   fetchDevicesFromSupabase,
+  fetchDevicesPageFromSupabase,
+  fetchDeviceStageCountsFromSupabase,
+  type DeviceStageSummary,
+  type DeviceQueryParams,
   fetchRequisitionsFromSupabase,
   subscribeToRealtimeChanges,
   saveDevicesStrict,
@@ -100,6 +104,11 @@ import {
   StaffAccount,
 } from './services/supabaseService';
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
+import {
+  setErrorLoggerContext,
+  subscribeTechnicalErrorPopup,
+  TechnicalErrorPayload,
+} from './utils/errorLogger';
 import { SetupAlert } from './components/SetupAlert';
 import {
   loadDevicesFromIdb,
@@ -205,7 +214,7 @@ const TabLoading = () => (
   </div>
 );
 const TERMINATION_REASON = /clos|terminat|franchise|seasonal|cancel/i;
-const loadServerAuditLogs = () => fetchAuditLogs(1000);
+const loadServerAuditLogs = (limit = 50, offset = 0) => fetchAuditLogs(limit, offset);
 /** A server staff account in the shape the screens use (no password: sign-in is handled by the server). */
 const staffToUser = (a: StaffAccount, branchName?: string): User => ({
   uid: a.userId, empId: a.empId, name: a.name, label: `${a.name} (${a.empId})`, accessRole: a.role,
@@ -503,6 +512,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [serverReady, setServerReady] = useState<boolean>(false);
   const [serverError, setServerError] = useState<string>('');
   const [pendingFieldCount, setPendingFieldCount] = useState<number>(0);
+  const [serverDeviceTotal, setServerDeviceTotal] = useState<number | null>(null);
+  const [serverStageSummary, setServerStageSummary] = useState<DeviceStageSummary | null>(null);
 
   // versions this browser's own saves produced (serial → sent version → new version): a later edit of the same unit
   // made from the older copy is sent with the right version, while a change by someone else is still refused
@@ -511,7 +522,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     versionAlias.current = new Map();
     const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
     const [devs, reqs, hist, srvBranches, staff] = await Promise.all([
-      fetchDevicesFromSupabase(),
+      fetchDevicesPageFromSupabase({ page: 1, pageSize: 100 }),
       fetchRequisitionsFromSupabase(),
       fetchHistoricalMerchantsFromSupabase(),
       fetchBranchesFromSupabase(),
@@ -530,9 +541,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       setUsers(staff.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId))));
     }
     if (devs) {
-      syncedDevices.current = new Map(devs.map((d) => [d.serial, d]));
-      devs.forEach((d) => serverCopies.current.add(d));
-      setDevices(devs);
+      const devRows = devs.rows;
+      setServerDeviceTotal(devs.total);
+      syncedDevices.current = new Map(devRows.map((d) => [d.serial, d]));
+      devRows.forEach((d) => serverCopies.current.add(d));
+      setDevices(devRows);
+      if (devs.total > devRows.length) {
+        fetchDeviceStageCountsFromSupabase().then((summary) => {
+          if (summary) setServerStageSummary(summary);
+        });
+      } else {
+        setServerStageSummary(null);
+      }
     }
     if (reqs) {
       syncedReqs.current = new Map(reqs.map((r) => [r.reqId, r]));
@@ -880,6 +900,22 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   // (22 Oct 2026) the signed-in person, and what a branch account may act on (its own branch only)
   const operatorLabel = role === 'BRANCH' ? selectedStaffUser : activeAdminStaff || authUsername;
+  const [techErrorPopup, setTechErrorPopup] = useState<TechnicalErrorPayload | null>(null);
+
+  useEffect(() => {
+    setErrorLoggerContext({
+      staffId: profile?.emp_id || operatorLabel || authUsername || 'UNKNOWN_STAFF',
+      staffName: profile?.name || operatorLabel || authUsername || 'Staff',
+      role,
+      branchId: selectedBranch,
+    });
+  }, [profile?.emp_id, profile?.name, operatorLabel, authUsername, role, selectedBranch]);
+
+  useEffect(() => {
+    return subscribeTechnicalErrorPopup((payload) => {
+      setTechErrorPopup(payload);
+    });
+  }, []);
   const inScope = useCallback((d: Device | undefined) => Boolean(d) && (role !== 'BRANCH' || d!.branchId === selectedBranch), [role, selectedBranch]);
 
   const addAuditLog = useCallback(
@@ -897,7 +933,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         ...prev.slice(0, 199),
       ]);
       // (21 Oct 2026) also in the server's audit log, where the database stamps who and when (nobody can edit it)
-      void writeAuditLog(actionTitle, detailText);
+      // Error-Only Server Logging: only write to Supabase audit_logs when an actual error occurs
+      if (/error|fail/i.test(actionTitle)) {
+        void writeAuditLog(actionTitle, detailText, undefined, 'Error');
+      }
     },
     [role, authUsername, activeAdminStaff, selectedBranch, selectedStaffUser]
   );
@@ -1188,7 +1227,79 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
+  // Refresh 500K-row server stage counts when branch scope changes on a large dataset
+  useEffect(() => {
+    if (!isSupabaseConfigured || !serverDeviceTotal || serverDeviceTotal <= 100) return;
+    let cancelled = false;
+    const effectiveBranch = role === 'BRANCH' ? selectedBranch : branchFilter;
+    fetchDeviceStageCountsFromSupabase(effectiveBranch).then((summary) => {
+      if (!cancelled && summary) {
+        setServerStageSummary(summary);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [serverDeviceTotal, role, selectedBranch, branchFilter]);
+
+  // Fetch a specific 50/100-row page from Supabase and merge into syncedDevices + devices (capped at 400 rows in RAM)
+  const handleFetchInventoryPage = useCallback(
+    async (params: DeviceQueryParams) => {
+      const res = await fetchDevicesPageFromSupabase(params);
+      if (!res) return null;
+      const incoming = res.rows;
+      incoming.forEach((d) => {
+        serverCopies.current.add(d);
+        syncedDevices.current.set(d.serial, d);
+      });
+      setDevices((prev) => {
+        const incomingBySn = new Map(incoming.map((d) => [d.serial, d]));
+        const merged: Device[] = [...incoming];
+        for (const existing of prev) {
+          if (incomingBySn.has(existing.serial)) continue;
+          const isUnsavedLocalEdit = !serverCopies.current.has(existing);
+          if (isUnsavedLocalEdit || merged.length < 400) {
+            merged.push(existing);
+          } else {
+            syncedDevices.current.delete(existing.serial);
+          }
+        }
+        return merged;
+      });
+      return { rows: incoming, total: res.total };
+    },
+    []
+  );
+
+  // When searching from the global header bar on a >100-row dataset outside InventoryTab, fetch matching page from server
+  useEffect(() => {
+    const q = deferredSearchQuery.trim();
+    if (!isSupabaseConfigured || !serverDeviceTotal || serverDeviceTotal <= 100 || q.length < 2 || shownTab === 'inventory') {
+      return;
+    }
+    const timer = setTimeout(() => {
+      void handleFetchInventoryPage({
+        page: 1,
+        pageSize: 100,
+        search: q,
+        branchId: role === 'BRANCH' ? selectedBranch : branchFilter,
+      });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [deferredSearchQuery, serverDeviceTotal, shownTab, role, selectedBranch, branchFilter, handleFetchInventoryPage]);
+
   const pipelineCounts = useMemo(() => {
+    if (serverStageSummary) {
+      return {
+        all: serverStageSummary.all,
+        hq: serverStageSummary.hq,
+        reserve: serverStageSummary.reserve,
+        config: serverStageSummary.config,
+        complete: serverStageSummary.complete,
+        faulty: serverStageSummary.faulty,
+        lost: serverStageSummary.lost,
+      };
+    }
     let all = 0, hq = 0, reserve = 0, config = 0, complete = 0, faulty = 0, lost = 0;
     const len = scopedDevices.length;
     for (let i = 0; i < len; i++) {
@@ -1205,7 +1316,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       }
     }
     return { all, hq, reserve, config, complete, faulty, lost };
-  }, [scopedDevices]);
+  }, [scopedDevices, serverStageSummary]);
 
   const filteredInventory = useMemo(() => {
     const q = deferredSearchQuery.trim().toLowerCase();
@@ -2619,8 +2730,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       if (d.stage === 'COMPLETE' && !d.archived && d.mid?.trim()) set.add(d.mid.trim());
     }
     return set.size;
-  }, [scopedDevices]);
-  const activeDeviceCount = useMemo(() => scopedDevices.reduce((n, d) => n + (d.archived ? 0 : 1), 0), [scopedDevices]);
+  }, [scopedDevices, serverStageSummary]);
+  const activeDeviceCount = useMemo(
+    () => (serverStageSummary ? serverStageSummary.all : scopedDevices.reduce((n, d) => n + (d.archived ? 0 : 1), 0)),
+    [scopedDevices, serverStageSummary]
+  );
 
   const pendingReqsCount = useMemo(
     () => scopedRequisitions.filter((r) => r.status === 'PENDING_ADMIN').length,
@@ -2756,6 +2870,37 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         </div>
       )}
 
+      {/* Mobile & Workstation Technical Error Code Popup for Field Staff Screenshot */}
+      {techErrorPopup && (
+        <div
+          role="region"
+          aria-label="Technical Error Code Popup"
+          className="fixed bottom-16 right-4 z-[65] w-[min(92vw,380px)] rounded-2xl border-2 border-rose-500 bg-slate-950/95 text-white p-4 shadow-2xl pointer-events-auto"
+        >
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-rose-400">
+              Technical Error — Screenshot for Support
+            </span>
+            <button
+              type="button"
+              onClick={() => setTechErrorPopup(null)}
+              className="text-[11px] font-bold px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+          <div className="font-mono text-xs font-black text-amber-300 bg-rose-950/70 px-3 py-1.5 rounded-lg border border-rose-500/40 mb-2">
+            ERROR CODE: {techErrorPopup.code}
+          </div>
+          <div className="text-[11px] font-mono text-slate-200 space-y-0.5">
+            <div>Operation: {techErrorPopup.operation}</div>
+            <div>Staff ID: {techErrorPopup.staffId} · Branch: {techErrorPopup.branchId}</div>
+            <div>Time: {techErrorPopup.timestamp}</div>
+            <div className="text-rose-200 font-sans pt-1 break-words">{techErrorPopup.message}</div>
+          </div>
+        </div>
+      )}
+
       {/* Right Column: Sticky Header at top + Pipeline Bar + Workspace + Footer */}
       <div className="flex-1 w-full min-w-0 flex flex-col justify-between min-h-screen">
         <div>
@@ -2849,6 +2994,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                 devices={scopedDevices}
                 theme={theme}
                 activeStageFilter={stageFilter}
+                serverStatsByStage={serverStageSummary?.byStage}
+                serverTotal={serverStageSummary?.all}
                 onSelectStage={(st) => {
                   setStageFilter(st);
                   if (activeTab !== 'inventory' && st !== 'ALL') {
@@ -2982,6 +3129,21 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       fulfillingRequisition={fulfillingRequisition}
                       onConfirmFulfillment={handleConfirmFulfillment}
                       onCancelFulfillment={handleCancelFulfillment}
+                      serverTotalDevices={serverStageSummary ? serverStageSummary.all : serverDeviceTotal}
+                      serverArchivedCount={serverStageSummary ? serverStageSummary.archived : null}
+                      serverStageCounts={
+                        serverStageSummary
+                          ? {
+                              HQ_STOCK: serverStageSummary.hq,
+                              BRANCH_RESERVE: serverStageSummary.reserve,
+                              CONFIGURING: serverStageSummary.config,
+                              COMPLETE: serverStageSummary.complete,
+                              FAULTY: serverStageSummary.faulty,
+                              LOST: serverStageSummary.lost,
+                            }
+                          : undefined
+                      }
+                      onFetchServerPage={handleFetchInventoryPage}
                     />
                   )}
 

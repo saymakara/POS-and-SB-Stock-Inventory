@@ -55,12 +55,23 @@ CREATE TABLE IF NOT EXISTS public.devices (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Performance Indexes on Devices
-CREATE INDEX IF NOT EXISTS idx_devices_branch_stage ON public.devices(branch_id, stage);
-CREATE INDEX IF NOT EXISTS idx_devices_stage ON public.devices(stage);
-CREATE INDEX IF NOT EXISTS idx_devices_type ON public.devices(type);
-CREATE INDEX IF NOT EXISTS idx_devices_mid ON public.devices(mid) WHERE mid IS NOT NULL AND mid != '';
-CREATE INDEX IF NOT EXISTS idx_devices_tid ON public.devices(tid) WHERE tid IS NOT NULL AND tid != '';
+-- Performance B-Tree & GIN Indexes on Devices
+CREATE INDEX IF NOT EXISTS idx_devices_branch_id ON public.devices USING btree (branch_id);
+CREATE INDEX IF NOT EXISTS idx_devices_branch_stage ON public.devices USING btree (branch_id, stage);
+CREATE INDEX IF NOT EXISTS idx_devices_stage ON public.devices USING btree (stage);
+CREATE INDEX IF NOT EXISTS idx_devices_type ON public.devices USING btree (type);
+CREATE INDEX IF NOT EXISTS idx_devices_serial_upper ON public.devices USING btree (upper(serial));
+CREATE INDEX IF NOT EXISTS idx_devices_battery_serial ON public.devices USING btree (battery_serial);
+CREATE INDEX IF NOT EXISTS idx_devices_mid ON public.devices USING btree (mid) WHERE mid IS NOT NULL AND mid != '';
+CREATE INDEX IF NOT EXISTS idx_devices_mid_btree ON public.devices USING btree (mid);
+CREATE INDEX IF NOT EXISTS idx_devices_tid ON public.devices USING btree (tid) WHERE tid IS NOT NULL AND tid != '';
+CREATE INDEX IF NOT EXISTS idx_devices_tid_btree ON public.devices USING btree (tid);
+CREATE INDEX IF NOT EXISTS idx_devices_merchant_name ON public.devices USING btree (merchant_name);
+CREATE INDEX IF NOT EXISTS idx_devices_staff ON public.devices USING btree (staff);
+CREATE INDEX IF NOT EXISTS idx_devices_archived_branch_stage ON public.devices USING btree (archived, branch_id, stage);
+CREATE INDEX IF NOT EXISTS idx_devices_archived_branch_stage_type ON public.devices USING btree (archived, branch_id, stage, type);
+CREATE INDEX IF NOT EXISTS idx_devices_archived_branch_stage_serial ON public.devices USING btree (archived, branch_id, stage, serial);
+CREATE INDEX IF NOT EXISTS idx_devices_updated_at ON public.devices USING btree (updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_devices_custom_fields ON public.devices USING GIN(custom_fields);
 
 -- 4. Historical Merchants Ledger (Archive & Termination Records)
@@ -88,8 +99,12 @@ CREATE TABLE IF NOT EXISTS public.historical_merchants (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_hist_merchants_mid ON public.historical_merchants(mid);
-CREATE INDEX IF NOT EXISTS idx_hist_merchants_serial ON public.historical_merchants(serial);
+CREATE INDEX IF NOT EXISTS idx_hist_merchants_branch_id ON public.historical_merchants USING btree (branch_id);
+CREATE INDEX IF NOT EXISTS idx_hist_merchants_mid ON public.historical_merchants USING btree (mid);
+CREATE INDEX IF NOT EXISTS idx_hist_merchants_tid ON public.historical_merchants USING btree (tid);
+CREATE INDEX IF NOT EXISTS idx_hist_merchants_serial ON public.historical_merchants USING btree (serial);
+CREATE INDEX IF NOT EXISTS idx_hist_merchants_handled_by_staff ON public.historical_merchants USING btree (handled_by_staff);
+CREATE INDEX IF NOT EXISTS idx_hist_merchants_returned_date ON public.historical_merchants USING btree (returned_date DESC);
 
 -- 5. Stock Requisitions Table
 CREATE TABLE IF NOT EXISTS public.requisitions (
@@ -107,20 +122,26 @@ CREATE TABLE IF NOT EXISTS public.requisitions (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_requisitions_branch ON public.requisitions(branch_id);
-CREATE INDEX IF NOT EXISTS idx_requisitions_status ON public.requisitions(status);
+CREATE INDEX IF NOT EXISTS idx_requisitions_branch ON public.requisitions USING btree (branch_id);
+CREATE INDEX IF NOT EXISTS idx_requisitions_status ON public.requisitions USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_requisitions_branch_status ON public.requisitions USING btree (branch_id, status);
+CREATE INDEX IF NOT EXISTS idx_requisitions_staff ON public.requisitions USING btree (staff);
+CREATE INDEX IF NOT EXISTS idx_requisitions_date ON public.requisitions USING btree (date DESC);
 
--- 6. Audit Logs Table
+-- 6. Audit Logs Table (Error-Only Logging Retention)
 CREATE TABLE IF NOT EXISTS public.audit_logs (
   id BIGSERIAL PRIMARY KEY,
   title VARCHAR(160) NOT NULL,
   detail TEXT NOT NULL,
+  status VARCHAR(24) NOT NULL DEFAULT 'Error',
   role VARCHAR(32),
   branch_id VARCHAR(16),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON public.audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON public.audit_logs USING btree (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_status ON public.audit_logs USING btree (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_branch_id ON public.audit_logs USING btree (branch_id);
 
 -- ==============================================================================
 -- Row-Level Security (RLS) Configuration

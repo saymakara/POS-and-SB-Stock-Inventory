@@ -24,11 +24,13 @@ import {
   Layers,
   FileText,
   Sparkles,
+  Ban,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { normalizeMid } from '../utils/display';
 import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
+import { CSV_BATCH_SIZE, CSV_BATCH_DELAY_MS, checkExistingSerialsOnServer } from '../services/supabaseService';
 
 export const SCHEMA_COLUMNS = [
   { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
@@ -45,7 +47,16 @@ export const SCHEMA_COLUMNS = [
   { id: 'Serial_Cycles_Count', label: 'Serial_Cycles_Count', desc: 'Redeployment Count', req: false },
 ];
 
+export interface CsvCellValidationError {
+  row: number;
+  column: number;
+  columnName: string;
+  category: 'MISSING_REQUIRED' | 'INVALID_TYPE' | 'COLUMN_COUNT' | 'DUPLICATE_IN_FILE' | 'DUPLICATE_IN_DB';
+  message: string;
+}
+
 export interface StagedItem {
+  csvRowNumber?: number;
   serial: string;
   batterySerial: string;
   model: string;
@@ -60,8 +71,9 @@ export interface StagedItem {
   tid?: string;
   redeployCount?: number;
   isDuplicate: boolean;
-  /** Why this row cannot be imported (unknown branch, bad stage/date…); rows with an error are not committed. */
+  /** Why this row cannot be imported (unknown branch, bad stage/date, column count…); any error halts the upload. */
   error?: string;
+  cellErrors?: CsvCellValidationError[];
 }
 
 interface BatchUploadModalProps {
@@ -69,7 +81,7 @@ interface BatchUploadModalProps {
   onClose: () => void;
   branches: Branch[];
   existingDevices: Device[];
-  onCommitBatch: (newDevices: Partial<Device>[]) => void;
+  onCommitBatch: (newDevices: Partial<Device>[]) => void | Promise<void>;
   activeBranchId: string;
   theme?: ThemeMode;
   /** Signed-in operator's name/label, recorded as the person who stocked the units in. */
@@ -102,22 +114,26 @@ function parseStageValue(rawStage: string, fallback: LifecycleStage): LifecycleS
   return null;
 }
 
-// Parse device type from row or serial format
-function parseDeviceType(rawType: string, serial: string): 'POS Terminal' | 'Sound Box' {
+// Parse device type from row or serial format; returns null if an explicit non-empty type is invalid
+function parseDeviceTypeStrict(rawType: string, serial: string): 'POS Terminal' | 'Sound Box' | null {
   const t = rawType.trim().toLowerCase();
+  if (!t) {
+    return serial.toUpperCase().startsWith('SB') ? 'Sound Box' : 'POS Terminal';
+  }
   if (t.includes('sound') || t.includes('audio') || t.includes('box') || t === 'sb') {
     return 'Sound Box';
   }
-  if (t.includes('pos') || t.includes('terminal') || t.includes('wizar') || t.includes('pax')) {
+  if (t.includes('pos') || t.includes('terminal') || t.includes('wizar') || t.includes('pax') || t.includes('verifone')) {
     return 'POS Terminal';
   }
-  if (serial.toUpperCase().startsWith('SB')) {
-    return 'Sound Box';
-  }
-  return 'POS Terminal';
+  return null;
 }
 
-const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+const isDate = (v: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+};
 
 /** A branch picker you can type into: matches the code or any part of the name. */
 const BranchSearch: React.FC<{
@@ -211,12 +227,17 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   const [generatedRangeBatch, setGeneratedRangeBatch] = useState<StagedItem[]>([]);
   const [rangeError, setRangeError] = useState('');
   const [commitNotice, setCommitNotice] = useState('');
+  const [isCommittingBatches, setIsCommittingBatches] = useState(false);
+  const [serverExistingSerials, setServerExistingSerials] = useState<Set<string>>(new Set());
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; rowsSent: number; totalRows: number } | null>(null);
 
   // Reset step when modal opens
   React.useEffect(() => {
     if (isOpen) {
       setBatchStep('INPUT');
       setCommitNotice('');
+      setIsCommittingBatches(false);
+      setBatchProgress(null);
     }
   }, [isOpen]);
 
@@ -226,10 +247,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   }, [posPrefix, posStartNum, posPadding, posQty, posModel, sbPrefix, sbStartNum, sbPadding, sbQty, sbModel, defaultBranchId, defaultStage]);
 
   const isLight = theme === 'light';
-  const existingSerials = useMemo(
-    () => new Set(existingDevices.map((d) => d.serial.trim().toUpperCase())),
-    [existingDevices]
-  );
+  const existingSerials = useMemo(() => {
+    const set = new Set(existingDevices.map((d) => d.serial.trim().toUpperCase()));
+    serverExistingSerials.forEach((s) => set.add(s));
+    return set;
+  }, [existingDevices, serverExistingSerials]);
 
   const defaultBranch = useMemo(
     () => branches.find((b) => b.id === defaultBranchId || b.code === defaultBranchId),
@@ -242,14 +264,17 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   const resolveBranch = (rawCode: string): { branch?: Branch; error?: string } => {
     const code = rawCode.trim();
     if (code) {
+      if (!/^\d{3}$/.test(code) && !/^branch\s*\d{3}$/i.test(code)) {
+        return { error: `Invalid Branch_Code data type "${code}" (expected 3-digit branch ID like 100, 101)` };
+      }
       const digits = (code.match(/\d+/) || [''])[0];
       const b = digits ? findBranch(digits) : undefined;
       return b ? { branch: b } : { error: `Unknown branch code "${code}"` };
     }
-    return defaultBranch ? { branch: defaultBranch } : { error: 'Choose the default branch' };
+    return defaultBranch ? { branch: defaultBranch } : { error: 'Missing required Branch_Code (and no fallback branch selected)' };
   };
 
-  // Master Table CSV Parser: Parses files formatted exactly as the inventory table
+  // Master Table CSV Parser with strict Client-Side Pre-Validation (Row & Column error pinpointing)
   const tableCsvBatch = useMemo(() => {
     if (!tableCsvText.trim()) return [];
     const rows = parseCsv(tableCsvText);
@@ -278,6 +303,14 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
     let colMap: Record<string, number> = {};
     let dataStartIdx = 0;
+    const expectedColCount = rows[0].length;
+    const headerLabels: string[] = hasHeader
+      ? rows[0].map((h, idx) => h.trim() || `Column_${idx + 1}`)
+      : expectedColCount >= 6
+      ? SCHEMA_COLUMNS.map((c) => c.label)
+      : expectedColCount === 3
+      ? ['Serial_SN', 'Battery_Serial', 'Branch_Code']
+      : ['Serial_SN'];
 
     if (hasHeader) {
       dataStartIdx = 1;
@@ -297,11 +330,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         else if (/(cycles|redeploy)/.test(token) && colMap.redeployCount === undefined) colMap.redeployCount = idx;
       });
     } else {
-      // No header: detect column order based on column count and date presence
       const sample = rows[0];
       if (sample.length >= 6 && /^\d{4}-\d{2}-\d{2}/.test(sample[0])) {
-        // Standard table export order:
-        // 0: Stock_In_Date, 1: Serial_SN, 2: Product_Type, 3: Model, 4: Battery_Serial, 5: Branch_Code, 6: Branch_Name, 7: Lifecycle_Stage, 8: Merchant_Name, 9: MID, 10: TID, 11: Serial_Cycles_Count
         colMap = {
           stockInDate: 0,
           serial: 1,
@@ -317,7 +347,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           redeployCount: 11,
         };
       } else if (sample.length >= 2 && !/^\d{4}-\d{2}-\d{2}/.test(sample[0])) {
-        // Serial, BatterySerial, BranchCode
         colMap = {
           serial: 0,
           batterySerial: 1,
@@ -328,40 +357,183 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       }
     }
 
+    const colNumber = (key: string, fallbackCol = 1): number =>
+      colMap[key] !== undefined ? colMap[key] + 1 : fallbackCol;
+    const colLabel = (key: string, fallbackName: string): string =>
+      colMap[key] !== undefined && headerLabels[colMap[key]]
+        ? headerLabels[colMap[key]]
+        : fallbackName;
+
     const cell = (row: string[], key: string) => (colMap[key] !== undefined ? row[colMap[key]] || '' : '').trim();
     const parsed: StagedItem[] = [];
     const today = todayPP();
 
     for (let i = dataStartIdx; i < rows.length; i++) {
       const row = rows[i];
-      const serial = cell(row, 'serial').toUpperCase();
-      if (!serial || serial === 'SERIAL' || serial === 'SERIAL_SN' || serial === 'SERIAL NUMBER (SN)') {
-        continue;
-      }
-      const errors: string[] = [];
+      const csvRowNumber = i + 1; // 1-based row number in the CSV file
+      // Skip completely blank lines at the end of the file
+      if (row.length === 1 && !row[0].trim()) continue;
 
-      const itemType = parseDeviceType(cell(row, 'type'), serial);
+      const cellErrors: CsvCellValidationError[] = [];
+      const addErr = (
+        column: number,
+        columnName: string,
+        category: CsvCellValidationError['category'],
+        message: string
+      ) => {
+        cellErrors.push({ row: csvRowNumber, column, columnName, category, message });
+      };
+
+      // 1. Check Column Count consistency
+      if (hasHeader && row.length !== expectedColCount) {
+        addErr(
+          Math.min(row.length, expectedColCount) || 1,
+          'Column_Count',
+          'COLUMN_COUNT',
+          `Incorrect column count: row has ${row.length} column(s), expected ${expectedColCount} matching header row`
+        );
+      } else if (!hasHeader && ![1, 2, 3, 12, 13].includes(row.length) && row.length !== expectedColCount) {
+        addErr(
+          row.length || 1,
+          'Column_Count',
+          'COLUMN_COUNT',
+          `Incorrect column count: row has ${row.length} column(s), expected ${expectedColCount} column(s)`
+        );
+      }
+
+      // 2. Check Required Field: Serial_SN
+      const rawSerial = cell(row, 'serial').toUpperCase();
+      if (colMap.serial === undefined) {
+        addErr(1, 'Serial_SN', 'MISSING_REQUIRED', 'Missing required column "Serial_SN" in CSV header');
+      } else if (!rawSerial) {
+        addErr(
+          colNumber('serial', 2),
+          colLabel('serial', 'Serial_SN'),
+          'MISSING_REQUIRED',
+          'Missing required field Serial_SN (Hardware Serial Number cannot be empty)'
+        );
+      } else if (!/^[A-Z0-9_-]{3,40}$/.test(rawSerial)) {
+        addErr(
+          colNumber('serial', 2),
+          colLabel('serial', 'Serial_SN'),
+          'INVALID_TYPE',
+          `Invalid Serial_SN format "${rawSerial}" (expected 3–40 alphanumeric characters)`
+        );
+      }
+
+      const serial = rawSerial || `MISSING_SN_ROW_${csvRowNumber}`;
+
+      // 3. Check Product_Type data type
+      const rawTypeStr = cell(row, 'type');
+      const strictType = parseDeviceTypeStrict(rawTypeStr, serial);
+      if (rawTypeStr && !strictType) {
+        addErr(
+          colNumber('type', 3),
+          colLabel('type', 'Product_Type'),
+          'INVALID_TYPE',
+          `Invalid Product_Type "${rawTypeStr}" (must be "POS Terminal" or "Sound Box")`
+        );
+      }
+      const itemType: 'POS Terminal' | 'Sound Box' = strictType || (serial.startsWith('SB') ? 'Sound Box' : 'POS Terminal');
       const isPos = itemType === 'POS Terminal';
-      const rawModel = isPos ? cell(row, 'model') || posModel : 'Q161 Pro';   // the only Sound Box model
-      // Battery serial only as written in the file (blank when the file has none).
+      const rawModel = isPos ? cell(row, 'model') || posModel : 'Q161 Pro';
       const rawBattery = cell(row, 'batterySerial');
 
+      // 4. Check Branch_Code data type & existence
       const { branch: targetBranch, error: branchError } = resolveBranch(cell(row, 'branchCode'));
-      if (branchError) errors.push(branchError);
+      if (branchError) {
+        addErr(
+          colNumber('branchCode', 6),
+          colLabel('branchCode', 'Branch_Code'),
+          'INVALID_TYPE',
+          branchError
+        );
+      }
 
+      // 5. Check Lifecycle_Stage data type
       const rawStage = cell(row, 'stage');
       const fallbackStage: LifecycleStage = targetBranch?.id === '100' ? 'HQ_STOCK' : defaultStage;
       const stage = parseStageValue(rawStage, fallbackStage);
-      if (!stage) errors.push(`Unknown stage "${rawStage}"`);
+      if (!stage) {
+        addErr(
+          colNumber('stage', 8),
+          colLabel('stage', 'Lifecycle_Stage'),
+          'INVALID_TYPE',
+          `Invalid Lifecycle_Stage "${rawStage}"`
+        );
+      }
 
+      // 6. Check Stock_In_Date data type (YYYY-MM-DD)
       const rawDate = cell(row, 'stockInDate');
-      if (rawDate && !isDate(rawDate)) errors.push(`Stock-in date "${rawDate}" is not YYYY-MM-DD`);
+      if (rawDate && !isDate(rawDate)) {
+        addErr(
+          colNumber('stockInDate', 1),
+          colLabel('stockInDate', 'Stock_In_Date'),
+          'INVALID_TYPE',
+          `Invalid Stock_In_Date "${rawDate}" (must be YYYY-MM-DD calendar date)`
+        );
+      }
       const stockInDate = isDate(rawDate) ? rawDate : today;
 
-      const rawCycles = colMap.redeployCount !== undefined ? parseInt(row[colMap.redeployCount], 10) : 0;
-      const redeployCount = isNaN(rawCycles) ? 0 : Math.max(0, rawCycles);
+      // 7. Check MID & TID data types and required fields when stage === COMPLETE
+      const rawMerchantName = cell(row, 'merchantName');
+      const rawMidInput = cell(row, 'mid');
+      const normalizedMidVal = normalizeMid(rawMidInput);
+      const rawTidInput = cell(row, 'tid');
+
+      if (rawMidInput && !/^\d{15}$/.test(normalizedMidVal)) {
+        addErr(
+          colNumber('mid', 10),
+          colLabel('mid', 'MID'),
+          'INVALID_TYPE',
+          `Invalid MID "${rawMidInput}" (must be a 15-digit numeric Merchant ID)`
+        );
+      }
+      if (rawTidInput && !/^[A-Za-z0-9_-]{4,16}$/.test(rawTidInput)) {
+        addErr(
+          colNumber('tid', 11),
+          colLabel('tid', 'TID'),
+          'INVALID_TYPE',
+          `Invalid TID "${rawTidInput}" (must be 4–16 alphanumeric characters)`
+        );
+      }
+      if (stage === 'COMPLETE') {
+        if (!rawMerchantName) {
+          addErr(
+            colNumber('merchantName', 9),
+            colLabel('merchantName', 'Merchant_Name'),
+            'MISSING_REQUIRED',
+            'Missing required Merchant_Name for COMPLETE (Installed Live) device'
+          );
+        }
+        if (!rawMidInput) {
+          addErr(
+            colNumber('mid', 10),
+            colLabel('mid', 'MID'),
+            'MISSING_REQUIRED',
+            'Missing required 15-digit MID for COMPLETE (Installed Live) device'
+          );
+        }
+      }
+
+      // 8. Check Serial_Cycles_Count data type (non-negative integer)
+      const rawCyclesStr = cell(row, 'redeployCount');
+      let redeployCount = 0;
+      if (rawCyclesStr) {
+        if (!/^\d+$/.test(rawCyclesStr)) {
+          addErr(
+            colNumber('redeployCount', 12),
+            colLabel('redeployCount', 'Serial_Cycles_Count'),
+            'INVALID_TYPE',
+            `Invalid Serial_Cycles_Count "${rawCyclesStr}" (must be a non-negative integer)`
+          );
+        } else {
+          redeployCount = parseInt(rawCyclesStr, 10);
+        }
+      }
 
       parsed.push({
+        csvRowNumber,
         serial,
         batterySerial: rawBattery,
         model: rawModel,
@@ -371,12 +543,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         staff: staffLabel,
         stage: stage || fallbackStage,
         stockInDate,
-        merchantName: cell(row, 'merchantName'),
-        mid: normalizeMid(cell(row, 'mid')),
-        tid: /^\d{15}$/.test(normalizeMid(cell(row, 'mid'))) ? normalizeMid(cell(row, 'mid')).slice(-8) : cell(row, 'tid'),
+        merchantName: rawMerchantName,
+        mid: normalizedMidVal,
+        tid: /^\d{15}$/.test(normalizedMidVal) ? normalizedMidVal.slice(-8) : rawTidInput,
         redeployCount,
         isDuplicate: false,
-        error: errors.join('; ') || undefined,
+        error: cellErrors.map((ce) => `Row ${ce.row}, Col ${ce.column} (${ce.columnName}): ${ce.message}`).join('; ') || undefined,
+        cellErrors,
       });
     }
 
@@ -395,14 +568,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       selectedModel: string
     ) => {
       if (!raw.trim()) return;
-      // parseCsv keeps empty fields, so "SN,,105" still puts 105 in the branch column.
       const rows = parseCsv(raw, detectDelimiter(raw.split(/\r?\n/)[0] || ''));
 
-      rows.forEach((parts) => {
+      rows.forEach((parts, rowIdx) => {
+        const csvRowNumber = rowIdx + 1;
         const first = (parts[0] || '').toLowerCase();
         if (first.startsWith('serial') || first.startsWith('stock')) return;
 
-        // Auto-detect if line is table-formatted: [date, serial, type, model, battery, branch]
         let serial = (parts[0] || '').toUpperCase();
         let batterySerial = '';
         let modelPart = parts[1] || '';
@@ -418,16 +590,37 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           modelPart = parts[2] || '';
           branchPart = parts[3] || '';
         } else if (/^\d{3}$/.test(modelPart)) {
-          // Serial, BranchCode
           branchPart = modelPart;
           modelPart = '';
         }
 
-        if (!serial) return;
+        if (!serial && parts.every((p) => !p.trim())) return;
+
+        const cellErrors: CsvCellValidationError[] = [];
+        if (!serial) {
+          cellErrors.push({
+            row: csvRowNumber,
+            column: 1,
+            columnName: 'Serial_SN',
+            category: 'MISSING_REQUIRED',
+            message: 'Missing required Serial_SN',
+          });
+        }
 
         const { branch: curBranch, error: branchError } = resolveBranch(branchPart);
+        if (branchError) {
+          cellErrors.push({
+            row: csvRowNumber,
+            column: 3,
+            columnName: 'Branch_Code',
+            category: 'INVALID_TYPE',
+            message: branchError,
+          });
+        }
+
         parsed.push({
-          serial,
+          csvRowNumber,
+          serial: serial || `MISSING_SN_ROW_${csvRowNumber}`,
           batterySerial,
           model: fixedType === 'Sound Box' ? 'Q161 Pro' : modelPart || selectedModel,
           type: fixedType,
@@ -437,7 +630,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           stage: curBranch?.id === '100' ? 'HQ_STOCK' : defaultStage,
           stockInDate: today,
           isDuplicate: false,
-          error: branchError,
+          error: cellErrors.map((ce) => `Row ${ce.row}, Col ${ce.column} (${ce.columnName}): ${ce.message}`).join('; ') || undefined,
+          cellErrors,
         });
       });
     };
@@ -475,8 +669,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     const stage: LifecycleStage = defaultBranch.id === '100' ? 'HQ_STOCK' : defaultStage;
     const today = todayPP();
     const generated: StagedItem[] = [];
-    const push = (serial: string, type: 'POS Terminal' | 'Sound Box', model: string) =>
+    const push = (serial: string, type: 'POS Terminal' | 'Sound Box', model: string, idx: number) =>
       generated.push({
+        csvRowNumber: idx + 1,
         serial,
         batterySerial: '',
         model,
@@ -487,13 +682,14 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         stage,
         stockInDate: today,
         isDuplicate: false,
+        cellErrors: [],
       });
 
     for (let i = 0; i < safePosQty; i++) {
-      push(`${posPrefix.trim().toUpperCase()}${String(posStart + i).padStart(posPadding, '0')}`, 'POS Terminal', posModel);
+      push(`${posPrefix.trim().toUpperCase()}${String(posStart + i).padStart(posPadding, '0')}`, 'POS Terminal', posModel, generated.length);
     }
     for (let i = 0; i < safeSbQty; i++) {
-      push(`${sbPrefix.trim().toUpperCase()}${String(sbStart + i).padStart(sbPadding, '0')}`, 'Sound Box', sbModel);
+      push(`${sbPrefix.trim().toUpperCase()}${String(sbStart + i).padStart(sbPadding, '0')}`, 'Sound Box', sbModel, generated.length);
     }
 
     setGeneratedRangeBatch(generated);
@@ -570,50 +766,176 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  /** The rows for the chosen method, with duplicates flagged against the CURRENT inventory and within the batch. */
+  /**
+   * The rows for the chosen method, with duplicates flagged against the CURRENT inventory and within the batch,
+   * recording exact Row & Column numbers for every duplicate or validation issue.
+   */
+  const rawStagedItems = method === 'tableCsv' ? tableCsvBatch : method === 'paste' ? pastedBatch : generatedRangeBatch;
+
+  // When the database has more rows than the in-memory page (e.g. up to 500,000 rows), query the primary-key B-Tree index
+  // for candidate CSV serials so duplicates against the full 500K-row database are flagged with exact Row & Column numbers.
+  React.useEffect(() => {
+    if (!isOpen || rawStagedItems.length === 0 || existingDevices.length < 100) {
+      setServerExistingSerials(new Set());
+      return;
+    }
+    let cancelled = false;
+    const candidates = rawStagedItems
+      .map((i) => i.serial.trim().toUpperCase())
+      .filter((s) => s && !s.startsWith('MISSING_SN_ROW_'));
+    if (candidates.length === 0) return;
+
+    const timer = setTimeout(() => {
+      checkExistingSerialsOnServer(candidates).then((found) => {
+        if (!cancelled) {
+          setServerExistingSerials(found);
+        }
+      });
+    }, 180);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isOpen, rawStagedItems, existingDevices.length]);
+
   const activeStagedBatch = useMemo(() => {
     const raw = method === 'tableCsv' ? tableCsvBatch : method === 'paste' ? pastedBatch : generatedRangeBatch;
-    const seen = new Set<string>();
-    return raw.map((item) => {
+    const firstSeenRowBySerial = new Map<string, number>();
+
+    return raw.map((item, idx) => {
+      const rowNum = item.csvRowNumber || idx + 1;
       const key = item.serial.trim().toUpperCase();
-      const isDuplicate = existingSerials.has(key) || seen.has(key);
-      seen.add(key);
-      return item.isDuplicate === isDuplicate ? item : { ...item, isDuplicate };
+      const inDb = existingSerials.has(key);
+      const firstRowInFile = firstSeenRowBySerial.get(key);
+      const inFileDup = firstRowInFile !== undefined;
+      if (!inFileDup && !key.startsWith('MISSING_SN_ROW_')) {
+        firstSeenRowBySerial.set(key, rowNum);
+      }
+
+      const isDuplicate = inDb || inFileDup;
+      const baseCellErrors = item.cellErrors ? [...item.cellErrors] : [];
+      if (inFileDup) {
+        baseCellErrors.push({
+          row: rowNum,
+          column: method === 'tableCsv' ? 2 : 1,
+          columnName: 'Serial_SN',
+          category: 'DUPLICATE_IN_FILE',
+          message: `Duplicate serial number "${key}" within CSV file (first seen at Row ${firstRowInFile})`,
+        });
+      } else if (inDb) {
+        baseCellErrors.push({
+          row: rowNum,
+          column: method === 'tableCsv' ? 2 : 1,
+          columnName: 'Serial_SN',
+          category: 'DUPLICATE_IN_DB',
+          message: `Duplicate serial number "${key}" already exists in the inventory database`,
+        });
+      }
+
+      const combinedError =
+        baseCellErrors.map((ce) => `Row ${ce.row}, Col ${ce.column} (${ce.columnName}): ${ce.message}`).join('; ') ||
+        item.error;
+
+      return {
+        ...item,
+        csvRowNumber: rowNum,
+        isDuplicate,
+        error: combinedError,
+        cellErrors: baseCellErrors,
+      };
     });
   }, [method, tableCsvBatch, pastedBatch, generatedRangeBatch, existingSerials]);
 
-  const { validItems, dupCount, errorCount, validPosCount, validSbCount } = useMemo(() => {
+  /** Flatten all row/column validation issues across the staged batch. */
+  const allValidationIssues = useMemo(() => {
+    const list: CsvCellValidationError[] = [];
+    for (const item of activeStagedBatch) {
+      if (item.cellErrors && item.cellErrors.length > 0) {
+        list.push(...item.cellErrors);
+      }
+    }
+    return list;
+  }, [activeStagedBatch]);
+
+  const { validItems, dupCount, errorCount, validPosCount, validSbCount, isUploadHalted } = useMemo(() => {
     const valid = activeStagedBatch.filter((i) => !i.isDuplicate && !i.error);
     const dups = activeStagedBatch.filter((i) => i.isDuplicate).length;
+    const errs = activeStagedBatch.filter((i) => !i.isDuplicate && i.error).length;
+    // Strict Client-Side Pre-Validation: If ANY error or duplicate serial is found in CSV mode, halt the upload completely!
+    const halted = activeStagedBatch.length > 0 && (errs > 0 || dups > 0 || allValidationIssues.length > 0);
     return {
       validItems: valid,
       dupCount: dups,
-      errorCount: activeStagedBatch.filter((i) => !i.isDuplicate && i.error).length,
+      errorCount: errs,
       validPosCount: valid.filter((i) => i.type === 'POS Terminal').length,
       validSbCount: valid.filter((i) => i.type === 'Sound Box').length,
+      isUploadHalted: halted,
     };
-  }, [activeStagedBatch]);
+  }, [activeStagedBatch, allValidationIssues]);
 
-  const handleCommit = () => {
-    if (validItems.length === 0) return;
-    // Final re-check against the inventory as it is now: an existing serial is never sent (so never overwritten).
+  const handleCommit = async () => {
+    // Strict Pre-Validation Gate: Never ping the database if any error or duplicate exists in the batch
+    if (validItems.length === 0 || isUploadHalted || isCommittingBatches) return;
+
+    if (existingDevices.length >= 100) {
+      const serverDups = await checkExistingSerialsOnServer(validItems.map((i) => i.serial));
+      if (serverDups.size > 0) {
+        setServerExistingSerials((prev) => {
+          const next = new Set(prev);
+          serverDups.forEach((s) => next.add(s));
+          return next;
+        });
+        setCommitNotice(
+          `${serverDups.size} serial(s) already exist in the 500K-row inventory database. Review the highlighted Row & Column duplicate alert above before uploading.`
+        );
+        return;
+      }
+    }
+
     const stillNew = validItems.filter((i) => !existingSerials.has(i.serial.trim().toUpperCase()));
     if (stillNew.length !== validItems.length) {
       setCommitNotice(
-        `${validItems.length - stillNew.length} serial(s) were added to the inventory by someone else while you were reviewing. They are now marked as duplicates; review the list and confirm again.`
+        `${validItems.length - stillNew.length} serial(s) were added to the inventory by someone else while you were reviewing. Fix the duplicates before uploading.`
       );
       return;
     }
-    onCommitBatch(
-      stillNew.map(({ isDuplicate: _d, error: _e, ...rest }) => ({ ...rest, serial: rest.serial.trim().toUpperCase() }))
-    );
-    setTableCsvText('');
-    setUploadedFileMeta(null);
-    setPosPasteText('');
-    setSbPasteText('');
-    setGeneratedRangeBatch([]);
-    setCommitNotice('');
-    onClose();
+
+    const cleanPayload = stillNew.map(({ isDuplicate: _d, error: _e, cellErrors: _ce, csvRowNumber: _r, ...rest }) => ({
+      ...rest,
+      serial: rest.serial.trim().toUpperCase(),
+    }));
+
+    setIsCommittingBatches(true);
+    const totalBatches = Math.max(1, Math.ceil(cleanPayload.length / CSV_BATCH_SIZE));
+
+    try {
+      for (let bIdx = 0; bIdx < totalBatches; bIdx++) {
+        const start = bIdx * CSV_BATCH_SIZE;
+        const chunk = cleanPayload.slice(start, start + CSV_BATCH_SIZE);
+        setBatchProgress({
+          current: bIdx + 1,
+          total: totalBatches,
+          rowsSent: Math.min(start + chunk.length, cleanPayload.length),
+          totalRows: cleanPayload.length,
+        });
+        await Promise.resolve(onCommitBatch(chunk));
+        if (bIdx + 1 < totalBatches) {
+          await new Promise((r) => setTimeout(r, CSV_BATCH_DELAY_MS));
+        }
+      }
+
+      setTableCsvText('');
+      setUploadedFileMeta(null);
+      setPosPasteText('');
+      setSbPasteText('');
+      setGeneratedRangeBatch([]);
+      setCommitNotice('');
+      onClose();
+    } finally {
+      setIsCommittingBatches(false);
+      setBatchProgress(null);
+    }
   };
 
   const modalBoxClass = isLight
@@ -643,7 +965,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               Batch Hardware Stock Intake — Table CSV Import
             </h3>
             <p className="text-xs text-slate-300 mt-0.5">
-              Upload CSV formatted identically to the inventory table or intake hardware serials into multi-branch reserve
+              Strict client-side pre-validation &amp; batched 100-row database inserts
             </p>
           </div>
           <motion.button
@@ -678,7 +1000,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
                 1
               </span>
-              <span>Stage &amp; Prepare Serials</span>
+              <span>Stage &amp; Pre-Validate Serials</span>
             </button>
 
             <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
@@ -686,13 +1008,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (validItems.length > 0) setBatchStep('PREVIEW');
+                if (validItems.length > 0 && !isUploadHalted) setBatchStep('PREVIEW');
               }}
-              disabled={validItems.length === 0}
+              disabled={validItems.length === 0 || isUploadHalted}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
                 batchStep === 'PREVIEW'
                   ? 'bg-[#004953] text-white shadow-xs'
-                  : validItems.length > 0
+                  : validItems.length > 0 && !isUploadHalted
                   ? 'text-slate-600 hover:text-slate-900 cursor-pointer'
                   : 'text-slate-400 opacity-60 cursor-not-allowed'
               }`}
@@ -700,13 +1022,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
                 2
               </span>
-              <span>Intake Verification &amp; Write</span>
+              <span>Intake Verification &amp; Batch Write (100/Batch)</span>
             </button>
           </div>
 
           <div className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-slate-500">
             <ShieldCheck className="w-3.5 h-3.5 text-[#1e5b88]" />
-            <span>Double-Step Safeguard</span>
+            <span>Client-Side Pre-Validation Active</span>
           </div>
         </div>
 
@@ -776,6 +1098,44 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
             {/* Modal Body */}
             <div className="p-5 overflow-y-auto flex-col gap-3.5 flex flex-1">
+              {/* STRICT CLIENT-SIDE PRE-VALIDATION HALT ALERT */}
+              {isUploadHalted && (
+                <div
+                  role="alert"
+                  className="p-4 rounded-2xl border-2 border-rose-500/80 bg-rose-50/95 dark:bg-rose-950/50 text-rose-900 dark:text-rose-100 shadow-md flex flex-col gap-2.5"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <Ban className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-xs font-extrabold uppercase tracking-wider text-rose-700 dark:text-rose-300">
+                          Upload Halted by Client-Side Pre-Validation ({allValidationIssues.length} Error{allValidationIssues.length === 1 ? '' : 's'} Found)
+                        </div>
+                        <p className="text-[11px] text-rose-800 dark:text-rose-200 mt-0.5">
+                          To protect the database and prevent incomplete batch uploads, no API calls have been made to Supabase. Fix the exact row and column errors listed below in your CSV and re-upload:
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="max-h-36 overflow-y-auto rounded-xl bg-white/90 dark:bg-slate-900/80 border border-rose-200 dark:border-rose-800/80 p-2.5 font-mono text-[11px] space-y-1">
+                    {allValidationIssues.slice(0, 50).map((issue, idx) => (
+                      <div key={idx} className="flex items-start gap-2 text-rose-700 dark:text-rose-300">
+                        <span className="px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-900/60 font-bold shrink-0">
+                          Row {issue.row}, Column {issue.column} ({issue.columnName})
+                        </span>
+                        <span className="font-sans font-medium">{issue.message}</span>
+                      </div>
+                    ))}
+                    {allValidationIssues.length > 50 && (
+                      <div className="text-rose-600 font-bold pt-1">
+                        …and {allValidationIssues.length - 50} more validation error(s).
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Target Fallback Stock Location & Stage Bar */}
               <div
                 className={`p-3 rounded-2xl border transition-all ${
@@ -789,7 +1149,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     <Building2 className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
                     <span>Default Target Location &amp; Stage</span>
                     <span className="text-[10px] font-normal text-slate-500">
-                      (Applied automatically when omitted or unmapped in CSV row)
+                      (Applied automatically when omitted in CSV row)
                     </span>
                   </div>
                 </div>
@@ -864,7 +1224,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           )}
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5">
-                          Drag and drop <code>.csv</code> file, or click Browse to import inventory table records.
+                          Drag and drop <code>.csv</code> file, or click Browse. Parsed locally in browser before any database call.
                         </p>
                       </div>
                     </div>
@@ -932,7 +1292,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                             Table CSV Schema
                           </span>
                           <span className="text-[11px] text-slate-500 ml-1.5 hidden sm:inline">
-                            Exact 12-column layout matching inventory export
+                            Exact 12-column layout matching inventory export (inserts in batches of {CSV_BATCH_SIZE})
                           </span>
                         </div>
                       </div>
@@ -998,7 +1358,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       </div>
                     )}
                   </div>
-
                 </div>
               )}
 
@@ -1346,9 +1705,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     </span>
                   </span>
                   {(dupCount > 0 || errorCount > 0) && (
-                    <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 text-[11px] bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    <span className="text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 text-[11px] bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
                       <AlertCircle className="w-3.5 h-3.5" />
-                      {dupCount > 0 && `${dupCount} duplicate(s) skipped`}
+                      {dupCount > 0 && `${dupCount} duplicate(s) halt upload`}
                       {dupCount > 0 && errorCount > 0 && ' · '}
                       {errorCount > 0 && `${errorCount} row(s) with errors`}
                     </span>
@@ -1359,7 +1718,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   <table className="w-full text-left text-xs min-w-[800px]">
                     <thead className="glass-table-thead text-[10px] uppercase font-extrabold text-white sticky top-0 z-10">
                       <tr>
-                        <th className="py-2.5 px-3">No.</th>
+                        <th className="py-2.5 px-3">Row</th>
                         <th className="py-2.5 px-3">Stock-In Date</th>
                         <th className="py-2.5 px-3">Serial Number</th>
                         <th className="py-2.5 px-3">Device Type</th>
@@ -1368,7 +1727,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         <th className="py-2.5 px-3">Branch Code &amp; Name</th>
                         <th className="py-2.5 px-3">Lifecycle Stage</th>
                         <th className="py-2.5 px-3">Merchant / MID</th>
-                        <th className="py-2.5 px-3 text-right">Validation</th>
+                        <th className="py-2.5 px-3 text-right">Pre-Validation</th>
                       </tr>
                     </thead>
                     <tbody
@@ -1380,11 +1739,15 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         <tr
                           key={`${item.serial}-${idx}`}
                           className={
-                            isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-800/30'
+                            item.error || item.isDuplicate
+                              ? 'bg-rose-50/60 dark:bg-rose-950/20'
+                              : isLight
+                              ? 'hover:bg-slate-50'
+                              : 'hover:bg-slate-800/30'
                           }
                         >
                           <td className="py-1.5 px-3 font-mono text-slate-400">
-                            {idx + 1}
+                            #{item.csvRowNumber || idx + 1}
                           </td>
                           <td className="py-1.5 px-3 font-mono text-slate-500 whitespace-nowrap">
                             {item.stockInDate || '—'}
@@ -1452,22 +1815,22 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                             )}
                           </td>
                           <td className="py-1.5 px-3 text-right whitespace-nowrap">
-                            {item.isDuplicate ? (
-                              <span className="text-rose-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20">
-                                {existingSerials.has(item.serial.trim().toUpperCase())
-                                  ? 'Already in inventory (Skipped)'
-                                  : 'Repeated in file (Skipped)'}
-                              </span>
-                            ) : item.error ? (
+                            {item.error ? (
                               <span
                                 title={item.error}
-                                className="text-rose-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 inline-block max-w-[220px] truncate align-middle"
+                                className="text-rose-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 inline-block max-w-[260px] truncate align-middle"
                               >
-                                Error: {item.error}
+                                {item.error}
+                              </span>
+                            ) : item.isDuplicate ? (
+                              <span className="text-rose-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20">
+                                {existingSerials.has(item.serial.trim().toUpperCase())
+                                  ? 'Already in inventory (Halts Upload)'
+                                  : 'Duplicate in file (Halts Upload)'}
                               </span>
                             ) : (
                               <span className="text-emerald-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                                Ready to Import
+                                Validated OK
                               </span>
                             )}
                           </td>
@@ -1499,19 +1862,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               }`}
             >
               <div className="flex items-center gap-2">
-                {validItems.length > 0 ? (
+                {isUploadHalted ? (
+                  <span className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-bold text-xs bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20">
+                    <Ban className="w-3.5 h-3.5" />
+                    <span>Upload halted: fix {allValidationIssues.length} row/column error(s) in CSV to proceed</span>
+                  </span>
+                ) : validItems.length > 0 ? (
                   <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{validItems.length} valid serials ready for intake staging</span>
+                    <span>{validItems.length} pre-validated serials ready ({Math.ceil(validItems.length / CSV_BATCH_SIZE)} batch{Math.ceil(validItems.length / CSV_BATCH_SIZE) === 1 ? '' : 'es'} of {CSV_BATCH_SIZE})</span>
                   </span>
                 ) : (
                   <span className="text-slate-400 text-xs">
                     0 valid serials ready for intake staging
-                  </span>
-                )}
-                {(dupCount > 0 || errorCount > 0) && (
-                  <span className="text-amber-600 dark:text-amber-400 text-[11px] font-medium hidden sm:inline">
-                    ({dupCount} duplicates skipped{errorCount > 0 ? `, ${errorCount} rows with errors not imported` : ''})
                   </span>
                 )}
               </div>
@@ -1533,10 +1896,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   whileTap={{ scale: 0.94 }}
                   type="button"
                   onClick={() => {
-                    if (validItems.length > 0) setBatchStep('PREVIEW');
+                    if (validItems.length > 0 && !isUploadHalted) setBatchStep('PREVIEW');
                   }}
-                  disabled={validItems.length === 0}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-50 transition shadow-xs cursor-pointer flex items-center gap-2"
+                  disabled={validItems.length === 0 || isUploadHalted}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-50 disabled:cursor-not-allowed transition shadow-xs cursor-pointer flex items-center gap-2"
                 >
                   <span>Review Intake Batch (Step 2 Preview)</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -1559,13 +1922,24 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <span className="font-extrabold text-xs block">
-                    Double-Step Safeguard: Verify Stock Intake Batch Before Database Write
+                    Double-Step Safeguard: Batched Database Insert ({CSV_BATCH_SIZE} Rows / Batch, {CSV_BATCH_DELAY_MS}ms Delay)
                   </span>
                   <p className="text-[11px] mt-0.5 opacity-90 leading-relaxed">
-                    You are about to register and write <strong>{validItems.length} new hardware items</strong> into the multi-branch inventory database from your table CSV import. Inspect the entries and branch allocation below before confirming.
+                    All <strong>{validItems.length} hardware items</strong> passed strict client-side pre-validation and will be inserted into Supabase in <strong>{Math.ceil(validItems.length / CSV_BATCH_SIZE)} batch(es) of {CSV_BATCH_SIZE} rows</strong> with a {CSV_BATCH_DELAY_MS}ms pause between batches to protect connection pools.
                   </p>
                 </div>
               </div>
+
+              {batchProgress && (
+                <div className="p-3.5 rounded-2xl border border-sky-300 bg-sky-50 text-sky-900 flex items-center justify-between gap-3">
+                  <span className="font-bold">
+                    Uploading Batch {batchProgress.current} of {batchProgress.total} ({batchProgress.rowsSent} / {batchProgress.totalRows} rows)...
+                  </span>
+                  <span className="font-mono font-bold">
+                    {Math.round((batchProgress.rowsSent / Math.max(1, batchProgress.totalRows)) * 100)}%
+                  </span>
+                </div>
+              )}
 
               {/* Breakdown Stats Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1614,10 +1988,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   }`}
                 >
                   <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                    Duplicates Filtered
+                    Batch Schedule
                   </span>
-                  <span className="font-bold text-xs text-slate-500 mt-0.5 block">
-                    {dupCount} Skipped{errorCount > 0 ? ` · ${errorCount} with errors` : ''}
+                  <span className="font-bold text-xs text-slate-600 dark:text-slate-300 mt-0.5 block">
+                    {Math.ceil(validItems.length / CSV_BATCH_SIZE)} × {CSV_BATCH_SIZE} rows ({CSV_BATCH_DELAY_MS}ms)
                   </span>
                 </div>
               </div>
@@ -1700,7 +2074,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>
-                  Each item will be registered with tamper-evident audit logging, branch notification, and battery lifecycle tracking.
+                  Each item is inserted in batches of {CSV_BATCH_SIZE} rows with {CSV_BATCH_DELAY_MS}ms spacing and error-only failure telemetry.
                 </span>
               </div>
             </div>
@@ -1716,8 +2090,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 type="button"
+                disabled={isCommittingBatches}
                 onClick={() => setBatchStep('INPUT')}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
+                className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 ${
                   isLight
                     ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
                     : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
@@ -1736,12 +2111,16 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 type="button"
-                onClick={handleCommit}
-                disabled={validItems.length === 0}
+                onClick={() => void handleCommit()}
+                disabled={validItems.length === 0 || isUploadHalted || isCommittingBatches}
                 className="px-6 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Confirm &amp; Commit {validItems.length} Entries to Database</span>
+                <span>
+                  {isCommittingBatches
+                    ? `Uploading Batch ${batchProgress?.current || 1}/${batchProgress?.total || 1}...`
+                    : `Confirm & Commit ${validItems.length} Entries to Database`}
+                </span>
               </motion.button>
             </div>
           </div>

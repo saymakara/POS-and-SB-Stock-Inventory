@@ -1,6 +1,7 @@
 /**
  * (22 Oct 2026) A drop-down filter that is not on its first choice ("All …") is tinted, so everyone sees at a glance
  * that a filter is active. Only selects whose first option has the value ALL are marked; nothing else is touched.
+ * (25 Oct 2026) Removed 800ms setInterval polling loop; updates are driven purely by DOM events and MutationObserver.
  */
 export function startFilterMarks(): void {
   if (typeof document === 'undefined') return;
@@ -27,6 +28,5 @@ export function startFilterMarks(): void {
   document.addEventListener('click', soon, true);
   document.addEventListener('keyup', soon, true);
   new MutationObserver(soon).observe(document.body, { childList: true, subtree: true });
-  window.setInterval(() => { if (!document.hidden) soon(); }, 800);   // a filter cleared by a button changes no element
   soon();
 }

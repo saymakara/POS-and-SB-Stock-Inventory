@@ -84,6 +84,18 @@ interface InventoryTabProps {
   fulfillingRequisition?: Requisition | null;
   onConfirmFulfillment?: (selectedSerials: string[]) => void;
   onCancelFulfillment?: () => void;
+  serverTotalDevices?: number | null;
+  serverArchivedCount?: number | null;
+  serverStageCounts?: Partial<Record<LifecycleStage, number>>;
+  onFetchServerPage?: (params: {
+    page: number;
+    pageSize: number;
+    stage?: string;
+    type?: string;
+    branchId?: string;
+    search?: string;
+    archived?: boolean;
+  }) => Promise<{ rows: Device[]; total: number } | null>;
 }
 
 export const InventoryTab: React.FC<InventoryTabProps> = ({
@@ -119,6 +131,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   fulfillingRequisition,
   onConfirmFulfillment,
   onCancelFulfillment,
+  serverTotalDevices = null,
+  serverArchivedCount = null,
+  serverStageCounts,
+  onFetchServerPage,
 }) => {
   const [selectedSns, setSelectedSns] = useState<string[]>([]);
   // No branch is pre-chosen for a bulk transfer: the admin picks the target explicitly.
@@ -134,15 +150,71 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const [midDeviceFilter, setMidDeviceFilter] = useState<'ALL' | 'SINGLE' | 'MULTIPLE'>('ALL');
   const [rowsPerPage, setRowsPerPage] = useState<number>(50);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [serverPageRows, setServerPageRows] = useState<Device[] | null>(null);
+  const [serverMatchedTotal, setServerMatchedTotal] = useState<number | null>(null);
+
+  const isServerPaginated = Boolean(
+    onFetchServerPage && typeof serverTotalDevices === 'number' && serverTotalDevices > 100
+  );
+
+  // Fetch the active server page when the dataset exceeds 100 rows (up to 500,000+ rows)
+  useEffect(() => {
+    if (!isServerPaginated || !onFetchServerPage) {
+      setServerPageRows(null);
+      setServerMatchedTotal(null);
+      return;
+    }
+    let cancelled = false;
+    const effectiveBranch = role === 'BRANCH' ? selectedBranch : branchFilter;
+    const timer = setTimeout(() => {
+      onFetchServerPage({
+        page: currentPage,
+        pageSize: rowsPerPage,
+        stage: stageFilter,
+        type: typeFilter,
+        branchId: effectiveBranch,
+        search: searchQuery,
+        archived: showArchivedView,
+      }).then((res) => {
+        if (!cancelled && res) {
+          setServerPageRows(res.rows);
+          setServerMatchedTotal(res.total);
+        }
+      });
+    }, searchQuery.trim() ? 180 : 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    isServerPaginated,
+    onFetchServerPage,
+    currentPage,
+    rowsPerPage,
+    stageFilter,
+    typeFilter,
+    branchFilter,
+    selectedBranch,
+    role,
+    searchQuery,
+    showArchivedView,
+  ]);
 
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const today = todayPP();
   const [showExportMenu, setShowExportMenu] = useState(false);
   const stageCounts = useMemo(() => {
+    if (serverStageCounts) return serverStageCounts;
     const c: Partial<Record<LifecycleStage, number>> = {};
     devices.forEach((d) => { c[d.stage] = (c[d.stage] || 0) + 1; });
     return c;
-  }, [devices]);
+  }, [devices, serverStageCounts]);
+
+  const latestBySerial = useMemo(
+    () => new Map((allDevices.length > 0 ? allDevices : devices).map((d) => [d.serial, d])),
+    [allDevices, devices]
+  );
 
   const duplicateMidsMap = useMemo(
     () => detectDuplicateMids(allDevices.length > 0 ? allDevices : devices),
@@ -155,6 +227,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   );
 
   const archivedCount = useMemo(() => {
+    if (typeof serverArchivedCount === 'number') return serverArchivedCount;
     let count = 0;
     const len = allDevices.length;
     for (let i = 0; i < len; i++) {
@@ -167,11 +240,16 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const filteredDevices = useMemo(() => {
     const hasBatteryFilter = batteryFilter !== 'ALL';
     const hasMidDeviceFilter = midDeviceFilter !== 'ALL';
-    if (!showArchivedView && !hasBatteryFilter && !hasMidDeviceFilter) {
+    if (!showArchivedView && !hasBatteryFilter && !hasMidDeviceFilter && !(isServerPaginated && serverPageRows !== null)) {
       return devices;
     }
 
-    const source = showArchivedView ? allDevices : devices;
+    const source =
+      isServerPaginated && serverPageRows !== null
+        ? serverPageRows.map((d) => latestBySerial.get(d.serial) || d)
+        : showArchivedView
+        ? allDevices
+        : devices;
     const result: Device[] = [];
     const len = source.length;
 
@@ -195,7 +273,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       result.push(d);
     }
     return result;
-  }, [devices, allDevices, showArchivedView, batteryFilter, midDeviceFilter, duplicateMidsMap, today]);
+  }, [devices, allDevices, showArchivedView, batteryFilter, midDeviceFilter, duplicateMidsMap, today, isServerPaginated, serverPageRows, latestBySerial]);
   // click a column heading to sort the whole list (ascending, descending, original order)
   const { sorted: visibleDevices, sort: invSort, toggle: invToggle } = useSort<Device>(filteredDevices, {
     stockIn: (d) => d.stockInDate, serial: (d) => d.serial, type: (d) => d.type, model: (d) => d.model,
@@ -214,7 +292,14 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   }, [visibleSnSet]);
   const selectedSet = useMemo(() => new Set(selectedSns), [selectedSns]);
 
-  const totalPages = Math.max(1, Math.ceil(visibleDevices.length / rowsPerPage));
+  const effectiveTotalCount =
+    isServerPaginated && serverPageRows !== null && batteryFilter === 'ALL' && midDeviceFilter === 'ALL'
+      ? typeof serverMatchedTotal === 'number'
+        ? serverMatchedTotal
+        : serverTotalDevices || visibleDevices.length
+      : visibleDevices.length;
+
+  const totalPages = Math.max(1, Math.ceil(effectiveTotalCount / rowsPerPage));
 
   // Auto-reset page if current page exceeds total pages
   React.useEffect(() => {
@@ -226,9 +311,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   // (23 Oct 2026) the next page is drawn in the background (the screen keeps moving), then glides in
   const shownPage = React.useDeferredValue(currentPage);
   const pagedDevices = useMemo(() => {
-    const start = (shownPage - 1) * rowsPerPage;
+    const start = isServerPaginated && serverPageRows !== null ? 0 : (shownPage - 1) * rowsPerPage;
     return visibleDevices.slice(start, start + rowsPerPage);
-  }, [visibleDevices, shownPage, rowsPerPage]);
+  }, [visibleDevices, shownPage, rowsPerPage, isServerPaginated, serverPageRows]);
 
   const flipRef = useRef<HTMLTableSectionElement>(null);
   useFlip(flipRef, [pagedDevices]);
@@ -1086,13 +1171,13 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             <span className="font-medium text-slate-500">
               Showing{' '}
               <strong className="text-zinc-900">
-                {visibleDevices.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}
+                {effectiveTotalCount === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}
               </strong>{' '}
               –{' '}
               <strong className="text-zinc-900">
-                {Math.min(currentPage * rowsPerPage, visibleDevices.length)}
+                {Math.min(currentPage * rowsPerPage, effectiveTotalCount)}
               </strong>{' '}
-              of <strong className="text-zinc-900">{visibleDevices.length}</strong> Serials
+              of <strong className="text-zinc-900">{effectiveTotalCount}</strong> Serials
             </span>
 
             <div className="hidden md:flex items-center gap-1 pl-3 border-l border-slate-200">

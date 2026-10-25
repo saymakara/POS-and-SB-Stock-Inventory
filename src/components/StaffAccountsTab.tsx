@@ -39,7 +39,7 @@ export const StaffAccountsTab: React.FC<{ role: UserRole; branches: Branch[]; tr
   const [shownPassword, setShownPassword] = useState<{ emp: string; pw: string } | null>(null);
 
   const load = useCallback(async () => {
-    const x = await fetchStaffAccounts();
+    const x = await fetchStaffAccounts(100, 0);
     if (!x) { setErr('The accounts could not be loaded.'); return; }
     setErr(''); setList(x);
     try { sessionStorage.setItem(STAFF_CACHE_KEY, JSON.stringify(x)); } catch { /* storage blocked: fine */ }

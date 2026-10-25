@@ -8,6 +8,13 @@ import {
   MobileInstallSyncPayload,
 } from '../types';
 import { STAGE_META } from '../data/initialData';
+import {
+  reportCaughtError,
+  subscribeTechnicalErrorPopup,
+  TechnicalErrorPayload,
+  getTelegramWebhookConfig,
+  saveTelegramWebhookConfig,
+} from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Smartphone,
@@ -158,6 +165,15 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
   // Live Field Feed Filter & Endpoint Copy State
   const [feedFilter, setFeedFilter] = useState<'ALL' | 'POS' | 'SB' | 'DRIFT'>('ALL');
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
+  const [mobileTechError, setMobileTechError] = useState<TechnicalErrorPayload | null>(null);
+  const [tgConfig, setTgConfig] = useState(() => getTelegramWebhookConfig());
+  const [tgSavedNotice, setTgSavedNotice] = useState(false);
+
+  useEffect(() => {
+    return subscribeTechnicalErrorPopup((payload) => {
+      setMobileTechError(payload);
+    });
+  }, []);
 
   const handleCopyEndpoint = (endpoint: string) => {
     if (navigator?.clipboard?.writeText) {
@@ -555,6 +571,14 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
       }
       setDynamicIslandState('SUCCESS');
       setTimeout(() => setDynamicIslandState('IDLE'), 2200);
+    } catch (err) {
+      setDynamicIslandState('IDLE');
+      const payload = await reportCaughtError('MobileFieldSync', err, {
+        staffId: installerName || activeStaff || 'FIELD_STAFF',
+        branchId,
+        target: selectedSerial,
+      });
+      setMobileTechError(payload);
     } finally {
       setIsSubmitting(false);
     }
@@ -1589,6 +1613,38 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                   </motion.button>
                 </form>
 
+                {/* Mobile UI Technical Error Code Popup for Field Staff Screenshot */}
+                {mobileTechError && (
+                  <div
+                    role="alertdialog"
+                    aria-label="Technical Error Code Popup"
+                    className="mx-3 mb-2 p-3 rounded-2xl border-2 border-rose-500 bg-rose-950/95 text-white shadow-2xl relative z-30 flex flex-col gap-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-300 flex items-center gap-1">
+                        <AlertOctagon className="w-3.5 h-3.5 text-rose-400" />
+                        Technical Error — Screenshot for Support
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setMobileTechError(null)}
+                        className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                    <div className="font-mono text-xs font-black text-amber-300 bg-black/40 px-2.5 py-1.5 rounded-lg border border-rose-500/40">
+                      CODE: {mobileTechError.code}
+                    </div>
+                    <div className="text-[10.5px] font-mono text-rose-100 space-y-0.5">
+                      <div>Op: {mobileTechError.operation}</div>
+                      <div>Staff ID: {mobileTechError.staffId} · Br.{mobileTechError.branchId}</div>
+                      <div>Time: {mobileTechError.timestamp}</div>
+                      <div className="text-rose-200 font-sans pt-0.5 break-words">{mobileTechError.message}</div>
+                    </div>
+                  </div>
+                )}
+
                 {/* iOS Home Indicator Bar */}
                 <div className="pt-2 pb-2.5 flex justify-center shrink-0 relative z-20">
                   <div
@@ -1844,6 +1900,69 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                 })}
               </AnimatePresence>
             )}
+          </div>
+
+          {/* Temporary Telegram Debugging Webhook Configuration */}
+          <div className="p-4 border-t border-slate-200/80 dark:border-white/10 bg-slate-50/80 dark:bg-black/30 flex flex-col gap-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h4 className={`text-xs font-black uppercase tracking-wider ${navyTitleClass}`}>
+                  Temporary Telegram Error Webhook (Quota-Safe Debugging)
+                </h4>
+                <p className={`text-[11px] ${subtextClass}`}>
+                  Sends catch-block errors + Staff ID to Telegram and displays Technical Error Code popup on Mobile UI.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveTelegramWebhookConfig(tgConfig);
+                    setTgSavedNotice(true);
+                    setTimeout(() => setTgSavedNotice(false), 2000);
+                  }}
+                  className="px-3 py-1 rounded-xl text-[11px] font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer"
+                >
+                  {tgSavedNotice ? 'Webhook Saved ✓' : 'Save Webhook'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void reportCaughtError(
+                      'MobileFieldSync:TestAlert',
+                      Object.assign(new Error('Simulated DB connection pool timeout on field sync'), { code: 'ERR_DB_57014_TIMEOUT' }),
+                      { staffId: installerName || activeStaff || 'FIELD_STAFF', branchId, target: selectedSerial }
+                    );
+                  }}
+                  className="px-3 py-1 rounded-xl text-[11px] font-bold bg-rose-600 hover:bg-rose-500 text-white cursor-pointer"
+                >
+                  Test Error Alert &amp; Mobile Popup
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <input
+                type="text"
+                value={tgConfig.webhookUrl}
+                onChange={(e) => setTgConfig({ ...tgConfig, webhookUrl: e.target.value })}
+                placeholder="Telegram Webhook URL (or leave blank to use Bot Token)"
+                className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-black/30 font-mono text-[11px]"
+              />
+              <input
+                type="text"
+                value={tgConfig.botToken}
+                onChange={(e) => setTgConfig({ ...tgConfig, botToken: e.target.value })}
+                placeholder="Telegram Bot Token (e.g. 123456:ABC-DEF...)"
+                className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-black/30 font-mono text-[11px]"
+              />
+              <input
+                type="text"
+                value={tgConfig.chatId}
+                onChange={(e) => setTgConfig({ ...tgConfig, chatId: e.target.value })}
+                placeholder="Telegram Chat ID (e.g. -100123456789)"
+                className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-black/30 font-mono text-[11px]"
+              />
+            </div>
           </div>
 
           {/* External Mobile System Developer Gateway Console */}

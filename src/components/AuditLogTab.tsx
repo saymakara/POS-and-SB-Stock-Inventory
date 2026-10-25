@@ -27,10 +27,10 @@ interface AuditLogTabProps {
   theme?: ThemeMode;
   onToast: (msg: string, type?: 'success' | 'warn' | 'info') => void;
   /**
-   * Loads the audit trail from the server (e.g. `() => fetchAuditLogs(1000)`). When given, the tab shows the
-   * server records; `null` from the loader is shown as an error. When omitted, the local activity log is shown.
+   * Loads a page of the audit trail from the server using server-side pagination (`limit`, `offset`).
+   * When given, the tab shows the server records; `null` from the loader is shown as an error.
    */
-  loadServerLogs?: () => Promise<ServerAuditEntry[] | null>;
+  loadServerLogs?: (limit?: number, offset?: number) => Promise<ServerAuditEntry[] | null>;
 }
 
 type ActorRole = 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH' | 'OTHER' | 'NOT_RECORDED';
@@ -81,6 +81,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
   const [actionFilter, setActionFilter] = useState<string>('ALL');
   const [pageSize, setPageSize] = useState<number>(50);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [hasNextServerPage, setHasNextServerPage] = useState<boolean>(false);
 
   // Server audit trail state
   const [serverLogs, setServerLogs] = useState<ServerAuditEntry[]>([]);
@@ -102,12 +103,14 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
     setLoading(true);
     setLoadError(null);
     try {
-      const rows = await loadServerLogs();
-      if (!mounted.current || seq !== requestSeq.current) return; // a newer request (or unmount) superseded this one
+      const offset = (currentPage - 1) * pageSize;
+      const rows = await loadServerLogs(pageSize, offset);
+      if (!mounted.current || seq !== requestSeq.current) return;
       if (rows === null) {
         setLoadError('The audit log could not be loaded from the server. Check the connection and try again.');
       } else {
         setServerLogs(rows);
+        setHasNextServerPage(rows.length >= pageSize);
         setLoadedAt(stampSecPP());
       }
     } catch (e) {
@@ -116,7 +119,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
     } finally {
       if (mounted.current && seq === requestSeq.current) setLoading(false);
     }
-  }, [loadServerLogs]);
+  }, [loadServerLogs, pageSize, currentPage]);
 
   useEffect(() => {
     if (serverMode) void refreshServerLogs();
@@ -146,7 +149,6 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
         };
       });
     }
-    // Local log lines: "timestamp | action | detail". The local log does not record who acted or their role.
     return auditLogs.map((raw, idx) => {
       const parts = raw.split('|').map((x) => x.trim());
       const hasParts = parts.length >= 2;
@@ -185,19 +187,23 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
     action: (r) => r.title, detail: (r) => r.detail,
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const totalPages = serverMode
+    ? Math.max(currentPage, hasNextServerPage ? currentPage + 1 : currentPage)
+    : Math.max(1, Math.ceil(filteredRows.length / pageSize));
 
-  // Reset to page 1 if current page exceeds total pages
   useEffect(() => {
-    if (currentPage > totalPages) {
+    if (!serverMode && currentPage > totalPages) {
       setCurrentPage(1);
     }
-  }, [totalPages, currentPage]);
+  }, [serverMode, totalPages, currentPage]);
 
   const paginatedRows = useMemo(() => {
+    if (serverMode) {
+      return filteredRows.slice(0, pageSize);
+    }
     const start = (currentPage - 1) * pageSize;
     return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, currentPage, pageSize]);
+  }, [serverMode, filteredRows, currentPage, pageSize]);
 
   const roleText = (r: ActorRole) =>
     r === 'SUPER_ADMIN' ? 'Super Admin' : r === 'ADMIN' ? 'Admin HQ' : r === 'BRANCH' ? 'Branch Staff' : r === 'OTHER' ? 'Other' : 'Not recorded';
@@ -252,14 +258,14 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 Staff, Admin &amp; Super Admin Audit Log
               </h2>
               <span className={`text-xs font-mono font-bold ${subtextClass}`}>
-                {serverMode ? 'Server records' : 'Local activity log'}
+                {serverMode ? 'Server records (Error-Only Quota Mode)' : 'Local activity log'}
               </span>
             </div>
             <p className={`text-xs ${subtextClass} mt-0.5`}>
               {serverMode ? (
                 <>
-                  Review and export changes made by Branch Staff, Admin HQ and Super Admin.{' '}
-                  <strong>Audit records are kept on the server and cannot be edited.</strong>
+                  Error-Only server logging is active to protect database log ingestion quota; only catch-block failures are written to Supabase.{' '}
+                  <strong>Server-side pagination ({pageSize} rows/page) is active.</strong>
                   {loadedAt && <> Last loaded {loadedAt}.</>}
                 </>
               ) : (
@@ -327,7 +333,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
           <div className="flex items-center gap-2">
             <History className={`w-4 h-4 ${navyTitleClass}`} aria-hidden="true" />
             <span className={`text-sm font-extrabold ${navyTitleClass}`}>
-              Change Review Log ({filteredRows.length} of {rows.length} Events)
+              Change Review Log ({filteredRows.length} of {rows.length} Events on Page {currentPage})
             </span>
           </div>
 
@@ -490,13 +496,13 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
 
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={serverMode ? 6 : 4} className="py-12 text-center text-slate-400 text-xs">
+                  <td colSpan={serverMode ? 7 : 5} className="py-12 text-center text-slate-400 text-xs">
                     {serverMode && loading && rows.length === 0
                       ? 'Loading audit records from the server…'
                       : serverMode && loadError && rows.length === 0
                       ? 'No audit records could be loaded.'
                       : rows.length === 0
-                      ? 'No audit records yet.'
+                      ? 'No error logs recorded yet.'
                       : 'No audit records match the selected filter criteria.'}
                   </td>
                 </tr>
@@ -517,13 +523,17 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
             <span className="font-medium">
               Showing{' '}
               <strong className={isLight ? 'text-zinc-900' : 'text-white'}>
-                {filteredRows.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+                {paginatedRows.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
               </strong>{' '}
               –{' '}
               <strong className={isLight ? 'text-zinc-900' : 'text-white'}>
-                {Math.min(currentPage * pageSize, filteredRows.length)}
+                {(currentPage - 1) * pageSize + paginatedRows.length}
               </strong>{' '}
-              of <strong className={isLight ? 'text-zinc-900' : 'text-white'}>{filteredRows.length}</strong> Audit Events
+              {serverMode ? (
+                <>(Server Page {currentPage} · Limit {pageSize} / Offset {(currentPage - 1) * pageSize})</>
+              ) : (
+                <>of <strong className={isLight ? 'text-zinc-900' : 'text-white'}>{filteredRows.length}</strong> Audit Events</>
+              )}
             </span>
 
             <div
@@ -558,7 +568,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              disabled={currentPage <= 1}
+              disabled={currentPage <= 1 || loading}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               className={`p-1.5 rounded-lg border text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition ${
                 isLight
@@ -583,7 +593,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
 
             <button
               type="button"
-              disabled={currentPage >= totalPages}
+              disabled={currentPage >= totalPages || loading}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               className={`p-1.5 rounded-lg border text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition ${
                 isLight

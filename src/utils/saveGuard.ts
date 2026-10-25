@@ -8,8 +8,8 @@
  *    PAUSE_MS and the user is asked to reload. A success clears the count.
  *  - throttled(): the "reload everything from the server" that follows a refused save runs at most once per
  *    MIN_GAP_MS, however many saves fail meanwhile, and waits longer after each consecutive failure (2 s, 6 s, 20 s).
- *  - watchNewVersion(): while the app is open it checks (a plain file on the web host, never the database) whether a
- *    newer version was published, so an old tab is asked to reload instead of running old, buggy code for days.
+ *  - watchNewVersion(): checks on tab visibility change (no background polling loop) whether a newer version was
+ *    published, so an old tab is asked to reload instead of running old code.
  */
 const FAILS = 4;
 const WINDOW_MS = 60_000;
@@ -67,16 +67,19 @@ export function throttled<T>(fn: () => Promise<T>, gap: () => number): () => Pro
 
 /**
  * Calls `onNew` once when the published site has a different main script than the one this page loaded.
- * Checks every `everyMs` (default 10 minutes) and when the tab becomes visible again; fails silently when offline.
+ * Checks only when the tab becomes visible again (with a minimum cooldown between checks — no background setInterval polling loop).
  */
-export function watchNewVersion(onNew: () => void, everyMs = 10 * 60_000): () => void {
+export function watchNewVersion(onNew: () => void, minCooldownMs = 10 * 60_000): () => void {
   if (typeof document === 'undefined') return () => {};
   const scriptOf = (html: string) => (html.match(/<script[^>]+type="module"[^>]+src="([^"]+)"/) || [])[1] || '';
   const mine = scriptOf(document.documentElement.outerHTML.includes('type="module"') ? document.documentElement.outerHTML : '');
   if (!mine) return () => {};                                         // dev server: no hashed bundle, nothing to compare
   let done = false;
+  let lastCheckedAt = Date.now();
   const check = async () => {
     if (done || document.visibilityState !== 'visible') return;
+    if (Date.now() - lastCheckedAt < minCooldownMs) return;
+    lastCheckedAt = Date.now();
     try {
       const res = await fetch(`./index.html?v=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) return;
@@ -84,8 +87,7 @@ export function watchNewVersion(onNew: () => void, everyMs = 10 * 60_000): () =>
       if (theirs && theirs !== mine) { done = true; onNew(); }
     } catch { /* offline: try again later */ }
   };
-  const t = window.setInterval(check, everyMs);
   const onVis = () => { if (document.visibilityState === 'visible') void check(); };
   document.addEventListener('visibilitychange', onVis);
-  return () => { done = true; window.clearInterval(t); document.removeEventListener('visibilitychange', onVis); };
+  return () => { done = true; document.removeEventListener('visibilitychange', onVis); };
 }
