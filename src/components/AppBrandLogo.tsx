@@ -21,8 +21,7 @@ const SIZE_MAP = {
 };
 
 /**
- * 1. Preset: Fintech Pulse (Simple, Clean POS Terminal + Sound Box Wave)
- * Modern minimalist design: Uncluttered white terminal body with smooth audio ripple.
+ * 1. Preset: Fintech Pulse (Flagship: Smart POS & Acoustic Broadcast Wave)
  */
 export const SvgFintechPulse: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
   <svg
@@ -33,50 +32,64 @@ export const SvgFintechPulse: React.FC<{ className?: string }> = ({ className = 
     aria-hidden="true"
   >
     <defs>
-      <linearGradient id="simplePulseBg" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#003844" />
-        <stop offset="100%" stopColor="#005d6e" />
+      <linearGradient id="nexusBg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#002238" />
+        <stop offset="50%" stopColor="#003857" />
+        <stop offset="100%" stopColor="#004e75" />
       </linearGradient>
-      <linearGradient id="simplePulseWaves" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#10b981" />
-        <stop offset="100%" stopColor="#38bdf8" />
+      <linearGradient id="screenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#031626" />
+        <stop offset="100%" stopColor="#072b47" />
+      </linearGradient>
+      <linearGradient id="soundWaveGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#38bdf8" />
+        <stop offset="100%" stopColor="#34d399" />
       </linearGradient>
     </defs>
 
-    {/* Squircle Background Base */}
-    <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#simplePulseBg)" />
-    <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" strokeOpacity="0.14" strokeWidth="1" />
+    {/* Squircle Base with Metallic Inner Rim */}
+    <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#nexusBg)" />
+    <rect x="2.5" y="2.5" width="43" height="43" rx="12.5" stroke="white" strokeOpacity="0.18" strokeWidth="1" />
+    <circle cx="19" cy="24" r="13" fill="#38bdf8" fillOpacity="0.12" />
 
-    {/* Clean Minimalist POS Terminal Body */}
-    <rect x="11" y="11" width="16" height="26" rx="4.5" fill="#ffffff" />
-    
-    {/* Integrated Display */}
-    <rect x="13.5" y="14" width="11" height="8.5" rx="2" fill="#002b36" />
-    
-    {/* Minimal Status Indicator & Chip Line */}
-    <circle cx="16.5" cy="27" r="1.5" fill="#005d6e" />
-    <rect x="20" y="26" width="4.5" height="2" rx="1" fill="#005d6e" />
-    <rect x="14.5" y="31.5" width="9" height="1.5" rx="0.75" fill="#cbd5e1" />
+    {/* Smart POS Terminal Body */}
+    <rect x="9.5" y="10" width="17" height="28" rx="4.5" fill="#ffffff" />
+    <rect x="10" y="10.5" width="16" height="27" rx="4" stroke="#e2e8f0" strokeWidth="0.8" />
 
-    {/* Clean Sound Box Acoustic Waves */}
+    {/* OLED Screen */}
+    <rect x="11.5" y="12.5" width="13" height="15" rx="2.5" fill="url(#screenGrad)" />
+
+    {/* Screen Payment Wave / QR Elements */}
+    <rect x="14.5" y="15.5" width="3" height="3" rx="0.75" fill="#38bdf8" />
+    <rect x="19" y="15.5" width="3" height="3" rx="0.75" fill="#34d399" />
+    <rect x="14.5" y="20" width="3" height="3" rx="0.75" fill="#34d399" />
+    <circle cx="20.5" cy="21.5" r="1.5" fill="#38bdf8" />
+
+    {/* Keypad / Chip Reader Accent */}
+    <rect x="12" y="30" width="12" height="1.8" rx="0.9" fill="#003857" fillOpacity="0.85" />
+    <rect x="12" y="33.5" width="5" height="1.5" rx="0.75" fill="#94a3b8" />
+    <rect x="19" y="33.5" width="5" height="1.5" rx="0.75" fill="#38bdf8" />
+
+    {/* Acoustic Sound Box Radiating Waves */}
     <path
-      d="M31 18C33.2 20.2 34.5 23 34.5 26C34.5 29 33.2 31.8 31 34"
-      stroke="url(#simplePulseWaves)"
-      strokeWidth="2.5"
+      d="M29.5 19C31.8 21.2 33 23.5 33 26C33 28.5 31.8 30.8 29.5 33"
+      stroke="url(#soundWaveGlow)"
+      strokeWidth="2.8"
       strokeLinecap="round"
     />
     <path
-      d="M36 13.5C39.5 17 41.5 21.2 41.5 26C41.5 30.8 39.5 35 36 38.5"
-      stroke="url(#simplePulseWaves)"
-      strokeWidth="2.5"
+      d="M34.5 15C38 18.5 40 22.2 40 26C40 29.8 38 33.5 34.5 37"
+      stroke="url(#soundWaveGlow)"
+      strokeWidth="2.8"
       strokeLinecap="round"
-      strokeOpacity="0.8"
+      strokeOpacity="0.85"
     />
+    <circle cx="29" cy="26" r="1.5" fill="#6ee7b7" />
   </svg>
 );
 
 /**
- * 2. Preset: Apex Terminal (Minimal Flat Payment Card & Wave)
+ * 2. Preset: Apex Terminal (Modern Handheld POS + Contactless NFC & Gold EMV Chip)
  */
 export const SvgApexPos: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
   <svg
@@ -87,30 +100,45 @@ export const SvgApexPos: React.FC<{ className?: string }> = ({ className = 'w-fu
     aria-hidden="true"
   >
     <defs>
-      <linearGradient id="apexSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#090d16" />
-        <stop offset="100%" stopColor="#1e293b" />
+      <linearGradient id="apexBg2" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#08101e" />
+        <stop offset="100%" stopColor="#0f1f38" />
       </linearGradient>
-      <linearGradient id="apexAccent" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#00e5ff" />
-        <stop offset="100%" stopColor="#10b981" />
+      <linearGradient id="apexGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#00f2fe" />
+        <stop offset="100%" stopColor="#4facfe" />
+      </linearGradient>
+      <linearGradient id="apexGold" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fbbf24" />
+        <stop offset="100%" stopColor="#d97706" />
       </linearGradient>
     </defs>
-    <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#apexSimpleBg)" />
-    <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" strokeOpacity="0.12" strokeWidth="1" />
+    <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#apexBg2)" />
+    <rect x="2.5" y="2.5" width="43" height="43" rx="12.5" stroke="white" strokeOpacity="0.14" strokeWidth="1" />
 
-    {/* Clean Card Silhouette with NFC Dot */}
-    <rect x="10" y="14" width="21" height="20" rx="3.5" fill="#1e293b" stroke="white" strokeWidth="1.8" />
-    <circle cx="16" cy="20" r="2.5" fill="url(#apexAccent)" />
-    <path d="M14 27.5H27" stroke="white" strokeOpacity="0.4" strokeWidth="1.5" strokeLinecap="round" />
+    {/* Modern Handheld Terminal Frame */}
+    <rect x="12" y="9" width="24" height="30" rx="5" fill="#132644" stroke="#38bdf8" strokeWidth="1.2" strokeOpacity="0.6" />
 
-    {/* Modern NFC / Sound Waves */}
-    <path d="M34 19C36.5 21 38 23.5 38 26C38 28.5 36.5 31 34 33" stroke="url(#apexAccent)" strokeWidth="2.5" strokeLinecap="round" />
+    {/* Interactive Glass Display */}
+    <rect x="14.5" y="11.5" width="19" height="17" rx="3" fill="#061224" />
+
+    {/* Contactless NFC Waves */}
+    <path d="M21 16.5C22.2 15.5 23.8 15.5 25 16.5" stroke="url(#apexGlow)" strokeWidth="1.8" strokeLinecap="round" />
+    <path d="M19 19C21.2 17.5 24.8 17.5 27 19" stroke="url(#apexGlow)" strokeWidth="1.8" strokeLinecap="round" />
+    <circle cx="23" cy="22.5" r="2" fill="url(#apexGlow)" />
+
+    {/* Gold Smart EMV Security Chip */}
+    <rect x="15" y="31.5" width="7" height="4.5" rx="1.2" fill="url(#apexGold)" />
+    <line x1="18.5" y1="31.5" x2="18.5" y2="36" stroke="#92400e" strokeWidth="0.6" />
+    <line x1="15" y1="33.8" x2="22" y2="33.8" stroke="#92400e" strokeWidth="0.6" />
+
+    {/* Receipt Emitter Slot */}
+    <line x1="25" y1="33.8" x2="33" y2="33.8" stroke="white" strokeOpacity="0.6" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
 
 /**
- * 3. Preset: Bank Vault Shield (Clean Security & Integrity)
+ * 3. Preset: Bank Vault Shield (Institutional Security & Verified Settlement)
  */
 export const SvgBankShield: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
   <svg
@@ -121,39 +149,55 @@ export const SvgBankShield: React.FC<{ className?: string }> = ({ className = 'w
     aria-hidden="true"
   >
     <defs>
-      <linearGradient id="shieldSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#0a2540" />
-        <stop offset="100%" stopColor="#00182c" />
+      <linearGradient id="shieldBg2" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#00182c" />
+        <stop offset="100%" stopColor="#003358" />
       </linearGradient>
-      <linearGradient id="shieldGold" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#fbbf24" />
-        <stop offset="100%" stopColor="#f59e0b" />
+      <linearGradient id="goldRim" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fde047" />
+        <stop offset="50%" stopColor="#eab308" />
+        <stop offset="100%" stopColor="#ca8a04" />
+      </linearGradient>
+      <linearGradient id="shieldCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#38bdf8" />
+        <stop offset="100%" stopColor="#10b981" />
       </linearGradient>
     </defs>
-    <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#shieldSimpleBg)" />
-    <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" strokeOpacity="0.12" strokeWidth="1" />
+    <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#shieldBg2)" />
+    <rect x="2.5" y="2.5" width="43" height="43" rx="12.5" stroke="white" strokeOpacity="0.14" strokeWidth="1" />
 
-    {/* Minimalist Bold Shield */}
+    {/* Sovereign Vault Shield */}
     <path
-      d="M24 10L36 15V24C36 31 30.5 36.5 24 38.5C17.5 36.5 12 31 12 24V15L24 10Z"
-      fill="#0c3254"
-      stroke="url(#shieldGold)"
-      strokeWidth="2.2"
+      d="M24 8.5L37 13.5V23.5C37 31.5 31 37.5 24 40C17 37.5 11 31.5 11 23.5V13.5L24 8.5Z"
+      fill="#082845"
+      stroke="url(#goldRim)"
+      strokeWidth="2"
       strokeLinejoin="round"
     />
-    {/* Verified Check Line */}
+
+    {/* Inner Protective Core Plate */}
     <path
-      d="M19 24.5L22.5 28L29 20"
+      d="M24 12L33.5 15.8V23.5C33.5 29.8 29 34.5 24 36.5C19 34.5 14.5 29.8 14.5 23.5V15.8L24 12Z"
+      fill="#041a2e"
       stroke="white"
-      strokeWidth="2.5"
+      strokeOpacity="0.12"
+      strokeWidth="1"
+    />
+
+    {/* Verified Settlement Checkmark */}
+    <path
+      d="M19 23.5L22.5 27.5L29.5 19.5"
+      stroke="url(#shieldCyan)"
+      strokeWidth="2.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
+    <circle cx="24" cy="31" r="1.5" fill="#eab308" />
   </svg>
 );
 
 /**
- * 4. Preset: Quantum SoundBox (Minimal Acoustic Frequency Bars)
+ * 4. Preset: Quantum SoundBox (Acoustic Sound Box Speaker & Radiating Waves)
  */
 export const SvgQuantumSound: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
   <svg
@@ -164,23 +208,39 @@ export const SvgQuantumSound: React.FC<{ className?: string }> = ({ className = 
     aria-hidden="true"
   >
     <defs>
-      <linearGradient id="soundSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#0d1117" />
-        <stop offset="100%" stopColor="#161b22" />
+      <linearGradient id="quantumBg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#00182c" />
+        <stop offset="50%" stopColor="#002d4f" />
+        <stop offset="100%" stopColor="#00436d" />
       </linearGradient>
-      <linearGradient id="soundWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient id="soundNeonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#38bdf8" />
+        <stop offset="50%" stopColor="#00f2fe" />
         <stop offset="100%" stopColor="#34d399" />
       </linearGradient>
+      <linearGradient id="speakerRing" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#34d399" />
+        <stop offset="100%" stopColor="#0284c7" />
+      </linearGradient>
     </defs>
-    <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#soundSimpleBg)" />
-    <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" strokeOpacity="0.12" strokeWidth="1" />
 
-    {/* 4 Clean Equalizer Audio Frequency Bars */}
-    <rect x="13" y="20" width="4" height="8" rx="2" fill="url(#soundWaveGrad)" />
-    <rect x="19" y="14" width="4" height="20" rx="2" fill="url(#soundWaveGrad)" />
-    <rect x="25" y="11" width="4" height="26" rx="2" fill="url(#soundWaveGrad)" />
-    <rect x="31" y="17" width="4" height="14" rx="2" fill="url(#soundWaveGrad)" />
+    {/* Squircle Base with Metallic Inner Border */}
+    <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#quantumBg)" />
+    <rect x="2.5" y="2.5" width="43" height="43" rx="12.5" stroke="white" strokeOpacity="0.18" strokeWidth="1" />
+
+    {/* Sound Box Speaker Body Cube in Isometric Angle */}
+    <path d="M12 20L24 13.5V32.5L12 26V20Z" fill="#082845" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.5" />
+    <path d="M24 13.5L36 20V26L24 32.5V13.5Z" fill="#041a2e" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.5" />
+    <path d="M12 20L24 13.5L36 20L24 26.5L12 20Z" fill="#0c385f" stroke="white" strokeWidth="0.8" strokeOpacity="0.3" />
+
+    {/* Center High-Fidelity Audio Driver / Acoustic Speaker Core */}
+    <circle cx="24" cy="23.5" r="7.5" fill="#021220" stroke="url(#speakerRing)" strokeWidth="1.8" />
+    <circle cx="24" cy="23.5" r="4" fill="url(#soundNeonGrad)" />
+    <circle cx="24" cy="23.5" r="1.6" fill="#ffffff" />
+
+    {/* Radiating Sound Waves */}
+    <path d="M33 17.5C35.5 19.5 37 21.5 37 24C37 26.5 35.5 28.5 33 30.5" stroke="url(#soundNeonGrad)" strokeWidth="2.4" strokeLinecap="round" />
+    <path d="M15 17.5C12.5 19.5 11 21.5 11 24C11 26.5 12.5 28.5 15 30.5" stroke="url(#soundNeonGrad)" strokeWidth="2.4" strokeLinecap="round" strokeOpacity="0.6" />
   </svg>
 );
 
@@ -194,28 +254,28 @@ export const PRESET_META: Record<
   }
 > = {
   'fintech-pulse': {
-    name: 'Simple Fintech Pulse',
-    description: 'Clean minimalist POS terminal silhouette with bold dual acoustic broadcast arcs.',
-    tag: 'Simple Default',
+    name: 'Smart POS & Audio Wave',
+    description: 'Precision handheld payment terminal with dynamic acoustic broadcast waves.',
+    tag: 'Flagship Core',
     Component: SvgFintechPulse,
   },
+  'quantum-sound': {
+    name: 'SoundBox Acoustic Hub',
+    description: '3D acoustic sound box speaker with radiating payment verification pulses.',
+    tag: 'Sound Box Hub',
+    Component: SvgQuantumSound,
+  },
   'apex-pos': {
-    name: 'Apex Minimal',
-    description: 'Modern geometric payment card contour with contactless NFC audio wave.',
+    name: 'Apex Smart Terminal',
+    description: 'Modern handheld POS terminal with OLED contactless NFC display and EMV chip.',
     tag: 'Minimal Modern',
     Component: SvgApexPos,
   },
   'bank-shield': {
-    name: 'Vault Shield',
-    description: 'Clean institutional security shield with verified settlement checkmark.',
+    name: 'Institutional Vault Shield',
+    description: 'Chiseled sovereign security shield with verified settlement checkmark.',
     tag: 'Executive',
     Component: SvgBankShield,
-  },
-  'quantum-sound': {
-    name: 'Sound Box Wave',
-    description: 'Minimal acoustic sound frequency equalizer bars inside dark obsidian squircle.',
-    tag: 'Audio Focus',
-    Component: SvgQuantumSound,
   },
 };
 
@@ -241,7 +301,7 @@ export const AppBrandLogo: React.FC<AppBrandLogoProps> = ({
       className={`relative flex items-center justify-center shrink-0 ${sizeStyle.box} ${className}`}
     >
       {showGlow && (
-        <span className="absolute inset-0 rounded-2xl bg-emerald-500/20 blur-md -z-10 animate-pulse pointer-events-none" />
+        <span className="absolute inset-0 rounded-2xl bg-sky-500/25 blur-md -z-10 animate-pulse pointer-events-none" />
       )}
 
       {logoUrl && !imgError ? (
