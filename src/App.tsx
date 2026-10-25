@@ -137,6 +137,7 @@ const STORAGE_KEY_LOGS = 'crm_pos_logs_v20';
 const STORAGE_KEY_WEBHOOKS = 'crm_pos_mobile_webhooks_v20';
 const STORAGE_KEY_NOTIFS = 'crm_pos_notifs_v20';
 const STORAGE_KEY_HISTORICAL_MERCHANTS = 'crm_pos_historical_merchants_v20';
+const STORAGE_KEY_STAGE_SUMMARY = 'crm_pos_stage_summary_v20';
 const STORAGE_KEY_SETTINGS = 'crm_pos_settings_v20';
 const STORAGE_KEY_AUTH_SESSION = 'crm_pos_auth_session_v20';
 const STORAGE_KEY_PUSHED_CONFIGURING = 'crm_pos_pushed_configuring_serials_v1';
@@ -628,7 +629,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
   }, [profile?.emp_id, profile?.name, profile?.role, profile?.branch_id, authUsername]);
   const [serverDeviceTotal, setServerDeviceTotal] = useState<number | null>(null);
-  const [serverStageSummary, setServerStageSummary] = useState<DeviceStageSummary | null>(null);
+  const [serverStageSummary, setServerStageSummary] = useState<DeviceStageSummary | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_STAGE_SUMMARY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
 
   // versions this browser's own saves produced (serial → sent version → new version): a later edit of the same unit
   // made from the older copy is sent with the right version, while a change by someone else is still refused
@@ -701,6 +708,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         fetchDeviceStageCountsFromSupabase().then((summary) => {
           if (summary) {
             setServerStageSummary(summary);
+            try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(summary)); } catch {}
             setServerDeviceTotal(summary.all + summary.archived);
           }
         });
@@ -1418,6 +1426,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     fetchDeviceStageCountsFromSupabase(effectiveBranch).then((summary) => {
       if (!cancelled && summary) {
         setServerStageSummary(summary);
+        try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(summary)); } catch {}
       }
     });
     return () => {

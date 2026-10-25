@@ -713,7 +713,7 @@ a, summary, label { transition: color 0.2s cubic-bezier(0.32, 0.72, 0, 1), opaci
 tr.optimistic-sync-active > td:first-child { box-shadow: inset 3px 0 0 #0e7490; }
 
 /* Odometer digits roll with transform only */
-.odo { display: inline-flex; font-variant-numeric: tabular-nums; line-height: 1; }
+.odo { display: inline-flex; font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; line-height: 1; vertical-align: baseline; }
 .odo-col { display: inline-block; height: 1em; width: 0.62em; overflow: hidden; }
 .odo-strip { display: flex; flex-direction: column; transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1); will-change: transform; }
 .odo-strip > span { display: block; height: 1em; line-height: 1; text-align: center; }

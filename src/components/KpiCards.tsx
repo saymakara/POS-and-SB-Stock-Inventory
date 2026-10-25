@@ -181,7 +181,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
             key={stage}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.18, delay: idx * 0.02, ease: 'easeOut' }}
+            transition={{ duration: 0.32, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
             whileHover={clickable ? { y: -2, transition: { duration: 0.12 } } : undefined}
             whileTap={clickable ? { scale: 0.98 } : undefined}
             onClick={clickable ? select : undefined}
@@ -217,21 +217,22 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
 
               {stage === 'FAULTY' ? (
                 <span
-                  className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md font-figure tabular-nums"
+                  className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md font-figure tabular-nums inline-flex items-center gap-1"
                   title="Includes Merchant History records and Device Replacements"
                 >
-                  Swaps: {replacedCount}
+                  <span>Swaps:</span>
+                  <Odometer value={replacedCount} duration={850} />
                 </span>
               ) : (
                 <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 font-figure tabular-nums">
-                  {pct}% share
+                  <Odometer value={pct} duration={900} suffix="% share" />
                 </span>
               )}
             </div>
 
             <div className="flex items-baseline justify-between gap-2 mb-1">
               <div className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums font-figure leading-none text-[#002f49]">
-                <Odometer value={count} />
+                <Odometer value={count} format={count >= 1000} duration={950} />
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {stage === 'FAULTY' ? 'Records' : 'Units'}
@@ -251,7 +252,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
               <motion.div
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: Math.max(pct, count > 0 ? 6 : 0) / 100 }}
-                transition={{ type: 'spring', stiffness: 220, damping: 30 }}
+                transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
                 style={{ transformOrigin: 'left center', willChange: 'transform' }}
                 className={`h-full w-full rounded-full ${style.accentBar}`}
               />
@@ -259,11 +260,11 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] font-bold font-figure text-slate-500">
               <span>
-                POS: <strong className="text-[#002f49]">{posCount}</strong>
+                POS: <strong className="text-[#002f49]"><Odometer value={posCount} format={posCount >= 1000} duration={900} /></strong>
               </span>
               <span aria-hidden="true">·</span>
               <span>
-                SB: <strong className="text-[#002f49]">{sbCount}</strong>
+                SB: <strong className="text-[#002f49]"><Odometer value={sbCount} format={sbCount >= 1000} duration={900} /></strong>
               </span>
             </div>
           </motion.div>

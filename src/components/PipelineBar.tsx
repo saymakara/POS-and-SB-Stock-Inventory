@@ -1,6 +1,7 @@
 import React from 'react';
 import { LifecycleStage, UserRole, ThemeMode } from '../types';
 import { STAGE_META } from '../data/initialData';
+import { Odometer } from './Odometer';
 import {
   Layers,
   Warehouse,
@@ -132,7 +133,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
                       : 'bg-zinc-800 text-white'
                   }`}
                 >
-                  {s.count}
+                  <Odometer value={s.count} format={s.count >= 1000} duration={850} />
                 </span>
               </button>
             );
