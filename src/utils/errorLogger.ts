@@ -224,33 +224,6 @@ export async function reportCaughtError(
  * on an Under Configuring device, alerting the assigned staff to open the POS Terminal / device
  * and wait for pushing the app to the device.
  */
-export interface DeviceConfigTelegramAlertInfo {
-  serial: string;
-  type?: string;
-  deviceType?: string;
-  model?: string;
-  mid?: string;
-  tid?: string;
-  merchantName?: string;
-  branchId?: string;
-  branchName?: string;
-  staff?: string;
-  staffName?: string;
-  actor?: string;
-  adminOperator?: string;
-}
-
-export interface DeviceConfigTelegramAlertResult {
-  ok: boolean;
-  error?: string;
-  resolvedChatId?: string;
-}
-
-/**
- * Policy #11: Sends a Telegram Group notification when Admin finishes setting up a Merchant Profile
- * on an Under Configuring device, alerting the assigned staff to open the POS Terminal / device
- * and wait for pushing the app to the device.
- */
 export async function sendDeviceConfigTelegramAlert(
   info: DeviceConfigTelegramAlertInfo
 ): Promise<DeviceConfigTelegramAlertResult> {
@@ -282,42 +255,51 @@ export async function sendDeviceConfigTelegramAlert(
     `• *Timestamp:* ${timestamp}`,
   ].join('\n');
 
-  const plainText = [
-    `[Under Configuring — Ready for App Push]`,
-    `Action Required: Please OPEN the device and connect to network to wait for pushing the app!`,
-    `Assigned Staff: ${assignedStaff}`,
-    `Branch: Code ${branchId} (${branchName})`,
-    `Hardware Serial: ${info.serial} (${devType}${devModel})`,
-    `Merchant Name: ${merchantName}`,
-    `MID: ${info.mid || '—'}  |  TID: ${info.tid || '—'}`,
-    `Configured By: ${actor}`,
-    `Timestamp: ${timestamp}`,
-  ].join('\n');
+  let lastError = '';
 
-  // Candidate chat IDs to try (handling basic group vs supergroup -100 prefix)
+  // 1. Primary: Use Supabase Cloud Relay (immune to browser/adblocker/ISP restrictions)
+  if (isSupabaseConfigured && cleanToken && primaryChatId) {
+    try {
+      const { data, error } = await supabase.rpc('rpc_send_telegram_message', {
+        p_bot_token: cleanToken,
+        p_chat_id: primaryChatId,
+        p_text: formattedText,
+        p_parse_mode: 'Markdown',
+      });
+      if (!error && data && data.ok) {
+        if (data.resolvedChatId && data.resolvedChatId !== primaryChatId) {
+          saveTelegramWebhookConfig({ configChatId: data.resolvedChatId, chatId: data.resolvedChatId });
+        }
+        return { ok: true, resolvedChatId: data.resolvedChatId || primaryChatId };
+      }
+      if (data?.error) {
+        lastError = data.error;
+      } else if (error?.message) {
+        lastError = error.message;
+      }
+    } catch (err: any) {
+      lastError = err?.message || 'Cloud relay error';
+    }
+  }
+
+  // 2. Direct browser fallback if Supabase RPC was not used or failed
   const candidateChatIds: string[] = [];
   if (primaryChatId) {
     candidateChatIds.push(primaryChatId);
     if (primaryChatId.startsWith('-100')) {
-      // e.g. -1005428585935 -> also try -5428585935
       candidateChatIds.push('-' + primaryChatId.slice(4));
     } else if (primaryChatId.startsWith('-')) {
-      // e.g. -5428585935 -> also try -1005428585935
       candidateChatIds.push('-100' + primaryChatId.slice(1));
     } else {
-      // e.g. 5428585935 -> try -5428585935 and -1005428585935
       candidateChatIds.push('-' + primaryChatId);
       candidateChatIds.push('-100' + primaryChatId);
     }
   }
 
-  let lastError = '';
-
   if (cleanToken && candidateChatIds.length > 0) {
     const tgUrl = `https://api.telegram.org/bot${cleanToken}/sendMessage`;
     for (const testChatId of candidateChatIds) {
       try {
-        // Use application/x-www-form-urlencoded (URLSearchParams) to avoid browser CORS preflight OPTIONS failure
         const params = new URLSearchParams({
           chat_id: testChatId,
           text: formattedText,
@@ -337,11 +319,10 @@ export async function sendDeviceConfigTelegramAlert(
           return { ok: true, resolvedChatId: testChatId };
         }
 
-        // If markdown parser rejected entities (e.g. unescaped character in merchant name), retry with plain text
         if (data?.description && /can't parse entities|entities|markdown/i.test(data.description)) {
           const retryParams = new URLSearchParams({
             chat_id: testChatId,
-            text: plainText,
+            text: formattedText.replace(/[*_`\[\]]/g, ''),
           });
           const retryRes = await fetch(tgUrl, {
             method: 'POST',
@@ -357,7 +338,6 @@ export async function sendDeviceConfigTelegramAlert(
         }
 
         lastError = data?.description || `HTTP ${res.status}`;
-        // If chat was not found, continue loop to try alternative format (-100 vs -)
         if (data?.description && /chat not found/i.test(data.description)) {
           continue;
         }
@@ -370,7 +350,7 @@ export async function sendDeviceConfigTelegramAlert(
     }
   }
 
-  // Webhook fallback if custom webhook is provided
+  // 3. Webhook fallback
   if (webhookUrl) {
     let urlChatId = primaryChatId;
     try {
@@ -379,7 +359,7 @@ export async function sendDeviceConfigTelegramAlert(
         urlChatId = parsedUrl.searchParams.get('chat_id') || '';
       }
     } catch {
-      // ignore URL parse error
+      // ignore
     }
     try {
       const res = await fetch(webhookUrl, {
@@ -388,7 +368,6 @@ export async function sendDeviceConfigTelegramAlert(
         body: JSON.stringify({
           chat_id: urlChatId || undefined,
           text: formattedText,
-          parse_mode: 'Markdown',
           type: 'DEVICE_CONFIG_APP_PUSH',
           ...info,
           timestamp,
@@ -408,9 +387,8 @@ export async function sendDeviceConfigTelegramAlert(
 }
 
 /**
- * Queries Telegram Bot API (`getMe`, `deleteWebhook` if needed, and `getUpdates`) to automatically
- * discover Group Chat IDs where the bot has been added on Telegram Desktop / Mobile, and sends
- * an instant confirmation ping to the detected chat.
+ * Queries Telegram Bot API via Supabase Cloud Relay (or direct fallback) to automatically
+ * discover Group Chat IDs where the bot has been added on Telegram Desktop / Mobile.
  */
 export async function detectTelegramGroupChats(
   botTokenInput: string
@@ -432,8 +410,35 @@ export async function detectTelegramGroupChats(
     };
   }
 
+  // 1. Primary: Use Supabase Cloud Relay (immune to ISP / browser blocks)
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase.rpc('rpc_detect_telegram_chats', {
+        p_bot_token: cleanToken,
+      });
+      if (!error && data) {
+        if (data.ok) {
+          const chatsList = Array.isArray(data.chats) ? data.chats : [];
+          return {
+            ok: true,
+            botUsername: data.botUsername || '',
+            chats: chatsList,
+          };
+        }
+        return {
+          ok: false,
+          botUsername: data.botUsername || '',
+          error: data.error || 'Failed to detect chats via cloud relay.',
+          chats: [],
+        };
+      }
+    } catch {
+      // Fallback to direct fetch
+    }
+  }
+
+  // 2. Direct browser fetch fallback
   try {
-    // 1. Verify Bot Token via getMe
     const meRes = await fetch(`https://api.telegram.org/bot${cleanToken}/getMe`);
     const meJson = await meRes.json().catch(() => null);
     if (!meRes.ok || !meJson?.ok) {
@@ -446,7 +451,6 @@ export async function detectTelegramGroupChats(
     }
     const botUsername = String(meJson.result?.username || '');
 
-    // 2. Fetch getUpdates (if 409 Conflict because a webhook was set previously, clear webhook so getUpdates works)
     let res = await fetch(
       `https://api.telegram.org/bot${cleanToken}/getUpdates?limit=100&allowed_updates=["message","edited_message","my_chat_member","chat_member"]`
     );
@@ -489,14 +493,12 @@ export async function detectTelegramGroupChats(
       }
     }
 
-    // Prioritize group / supergroup / channel chats (negative IDs) over private 1-on-1 chats
     list.sort((a, b) => {
       const aIsGroup = a.id.startsWith('-') ? 0 : 1;
       const bIsGroup = b.id.startsWith('-') ? 0 : 1;
       return aIsGroup - bIsGroup;
     });
 
-    // 3. If we found at least one chat, send an immediate confirmation message via application/x-www-form-urlencoded
     if (list.length > 0) {
       const target = list[0];
       const confirmParams = new URLSearchParams({
