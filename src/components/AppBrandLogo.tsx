@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 
-export type LogoPresetId = 'quantum-sound' | 'fintech-pulse' | 'apex-pos' | 'bank-shield';
+export type LogoPresetId = 'merchant-store' | 'merchant-store-3d' | 'quantum-sound' | 'fintech-pulse' | 'apex-pos' | 'bank-shield';
 
 export interface AppBrandLogoProps {
   logoUrl?: string;
@@ -28,6 +28,191 @@ const SIZE_MAP = {
  * Features smart terminal monolith, 24K royal gold EMV chip, acoustic driver core,
  * radiating sound waves, liquid platinum rim, and diagonal specular gleam.
  */
+/**
+ * Flagship Luxury: Verified Merchant Store 3D (Retina Vector)
+ * Architectural ceramic storefront with 3D scalloped emerald & mint awning,
+ * sapphire display aperture, and verified status checkmark badge.
+ */
+export const SvgMerchantStore: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
+  <svg
+    viewBox="0 0 128 128"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    aria-hidden="true"
+  >
+    <defs>
+      {/* Background Deep Sapphire Disc */}
+      <radialGradient id="ms_disc" cx="50%" cy="45%" r="55%">
+        <stop offset="0%" stopColor="#004d80" />
+        <stop offset="50%" stopColor="#002b48" />
+        <stop offset="100%" stopColor="#001424" />
+      </radialGradient>
+
+      {/* Disc Rim Lighting */}
+      <linearGradient id="ms_rim" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.6" />
+        <stop offset="40%" stopColor="#38bdf8" stopOpacity="0.3" />
+        <stop offset="100%" stopColor="#000000" stopOpacity="0.4" />
+      </linearGradient>
+
+      {/* Awning Scallop Colors */}
+      <linearGradient id="ms_scallop_dark" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#00b58e" />
+        <stop offset="65%" stopColor="#008f6f" />
+        <stop offset="100%" stopColor="#006b52" />
+      </linearGradient>
+
+      <linearGradient id="ms_scallop_light" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#6ee7b7" />
+        <stop offset="50%" stopColor="#34d399" />
+        <stop offset="100%" stopColor="#10b981" />
+      </linearGradient>
+
+      {/* Store Wall White */}
+      <linearGradient id="ms_wall" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#ffffff" />
+        <stop offset="85%" stopColor="#f8fafc" />
+        <stop offset="100%" stopColor="#e2e8f0" />
+      </linearGradient>
+
+      {/* Door & Window Sapphire */}
+      <linearGradient id="ms_aperture" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#003454" />
+        <stop offset="100%" stopColor="#001b2d" />
+      </linearGradient>
+
+      {/* Verified Badge Emerald */}
+      <radialGradient id="ms_badge_glow" cx="40%" cy="35%" r="65%">
+        <stop offset="0%" stopColor="#34d399" />
+        <stop offset="45%" stopColor="#10b981" />
+        <stop offset="90%" stopColor="#059669" />
+        <stop offset="100%" stopColor="#047857" />
+      </radialGradient>
+
+      {/* Diagonal Specular Sheen */}
+      <linearGradient id="ms_gleam" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
+        <stop offset="50%" stopColor="#ffffff" stopOpacity="0.38" />
+        <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+      </linearGradient>
+
+      <clipPath id="ms_clip">
+        <circle cx="64" cy="64" r="58" />
+      </clipPath>
+
+      <filter id="ms_shadow" x="-10%" y="-10%" width="120%" height="130%">
+        <feDropShadow dx="0" dy="4" stdDeviation="3" floodColor="#000000" floodOpacity="0.3" />
+      </filter>
+    </defs>
+
+    <style>{`
+      @keyframes ms_gleam_sweep {
+        0% { transform: translateX(-140px) rotate(30deg); }
+        25% { transform: translateX(160px) rotate(30deg); }
+        100% { transform: translateX(160px) rotate(30deg); }
+      }
+      @keyframes ms_badge_pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.04); filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.6)); }
+      }
+      .ms-gleam { animation: ms_gleam_sweep 5s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+      .ms-badge { transform-origin: 92px 86px; animation: ms_badge_pulse 3s ease-in-out infinite; }
+    `}</style>
+
+    {/* Base Circular Disc with Outer Bezel */}
+    <circle cx="64" cy="64" r="58" fill="url(#ms_disc)" />
+    <circle cx="64" cy="64" r="58" stroke="url(#ms_rim)" strokeWidth="1.5" />
+
+    {/* Concentric Orbital Rings */}
+    <circle cx="64" cy="64" r="53" stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="3 3" />
+    <circle cx="64" cy="64" r="47" stroke="rgba(56,189,248,0.16)" strokeWidth="0.8" />
+
+    {/* Storefront Group */}
+    <g filter="url(#ms_shadow)">
+      {/* White Wall Structure */}
+      <rect x="36" y="46" width="56" height="42" rx="4" fill="url(#ms_wall)" />
+
+      {/* Awning Under-Shadow on Wall */}
+      <rect x="36" y="52" width="56" height="3" fill="#000000" opacity="0.12" />
+
+      {/* Doorway */}
+      <rect x="42" y="60" width="14" height="28" rx="2" fill="url(#ms_aperture)" />
+      <circle cx="52.5" cy="74" r="1.6" fill="#10b981" />
+      <circle cx="52.2" cy="73.6" r="0.5" fill="#ffffff" opacity="0.8" />
+
+      {/* Display Windows */}
+      <rect x="61" y="60" width="25" height="15" rx="2" fill="url(#ms_aperture)" />
+      <line x1="73.5" y1="60" x2="73.5" y2="75" stroke="#ffffff" strokeWidth="1.5" />
+      {/* Window Glint Slash */}
+      <path d="M 62,75 L 67,60 L 69,60 L 64,75 Z" fill="#ffffff" opacity="0.22" />
+      <path d="M 75,75 L 79,60 L 80.5,60 L 76.5,75 Z" fill="#ffffff" opacity="0.22" />
+
+      {/* Roof Fascia Beam */}
+      <rect x="29" y="32" width="70" height="7" rx="3.5" fill="#ffffff" />
+      <line x1="32" y1="33" x2="96" y2="33" stroke="rgba(255,255,255,0.8)" strokeWidth="1" />
+
+      {/* Scalloped Awning Stripes (5 Segments) */}
+      <path d="M 32,38 L 44.8,38 L 44.8,50 Q 38.4,56 32,50 Z" fill="url(#ms_scallop_dark)" />
+      <path d="M 44.8,38 L 57.6,38 L 57.6,50 Q 51.2,56 44.8,50 Z" fill="url(#ms_scallop_light)" />
+      <path d="M 57.6,38 L 70.4,38 L 70.4,50 Q 64,56 57.6,50 Z" fill="url(#ms_scallop_dark)" />
+      <path d="M 70.4,38 L 83.2,38 L 83.2,50 Q 76.8,56 70.4,50 Z" fill="url(#ms_scallop_light)" />
+      <path d="M 83.2,38 L 96,38 L 96,50 Q 89.6,56 83.2,50 Z" fill="url(#ms_scallop_dark)" />
+
+      {/* Canopy Top Seam Highlight */}
+      <line x1="32" y1="38" x2="96" y2="38" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" />
+    </g>
+
+    {/* Verified Checkmark Badge (Foreground) */}
+    <g className="ms-badge">
+      {/* Badge Deep Shadow */}
+      <circle cx="92" cy="87" r="18" fill="#000000" opacity="0.35" filter="blur(2px)" />
+      {/* Badge Outer Navy Bezel */}
+      <circle cx="92" cy="86" r="18" fill="#002238" />
+      {/* Badge Emerald Body */}
+      <circle cx="92" cy="86" r="15.5" fill="url(#ms_badge_glow)" />
+      {/* Badge Specular Rim */}
+      <path d="M 78,84 A 14 14 0 0 1 106,84 A 15.5 15.5 0 0 0 78,84" fill="#ffffff" opacity="0.4" />
+      {/* Crisp White Checkmark */}
+      <path
+        d="M 84,86 L 89.5,91.5 L 100,79.5"
+        stroke="#ffffff"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </g>
+
+    {/* Diagonal Specular Gleam Sweep */}
+    <g clipPath="url(#ms_clip)">
+      <rect
+        className="ms-gleam"
+        x="-30"
+        y="-30"
+        width="28"
+        height="180"
+        fill="url(#ms_gleam)"
+        pointerEvents="none"
+      />
+    </g>
+  </svg>
+);
+
+/**
+ * Flagship Luxury: Verified Merchant Hub (4K 3D Render)
+ * Raytraced 3D render asset with tactile ceramic facade, 3D scalloped canopy, and glowing checkmark emblem.
+ */
+export const ImgMerchantStore3D: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
+  <div className={`relative w-full h-full rounded-2xl overflow-hidden flex items-center justify-center ${className}`}>
+    <img
+      src="/merchant-store-logo.png"
+      alt="Verified Merchant Store 3D Logo"
+      className="w-full h-full object-contain filter drop-shadow-md select-none"
+      draggable={false}
+    />
+  </div>
+);
+
 export const SvgQuantumSound: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => (
   <svg
     viewBox="0 0 64 64"
@@ -357,6 +542,18 @@ export const PRESET_META: Record<
     Component: React.FC<{ className?: string }>;
   }
 > = {
+  'merchant-store': {
+    name: 'Verified Merchant Hub (Retina Vector)',
+    description: 'High-resolution architectural ceramic storefront with 3D scalloped emerald & mint awning, sapphire display aperture, and verified status badge.',
+    tag: 'Flagship Storefront',
+    Component: SvgMerchantStore,
+  },
+  'merchant-store-3d': {
+    name: 'Verified Merchant Hub (4K 3D Render)',
+    description: 'Ultra-HD raytraced 3D render with tactile ceramic facade, 3D scalloped canopy, sapphire portal, and glowing verified checkmark emblem.',
+    tag: 'Ultra-HD 3D',
+    Component: ImgMerchantStore3D,
+  },
   'quantum-sound': {
     name: 'Sovereign POS & SoundBox 3D',
     description: 'Chiseled obsidian & sapphire 3D dual-hardware emblem with 24K royal gold EMV chip, acoustic driver, and broadcast waves.',
@@ -390,7 +587,7 @@ export const PRESET_META: Record<
  */
 export const AppBrandLogo: React.FC<AppBrandLogoProps> = ({
   logoUrl,
-  presetId = 'quantum-sound',
+  presetId = 'merchant-store',
   size = 'md',
   className = '',
   showGlow = false,
@@ -404,7 +601,7 @@ export const AppBrandLogo: React.FC<AppBrandLogoProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const sizeStyle = SIZE_MAP[size] || SIZE_MAP.md;
-  const ActiveComponent = PRESET_META[presetId]?.Component || SvgQuantumSound;
+  const ActiveComponent = PRESET_META[presetId]?.Component || SvgMerchantStore;
 
   // Reset error if URL changes
   React.useEffect(() => {

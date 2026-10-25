@@ -192,7 +192,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
     <div className="min-h-screen flex items-center justify-center px-4 py-10 bg-gradient-to-br from-slate-50 via-white to-slate-100">
       <div className={card}>
         <div className="flex items-center gap-3 mb-6">
-          <AppBrandLogo presetId="quantum-sound" size="lg" />
+          <AppBrandLogo presetId="merchant-store" size="lg" />
           <div>
             <div className="text-base font-extrabold text-slate-900 leading-tight">POS &amp; Sound Box Stock Inventory</div>
             <div className="text-xs text-slate-500 font-semibold">Merchant Support · Head Office</div>
