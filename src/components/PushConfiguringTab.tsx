@@ -303,6 +303,24 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return { full: `${d} 08:30:00`, date: d, time: '08:30:00' };
   };
 
+  // Helper to resolve the Authorizing Officer / Admin who assigned the device
+  const getAssignedBy = (dev: Device): string => {
+    if (Array.isArray(dev.history) && dev.history.length > 0) {
+      for (const h of dev.history) {
+        if (typeof h === 'string') {
+          const officerMatch =
+            h.match(/—\s*Officer:\s*([^|—\n]+)/i) ||
+            h.match(/Officer:\s*([^|—\n]+)/i) ||
+            h.match(/Assigned\s*(?:by|to)\s*:?\s*([^|—\n]+)/i);
+          if (officerMatch && officerMatch[1]?.trim()) {
+            return officerMatch[1].trim();
+          }
+        }
+      }
+    }
+    return operatorLabel || 'System Admin';
+  };
+
   // Double-click handlers for Telegram pushes (1-min confirmation window & 1-min cooldown)
   const handleRowPushClick = (serial: string) => {
     if (getRowCooldownSecs(serial) > 0) return;
@@ -503,6 +521,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       'Hardware Serial & Model',
       'Merchant Name & MID / TID',
       'Configure By (Staff)',
+      'Assigned By',
       'Branch',
     ];
     const rows = filteredDevices.map((dev, idx) => {
@@ -512,6 +531,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       const serialModel = `${dev.serial} (${dev.model || dev.type})`;
       const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
       const staffName = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
+      const assignedBy = getAssignedBy(dev);
       const branchDisplay = `${dev.branchId} · ${bName.replace(' Branch', '')}`;
 
       return [
@@ -520,6 +540,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         serialModel,
         merchantMidTid,
         staffName,
+        assignedBy,
         branchDisplay,
       ];
     });
@@ -838,6 +859,7 @@ return (
                 <th className="py-3 px-4">Hardware Serial &amp; Model</th>
                 <th className="py-3 px-4">Merchant Name &amp; MID / TID</th>
                 <th className="py-3 px-4">Configure By (Staff)</th>
+                <th className="py-3 px-4">Assigned By</th>
                 <th className="py-3 px-4">Branch</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -845,7 +867,7 @@ return (
             <tbody className={`divide-y ${isLight ? 'divide-slate-100' : 'divide-slate-800/60'}`}>
               {filteredDevices.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     <Boxes className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     <div className="text-sm font-bold text-slate-600 dark:text-slate-300">No devices in Push Configuring queue</div>
                     <div className="text-xs text-slate-400 mt-0.5">
@@ -863,6 +885,7 @@ return (
                   const bObj = branches.find((b) => b.code === dev.branchId);
                   const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
                   const staffName = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
+                  const assignedBy = getAssignedBy(dev);
                   const requestPushInfo = getRequestPushDateTime(dev);
 
                   return (
@@ -935,7 +958,22 @@ return (
                       {/* Configure By (Staff) */}
                       <td className="py-3 px-4">
                         <div className="font-semibold text-zinc-800 dark:text-slate-200">{staffName}</div>
-                        <div className="text-[10px] text-slate-400">Assigned By: {operatorLabel}</div>
+                        <div className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          {userTelegramMap.get(staffName.toLowerCase().trim())
+                            ? `@${userTelegramMap.get(staffName.toLowerCase().trim())}`
+                            : 'Field Technician'}
+                        </div>
+                      </td>
+
+                      {/* Assigned By (Admin / Operator) */}
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-zinc-800 dark:text-slate-200 flex items-center gap-1.5">
+                          <ShieldCheck className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
+                          <span className="truncate max-w-[150px]" title={assignedBy}>{assignedBy}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 pl-5">
+                          Authorizing Admin
+                        </div>
                       </td>
 
                       {/* Branch */}
