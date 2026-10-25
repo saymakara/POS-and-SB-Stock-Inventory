@@ -1384,6 +1384,7 @@ export interface StaffAccount {
   branchId: string;
   position: string | null;
   contact: string | null;
+  telegramUsername?: string | null;
   location?: string | null;
   active: boolean;
   mustChangePassword: boolean;
@@ -1398,6 +1399,7 @@ const mapStaff = (r: any): StaffAccount => ({
   branchId: r.branch_id,
   position: r.position,
   contact: r.contact,
+  telegramUsername: r.telegram_username || null,
   location: r.location || 'Phnom Penh',
   active: !!r.active,
   mustChangePassword: !!r.must_change_password,
@@ -1471,6 +1473,7 @@ export async function saveStaffAccount(p: {
   branch_id: string;
   position?: string;
   contact?: string;
+  telegram_username?: string;
   location?: string;
   active: boolean;
   password?: string;

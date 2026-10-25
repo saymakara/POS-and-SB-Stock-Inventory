@@ -239,6 +239,20 @@ export async function dispatchTelegramMessage(
 // App push alerts
 // -----------------------------------------------------------------------------
 
+
+/**
+ * Normalizes a Telegram username to ensure valid mention syntax:
+ * - strips leading @
+ * - validates telegram username format (alphanumeric + underscores, 3-32 chars)
+ * - returns formatted `@username`
+ */
+export function formatTelegramMention(raw?: string | null): string {
+  if (!raw) return '';
+  const clean = raw.trim().replace(/^@/, '');
+  if (!clean || !/^[A-Za-z0-9_]{3,32}$/.test(clean)) return '';
+  return `@${clean}`;
+}
+
 export interface DeviceConfigTelegramAlertInfo {
   serial: string;
   type?: string;
@@ -251,6 +265,7 @@ export interface DeviceConfigTelegramAlertInfo {
   branchName?: string;
   staff?: string;
   staffName?: string;
+  staffTelegram?: string;
   actor?: string;
   adminOperator?: string;
   /** Send to this chat instead of resolving one from the branch (used by "Test Group"). */
@@ -278,16 +293,21 @@ export async function sendDeviceConfigTelegramAlert(
 
   const devType = info.type || info.deviceType || 'Device';
   const devModel = info.model ? ` · ${info.model}` : '';
+  const mention = formatTelegramMention(info.staffTelegram);
+  const staffDisplay = mention
+    ? `${info.staff || info.staffName || 'Branch Officer'} (${mention})`
+    : (info.staff || info.staffName || 'Branch Officer');
   const text = [
     `📲 *Under Configuring — Ready for App Push*`,
     `• *Action Required:* Please *OPEN the device* and connect to network to wait for pushing the app!`,
     `• *Assigned By:* *${info.actor || info.adminOperator || 'System Admin'}*`,
-    `• *Configure By:* *${info.staff || info.staffName || 'Branch Officer'}*`,
+    `• *Configure By:* *${staffDisplay}*`,
     `• *Branch:* Code \`${info.branchId || '100'}\` (${info.branchName || 'Branch'})`,
     target.isRegional ? `• *Destination Regional Group:* *${target.groupName}*` : null,
     `• *Hardware Serial:* \`${info.serial}\` (${devType}${devModel})`,
     `• *Merchant Name:* *${info.merchantName || 'Configured Merchant'}*`,
     `• *MID:* \`${info.mid || '—'}\`  |  *TID:* \`${info.tid || '—'}\``,
+    mention ? `\n👉 *Attention ${mention}:* Please power ON and open device \`${info.serial}\` now to wait for app push!` : null,
     `• *Timestamp:* ${stampSecPP()}`,
   ]
     .filter(Boolean)
@@ -314,6 +334,7 @@ export interface BatchDeviceConfigItem {
   branchName?: string;
   staff?: string;
   staffName?: string;
+  staffTelegram?: string;
 }
 
 export interface BatchDeviceConfigTelegramAlertInfo {

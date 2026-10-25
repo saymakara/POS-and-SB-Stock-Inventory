@@ -36,6 +36,7 @@ export interface User {
   username?: string;
   password?: string;
   location?: string;
+  telegramUsername?: string;
 }
 
 export interface Device {
@@ -48,6 +49,7 @@ export interface Device {
   branchId: string;
   branchName: string;
   staff: string;
+  staffTelegram?: string;
   stage: LifecycleStage;
   deploymentStatus: string;
   stockStatus: string;

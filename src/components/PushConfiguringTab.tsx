@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup } from '../types';
+import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -22,6 +22,7 @@ interface PushConfiguringTabProps {
   onReturnToReserve?: (serial: string, branchId: string, reason?: string) => void;
   regionalGroups?: TelegramRegionalGroup[];
   theme?: ThemeMode;
+  users?: User[];
 }
 
 export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(({
@@ -35,6 +36,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   onReturnToReserve,
   regionalGroups,
   theme = 'light',
+  users = [],
 }) => {
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
 
@@ -69,21 +71,38 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     });
   }, [configuringDevices, search, branchFilter, typeFilter]);
 
+  // Lookup map for staff Telegram handles
+  const userTelegramMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (users || []).forEach((u) => {
+      if (u.telegramUsername) {
+        const clean = u.telegramUsername.trim().replace(/^@/, '');
+        if (clean) {
+          map.set(u.name.toLowerCase().trim(), clean);
+          map.set(u.empId.toLowerCase().trim(), clean);
+          if (u.label) map.set(u.label.toLowerCase().trim(), clean);
+        }
+      }
+    });
+    return map;
+  }, [users]);
+
   // 4. Grouped by Assigned Staff / Team
   const teamGroups = useMemo(() => {
-    const map = new Map<string, { staff: string; branchId: string; branchName: string; devices: Device[] }>();
+    const map = new Map<string, { staff: string; staffTelegram?: string; branchId: string; branchName: string; devices: Device[] }>();
     for (const d of configuringDevices) {
       const staffName = d.staff || d.installedByStaff || 'Unassigned Staff';
       const bObj = branches.find((b) => b.code === d.branchId);
       const bName = bObj ? bObj.name : (d.branchName || `Branch ${d.branchId}`);
       const key = `${staffName}__${d.branchId}`;
       if (!map.has(key)) {
-        map.set(key, { staff: staffName, branchId: d.branchId, branchName: bName, devices: [] });
+        const tgHandle = d.staffTelegram || userTelegramMap.get(staffName.toLowerCase().trim());
+        map.set(key, { staff: staffName, staffTelegram: tgHandle, branchId: d.branchId, branchName: bName, devices: [] });
       }
       map.get(key)!.devices.push(d);
     }
     return Array.from(map.values()).sort((a, b) => b.devices.length - a.devices.length);
-  }, [configuringDevices, branches]);
+  }, [configuringDevices, branches, userTelegramMap]);
 
   // 5. Counts
   const posCount = useMemo(() => configuringDevices.filter((d) => d.type === 'POS Terminal').length, [configuringDevices]);

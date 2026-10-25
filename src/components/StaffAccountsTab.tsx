@@ -21,6 +21,7 @@ const blank = {
   branch_id: '',
   position: '',
   contact: '',
+  telegram_username: '',
   location: 'Phnom Penh',
   active: true,
   password: '',
@@ -140,6 +141,7 @@ export const StaffAccountsTab: React.FC<{
         branch_id: a.branchId,
         position: a.position || '',
         contact: a.contact || '',
+        telegram_username: (a.telegramUsername || '').replace(/^@/, ''),
         location: getLocation(a),
         active: a.active,
         password: '',
@@ -185,6 +187,7 @@ export const StaffAccountsTab: React.FC<{
         branch_id: form.branch_id,
         position: form.position || undefined,
         contact: form.contact || undefined,
+        telegram_username: form.telegram_username ? form.telegram_username.trim().replace(/^@/, '') : undefined,
         location: cleanLoc,
         active: form.active,
         password: form.password || undefined,
@@ -345,6 +348,18 @@ export const StaffAccountsTab: React.FC<{
                 value={form.position}
                 onChange={(e) => setForm({ ...form, position: e.target.value })}
               />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-bold text-slate-700">
+              <span>Telegram Handle <span className="text-[10px] text-sky-600 font-normal">(@mention tag)</span></span>
+              <div className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">@</span>
+                <input
+                  className={input + ' pl-7 font-mono w-full'}
+                  value={form.telegram_username}
+                  placeholder="username"
+                  onChange={(e) => setForm({ ...form, telegram_username: e.target.value.replace(/^@/, '') })}
+                />
+              </div>
             </label>
             <label className="flex flex-col gap-1 text-xs font-bold text-slate-700 sm:col-span-2 lg:col-span-3">
               {isNew ? 'First password' : 'New password (leave empty to keep)'}
@@ -513,6 +528,14 @@ const StaffRow = memo(function StaffRow({
       <td className="px-3 py-2.5 font-semibold text-slate-900">
         <div className="flex items-center gap-2">
           <span>{a.name}</span>
+          {a.telegramUsername && (
+            <span
+              title="Configured for Telegram @mention push notifications"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200"
+            >
+              @{a.telegramUsername.replace(/^@/, '')}
+            </span>
+          )}
           {onlineInfo && (
             <span
               title={`Online now · Viewing ${onlineInfo.activeTab}`}

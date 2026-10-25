@@ -226,7 +226,7 @@ const loadServerAuditLogs = (limit = 50, offset = 0) => fetchAuditLogs(limit, of
 const staffToUser = (a: StaffAccount, branchName?: string): User => ({
   uid: a.userId, empId: a.empId, name: a.name, label: `${a.name} (${a.empId})`, accessRole: a.role,
   branchId: a.branchId, branchName: a.branchId === '100' ? 'Head Office' : branchName || `Branch ${a.branchId}`,
-  position: a.position || '', contact: a.contact || '', status: a.active ? (a.mustChangePassword ? 'Pending' : 'Operating') : 'Suspended',
+  position: a.position || '', contact: a.contact || '', telegramUsername: a.telegramUsername || undefined, status: a.active ? (a.mustChangePassword ? 'Pending' : 'Operating') : 'Suspended',
   updatedAt: (a.updatedAt || '').slice(0, 10),
 });
 
@@ -1995,6 +1995,21 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     triggerToast(`Restored ${serials.length} serial(s) to active dashboard`);
   };
 
+  const staffTelegramMap = useMemo(() => {
+    const map = new Map<string, string>();
+    users.forEach((u) => {
+      if (u.telegramUsername) {
+        const clean = u.telegramUsername.trim().replace(/^@/, '');
+        if (clean) {
+          map.set(u.name.toLowerCase().trim(), clean);
+          map.set(u.empId.toLowerCase().trim(), clean);
+          if (u.label) map.set(u.label.toLowerCase().trim(), clean);
+        }
+      }
+    });
+    return map;
+  }, [users]);
+
   // Notify Handling Staff & Telegram Group when devices Under Configuring are ready for App Push (#11)
   // Supports single or batch selection (e.g. ~200 units daily across multiple assigned teams)
   const handleNotifyConfigReady = async (serialOrSerials: string | string[]) => {
@@ -2020,6 +2035,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         'inventory'
       );
 
+      const singleStaffTg = dev.staffTelegram || staffTelegramMap.get((dev.staff || dev.installedByStaff || '').toLowerCase().trim()) || staffTelegramMap.get((dev.staff || '').toLowerCase().trim());
       const res = await sendDeviceConfigTelegramAlert({
         serial: dev.serial,
         deviceType: dev.type,
@@ -2030,6 +2046,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         branchId: dev.branchId,
         branchName: bName,
         staffName: staffTarget,
+        staffTelegram: singleStaffTg,
         adminOperator: operator,
       });
 
@@ -2065,17 +2082,22 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       }
 
       const res = await sendBatchDeviceConfigTelegramAlert({
-        devices: targets.map((d) => ({
-          serial: d.serial,
-          type: d.type,
-          model: d.model,
-          mid: d.mid,
-          tid: d.tid,
-          merchantName: d.merchantName,
-          branchId: d.branchId,
-          branchName: d.branchName,
-          staff: d.staff || d.installedByStaff,
-        })),
+        devices: targets.map((d) => {
+          const sName = d.staff || d.installedByStaff || '';
+          const tg = d.staffTelegram || staffTelegramMap.get(sName.toLowerCase().trim()) || staffTelegramMap.get((d.staff || '').toLowerCase().trim());
+          return {
+            serial: d.serial,
+            type: d.type,
+            model: d.model,
+            mid: d.mid,
+            tid: d.tid,
+            merchantName: d.merchantName,
+            branchId: d.branchId,
+            branchName: d.branchName,
+            staff: sName,
+            staffTelegram: tg,
+          };
+        }),
         adminOperator: operator,
         regionalGroups: appSettings.telegramRegionalGroups,
         branches: branches,
@@ -3451,6 +3473,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       onNotifyConfigReady={handleNotifyConfigReady}
                       onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
                       regionalGroups={appSettings.telegramRegionalGroups}
+                      users={users}
                       onCompleteDeployment={(sn) => {
                         const dev = devices.find((d) => d.serial === sn);
                         if (dev) {
