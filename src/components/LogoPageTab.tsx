@@ -97,7 +97,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
 
   // Reset to default
   const handleResetBrand = () => {
-    setSelectedPreset('fintech-pulse');
+    setSelectedPreset('merchant-store');
     setCustomUrl('');
     setTitleInput('POS & Sound Box Stock');
     setSubtitleInput('Branch Operations Portal');
@@ -107,7 +107,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
       customLogoUrl: '',
       customLogoTitle: 'POS & Sound Box Stock',
       customLogoSubtitle: 'Branch Operations Portal',
-      logoPresetId: 'fintech-pulse',
+      logoPresetId: 'merchant-store',
     }));
 
     addAuditLog('Brand Identity Reset', 'Reset logo and portal titles to system defaults');
@@ -116,24 +116,13 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
 
   // Download SVG
   const handleDownloadSvg = () => {
-    let svgContent = '';
-    if (selectedPreset === 'merchant-store') {
-      svgContent = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="flat_store_bg" cx="50%" cy="46%" r="52%"><stop offset="0%" stop-color="#124e7c"/><stop offset="60%" stop-color="#0b385c"/><stop offset="100%" stop-color="#07263f"/></radialGradient></defs><circle cx="50" cy="50" r="48" fill="url(#flat_store_bg)"/><circle cx="50" cy="50" r="44" stroke="rgba(255,255,255,0.08)" stroke-width="0.75"/><circle cx="50" cy="50" r="37" stroke="rgba(255,255,255,0.05)" stroke-width="0.75"/><g><path d="M 30,38 L 70,38 L 70,61 Q 70,64 67,64 L 33,64 Q 30,64 30,61 Z" fill="#ffffff"/><rect x="34.5" y="47.5" width="10.5" height="16.5" rx="1.2" fill="#0d385c"/><circle cx="42.5" cy="55.5" r="1" fill="#00d8a0"/><rect x="48.5" y="47.5" width="8.5" height="10" rx="1" fill="#0d385c"/><rect x="58" y="47.5" width="8.5" height="10" rx="1" fill="#0d385c"/><path d="M 27.5,30 L 36.5,30 L 36.5,39 Q 32,43.5 27.5,39 Z" fill="#00997b"/><path d="M 36.5,30 L 45.5,30 L 45.5,39 Q 41,43.5 36.5,39 Z" fill="#61e3c2"/><path d="M 45.5,30 L 54.5,30 L 54.5,39 Q 50,43.5 45.5,39 Z" fill="#00997b"/><path d="M 54.5,30 L 63.5,30 L 63.5,39 Q 59,43.5 54.5,39 Z" fill="#61e3c2"/><path d="M 63.5,30 L 72.5,30 L 72.5,39 Q 68,43.5 63.5,39 Z" fill="#00997b"/><rect x="25.5" y="26" width="49" height="4.5" rx="2.25" fill="#ffffff"/></g><g><circle cx="71" cy="63.5" r="13" fill="#082944"/><circle cx="71" cy="63.5" r="10.2" fill="#1cb38b"/><path d="M 66,63.5 L 69.5,67 L 76.5,59.5" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`;
-    } else if (selectedPreset === 'fintech-pulse') {
-      svgContent = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="simplePulseBg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#003844"/><stop offset="100%" stop-color="#005d6e"/></linearGradient><linearGradient id="simplePulseWaves" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#38bdf8"/></linearGradient></defs><rect x="2" y="2" width="44" height="44" rx="12" fill="url(#simplePulseBg)"/><rect x="2" y="2" width="44" height="44" rx="12" stroke="white" stroke-opacity="0.14" stroke-width="1"/><rect x="11" y="11" width="16" height="26" rx="4.5" fill="#ffffff"/><rect x="13.5" y="14" width="11" height="8.5" rx="2" fill="#002b36"/><circle cx="16.5" cy="27" r="1.5" fill="#005d6e"/><rect x="20" y="26" width="4.5" height="2" rx="1" fill="#005d6e"/><rect x="14.5" y="31.5" width="9" height="1.5" rx="0.75" fill="#cbd5e1"/><path d="M31 18C33.2 20.2 34.5 23 34.5 26C34.5 29 33.2 31.8 31 34" stroke="url(#simplePulseWaves)" stroke-width="2.5" stroke-linecap="round"/><path d="M36 13.5C39.5 17 41.5 21.2 41.5 26C41.5 30.8 39.5 35 36 38.5" stroke="url(#simplePulseWaves)" stroke-width="2.5" stroke-linecap="round" stroke-opacity="0.8"/></svg>`;
-    } else if (selectedPreset === 'apex-pos') {
-      svgContent = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="apexSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#090d16"/><stop offset="100%" stop-color="#1e293b"/></linearGradient><linearGradient id="apexAccent" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00e5ff"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs><rect x="2" y="2" width="44" height="44" rx="12" fill="url(#apexSimpleBg)"/><rect x="2" y="2" width="44" height="44" rx="12" stroke="white" stroke-opacity="0.12" stroke-width="1"/><rect x="10" y="14" width="21" height="20" rx="3.5" fill="#1e293b" stroke="white" stroke-width="1.8"/><circle cx="16" cy="20" r="2.5" fill="url(#apexAccent)"/><path d="M14 27.5H27" stroke="white" stroke-opacity="0.4" stroke-width="1.5" stroke-linecap="round"/><path d="M34 19C36.5 21 38 23.5 38 26C38 28.5 36.5 31 34 33" stroke="url(#apexAccent)" stroke-width="2.5" stroke-linecap="round"/></svg>`;
-    } else if (selectedPreset === 'bank-shield') {
-      svgContent = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="shieldSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0a2540"/><stop offset="100%" stop-color="#00182c"/></linearGradient><linearGradient id="shieldGold" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs><rect x="2" y="2" width="44" height="44" rx="12" fill="url(#shieldSimpleBg)"/><rect x="2" y="2" width="44" height="44" rx="12" stroke="white" stroke-opacity="0.12" stroke-width="1"/><path d="M24 10L36 15V24C36 31 30.5 36.5 24 38.5C17.5 36.5 12 31 12 24V15L24 10Z" fill="#0c3254" stroke="url(#shieldGold)" stroke-width="2.2" stroke-linejoin="round"/><path d="M19 24.5L22.5 28L29 20" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    } else {
-      svgContent = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="soundSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0d1117"/><stop offset="100%" stop-color="#161b22"/></linearGradient><linearGradient id="soundWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#34d399"/></linearGradient></defs><rect x="2" y="2" width="44" height="44" rx="12" fill="url(#soundSimpleBg)"/><rect x="2" y="2" width="44" height="44" rx="12" stroke="white" stroke-opacity="0.12" stroke-width="1"/><rect x="13" y="20" width="4" height="8" rx="2" fill="url(#soundWaveGrad)"/><rect x="19" y="14" width="4" height="20" rx="2" fill="url(#soundWaveGrad)"/><rect x="25" y="11" width="4" height="26" rx="2" fill="url(#soundWaveGrad)"/><rect x="31" y="17" width="4" height="14" rx="2" fill="url(#soundWaveGrad)"/></svg>`;
-    }
+    const svgContent = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="vms_bg" cx="50%" cy="45%" r="52%"><stop offset="0%" stop-color="#145b8e"/><stop offset="55%" stop-color="#0e4773"/><stop offset="100%" stop-color="#082c4a"/></radialGradient></defs><circle cx="50" cy="50" r="48" fill="url(#vms_bg)"/><circle cx="50" cy="50" r="44" stroke="#1b6ca6" stroke-width="0.8"/><circle cx="50" cy="50" r="37" stroke="#165b8f" stroke-width="0.8"/><g><path d="M 30,37.5 L 70,37.5 L 70,61.5 Q 70,64.5 67,64.5 L 33,64.5 Q 30,64.5 30,61.5 Z" fill="#ffffff"/><rect x="34.5" y="47.5" width="10.5" height="17" rx="1.2" fill="#0b375b"/><circle cx="42.5" cy="55.5" r="1.1" fill="#00d9a3"/><rect x="48.5" y="47.5" width="8.5" height="10" rx="1" fill="#0b375b"/><rect x="58" y="47.5" width="8.5" height="10" rx="1" fill="#0b375b"/><path d="M 26.5,29.5 L 35.9,29.5 L 35.9,37.5 Q 31.2,42 26.5,37.5 Z" fill="#009e7e"/><path d="M 35.9,29.5 L 45.3,29.5 L 45.3,37.5 Q 40.6,42 35.9,37.5 Z" fill="#5ce2c0"/><path d="M 45.3,29.5 L 54.7,29.5 L 54.7,37.5 Q 50,42 45.3,37.5 Z" fill="#009e7e"/><path d="M 54.7,29.5 L 64.1,29.5 L 64.1,37.5 Q 59.4,42 54.7,37.5 Z" fill="#5ce2c0"/><path d="M 64.1,29.5 L 73.5,29.5 L 73.5,37.5 Q 68.8,42 64.1,37.5 Z" fill="#009e7e"/><rect x="25.5" y="26" width="49" height="4.5" rx="2.25" fill="#ffffff"/></g><g><circle cx="71" cy="63.5" r="13" fill="#082a47"/><circle cx="71" cy="63.5" r="10.2" fill="#14ab84"/><path d="M 66,63.5 L 69.5,67 L 76.5,59.5" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`;
 
     const blob = new Blob([svgContent], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `brand-logo-${selectedPreset}.svg`;
+    a.download = 'brand-logo-verified-merchant.svg';
     a.click();
     URL.revokeObjectURL(url);
     triggerToast(`Downloaded brand-logo-${selectedPreset}.svg`);
@@ -231,15 +220,15 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
               <div className="flex items-center gap-2">
                 <Palette className="w-4 h-4 text-[#004953] dark:text-emerald-400" />
                 <h2 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
-                  1. Curated Brand Presets
+                  1. Official System Brand Logo
                 </h2>
               </div>
               <span className="text-[11px] font-mono text-slate-500">
-                Vector SVG • Retina Crisp
+                2D Flat Vector • Smooth Micro-Animations
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 gap-3.5">
               {(Object.keys(PRESET_META) as LogoPresetId[]).map((key) => {
                 const meta = PRESET_META[key];
                 const isSelected = selectedPreset === key && !customUrl;
