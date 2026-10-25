@@ -531,12 +531,17 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         if (alive && ms !== null) setPingMs(ms);
       });
     }, 45000);
-    const unsubPresence = subscribeToOnlinePresence(
+    const presenceSub = subscribeToOnlinePresence(
       {
         id: profile?.emp_id || authUsername || 'OP-100',
+        uid: profile?.user_id || profile?.emp_id || authUsername || 'OP-100',
+        empId: profile?.emp_id || authUsername || 'OP-100',
         name: profile?.name || authUsername || 'System Operator',
         role: profile?.role || 'SUPER_ADMIN',
         branchId: profile?.branch_id || '100',
+        branchName: profile?.branch_id === '100' ? 'Head Office' : `Branch Code ${profile?.branch_id || '100'}`,
+        activeTab: 'inventory',
+        onlineAt: stampSecPP(),
         location: 'Phnom Penh',
       },
       (list) => {
@@ -546,7 +551,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return () => {
       alive = false;
       window.clearInterval(pingTimer);
-      unsubPresence();
+      presenceSub.unsubscribe();
     };
   }, [profile?.emp_id, profile?.name, profile?.role, profile?.branch_id, authUsername]);
   const [serverDeviceTotal, setServerDeviceTotal] = useState<number | null>(null);
@@ -558,7 +563,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const reloadFromServer = useCallback(async (): Promise<boolean> => {
     versionAlias.current = new Map();
     const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
-    const [devs, reqs, hist, srvBranches, staff] = await Promise.all([
+    const [devs, reqs, hist, srvBranches] = await Promise.all([
       fetchDevicesFromSupabase(1000, 0, (firstBatch, total) => {
         setServerDeviceTotal(total);
         syncedDevices.current = new Map(firstBatch.map((d) => [d.serial, d]));
@@ -569,7 +574,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       fetchRequisitionsFromSupabase(),
       fetchHistoricalMerchantsFromSupabase(),
       fetchBranchesFromSupabase(),
-      Promise.resolve(null),
     ]);
     if (isAdminProfile) {
       fetchStaffAccounts().then((staffList) => {
@@ -579,8 +583,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         }
       });
     }
-    const _unusedEnd = ([0, 1][0] && [
-    ]);
     // (22 Oct 2026, review) the branch list and the staff are the server's: before, both came from a list built into
     // the app, so a branch added by one admin was never seen by another and the staff counts were not the real accounts
     if (srvBranches && srvBranches.length) {
@@ -588,10 +590,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         const local = new Map(prev.map((b) => [b.id, b]));
         return srvBranches.map((b) => ({ ...(local.get(b.id) || { staff: [], staffDetails: [] }), id: b.id, code: b.code, name: b.id === '100' ? 'Head Office' : b.name }));
       });
-    }
-    if (staff) {
-      const bn = new Map((srvBranches || []).map((b) => [b.id, b.name]));
-      setUsers(staff.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId))));
     }
     if (devs) {
       const devRows = devs;
@@ -1490,9 +1488,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       address?: string;
       mid: string;
       tid: string;
-      note: string;
-      deployedDate: string;
-      batteryInstalledDate: string;
+      note?: string;
+      deployedDate?: string;
+      batteryInstalledDate?: string;
       customFields?: Record<string, string>;
       deploymentStatus?: string;
       stockStatus?: string;
@@ -1515,14 +1513,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const toMerchant = updates.stage === 'COMPLETE' || updates.stage === 'CONFIGURING';
     const hadMerchant = Boolean(d.mid?.trim());
     const leftMerchant = hadMerchant && (!toMerchant || (updates.mid || '').trim() !== d.mid.trim());
+    const userNote = (updates.note || '').trim();
     const logNote =
-      updates.note.trim() ||
+      userNote ||
       `Moved to ${stageLabel} at Branch Code ${updates.branchId}${updates.merchantName && toMerchant ? ` for ${updates.merchantName}` : ''}`;
 
     const histRec = leftMerchant
       ? historyRecordFor(d, {
-          reason: (updates.note.trim().replace(/^Returned:\s*/i, '')) || (updates.stage === 'LOST' ? 'Device lost at merchant' : 'Taken back from merchant'),
-          status: updates.stage === 'LOST' || TERMINATION_REASON.test(updates.note) ? 'TERMINATED' : 'RETURNED',
+          reason: (userNote.replace(/^Returned:\s*/i, '')) || (updates.stage === 'LOST' ? 'Device lost at merchant' : 'Taken back from merchant'),
+          status: updates.stage === 'LOST' || TERMINATION_REASON.test(userNote) ? 'TERMINATED' : 'RETURNED',
           actor,
           notes: `Unit moved to ${stageLabel}.`,
         })
@@ -1553,7 +1552,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       returnedDate: leftMerchant ? today : d.returnedDate,
       customFields: { ...(d.customFields || {}), ...(updates.customFields || {}) },
       deployedDate: updates.stage === 'COMPLETE' ? updates.deployedDate || d.deployedDate || today : leftMerchant ? '' : d.deployedDate,
-      batteryInstalledDate: updates.batteryInstalledDate,
+      batteryInstalledDate: updates.batteryInstalledDate !== undefined ? updates.batteryInstalledDate : (d.batteryInstalledDate || ''),
       redeployCount: leftMerchant ? (d.redeployCount || 0) + 1 : d.redeployCount || 0,
       updatedAt: today,
       history: [`${nowTime} | ${stageLabel} | ${logNote} — Officer: ${actor}`, ...(d.history || [])],
@@ -2096,23 +2095,25 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   };
 
   // Super Admin & Admin: Edit / Rename Device Serial Number if uploaded wrong (#28)
-  const handleRenameSerial = async (oldSerial: string, newSerial: string) => {
+  const handleRenameSerial = async (oldSerial: string, newSerial: string): Promise<string> => {
     if (role === 'BRANCH') {
-      triggerToast('Only Admin and Super Admin can edit device serial numbers.');
-      return;
+      const msg = 'Only Admin and Super Admin can edit device serial numbers.';
+      triggerToast(msg);
+      return msg;
     }
     const cleanOld = oldSerial.trim().toUpperCase();
     const cleanNew = newSerial.trim().toUpperCase();
-    if (!cleanNew || cleanOld === cleanNew) return;
+    if (!cleanNew || cleanOld === cleanNew) return 'Invalid serial number.';
     if (devices.some((d) => d.serial.toUpperCase() === cleanNew)) {
-      triggerToast(`Serial ${cleanNew} already exists in inventory.`);
-      return;
+      const msg = `Serial ${cleanNew} already exists in inventory.`;
+      triggerToast(msg);
+      return msg;
     }
     if (isSupabaseConfigured) {
       const err = await renameDeviceSerialOnServer(cleanOld, cleanNew);
       if (err) {
         triggerToast(`Could not rename serial: ${err}`);
-        return;
+        return err;
       }
     }
     const nowTime = stampSecPP();
@@ -2135,6 +2136,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     setEditingDeviceSerial(cleanNew);
     addAuditLog('Serial Number Corrected', `Corrected device serial ${cleanOld} → ${cleanNew}`);
     triggerToast(`Serial number updated: ${cleanOld} → ${cleanNew}`);
+    return '';
   };
 
   // Merchant Deployment 360 View: Record Broken Device Replacement & Update Front Table Serial (#23)
@@ -2188,7 +2190,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       deployedDate: today,
       installedByStaff: oldDev.installedByStaff || staffActor,
       replacedByStaff: staffActor,
+      replacedFromSerial: oldDev.serial,
       replacedPrevSerial: oldDev.serial,
+      replacementDate: today,
       replacedDate: today,
       updatedAt: today,
       note: `Replacement for broken SN ${oldDev.serial} (${why}) — Replaced by: ${staffActor}`,
@@ -2211,8 +2215,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     );
     triggerOptimisticSync([oldDev.serial, newDev.serial], `Replaced ${oldDev.serial} -> ${newDev.serial}`);
     triggerToast(`Device replaced! Front table updated to new serial ${newDev.serial} (Replaced by ${staffActor}).`);
-  };
-  const _unusedRestoreEnd = () => {
   };
 
   // Batch Stock Upload Handler (from classic BatchUploadModal). (22 Oct 2026) HQ only; new serials only – a serial that
@@ -3459,6 +3461,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                             merchantName: dev.merchantName || '',
                             mid: dev.mid || '',
                             tid: dev.tid || '',
+                            note: 'Marked as Live Installed (Complete) from Push Configuring Hub',
+                            deployedDate: dev.deployedDate || todayPP(),
                           });
                           triggerToast(`Device ${sn} marked as Live Installed (Complete).`);
                         }

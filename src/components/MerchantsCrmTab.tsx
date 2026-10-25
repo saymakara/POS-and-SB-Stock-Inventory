@@ -30,7 +30,6 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Send,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -45,7 +44,7 @@ import {
   Legend,
 } from 'recharts';
 import { parseCsv } from '../utils/csv';
-import { hasKhmer, isValidMid, isValidMidForType, midRuleError, normalizeMid } from '../utils/display';
+import { hasKhmer, isValidMidForType, midRuleError, normalizeMid } from '../utils/display';
 import { newRecordId } from '../utils/ids';
 import { lastMonthsPP, todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';

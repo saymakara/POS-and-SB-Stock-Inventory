@@ -19,7 +19,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
   RotateCcw,
-  Trash2,
   Calendar,
   Cpu,
   Volume2,
@@ -735,41 +734,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         <span>Notify Staff &amp; Alert Telegram (Open Device for App Push)</span>
                       </button>
                     )}
-                    {false && isAdminLike && onRemoveFromDashboard && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPendingPayload({
-                            actionType: 'REMOVE_DASHBOARD',
-                            actionTitle: 'Remove Unit from Active Dashboard Inventory',
-                            stage: device.stage,
-                            branchId: device.branchId,
-                            branchName:
-                              branches.find((b) => b.code === device.branchId)?.name ||
-                              `Branch Code ${device.branchId}`,
-                            staff: device.staff || '',
-                            merchantName: device.merchantName || '',
-                            mid: device.mid || '',
-                            tid: device.tid || '',
-                            note: note.trim() || 'Removed from active dashboard inventory',
-                            deployedDate,
-                            batteryInstalledDate,
-                            batterySerial,
-                            isBatteryChanged: false,
-                          });
-                          setModalStep('PREVIEW');
-                        }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
-                          isLight
-                            ? 'border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700'
-                            : 'border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300'
-                        }`}
-                        title="Remove unit from dashboard"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Remove from Dashboard</span>
-                      </button>
-                    )}
+
                   </div>
                 </div>
               )}

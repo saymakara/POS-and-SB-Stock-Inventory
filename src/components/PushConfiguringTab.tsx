@@ -4,19 +4,10 @@ import { resolveTelegramChatForBranch } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   SendHorizontal,
-  Smartphone,
-  Store,
   Building2,
   Users,
   Search,
-  Filter,
-  CheckCircle2,
-  RotateCcw,
   Boxes,
-  Clock,
-  Sparkles,
-  ChevronRight,
-  SlidersHorizontal,
   Send,
 } from 'lucide-react';
 
@@ -45,7 +36,6 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   regionalGroups,
   theme = 'light',
 }) => {
-  const isLight = theme === 'light';
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
 
   // 1. Filter only devices in CONFIGURING stage

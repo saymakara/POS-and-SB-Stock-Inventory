@@ -63,7 +63,9 @@ export interface Device {
   returnedByStaff?: string; // Officer who decommissioned / retrieved / returned the device
   returnedDate?: string; // Date when device was returned/decommissioned
   replacementDate?: string;
+  replacedDate?: string;
   replacedFromSerial?: string;
+  replacedPrevSerial?: string;
   returnReason: string;
   redeployCount: number;
   hoursInStage: number;

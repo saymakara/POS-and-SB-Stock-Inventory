@@ -9,6 +9,7 @@ import {
   Device,
 } from '../types';
 import { AppBrandLogo } from './AppBrandLogo';
+import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -400,7 +401,7 @@ interface HeaderProps {
   searchQuery?: string;
   onSearchChange?: (q: string) => void;
   onTrace?: (q: string) => void;
-  onlineOperators?: Array<{ id: string; name: string; role: string; branchId: string; location?: string; onlineAt: string }>;
+  onlineOperators?: OnlineOperatorPresence[];
   pingMs?: number | null;
 }
 
@@ -864,8 +865,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   </div>
                   <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
                     {onlineOperators.length > 0 ? (
-                      onlineOperators.map((op) => (
-                        <div key={op.id} className="px-2.5 py-2 rounded-xl hover:bg-slate-50 flex items-center justify-between gap-2 text-xs">
+                      onlineOperators.map((op, idx) => (
+                        <div key={op.id || op.empId || op.uid || idx} className="px-2.5 py-2 rounded-xl hover:bg-slate-50 flex items-center justify-between gap-2 text-xs">
                           <div className="min-w-0">
                             <div className="font-bold text-zinc-900 truncate">{op.name}</div>
                             <div className="text-[10px] text-slate-500 font-mono">

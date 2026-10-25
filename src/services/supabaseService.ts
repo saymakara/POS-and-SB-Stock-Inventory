@@ -357,7 +357,7 @@ export async function fetchDeviceStageCountsFromSupabase(
     summary.reserve = summary.byStage.BRANCH_RESERVE.count;
     summary.config = summary.byStage.CONFIGURING.count;
     summary.complete = summary.byStage.COMPLETE.count;
-    summary.faulty = summary.byStage.RETURNED_FAULTY.count;
+    summary.faulty = summary.byStage.FAULTY.count;
     summary.lost = summary.byStage.LOST.count;
     return summary;
   } catch (err) {
@@ -507,16 +507,7 @@ export async function fetchDevicesFromSupabase(
   }
 }
 
-async function _unusedFetchDevicesSinglePage(limit = 100, offset = 0): Promise<Device[] | null> {
-  if (!isSupabaseConfigured) return null;
-  try {
-    const res = await fetchPaginatedRows('devices', 'serial', { limit, offset, ascending: true });
-    return res ? res.rows.map(mapRowToDevice) : null;
-  } catch (err) {
-    await reportCaughtError('fetchDevicesFromSupabase', err, { showPopup: false });
-    return null;
-  }
-}
+
 
 // -----------------------------------------------------------------------------
 // REQUISITIONS API (Strict Server-Side Pagination)
@@ -594,19 +585,7 @@ export async function fetchRequisitionsFromSupabase(limit = 1000, offset = 0): P
   }
 }
 
-async function _unusedFetchRequisitionsSinglePage(limit = 100, offset = 0): Promise<Requisition[] | null> {
-  if (!isSupabaseConfigured) return null;
-  try {
-    const res = await fetchPaginatedRows('requisitions', 'req_id', { limit, offset, ascending: true });
-    if (!res) return null;
-    return res.rows
-      .map(mapRowToRequisition)
-      .sort((x, y) => String(y.date).localeCompare(String(x.date)) || y.reqId.localeCompare(x.reqId));
-  } catch (err) {
-    await reportCaughtError('fetchRequisitionsFromSupabase', err, { showPopup: false });
-    return null;
-  }
-}
+
 
 // -----------------------------------------------------------------------------
 // HISTORICAL MERCHANTS API (Strict Server-Side Pagination)
@@ -1293,45 +1272,7 @@ export async function fetchReviewedFieldEvents(limit = 100, offset = 0): Promise
   }
 }
 
-// Legacy single-page helper kept for internal reference
-async function _unusedFetchPendingSinglePage(limit = 50, offset = 0): Promise<FieldEvent[] | null> {
-  const safeLimit = Math.max(1, Math.min(limit, 100));
-  const safeOffset = Math.max(0, offset);
-  try {
-    const { data, error } = await supabase
-      .from('field_events')
-      .select('*')
-      .eq('status', 'PENDING')
-      .order('received_at', { ascending: true })
-      .limit(safeLimit)
-      .range(safeOffset, safeOffset + safeLimit - 1);
-    if (error) throw error;
-    return (data || []).map(mapFieldEvent);
-  } catch (err) {
-    await reportCaughtError('fetchPendingFieldEvents', err, { showPopup: false });
-    return null;
-  }
-}
 
-/** Reviewed records fetched with strict server-side limit() and range(offset, offset + limit - 1). */
-async function _unusedFetchReviewedSinglePage(limit = 50, offset = 0): Promise<FieldEvent[] | null> {
-  const safeLimit = Math.max(1, Math.min(limit, 100));
-  const safeOffset = Math.max(0, offset);
-  try {
-    const { data, error } = await supabase
-      .from('field_events')
-      .select('*')
-      .neq('status', 'PENDING')
-      .order('received_at', { ascending: false })
-      .limit(safeLimit)
-      .range(safeOffset, safeOffset + safeLimit - 1);
-    if (error) throw error;
-    return (data || []).map(mapFieldEvent);
-  } catch (err) {
-    await reportCaughtError('fetchReviewedFieldEvents', err, { showPopup: false });
-    return null;
-  }
-}
 
 export async function fetchFieldEventsPageFromSupabase(params: {
   page?: number;
@@ -1488,23 +1429,7 @@ export async function fetchStaffAccounts(limit = 100, offset = 0): Promise<Staff
   }
 }
 
-async function _unusedFetchStaffSinglePage(limit = 100, offset = 0): Promise<StaffAccount[] | null> {
-  const safeLimit = Math.max(1, Math.min(limit, 100));
-  const safeOffset = Math.max(0, offset);
-  try {
-    const { data, error } = await supabase
-      .from('staff_profiles')
-      .select('*')
-      .order('emp_id')
-      .limit(safeLimit)
-      .range(safeOffset, safeOffset + safeLimit - 1);
-    if (error) throw error;
-    return (data || []).map(mapStaff);
-  } catch (err) {
-    await reportCaughtError('fetchStaffAccounts', err, { showPopup: false });
-    return null;
-  }
-}
+
 
 export async function fetchStaffAccountsPageFromSupabase(params: {
   page?: number;
@@ -1660,7 +1585,7 @@ export async function traceOnServer(
 export async function renameDeviceSerialOnServer(
   oldSerial: string,
   newSerial: string,
-  updatedDevice: Device
+  updatedDevice?: Device
 ): Promise<string> {
   if (!isSupabaseConfigured) return '';
   const cleanOld = oldSerial.trim();
@@ -1668,7 +1593,20 @@ export async function renameDeviceSerialOnServer(
   if (!cleanOld || !cleanNew || cleanOld === cleanNew) return '';
 
   try {
-    const newRow = mapDeviceToRow({ ...updatedDevice, serial: cleanNew, rowVersion: undefined });
+    let devToInsert = updatedDevice;
+    if (!devToInsert) {
+      const { data: oldRow, error: fetchErr } = await supabase
+        .from('devices')
+        .select('*')
+        .eq('serial', cleanOld)
+        .maybeSingle();
+      if (fetchErr) throw fetchErr;
+      if (!oldRow) {
+        return `Original serial "${cleanOld}" not found in database.`;
+      }
+      devToInsert = mapRowToDevice(oldRow);
+    }
+    const newRow = mapDeviceToRow({ ...devToInsert, serial: cleanNew, rowVersion: undefined });
     delete newRow.row_version;
 
     // 1. Check if newSerial already exists
@@ -1723,14 +1661,16 @@ export async function measureSupabasePingMs(): Promise<number | null> {
  * Policy #32: Live System Presence — see who is currently online and using the system in real time.
  */
 export interface OnlineOperatorPresence {
+  id?: string;
   uid: string;
   empId: string;
   name: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'BRANCH' | string;
   branchId: string;
-  branchName: string;
-  activeTab: string;
-  onlineAt: string;
+  branchName?: string;
+  activeTab?: string;
+  onlineAt?: string;
+  location?: string;
 }
 
 export function subscribeToOnlinePresence(
