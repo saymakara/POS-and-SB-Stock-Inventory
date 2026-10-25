@@ -125,6 +125,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [tgErrorChatId, setTgErrorChatId] = useState(initialTg.chatId);
   const [tgWebhookUrl, setTgWebhookUrl] = useState(initialTg.webhookUrl);
   const [tgTesting, setTgTesting] = useState<'' | 'config' | 'error'>('');
+  const [tgDetecting, setTgDetecting] = useState(false);
+  const [tgBotUsername, setTgBotUsername] = useState('');
+  const [tgDetectError, setTgDetectError] = useState('');
+  const [tgDetectedChats, setTgDetectedChats] = useState<{ id: string; title: string; type: string }[]>([]);
 
   // Custom Field Manager State
   const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
@@ -1945,17 +1949,31 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     />
                     <button
                       type="button"
-                      disabled={!tgBotToken.trim()}
+                      disabled={!tgBotToken.trim() || tgDetecting}
                       onClick={async () => {
-                        const chats = await detectTelegramGroupChats(tgBotToken);
-                        if (chats.length === 0) {
+                        setTgDetecting(true);
+                        setTgDetectError('');
+                        const res = await detectTelegramGroupChats(tgBotToken);
+                        setTgDetecting(false);
+                        if (!res.ok) {
+                          setTgDetectError(res.error || 'Invalid Bot Token.');
+                          if (onToast) onToast(res.error || 'Invalid Bot Token.');
+                          return;
+                        }
+                        setTgBotUsername(res.botUsername);
+                        setTgDetectedChats(res.chats);
+                        if (res.chats.length === 0) {
+                          const cmd = res.botUsername ? `/start@${res.botUsername}` : '/start';
+                          setTgDetectError(
+                            `Bot @${res.botUsername} is verified! Because Telegram hides normal group messages from new bots, please type "${cmd}" inside your Telegram group (or make @${res.botUsername} a group admin), then click Auto-Detect again.`
+                          );
                           if (onToast) {
-                            onToast('No group found yet. Add your bot to your Telegram group on your laptop and send any message (like "hello"), then click Auto-Detect again.');
+                            onToast(`Bot @${res.botUsername} verified! Send "${cmd}" inside your Telegram group, then click Auto-Detect again.`);
                           }
                           return;
                         }
-                        const picked = chats[0];
-                        const cleanToken = tgBotToken.trim().replace(/^bot/i, '');
+                        const picked = res.chats[0];
+                        const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
                         const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(picked.id)}`;
                         setTgConfigChatId(picked.id);
                         setTgErrorChatId(picked.id);
@@ -1967,17 +1985,73 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           webhookUrl: builtWebhook,
                         });
                         if (onToast) {
-                          onToast(`Detected Group "${picked.title}" (ID: ${picked.id}) and generated Webhook URL!`);
+                          onToast(`Connected to "${picked.title}" (${picked.id}) and sent a confirmation message to Telegram!`);
                         }
                       }}
                       className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer transition disabled:opacity-40 whitespace-nowrap"
                     >
-                      Auto-Detect Group ID &amp; Webhook
+                      {tgDetecting ? 'Detecting...' : 'Auto-Detect Group ID & Webhook'}
                     </button>
                   </div>
                   <p className="text-[10px] text-slate-500 mt-1">
-                    On your laptop Telegram app: add your bot to the group, send a message (e.g. <code>/start</code>), then click <strong>Auto-Detect Group ID &amp; Webhook</strong>.
+                    On your laptop Telegram app: add your bot to the group, send <code>/start@your_bot_username</code> in the group (or make the bot an Admin), then click <strong>Auto-Detect Group ID &amp; Webhook</strong>.
                   </p>
+
+                  {tgDetectError && (
+                    <div className="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-2">
+                      <div className="font-semibold">{tgDetectError}</div>
+                      {tgBotUsername && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <code className="px-2 py-1 rounded bg-white border border-amber-300 font-mono font-bold text-zinc-900">
+                            /start@{tgBotUsername}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(`/start@${tgBotUsername}`);
+                              if (onToast) onToast(`Copied "/start@${tgBotUsername}" — paste and send it in your Telegram group!`);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-[#003857] text-white text-[11px] font-bold cursor-pointer"
+                          >
+                            Copy Command for Telegram Group
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {tgDetectedChats.length > 0 && (
+                    <div className="mt-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1.5">
+                      <div className="font-bold">
+                        Connected Bot @{tgBotUsername} — Detected Telegram Chats (Click to select):
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {tgDetectedChats.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
+                              const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(c.id)}`;
+                              setTgConfigChatId(c.id);
+                              setTgErrorChatId(c.id);
+                              setTgWebhookUrl(builtWebhook);
+                              saveTelegramWebhookConfig({
+                                botToken: cleanToken,
+                                configChatId: c.id,
+                                chatId: c.id,
+                                webhookUrl: builtWebhook,
+                              });
+                              if (onToast) onToast(`Selected "${c.title}" (${c.id})`);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-white border border-emerald-300 text-emerald-900 font-mono text-[11px] font-semibold hover:bg-emerald-100 cursor-pointer"
+                          >
+                            {c.title} ({c.id}) [{c.type}]
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

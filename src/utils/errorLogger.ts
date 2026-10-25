@@ -384,20 +384,53 @@ export async function sendDeviceConfigTelegramAlert(info: {
 }
 
 /**
- * Queries Telegram Bot API `getUpdates` to automatically discover Group Chat IDs
- * where the bot has been added on Telegram Desktop / Mobile.
+ * Queries Telegram Bot API (`getMe`, `deleteWebhook` if needed, and `getUpdates`) to automatically
+ * discover Group Chat IDs where the bot has been added on Telegram Desktop / Mobile, and sends
+ * an instant confirmation ping to the detected chat.
  */
 export async function detectTelegramGroupChats(
   botTokenInput: string
-): Promise<{ id: string; title: string; type: string }[]> {
-  let cleanToken = botTokenInput.trim();
-  const match = cleanToken.match(/bot(\d+:[A-Za-z0-9_-]+)/);
+): Promise<{
+  ok: boolean;
+  botUsername: string;
+  error?: string;
+  chats: { id: string; title: string; type: string }[];
+}> {
+  let cleanToken = botTokenInput.trim().replace(/^["']|["']$/g, '');
+  const match = cleanToken.match(/(?:bot)?(\d+:[A-Za-z0-9_-]+)/);
   if (match) cleanToken = match[1];
-  if (!cleanToken) return [];
+  if (!cleanToken) {
+    return { ok: false, botUsername: '', error: 'Please paste a valid Bot Token from @BotFather.', chats: [] };
+  }
 
   try {
-    const res = await fetch(`https://api.telegram.org/bot${cleanToken}/getUpdates`);
-    if (!res.ok) return [];
+    // 1. Verify Bot Token via getMe
+    const meRes = await fetch(`https://api.telegram.org/bot${cleanToken}/getMe`);
+    const meJson = await meRes.json().catch(() => null);
+    if (!meRes.ok || !meJson?.ok) {
+      return {
+        ok: false,
+        botUsername: '',
+        error: meJson?.description || `Invalid Bot Token (HTTP ${meRes.status}). Check your token from @BotFather.`,
+        chats: [],
+      };
+    }
+    const botUsername = String(meJson.result?.username || '');
+
+    // 2. Fetch getUpdates (if 409 Conflict because a webhook was set previously, clear webhook so getUpdates works)
+    let res = await fetch(`https://api.telegram.org/bot${cleanToken}/getUpdates?limit=100`);
+    if (res.status === 409) {
+      await fetch(`https://api.telegram.org/bot${cleanToken}/deleteWebhook?drop_pending_updates=false`);
+      res = await fetch(`https://api.telegram.org/bot${cleanToken}/getUpdates?limit=100`);
+    }
+    if (!res.ok) {
+      return {
+        ok: true,
+        botUsername,
+        error: `Could not read updates (HTTP ${res.status}).`,
+        chats: [],
+      };
+    }
     const data = await res.json();
     const list: { id: string; title: string; type: string }[] = [];
     const seen = new Set<string>();
@@ -407,6 +440,7 @@ export async function detectTelegramGroupChats(
       const chat =
         u?.message?.chat ||
         u?.my_chat_member?.chat ||
+        u?.chat_member?.chat ||
         u?.channel_post?.chat ||
         u?.edited_message?.chat;
       if (chat && chat.id !== undefined) {
@@ -421,8 +455,40 @@ export async function detectTelegramGroupChats(
         }
       }
     }
-    return list;
-  } catch {
-    return [];
+
+    // Prioritize group / supergroup / channel chats (negative IDs) over private 1-on-1 chats
+    list.sort((a, b) => {
+      const aIsGroup = a.id.startsWith('-') ? 0 : 1;
+      const bIsGroup = b.id.startsWith('-') ? 0 : 1;
+      return aIsGroup - bIsGroup;
+    });
+
+    // 3. If we found at least one chat, send an immediate confirmation message so the user sees it in Telegram!
+    if (list.length > 0) {
+      const target = list[0];
+      await fetch(`https://api.telegram.org/bot${cleanToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: target.id,
+          text: [
+            `✅ *POS & Sound Box Inventory Connected!*`,
+            `• *Bot:* @${botUsername}`,
+            `• *Linked Chat:* ${target.title} (\`${target.id}\`)`,
+            `• *Active Alerts:* Under Configuring (App Push) & System Error Alerts`,
+          ].join('\n'),
+          parse_mode: 'Markdown',
+        }),
+      }).catch(() => undefined);
+    }
+
+    return { ok: true, botUsername, chats: list };
+  } catch (e: any) {
+    return {
+      ok: false,
+      botUsername: '',
+      error: e?.message || 'Network error connecting to api.telegram.org.',
+      chats: [],
+    };
   }
 }
