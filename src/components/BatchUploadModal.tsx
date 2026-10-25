@@ -24,12 +24,137 @@ import {
   Layers,
   FileText,
   Ban,
+  User,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { normalizeMid, isValidMidForType, midRuleError } from '../utils/display';
 import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
 import { CSV_BATCH_SIZE, CSV_BATCH_DELAY_MS, checkExistingSerialsOnServer } from '../services/supabaseService';
+
+export type IntakeCycle = 'HQ_STOCK' | 'BRANCH_RESERVE' | 'CONFIGURING' | 'COMPLETE';
+
+export interface CycleSchemaCol {
+  id: string;
+  label: string;
+  desc: string;
+  req: boolean;
+}
+
+export interface CycleSchemaInfo {
+  cycle: IntakeCycle;
+  name: string;
+  tag: string;
+  badge: string;
+  description: string;
+  filename: string;
+  columns: CycleSchemaCol[];
+  sampleRows: string[][];
+}
+
+export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
+  HQ_STOCK: {
+    cycle: 'HQ_STOCK',
+    name: 'Admin HQ Stock Intake',
+    tag: 'Admin Stock',
+    badge: 'No Staff or Merchant required',
+    description: 'Bulk intake into central warehouse (Branch 100). No staff assignment or merchant details required.',
+    filename: 'template_admin_hq_stock.csv',
+    columns: [
+      { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
+      { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
+      { id: 'Product_Type', label: 'Product_Type', desc: 'POS Terminal | Sound Box', req: false },
+      { id: 'Model', label: 'Model', desc: 'Hardware Model Name', req: false },
+      { id: 'Battery_Serial', label: 'Battery_Serial', desc: 'Battery Serial Number', req: false },
+      { id: 'Branch_Code', label: 'Branch_Code', desc: 'Branch ID (100 for HQ)', req: false },
+      { id: 'Branch_Name', label: 'Branch_Name', desc: 'Head Office', req: false },
+      { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'HQ_STOCK', req: false },
+      { id: 'Serial_Cycles_Count', label: 'Serial_Cycles_Count', desc: 'Redeployment Count', req: false },
+    ],
+    sampleRows: [
+      ['2026-10-25', 'WP5400PQ23200101', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-1001', '100', 'Head Office', 'HQ_STOCK', '0'],
+      ['2026-10-25', 'SB2026000101', 'Sound Box', 'Q161 Pro', 'BAT-SB-1001', '100', 'Head Office', 'HQ_STOCK', '0'],
+    ],
+  },
+  BRANCH_RESERVE: {
+    cycle: 'BRANCH_RESERVE',
+    name: 'Branch Staff Reserve Intake',
+    tag: 'Branch Staff Reserve',
+    badge: 'Staff Assignment REQUIRED · No Merchant',
+    description: 'Stock allocated to branch inventory assigned to a staff custodian officer. Staff assignment is REQUIRED. No merchant info required.',
+    filename: 'template_branch_staff_reserve.csv',
+    columns: [
+      { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
+      { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
+      { id: 'Product_Type', label: 'Product_Type', desc: 'POS Terminal | Sound Box', req: false },
+      { id: 'Model', label: 'Model', desc: 'Hardware Model Name', req: false },
+      { id: 'Battery_Serial', label: 'Battery_Serial', desc: 'Battery Serial Number', req: false },
+      { id: 'Branch_Code', label: 'Branch_Code', desc: 'Branch ID (e.g. 101, 102)', req: true },
+      { id: 'Branch_Name', label: 'Branch_Name', desc: 'Branch Location Name', req: false },
+      { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'BRANCH_RESERVE', req: false },
+      { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Staff Custodian Name / ID', req: true },
+      { id: 'Serial_Cycles_Count', label: 'Serial_Cycles_Count', desc: 'Redeployment Count', req: false },
+    ],
+    sampleRows: [
+      ['2026-10-25', 'WP5400PQ23200201', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'Babe (11122)', '0'],
+      ['2026-10-25', 'SB2026000201', 'Sound Box', 'Q161 Pro', 'BAT-SB-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'KY Vibol (27267)', '0'],
+    ],
+  },
+  CONFIGURING: {
+    cycle: 'CONFIGURING',
+    name: 'Under Configuring Intake',
+    tag: 'Under Configuring',
+    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED',
+    description: 'Hardware undergoing merchant technical setup. Merchant Name and 15-digit MID are REQUIRED. Staff assignment recorded.',
+    filename: 'template_under_configuring.csv',
+    columns: [
+      { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
+      { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
+      { id: 'Product_Type', label: 'Product_Type', desc: 'POS Terminal | Sound Box', req: false },
+      { id: 'Model', label: 'Model', desc: 'Hardware Model Name', req: false },
+      { id: 'Battery_Serial', label: 'Battery_Serial', desc: 'Battery Serial Number', req: false },
+      { id: 'Branch_Code', label: 'Branch_Code', desc: 'Branch ID (e.g. 101)', req: true },
+      { id: 'Branch_Name', label: 'Branch_Name', desc: 'Branch Location Name', req: false },
+      { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'CONFIGURING', req: false },
+      { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Configuring Staff Officer', req: false },
+      { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Merchant Business Name', req: true },
+      { id: 'MID', label: 'MID', desc: '15-digit Merchant ID', req: true },
+      { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
+      { id: 'Serial_Cycles_Count', label: 'Serial_Cycles_Count', desc: 'Redeployment Count', req: false },
+    ],
+    sampleRows: [
+      ['2026-10-25', 'WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Main Branch', 'CONFIGURING', 'Babe (11122)', 'Amazon Cafe BKK', '100000000012345', '00012345', '0'],
+      ['2026-10-25', 'SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Main Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Lucky Mart Tuol Kork', '100000000054321', '00054321', '0'],
+    ],
+  },
+  COMPLETE: {
+    cycle: 'COMPLETE',
+    name: 'Installed Live Intake',
+    tag: 'Live Merchant',
+    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED',
+    description: 'Active hardware live at merchant store. Merchant Name and 15-digit MID are REQUIRED.',
+    filename: 'template_installed_live.csv',
+    columns: [
+      { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
+      { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
+      { id: 'Product_Type', label: 'Product_Type', desc: 'POS Terminal | Sound Box', req: false },
+      { id: 'Model', label: 'Model', desc: 'Hardware Model Name', req: false },
+      { id: 'Battery_Serial', label: 'Battery_Serial', desc: 'Battery Serial Number', req: false },
+      { id: 'Branch_Code', label: 'Branch_Code', desc: 'Branch ID (e.g. 101)', req: true },
+      { id: 'Branch_Name', label: 'Branch_Name', desc: 'Branch Location Name', req: false },
+      { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'COMPLETE', req: false },
+      { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Field Deployment Officer', req: false },
+      { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Active Merchant Store', req: true },
+      { id: 'MID', label: 'MID', desc: '15-digit Merchant ID', req: true },
+      { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
+      { id: 'Serial_Cycles_Count', label: 'Serial_Cycles_Count', desc: 'Redeployment Count', req: false },
+    ],
+    sampleRows: [
+      ['2026-10-25', 'WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Main Branch', 'COMPLETE', 'Babe (11122)', 'Lucky Supermarket Monivong', '100000000098765', '00098765', '0'],
+      ['2026-10-25', 'SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Main Branch', 'COMPLETE', 'KY Vibol (27267)', 'Brown Coffee 57', '100000000087654', '00087654', '0'],
+    ],
+  },
+};
 
 export const SCHEMA_COLUMNS = [
   { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
@@ -40,6 +165,7 @@ export const SCHEMA_COLUMNS = [
   { id: 'Branch_Code', label: 'Branch_Code', desc: 'Branch ID (e.g. 100, 101)', req: false },
   { id: 'Branch_Name', label: 'Branch_Name', desc: 'Branch Location Name', req: false },
   { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'Current Stock Stage', req: false },
+  { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Staff Custodian Name / ID', req: false },
   { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Assigned Merchant Business', req: false },
   { id: 'MID', label: 'MID', desc: 'Merchant ID (15 digits)', req: false },
   { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
@@ -207,6 +333,15 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   const [defaultBranchId, setDefaultBranchId] = useState('100');
   const [defaultStage, setDefaultStage] = useState<LifecycleStage>('HQ_STOCK');
 
+  const [inspectedCycle, setInspectedCycle] = useState<IntakeCycle | null>(null);
+  const activeCycle: IntakeCycle =
+    defaultStage === 'HQ_STOCK' || defaultStage === 'BRANCH_RESERVE' || defaultStage === 'CONFIGURING' || defaultStage === 'COMPLETE'
+      ? defaultStage
+      : 'HQ_STOCK';
+  const activeCycleSchema = CYCLE_SCHEMAS[activeCycle];
+  const currentInspectCycle = inspectedCycle || activeCycle;
+  const currentInspectSchema = CYCLE_SCHEMAS[currentInspectCycle];
+
   // Field 1: POS Terminal state (Method B: By Hardware Type)
   const [posModel, setPosModel] = useState('Wizar POS Q2 Pro');
   const [posPasteText, setPosPasteText] = useState('');
@@ -278,6 +413,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         'branchname',
         'stage',
         'lifecyclestage',
+        'assignedstaff',
+        'staff',
         'merchantname',
         'mid',
         'tid',
@@ -307,6 +444,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         else if (/branch.*name/.test(token) && colMap.branchName === undefined) colMap.branchName = idx;
         else if (/branch/.test(token) && colMap.branchCode === undefined) colMap.branchCode = idx;
         else if (/(lifecycle.*stage|stage|status)/.test(token) && colMap.stage === undefined) colMap.stage = idx;
+        else if (/(assigned.*staff|staff.*officer|staff.*name|custodian|officer|staff)/.test(token) && colMap.staff === undefined) colMap.staff = idx;
         else if (/(merchant.*name|merchant)/.test(token) && !/merchantid/.test(token) && colMap.merchantName === undefined) colMap.merchantName = idx;
         else if (/(^mid$|merchant.*id)/.test(token) && colMap.mid === undefined) colMap.mid = idx;
         else if (/(^tid$|terminal.*id)/.test(token) && colMap.tid === undefined) colMap.tid = idx;
@@ -315,20 +453,29 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     } else {
       const sample = rows[0];
       if (sample.length >= 6 && /^\d{4}-\d{2}-\d{2}/.test(sample[0])) {
-        colMap = {
-          stockInDate: 0,
-          serial: 1,
-          type: 2,
-          model: 3,
-          batterySerial: 4,
-          branchCode: 5,
-          branchName: 6,
-          stage: 7,
-          merchantName: 8,
-          mid: 9,
-          tid: 10,
-          redeployCount: 11,
-        };
+        if (sample.length === 8) {
+          colMap = { stockInDate: 0, serial: 1, type: 2, model: 3, batterySerial: 4, branchCode: 5, branchName: 6, stage: 7 };
+        } else if (sample.length === 9) {
+          colMap = { stockInDate: 0, serial: 1, type: 2, model: 3, batterySerial: 4, branchCode: 5, branchName: 6, stage: 7, staff: 8 };
+        } else if (sample.length === 10) {
+          colMap = { stockInDate: 0, serial: 1, type: 2, model: 3, batterySerial: 4, branchCode: 5, branchName: 6, stage: 7, staff: 8, merchantName: 9 };
+        } else {
+          colMap = {
+            stockInDate: 0,
+            serial: 1,
+            type: 2,
+            model: 3,
+            batterySerial: 4,
+            branchCode: 5,
+            branchName: 6,
+            stage: 7,
+            staff: 8,
+            merchantName: 9,
+            mid: 10,
+            tid: 11,
+            redeployCount: 12,
+          };
+        }
       } else if (sample.length >= 2 && !/^\d{4}-\d{2}-\d{2}/.test(sample[0])) {
         colMap = {
           serial: 0,
@@ -458,7 +605,35 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       }
       const stockInDate = isDate(rawDate) ? rawDate : today;
 
-      // 7. Check MID & TID data types and required fields when stage === COMPLETE
+      // Effective stage determination:
+      const effectiveStage = stage || fallbackStage;
+
+      // 7. Check Assigned_Staff based on intake cycle
+      const rawStaff = cell(row, 'staff');
+      const assignedStaff = effectiveStage === 'HQ_STOCK'
+        ? (rawStaff || '')
+        : (rawStaff || staffLabel);
+
+      if (effectiveStage === 'BRANCH_RESERVE') {
+        // "and if upload to branch staff reserve should have staff assignment"
+        if (!rawStaff && !staffLabel) {
+          addErr(
+            colNumber('staff', 9),
+            colLabel('staff', 'Assigned_Staff'),
+            'MISSING_REQUIRED',
+            'Missing required Assigned_Staff for Branch Staff Reserve (assign a branch staff officer)'
+          );
+        } else if (!rawStaff && colMap.staff !== undefined) {
+          addErr(
+            colNumber('staff', 9),
+            colLabel('staff', 'Assigned_Staff'),
+            'MISSING_REQUIRED',
+            'Assigned_Staff column is blank for Branch Staff Reserve row'
+          );
+        }
+      }
+
+      // 8. Check Merchant Information (Merchant_Name, MID, TID) based on cycle
       const rawMerchantName = cell(row, 'merchantName');
       const rawMidInput = cell(row, 'mid');
       const normalizedMidVal = normalizeMid(rawMidInput);
@@ -466,7 +641,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
       if (rawMidInput && !isValidMidForType(normalizedMidVal, itemType)) {
         addErr(
-          colNumber('mid', 10),
+          colNumber('mid', 11),
           colLabel('mid', 'MID'),
           'INVALID_TYPE',
           midRuleError(normalizedMidVal, itemType) || `Invalid MID "${rawMidInput}"`
@@ -474,38 +649,41 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       }
       if (rawTidInput && !/^[A-Za-z0-9_-]{4,16}$/.test(rawTidInput)) {
         addErr(
-          colNumber('tid', 11),
+          colNumber('tid', 12),
           colLabel('tid', 'TID'),
           'INVALID_TYPE',
           `Invalid TID "${rawTidInput}" (must be 4–16 alphanumeric characters)`
         );
       }
-      if (stage === 'COMPLETE') {
+
+      if (effectiveStage === 'CONFIGURING' || effectiveStage === 'COMPLETE') {
+        // "and if under configuring and live should have merchant information."
+        const stageLabel = effectiveStage === 'CONFIGURING' ? 'Under Configuring' : 'Installed Live (COMPLETE)';
         if (!rawMerchantName) {
           addErr(
-            colNumber('merchantName', 9),
+            colNumber('merchantName', 10),
             colLabel('merchantName', 'Merchant_Name'),
             'MISSING_REQUIRED',
-            'Missing required Merchant_Name for COMPLETE (Installed Live) device'
+            `Missing required Merchant_Name for ${stageLabel} device`
           );
         }
         if (!rawMidInput) {
           addErr(
-            colNumber('mid', 10),
+            colNumber('mid', 11),
             colLabel('mid', 'MID'),
             'MISSING_REQUIRED',
-            'Missing required 15-digit MID for COMPLETE (Installed Live) device'
+            `Missing required 15-digit MID for ${stageLabel} device`
           );
         }
       }
 
-      // 8. Check Serial_Cycles_Count data type (non-negative integer)
+      // 9. Check Serial_Cycles_Count data type (non-negative integer)
       const rawCyclesStr = cell(row, 'redeployCount');
       let redeployCount = 0;
       if (rawCyclesStr) {
         if (!/^\d+$/.test(rawCyclesStr)) {
           addErr(
-            colNumber('redeployCount', 12),
+            colNumber('redeployCount', 13),
             colLabel('redeployCount', 'Serial_Cycles_Count'),
             'INVALID_TYPE',
             `Invalid Serial_Cycles_Count "${rawCyclesStr}" (must be a non-negative integer)`
@@ -523,12 +701,12 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         type: itemType,
         branchId: targetBranch?.id || cell(row, 'branchCode'),
         branchName: targetBranch?.name || cell(row, 'branchName'),
-        staff: staffLabel,
-        stage: ((stage || fallbackStage) === 'HQ_STOCK' || (stage || fallbackStage) === 'BRANCH_RESERVE') && (rawMerchantName || normalizedMidVal) ? 'CONFIGURING' : (stage || fallbackStage),
+        staff: assignedStaff,
+        stage: effectiveStage,
         stockInDate,
-        merchantName: rawMerchantName,
-        mid: normalizedMidVal,
-        tid: /^\d{15}$/.test(normalizedMidVal) ? normalizedMidVal.slice(-8) : rawTidInput,
+        merchantName: (effectiveStage === 'CONFIGURING' || effectiveStage === 'COMPLETE') ? rawMerchantName : (rawMerchantName || ''),
+        mid: (effectiveStage === 'CONFIGURING' || effectiveStage === 'COMPLETE') ? normalizedMidVal : (normalizedMidVal || ''),
+        tid: (effectiveStage === 'CONFIGURING' || effectiveStage === 'COMPLETE') ? (/^\d{15}$/.test(normalizedMidVal) ? normalizedMidVal.slice(-8) : rawTidInput) : (rawTidInput || ''),
         redeployCount,
         isDuplicate: false,
         error: cellErrors.map((ce) => `Row ${ce.row}, Col ${ce.column} (${ce.columnName}): ${ce.message}`).join('; ') || undefined,
@@ -660,8 +838,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     setUploadedFileMeta(null);
   };
 
-  const handleCopyHeaders = () => {
-    const headerLine = SCHEMA_COLUMNS.map((c) => c.label).join(',');
+  const handleCopyHeaders = (cycleToCopy?: IntakeCycle) => {
+    const cycle = cycleToCopy || currentInspectCycle;
+    const schema = CYCLE_SCHEMAS[cycle] || CYCLE_SCHEMAS.HQ_STOCK;
+    const headerLine = schema.columns.map((c) => c.label).join(',');
     navigator.clipboard.writeText(headerLine);
     setCopiedHeaders(true);
     setTimeout(() => setCopiedHeaders(false), 2000);
@@ -686,13 +866,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     if (e.target) e.target.value = '';
   };
 
-  /** Header row only: sample rows with made-up serials/MIDs could be uploaded by mistake as real stock. */
-  const handleDownloadTemplate = () => {
-    const blob = csvFile([SCHEMA_COLUMNS.map((c) => c.label)]);
+  /** Download sample CSV template tailored strictly for the chosen intake cycle */
+  const handleDownloadTemplate = (cycleToDownload?: IntakeCycle) => {
+    const cycle = cycleToDownload || activeCycle;
+    const schema = CYCLE_SCHEMAS[cycle] || CYCLE_SCHEMAS.HQ_STOCK;
+    const rows = [
+      schema.columns.map((c) => c.label),
+      ...schema.sampleRows,
+    ];
+    const blob = csvFile(rows);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'inventory_table_upload_template.csv';
+    link.download = schema.filename;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -1107,6 +1293,25 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     </select>
                   </div>
                 </div>
+
+                {/* Dynamic Cycle Rule Callout Banner */}
+                <div
+                  className={`mt-1 p-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition-all ${
+                    activeCycle === 'HQ_STOCK'
+                      ? 'bg-blue-50/80 dark:bg-blue-950/30 border-blue-200/90 dark:border-blue-900/60 text-blue-950 dark:text-blue-200'
+                      : activeCycle === 'BRANCH_RESERVE'
+                      ? 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200/90 dark:border-amber-900/60 text-amber-950 dark:text-amber-200'
+                      : 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200/90 dark:border-emerald-900/60 text-emerald-950 dark:text-emerald-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-extrabold shrink-0">{activeCycleSchema.name}:</span>
+                    <span className="text-[11px] opacity-90 truncate">{activeCycleSchema.description}</span>
+                  </div>
+                  <span className="shrink-0 self-start sm:self-auto px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-white/80 dark:bg-white/10 border border-current/25 shadow-2xs">
+                    {activeCycleSchema.badge}
+                  </span>
+                </div>
               </div>
 
               {/* METHOD A: TABLE CSV FILE UPLOAD & TEMPLATE */}
@@ -1172,12 +1377,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         whileHover={{ y: -1 }}
                         whileTap={{ scale: 0.96 }}
                         type="button"
-                        onClick={handleDownloadTemplate}
+                        onClick={() => handleDownloadTemplate(activeCycle)}
                         className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 shadow-2xs transition cursor-pointer flex items-center gap-1.5"
-                        title="Download sample CSV formatted identically to the inventory table"
+                        title={`Download ${activeCycleSchema.name} CSV template (${activeCycleSchema.columns.length} columns)`}
                       >
                         <FileDown className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
-                        <span>Download Template</span>
+                        <span>Download {activeCycleSchema.tag} Template</span>
+                        <span className="text-[10px] font-mono opacity-60">({activeCycleSchema.columns.length} Cols)</span>
                       </motion.button>
 
                       {tableCsvText && (
@@ -1194,7 +1400,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Format Reference Banner with Collapsible Schema Guide */}
+                  {/* Format Reference Banner with Cycle Tabs & Collapsible Schema Guide */}
                   <div
                     className={`rounded-2xl border transition-all ${
                       isLight
@@ -1209,10 +1415,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         </span>
                         <div>
                           <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                            Table CSV Schema
+                            CSV Cycle Schemas
                           </span>
                           <span className="text-[11px] text-slate-500 ml-1.5 hidden sm:inline">
-                            Exact 12-column layout matching inventory export (inserts in batches of {CSV_BATCH_SIZE})
+                            {currentInspectSchema.name} ({currentInspectSchema.columns.length} columns)
                           </span>
                         </div>
                       </div>
@@ -1220,9 +1426,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={handleCopyHeaders}
+                          onClick={() => handleCopyHeaders(currentInspectCycle)}
                           className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-[#1e5b88] transition flex items-center gap-1 cursor-pointer shadow-2xs"
-                          title="Copy column header line to clipboard"
+                          title={`Copy ${currentInspectSchema.tag} column headers to clipboard`}
                         >
                           {copiedHeaders ? (
                             <>
@@ -1242,7 +1448,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           onClick={() => setShowSchemaGuide(!showSchemaGuide)}
                           className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[#1e5b88] dark:text-sky-400 hover:border-[#1e5b88] transition flex items-center gap-1 cursor-pointer shadow-2xs"
                         >
-                          <span>{showSchemaGuide ? 'Hide Columns' : 'View 12 Columns'}</span>
+                          <span>{showSchemaGuide ? 'Hide Columns' : `View ${currentInspectSchema.columns.length} Columns`}</span>
                           {showSchemaGuide ? (
                             <ChevronUp className="w-3 h-3" />
                           ) : (
@@ -1254,18 +1460,64 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
                     {/* Collapsible Column Guide View */}
                     {showSchemaGuide && (
-                      <div className="px-3 pb-3 pt-1 border-t border-slate-200/60 dark:border-slate-800/80">
+                      <div className="px-3 pb-3 pt-2 border-t border-slate-200/60 dark:border-slate-800/80 flex flex-col gap-2.5">
+                        {/* Cycle Switcher Tabs */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs">
+                          {(['HQ_STOCK', 'BRANCH_RESERVE', 'CONFIGURING', 'COMPLETE'] as IntakeCycle[]).map((cKey) => {
+                            const cDef = CYCLE_SCHEMAS[cKey];
+                            const isSelected = currentInspectCycle === cKey;
+                            return (
+                              <button
+                                key={cKey}
+                                type="button"
+                                onClick={() => setInspectedCycle(cKey)}
+                                className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                                  isSelected
+                                    ? 'bg-[#003857] text-white shadow-2xs'
+                                    : isLight
+                                    ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                                }`}
+                              >
+                                <span>{cDef.tag}</span>
+                                <span className="text-[10px] opacity-75">({cDef.columns.length} Cols)</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Cycle Description & Quick Action */}
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 bg-slate-100/70 dark:bg-slate-800/50 p-2 rounded-xl">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-bold text-slate-800 dark:text-slate-200 shrink-0">{currentInspectSchema.name}:</span>
+                            <span className="truncate">{currentInspectSchema.description}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadTemplate(currentInspectCycle)}
+                            className="text-[11px] font-bold text-[#1e5b88] dark:text-sky-400 hover:underline flex items-center gap-1 shrink-0 cursor-pointer"
+                          >
+                            <FileDown className="w-3 h-3" />
+                            <span>Download {currentInspectSchema.tag} CSV</span>
+                          </button>
+                        </div>
+
+                        {/* Columns Grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 font-mono text-[10px]">
-                          {SCHEMA_COLUMNS.map((col, idx) => (
+                          {currentInspectSchema.columns.map((col, idx) => (
                             <div
                               key={col.id}
                               className="p-1.5 rounded-lg bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 flex flex-col gap-0.5"
                             >
                               <div className="flex items-center justify-between text-slate-900 dark:text-white font-bold">
-                                <span>{idx + 1}. {col.label}</span>
-                                {col.req && (
-                                  <span className="text-[9px] font-sans font-extrabold text-amber-600 dark:text-amber-400">
-                                    REQ
+                                <span className="truncate">{idx + 1}. {col.label}</span>
+                                {col.req ? (
+                                  <span className="text-[9px] font-sans font-extrabold text-rose-600 dark:text-rose-400">
+                                    REQUIRED
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-sans text-slate-400">
+                                    OPTIONAL
                                   </span>
                                 )}
                               </div>
@@ -1445,6 +1697,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         <th className="py-2.5 px-3">Battery Serial</th>
                         <th className="py-2.5 px-3">Branch Code &amp; Name</th>
                         <th className="py-2.5 px-3">Lifecycle Stage</th>
+                        <th className="py-2.5 px-3">Assigned Staff</th>
                         <th className="py-2.5 px-3">Merchant / MID</th>
                         <th className="py-2.5 px-3 text-right">Pre-Validation</th>
                       </tr>
@@ -1517,6 +1770,20 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <td className="py-1.5 px-3 text-slate-600 dark:text-slate-300 whitespace-nowrap font-medium">
                             {STAGE_META[item.stage]?.short || item.stage}
                           </td>
+                          <td className="py-1.5 px-3 whitespace-nowrap">
+                            {item.staff ? (
+                              <div className="flex items-center gap-1 text-slate-800 dark:text-slate-200 font-semibold">
+                                <User className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                                <span>{item.staff}</span>
+                              </div>
+                            ) : item.stage === 'BRANCH_RESERVE' ? (
+                              <span className="text-rose-600 dark:text-rose-400 font-bold text-[11px] flex items-center gap-1 bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20">
+                                <AlertCircle className="w-3 h-3" /> Missing Staff
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic text-[11px]">Unassigned (HQ Stock)</span>
+                            )}
+                          </td>
                           <td className="py-1.5 px-3 whitespace-nowrap text-slate-500">
                             {item.merchantName ? (
                               <div className="flex flex-col">
@@ -1529,8 +1796,12 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                                   </span>
                                 )}
                               </div>
+                            ) : (item.stage === 'CONFIGURING' || item.stage === 'COMPLETE') ? (
+                              <span className="text-rose-600 dark:text-rose-400 font-bold text-[11px] flex items-center gap-1 bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20">
+                                <AlertCircle className="w-3 h-3" /> Missing Merchant
+                              </span>
                             ) : (
-                              <span className="text-slate-400 italic">Unassigned</span>
+                              <span className="text-slate-400 italic text-[11px]">Unassigned (Stock)</span>
                             )}
                           </td>
                           <td className="py-1.5 px-3 text-right whitespace-nowrap">
@@ -1559,7 +1830,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       {activeStagedBatch.length === 0 && (
                         <tr>
                           <td
-                            colSpan={10}
+                            colSpan={11}
                             className="py-8 text-center text-slate-400 text-xs"
                           >
                             No entries staged yet. Upload a CSV file or enter serials above.
@@ -1741,6 +2012,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         <th className="py-2.5 px-3">Battery Serial</th>
                         <th className="py-2.5 px-3">Stock Location</th>
                         <th className="py-2.5 px-3">Initial Stage</th>
+                        <th className="py-2.5 px-3">Assigned Staff</th>
                         <th className="py-2.5 px-3">Merchant / MID</th>
                       </tr>
                     </thead>
