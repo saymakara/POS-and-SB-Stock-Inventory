@@ -3912,6 +3912,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         />
 
         {/* Workflow & Serial Cycle History Modal */}
+        {editingDevice && (
         <WorkflowModal
           device={editingDevice}
           devices={devices}
@@ -3941,14 +3942,17 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           onNotifyConfigReady={handleNotifyConfigReady}
           operatorLabel={operatorLabel}
         />
+        )}
 
         {/* POS Terminal Change Battery Modal (24-Month Lifespan Replacement) */}
+        {batteryModalDevice && (
         <ChangeBatteryModal
           device={batteryModalDevice}
           onClose={() => setBatteryModalDevice(null)}
           onConfirm={handleConfirmChangeBattery}
           theme={theme}
         />
+        )}
 
         {/* Export Data Modal */}
         <ExportDataModal

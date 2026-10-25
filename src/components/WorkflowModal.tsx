@@ -227,8 +227,6 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     );
   }, [device, isAdminLike]);
 
-  if (!device) return null;
-
   // selectedBranchObj resolved dynamically
   const [staffQuery, setStaffQuery] = useState('');
 
@@ -291,6 +289,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     return allStaffOptions.filter((s) => s.isCurrentBranch);
   }, [allStaffOptions]);
 
+  if (!device) return null;
 
   const handleStageChange = (newStage: LifecycleStage) => {
     setStage(newStage);
