@@ -10,7 +10,7 @@
  * mapped fall back to the default group chat ID.
  */
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { stampSecPP } from './time';
+import { stampSecPP, todayPP } from './time';
 import type { Branch, TelegramRegionalGroup } from '../types';
 
 // -----------------------------------------------------------------------------
@@ -235,6 +235,96 @@ export async function dispatchTelegramMessage(
   };
 }
 
+/**
+ * Sends a document file (e.g. CSV device configuration queue) with caption to Telegram using sendDocument.
+ * If document dispatch fails or is blocked, falls back gracefully to dispatchTelegramMessage.
+ */
+export async function dispatchTelegramDocument(
+  botToken: string,
+  targetChatId: string,
+  webhookUrl: string,
+  fileContent: string,
+  fileName: string,
+  caption: string
+): Promise<TelegramDispatchResult> {
+  const token = cleanBotToken(botToken);
+  const chatId = (targetChatId || '').trim();
+  let lastError = '';
+
+  // 1. Direct browser call to Telegram Bot API sendDocument
+  if (token && chatId) {
+    const url = `https://api.telegram.org/bot${token}/sendDocument`;
+    for (const candidate of chatIdVariants(chatId)) {
+      try {
+        const blob = new Blob(['\uFEFF' + fileContent], { type: 'text/csv;charset=utf-8;' });
+        const formData = new FormData();
+        formData.append('chat_id', candidate);
+        formData.append('document', blob, fileName);
+        if (caption) {
+          // Telegram caption limit is 1024 characters
+          const safeCaption = caption.length > 1000 ? `${caption.slice(0, 990)}...` : caption;
+          formData.append('caption', safeCaption);
+          formData.append('parse_mode', 'Markdown');
+        }
+
+        let res = await fetch(url, { method: 'POST', body: formData });
+        let data = await res.json().catch(() => null);
+
+        if (res.ok && data?.ok) return { ok: true, resolvedChatId: candidate };
+
+        // If Markdown entities failed in caption, retry with clean plain text caption
+        if (data?.description && /can't parse entities|markdown/i.test(data.description)) {
+          const plainFormData = new FormData();
+          plainFormData.append('chat_id', candidate);
+          plainFormData.append('document', blob, fileName);
+          if (caption) {
+            plainFormData.append('caption', caption.replace(/[*_`[\]]/g, '').slice(0, 1000));
+          }
+          res = await fetch(url, { method: 'POST', body: plainFormData });
+          data = await res.json().catch(() => null);
+          if (res.ok && data?.ok) return { ok: true, resolvedChatId: candidate };
+        }
+
+        lastError = data?.description || `HTTP ${res.status}`;
+        if (!/chat not found/i.test(lastError)) break;
+      } catch (err: any) {
+        lastError = err?.message || 'Failed to send document via Telegram API';
+        break;
+      }
+    }
+  }
+
+  // 2. Custom Webhook with file payload
+  if (webhookUrl) {
+    let hookChatId = chatId;
+    try {
+      hookChatId = hookChatId || new URL(webhookUrl).searchParams.get('chat_id') || '';
+    } catch {
+      // not a valid URL
+    }
+    try {
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: hookChatId || undefined,
+          text: caption,
+          fileName,
+          fileContent,
+          type: 'DEVICE_CONFIG_FILE',
+        }),
+      });
+      if (res.ok) return { ok: true, resolvedChatId: hookChatId };
+      lastError = `Webhook HTTP ${res.status}`;
+    } catch (err: any) {
+      lastError = err?.message || 'Webhook failed';
+    }
+  }
+
+  // 3. Fallback to sending standard message with formatted device queue
+  return dispatchTelegramMessage(botToken, chatId, webhookUrl, caption);
+}
+
 // -----------------------------------------------------------------------------
 // App push alerts
 // -----------------------------------------------------------------------------
@@ -351,20 +441,55 @@ export interface BatchDeviceConfigTelegramAlertResult {
   error?: string;
 }
 
-const groupBy = <T>(items: T[], keyOf: (item: T) => string): Map<string, T[]> => {
-  const map = new Map<string, T[]>();
-  for (const item of items) {
-    const key = keyOf(item);
-    const list = map.get(key);
-    if (list) list.push(item);
-    else map.set(key, [item]);
-  }
-  return map;
-};
+/**
+ * Builds a clean, comma-separated CSV string for a batch of devices in a branch queue.
+ */
+export function buildDeviceConfigCsv(
+  devices: BatchDeviceConfigItem[],
+  branchId?: string,
+  actor?: string
+): string {
+  const headers = [
+    'No.',
+    'Serial Number',
+    'Device Type',
+    'Model',
+    'Merchant Name',
+    'MID',
+    'TID',
+    'Configure By (Staff)',
+    'Assigned By',
+    'Branch Code',
+    'Branch Name',
+    'Action Required',
+  ];
+
+  const rows = devices.map((d, idx) => {
+    return [
+      String(idx + 1),
+      d.serial,
+      d.deviceType || d.type || 'POS Terminal',
+      d.model || '—',
+      d.merchantName || '—',
+      d.mid || '—',
+      d.tid || '—',
+      d.staff || d.staffName || 'Assigned Branch Staff',
+      actor || 'System Admin',
+      d.branchId || branchId || '100',
+      d.branchName || `Branch ${d.branchId || branchId || '100'}`,
+      'Open device and connect to network to wait for App Push',
+    ];
+  });
+
+  return [headers, ...rows]
+    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+}
 
 /**
- * Batch alert for many Under Configuring devices (~200/day). Devices are partitioned by destination chat so each
- * regional team only receives its own hardware; within a message, devices are grouped by assigned staff.
+ * Batch alert for Under Configuring devices (e.g. up to 10 devices per branch).
+ * Sends 1 consolidated Telegram notification with attached configuration file (.csv) to open,
+ * instead of 10 individual pop-up messages.
  */
 export async function sendBatchDeviceConfigTelegramAlert(
   info: BatchDeviceConfigTelegramAlertInfo
@@ -390,28 +515,47 @@ export async function sendBatchDeviceConfigTelegramAlert(
   const details: BatchDeviceConfigTelegramAlertResult['details'] = [];
   for (const [chatId, dest] of destinations) {
     const groupName = Array.from(dest.names).join(' + ');
-    const byStaff = groupBy(dest.devices, (d) => {
-      const branch = d.branchName ? ` (${d.branchName})` : d.branchId ? ` (Branch ${d.branchId})` : '';
-      return `${d.staff || d.staffName || 'Branch Staff'}${branch}`;
-    });
+    const sampleBranch = dest.devices[0]?.branchId || '100';
+    const sampleBranchName = dest.devices[0]?.branchName || groupName;
+    const fileName = `Branch_${sampleBranch}_Config_Queue_${todayPP()}.csv`;
+    const fileCsv = buildDeviceConfigCsv(dest.devices, sampleBranch, actor);
 
+    // Build 1 consolidated Telegram notification (instead of 10 separate pop-up messages!)
     const lines = [
-      `📲 *Batch Under Configuring — Ready for App Push*`,
-      `• *${dest.isRegional ? 'Regional Destination' : 'Destination'}:* *${groupName}*`,
-      `• *Total Devices:* *${dest.devices.length} units*`,
+      `📲 *Branch Code ${sampleBranch} (${sampleBranchName}) — Configuration Queue*`,
+      `• *${dest.isRegional ? 'Regional Group' : 'Destination'}:* *${groupName}*`,
+      `• *Total Devices:* *${dest.devices.length} units to configure*`,
       `• *Assigned By:* *${actor}*`,
-      `• *Action Required:* Assigned teams please *OPEN devices* and connect to network to wait for pushing the app!`,
+      `• *Action Required:* Assigned officers please *OPEN devices* and connect to network to wait for App Push!`,
+      `• *Attached File:* 📁 \`${fileName}\` (tap file to open device & merchant list)`,
       ``,
-      `👥 *Configure By (Assigned Staff / Teams):*`,
+      `📋 *Device Queue (${dest.devices.length} units):*`,
     ];
-    for (const [team, items] of byStaff) {
-      const sample = items.slice(0, 4).map((x) => `\`${x.serial}\``).join(', ');
-      const more = items.length > 4 ? ` (+${items.length - 4} more)` : '';
-      lines.push(`• *${team}*: *${items.length} units*`, `  └ Serials: ${sample}${more}`);
+
+    // List all devices (up to 10) with full details
+    const maxListed = Math.min(dest.devices.length, 10);
+    for (let i = 0; i < maxListed; i++) {
+      const d = dest.devices[i];
+      const devType = d.deviceType || d.type || 'Device';
+      const mName = d.merchantName ? `*${d.merchantName}*` : 'Merchant Profile Pending';
+      const midTid = d.mid || d.tid ? ` (MID: \`${d.mid || '—'}\` | TID: \`${d.tid || '—'}\`)` : '';
+      const stf = d.staff || d.staffName ? ` · Configure By: *${d.staff || d.staffName}*` : '';
+      lines.push(`${i + 1}. 🔹 \`${d.serial}\` (${devType})${stf}\n   └ ${mName}${midTid}`);
     }
+    if (dest.devices.length > 10) {
+      lines.push(`... and ${dest.devices.length - 10} more units in attached configuration file.`);
+    }
+
     lines.push(``, `• *Timestamp:* ${timestamp}`);
 
-    const res = await dispatchTelegramMessage(config.botToken, chatId, config.webhookUrl, lines.join('\n'));
+    const res = await dispatchTelegramDocument(
+      config.botToken,
+      chatId,
+      config.webhookUrl,
+      fileCsv,
+      fileName,
+      lines.join('\n')
+    );
     details.push({ chatId, groupName, units: dest.devices.length, ok: res.ok, error: res.error });
   }
 

@@ -554,6 +554,97 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  // Download dedicated branch/team configuration queue file to open
+  const handleDownloadTeamFile = (tg: { staff: string; branchId: string; branchName: string; devices: Device[] }) => {
+    if (tg.devices.length === 0) return;
+    const headers = [
+      'No.',
+      'Date & Time of Request Push',
+      'Hardware Serial & Model',
+      'Merchant Name & MID / TID',
+      'Configure By (Staff)',
+      'Assigned By',
+      'Branch Code',
+      'Branch Name',
+      'Action Required',
+    ];
+    const rows = tg.devices.map((dev, idx) => {
+      const bObj = branches.find((b) => b.code === dev.branchId);
+      const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
+      const reqInfo = getRequestPushDateTime(dev);
+      const serialModel = `${dev.serial} (${dev.model || dev.type})`;
+      const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
+      const staffName = dev.staff || dev.installedByStaff || tg.staff;
+      const assignedBy = getAssignedBy(dev);
+      return [
+        String(idx + 1),
+        reqInfo.full,
+        serialModel,
+        merchantMidTid,
+        staffName,
+        assignedBy,
+        dev.branchId,
+        bName,
+        'OPEN device and connect to network to wait for App Push',
+      ];
+    });
+    const url = URL.createObjectURL(csvFile([headers, ...rows]));
+    const link = document.createElement('a');
+    link.href = url;
+    const cleanStaff = normalizeStaffName(tg.staff).replace(/[^a-zA-Z0-9]/g, '_');
+    link.download = `Branch_${tg.branchId}_${cleanStaff}_Config_Queue_${todayPP()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  // Download configuration file for user-selected batch of devices
+  const handleDownloadSelectedFile = () => {
+    if (selectedSns.length === 0) return;
+    const selectedDevices = filteredDevices.filter((d) => selectedSns.includes(d.serial));
+    if (selectedDevices.length === 0) return;
+    const headers = [
+      'No.',
+      'Date & Time of Request Push',
+      'Hardware Serial & Model',
+      'Merchant Name & MID / TID',
+      'Configure By (Staff)',
+      'Assigned By',
+      'Branch Code',
+      'Branch Name',
+      'Action Required',
+    ];
+    const rows = selectedDevices.map((dev, idx) => {
+      const bObj = branches.find((b) => b.code === dev.branchId);
+      const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
+      const reqInfo = getRequestPushDateTime(dev);
+      const serialModel = `${dev.serial} (${dev.model || dev.type})`;
+      const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
+      const staffName = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
+      const assignedBy = getAssignedBy(dev);
+      return [
+        String(idx + 1),
+        reqInfo.full,
+        serialModel,
+        merchantMidTid,
+        staffName,
+        assignedBy,
+        dev.branchId,
+        bName,
+        'OPEN device and connect to network to wait for App Push',
+      ];
+    });
+    const url = URL.createObjectURL(csvFile([headers, ...rows]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Selected_Branch_Devices_Config_Queue_${todayPP()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
 return (
     <div className="space-y-6 pb-24">
       {/* 1. HERO HEADER WITH LIVE PIPELINE STATS */}
@@ -698,46 +789,61 @@ return (
                     </div>
                   </div>
 
-                  {isAdminLike && onNotifyConfigReady && (
-                    getTeamCooldownSecs(teamKey) > 0 ? (
-                      <button
-                        type="button"
-                        disabled
-                        className="w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90"
-                        title={`Team pushed to Telegram! 1-minute cooldown active (${getTeamCooldownSecs(teamKey)}s remaining)`}
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Team Pushed · {getTeamCooldownSecs(teamKey)}s</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleTeamPushClick(teamKey, teamSerials)}
-                        className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] ${
-                          isConfirmingThisTeam
-                            ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse shadow-sm ring-2 ring-amber-400'
-                            : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs'
-                        }`}
-                        title={
-                          isConfirmingThisTeam
-                            ? `Click 2nd time to confirm push to this team (${getTeamConfirmSecs(teamKey)}s window)`
-                            : 'Click once, then click 2nd time within 1 minute to push to team'
-                        }
-                      >
-                        {isConfirmingThisTeam ? (
-                          <>
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
-                            <span>Click 2nd Time ({getTeamConfirmSecs(teamKey)}s) · {tg.devices.length} Units</span>
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-3.5 h-3.5" />
-                            <span>Notify Team &amp; Group ({tg.devices.length})</span>
-                          </>
-                        )}
-                      </button>
-                    )
-                  )}
+                  <div className="space-y-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadTeamFile(tg)}
+                      className="w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 active:scale-[0.98] shadow-2xs"
+                      title={`Download & open full configuration file for ${tg.staff} (${tg.devices.length} devices)`}
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Open Config File ({tg.devices.length})</span>
+                    </button>
+
+                    {isAdminLike && onNotifyConfigReady && (
+                      getTeamCooldownSecs(teamKey) > 0 ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90"
+                          title={`Team pushed to Telegram! 1-minute cooldown active (${getTeamCooldownSecs(teamKey)}s remaining)`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Queue &amp; File Sent · {getTeamCooldownSecs(teamKey)}s</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleTeamPushClick(teamKey, teamSerials)}
+                          className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] ${
+                            isConfirmingThisTeam
+                              ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse shadow-sm ring-2 ring-amber-400'
+                              : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs'
+                          }`}
+                          title={
+                            isConfirmingThisTeam
+                              ? `Click 2nd time to send 1 Telegram alert + file for this team (${getTeamConfirmSecs(teamKey)}s window)`
+                              : 'Click once, then click 2nd time to send 1 Telegram alert + file (instead of 10 pop-up messages)'
+                          }
+                        >
+                          {isConfirmingThisTeam ? (
+                            <>
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
+                              <span>Click 2nd Time to Send File ({getTeamConfirmSecs(teamKey)}s)</span>
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Push Queue &amp; Send File ({tg.devices.length})</span>
+                            </>
+                          )}
+                        </button>
+                      )
+                    )}
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500 text-center">
+                      1 Telegram alert + file (no separate popups)
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -808,6 +914,51 @@ return (
             )}
           </div>
         </div>
+
+        {/* Branch Queue Quick Action: Send 1 File + Alert to Branch instead of 10 pop-ups */}
+        {branchFilter !== 'ALL' && filteredDevices.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+              <Building2 className="w-4 h-4 text-[#003857] dark:text-sky-400 shrink-0" />
+              <span>
+                Branch Code {branchFilter} ({branches.find((b) => b.code === branchFilter)?.name || `Branch ${branchFilter}`}):{' '}
+                <strong className="text-zinc-900 dark:text-white">{filteredDevices.length} Units to Config</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleDownloadTeamFile({
+                    staff: `Branch_${branchFilter}_Staff`,
+                    branchId: branchFilter,
+                    branchName: branches.find((b) => b.code === branchFilter)?.name || `Branch ${branchFilter}`,
+                    devices: filteredDevices,
+                  });
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                title="Download and open configuration file for all devices in this branch"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Open Branch File ({filteredDevices.length})</span>
+              </button>
+              {isAdminLike && onNotifyConfigReady && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const branchSerials = filteredDevices.map((d) => d.serial);
+                    handleTeamPushClick(`Branch_${branchFilter}`, branchSerials);
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-[0.98]"
+                  title="Sends 1 single Telegram notification with attached file for this branch instead of separate popups"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Send Branch Alert &amp; File ({filteredDevices.length})</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 4. HARDWARE QUEUE TABLE WITH DATE & TIME OF REQUEST PUSH */}
@@ -1093,6 +1244,16 @@ return (
                   </select>
                 </div>
               )}
+              <button
+                type="button"
+                onClick={handleDownloadSelectedFile}
+                className="px-3 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer active:scale-[0.97] transition-all"
+                title="Download and open configuration file for selected devices"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Open File ({selectedSns.length})</span>
+              </button>
+
               {isAdminLike && onNotifyConfigReady && (
                 getBatchCooldownSecs() > 0 ? (
                   <button
@@ -1102,7 +1263,7 @@ return (
                     title={`Batch pushed to Telegram! 1-minute cooldown active (${getBatchCooldownSecs()}s remaining)`}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Pushed · {getBatchCooldownSecs()}s</span>
+                    <span>File &amp; Alert Sent · {getBatchCooldownSecs()}s</span>
                   </button>
                 ) : (
                   <button
@@ -1115,19 +1276,19 @@ return (
                     }`}
                     title={
                       confirmingBatch
-                        ? `Click 2nd time to confirm batch push (${getBatchConfirmSecs()}s window)`
-                        : 'Click once, then click 2nd time within 1 minute to push batch'
+                        ? `Click 2nd time to send 1 Telegram notification + attached file for selected devices (${getBatchConfirmSecs()}s window)`
+                        : 'Click once, then click 2nd time to send 1 Telegram notification + attached file instead of separate popups'
                     }
                   >
                     {confirmingBatch ? (
                       <>
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
-                        <span>Click 2nd Time to Push ({selectedSns.length}) ({getBatchConfirmSecs()}s)</span>
+                        <span>Click 2nd Time to Push File ({selectedSns.length}) ({getBatchConfirmSecs()}s)</span>
                       </>
                     ) : (
                       <>
                         <Send className="w-3.5 h-3.5" />
-                        <span>Notify &amp; Push App ({selectedSns.length})</span>
+                        <span>Push Queue &amp; File ({selectedSns.length})</span>
                       </>
                     )}
                   </button>
