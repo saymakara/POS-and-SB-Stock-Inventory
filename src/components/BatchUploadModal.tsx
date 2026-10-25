@@ -23,7 +23,6 @@ import {
   Building2,
   Layers,
   FileText,
-  Sparkles,
   Ban,
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -194,7 +193,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   operatorLabel = '',
 }) => {
   const [batchStep, setBatchStep] = useState<'INPUT' | 'PREVIEW'>('INPUT');
-  const [method, setMethod] = useState<'tableCsv' | 'paste' | 'range'>('tableCsv');
+  const [method, setMethod] = useState<'tableCsv' | 'paste'>('tableCsv');
 
   // Master Table CSV State
   const [tableCsvText, setTableCsvText] = useState('');
@@ -208,24 +207,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   const [defaultBranchId, setDefaultBranchId] = useState('100');
   const [defaultStage, setDefaultStage] = useState<LifecycleStage>('HQ_STOCK');
 
-  // Field 1: POS Terminal state (Method B / C). Range inputs start empty: serials come from the carton label.
+  // Field 1: POS Terminal state (Method B: By Hardware Type)
   const [posModel, setPosModel] = useState('Wizar POS Q2 Pro');
   const [posPasteText, setPosPasteText] = useState('');
-  const [posPrefix, setPosPrefix] = useState('');
-  const [posStartNum, setPosStartNum] = useState('');
-  const [posPadding, setPosPadding] = useState(8);
-  const [posQty, setPosQty] = useState(0);
 
-  // Field 2: Sound Box state (Method B / C)
+  // Field 2: Sound Box state (Method B: By Hardware Type)
   const [sbModel, setSbModel] = useState('Q161 Pro');
   const [sbPasteText, setSbPasteText] = useState('');
-  const [sbPrefix, setSbPrefix] = useState('');
-  const [sbStartNum, setSbStartNum] = useState('');
-  const [sbPadding, setSbPadding] = useState(5);
-  const [sbQty, setSbQty] = useState(0);
-
-  const [generatedRangeBatch, setGeneratedRangeBatch] = useState<StagedItem[]>([]);
-  const [rangeError, setRangeError] = useState('');
   const [commitNotice, setCommitNotice] = useState('');
   const [isCommittingBatches, setIsCommittingBatches] = useState(false);
   const [serverExistingSerials, setServerExistingSerials] = useState<Set<string>>(new Set());
@@ -240,11 +228,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       setBatchProgress(null);
     }
   }, [isOpen]);
-
-  // A generated range is only valid for the inputs it was made from: changing any of them clears it.
-  React.useEffect(() => {
-    setGeneratedRangeBatch([]);
-  }, [posPrefix, posStartNum, posPadding, posQty, posModel, sbPrefix, sbStartNum, sbPadding, sbQty, sbModel, defaultBranchId, defaultStage]);
 
   const isLight = theme === 'light';
   const existingSerials = useMemo(() => {
@@ -643,58 +626,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posPasteText, sbPasteText, posModel, sbModel, defaultBranch, defaultStage, branches, staffLabel]);
 
-  /**
-   * Method C: consecutive serials from a range the operator types from the carton label (prefix + start number +
-   * quantity). Nothing is pre-filled, and battery serials are left blank (they are not part of a range).
-   */
-  const handleGenerateDualRange = () => {
-    setRangeError('');
-    if (!defaultBranch) {
-      setRangeError('Choose the default branch first.');
-      return;
-    }
-    const safePosQty = Math.min(200, Math.max(0, posQty));
-    const safeSbQty = Math.min(200, Math.max(0, sbQty));
-    const posStart = parseInt(posStartNum, 10);
-    const sbStart = parseInt(sbStartNum, 10);
-    const problems: string[] = [];
-    if (safePosQty > 0 && (!posPrefix.trim() || isNaN(posStart))) problems.push('enter the POS prefix and start number');
-    if (safeSbQty > 0 && (!sbPrefix.trim() || isNaN(sbStart))) problems.push('enter the Sound Box prefix and start number');
-    if (safePosQty + safeSbQty === 0) problems.push('enter a quantity');
-    if (problems.length) {
-      setRangeError(`To generate a range, ${problems.join(' and ')}.`);
-      setGeneratedRangeBatch([]);
-      return;
-    }
-    const stage: LifecycleStage = defaultBranch.id === '100' ? 'HQ_STOCK' : defaultStage;
-    const today = todayPP();
-    const generated: StagedItem[] = [];
-    const push = (serial: string, type: 'POS Terminal' | 'Sound Box', model: string, idx: number) =>
-      generated.push({
-        csvRowNumber: idx + 1,
-        serial,
-        batterySerial: '',
-        model,
-        type,
-        branchId: defaultBranch.id,
-        branchName: defaultBranch.name,
-        staff: staffLabel,
-        stage,
-        stockInDate: today,
-        isDuplicate: false,
-        cellErrors: [],
-      });
-
-    for (let i = 0; i < safePosQty; i++) {
-      push(`${posPrefix.trim().toUpperCase()}${String(posStart + i).padStart(posPadding, '0')}`, 'POS Terminal', posModel, generated.length);
-    }
-    for (let i = 0; i < safeSbQty; i++) {
-      push(`${sbPrefix.trim().toUpperCase()}${String(sbStart + i).padStart(sbPadding, '0')}`, 'Sound Box', sbModel, generated.length);
-    }
-
-    setGeneratedRangeBatch(generated);
-  };
-
   const handleTableCsvFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -770,7 +701,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
    * The rows for the chosen method, with duplicates flagged against the CURRENT inventory and within the batch,
    * recording exact Row & Column numbers for every duplicate or validation issue.
    */
-  const rawStagedItems = method === 'tableCsv' ? tableCsvBatch : method === 'paste' ? pastedBatch : generatedRangeBatch;
+  const rawStagedItems = method === 'tableCsv' ? tableCsvBatch : pastedBatch;
 
   // When the database has more rows than the in-memory page (e.g. up to 500,000 rows), query the primary-key B-Tree index
   // for candidate CSV serials so duplicates against the full 500K-row database are flagged with exact Row & Column numbers.
@@ -800,7 +731,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   }, [isOpen, rawStagedItems, existingDevices.length]);
 
   const activeStagedBatch = useMemo(() => {
-    const raw = method === 'tableCsv' ? tableCsvBatch : method === 'paste' ? pastedBatch : generatedRangeBatch;
+    const raw = method === 'tableCsv' ? tableCsvBatch : pastedBatch;
     const firstSeenRowBySerial = new Map<string, number>();
 
     return raw.map((item, idx) => {
@@ -845,7 +776,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         cellErrors: baseCellErrors,
       };
     });
-  }, [method, tableCsvBatch, pastedBatch, generatedRangeBatch, existingSerials]);
+  }, [method, tableCsvBatch, pastedBatch, existingSerials]);
 
   /** Flatten all row/column validation issues across the staged batch. */
   const allValidationIssues = useMemo(() => {
@@ -929,7 +860,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       setUploadedFileMeta(null);
       setPosPasteText('');
       setSbPasteText('');
-      setGeneratedRangeBatch([]);
       setCommitNotice('');
       onClose();
     } finally {
@@ -962,7 +892,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           <div>
             <h3 className="text-base font-bold flex items-center gap-2">
               <FilePlus className="w-5 h-5 text-[#7cc4ed]" />
-              Batch Hardware Stock Intake — Table CSV Import
+              Batch Hardware Stock Intake — {method === 'tableCsv' ? 'Table CSV Import' : 'By Hardware Type'}
             </h3>
             <p className="text-xs text-slate-300 mt-0.5">
               Strict client-side pre-validation &amp; batched 100-row database inserts
@@ -1066,18 +996,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 >
                   <Layers className="w-3.5 h-3.5 text-indigo-500" />
                   <span>Method B: By Hardware Type</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMethod('range')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    method === 'range'
-                      ? 'bg-white dark:bg-slate-900 text-[#1e5b88] dark:text-sky-300 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Method C: Range Generator</span>
                 </button>
               </div>
 
@@ -1479,207 +1397,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         className={`w-full rounded-xl p-3 text-xs font-mono placeholder-slate-400 focus:outline-none focus:border-[#133e5e] border ${inputClass}`}
                       />
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* METHOD C: SEQUENTIAL RANGE GENERATOR */}
-              {method === 'range' && (
-                <div className="flex flex-col gap-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Field 1: POS Terminal Range */}
-                    <div className="p-4 rounded-2xl border border-[#133e5e]/25 bg-[#133e5e]/[0.03] space-y-3">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-[#133e5e] text-white">
-                          <Cpu className="w-4 h-4" />
-                        </span>
-                        <div>
-                          <div className="text-xs font-extrabold text-[#133e5e]">
-                            Field 1: POS Terminal Generator
-                          </div>
-                          <div className="text-[10px] text-slate-500">
-                            Type: POS Terminal
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div className="col-span-2">
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                            POS Model
-                          </label>
-                          <select
-                            value={posModel}
-                            onChange={(e) => setPosModel(e.target.value)}
-                            className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border ${inputClass}`}
-                          >
-                            <option value="Wizar POS Q2 Pro">Wizar POS Q2 Pro</option>
-                            <option value="PAX A920 Pro">PAX A920 Pro</option>
-                            <option value="Verifone V200c">Verifone V200c</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                            POS Prefix
-                          </label>
-                          <input
-                            type="text"
-                            value={posPrefix}
-                            placeholder="e.g. prefix on the label"
-                            aria-label="POS serial prefix"
-                            onChange={(e) => setPosPrefix(e.target.value)}
-                            className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                            POS Qty
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={200}
-                            value={posQty}
-                            onChange={(e) =>
-                              setPosQty(Math.max(0, parseInt(e.target.value, 10) || 0))
-                            }
-                            className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                            Start Number
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={posStartNum}
-                            placeholder="From carton label"
-                            aria-label="POS start number"
-                            onChange={(e) => setPosStartNum(e.target.value)}
-                            className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                            Zero Padding
-                          </label>
-                          <input
-                            type="number"
-                            value={posPadding}
-                            onChange={(e) =>
-                              setPosPadding(parseInt(e.target.value, 10) || 5)
-                            }
-                            className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Field 2: Sound Box Range */}
-                    <div className="p-4 rounded-2xl border border-[#1e5b88]/25 bg-[#1e5b88]/[0.03] space-y-3">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-[#1e5b88] text-white">
-                          <Volume2 className="w-4 h-4" />
-                        </span>
-                        <div>
-                          <div className="text-xs font-extrabold text-[#154360]">
-                            Field 2: Sound Box Generator
-                          </div>
-                          <div className="text-[10px] text-slate-500">
-                            Type: Sound Box
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div className="col-span-2">
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                            Sound Box Model
-                          </label>
-                          <select
-                            value={sbModel}
-                            onChange={(e) => setSbModel(e.target.value)}
-                            className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border ${inputClass}`}
-                          >
-                            <option value="Q161 Pro">Q161 Pro</option>
-                            <option value="SB-Max">SB-Max</option>
-                            <option value="SB-Standard">SB-Standard</option>
-                            <option value="SB-Mini">SB-Mini</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                            Sound Box Prefix
-                          </label>
-                          <input
-                            type="text"
-                            value={sbPrefix}
-                            placeholder="e.g. prefix on the label"
-                            aria-label="Sound Box serial prefix"
-                            onChange={(e) => setSbPrefix(e.target.value)}
-                            className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                            Sound Box Qty
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={200}
-                            value={sbQty}
-                            onChange={(e) =>
-                              setSbQty(Math.max(0, parseInt(e.target.value, 10) || 0))
-                            }
-                            className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                            Start Number
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={sbStartNum}
-                            placeholder="From carton label"
-                            aria-label="Sound Box start number"
-                            onChange={(e) => setSbStartNum(e.target.value)}
-                            className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
-                            Zero Padding
-                          </label>
-                          <input
-                            type="number"
-                            value={sbPadding}
-                            onChange={(e) =>
-                              setSbPadding(parseInt(e.target.value, 10) || 5)
-                            }
-                            className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono border ${inputClass}`}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-3">
-                    {rangeError && (
-                      <span role="alert" className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-                        {rangeError}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleGenerateDualRange}
-                      className="px-4 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white transition shadow-xs cursor-pointer"
-                    >
-                      Generate POS Terminal &amp; Sound Box Serials
-                    </button>
                   </div>
                 </div>
               )}
