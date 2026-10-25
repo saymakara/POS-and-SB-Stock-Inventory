@@ -73,6 +73,7 @@ const AuditLogTab = lazyTab(() => import('./components/AuditLogTab').then((m) =>
 const SettingsTab = lazyTab(() => import('./components/SettingsTab').then((m) => ({ default: m.SettingsTab })));
 const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
+const PushConfiguringTab = lazyTab(() => import('./components/PushConfiguringTab').then((m) => ({ default: m.PushConfiguringTab })));
 
 import { SendHorizontal, Lock } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
@@ -3111,6 +3112,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         pendingReqs={pendingReqsCount}
         totalBranches={branches.length}
         totalUsers={users.length}
+        configuringCount={pipelineCounts.config}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
         mobileOpen={mobileDrawerOpen}
@@ -3433,6 +3435,33 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                         setFulfillingRequisition(null);
                         setStagedFulfillmentItems(null);
                       }}
+                    />
+                  )}
+
+                  {shownTab === 'push_configuring' && (
+                    <PushConfiguringTab
+                      devices={scopedDevices}
+                      branches={branches}
+                      role={role}
+                      operatorLabel={operatorLabel || profile?.name || 'System Admin'}
+                      onNotifyConfigReady={handleNotifyConfigReady}
+                      onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
+                      onCompleteDeployment={(sn) => {
+                        const dev = devices.find((d) => d.serial === sn);
+                        if (dev) {
+                          handleSaveWorkflow(sn, {
+                            stage: 'COMPLETE',
+                            branchId: dev.branchId,
+                            staff: dev.staff || operatorLabel || 'Staff',
+                            merchantName: dev.merchantName || '',
+                            mid: dev.mid || '',
+                            tid: dev.tid || '',
+                          });
+                          triggerToast(`Device ${sn} marked as Live Installed (Complete).`);
+                        }
+                      }}
+                      onReturnToReserve={(sn, bId, reason) => handleReturnToBranchReserve([sn], bId, reason)}
+                      theme={theme}
                     />
                   )}
 

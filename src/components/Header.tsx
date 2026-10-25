@@ -51,6 +51,7 @@ interface SidebarProps {
   pendingReqs: number;
   totalBranches?: number;
   totalUsers: number;
+  configuringCount?: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
   theme?: ThemeMode;
@@ -70,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   pendingReqs,
   totalBranches,
   totalUsers,
+  configuringCount = 0,
   collapsed,
   onToggleCollapse,
   mobileOpen = false,
@@ -120,6 +122,13 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'inventory',
           label: 'Stock Inventory',
           icon: Boxes,
+        },
+        {
+          id: 'push_configuring',
+          label: 'Push Configuring',
+          icon: SendHorizontal,
+          count: configuringCount > 0 ? configuringCount : undefined,
+          highlight: configuringCount > 0,
         },
         {
           id: 'requisitions',
