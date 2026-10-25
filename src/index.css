@@ -90,12 +90,17 @@
   background-color: #f3f4f6;
 }
 
-/* Executive Deep Carbon & Signature Navy Ambient Sidebar */
+/* Executive Charcoal Black Sidebar */
 .sb-sidebar-gradient {
-  background-color: #07080a;
-  background-image: linear-gradient(180deg, #0a0b0e 0%, #060709 50%, #030405 100%);
+  background-color: #121316;
+  background-image: linear-gradient(
+    180deg,
+    #1c1d22 0%,
+    #141519 50%,
+    #0c0d10 100%
+  );
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 4px 0 28px -4px rgba(0, 0, 0, 0.85);
+  box-shadow: 4px 0 24px -4px rgba(0, 0, 0, 0.65);
 }
 
 /* Glassmorphic Bar in Signature Navy Blue */

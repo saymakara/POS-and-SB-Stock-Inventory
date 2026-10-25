@@ -250,30 +250,30 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                           : 'px-3 justify-between py-2'
                       } rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-all duration-150 ease-out z-10 ${
                         isActive
-                          ? 'font-bold !text-zinc-950 !bg-white shadow-sm'
+                          ? 'font-medium text-white bg-white/12 border border-white/15 shadow-xs'
                           : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
                       }`}
                     >
-
+                      {/* Left vertical white indicator line */}
+                      {isActive && (
+                        <span
+                          aria-hidden
+                          className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90 shadow-2xs pointer-events-none"
+                        />
+                      )}
 
                       <div className="relative flex items-center gap-2.5 min-w-0">
                         <div
                           className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all duration-150 ${
                             isActive
-                              ? '!bg-zinc-100 !text-zinc-950 border border-zinc-200/50'
+                              ? 'bg-white/20 text-white shadow-xs border border-white/20'
                               : 'bg-white/[0.05] text-zinc-400 group-hover:text-zinc-100 group-hover:bg-white/[0.08] group-hover:border-white/10 border border-transparent'
                           }`}
                         >
-                          <Icon className={`w-3.5 h-3.5 transition-all ${
-                            isActive ? '!text-zinc-950' : ''
-                          }`} />
+                          <Icon className="w-3.5 h-3.5" />
                         </div>
                         {(isMobileView || !collapsed) && (
-                          <span className={`truncate transition-all ${
-                            isActive
-                              ? '!text-zinc-950 font-bold'
-                              : ''
-                          }`}>
+                          <span className={`truncate ${isActive ? 'text-white font-medium' : ''}`}>
                             {item.label}
                           </span>
                         )}
@@ -284,7 +284,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         <span
                           className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-all duration-150 ${
                             isActive
-                              ? '!bg-zinc-200 !text-zinc-950 font-bold border border-zinc-300/60'
+                              ? 'bg-white text-zinc-900 font-bold shadow-2xs'
                               : item.highlight
                               ? 'bg-white/15 text-white border border-white/20 font-medium'
                               : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white'
