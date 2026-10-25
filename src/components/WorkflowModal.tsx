@@ -285,10 +285,6 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     return allStaffOptions.map((s) => s.name);
   }, [allStaffOptions]);
 
-  const branchStaffList = useMemo(() => {
-    return allStaffOptions.filter((s) => s.isCurrentBranch);
-  }, [allStaffOptions]);
-
   if (!device) return null;
 
   const handleStageChange = (newStage: LifecycleStage) => {
@@ -1149,34 +1145,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
                 </div>
 
-                {/* Branch Staff Quick-Pick Chips */}
-                {branchStaffList.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Quick Pick:</span>
-                    {branchStaffList.map((st) => (
-                      <button
-                        key={st.name}
-                        type="button"
-                        onClick={() => setStaff(st.name)}
-                        className={`px-2 py-0.5 rounded-lg text-[10.5px] font-bold border transition cursor-pointer flex items-center gap-1 ${
-                          staff === st.name
-                            ? 'bg-[#003857] text-white border-[#003857] shadow-2xs'
-                            : isLight
-                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                            : 'bg-white/10 hover:bg-white/15 text-slate-200 border-white/10'
-                        }`}
-                        title={`Assign directly to ${st.name}`}
-                      >
-                        <span>{st.name}</span>
-                        {st.telegram && (
-                          <span className={`text-[9.5px] font-mono ${staff === st.name ? 'text-sky-200' : 'text-sky-600'}`}>
-                            @${st.telegram.replace(/^@/, '')}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
+
               </div>
 
               <div className="flex flex-col gap-1">
