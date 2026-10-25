@@ -250,39 +250,41 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                           : 'px-3 justify-between py-2'
                       } rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-all duration-150 ease-out z-10 ${
                         isActive
-                          ? 'font-semibold text-white bg-linear-to-r from-white/[0.14] via-white/[0.09] to-white/[0.04] border border-white/[0.18] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22),0_4px_14px_-2px_rgba(0,0,0,0.35)] backdrop-blur-md'
-                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
+                          ? 'font-semibold text-white bg-sky-950/30 border border-sky-400/60 shadow-[0_0_14px_-2px_rgba(56,189,248,0.25)]'
+                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.05] hover:border-white/10 border border-transparent'
                       }`}
                     >
-                      {/* Modern active indicator bar - pure CSS, zero layout flying glitch */}
-                      {isActive && (
-                        <span
-                          aria-hidden
-                          className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-linear-to-b from-sky-400 via-white to-sky-300 shadow-[0_0_8px_rgba(255,255,255,0.8),0_0_12px_rgba(56,189,248,0.6)] pointer-events-none"
-                        />
-                      )}
+
 
                       <div className="relative flex items-center gap-2.5 min-w-0">
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all duration-150 ${
                             isActive
-                              ? 'bg-linear-to-br from-white/25 to-white/10 text-white shadow-xs border border-white/30 scale-[1.02]'
+                              ? 'bg-sky-500/20 text-sky-300 border border-sky-400/40 shadow-xs'
                               : 'bg-white/[0.05] text-zinc-400 group-hover:text-zinc-100 group-hover:bg-white/[0.08] group-hover:border-white/10 border border-transparent'
                           }`}
                         >
-                          <Icon className="w-3.5 h-3.5" />
+                          <Icon className={`w-3.5 h-3.5 transition-all ${
+                            isActive ? 'text-sky-300 drop-shadow-[0_0_6px_rgba(56,189,248,0.6)]' : ''
+                          }`} />
                         </div>
                         {(isMobileView || !collapsed) && (
-                          <span className="truncate">{item.label}</span>
+                          <span className={`truncate transition-all ${
+                            isActive
+                              ? 'text-white font-semibold drop-shadow-[0_0_8px_rgba(56,189,248,0.65)]'
+                              : ''
+                          }`}>
+                            {item.label}
+                          </span>
                         )}
                       </div>
 
                       {/* Subtle Counter Badge (hidden when count is 0 or completely synced) */}
                       {(isMobileView || !collapsed) && item.count !== undefined && item.count > 0 && (
                         <span
-                          className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-colors ${
+                          className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-all duration-150 ${
                             isActive
-                              ? 'bg-white text-zinc-900 font-bold shadow-2xs'
+                              ? 'bg-sky-500/20 text-sky-200 border border-sky-400/40 font-bold shadow-xs'
                               : item.highlight
                               ? 'bg-white/15 text-white border border-white/20 font-medium'
                               : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white'
