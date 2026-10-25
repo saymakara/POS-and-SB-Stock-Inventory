@@ -25,6 +25,29 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   customLogoSubtitle: 'Branch Operations Portal',
   phoneReviewScope: 'PHNOM_PENH',
   logoPresetId: 'quantum-sound',
+  telegramRegionalGroups: [
+    {
+      id: 'rg-pp',
+      name: 'Phnom Penh Operations Team',
+      chatId: '-5428585935',
+      branchCodes: ['100', '101'],
+      description: 'Head Office & Toul Kork Hub',
+    },
+    {
+      id: 'rg-sr',
+      name: 'Siem Reap Regional Team',
+      chatId: '-5428585935',
+      branchCodes: ['102'],
+      description: 'Siem Reap & Northern Provinces',
+    },
+    {
+      id: 'rg-btb',
+      name: 'Battambang Regional Team',
+      chatId: '-5428585935',
+      branchCodes: ['103'],
+      description: 'Battambang & North-West Provinces',
+    },
+  ],
 };
 
 export const INITIAL_HISTORICAL_MERCHANTS: HistoricalMerchantRecord[] = [];

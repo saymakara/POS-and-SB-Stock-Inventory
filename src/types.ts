@@ -177,6 +177,7 @@ export interface Branch {
   name: string;
   staff: string[];
   staffDetails?: User[];
+  telegramChatId?: string;
 }
 
 export interface ArrangedDeviceItem {
@@ -317,6 +318,15 @@ export interface AppSettings {
   /** Phone App Review: which staff's records are shown — Phnom Penh only, or Phnom Penh and the provinces */
   phoneReviewScope?: 'PHNOM_PENH' | 'ALL';
   logoPresetId?: 'fintech-pulse' | 'apex-pos' | 'bank-shield' | 'quantum-sound';
+  telegramRegionalGroups?: TelegramRegionalGroup[];
+}
+
+export interface TelegramRegionalGroup {
+  id: string;
+  name: string;
+  chatId: string;
+  branchCodes: string[];
+  description?: string;
 }
 
 export type CustomFieldType = 'text' | 'number' | 'select' | 'date' | 'phone';

@@ -9,6 +9,7 @@ import {
   CustomFieldDefinition,
   CustomFieldType,
   DEFAULT_CUSTOM_FIELDS,
+  TelegramRegionalGroup,
 } from '../types';
 import { LogoPageTab } from './LogoPageTab';
 import {
@@ -16,6 +17,9 @@ import {
   saveTelegramWebhookConfig,
   sendDeviceConfigTelegramAlert,
   detectTelegramGroupChats,
+  getTelegramRegionalGroups,
+  saveTelegramRegionalGroups,
+  resolveTelegramChatForBranch,
 } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -50,6 +54,9 @@ import {
   EyeOff,
   HelpCircle,
   Copy,
+  Users,
+  Send,
+  Edit2,
 } from 'lucide-react';
 
 export type SettingsSubTab =
@@ -133,6 +140,18 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [tgDetectedChats, setTgDetectedChats] = useState<{ id: string; title: string; type: string }[]>([]);
   const [showBotToken, setShowBotToken] = useState(false);
   const [showBotFatherGuide, setShowBotFatherGuide] = useState(false);
+  const [regionalGroups, setRegionalGroups] = useState<TelegramRegionalGroup[]>(() => {
+    if (formState.telegramRegionalGroups && formState.telegramRegionalGroups.length > 0) {
+      return formState.telegramRegionalGroups;
+    }
+    return initialTg.regionalGroups || [];
+  });
+  const [isRegionalModalOpen, setIsRegionalModalOpen] = useState(false);
+  const [editingRegionalGroup, setEditingRegionalGroup] = useState<TelegramRegionalGroup | null>(null);
+  const [rgName, setRgName] = useState('');
+  const [rgChatId, setRgChatId] = useState('');
+  const [rgBranchCodes, setRgBranchCodes] = useState<string[]>([]);
+  const [rgTestingId, setRgTestingId] = useState<string | null>(null);
 
   // Custom Field Manager State
   const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
@@ -315,12 +334,16 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateSettings(formState);
+    onUpdateSettings({
+      ...formState,
+      telegramRegionalGroups: regionalGroups,
+    });
     saveTelegramWebhookConfig({
       botToken: tgBotToken,
       configChatId: tgConfigChatId,
       chatId: tgConfigChatId,
       webhookUrl: tgWebhookUrl,
+      regionalGroups,
     });
     setSavedSuccess(true);
     if (onToast) onToast('System settings and policy configuration saved.');
@@ -2199,11 +2222,306 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     {tgTesting ? 'Sending Test...' : 'Test "Under Configuring" Group Alert'}
                   </button>
                 </div>
+
+                {/* REGIONAL TELEGRAM GROUPS (SEPARATE PUSH PER REGIONAL TEAM) */}
+                <div className="pt-4 mt-4 border-t border-slate-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h5 className="text-xs font-extrabold uppercase tracking-wider text-[#003857] flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Regional Telegram Groups (Multi-Group Routing)</span>
+                      </h5>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Assign separate Telegram group chats for different regional teams (e.g. Phnom Penh, Siem Reap, Battambang). Daily high-volume app push alerts (~200 units) will automatically route only to each team&apos;s respective Telegram group!
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingRegionalGroup(null);
+                        setRgName('');
+                        setRgChatId(tgConfigChatId || '-5428585935');
+                        setRgBranchCodes([]);
+                        setIsRegionalModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Regional Group</span>
+                    </button>
+                  </div>
+
+                  {/* List of Configured Regional Groups */}
+                  <div className="space-y-2 mt-2">
+                    {regionalGroups.length === 0 ? (
+                      <div className="p-4 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-500 bg-slate-50/50">
+                        No regional groups configured yet. Alerts will route to your Default Staff Telegram Group ({tgConfigChatId || '-5428585935'}).
+                      </div>
+                    ) : (
+                      regionalGroups.map((rg) => {
+                        const assignedBranchNames = (branches || [])
+                          .filter((b) => rg.branchCodes.includes(b.code))
+                          .map((b) => `Code ${b.code} (${b.name})`);
+
+                        return (
+                          <div
+                            key={rg.id}
+                            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-zinc-900"
+                          >
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-zinc-900">{rg.name}</span>
+                                <span className="px-2 py-0.5 rounded-md font-mono text-[10.5px] font-bold bg-white border border-slate-200 text-slate-700">
+                                  {rg.chatId}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                  {rg.branchCodes.length} Branch(es)
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                                <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span>
+                                  {assignedBranchNames.length > 0
+                                    ? assignedBranchNames.join(' • ')
+                                    : 'No branches mapped yet (uses default chat)'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {/* Quick Test Alert Button for this specific Regional Group */}
+                              <button
+                                type="button"
+                                disabled={rgTestingId === rg.id}
+                                onClick={async () => {
+                                  setRgTestingId(rg.id);
+                                  const testBranch = rg.branchCodes[0] || '100';
+                                  const bObj = (branches || []).find((b) => b.code === testBranch);
+                                  const res = await sendDeviceConfigTelegramAlert({
+                                    serial: `SN-TEST-${rg.name.slice(0, 3).toUpperCase()}-01`,
+                                    type: 'POS Terminal',
+                                    model: 'PAX A920 Pro',
+                                    mid: '200000000088888',
+                                    tid: 'TID-REGIONAL',
+                                    merchantName: `Test Merchant (${rg.name})`,
+                                    branchId: testBranch,
+                                    branchName: bObj ? bObj.name : `Branch ${testBranch}`,
+                                    staff: `${rg.name} Officer`,
+                                    actor: 'System Admin',
+                                    targetChatId: rg.chatId,
+                                    targetGroupName: rg.name,
+                                  });
+                                  setRgTestingId(null);
+                                  if (onToast) {
+                                    if (res.ok) {
+                                      onToast(`Sent test alert directly to "${rg.name}" (${rg.chatId})! Check the Telegram group.`);
+                                    } else {
+                                      onToast(`Failed to ping ${rg.name}: ${res.error || 'Check Chat ID'}`);
+                                    }
+                                  }
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
+                                title={`Send a test notification to ${rg.name}`}
+                              >
+                                <Send className="w-3 h-3 text-[#003857]" />
+                                <span>{rgTestingId === rg.id ? 'Sending...' : 'Test Group'}</span>
+                              </button>
+
+                              {/* Edit Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingRegionalGroup(rg);
+                                  setRgName(rg.name);
+                                  setRgChatId(rg.chatId);
+                                  setRgBranchCodes([...rg.branchCodes]);
+                                  setIsRegionalModalOpen(true);
+                                }}
+                                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 cursor-pointer transition"
+                                title="Edit Regional Group"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Delete Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = regionalGroups.filter((x) => x.id !== rg.id);
+                                  setRegionalGroups(updated);
+                                  saveTelegramRegionalGroups(updated);
+                                  onUpdateSettings({ ...formState, telegramRegionalGroups: updated });
+                                  if (onToast) onToast(`Removed "${rg.name}"`);
+                                }}
+                                className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600 cursor-pointer transition"
+                                title="Delete Regional Group"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Modal to Add / Edit Regional Group */}
+      {isRegionalModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border p-6 shadow-2xl bg-white border-slate-200 text-slate-900 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2 text-[#003857]">
+                <Users className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-sm font-extrabold text-zinc-900">
+                  {editingRegionalGroup ? 'Edit Regional Telegram Group' : 'Add Regional Telegram Group'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRegionalModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                  Regional Team Name *
+                </label>
+                <input
+                  type="text"
+                  value={rgName}
+                  onChange={(e) => setRgName(e.target.value)}
+                  placeholder="e.g. Phnom Penh Team, Siem Reap Operations, Battambang..."
+                  className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-bold uppercase text-slate-600">
+                    Telegram Group Chat ID *
+                  </label>
+                  {tgConfigChatId && (
+                    <button
+                      type="button"
+                      onClick={() => setRgChatId(tgConfigChatId)}
+                      className="text-[10.5px] text-[#003857] hover:underline cursor-pointer"
+                    >
+                      Use default ID ({tgConfigChatId})
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={rgChatId}
+                  onChange={(e) => setRgChatId(e.target.value)}
+                  placeholder="e.g. -5428585935 or -100xxxxxxxxxx"
+                  className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                />
+                {tgDetectedChats.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] text-slate-400">Quick pick detected chat:</span>
+                    {tgDetectedChats.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setRgChatId(c.id)}
+                        className="px-2 py-0.5 rounded text-[10px] font-mono bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100 cursor-pointer"
+                      >
+                        {c.title} ({c.id})
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                  Assign Branches to this Regional Group
+                </label>
+                <p className="text-[10.5px] text-slate-500 mb-2">
+                  Devices configured for these branches will automatically send their push notification to this Telegram group.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 rounded-xl bg-slate-50 border border-slate-200">
+                  {(branches || []).map((b) => {
+                    const isChecked = rgBranchCodes.includes(b.code);
+                    return (
+                      <label
+                        key={b.code}
+                        className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition ${
+                          isChecked
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold'
+                            : 'bg-white border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setRgBranchCodes((prev) => [...prev, b.code]);
+                            } else {
+                              setRgBranchCodes((prev) => prev.filter((c) => c !== b.code));
+                            }
+                          }}
+                          className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+                        />
+                        <span className="truncate">
+                          Code <strong>{b.code}</strong> — {b.name}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsRegionalModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!rgName.trim() || !rgChatId.trim()}
+                onClick={() => {
+                  const newGroup: TelegramRegionalGroup = {
+                    id: editingRegionalGroup ? editingRegionalGroup.id : `rg-${Date.now()}`,
+                    name: rgName.trim(),
+                    chatId: rgChatId.trim(),
+                    branchCodes: rgBranchCodes,
+                  };
+                  const updated = editingRegionalGroup
+                    ? regionalGroups.map((x) => (x.id === editingRegionalGroup.id ? newGroup : x))
+                    : [...regionalGroups, newGroup];
+
+                  setRegionalGroups(updated);
+                  saveTelegramRegionalGroups(updated);
+                  onUpdateSettings({ ...formState, telegramRegionalGroups: updated });
+                  setIsRegionalModalOpen(false);
+                  if (onToast) onToast(`Saved Regional Telegram Group: "${newGroup.name}"`);
+                }}
+                className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold cursor-pointer disabled:opacity-40 shadow-xs"
+              >
+                {editingRegionalGroup ? 'Update Regional Group' : 'Add Regional Group'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reset Confirmation Dialog */}
       {isResetConfirmOpen && (

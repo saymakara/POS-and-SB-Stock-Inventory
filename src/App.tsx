@@ -2041,7 +2041,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
       triggerToast(
         res.ok
-          ? `Notification sent to ${staffTarget} & Telegram group alerted: Open ${dev.serial} to wait for app push!`
+          ? `Notification sent to ${staffTarget} & Telegram (${res.groupName || 'Group'}): Open ${dev.serial} to wait for app push!`
           : `In-app alert recorded for SN ${dev.serial}. (Telegram: ${res.error || 'Check settings'})`
       );
     } else {
@@ -2078,16 +2078,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           staff: d.staff || d.installedByStaff,
         })),
         adminOperator: operator,
+        regionalGroups: appSettings.telegramRegionalGroups,
+        branches: branches,
       });
 
       addAuditLog(
         'Bulk App Push Notification Sent',
-        `Assigned by ${operator}. Notified ${targets.length} device(s) ready for app push across ${byStaff.size} assigned team(s).`
+        `Assigned by ${operator}. Notified ${targets.length} device(s) ready for app push across ${byStaff.size} assigned team(s) and ${res.groupsSent} Telegram regional group(s).`
       );
 
       triggerToast(
         res.ok
-          ? `Sent batch App Push alert for ${targets.length} unit(s) across ${byStaff.size} team(s) to Telegram!`
+          ? `Sent batch App Push alert for ${targets.length} unit(s) across ${res.groupsSent} regional Telegram group(s)!`
           : `Sent in-app batch alert for ${targets.length} units. (Telegram: ${res.error || 'Check settings'})`
       );
     }
@@ -3446,6 +3448,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       operatorLabel={operatorLabel || profile?.name || 'System Admin'}
                       onNotifyConfigReady={handleNotifyConfigReady}
                       onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
+                      regionalGroups={appSettings.telegramRegionalGroups}
                       onCompleteDeployment={(sn) => {
                         const dev = devices.find((d) => d.serial === sn);
                         if (dev) {

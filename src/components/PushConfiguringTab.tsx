@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Device, Branch, UserRole, ThemeMode } from '../types';
+import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup } from '../types';
+import { resolveTelegramChatForBranch } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   SendHorizontal,
@@ -28,6 +29,7 @@ interface PushConfiguringTabProps {
   onSelectDevice?: (serial: string) => void;
   onCompleteDeployment?: (serial: string) => void;
   onReturnToReserve?: (serial: string, branchId: string, reason?: string) => void;
+  regionalGroups?: TelegramRegionalGroup[];
   theme?: ThemeMode;
 }
 
@@ -40,6 +42,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   onSelectDevice,
   onCompleteDeployment,
   onReturnToReserve,
+  regionalGroups,
   theme = 'light',
 }) => {
   const isLight = theme === 'light';
@@ -197,6 +200,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {teamGroups.map((tg) => {
               const teamSerials = tg.devices.map((d) => d.serial);
+              const teamChat = resolveTelegramChatForBranch(tg.branchId, regionalGroups, branches);
               return (
                 <div
                   key={`${tg.staff}__${tg.branchId}`}
@@ -218,7 +222,15 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                       </span>
                     </div>
 
-                    <div className="mt-3 text-[10.5px] text-slate-500 font-mono truncate">
+                    {/* Regional Telegram Group Routing Info */}
+                    <div className="flex items-center gap-1.5 text-[10.5px] text-sky-800 bg-sky-50 px-2 py-1 rounded-lg border border-sky-200 mt-2 font-mono">
+                      <Send className="w-3 h-3 text-sky-600 shrink-0" />
+                      <span className="truncate">
+                        Alert: <strong>{teamChat.groupName}</strong> ({teamChat.chatId})
+                      </span>
+                    </div>
+
+                    <div className="mt-2 text-[10.5px] text-slate-500 font-mono truncate">
                       Sample: {tg.devices.slice(0, 2).map((x) => x.serial).join(', ')}
                       {tg.devices.length > 2 && ` (+${tg.devices.length - 2} more)`}
                     </div>
@@ -231,7 +243,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                       className="w-full py-1.5 px-3 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
                     >
                       <Send className="w-3 h-3" />
-                      <span>Notify Team ({tg.devices.length})</span>
+                      <span>Notify Team &amp; Group ({tg.devices.length})</span>
                     </button>
                   )}
                 </div>
@@ -408,6 +420,10 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                       <td className="py-3 px-4">
                         <div className="text-zinc-800 font-medium">Code {dev.branchId}</div>
                         <div className="text-[11px] text-slate-500 truncate max-w-[140px]">{bName}</div>
+                        <div className="text-[10px] text-sky-700 font-semibold flex items-center gap-1 mt-0.5">
+                          <Send className="w-2.5 h-2.5 text-sky-600 shrink-0" />
+                          <span className="truncate max-w-[140px]">{resolveTelegramChatForBranch(dev.branchId, regionalGroups, branches).groupName}</span>
+                        </div>
                       </td>
 
                       {/* Row Actions */}
