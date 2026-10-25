@@ -1,5 +1,6 @@
 import { csvFile } from '../utils/csv';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
 import { normalizeStaffName } from '../utils/staffUtils';
@@ -137,6 +138,15 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   const [showPusherPassword, setShowPusherPassword] = useState(false);
   const [pusherPasswordError, setPusherPasswordError] = useState('');
   const [isVerifyingPusher, setIsVerifyingPusher] = useState(false);
+
+  // Guarantee PIN is always reset and not remembered whenever modal opens
+  useEffect(() => {
+    if (isPushAllModalOpen) {
+      setPusherPassword('');
+      setPusherPasswordError('');
+      setShowPusherPassword(false);
+    }
+  }, [isPushAllModalOpen]);
 
   // 5. Filtered devices in view
   const filteredDevices = useMemo(() => {
@@ -433,18 +443,42 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     }
   };
 
-  // Password verification for Push to All
+  // PIN / Password verification for Push to All
   const handleConfirmPushAllWithPassword = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setPusherPasswordError('');
     const entered = pusherPassword.trim();
     if (!entered) {
-      setPusherPasswordError('Please enter your password to authorize push to all.');
+      setPusherPasswordError('Please enter your PIN or password to authorize push to all.');
       return;
     }
 
     setIsVerifyingPusher(true);
     try {
+      // 1. Check operator PIN / Employee ID / fallback PIN first (instant verification)
+      const empIdMatch = operatorLabel.match(/\((\d+)\)/);
+      const empId = empIdMatch ? empIdMatch[1] : '';
+
+      const matchingUser = (users || []).find((u) => {
+        const uEmp = (u.empId || '').toLowerCase().trim();
+        const uName = (u.name || '').toLowerCase().trim();
+        const opLower = operatorLabel.toLowerCase().trim();
+        return (empId && uEmp === empId.toLowerCase()) || opLower.includes(uName) || opLower.includes(uEmp);
+      });
+
+      const validPins = [
+        empId,
+        matchingUser?.empId,
+        '1234',
+        matchingUser?.password,
+      ].filter(Boolean);
+
+      if (validPins.some((vp) => entered === vp)) {
+        executePushAll();
+        return;
+      }
+
+      // 2. If Supabase is connected, also allow verification via account password
       if (isSupabaseConfigured) {
         const { data: authData } = await supabase.auth.getUser();
         const email = authData?.user?.email;
@@ -460,29 +494,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         }
       }
 
-      // Offline / Local fallback verification
-      const empIdMatch = operatorLabel.match(/\((\d+)\)/);
-      const empId = empIdMatch ? empIdMatch[1] : '';
-
-      const matchingUser = (users || []).find((u) => {
-        const uEmp = (u.empId || '').toLowerCase().trim();
-        const uName = (u.name || '').toLowerCase().trim();
-        const opLower = operatorLabel.toLowerCase().trim();
-        return (empId && uEmp === empId.toLowerCase()) || opLower.includes(uName) || opLower.includes(uEmp);
-      });
-
-      const validPasswords = [
-        matchingUser?.password,
-        matchingUser?.empId,
-        empId,
-        '1234',
-      ].filter(Boolean);
-
-      if (validPasswords.some((vp) => entered === vp)) {
-        executePushAll();
-      } else {
-        setPusherPasswordError('Incorrect password. Authorization failed.');
-      }
+      setPusherPasswordError(`Incorrect PIN or password. Enter your Employee ID (${empId || '8986'}) or security PIN.`);
     } catch (err: any) {
       setPusherPasswordError(err?.message || 'Verification failed. Please try again.');
     } finally {
@@ -1310,172 +1322,217 @@ return (
         )}
       </AnimatePresence>
 
-      {/* 6. PUSH TO ALL PASSWORD VERIFICATION MODAL (Follows Standard Popup Consistency) */}
-      <AnimatePresence>
-        {isPushAllModalOpen && (
-          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 14 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 350, mass: 0.75 }}
-              className={`w-full max-w-lg rounded-3xl border-0 shadow-2xl overflow-hidden my-8 transform-gpu will-change-gpu gpu-modal-container ${
-                isLight ? 'bg-white text-slate-800' : 'bg-[#11141e] text-white'
-              }`}
-            >
-              {/* Standard Signature Navy Header Bar */}
-              <div className="px-6 py-4.5 bg-[#002f49] rounded-t-3xl text-white flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-sky-300 shadow-xs">
-                    <Lock className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
-                      <span>Pusher Security Authorization</span>
-                    </h3>
-                    <p className="text-xs text-slate-300 font-mono mt-0.5">
-                      Password required before pushing to all units
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsPushAllModalOpen(false)}
-                  aria-label="Close"
-                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+      {/* 6. PUSH TO ALL PASSWORD/PIN VERIFICATION MODAL (Portaled with blur backdrop matching WorkflowModal) */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {isPushAllModalOpen && (
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+                {/* Backdrop with true background blur covering entire viewport */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => {
+                    setIsPushAllModalOpen(false);
+                    setPusherPassword('');
+                    setPusherPasswordError('');
+                  }}
+                  className="fixed inset-0 bg-slate-950/75 backdrop-blur-md"
+                />
+
+                {/* Modal Container in the exact style of WorkflowModal */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 14 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 12 }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  className={`relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden my-auto z-10 border border-slate-200/80 dark:border-slate-800 flex flex-col ${
+                    isLight ? 'bg-white text-slate-800' : 'bg-[#12151e] text-slate-100'
+                  }`}
                 >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Standard Stepper & Safeguard Status Bar */}
-              <div className={`px-6 py-2.5 border-b flex items-center justify-between text-xs ${
-                isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'
-              }`}>
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded-full bg-[#004953] text-white flex items-center justify-center text-[10px] font-black">
-                    1
-                  </span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200">
-                    Security Authorization
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
-                  <span>Double-Step Safeguard Active</span>
-                </div>
-              </div>
-
-              {/* Modal Body Form */}
-              <form onSubmit={handleConfirmPushAllWithPassword} className="p-6 flex flex-col gap-4 text-xs">
-                {/* Warning Impact Banner */}
-                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                  <div>
-                    <div className="font-extrabold text-[11.5px] uppercase tracking-wide">High-Impact Broadcast Safeguard</div>
-                    <p className="text-[11px] opacity-90 mt-0.5 leading-relaxed">
-                      You are about to send Telegram configuration alerts for <strong>{configuringDevices.length} device{configuringDevices.length === 1 ? '' : 's'}</strong> across <strong>{teamGroups.length} branch team{teamGroups.length === 1 ? '' : 's'}</strong>.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Pusher Identity Box */}
-                <div className={`p-3.5 rounded-2xl border ${
-                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#181c26] border-slate-700/80'
-                }`}>
-                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-                    <span className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
-                      <span>Active Pusher Operator</span>
-                    </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-extrabold bg-[#003857]/10 text-[#003857] dark:bg-sky-500/20 dark:text-sky-300 border border-[#003857]/20">
-                      Authorized Admin
-                    </span>
-                  </div>
-                  <div className="text-xs font-bold text-slate-900 dark:text-white">
-                    {operatorLabel}
-                  </div>
-                </div>
-
-                {/* Password Input Field */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-                    <span className="flex items-center gap-1.5">
-                      <KeyRound className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
-                      <span>Enter Pusher Password to Confirm *</span>
-                    </span>
-                    <span className="text-[10px] text-slate-400">Identity verification</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPusherPassword ? 'text' : 'password'}
-                      autoFocus
-                      value={pusherPassword}
-                      onChange={(e) => {
-                        setPusherPassword(e.target.value);
-                        if (pusherPasswordError) setPusherPasswordError('');
-                      }}
-                      placeholder="Enter your login password..."
-                      className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono border outline-none transition ${
-                        pusherPasswordError
-                          ? 'border-rose-500 focus:border-rose-500 bg-rose-50/40 text-rose-900 dark:text-rose-200'
-                          : isLight
-                          ? 'border-slate-200 bg-slate-50/70 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#003857]/20 focus:border-[#003857]'
-                          : 'border-slate-700 bg-[#181c26] text-white focus:border-sky-400'
-                      }`}
-                    />
+                  {/* Signature Navy Header Bar matching WorkflowModal */}
+                  <div className="navy-header-bar rounded-t-2xl px-5 py-3.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-xs text-white">
+                        <Lock className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2">
+                          <span>Pusher Security Authorization</span>
+                        </h3>
+                        <p className="text-[11px] text-white/75 font-mono mt-0.5">
+                          PIN or password required before pushing to all units
+                        </p>
+                      </div>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setShowPusherPassword(!showPusherPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
-                      aria-label={showPusherPassword ? 'Hide password' : 'Show password'}
+                      onClick={() => {
+                        setIsPushAllModalOpen(false);
+                        setPusherPassword('');
+                        setPusherPasswordError('');
+                      }}
+                      aria-label="Close"
+                      className="p-1.5 rounded-xl text-white/75 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0 ml-2"
                     >
-                      {showPusherPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
-                  {pusherPasswordError && (
-                    <div className="text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{pusherPasswordError}</span>
-                    </div>
-                  )}
-                </div>
 
-                {/* Standard Full-Width Footer Action Strip */}
-                <div className={`px-6 py-4 -mx-6 -mb-6 mt-2 flex items-center justify-between text-xs border-t ${
-                  isLight ? 'bg-slate-50 border-slate-200/90' : 'bg-[#0e111a] border-slate-800'
-                }`}>
-                  <button
-                    type="button"
-                    onClick={() => setIsPushAllModalOpen(false)}
-                    className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                      isLight
-                        ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
-                        : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
+                  {/* Stepper Progress Bar (Double-Step Flow) */}
+                  <div
+                    className={`px-5 py-2.5 border-b flex items-center justify-between text-xs ${
+                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#151924] border-slate-800'
                     }`}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isVerifyingPusher || !pusherPassword.trim()}
-                    className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-md active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10"
-                  >
-                    {isVerifyingPusher ? (
-                      <span>Verifying...</span>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4 text-sky-400" />
-                        <span>Authorize &amp; Push All ({configuringDevices.length})</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full bg-[#004953] text-white flex items-center justify-center text-[10px] font-black">
+                        1
+                      </span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200">
+                        Security Authorization
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
+                      <span>Double-Step Safeguard Active</span>
+                    </div>
+                  </div>
+
+                  {/* Form Body */}
+                  <form onSubmit={handleConfirmPushAllWithPassword} className="p-5 flex flex-col gap-3.5 text-xs">
+                    {/* Warning Impact Banner */}
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-extrabold text-[11.5px] uppercase tracking-wide">High-Impact Broadcast Safeguard</div>
+                        <p className="text-[11px] opacity-90 mt-0.5 leading-relaxed">
+                          You are about to send Telegram configuration alerts for <strong>{configuringDevices.length} device{configuringDevices.length === 1 ? '' : 's'}</strong> across <strong>{teamGroups.length} branch team{teamGroups.length === 1 ? '' : 's'}</strong>.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Pusher Identity Box */}
+                    <div
+                      className={`p-3 rounded-xl border ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#181c26] border-slate-700/80'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                        <span className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
+                          <span>Active Pusher Operator</span>
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-extrabold bg-[#003857]/10 text-[#003857] dark:bg-sky-500/20 dark:text-sky-300 border border-[#003857]/20">
+                          Authorized Admin
+                        </span>
+                      </div>
+                      <div className="text-xs font-bold text-slate-900 dark:text-white">
+                        {operatorLabel}
+                      </div>
+                    </div>
+
+                    {/* PIN Input Field */}
+                    <div className="flex flex-col gap-1.5">
+                      <label
+                        htmlFor="pusher_auth_pin_input"
+                        className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <KeyRound className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
+                          <span>Enter Pusher PIN to Confirm *</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400">Employee ID or Security PIN</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="pusher_auth_pin_input"
+                          name="pusher_security_pin_field"
+                          type={showPusherPassword ? 'text' : 'password'}
+                          autoComplete="new-password"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck={false}
+                          data-form-type="other"
+                          data-lpignore="true"
+                          data-1p-ignore="true"
+                          data-bwignore="true"
+                          autoFocus
+                          value={pusherPassword}
+                          onChange={(e) => {
+                            setPusherPassword(e.target.value);
+                            if (pusherPasswordError) setPusherPasswordError('');
+                          }}
+                          placeholder="Enter your PIN (e.g. Employee ID)..."
+                          className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono border outline-none transition ${
+                            pusherPasswordError
+                              ? 'border-rose-500 focus:border-rose-500 bg-rose-50/40 text-rose-900 dark:text-rose-200'
+                              : isLight
+                              ? 'border-slate-200 bg-slate-50/70 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#003857]/20 focus:border-[#003857]'
+                              : 'border-slate-700 bg-[#181c26] text-white focus:border-sky-400'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPusherPassword(!showPusherPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
+                          aria-label={showPusherPassword ? 'Hide PIN' : 'Show PIN'}
+                        >
+                          {showPusherPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {pusherPasswordError && (
+                        <div className="text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{pusherPasswordError}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer Actions Strip matching WorkflowModal */}
+                    <div
+                      className={`px-5 py-3.5 -mx-5 -mb-5 mt-2 flex items-center justify-between text-xs border-t ${
+                        isLight ? 'bg-slate-50 border-slate-200/90' : 'bg-[#0f121a] border-slate-800'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsPushAllModalOpen(false);
+                          setPusherPassword('');
+                          setPusherPasswordError('');
+                        }}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                          isLight
+                            ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                            : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isVerifyingPusher || !pusherPassword.trim()}
+                        className="px-4 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-sm active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10"
+                      >
+                        {isVerifyingPusher ? (
+                          <span>Verifying...</span>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-4 h-4 text-sky-400" />
+                            <span>Authorize &amp; Push All ({configuringDevices.length})</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </div>
   );
 });
