@@ -13,7 +13,7 @@ import {
   MapPin,
   Users,
   Search,
-  Plus,
+
   Edit3,
   AlertTriangle,
   ArrowUpRight,
@@ -37,7 +37,7 @@ interface BranchesTabProps {
   role: UserRole;
   theme?: ThemeMode;
   onSelectBranchFilter: (branchCode: string) => void;
-  onOpenNewBranchModal: () => void;
+  onOpenNewBranchModal?: () => void;
   onOpenEditBranchModal: (branch: Branch) => void;
   onSelectDevice?: (serial: string) => void;
 }
@@ -48,7 +48,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
   users,
   role,
   onSelectBranchFilter,
-  onOpenNewBranchModal,
+  onOpenNewBranchModal: _onOpenNewBranchModal,
   onOpenEditBranchModal,
   onSelectDevice,
 }) => {
@@ -126,7 +126,13 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
       const b = branches[i];
       const acc = bMap.get(b.code);
       const res = acc ? acc.reserveCount : 0;
-      const sCount = users.filter((u) => u.branchId === b.code).length || (b.staff || []).length;
+      const staffFromDir = users.filter(
+        (u) =>
+          (String(u.branchId).trim() === String(b.code).trim() ||
+           String(u.branchId).trim() === String(b.id).trim()) &&
+          u.status !== 'Suspended'
+      );
+      const sCount = staffFromDir.length || (b.staff || []).length;
       totalStaff += sCount;
       if (b.code !== '100' && res < 1) lowReserveCount++;
     }
@@ -159,7 +165,12 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
           totalDevices: 0,
           sampleDevices: [],
         };
-        const staffList = users.filter((u) => u.branchId === b.code);
+        const staffList = users.filter(
+          (u) =>
+            (String(u.branchId).trim() === String(b.code).trim() ||
+             String(u.branchId).trim() === String(b.id).trim()) &&
+            u.status !== 'Suspended'
+        );
         const lowReserve = b.code !== '100' && acc.reserveCount < 1;
 
         return {
@@ -188,7 +199,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         return (
           b.code.toLowerCase().includes(q) ||
           b.name.toLowerCase().includes(q) ||
-          (b.staff && b.staff.some((s) => s.toLowerCase().includes(q)))
+          (b.staff && b.staff.some((s) => s.toLowerCase().includes(q))) ||
+          b.staffList.some((u) => u.name.toLowerCase().includes(q) || (u.empId && u.empId.toLowerCase().includes(q)))
         );
       });
   }, [branches, branchDataMap, users, searchQuery, statusFilter]);
@@ -435,30 +447,16 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               </button>
             </div>
 
-            {/* Action Buttons: Export CSV & Add Branch */}
-            <div className="inline-flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleExportCsv}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs shrink-0"
-                title="Export Branch Codes Table to CSV"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Export CSV</span>
-              </button>
-
-              {isAdminLike && (
-                <button
-                  type="button"
-                  onClick={onOpenNewBranchModal}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs shrink-0"
-                  title="Register new branch code"
-                >
-                  <Plus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Add Branch</span>
-                </button>
-              )}
-            </div>
+            {/* CSV Export */}
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs shrink-0"
+              title="Export Branch Codes Table to CSV"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Export CSV</span>
+            </button>
           </div>
         </div>
 
