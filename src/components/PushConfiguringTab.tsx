@@ -836,29 +836,30 @@ return (
                   setPusherPasswordError('');
                   setIsPushAllModalOpen(true);
                 }}
-                className="group relative inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#005587] via-[#006ca7] to-[#0284c7] hover:from-[#00629b] hover:via-[#0284c7] hover:to-[#0396e6] text-white font-extrabold text-xs sm:text-sm shadow-md hover:shadow-xl hover:shadow-sky-500/25 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border border-white/20 hover:border-white/35"
+                className="group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-[#003857] font-bold text-xs sm:text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border border-white/90"
                 title="Push alerts to all devices (Requires Pusher Password verification)"
               >
-                <div className="w-7 h-7 rounded-xl bg-black/20 border border-white/15 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform duration-150">
-                  <Lock className="w-3.5 h-3.5 text-sky-200" />
-                </div>
-                <span className="tracking-tight font-extrabold">
+                <Lock className="w-4 h-4 text-[#003857] shrink-0 group-hover:scale-110 transition-transform duration-150" />
+                <span className="tracking-tight font-bold">
                   {waitingDevices.length === 0 && configuringDevices.length > 0
                     ? 'Re-push All'
                     : 'Notify All Ready'}
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-black bg-white/15 text-white border border-white/20 shadow-xs">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-[#003857]/8 text-[#003857] border border-[#003857]/15">
                   {waitingDevices.length > 0 ? (
                     <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       <span>
                         {waitingDevices.length} {waitingDevices.length === 1 ? 'Waiting' : 'Waiting'}
                       </span>
                     </>
                   ) : (
-                    <span>
-                      {configuringDevices.length} {configuringDevices.length === 1 ? 'Unit (Pushed)' : 'Units (Pushed)'}
-                    </span>
+                    <>
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <span>
+                        {configuringDevices.length} {configuringDevices.length === 1 ? 'Unit (Pushed)' : 'Units (Pushed)'}
+                      </span>
+                    </>
                   )}
                 </span>
               </button>
