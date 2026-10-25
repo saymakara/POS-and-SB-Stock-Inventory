@@ -136,19 +136,55 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
   // Dynamic Custom Fields State
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
-  // Telegram notification double-click safeguard
+  // Telegram notification double-click safeguard (1-min confirmation window & 1-min cooldown)
   const [confirmingNotify, setConfirmingNotify] = useState(false);
+  const [notifyCooldownExpires, setNotifyCooldownExpires] = useState<number>(0);
   const notifyTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const notifyExpiresRef = useRef<number>(0);
+  const [modalTickerNow, setModalTickerNow] = useState<number>(Date.now());
+
+  useEffect(() => {
+    const isConfirming = confirmingNotify;
+    const isCooling = notifyCooldownExpires > modalTickerNow;
+    if (!isConfirming && !isCooling) return;
+
+    const interval = setInterval(() => {
+      setModalTickerNow(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [confirmingNotify, notifyCooldownExpires, modalTickerNow]);
+
+  useEffect(() => {
+    return () => {
+      if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+    };
+  }, []);
+
+  const notifyConfirmSecs = confirmingNotify
+    ? Math.max(1, Math.ceil((notifyExpiresRef.current - modalTickerNow) / 1000))
+    : 0;
+  const notifyCooldownSecs = notifyCooldownExpires > modalTickerNow
+    ? Math.max(1, Math.ceil((notifyCooldownExpires - modalTickerNow) / 1000))
+    : 0;
 
   const handleNotifyWith2Clicks = () => {
+    if (notifyCooldownSecs > 0) return;
+
     if (confirmingNotify) {
       if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
       setConfirmingNotify(false);
+      notifyExpiresRef.current = 0;
+      setNotifyCooldownExpires(Date.now() + 60000);
       if (device) onNotifyConfigReady?.(device.serial);
     } else {
       setConfirmingNotify(true);
+      notifyExpiresRef.current = Date.now() + 60000;
       if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
-      notifyTimerRef.current = setTimeout(() => setConfirmingNotify(false), 4000);
+      notifyTimerRef.current = setTimeout(() => {
+        setConfirmingNotify(false);
+        notifyExpiresRef.current = 0;
+      }, 60000);
     }
   };
 
@@ -832,28 +868,44 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     )}
 
                     {isAdminLike && stage === 'CONFIGURING' && onNotifyConfigReady && (
-                      <button
-                        type="button"
-                        onClick={handleNotifyWith2Clicks}
-                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-[0.97] ${
-                          confirmingNotify
-                            ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-400 animate-pulse shadow-sm'
-                            : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-xs'
-                        }`}
-                        title={confirmingNotify ? 'Click 2nd time to confirm Telegram notification' : 'Click once, then click 2nd time to send Telegram alert'}
-                      >
-                        {confirmingNotify ? (
-                          <>
-                            <AlertCircle className="w-3.5 h-3.5 text-amber-200" />
-                            <span>Click 2nd Time to Confirm Push</span>
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-3.5 h-3.5" />
-                            <span>Notify Staff &amp; Alert Telegram (Open Device for App Push)</span>
-                          </>
-                        )}
-                      </button>
+                      notifyCooldownSecs > 0 ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90"
+                          title={`Telegram alert sent! 1-minute cooldown active (${notifyCooldownSecs}s remaining)`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Pushed · {notifyCooldownSecs}s</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleNotifyWith2Clicks}
+                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-[0.97] ${
+                            confirmingNotify
+                              ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-400 animate-pulse shadow-sm'
+                              : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-xs'
+                          }`}
+                          title={
+                            confirmingNotify
+                              ? `Click 2nd time to confirm Telegram notification (${notifyConfirmSecs}s window)`
+                              : 'Click once, then click 2nd time within 1 minute to send Telegram alert'
+                          }
+                        >
+                          {confirmingNotify ? (
+                            <>
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-200" />
+                              <span>Click 2nd Time to Confirm Push ({notifyConfirmSecs}s)</span>
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Notify Staff &amp; Alert Telegram (Open Device for App Push)</span>
+                            </>
+                          )}
+                        </button>
+                      )
                     )}
 
                   </div>

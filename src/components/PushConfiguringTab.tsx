@@ -1,5 +1,5 @@
 import { csvFile } from '../utils/csv';
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
 import { normalizeStaffName } from '../utils/staffUtils';
@@ -24,6 +24,7 @@ import {
   KeyRound,
   User,
   FileSpreadsheet,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface PushConfiguringTabProps {
@@ -69,14 +70,64 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [selectedSns, setSelectedSns] = useState<string[]>([]);
 
-  // 3. Double-click confirmation state for Telegram push
+  // 3. Double-click confirmation & 1-minute cooldown state for Telegram push
+  // User has up to 1 minute (60s) to execute the 2nd confirmation click, and after pushing, a 1-minute cooldown prevents spam
+  const CONFIRM_TIMEOUT_MS = 60000;
+  const COOLDOWN_TIMEOUT_MS = 60000;
+
   const [confirmingRowSerial, setConfirmingRowSerial] = useState<string | null>(null);
   const [confirmingTeamKey, setConfirmingTeamKey] = useState<string | null>(null);
   const [confirmingBatch, setConfirmingBatch] = useState(false);
+  const [pushedCooldowns, setPushedCooldowns] = useState<Record<string, number>>({});
+  const [tickerNow, setTickerNow] = useState<number>(Date.now());
 
   const rowTimerRef = useRef<NodeJS.Timeout | null>(null);
   const teamTimerRef = useRef<NodeJS.Timeout | null>(null);
   const batchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const rowConfirmExpiresRef = useRef<number>(0);
+  const teamConfirmExpiresRef = useRef<number>(0);
+  const batchConfirmExpiresRef = useRef<number>(0);
+
+  // Ticker for live 1-minute confirmation countdown and 1-minute cooldown timers
+  useEffect(() => {
+    const hasActiveTimer =
+      confirmingRowSerial !== null ||
+      confirmingTeamKey !== null ||
+      confirmingBatch ||
+      Object.keys(pushedCooldowns).length > 0;
+
+    if (!hasActiveTimer) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setTickerNow(now);
+
+      // Automatically prune expired cooldown entries
+      setPushedCooldowns((prev) => {
+        let changed = false;
+        const next: Record<string, number> = {};
+        for (const [k, v] of Object.entries(prev)) {
+          if (v > now) {
+            next[k] = v;
+          } else {
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [confirmingRowSerial, confirmingTeamKey, confirmingBatch, pushedCooldowns]);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (rowTimerRef.current) clearTimeout(rowTimerRef.current);
+      if (teamTimerRef.current) clearTimeout(teamTimerRef.current);
+      if (batchTimerRef.current) clearTimeout(batchTimerRef.current);
+    };
+  }, []);
 
   // 4. Push to All Password Verification Modal State
   const [isPushAllModalOpen, setIsPushAllModalOpen] = useState(false);
@@ -160,47 +211,129 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     );
   };
 
-  // Double-click handlers for Telegram pushes
+  // Countdown & Cooldown Seconds Helpers
+  const getRowConfirmSecs = (serial: string): number => {
+    if (confirmingRowSerial !== serial) return 0;
+    return Math.max(1, Math.ceil((rowConfirmExpiresRef.current - tickerNow) / 1000));
+  };
+
+  const getRowCooldownSecs = (serial: string): number => {
+    const exp = pushedCooldowns[`sn_${serial}`];
+    if (!exp || exp <= tickerNow) return 0;
+    return Math.max(1, Math.ceil((exp - tickerNow) / 1000));
+  };
+
+  const getTeamConfirmSecs = (teamKey: string): number => {
+    if (confirmingTeamKey !== teamKey) return 0;
+    return Math.max(1, Math.ceil((teamConfirmExpiresRef.current - tickerNow) / 1000));
+  };
+
+  const getTeamCooldownSecs = (teamKey: string): number => {
+    const exp = pushedCooldowns[`team_${teamKey}`];
+    if (!exp || exp <= tickerNow) return 0;
+    return Math.max(1, Math.ceil((exp - tickerNow) / 1000));
+  };
+
+  const getBatchConfirmSecs = (): number => {
+    if (!confirmingBatch) return 0;
+    return Math.max(1, Math.ceil((batchConfirmExpiresRef.current - tickerNow) / 1000));
+  };
+
+  const getBatchCooldownSecs = (): number => {
+    const exp = pushedCooldowns['batch'];
+    if (!exp || exp <= tickerNow) return 0;
+    return Math.max(1, Math.ceil((exp - tickerNow) / 1000));
+  };
+
+  // Double-click handlers for Telegram pushes (1-min confirmation window & 1-min cooldown)
   const handleRowPushClick = (serial: string) => {
+    if (getRowCooldownSecs(serial) > 0) return;
+
     if (confirmingRowSerial === serial) {
       // 2nd click confirmed: execute push
       if (rowTimerRef.current) clearTimeout(rowTimerRef.current);
       setConfirmingRowSerial(null);
+      rowConfirmExpiresRef.current = 0;
+
+      // 1-minute cooldown before another push
+      const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
+      setPushedCooldowns((prev) => ({ ...prev, [`sn_${serial}`]: cooldownExp }));
+
       onNotifyConfigReady?.(serial);
     } else {
-      // 1st click: prime confirmation state with 4s timeout
+      // 1st click: prime confirmation state with 1-minute window
       setConfirmingRowSerial(serial);
+      rowConfirmExpiresRef.current = Date.now() + CONFIRM_TIMEOUT_MS;
       if (rowTimerRef.current) clearTimeout(rowTimerRef.current);
-      rowTimerRef.current = setTimeout(() => setConfirmingRowSerial(null), 4000);
+      rowTimerRef.current = setTimeout(() => {
+        setConfirmingRowSerial(null);
+        rowConfirmExpiresRef.current = 0;
+      }, CONFIRM_TIMEOUT_MS);
     }
   };
 
   const handleTeamPushClick = (key: string, serials: string[]) => {
+    if (getTeamCooldownSecs(key) > 0) return;
+
     if (confirmingTeamKey === key) {
       // 2nd click confirmed: execute push
       if (teamTimerRef.current) clearTimeout(teamTimerRef.current);
       setConfirmingTeamKey(null);
+      teamConfirmExpiresRef.current = 0;
+
+      // 1-minute cooldown for this team and all devices in it
+      const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
+      setPushedCooldowns((prev) => {
+        const next: Record<string, number> = { ...prev, [`team_${key}`]: cooldownExp };
+        serials.forEach((sn) => {
+          next[`sn_${sn}`] = cooldownExp;
+        });
+        return next;
+      });
+
       onNotifyConfigReady?.(serials);
     } else {
-      // 1st click: prime confirmation state with 4s timeout
+      // 1st click: prime confirmation state with 1-minute window
       setConfirmingTeamKey(key);
+      teamConfirmExpiresRef.current = Date.now() + CONFIRM_TIMEOUT_MS;
       if (teamTimerRef.current) clearTimeout(teamTimerRef.current);
-      teamTimerRef.current = setTimeout(() => setConfirmingTeamKey(null), 4000);
+      teamTimerRef.current = setTimeout(() => {
+        setConfirmingTeamKey(null);
+        teamConfirmExpiresRef.current = 0;
+      }, CONFIRM_TIMEOUT_MS);
     }
   };
 
   const handleBatchPushClick = () => {
+    if (getBatchCooldownSecs() > 0) return;
+
     if (confirmingBatch) {
       // 2nd click confirmed: execute push
       if (batchTimerRef.current) clearTimeout(batchTimerRef.current);
       setConfirmingBatch(false);
+      batchConfirmExpiresRef.current = 0;
+
+      // 1-minute cooldown for batch and selected devices
+      const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
+      setPushedCooldowns((prev) => {
+        const next: Record<string, number> = { ...prev, batch: cooldownExp };
+        selectedSns.forEach((sn) => {
+          next[`sn_${sn}`] = cooldownExp;
+        });
+        return next;
+      });
+
       onNotifyConfigReady?.(selectedSns);
       setSelectedSns([]);
     } else {
-      // 1st click: prime confirmation state with 4s timeout
+      // 1st click: prime confirmation state with 1-minute window
       setConfirmingBatch(true);
+      batchConfirmExpiresRef.current = Date.now() + CONFIRM_TIMEOUT_MS;
       if (batchTimerRef.current) clearTimeout(batchTimerRef.current);
-      batchTimerRef.current = setTimeout(() => setConfirmingBatch(false), 4000);
+      batchTimerRef.current = setTimeout(() => {
+        setConfirmingBatch(false);
+        batchConfirmExpiresRef.current = 0;
+      }, CONFIRM_TIMEOUT_MS);
     }
   };
 
@@ -266,6 +399,14 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     setPusherPassword('');
     setPusherPasswordError('');
     const allSerials = configuringDevices.map((d) => d.serial);
+    const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
+    setPushedCooldowns((prev) => {
+      const next: Record<string, number> = { ...prev, batch: cooldownExp };
+      allSerials.forEach((sn) => {
+        next[`sn_${sn}`] = cooldownExp;
+      });
+      return next;
+    });
     onNotifyConfigReady?.(allSerials);
     setSelectedSns([]);
   };
@@ -453,28 +594,44 @@ return (
                   </div>
 
                   {isAdminLike && onNotifyConfigReady && (
-                    <button
-                      type="button"
-                      onClick={() => handleTeamPushClick(teamKey, teamSerials)}
-                      className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] ${
-                        isConfirmingThisTeam
-                          ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse shadow-sm ring-2 ring-amber-400'
-                          : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs'
-                      }`}
-                      title={isConfirmingThisTeam ? 'Click 2nd time to confirm push to this team' : 'Click once, then click 2nd time to push to team'}
-                    >
-                      {isConfirmingThisTeam ? (
-                        <>
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
-                          <span>Click 2nd Time to Push Team ({tg.devices.length})</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-3.5 h-3.5" />
-                          <span>Notify Team &amp; Group ({tg.devices.length})</span>
-                        </>
-                      )}
-                    </button>
+                    getTeamCooldownSecs(teamKey) > 0 ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90"
+                        title={`Team pushed to Telegram! 1-minute cooldown active (${getTeamCooldownSecs(teamKey)}s remaining)`}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Team Pushed · {getTeamCooldownSecs(teamKey)}s</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleTeamPushClick(teamKey, teamSerials)}
+                        className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] ${
+                          isConfirmingThisTeam
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse shadow-sm ring-2 ring-amber-400'
+                            : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs'
+                        }`}
+                        title={
+                          isConfirmingThisTeam
+                            ? `Click 2nd time to confirm push to this team (${getTeamConfirmSecs(teamKey)}s window)`
+                            : 'Click once, then click 2nd time within 1 minute to push to team'
+                        }
+                      >
+                        {isConfirmingThisTeam ? (
+                          <>
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
+                            <span>Click 2nd Time ({getTeamConfirmSecs(teamKey)}s) · {tg.devices.length} Units</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" />
+                            <span>Notify Team &amp; Group ({tg.devices.length})</span>
+                          </>
+                        )}
+                      </button>
+                    )
                   )}
                 </div>
               );
@@ -705,28 +862,44 @@ return (
                       <td className="py-3 px-4 text-right">
                         <div className="inline-flex items-center gap-1.5 justify-end">
                           {isAdminLike && onNotifyConfigReady && (
-                            <button
-                              type="button"
-                              onClick={() => handleRowPushClick(dev.serial)}
-                              className={`px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] ${
-                                isConfirmingThisRow
-                                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse'
-                                  : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs hover:shadow-xs'
-                              }`}
-                              title={isConfirmingThisRow ? 'Click 2nd time to confirm Telegram push' : 'Click once, then click 2nd time to push to Telegram'}
-                            >
-                              {isConfirmingThisRow ? (
-                                <>
-                                  <AlertTriangle className="w-3 h-3 text-amber-200" />
-                                  <span>Click 2nd Time to Confirm</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Send className="w-3 h-3" />
-                                  <span>Notify &amp; Push</span>
-                                </>
-                              )}
-                            </button>
+                            getRowCooldownSecs(dev.serial) > 0 ? (
+                              <button
+                                type="button"
+                                disabled
+                                className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90"
+                                title={`Pushed to Telegram! 1-minute cooldown active (${getRowCooldownSecs(dev.serial)}s remaining)`}
+                              >
+                                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                <span>Pushed · {getRowCooldownSecs(dev.serial)}s</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleRowPushClick(dev.serial)}
+                                className={`px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] ${
+                                  isConfirmingThisRow
+                                    ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse'
+                                    : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs hover:shadow-xs'
+                                }`}
+                                title={
+                                  isConfirmingThisRow
+                                    ? `Click 2nd time to confirm Telegram push (${getRowConfirmSecs(dev.serial)}s window)`
+                                    : 'Click once, then click 2nd time within 1 minute to push to Telegram'
+                                }
+                              >
+                                {isConfirmingThisRow ? (
+                                  <>
+                                    <AlertTriangle className="w-3 h-3 text-amber-200" />
+                                    <span>Click 2nd Time ({getRowConfirmSecs(dev.serial)}s)</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="w-3 h-3" />
+                                    <span>Notify &amp; Push</span>
+                                  </>
+                                )}
+                              </button>
+                            )
                           )}
 
                           {onSelectDevice && (
@@ -793,28 +966,44 @@ return (
                 </div>
               )}
               {isAdminLike && onNotifyConfigReady && (
-                <button
-                  type="button"
-                  onClick={handleBatchPushClick}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] ${
-                    confirmingBatch
-                      ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse'
-                      : 'bg-sky-600 hover:bg-sky-500 text-white shadow-xs'
-                  }`}
-                  title={confirmingBatch ? 'Click 2nd time to confirm batch push' : 'Click once, then click 2nd time to push batch'}
-                >
-                  {confirmingBatch ? (
-                    <>
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
-                      <span>Click 2nd Time to Push ({selectedSns.length})</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Notify &amp; Push App ({selectedSns.length})</span>
-                    </>
-                  )}
-                </button>
+                getBatchCooldownSecs() > 0 ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90"
+                    title={`Batch pushed to Telegram! 1-minute cooldown active (${getBatchCooldownSecs()}s remaining)`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Pushed · {getBatchCooldownSecs()}s</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleBatchPushClick}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] ${
+                      confirmingBatch
+                        ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse'
+                        : 'bg-sky-600 hover:bg-sky-500 text-white shadow-xs'
+                    }`}
+                    title={
+                      confirmingBatch
+                        ? `Click 2nd time to confirm batch push (${getBatchConfirmSecs()}s window)`
+                        : 'Click once, then click 2nd time within 1 minute to push batch'
+                    }
+                  >
+                    {confirmingBatch ? (
+                      <>
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
+                        <span>Click 2nd Time to Push ({selectedSns.length}) ({getBatchConfirmSecs()}s)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Notify &amp; Push App ({selectedSns.length})</span>
+                      </>
+                    )}
+                  </button>
+                )
               )}
 
               <button
