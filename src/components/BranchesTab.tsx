@@ -344,7 +344,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                Hardware unit breakdown, deployable reserves, and active merchant installations by branch
+                Device unit breakdown, deployable reserves, and active merchant installations by branch
               </p>
             </div>
           </div>
@@ -352,7 +352,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
           <div className="flex flex-wrap items-center gap-2.5">
             <ClearFiltersButton active={!!searchQuery || statusFilter !== 'ALL'} onClear={() => { setSearchQuery(''); setStatusFilter('ALL'); }} />
             {/* Search Input */}
-            <div className="relative min-w-[210px]">
+            <div className="relative w-36 sm:w-44 md:w-48">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -435,28 +435,30 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               </button>
             </div>
 
-            {/* CSV Export */}
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
-              title="Export Branch Codes Table to CSV"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Export CSV</span>
-            </button>
-
-            {/* Add Branch Button (Admin) */}
-            {isAdminLike && (
+            {/* Action Buttons: Export CSV & Add Branch */}
+            <div className="inline-flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={onOpenNewBranchModal}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-xs transition cursor-pointer"
+                onClick={handleExportCsv}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs shrink-0"
+                title="Export Branch Codes Table to CSV"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Branch Code</span>
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Export CSV</span>
               </button>
-            )}
+
+              {isAdminLike && (
+                <button
+                  type="button"
+                  onClick={onOpenNewBranchModal}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs shrink-0"
+                  title="Register new branch code"
+                >
+                  <Plus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Add Branch</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
