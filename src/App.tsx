@@ -3920,15 +3920,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             <div className="text-[11px] font-mono text-slate-500">
               Copyright © POS &amp; Sound Box Stock Management System 2026
             </div>
-            <div className="flex items-center gap-4 text-[11px] font-mono">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200/90 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-bold transition-colors">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#003857] dark:bg-sky-400" />
+            <div className="flex items-center gap-4 text-[11px] font-mono text-slate-500">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
                 {branches.length} Branch Codes Connected
               </span>
               {!isSupabaseConfigured && (
                 <>
                   <span>·</span>
-                  <span className="text-slate-600 font-bold">Local preview (not shared)</span>
+                  <span className="text-slate-500">Local preview (not shared)</span>
                 </>
               )}
             </div>
