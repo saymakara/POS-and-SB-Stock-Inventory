@@ -138,6 +138,7 @@ const STORAGE_KEY_NOTIFS = 'crm_pos_notifs_v20';
 const STORAGE_KEY_HISTORICAL_MERCHANTS = 'crm_pos_historical_merchants_v20';
 const STORAGE_KEY_SETTINGS = 'crm_pos_settings_v20';
 const STORAGE_KEY_AUTH_SESSION = 'crm_pos_auth_session_v20';
+const STORAGE_KEY_PUSHED_CONFIGURING = 'crm_pos_pushed_configuring_serials_v1';
 
 interface StoredAuthSession {
   role: UserRole;
@@ -458,6 +459,45 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   });
 
   const [sseConnected, setSseConnected] = useState<boolean>(true);
+
+  // Set of hardware serial numbers in CONFIGURING stage that have been pushed/notified
+  const [pushedConfiguringSerials, setPushedConfiguringSerials] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_PUSHED_CONFIGURING);
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) return new Set(arr);
+      }
+    } catch (e) {
+      console.warn('Failed to load pushedConfiguringSerials:', e);
+    }
+    return new Set();
+  });
+
+  const markConfiguringSerialsPushed = useCallback((serialOrSerials: string | string[]) => {
+    const list = Array.isArray(serialOrSerials) ? serialOrSerials : [serialOrSerials];
+    if (list.length === 0) return;
+
+    setPushedConfiguringSerials((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      list.forEach((sn) => {
+        if (sn && !next.has(sn)) {
+          next.add(sn);
+          changed = true;
+        }
+      });
+      if (changed) {
+        try {
+          localStorage.setItem(STORAGE_KEY_PUSHED_CONFIGURING, JSON.stringify([...next]));
+        } catch (e) {
+          // ignore
+        }
+        return next;
+      }
+      return prev;
+    });
+  }, []);
 
   useEffect(() => {
     if (historicalMerchants.length > 0) {
@@ -1441,6 +1481,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return { all, hq, reserve, config, complete, faulty, lost };
   }, [scopedDevices, serverStageSummary]);
 
+  // Count of devices in CONFIGURING stage that have NOT yet been pushed (controls sidebar badge pill)
+  const unpushedConfiguringCount = useMemo(() => {
+    return scopedDevices.filter(
+      (d) => !d.archived && d.stage === 'CONFIGURING' && !pushedConfiguringSerials.has(d.serial)
+    ).length;
+  }, [scopedDevices, pushedConfiguringSerials]);
+
   const filteredInventory = useMemo(() => {
     const q = deferredSearchQuery.trim().toLowerCase();
     const hasSearch = q !== '';
@@ -1628,6 +1675,20 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
     setDevices((prev) => prev.map((x) => (x.serial === serial ? next : x)));
     if (histRec) setHistoricalMerchants((h) => [histRec, ...h]);
+
+    if (updates.stage !== 'CONFIGURING') {
+      setPushedConfiguringSerials((prev) => {
+        if (!prev.has(serial)) return prev;
+        const nextSet = new Set(prev);
+        nextSet.delete(serial);
+        try {
+          localStorage.setItem(STORAGE_KEY_PUSHED_CONFIGURING, JSON.stringify([...nextSet]));
+        } catch (e) {
+          // ignore
+        }
+        return nextSet;
+      });
+    }
 
     addAuditLog('Serial Cycle Updated', `Updated serial ${serial}: ${STAGE_META[d.stage].short} → ${stageLabel} (Branch Code ${updates.branchId})`);
     setEditingDeviceSerial(null);
@@ -2141,6 +2202,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const handleNotifyConfigReady = async (serialOrSerials: string | string[]) => {
     const list = Array.isArray(serialOrSerials) ? serialOrSerials : [serialOrSerials];
     if (list.length === 0) return;
+
+    // Immediately mark serials as pushed (removes them from sidebar badge count)
+    markConfiguringSerialsPushed(list);
 
     const targets = devices.filter((d) => list.includes(d.serial));
     if (targets.length === 0) return;
@@ -3205,7 +3269,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         pendingReqs={pendingReqsCount}
         totalBranches={branches.length}
         totalUsers={users.length}
-        configuringCount={pipelineCounts.config}
+        configuringCount={unpushedConfiguringCount}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
         mobileOpen={mobileDrawerOpen}
@@ -3542,6 +3606,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       onAssignStaff={handleBulkAssignStaff}
                       regionalGroups={appSettings.telegramRegionalGroups}
                       users={users}
+                      pushedSerials={pushedConfiguringSerials}
+                      onMarkPushed={markConfiguringSerialsPushed}
                       onCompleteDeployment={(sn) => {
                         const dev = devices.find((d) => d.serial === sn);
                         if (dev) {

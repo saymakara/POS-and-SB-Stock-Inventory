@@ -1,5 +1,5 @@
 import { csvFile } from '../utils/csv';
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
@@ -27,6 +27,7 @@ import {
   User,
   FileSpreadsheet,
   CheckCircle2,
+  RotateCw,
 } from 'lucide-react';
 
 interface PushConfiguringTabProps {
@@ -42,6 +43,8 @@ interface PushConfiguringTabProps {
   regionalGroups?: TelegramRegionalGroup[];
   theme?: ThemeMode;
   users?: AppUser[];
+  pushedSerials?: Set<string>;
+  onMarkPushed?: (serials: string[]) => void;
 }
 
 export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(({
@@ -57,6 +60,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   regionalGroups,
   theme = 'light',
   users = [],
+  pushedSerials,
+  onMarkPushed,
 }) => {
   const isLight = theme === 'light';
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
@@ -77,12 +82,90 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   const CONFIRM_TIMEOUT_MS = 60000;
   const COOLDOWN_TIMEOUT_MS = 60000;
 
+  const STORAGE_KEY_PUSHED_CONFIGURING = 'crm_pos_pushed_configuring_serials_v1';
+  const STORAGE_KEY_PUSH_TIMESTAMPS = 'crm_pos_push_timestamps_v1';
+
+  const [pushedSerialsLocal, setPushedSerialsLocal] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_PUSHED_CONFIGURING);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) return new Set(arr);
+      }
+    } catch (e) {
+      // ignore
+    }
+    return new Set();
+  });
+
   const [confirmingRowSerial, setConfirmingRowSerial] = useState<string | null>(null);
   const [confirmingTeamKey, setConfirmingTeamKey] = useState<string | null>(null);
   const [confirmingBatch, setConfirmingBatch] = useState(false);
   const [pushedCooldowns, setPushedCooldowns] = useState<Record<string, number>>({});
-  const [pushTimestamps, setPushTimestamps] = useState<Record<string, string>>({});
+  const [pushTimestamps, setPushTimestamps] = useState<Record<string, string>>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_PUSH_TIMESTAMPS);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      // ignore
+    }
+    return {};
+  });
   const [tickerNow, setTickerNow] = useState<number>(Date.now());
+
+  // Synchronize local pushed serials whenever parent set updates
+  useEffect(() => {
+    if (pushedSerials && pushedSerials.size > 0) {
+      setPushedSerialsLocal((prev) => {
+        let changed = false;
+        const next = new Set(prev);
+        pushedSerials.forEach((sn) => {
+          if (!next.has(sn)) {
+            next.add(sn);
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [pushedSerials]);
+
+  const recordPushedSerials = useCallback((serials: string[]) => {
+    if (serials.length === 0) return;
+    const nowStamp = stampSecPP();
+
+    setPushTimestamps((prev) => {
+      const next = { ...prev };
+      serials.forEach((sn) => { next[sn] = nowStamp; });
+      try {
+        localStorage.setItem(STORAGE_KEY_PUSH_TIMESTAMPS, JSON.stringify(next));
+      } catch (e) {
+        // ignore
+      }
+      return next;
+    });
+
+    setPushedSerialsLocal((prev) => {
+      const next = new Set(prev);
+      serials.forEach((sn) => next.add(sn));
+      try {
+        localStorage.setItem(STORAGE_KEY_PUSHED_CONFIGURING, JSON.stringify([...next]));
+      } catch (e) {
+        // ignore
+      }
+      return next;
+    });
+
+    onMarkPushed?.(serials);
+  }, [onMarkPushed]);
+
+  const isDevicePushed = useCallback((serial: string): boolean => {
+    return (
+      Boolean(pushedSerials?.has(serial)) ||
+      Boolean(pushedSerialsLocal.has(serial)) ||
+      Boolean(pushTimestamps[serial])
+    );
+  }, [pushedSerials, pushedSerialsLocal, pushTimestamps]);
 
   const rowTimerRef = useRef<NodeJS.Timeout | null>(null);
   const teamTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -207,6 +290,19 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   // Counts
   const posCount = useMemo(() => configuringDevices.filter((d) => d.type === 'POS Terminal').length, [configuringDevices]);
   const sbCount = useMemo(() => configuringDevices.filter((d) => d.type === 'Sound Box').length, [configuringDevices]);
+
+  // Devices waiting to be pushed vs already pushed
+  const waitingDevices = useMemo(() => {
+    return configuringDevices.filter((d) => !isDevicePushed(d.serial));
+  }, [configuringDevices, isDevicePushed]);
+
+  const alreadyPushedDevices = useMemo(() => {
+    return configuringDevices.filter((d) => isDevicePushed(d.serial));
+  }, [configuringDevices, isDevicePushed]);
+
+  const filteredWaitingCount = useMemo(() => {
+    return filteredDevices.filter((d) => !isDevicePushed(d.serial)).length;
+  }, [filteredDevices, isDevicePushed]);
 
   // Checkbox helpers
   const handleToggleSelectAll = () => {
@@ -341,9 +437,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       setConfirmingRowSerial(null);
       rowConfirmExpiresRef.current = 0;
 
-      // Record push timestamp with date and time
-      const nowStamp = stampSecPP();
-      setPushTimestamps((prev) => ({ ...prev, [serial]: nowStamp }));
+      // Record push timestamp and mark pushed
+      recordPushedSerials([serial]);
 
       // 1-minute cooldown before another push
       const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
@@ -371,13 +466,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       setConfirmingTeamKey(null);
       teamConfirmExpiresRef.current = 0;
 
-      // Record push timestamp with date and time for all units in team
-      const nowStamp = stampSecPP();
-      setPushTimestamps((prev) => {
-        const next = { ...prev };
-        serials.forEach((sn) => { next[sn] = nowStamp; });
-        return next;
-      });
+      // Record push timestamp and mark pushed for all units in team
+      recordPushedSerials(serials);
 
       // 1-minute cooldown for this team and all devices in it
       const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
@@ -411,13 +501,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       setConfirmingBatch(false);
       batchConfirmExpiresRef.current = 0;
 
-      // Record push timestamp with date and time for all selected units
-      const nowStamp = stampSecPP();
-      setPushTimestamps((prev) => {
-        const next = { ...prev };
-        selectedSns.forEach((sn) => { next[sn] = nowStamp; });
-        return next;
-      });
+      // Record push timestamp and mark pushed for all selected units
+      recordPushedSerials(selectedSns);
 
       // 1-minute cooldown for batch and selected devices
       const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
@@ -507,12 +592,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     setPusherPassword('');
     setPusherPasswordError('');
     const allSerials = configuringDevices.map((d) => d.serial);
-    const nowStamp = stampSecPP();
-    setPushTimestamps((prev) => {
-      const next = { ...prev };
-      allSerials.forEach((sn) => { next[sn] = nowStamp; });
-      return next;
-    });
+    recordPushedSerials(allSerials);
     const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
     setPushedCooldowns((prev) => {
       const next: Record<string, number> = { ...prev, batch: cooldownExp };
@@ -693,15 +773,24 @@ return (
                 <div className="w-7 h-7 rounded-xl bg-black/20 border border-white/15 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform duration-150">
                   <Lock className="w-3.5 h-3.5 text-sky-200" />
                 </div>
-                <span className="tracking-tight font-extrabold">Notify All Ready</span>
+                <span className="tracking-tight font-extrabold">
+                  {waitingDevices.length === 0 && configuringDevices.length > 0
+                    ? 'Re-push All'
+                    : 'Notify All Ready'}
+                </span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-black bg-white/15 text-white border border-white/20 shadow-xs">
-                  {configuringDevices.length > 0 && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {waitingDevices.length > 0 ? (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>
+                        {waitingDevices.length} {waitingDevices.length === 1 ? 'Waiting' : 'Waiting'}
+                      </span>
+                    </>
+                  ) : (
+                    <span>
+                      {configuringDevices.length} {configuringDevices.length === 1 ? 'Unit (Pushed)' : 'Units (Pushed)'}
+                    </span>
                   )}
-                  <span>
-                    {configuringDevices.length}{' '}
-                    {configuringDevices.length === 1 ? 'Unit' : 'Units'}
-                  </span>
                 </span>
               </button>
             )}
@@ -712,8 +801,12 @@ return (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
           <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/10 transition-colors duration-150">
             <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Total Waiting Push</div>
-            <div className="text-2xl font-black text-white mt-1">{configuringDevices.length}</div>
-            <div className="text-[10px] text-sky-300 font-medium mt-0.5">High-volume daily queue</div>
+            <div className="text-2xl font-black text-white mt-1">{waitingDevices.length}</div>
+            <div className="text-[10px] text-sky-300 font-medium mt-0.5">
+              {alreadyPushedDevices.length > 0
+                ? `${alreadyPushedDevices.length} already pushed (${configuringDevices.length} total)`
+                : 'High-volume daily queue'}
+            </div>
           </div>
           <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/10 transition-colors duration-150">
             <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -758,6 +851,7 @@ return (
               const teamKey = `${tg.staff}__${tg.branchId}`;
               const isConfirmingThisTeam = confirmingTeamKey === teamKey;
               const teamSerials = tg.devices.map((d) => d.serial);
+              const isTeamAllPushed = teamSerials.length > 0 && teamSerials.every((sn) => isDevicePushed(sn));
               const teamChat = resolveTelegramChatForBranch(tg.branchId, regionalGroups, branches);
 
               return (
@@ -817,7 +911,7 @@ return (
                         <button
                           type="button"
                           disabled
-                          className="w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90"
+                          className="w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90 shadow-2xs"
                           title={`Team pushed to Telegram! 1-minute cooldown active (${getTeamCooldownSecs(teamKey)}s remaining)`}
                         >
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
@@ -830,18 +924,31 @@ return (
                           className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] ${
                             isConfirmingThisTeam
                               ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse shadow-sm ring-2 ring-amber-400'
+                              : isTeamAllPushed
+                              ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs group'
                               : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs'
                           }`}
                           title={
                             isConfirmingThisTeam
-                              ? `Click 2nd time to send 1 Telegram alert + file for this team (${getTeamConfirmSecs(teamKey)}s window)`
+                              ? `Click 2nd time to ${isTeamAllPushed ? 're-push' : 'send'} 1 Telegram alert + file for this team (${getTeamConfirmSecs(teamKey)}s window)`
+                              : isTeamAllPushed
+                              ? 'Team already pushed. Click to initiate Re-push Telegram alert + file'
                               : 'Click once, then click 2nd time to send 1 Telegram alert + file (instead of 10 pop-up messages)'
                           }
                         >
                           {isConfirmingThisTeam ? (
                             <>
                               <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
-                              <span>Click 2nd Time to Send File ({getTeamConfirmSecs(teamKey)}s)</span>
+                              <span>{isTeamAllPushed ? 'Confirm Re-push' : 'Click 2nd Time'} to Send File ({getTeamConfirmSecs(teamKey)}s)</span>
+                            </>
+                          ) : isTeamAllPushed ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <span className="font-extrabold">Pushed</span>
+                              <span className="text-[11px] border-l border-emerald-300 dark:border-emerald-700/60 pl-1.5 flex items-center gap-1 text-emerald-700/80 dark:text-emerald-300/80 group-hover:text-emerald-950 dark:group-hover:text-white">
+                                <RotateCw className="w-3 h-3 group-hover:rotate-180 transition-transform duration-300" />
+                                Re-push Team ({tg.devices.length})
+                              </span>
                             </>
                           ) : (
                             <>
@@ -954,20 +1061,68 @@ return (
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>Open Branch File ({filteredDevices.length})</span>
               </button>
-              {isAdminLike && onNotifyConfigReady && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const branchSerials = filteredDevices.map((d) => d.serial);
-                    handleTeamPushClick(`Branch_${branchFilter}`, branchSerials);
-                  }}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-[0.98]"
-                  title="Sends 1 single Telegram notification with attached file for this branch instead of separate popups"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send Branch Alert &amp; File ({filteredDevices.length})</span>
-                </button>
-              )}
+              {isAdminLike && onNotifyConfigReady && (() => {
+                const branchKey = `Branch_${branchFilter}`;
+                const branchSerials = filteredDevices.map((d) => d.serial);
+                const isBranchCooldown = getTeamCooldownSecs(branchKey) > 0;
+                const isConfirmingBranch = confirmingTeamKey === branchKey;
+                const isBranchAllPushed = filteredDevices.length > 0 && filteredDevices.every((d) => isDevicePushed(d.serial));
+
+                if (isBranchCooldown) {
+                  return (
+                    <button
+                      type="button"
+                      disabled
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90 shadow-2xs"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Queue &amp; File Sent · {getTeamCooldownSecs(branchKey)}s</span>
+                    </button>
+                  );
+                }
+
+                return (
+                  <button
+                    type="button"
+                    onClick={() => handleTeamPushClick(branchKey, branchSerials)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.98] ${
+                      isConfirmingBranch
+                        ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse shadow-sm ring-2 ring-amber-400'
+                        : isBranchAllPushed
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs group'
+                        : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs'
+                    }`}
+                    title={
+                      isConfirmingBranch
+                        ? `Click 2nd time to ${isBranchAllPushed ? 're-push' : 'send'} 1 Telegram alert + file for this branch (${getTeamConfirmSecs(branchKey)}s window)`
+                        : isBranchAllPushed
+                        ? 'Branch already pushed. Click to initiate Re-push alert + file'
+                        : 'Sends 1 single Telegram notification with attached file for this branch instead of separate popups'
+                    }
+                  >
+                    {isConfirmingBranch ? (
+                      <>
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
+                        <span>{isBranchAllPushed ? 'Confirm Re-push' : 'Click 2nd Time'} ({getTeamConfirmSecs(branchKey)}s)</span>
+                      </>
+                    ) : isBranchAllPushed ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span className="font-extrabold">Pushed</span>
+                        <span className="text-[11px] border-l border-emerald-300 dark:border-emerald-700/60 pl-1.5 flex items-center gap-1 text-emerald-700/80 dark:text-emerald-300/80 group-hover:text-emerald-950 dark:group-hover:text-white">
+                          <RotateCw className="w-3 h-3 group-hover:rotate-180 transition-transform duration-300" />
+                          Re-push Branch ({filteredDevices.length})
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Send Branch Alert &amp; File ({filteredDevices.length})</span>
+                      </>
+                    )}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -981,7 +1136,9 @@ return (
               Hardware Queue Ready for App Push
             </span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
-              {filteredDevices.length}
+              {filteredWaitingCount > 0
+                ? `${filteredWaitingCount} waiting · ${filteredDevices.length} total`
+                : `${filteredDevices.length} total (all pushed)`}
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -1152,46 +1309,69 @@ return (
                       {/* Row Actions (Must Click 2 Times) */}
                       <td className="py-3 px-4 text-right">
                         <div className="inline-flex items-center gap-1.5 justify-end">
-                          {isAdminLike && onNotifyConfigReady && (
-                            getRowCooldownSecs(dev.serial) > 0 ? (
-                              <button
-                                type="button"
-                                disabled
-                                className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90"
-                                title={`Pushed to Telegram! 1-minute cooldown active (${getRowCooldownSecs(dev.serial)}s remaining)`}
-                              >
-                                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                                <span>Pushed · {getRowCooldownSecs(dev.serial)}s</span>
-                              </button>
-                            ) : (
+                          {isAdminLike && onNotifyConfigReady && (() => {
+                            const devIsPushed = isDevicePushed(dev.serial);
+                            const cooldownSecs = getRowCooldownSecs(dev.serial);
+                            const confirmSecs = getRowConfirmSecs(dev.serial);
+
+                            if (cooldownSecs > 0) {
+                              return (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90 shadow-2xs"
+                                  title={`Pushed to Telegram! 1-minute cooldown active (${cooldownSecs}s remaining)`}
+                                >
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                  <span>Pushed · {cooldownSecs}s</span>
+                                </button>
+                              );
+                            }
+
+                            if (isConfirmingThisRow) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRowPushClick(dev.serial)}
+                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse"
+                                  title={`Click 2nd time to confirm Telegram ${devIsPushed ? 're-push' : 'push'} (${confirmSecs}s window)`}
+                                >
+                                  <AlertTriangle className="w-3 h-3 text-amber-200" />
+                                  <span>{devIsPushed ? 'Confirm Re-push' : 'Click 2nd Time'} ({confirmSecs}s)</span>
+                                </button>
+                              );
+                            }
+
+                            if (devIsPushed) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRowPushClick(dev.serial)}
+                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs hover:shadow-xs group"
+                                  title="Status: Pushed to Telegram. Click once, then click 2nd time within 1 minute to re-push alert."
+                                >
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  <span className="font-extrabold">Pushed</span>
+                                  <span className="text-[10px] text-emerald-700/80 dark:text-emerald-300/80 font-semibold border-l border-emerald-300 dark:border-emerald-700/60 pl-1.5 flex items-center gap-1 group-hover:text-emerald-950 dark:group-hover:text-white">
+                                    <RotateCw className="w-2.5 h-2.5 opacity-70 group-hover:rotate-180 transition-transform duration-300" />
+                                    Re-push
+                                  </span>
+                                </button>
+                              );
+                            }
+
+                            return (
                               <button
                                 type="button"
                                 onClick={() => handleRowPushClick(dev.serial)}
-                                className={`px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] ${
-                                  isConfirmingThisRow
-                                    ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse'
-                                    : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs hover:shadow-xs'
-                                }`}
-                                title={
-                                  isConfirmingThisRow
-                                    ? `Click 2nd time to confirm Telegram push (${getRowConfirmSecs(dev.serial)}s window)`
-                                    : 'Click once, then click 2nd time within 1 minute to push to Telegram'
-                                }
+                                className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs hover:shadow-xs"
+                                title="Click once, then click 2nd time within 1 minute to push to Telegram"
                               >
-                                {isConfirmingThisRow ? (
-                                  <>
-                                    <AlertTriangle className="w-3 h-3 text-amber-200" />
-                                    <span>Click 2nd Time ({getRowConfirmSecs(dev.serial)}s)</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Send className="w-3 h-3" />
-                                    <span>Notify &amp; Push</span>
-                                  </>
-                                )}
+                                <Send className="w-3 h-3" />
+                                <span>Notify &amp; Push</span>
                               </button>
-                            )
-                          )}
+                            );
+                          })()}
 
                           {onSelectDevice && (
                             <button
@@ -1266,36 +1446,52 @@ return (
                 <span>Open File ({selectedSns.length})</span>
               </button>
 
-              {isAdminLike && onNotifyConfigReady && (
-                getBatchCooldownSecs() > 0 ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90"
-                    title={`Batch pushed to Telegram! 1-minute cooldown active (${getBatchCooldownSecs()}s remaining)`}
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>File &amp; Alert Sent · {getBatchCooldownSecs()}s</span>
-                  </button>
-                ) : (
+              {isAdminLike && onNotifyConfigReady && (() => {
+                const isBatchCooldown = getBatchCooldownSecs() > 0;
+                const isBatchAllPushed = selectedSns.length > 0 && selectedSns.every((sn) => isDevicePushed(sn));
+
+                if (isBatchCooldown) {
+                  return (
+                    <button
+                      type="button"
+                      disabled
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90 shadow-2xs"
+                      title={`Batch pushed to Telegram! 1-minute cooldown active (${getBatchCooldownSecs()}s remaining)`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>File &amp; Alert Sent · {getBatchCooldownSecs()}s</span>
+                    </button>
+                  );
+                }
+
+                return (
                   <button
                     type="button"
                     onClick={handleBatchPushClick}
                     className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] ${
                       confirmingBatch
                         ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse'
+                        : isBatchAllPushed
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
                         : 'bg-sky-600 hover:bg-sky-500 text-white shadow-xs'
                     }`}
                     title={
                       confirmingBatch
-                        ? `Click 2nd time to send 1 Telegram notification + attached file for selected devices (${getBatchConfirmSecs()}s window)`
+                        ? `Click 2nd time to ${isBatchAllPushed ? 're-push' : 'send'} 1 Telegram notification + attached file for selected devices (${getBatchConfirmSecs()}s window)`
+                        : isBatchAllPushed
+                        ? 'Selected devices already pushed. Click to initiate Re-push alert + file'
                         : 'Click once, then click 2nd time to send 1 Telegram notification + attached file instead of separate popups'
                     }
                   >
                     {confirmingBatch ? (
                       <>
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
-                        <span>Click 2nd Time to Push File ({selectedSns.length}) ({getBatchConfirmSecs()}s)</span>
+                        <span>{isBatchAllPushed ? 'Confirm Re-push File' : 'Click 2nd Time to Push File'} ({selectedSns.length}) ({getBatchConfirmSecs()}s)</span>
+                      </>
+                    ) : isBatchAllPushed ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />
+                        <span>Re-push Queue &amp; File ({selectedSns.length})</span>
                       </>
                     ) : (
                       <>
@@ -1304,8 +1500,8 @@ return (
                       </>
                     )}
                   </button>
-                )
-              )}
+                );
+              })()}
 
               <button
                 type="button"
