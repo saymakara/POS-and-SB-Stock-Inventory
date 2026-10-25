@@ -16,6 +16,7 @@ import {
   saveTelegramWebhookConfig,
   sendDeviceConfigTelegramAlert,
   sendTelegramErrorAlert,
+  detectTelegramGroupChats,
 } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -1934,13 +1935,49 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
                     1. Telegram Bot Token (from @BotFather)
                   </label>
-                  <input
-                    type="password"
-                    value={tgBotToken}
-                    onChange={(e) => setTgBotToken(e.target.value)}
-                    placeholder="e.g. 7123456789:AAF-xyz1234567890abcdef..."
-                    className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                  />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="password"
+                      value={tgBotToken}
+                      onChange={(e) => setTgBotToken(e.target.value)}
+                      placeholder="e.g. 7123456789:AAF-xyz1234567890abcdef..."
+                      className="flex-1 px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                    />
+                    <button
+                      type="button"
+                      disabled={!tgBotToken.trim()}
+                      onClick={async () => {
+                        const chats = await detectTelegramGroupChats(tgBotToken);
+                        if (chats.length === 0) {
+                          if (onToast) {
+                            onToast('No group found yet. Add your bot to your Telegram group on your laptop and send any message (like "hello"), then click Auto-Detect again.');
+                          }
+                          return;
+                        }
+                        const picked = chats[0];
+                        const cleanToken = tgBotToken.trim().replace(/^bot/i, '');
+                        const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(picked.id)}`;
+                        setTgConfigChatId(picked.id);
+                        setTgErrorChatId(picked.id);
+                        setTgWebhookUrl(builtWebhook);
+                        saveTelegramWebhookConfig({
+                          botToken: cleanToken,
+                          configChatId: picked.id,
+                          chatId: picked.id,
+                          webhookUrl: builtWebhook,
+                        });
+                        if (onToast) {
+                          onToast(`Detected Group "${picked.title}" (ID: ${picked.id}) and generated Webhook URL!`);
+                        }
+                      }}
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer transition disabled:opacity-40 whitespace-nowrap"
+                    >
+                      Auto-Detect Group ID &amp; Webhook
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    On your laptop Telegram app: add your bot to the group, send a message (e.g. <code>/start</code>), then click <strong>Auto-Detect Group ID &amp; Webhook</strong>.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
