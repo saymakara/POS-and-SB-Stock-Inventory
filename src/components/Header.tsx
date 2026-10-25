@@ -11,7 +11,7 @@ import {
 import { AppBrandLogo } from './AppBrandLogo';
 import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
   Building2,
   SendHorizontal,
@@ -221,7 +221,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
         </div>
 
         {/* Clean Grouped Navigation Items with Apple Tactile Feedback */}
-        <nav className="py-4 px-3 flex flex-col gap-4">
+        <LayoutGroup id={isMobileView ? 'sb-nav-mobile' : 'sb-nav-desktop'}>
+          <nav className="py-4 px-3 flex flex-col gap-4">
           {navGroups.map((group) => (
             <div key={group.heading} className="flex flex-col gap-1">
               {(isMobileView || !collapsed) && (
@@ -247,18 +248,33 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         !isMobileView && collapsed
                           ? 'px-0 justify-center py-2'
                           : 'px-3 justify-between py-2'
-                      } rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-all duration-150 z-10 ${
+                      } rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 z-10 ${
                         isActive
                           ? 'font-medium text-white border border-transparent'
                           : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] border border-transparent'
                       }`}
                     >
-                      {/* (22 Oct 2026) the highlight is its own layer, so it morphs from the old item to the new one */}
+                      {/* Unified active pill + white indicator bar with smooth spring layout transition */}
                       {isActive && (
-                        <>
-                          <motion.div layoutId="nav-active-pill" aria-hidden className="absolute inset-0 rounded-xl bg-white/12 border border-white/15 shadow-xs -z-10" transition={{ type: 'spring', stiffness: 520, damping: 40, mass: 0.6 }} />
-                          <motion.div layoutId="nav-active-bar" aria-hidden className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90" transition={{ type: 'spring', stiffness: 520, damping: 40, mass: 0.6 }} />
-                        </>
+
+                          <motion.div
+                            layoutId={isMobileView ? 'mobile-nav-active' : 'desktop-nav-active'}
+                            aria-hidden
+                            className="absolute inset-0 rounded-xl bg-white/12 border border-white/15 shadow-xs -z-10 pointer-events-none"
+                            transition={{
+                              type: 'spring',
+                              stiffness: 380,
+                              damping: 32,
+                              mass: 0.5,
+                            }}
+                          >
+                            <span
+                              aria-hidden
+                              className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90 shadow-2xs"
+                            />
+                          </motion.div>
+
+
                       )}
 
                       <div className="relative flex items-center gap-2.5 min-w-0">
@@ -296,7 +312,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               </div>
             </div>
           ))}
-        </nav>
+          </nav>
+        </LayoutGroup>
       </div>
 
       {/* Bottom Collapse Control (Desktop Only) with Tactile Apple Spring Feedback */}
