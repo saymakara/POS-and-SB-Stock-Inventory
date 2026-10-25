@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
 import { normalizeStaffName } from '../utils/staffUtils';
-import { todayPP } from '../utils/time';
+import { todayPP, stampSecPP, clockPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -21,6 +21,7 @@ import {
   X,
   AlertCircle,
   Calendar,
+  Clock,
   KeyRound,
   User,
   FileSpreadsheet,
@@ -79,6 +80,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   const [confirmingTeamKey, setConfirmingTeamKey] = useState<string | null>(null);
   const [confirmingBatch, setConfirmingBatch] = useState(false);
   const [pushedCooldowns, setPushedCooldowns] = useState<Record<string, number>>({});
+  const [pushTimestamps, setPushTimestamps] = useState<Record<string, string>>({});
   const [tickerNow, setTickerNow] = useState<number>(Date.now());
 
   const rowTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -245,6 +247,62 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return Math.max(1, Math.ceil((exp - tickerNow) / 1000));
   };
 
+  // Helper to extract formatted Date and Time of Request Push
+  const getRequestPushDateTime = (dev: Device): { full: string; date: string; time: string } => {
+    // 1. If actively pushed in current session, use recorded push timestamp
+    if (pushTimestamps[dev.serial]) {
+      const full = pushTimestamps[dev.serial];
+      const [d, t] = full.split(' ');
+      return { full, date: d || todayPP(), time: t || clockPP() };
+    }
+
+    // 2. Check dev.history for the most recent cycle event timestamp (format: YYYY-MM-DD HH:mm:ss)
+    if (Array.isArray(dev.history) && dev.history.length > 0) {
+      for (const h of dev.history) {
+        const match = typeof h === 'string' ? h.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}(?::\d{2})?)/) : null;
+        if (match) {
+          const d = match[1];
+          let t = match[2];
+          if (t.length === 5) t = `${t}:00`;
+          return { full: `${d} ${t}`, date: d, time: t };
+        }
+      }
+    }
+
+    // 3. Check dev.updatedAt (Supabase ISO timestamp)
+    if (dev.updatedAt) {
+      if (dev.updatedAt.includes('T') || (dev.updatedAt.includes(':') && dev.updatedAt.includes('-'))) {
+        const parsed = new Date(dev.updatedAt);
+        if (!isNaN(parsed.getTime())) {
+          const full = stampSecPP(parsed);
+          const [d, t] = full.split(' ');
+          return { full, date: d || dev.updatedAt.slice(0, 10), time: t || '08:30:00' };
+        }
+      } else if (/^\d{4}-\d{2}-\d{2}/.test(dev.updatedAt)) {
+        const d = dev.updatedAt.slice(0, 10);
+        return { full: `${d} 08:30:00`, date: d, time: '08:30:00' };
+      }
+    }
+
+    // 4. Check dev.deployedDate
+    if (dev.deployedDate) {
+      if (dev.deployedDate.includes('T') || dev.deployedDate.includes(':')) {
+        const parsed = new Date(dev.deployedDate);
+        if (!isNaN(parsed.getTime())) {
+          const full = stampSecPP(parsed);
+          const [d, t] = full.split(' ');
+          return { full, date: d, time: t };
+        }
+      }
+      const d = dev.deployedDate.slice(0, 10);
+      return { full: `${d} 09:00:00`, date: d, time: '09:00:00' };
+    }
+
+    // 5. Fallback to stockInDate or todayPP
+    const d = dev.stockInDate ? dev.stockInDate.slice(0, 10) : todayPP();
+    return { full: `${d} 08:30:00`, date: d, time: '08:30:00' };
+  };
+
   // Double-click handlers for Telegram pushes (1-min confirmation window & 1-min cooldown)
   const handleRowPushClick = (serial: string) => {
     if (getRowCooldownSecs(serial) > 0) return;
@@ -254,6 +312,10 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       if (rowTimerRef.current) clearTimeout(rowTimerRef.current);
       setConfirmingRowSerial(null);
       rowConfirmExpiresRef.current = 0;
+
+      // Record push timestamp with date and time
+      const nowStamp = stampSecPP();
+      setPushTimestamps((prev) => ({ ...prev, [serial]: nowStamp }));
 
       // 1-minute cooldown before another push
       const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
@@ -280,6 +342,14 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       if (teamTimerRef.current) clearTimeout(teamTimerRef.current);
       setConfirmingTeamKey(null);
       teamConfirmExpiresRef.current = 0;
+
+      // Record push timestamp with date and time for all units in team
+      const nowStamp = stampSecPP();
+      setPushTimestamps((prev) => {
+        const next = { ...prev };
+        serials.forEach((sn) => { next[sn] = nowStamp; });
+        return next;
+      });
 
       // 1-minute cooldown for this team and all devices in it
       const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
@@ -312,6 +382,14 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       if (batchTimerRef.current) clearTimeout(batchTimerRef.current);
       setConfirmingBatch(false);
       batchConfirmExpiresRef.current = 0;
+
+      // Record push timestamp with date and time for all selected units
+      const nowStamp = stampSecPP();
+      setPushTimestamps((prev) => {
+        const next = { ...prev };
+        selectedSns.forEach((sn) => { next[sn] = nowStamp; });
+        return next;
+      });
 
       // 1-minute cooldown for batch and selected devices
       const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
@@ -399,6 +477,12 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     setPusherPassword('');
     setPusherPasswordError('');
     const allSerials = configuringDevices.map((d) => d.serial);
+    const nowStamp = stampSecPP();
+    setPushTimestamps((prev) => {
+      const next = { ...prev };
+      allSerials.forEach((sn) => { next[sn] = nowStamp; });
+      return next;
+    });
     const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
     setPushedCooldowns((prev) => {
       const next: Record<string, number> = { ...prev, batch: cooldownExp };
@@ -411,11 +495,11 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     setSelectedSns([]);
   };
 
-    const handleExportCsv = () => {
+  const handleExportCsv = () => {
     if (filteredDevices.length === 0) return;
     const headers = [
       'No.',
-      'Date of Request Push',
+      'Date & Time of Request Push',
       'Hardware Serial & Model',
       'Merchant Name & MID / TID',
       'Configure By (Staff)',
@@ -424,7 +508,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     const rows = filteredDevices.map((dev, idx) => {
       const bObj = branches.find((b) => b.code === dev.branchId);
       const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
-      const requestPushDate = dev.deployedDate || (dev.updatedAt ? dev.updatedAt.slice(0, 10) : '') || dev.stockInDate || todayPP();
+      const reqInfo = getRequestPushDateTime(dev);
       const serialModel = `${dev.serial} (${dev.model || dev.type})`;
       const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
       const staffName = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
@@ -432,7 +516,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
       return [
         String(idx + 1),
-        requestPushDate,
+        reqInfo.full,
         serialModel,
         merchantMidTid,
         staffName,
@@ -705,7 +789,7 @@ return (
         </div>
       </div>
 
-      {/* 4. HARDWARE QUEUE TABLE WITH DATE OF REQUEST PUSH */}
+      {/* 4. HARDWARE QUEUE TABLE WITH DATE & TIME OF REQUEST PUSH */}
       <div className={`rounded-2xl border shadow-xs overflow-hidden ${isLight ? 'border-slate-200/90 bg-white' : 'border-slate-800 bg-[#141822]'}`}>
         <div className={`p-4 border-b flex items-center justify-between gap-3 ${isLight ? 'border-slate-100 text-slate-700' : 'border-slate-800 text-slate-300'}`}>
           <div className="flex items-center gap-2">
@@ -750,7 +834,7 @@ return (
                     className="rounded border-slate-300 cursor-pointer accent-[#003857]"
                   />
                 </th>
-                <th className="py-3 px-4">Date of Request Push</th>
+                <th className="py-3 px-4">Date &amp; Time of Request Push</th>
                 <th className="py-3 px-4">Hardware Serial &amp; Model</th>
                 <th className="py-3 px-4">Merchant Name &amp; MID / TID</th>
                 <th className="py-3 px-4">Configure By (Staff)</th>
@@ -779,7 +863,7 @@ return (
                   const bObj = branches.find((b) => b.code === dev.branchId);
                   const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
                   const staffName = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
-                  const requestPushDate = dev.deployedDate || (dev.updatedAt ? dev.updatedAt.slice(0, 10) : '') || dev.stockInDate || todayPP();
+                  const requestPushInfo = getRequestPushDateTime(dev);
 
                   return (
                     <tr
@@ -804,15 +888,21 @@ return (
                         />
                       </td>
 
-                      {/* Date of Request Push */}
+                      {/* Date & Time of Request Push */}
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-mono text-xs font-bold border transition-colors ${
+                        <div className={`inline-flex flex-col gap-1 px-2.5 py-1.5 rounded-xl font-mono border transition-colors ${
                           isLight
                             ? 'bg-slate-100/90 text-slate-800 border-slate-200'
                             : 'bg-slate-800/80 text-slate-200 border-slate-700/80'
                         }`}>
-                          <Calendar className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
-                          <span>{requestPushDate}</span>
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900 dark:text-white">
+                            <Calendar className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
+                            <span>{requestPushInfo.date}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            <Clock className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0" />
+                            <span>{requestPushInfo.time}</span>
+                          </div>
                         </div>
                       </td>
 
