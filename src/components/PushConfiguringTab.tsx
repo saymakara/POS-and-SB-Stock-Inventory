@@ -298,11 +298,22 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
                   setPusherPasswordError('');
                   setIsPushAllModalOpen(true);
                 }}
-                className="px-5 py-3 rounded-2xl bg-linear-to-r from-sky-500 to-[#0284c7] hover:from-sky-400 hover:to-[#0369a1] text-white font-extrabold text-xs sm:text-sm tracking-wide shadow-lg hover:shadow-sky-500/25 active:scale-[0.98] transition-all duration-150 cursor-pointer flex items-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed border border-white/15"
+                className="group relative inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#005587] via-[#006ca7] to-[#0284c7] hover:from-[#00629b] hover:via-[#0284c7] hover:to-[#0396e6] text-white font-extrabold text-xs sm:text-sm shadow-md hover:shadow-xl hover:shadow-sky-500/25 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border border-white/20 hover:border-white/35"
                 title="Push alerts to all devices (Requires Pusher Password verification)"
               >
-                <Lock className="w-4 h-4 text-white" />
-                <span>Notify All Ready ({configuringDevices.length} Units)</span>
+                <div className="w-7 h-7 rounded-xl bg-black/20 border border-white/15 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform duration-150">
+                  <Lock className="w-3.5 h-3.5 text-sky-200" />
+                </div>
+                <span className="tracking-tight font-extrabold">Notify All Ready</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-black bg-white/15 text-white border border-white/20 shadow-xs">
+                  {configuringDevices.length > 0 && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  )}
+                  <span>
+                    {configuringDevices.length}{' '}
+                    {configuringDevices.length === 1 ? 'Unit' : 'Units'}
+                  </span>
+                </span>
               </button>
             )}
           </div>
