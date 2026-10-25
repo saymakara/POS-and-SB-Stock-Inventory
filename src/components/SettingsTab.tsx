@@ -515,7 +515,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           }`}
         >
           <Lock className="w-4 h-4" />
-          <span>Security &amp; Institution Branding</span>
+          <span>Security, Branding &amp; Telegram</span>
         </button>
       </div>
 
@@ -1879,119 +1879,130 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         </div>
         )}
 
-        {/* SUBTAB 4: Security & Branding */}
+        {/* SUBTAB 4: Security, Branding & Telegram Multi-Group Routing */}
         {activeSubTab === 'security' && (
-          <div className="surface-card p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-4 max-w-2xl">
-            <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
-              <div className="w-8 h-8 rounded-lg bg-slate-100 text-zinc-900 border border-slate-200 flex items-center justify-center">
-                <Lock className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-zinc-900">
-                  Security, Session &amp; Institution Branding
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  Session lock timers and institutional identity
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3.5">
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                  Institution Branding Title
-                </label>
-                <input
-                  type="text"
-                  value={formState.bankInstitutionName}
-                  onChange={(e) =>
-                    setFormState({ ...formState, bankInstitutionName: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                  Session Auto-Lock Timeout
-                </label>
-                <select
-                  value={formState.sessionTimeoutMinutes}
-                  onChange={(e) =>
-                    setFormState({
-                      ...formState,
-                      sessionTimeoutMinutes: Number(e.target.value),
-                    })
-                  }
-                  className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                >
-                  <option value={15}>15 Minutes</option>
-                  <option value={30}>30 Minutes (Recommended)</option>
-                  <option value={60}>60 Minutes</option>
-                  <option value={120}>2 Hours</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                  Phone App Review: Staff Shown
-                </label>
-                <select
-                  value={formState.phoneReviewScope || 'ALL'}
-                  onChange={(e) =>
-                    setFormState({ ...formState, phoneReviewScope: e.target.value as 'PHNOM_PENH' | 'ALL' })
-                  }
-                  className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                >
-                  <option value="ALL">Phnom Penh and Regional staff</option>
-                  <option value="PHNOM_PENH">Phnom Penh staff only</option>
-                </select>
-                <p className="mt-1 text-[11px] text-slate-500">Regional records stay saved; this only changes which records are listed for review.</p>
-              </div>
-
-              {/* Telegram Group Alert for Under Configuring Devices Panel */}
-              <div className="pt-4 mt-4 border-t border-slate-200 space-y-3">
+          <div className="space-y-6 w-full max-w-7xl">
+            {/* Top Card: Security, Session & Institution Branding */}
+            <div className="surface-card p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
+              <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-zinc-900 border border-slate-200 flex items-center justify-center">
+                  <Lock className="w-4 h-4" />
+                </div>
                 <div>
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#003857]">
-                    Telegram Group Alert (Under Configuring Devices)
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Connect a Telegram Bot to automatically alert your staff Telegram Group when a POS Terminal or Sound Box is <strong>Under Configuring (Ready for App Push)</strong>.
+                  <h3 className="text-sm font-extrabold text-zinc-900">
+                    Security, Session &amp; Institution Branding
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Session lock timers, review scope, and institutional identity
                   </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                    Institution Branding Title
+                  </label>
+                  <input
+                    type="text"
+                    value={formState.bankInstitutionName}
+                    onChange={(e) =>
+                      setFormState({ ...formState, bankInstitutionName: e.target.value })
+                    }
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                  />
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-bold uppercase text-slate-600">
-                      1. Telegram Bot Token (from @BotFather)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowBotFatherGuide((prev) => !prev)}
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#003857] hover:underline cursor-pointer"
-                    >
-                      <HelpCircle className="w-3.5 h-3.5" />
-                      {showBotFatherGuide ? 'Hide Token Guide' : 'Where is my Bot Token?'}
-                    </button>
-                  </div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                    Session Auto-Lock Timeout
+                  </label>
+                  <select
+                    value={formState.sessionTimeoutMinutes}
+                    onChange={(e) =>
+                      setFormState({
+                        ...formState,
+                        sessionTimeoutMinutes: Number(e.target.value),
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                  >
+                    <option value={15}>15 Minutes</option>
+                    <option value={30}>30 Minutes (Recommended)</option>
+                    <option value={60}>60 Minutes</option>
+                    <option value={120}>2 Hours</option>
+                  </select>
+                </div>
 
-                  {showBotFatherGuide && (
-                    <div className="mb-2.5 p-3.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 text-xs space-y-2.5">
-                      <div className="font-bold text-sky-900 flex items-center justify-between">
-                        <span>How to find your Bot Token in Telegram:</span>
-                        <span className="text-[10px] text-sky-600 font-normal">Takes ~30 seconds</span>
-                      </div>
-                      <ol className="list-decimal list-inside space-y-1.5 text-[11.5px] leading-relaxed text-slate-700">
-                        <li>
-                          Open Telegram Desktop (or Mobile) and search for{' '}
-                          <strong className="text-zinc-900 font-mono">@BotFather</strong> (the one with the verified blue checkmark).
-                        </li>
-                        <li>
-                          In the chat with @BotFather, type or click:{' '}
-                          <div className="inline-flex items-center gap-1.5 my-1">
-                            <code className="px-2 py-0.5 rounded bg-white border border-sky-300 font-mono font-bold text-zinc-900">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                    Phone App Review: Staff Shown
+                  </label>
+                  <select
+                    value={formState.phoneReviewScope || 'ALL'}
+                    onChange={(e) =>
+                      setFormState({ ...formState, phoneReviewScope: e.target.value as 'PHNOM_PENH' | 'ALL' })
+                    }
+                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                  >
+                    <option value="ALL">Phnom Penh and Regional staff</option>
+                    <option value="PHNOM_PENH">Phnom Penh staff only</option>
+                  </select>
+                  <p className="mt-1 text-[10.5px] text-slate-500">Only affects which staff appear in mobile review list.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* TWO-COLUMN TELEGRAM DASHBOARD: Bot Config on Left, Regional Groups on Right */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              {/* LEFT COLUMN: Telegram Bot Alert Config & Default Group */}
+              <div className="surface-card p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
+                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#003857] border border-sky-200 flex items-center justify-center">
+                    <Send className="w-4 h-4 text-sky-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-zinc-900">
+                      Telegram Bot Connection
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Bot credentials &amp; Default Group for app push alerts
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold uppercase text-slate-600">
+                        1. Telegram Bot Token (@BotFather)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowBotFatherGuide((prev) => !prev)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#003857] hover:underline cursor-pointer"
+                      >
+                        <HelpCircle className="w-3.5 h-3.5" />
+                        {showBotFatherGuide ? 'Hide Token Guide' : 'Where is my Bot Token?'}
+                      </button>
+                    </div>
+
+                    {showBotFatherGuide && (
+                      <div className="mb-2.5 p-3.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 text-xs space-y-2">
+                        <div className="font-bold text-sky-900 flex items-center justify-between">
+                          <span>How to find your Bot Token in Telegram:</span>
+                          <span className="text-[10px] text-sky-600 font-normal">Takes ~30 seconds</span>
+                        </div>
+                        <ol className="list-decimal list-inside space-y-1.5 text-[11px] leading-relaxed text-slate-700">
+                          <li>
+                            Open Telegram Desktop (or Mobile) and search for{' '}
+                            <strong className="text-zinc-900 font-mono">@BotFather</strong>.
+                          </li>
+                          <li>
+                            Send command{' '}
+                            <code className="px-1.5 py-0.5 rounded bg-white border border-sky-300 font-mono font-bold text-zinc-900">
                               /mybots
-                            </code>
+                            </code>{' '}
                             <button
                               type="button"
                               onClick={() => {
@@ -2003,257 +2014,305 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               <Copy className="w-3 h-3" />
                               Copy
                             </button>
-                          </div>
-                        </li>
-                        <li>
-                          Click on your bot:{' '}
-                          <strong className="text-zinc-900 font-mono">@POS_SoundBox_Config_bot</strong>
-                        </li>
-                        <li>
-                          Click <strong className="text-zinc-900">API Token</strong>. BotFather will display your token string (e.g. <code className="px-1 bg-white rounded border border-slate-200">7891234567:AAHxxxxxxxxxxxxxxxxxxxxxxx</code>).
-                        </li>
-                        <li>
-                          Click the token string to copy it, then paste it into the field below.
-                        </li>
-                      </ol>
-                      <div className="pt-1.5 border-t border-sky-200/80 text-[11px] text-slate-600">
-                        <em>Need to create a new bot instead?</em> Send <code className="px-1.5 py-0.5 bg-white rounded border font-mono font-bold">/newbot</code> to @BotFather, name it, and it will immediately generate a fresh token!
+                          </li>
+                          <li>
+                            Click on your bot: <strong className="text-zinc-900 font-mono">@POS_SoundBox_Config_bot</strong>
+                          </li>
+                          <li>
+                            Click <strong className="text-zinc-900">API Token</strong> to copy the token string.
+                          </li>
+                        </ol>
+                        <div className="pt-1.5 border-t border-sky-200/80 text-[10.5px] text-slate-600">
+                          <em>Need a new bot?</em> Send <code className="px-1 py-0.5 bg-white rounded border font-mono font-bold">/newbot</code> to @BotFather.
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="relative flex-1">
-                      <input
-                        type={showBotToken ? 'text' : 'password'}
-                        value={tgBotToken}
-                        onChange={(e) => setTgBotToken(e.target.value)}
-                        placeholder="e.g. 7123456789:AAF-xyz1234567890abcdef..."
-                        className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                      />
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={showBotToken ? 'text' : 'password'}
+                          value={tgBotToken}
+                          onChange={(e) => setTgBotToken(e.target.value)}
+                          placeholder="e.g. 7123456789:AAF-xyz1234567890abcdef..."
+                          className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowBotToken((prev) => !prev)}
+                          title={showBotToken ? 'Hide Bot Token' : 'Show Bot Token'}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          {showBotToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => setShowBotToken((prev) => !prev)}
-                        title={showBotToken ? 'Hide Bot Token' : 'Show Bot Token'}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        disabled={!tgBotToken.trim() || tgDetecting}
+                        onClick={async () => {
+                          setTgDetecting(true);
+                          setTgDetectError('');
+                          const res = await detectTelegramGroupChats(tgBotToken);
+                          setTgDetecting(false);
+                          if (!res.ok) {
+                            setTgDetectError(res.error || 'Invalid Bot Token.');
+                            if (onToast) onToast(res.error || 'Invalid Bot Token.');
+                            return;
+                          }
+                          setTgBotUsername(res.botUsername);
+                          setTgDetectedChats(res.chats);
+                          if (res.chats.length === 0) {
+                            const cmd = res.botUsername ? `/start@${res.botUsername}` : '/start';
+                            setTgDetectError(
+                              `Bot @${res.botUsername} is verified! Because Telegram hides normal group messages from new bots, please type "${cmd}" inside your Telegram group (or make @${res.botUsername} a group admin), then click Auto-Detect again.`
+                            );
+                            if (onToast) {
+                              onToast(`Bot @${res.botUsername} verified! Send "${cmd}" inside your Telegram group, then click Auto-Detect again.`);
+                            }
+                            return;
+                          }
+                          const picked = res.chats[0];
+                          const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
+                          const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(picked.id)}`;
+                          setTgConfigChatId(picked.id);
+                          setTgWebhookUrl(builtWebhook);
+                          saveTelegramWebhookConfig({
+                            botToken: cleanToken,
+                            configChatId: picked.id,
+                            chatId: picked.id,
+                            webhookUrl: builtWebhook,
+                          });
+                          if (onToast) {
+                            onToast(`Connected to "${picked.title}" (${picked.id}) and sent a confirmation message to Telegram!`);
+                          }
+                        }}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer transition disabled:opacity-40 whitespace-nowrap shadow-2xs"
                       >
-                        {showBotToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {tgDetecting ? 'Detecting...' : 'Auto-Detect Group ID'}
                       </button>
                     </div>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Add your bot to the group, send <code>/start</code> in the group (or make bot admin), then click <strong>Auto-Detect Group ID</strong>.
+                    </p>
+
+                    {tgDetectError && (
+                      <div className="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-2">
+                        <div className="font-semibold">{tgDetectError}</div>
+                        {tgBotUsername && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <code className="px-2 py-1 rounded bg-white border border-amber-300 font-mono font-bold text-zinc-900">
+                              /start@{tgBotUsername}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard?.writeText(`/start@${tgBotUsername}`);
+                                if (onToast) onToast(`Copied "/start@${tgBotUsername}" — paste and send it in your Telegram group!`);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-[#003857] text-white text-[11px] font-bold cursor-pointer"
+                            >
+                              Copy Command
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {tgDetectedChats.length > 0 && (
+                      <div className="mt-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1.5">
+                        <div className="font-bold">
+                          Connected Bot @{tgBotUsername} — Detected Telegram Chats (Click to select):
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {tgDetectedChats.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
+                                const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(c.id)}`;
+                                setTgConfigChatId(c.id);
+                                setTgWebhookUrl(builtWebhook);
+                                saveTelegramWebhookConfig({
+                                  botToken: cleanToken,
+                                  configChatId: c.id,
+                                  chatId: c.id,
+                                  webhookUrl: builtWebhook,
+                                });
+                                if (onToast) onToast(`Selected "${c.title}" (${c.id})`);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-white border border-emerald-300 text-emerald-900 font-mono text-[11px] font-semibold hover:bg-emerald-100 cursor-pointer"
+                            >
+                              {c.title} ({c.id}) [{c.type}]
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold uppercase text-slate-600">
+                        2. Default Staff Telegram Group Chat ID
+                      </label>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        Fallback: <strong>-5428585935</strong>
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={tgConfigChatId}
+                      onChange={(e) => setTgConfigChatId(e.target.value)}
+                      placeholder="e.g. -5428585935 or -1005428585935"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Used when a device&apos;s branch is not assigned to any regional group on the right. Supports regular (<code>-5428585935</code>) and supergroup (<code>-1005428585935</code>) IDs.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                      3. Optional Custom Webhook URL
+                    </label>
+                    <input
+                      type="text"
+                      value={tgWebhookUrl}
+                      onChange={(e) => setTgWebhookUrl(e.target.value)}
+                      placeholder="Leave blank to use direct Bot Token above"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                    />
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                     <button
                       type="button"
-                      disabled={!tgBotToken.trim() || tgDetecting}
+                      disabled={tgTesting}
                       onClick={async () => {
-                        setTgDetecting(true);
-                        setTgDetectError('');
-                        const res = await detectTelegramGroupChats(tgBotToken);
-                        setTgDetecting(false);
-                        if (!res.ok) {
-                          setTgDetectError(res.error || 'Invalid Bot Token.');
-                          if (onToast) onToast(res.error || 'Invalid Bot Token.');
-                          return;
-                        }
-                        setTgBotUsername(res.botUsername);
-                        setTgDetectedChats(res.chats);
-                        if (res.chats.length === 0) {
-                          const cmd = res.botUsername ? `/start@${res.botUsername}` : '/start';
-                          setTgDetectError(
-                            `Bot @${res.botUsername} is verified! Because Telegram hides normal group messages from new bots, please type "${cmd}" inside your Telegram group (or make @${res.botUsername} a group admin), then click Auto-Detect again.`
-                          );
-                          if (onToast) {
-                            onToast(`Bot @${res.botUsername} verified! Send "${cmd}" inside your Telegram group, then click Auto-Detect again.`);
-                          }
-                          return;
-                        }
-                        const picked = res.chats[0];
-                        const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
-                        const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(picked.id)}`;
-                        setTgConfigChatId(picked.id);
-                        setTgWebhookUrl(builtWebhook);
                         saveTelegramWebhookConfig({
-                          botToken: cleanToken,
-                          configChatId: picked.id,
-                          chatId: picked.id,
-                          webhookUrl: builtWebhook,
+                          botToken: tgBotToken,
+                          configChatId: tgConfigChatId,
+                          chatId: tgConfigChatId,
+                          webhookUrl: tgWebhookUrl,
                         });
+                        setTgTesting(true);
+                        const res = await sendDeviceConfigTelegramAlert({
+                          serial: 'SN-TEST-0001',
+                          type: 'POS Terminal',
+                          model: 'PAX A920 Pro',
+                          mid: '200000000012345',
+                          tid: 'TID-10001',
+                          merchantName: 'Test Merchant (Default Group)',
+                          branchId: '100',
+                          branchName: 'Head Office',
+                          staff: 'Assigned POS Officer',
+                          actor: 'System Admin',
+                        });
+                        setTgTesting(false);
                         if (onToast) {
-                          onToast(`Connected to "${picked.title}" (${picked.id}) and sent a confirmation message to Telegram!`);
+                          if (res.ok) {
+                            if (res.resolvedChatId && res.resolvedChatId !== tgConfigChatId) {
+                              setTgConfigChatId(res.resolvedChatId);
+                            }
+                            onToast(`Sent test alert to Default Group (${res.resolvedChatId || tgConfigChatId})! Check your Telegram.`);
+                          } else {
+                            onToast(`Telegram Alert failed: ${res.error || 'Check Bot Token & Group Chat ID'}`);
+                          }
                         }
                       }}
-                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer transition disabled:opacity-40 whitespace-nowrap"
+                      className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer transition disabled:opacity-50 shadow-xs inline-flex items-center gap-2"
                     >
-                      {tgDetecting ? 'Detecting...' : 'Auto-Detect Group ID & Webhook'}
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{tgTesting ? 'Sending Test...' : 'Test Default Group Alert'}</span>
                     </button>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    On your laptop Telegram app: add your bot to the group, send <code>/start@your_bot_username</code> in the group (or make the bot an Admin), then click <strong>Auto-Detect Group ID &amp; Webhook</strong>.
-                  </p>
-
-                  {tgDetectError && (
-                    <div className="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-2">
-                      <div className="font-semibold">{tgDetectError}</div>
-                      {tgBotUsername && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <code className="px-2 py-1 rounded bg-white border border-amber-300 font-mono font-bold text-zinc-900">
-                            /start@{tgBotUsername}
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard?.writeText(`/start@${tgBotUsername}`);
-                              if (onToast) onToast(`Copied "/start@${tgBotUsername}" — paste and send it in your Telegram group!`);
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-[#003857] text-white text-[11px] font-bold cursor-pointer"
-                          >
-                            Copy Command for Telegram Group
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {tgDetectedChats.length > 0 && (
-                    <div className="mt-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1.5">
-                      <div className="font-bold">
-                        Connected Bot @{tgBotUsername} — Detected Telegram Chats (Click to select):
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {tgDetectedChats.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => {
-                              const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
-                              const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(c.id)}`;
-                              setTgConfigChatId(c.id);
-                              setTgWebhookUrl(builtWebhook);
-                              saveTelegramWebhookConfig({
-                                botToken: cleanToken,
-                                configChatId: c.id,
-                                chatId: c.id,
-                                webhookUrl: builtWebhook,
-                              });
-                              if (onToast) onToast(`Selected "${c.title}" (${c.id})`);
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-white border border-emerald-300 text-emerald-900 font-mono text-[11px] font-semibold hover:bg-emerald-100 cursor-pointer"
-                          >
-                            {c.title} ({c.id}) [{c.type}]
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-bold uppercase text-slate-600">
-                      2. Staff Telegram Group Chat ID
-                    </label>
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      Your Group ID: <strong>-5428585935</strong>
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    value={tgConfigChatId}
-                    onChange={(e) => setTgConfigChatId(e.target.value)}
-                    placeholder="e.g. -5428585935 or -1005428585935"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                  />
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Telegram group where POS &amp; Sound Box staff receive &ldquo;Open device &amp; wait for app push&rdquo; notifications. Both standard (<code>-5428585935</code>) and supergroup (<code>-1005428585935</code>) ID formats are supported.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                    Optional Custom Webhook URL (Leave blank if using Bot Token above)
-                  </label>
-                  <input
-                    type="text"
-                    value={tgWebhookUrl}
-                    onChange={(e) => setTgWebhookUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    disabled={tgTesting}
-                    onClick={async () => {
-                      saveTelegramWebhookConfig({
-                        botToken: tgBotToken,
-                        configChatId: tgConfigChatId,
-                        chatId: tgConfigChatId,
-                        webhookUrl: tgWebhookUrl,
-                      });
-                      setTgTesting(true);
-                      const res = await sendDeviceConfigTelegramAlert({
-                        serial: 'SN-TEST-0001',
-                        type: 'POS Terminal',
-                        model: 'PAX A920 Pro',
-                        mid: '200000000012345',
-                        tid: 'TID-10001',
-                        merchantName: 'Test Merchant (App Push Check)',
-                        branchId: '100',
-                        branchName: 'Head Office',
-                        staff: 'Assigned POS Officer',
-                        actor: 'System Admin',
-                      });
-                      setTgTesting(false);
-                      if (onToast) {
-                        if (res.ok) {
-                          if (res.resolvedChatId && res.resolvedChatId !== tgConfigChatId) {
-                            setTgConfigChatId(res.resolvedChatId);
-                          }
-                          onToast(`Sent test "Under Configuring" alert to Telegram (${res.resolvedChatId || tgConfigChatId})! Check your Telegram group.`);
-                        } else {
-                          onToast(`Telegram Alert failed: ${res.error || 'Check Bot Token & Group Chat ID'}`);
-                        }
-                      }
-                    }}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer transition disabled:opacity-50 shadow-xs"
-                  >
-                    {tgTesting ? 'Sending Test...' : 'Test "Under Configuring" Group Alert'}
-                  </button>
-                </div>
-
-                {/* REGIONAL TELEGRAM GROUPS (SEPARATE PUSH PER REGIONAL TEAM) */}
-                <div className="pt-4 mt-4 border-t border-slate-200 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <h5 className="text-xs font-extrabold uppercase tracking-wider text-[#003857] flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Regional Telegram Groups (Multi-Group Routing)</span>
-                      </h5>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Assign separate Telegram group chats for different regional teams (e.g. Phnom Penh, Siem Reap, Battambang). Daily high-volume app push alerts (~200 units) will automatically route only to each team&apos;s respective Telegram group!
-                      </p>
-                    </div>
                     <button
                       type="button"
                       onClick={() => {
-                        setEditingRegionalGroup(null);
-                        setRgName('');
-                        setRgChatId(tgConfigChatId || '-5428585935');
-                        setRgBranchCodes([]);
-                        setIsRegionalModalOpen(true);
+                        saveTelegramWebhookConfig({
+                          botToken: tgBotToken,
+                          configChatId: tgConfigChatId,
+                          chatId: tgConfigChatId,
+                          webhookUrl: tgWebhookUrl,
+                          regionalGroups,
+                        });
+                        if (onToast) onToast('Telegram bot configuration saved!');
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+                      className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition inline-flex items-center gap-1.5"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Regional Group</span>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save Bot Config</span>
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN: Regional Telegram Groups (Multi-Group Routing) */}
+              <div className="surface-card p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-extrabold text-zinc-900 truncate">
+                          Regional Telegram Groups
+                        </h3>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 shrink-0">
+                          {regionalGroups.length} Active
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        Multi-Group push routing by branch
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingRegionalGroup(null);
+                      setRgName('');
+                      setRgChatId(tgConfigChatId || '-5428585935');
+                      setRgBranchCodes([]);
+                      setIsRegionalModalOpen(true);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Regional Group</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Assign separate Telegram group chats for different regional teams (e.g. Phnom Penh, Siem Reap, Battambang). Daily high-volume app push alerts (~200 units) will automatically route only to each team&apos;s respective Telegram group!
+                  </p>
 
                   {/* List of Configured Regional Groups */}
-                  <div className="space-y-2 mt-2">
+                  <div className="space-y-2.5">
                     {regionalGroups.length === 0 ? (
-                      <div className="p-4 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-500 bg-slate-50/50">
-                        No regional groups configured yet. Alerts will route to your Default Staff Telegram Group ({tgConfigChatId || '-5428585935'}).
+                      <div className="p-6 rounded-2xl border-2 border-dashed border-slate-200 text-center space-y-2 bg-slate-50/50">
+                        <Users className="w-8 h-8 text-slate-300 mx-auto" />
+                        <div className="text-xs font-bold text-slate-700">No Regional Groups Configured</div>
+                        <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                          Alerts will route to your Default Staff Telegram Group ({tgConfigChatId || '-5428585935'}). Add regional groups to route alerts separately to each branch team.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingRegionalGroup(null);
+                            setRgName('');
+                            setRgChatId(tgConfigChatId || '-5428585935');
+                            setRgBranchCodes([]);
+                            setIsRegionalModalOpen(true);
+                          }}
+                          className="mt-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Configure First Regional Group</span>
+                        </button>
                       </div>
                     ) : (
                       regionalGroups.map((rg) => {
@@ -2264,99 +2323,109 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         return (
                           <div
                             key={rg.id}
-                            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-zinc-900"
+                            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-slate-300 transition space-y-2 text-zinc-900"
                           >
-                            <div className="min-w-0 space-y-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-bold text-zinc-900">{rg.name}</span>
-                                <span className="px-2 py-0.5 rounded-md font-mono text-[10.5px] font-bold bg-white border border-slate-200 text-slate-700">
-                                  {rg.chatId}
-                                </span>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                  {rg.branchCodes.length} Branch(es)
-                                </span>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                              <div className="min-w-0 space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-black text-[#003857]">{rg.name}</span>
+                                  <span className="px-2 py-0.5 rounded-md font-mono text-[10.5px] font-bold bg-white border border-slate-200 text-slate-700">
+                                    {rg.chatId}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                    {rg.branchCodes.length} Branch{rg.branchCodes.length === 1 ? '' : 'es'}
+                                  </span>
+                                </div>
                               </div>
 
-                              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
-                                <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span>
-                                  {assignedBranchNames.length > 0
-                                    ? assignedBranchNames.join(' • ')
-                                    : 'No branches mapped yet (uses default chat)'}
-                                </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {/* Quick Test Alert Button */}
+                                <button
+                                  type="button"
+                                  disabled={rgTestingId === rg.id}
+                                  onClick={async () => {
+                                    setRgTestingId(rg.id);
+                                    const testBranch = rg.branchCodes[0] || '100';
+                                    const bObj = (branches || []).find((b) => b.code === testBranch);
+                                    const res = await sendDeviceConfigTelegramAlert({
+                                      serial: `SN-TEST-${rg.name.slice(0, 3).toUpperCase()}-01`,
+                                      type: 'POS Terminal',
+                                      model: 'PAX A920 Pro',
+                                      mid: '200000000088888',
+                                      tid: 'TID-REGIONAL',
+                                      merchantName: `Test Merchant (${rg.name})`,
+                                      branchId: testBranch,
+                                      branchName: bObj ? bObj.name : `Branch ${testBranch}`,
+                                      staff: `${rg.name} Officer`,
+                                      actor: 'System Admin',
+                                      targetChatId: rg.chatId,
+                                      targetGroupName: rg.name,
+                                    });
+                                    setRgTestingId(null);
+                                    if (onToast) {
+                                      if (res.ok) {
+                                        onToast(`Sent test alert directly to "${rg.name}" (${rg.chatId})! Check the Telegram group.`);
+                                      } else {
+                                        onToast(`Failed to ping ${rg.name}: ${res.error || 'Check Chat ID'}`);
+                                      }
+                                    }
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
+                                  title={`Send a test notification to ${rg.name}`}
+                                >
+                                  <Send className="w-3 h-3 text-[#003857]" />
+                                  <span>{rgTestingId === rg.id ? 'Sending...' : 'Test Group'}</span>
+                                </button>
+
+                                {/* Edit Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingRegionalGroup(rg);
+                                    setRgName(rg.name);
+                                    setRgChatId(rg.chatId);
+                                    setRgBranchCodes([...rg.branchCodes]);
+                                    setIsRegionalModalOpen(true);
+                                  }}
+                                  className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 cursor-pointer transition"
+                                  title="Edit Regional Group"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+
+                                {/* Delete Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = regionalGroups.filter((x) => x.id !== rg.id);
+                                    setRegionalGroups(updated);
+                                    saveTelegramRegionalGroups(updated);
+                                    onUpdateSettings({ ...formState, telegramRegionalGroups: updated });
+                                    if (onToast) onToast(`Removed "${rg.name}"`);
+                                  }}
+                                  className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600 cursor-pointer transition"
+                                  title="Delete Regional Group"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0">
-                              {/* Quick Test Alert Button for this specific Regional Group */}
-                              <button
-                                type="button"
-                                disabled={rgTestingId === rg.id}
-                                onClick={async () => {
-                                  setRgTestingId(rg.id);
-                                  const testBranch = rg.branchCodes[0] || '100';
-                                  const bObj = (branches || []).find((b) => b.code === testBranch);
-                                  const res = await sendDeviceConfigTelegramAlert({
-                                    serial: `SN-TEST-${rg.name.slice(0, 3).toUpperCase()}-01`,
-                                    type: 'POS Terminal',
-                                    model: 'PAX A920 Pro',
-                                    mid: '200000000088888',
-                                    tid: 'TID-REGIONAL',
-                                    merchantName: `Test Merchant (${rg.name})`,
-                                    branchId: testBranch,
-                                    branchName: bObj ? bObj.name : `Branch ${testBranch}`,
-                                    staff: `${rg.name} Officer`,
-                                    actor: 'System Admin',
-                                    targetChatId: rg.chatId,
-                                    targetGroupName: rg.name,
-                                  });
-                                  setRgTestingId(null);
-                                  if (onToast) {
-                                    if (res.ok) {
-                                      onToast(`Sent test alert directly to "${rg.name}" (${rg.chatId})! Check the Telegram group.`);
-                                    } else {
-                                      onToast(`Failed to ping ${rg.name}: ${res.error || 'Check Chat ID'}`);
-                                    }
-                                  }
-                                }}
-                                className="px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition disabled:opacity-50"
-                                title={`Send a test notification to ${rg.name}`}
-                              >
-                                <Send className="w-3 h-3 text-[#003857]" />
-                                <span>{rgTestingId === rg.id ? 'Sending...' : 'Test Group'}</span>
-                              </button>
-
-                              {/* Edit Button */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingRegionalGroup(rg);
-                                  setRgName(rg.name);
-                                  setRgChatId(rg.chatId);
-                                  setRgBranchCodes([...rg.branchCodes]);
-                                  setIsRegionalModalOpen(true);
-                                }}
-                                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 cursor-pointer transition"
-                                title="Edit Regional Group"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Delete Button */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const updated = regionalGroups.filter((x) => x.id !== rg.id);
-                                  setRegionalGroups(updated);
-                                  saveTelegramRegionalGroups(updated);
-                                  onUpdateSettings({ ...formState, telegramRegionalGroups: updated });
-                                  if (onToast) onToast(`Removed "${rg.name}"`);
-                                }}
-                                className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600 cursor-pointer transition"
-                                title="Delete Regional Group"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                            {/* Assigned Branches Tags */}
+                            <div className="flex flex-wrap items-center gap-1 text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
+                              <Building2 className="w-3 h-3 text-slate-400 shrink-0 mr-0.5" />
+                              {assignedBranchNames.length > 0 ? (
+                                assignedBranchNames.map((bName, i) => (
+                                  <span
+                                    key={i}
+                                    className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10.5px] text-slate-700 font-medium"
+                                  >
+                                    {bName}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="italic text-slate-400 text-[10.5px]">No branches mapped yet (uses default chat)</span>
+                              )}
                             </div>
                           </div>
                         );

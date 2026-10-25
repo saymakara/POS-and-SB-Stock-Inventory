@@ -294,9 +294,7 @@ export async function sendDeviceConfigTelegramAlert(
   const devType = info.type || info.deviceType || 'Device';
   const devModel = info.model ? ` · ${info.model}` : '';
   const mention = formatTelegramMention(info.staffTelegram);
-  const staffDisplay = mention
-    ? `${info.staff || info.staffName || 'Branch Officer'} (${mention})`
-    : (info.staff || info.staffName || 'Branch Officer');
+  const staffDisplay = info.staff || info.staffName || 'Branch Officer';
   const text = [
     `📲 *Under Configuring — Ready for App Push*`,
     `• *Action Required:* Please *OPEN the device* and connect to network to wait for pushing the app!`,
