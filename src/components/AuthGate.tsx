@@ -74,6 +74,7 @@ function storeSession(p: StaffProfile) {
     if (last && last !== p.user_id) clearLocalCaches();          // another person on this browser: nothing of theirs stays
     localStorage.setItem(LAST_USER_KEY, p.user_id);
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ role: p.role, operatorLabel: `${p.name} (${p.emp_id})`, branchId: p.branch_id, username: p.emp_id }));
+    sessionStorage.setItem('crm_pos_staff_profile_v1', JSON.stringify(p));
     localStorage.removeItem(SESSION_KEY);
   } catch {
     /* storage blocked: the app still starts from the database */
@@ -83,8 +84,18 @@ function storeSession(p: StaffProfile) {
 type Phase = 'checking' | 'signin' | 'change' | 'ready';
 
 export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => React.ReactNode }> = ({ children }) => {
-  const [phase, setPhase] = useState<Phase>(isSupabaseConfigured ? 'checking' : 'ready');
-  const [profile, setProfile] = useState<StaffProfile | null>(null);
+  const cachedInitialProfile = React.useMemo<StaffProfile | null>(() => {
+    try {
+      const raw = sessionStorage.getItem('crm_pos_staff_profile_v1');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as StaffProfile;
+      return parsed && parsed.active && !parsed.must_change_password ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, []);
+  const [phase, setPhase] = useState<Phase>(!isSupabaseConfigured || cachedInitialProfile ? 'ready' : 'checking');
+  const [profile, setProfile] = useState<StaffProfile | null>(cachedInitialProfile);
   const [empId, setEmpId] = useState('');
   const [password, setPassword] = useState('');
   const [newPw, setNewPw] = useState('');

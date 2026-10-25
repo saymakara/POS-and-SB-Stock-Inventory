@@ -181,17 +181,18 @@ async function fetchPaginatedRows(
     limit?: number;
     offset?: number;
     ascending?: boolean;
+    skipCount?: boolean;
     filters?: (query: any) => any;
   } = {}
 ): Promise<{ rows: any[]; count: number } | null> {
-  const limit = Math.max(1, Math.min(options.limit || 50, 100));
+  const limit = Math.max(1, Math.min(options.limit || 50, 1000));
   const offset = Math.max(0, options.offset || 0);
   const ascending = options.ascending !== false;
 
   try {
     let q: any = supabase
       .from(table)
-      .select('*', { count: 'exact' })
+      .select('*', options.skipCount ? undefined : { count: 'exact' })
       .order(orderCol, { ascending });
 
     if (options.filters) {
@@ -452,9 +453,13 @@ export async function fetchDevicesPageFromSupabase(
   };
 }
 
-export async function fetchDevicesFromSupabase(limit = 100, offset = 0): Promise<Device[] | null> {
+export async function fetchDevicesFromSupabase(
+  limit = 1000,
+  offset = 0,
+  onFirstPage?: (rows: Device[], total: number) => void
+): Promise<Device[] | null> {
   if (!isSupabaseConfigured) return null;
-  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeLimit = Math.max(100, Math.min(limit, 1000));
   try {
     const first = await fetchPaginatedRows('devices', 'serial', {
       limit: safeLimit,
@@ -464,16 +469,19 @@ export async function fetchDevicesFromSupabase(limit = 100, offset = 0): Promise
     if (!first) return null;
     const all: Device[] = first.rows.map(mapRowToDevice);
     const totalToFetch = Math.min(first.count, 10000);
+    if (onFirstPage) {
+      onFirstPage(all.slice(), totalToFetch);
+    }
     if (first.rows.length < safeLimit || all.length >= totalToFetch) {
       return all;
     }
 
-    // Fetch remaining pages in parallel batches of 4 for 4x faster initial hydration over HTTP/2
+    // Fetch remaining 1,000-row pages in parallel without recounting (`skipCount: true`)
     const offsets: number[] = [];
     for (let nextOff = Math.max(0, offset) + safeLimit; nextOff < totalToFetch; nextOff += safeLimit) {
       offsets.push(nextOff);
     }
-    const CONCURRENCY = 4;
+    const CONCURRENCY = 6;
     for (let i = 0; i < offsets.length; i += CONCURRENCY) {
       const chunk = offsets.slice(i, i + CONCURRENCY);
       const pages = await Promise.all(
@@ -482,6 +490,7 @@ export async function fetchDevicesFromSupabase(limit = 100, offset = 0): Promise
             limit: safeLimit,
             offset: off,
             ascending: true,
+            skipCount: true,
           })
         )
       );
@@ -558,9 +567,9 @@ export async function fetchRequisitionsPageFromSupabase(
   };
 }
 
-export async function fetchRequisitionsFromSupabase(limit = 100, offset = 0): Promise<Requisition[] | null> {
+export async function fetchRequisitionsFromSupabase(limit = 1000, offset = 0): Promise<Requisition[] | null> {
   if (!isSupabaseConfigured) return null;
-  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeLimit = Math.max(100, Math.min(limit, 1000));
   try {
     const allRows: any[] = [];
     let curOffset = Math.max(0, offset);
@@ -569,10 +578,11 @@ export async function fetchRequisitionsFromSupabase(limit = 100, offset = 0): Pr
         limit: safeLimit,
         offset: curOffset,
         ascending: true,
+        skipCount: true,
       });
       if (!res) return allRows.length > 0 ? allRows.map(mapRowToRequisition) : null;
       allRows.push(...res.rows);
-      if (res.rows.length < safeLimit || allRows.length >= res.count || allRows.length >= 2000) break;
+      if (res.rows.length < safeLimit || allRows.length >= 2000) break;
       curOffset += safeLimit;
     }
     return allRows
@@ -676,12 +686,17 @@ export async function fetchHistoricalMerchantsPageFromSupabase(
 }
 
 export async function fetchHistoricalMerchantsFromSupabase(
-  limit = 100,
+  limit = 1000,
   offset = 0
 ): Promise<HistoricalMerchantRecord[] | null> {
   if (!isSupabaseConfigured) return null;
   try {
-    const res = await fetchPaginatedRows('historical_merchants', 'record_id', { limit, offset, ascending: false });
+    const res = await fetchPaginatedRows('historical_merchants', 'record_id', {
+      limit: Math.max(100, Math.min(limit, 1000)),
+      offset,
+      ascending: false,
+      skipCount: true,
+    });
     if (!res) return null;
     res.rows.sort((x: any, y: any) => String(y.returned_date || '').localeCompare(String(x.returned_date || '')));
     return res.rows.map(mapRowToHistory);

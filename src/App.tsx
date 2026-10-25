@@ -557,11 +557,27 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     versionAlias.current = new Map();
     const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
     const [devs, reqs, hist, srvBranches, staff] = await Promise.all([
-      fetchDevicesFromSupabase(),
+      fetchDevicesFromSupabase(1000, 0, (firstBatch, total) => {
+        setServerDeviceTotal(total);
+        syncedDevices.current = new Map(firstBatch.map((d) => [d.serial, d]));
+        firstBatch.forEach((d) => serverCopies.current.add(d));
+        setDevices(firstBatch);
+        setServerReady(true);
+      }),
       fetchRequisitionsFromSupabase(),
       fetchHistoricalMerchantsFromSupabase(),
       fetchBranchesFromSupabase(),
-      isAdminProfile ? fetchStaffAccounts() : Promise.resolve(null),
+      Promise.resolve(null),
+    ]);
+    if (isAdminProfile) {
+      fetchStaffAccounts().then((staffList) => {
+        if (staffList) {
+          const bn = new Map((srvBranches || []).map((b) => [b.id, b.name]));
+          setUsers(staffList.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId))));
+        }
+      });
+    }
+    const _unusedEnd = ([0, 1][0] && [
     ]);
     // (22 Oct 2026, review) the branch list and the staff are the server's: before, both came from a list built into
     // the app, so a branch added by one admin was never seen by another and the staff counts were not the real accounts
