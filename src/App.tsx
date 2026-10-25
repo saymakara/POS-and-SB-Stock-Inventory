@@ -30,7 +30,7 @@ import { todayPP, stampPP, stampSecPP } from './utils/time';
 import { newRecordId } from './utils/ids';
 import { canMove, moveError, statusOf, onMove } from './utils/stages';
 import { csvFile } from './utils/csv';
-import { deduplicateStaffList } from './utils/staffUtils';
+import { deduplicateStaffList, normalizeStaffName } from './utils/staffUtils';
 import { tidFromMid } from './utils/tid';
 import { TraceModal } from './components/TraceModal';
 import { SaveGuard, throttled, watchNewVersion } from './utils/saveGuard';
@@ -283,11 +283,22 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       const saved = localStorage.getItem(STORAGE_KEY_USERS);
       if (saved) {
         const parsed: User[] = JSON.parse(saved);
-        return parsed.map((u) => ({
-          ...u,
-          branchName: u.branchId === '100' ? 'Head Office' : u.branchName,
-          password: u.password || u.empId,
-        }));
+        const seen = new Set<string>();
+        const unique: User[] = [];
+        for (const u of parsed) {
+          const cleanName = normalizeStaffName(u.name);
+          const key = (u.empId || cleanName).toLowerCase().trim();
+          if (!seen.has(key)) {
+            seen.add(key);
+            unique.push({
+              ...u,
+              name: cleanName,
+              branchName: u.branchId === '100' ? 'Head Office' : u.branchName,
+              password: u.password || u.empId,
+            });
+          }
+        }
+        return unique;
       }
     } catch (e) {
       console.error(e);
