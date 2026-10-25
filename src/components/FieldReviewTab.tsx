@@ -736,7 +736,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       >
         <div className="min-w-[1040px]">
           <div
-            className={`${GRID} bg-slate-50 text-slate-600 border-b border-slate-200 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`}
+            className={`${GRID} navy-header-bar text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`}
             role="row"
           >
             <span>
@@ -746,12 +746,12 @@ export const FieldReviewTab: React.FC<Props> = ({
                   aria-label={allSelected ? 'Unselect all' : 'Select all waiting'}
                   aria-pressed={allSelected}
                   onClick={() => setSelected(allSelected ? new Set() : new Set(shownPending.map((e) => e.id)))}
-                  className="cursor-pointer flex text-slate-600"
+                  className="cursor-pointer flex text-white"
                 >
                   {allSelected ? (
-                    <CheckSquare className="w-4 h-4 text-slate-800" />
+                    <CheckSquare className="w-4 h-4 text-emerald-300" />
                   ) : (
-                    <Square className="w-4 h-4 text-slate-400 hover:text-slate-700" />
+                    <Square className="w-4 h-4 text-white/75 hover:text-white" />
                   )}
                 </button>
               )}
@@ -861,7 +861,7 @@ const SortBtn: React.FC<{
       }`}
     >
       <span>{children}</span>
-      <I className={`w-3 h-3 shrink-0 ${a ? 'opacity-100 text-slate-900' : 'opacity-45'}`} aria-hidden />
+      <I className={`w-3 h-3 shrink-0 ${a ? 'opacity-100 text-sky-300' : 'opacity-65'}`} aria-hidden />
     </button>
   );
 };
