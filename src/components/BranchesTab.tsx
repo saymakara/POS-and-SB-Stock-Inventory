@@ -391,7 +391,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               >
                 <span>Low Reserve</span>
                 {metrics.lowReserveCount > 0 && (
-                  <span className={`min-w-4 h-4 px-1 rounded-full text-[9px] flex items-center justify-center font-bold transition-colors ${statusFilter === 'LOW_RESERVE' ? 'bg-amber-100 text-amber-700' : 'bg-amber-50 text-amber-700'}`}>
+                  <span className="font-mono font-bold text-[11px]">
                     {metrics.lowReserveCount}
                   </span>
                 )}
