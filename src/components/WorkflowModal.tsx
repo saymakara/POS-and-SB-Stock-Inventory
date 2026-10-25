@@ -243,10 +243,15 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     const seenNames = new Set<string>();
     const seenEmpIds = new Set<string>();
 
-    // 1. Primary Staff Directory & IAM Accounts
+    const targetBranchId = String(branchId || '').trim();
+
+    // 1. Primary Staff Directory & IAM Accounts belonging ONLY to the selected branch
     if (users && users.length > 0) {
       for (const u of users) {
         if (u.status === 'Suspended') continue;
+        const uBranch = String(u.branchId || '').trim();
+        if (targetBranchId && uBranch !== targetBranchId) continue;
+
         const baseName = normalizeStaffName(u.name);
         if (!baseName) continue;
         const nameKey = baseName.toLowerCase();
@@ -258,22 +263,21 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         seenNames.add(nameKey);
         if (empIdKey) seenEmpIds.add(empIdKey);
 
-        const uBranch = String(u.branchId || '').trim();
         list.push({
           name: baseName,
           empId: u.empId?.trim(),
           branchId: uBranch,
           telegram: u.telegramUsername?.trim(),
           label: `${baseName}${u.empId ? ` (${u.empId})` : ''}`,
-          isCurrentBranch: uBranch === String(branchId).trim(),
+          isCurrentBranch: true,
         });
       }
     }
 
-    // 2. Branch staff fallback (without duplicating any user already registered)
-    for (const b of branches) {
-      const bCode = String(b.code || b.id || '').trim();
-      for (const s of b.staff || []) {
+    // 2. Branch staff fallback for ONLY the selected branch
+    const currentBranchObj = branches.find((b) => String(b.code || b.id).trim() === targetBranchId);
+    if (currentBranchObj) {
+      for (const s of currentBranchObj.staff || []) {
         const baseName = normalizeStaffName(s);
         if (!baseName) continue;
         const nameKey = baseName.toLowerCase();
@@ -288,31 +292,27 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         list.push({
           name: baseName,
           empId: embeddedEmpId,
-          branchId: bCode,
+          branchId: targetBranchId,
           label: `${baseName}${embeddedEmpId ? ` (${embeddedEmpId})` : ''}`,
-          isCurrentBranch: bCode === String(branchId).trim(),
+          isCurrentBranch: true,
         });
       }
     }
 
-    // 3. Currently assigned staff on this device (if not in list yet)
+    // 3. Currently assigned staff on this device (if already recorded)
     if (staff) {
       const baseStaff = normalizeStaffName(staff);
       if (baseStaff && !seenNames.has(baseStaff.toLowerCase())) {
         list.push({
           name: baseStaff,
-          branchId: String(branchId).trim(),
+          branchId: targetBranchId,
           label: baseStaff,
           isCurrentBranch: true,
         });
       }
     }
 
-    return list.sort((a, b) => {
-      if (a.isCurrentBranch && !b.isCurrentBranch) return -1;
-      if (!a.isCurrentBranch && b.isCurrentBranch) return 1;
-      return a.name.localeCompare(b.name);
-    });
+    return list.sort((a, b) => a.name.localeCompare(b.name));
   }, [users, branches, branchId, staff]);
 
   const availableStaff = useMemo(() => {
@@ -1113,7 +1113,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     type="text"
                     value={staffQuery}
                     onChange={(e) => setStaffQuery(e.target.value)}
-                    placeholder="Search staff name, ID, or @telegram..."
+                    placeholder={`Search staff in Branch ${branchId || 'selected'}...`}
                     className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border outline-none mb-1.5 ${
                       isLight
                         ? 'bg-white border-slate-200 text-slate-900 focus:border-[#003857]'
@@ -1150,31 +1150,23 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       <option value={staff}>{staff} (Assigned)</option>
                     )}
 
-                    {/* Current branch staff */}
+                    {/* Staff selection exclusively for the selected branch */}
                     {allStaffOptions
-                      .filter((s) => s.isCurrentBranch && (!staffQuery || s.name.toLowerCase().includes(staffQuery.toLowerCase()) || (s.empId && s.empId.includes(staffQuery)) || (s.telegram && s.telegram.toLowerCase().includes(staffQuery.toLowerCase()))))
+                      .filter((s) => !staffQuery || s.name.toLowerCase().includes(staffQuery.toLowerCase()) || (s.empId && s.empId.includes(staffQuery)) || (s.telegram && s.telegram.toLowerCase().includes(staffQuery.toLowerCase())))
                       .map((st) => (
                         <option
-                          key={st.name}
+                          key={`${st.name}__${st.empId || ''}__${st.branchId}`}
                           value={st.name}
                           className={isLight ? 'bg-white text-slate-900 font-bold' : 'bg-slate-900 text-white font-bold'}
                         >
                           ⭐ {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''} · Branch {branchId}
                         </option>
                       ))}
-
-                    {/* Other branches & HQ staff */}
-                    {allStaffOptions
-                      .filter((s) => !s.isCurrentBranch && (!staffQuery || s.name.toLowerCase().includes(staffQuery.toLowerCase()) || (s.empId && s.empId.includes(staffQuery)) || (s.telegram && s.telegram.toLowerCase().includes(staffQuery.toLowerCase()))))
-                      .map((st) => (
-                        <option
-                          key={st.name}
-                          value={st.name}
-                          className={isLight ? 'bg-white text-slate-600' : 'bg-slate-900 text-slate-300'}
-                        >
-                          {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''} · Branch {st.branchId}
-                        </option>
-                      ))}
+                    {allStaffOptions.length === 0 && (
+                      <option disabled value="" className="text-slate-400 italic">
+                        No staff assigned to Branch {branchId}
+                      </option>
+                    )}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
                 </div>
