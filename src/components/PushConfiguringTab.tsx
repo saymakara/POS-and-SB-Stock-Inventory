@@ -610,7 +610,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     const headers = [
       'No.',
       'Date & Time of Request Push',
-      'Hardware Serial & Model',
+      'Serial & Model',
       'Merchant Name & MID / TID',
       'Configure By (Staff)',
       'Assigned By',
@@ -652,7 +652,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     const headers = [
       'No.',
       'Date & Time of Request Push',
-      'Hardware Serial & Model',
+      'Serial & Model',
       'Merchant Name & MID / TID',
       'Configure By (Staff)',
       'Assigned By',
@@ -699,7 +699,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     const headers = [
       'No.',
       'Date & Time of Request Push',
-      'Hardware Serial & Model',
+      'Serial & Model',
       'Merchant Name & MID / TID',
       'Configure By (Staff)',
       'Assigned By',
@@ -752,7 +752,7 @@ return (
               <span>Push Configuring Hub</span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-200/90 leading-relaxed">
-              Live deployment queue for merchant hardware setup. Alert field technicians and branch officers to power ON devices, connect to network, and wait for pushing the merchant application.
+              Live deployment queue for merchant setup. Alert field technicians and branch officers to power ON devices, connect to network, and wait for pushing the merchant application.
             </p>
           </div>
 
@@ -1133,7 +1133,7 @@ return (
         <div className={`p-4 border-b flex items-center justify-between gap-3 ${isLight ? 'border-slate-100 text-slate-700' : 'border-slate-800 text-slate-300'}`}>
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase tracking-wider">
-              Hardware Queue Ready for App Push
+              Queue Ready for App Push
             </span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
               {filteredWaitingCount > 0
@@ -1171,12 +1171,12 @@ return (
                     type="checkbox"
                     checked={selectedSns.length === filteredDevices.length && filteredDevices.length > 0}
                     onChange={handleToggleSelectAll}
-                    aria-label="Select all hardware in queue"
+                    aria-label="Select all in queue"
                     className="rounded border-slate-300 cursor-pointer accent-[#003857]"
                   />
                 </th>
                 <th className="py-3 px-4">Date &amp; Time of Request Push</th>
-                <th className="py-3 px-4">Hardware Serial &amp; Model</th>
+                <th className="py-3 px-4">Serial &amp; Model</th>
                 <th className="py-3 px-4">Merchant Name &amp; MID / TID</th>
                 <th className="py-3 px-4">Configure By (Staff)</th>
                 <th className="py-3 px-4">Assigned By</th>
@@ -1382,7 +1382,7 @@ return (
                                   ? 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
                                   : 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
                               }`}
-                              title="Manage hardware profile or complete deployment"
+                              title="Manage device profile or complete deployment"
                             >
                               Manage
                             </button>
