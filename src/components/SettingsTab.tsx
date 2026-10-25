@@ -46,6 +46,10 @@ import {
   Calendar as CalendarIcon,
   PlusCircle,
   X,
+  Eye,
+  EyeOff,
+  HelpCircle,
+  Copy,
 } from 'lucide-react';
 
 export type SettingsSubTab =
@@ -127,6 +131,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [tgBotUsername, setTgBotUsername] = useState('');
   const [tgDetectError, setTgDetectError] = useState('');
   const [tgDetectedChats, setTgDetectedChats] = useState<{ id: string; title: string; type: string }[]>([]);
+  const [showBotToken, setShowBotToken] = useState(false);
+  const [showBotFatherGuide, setShowBotFatherGuide] = useState(false);
 
   // Custom Field Manager State
   const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
@@ -1934,17 +1940,85 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                    1. Telegram Bot Token (from @BotFather)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold uppercase text-slate-600">
+                      1. Telegram Bot Token (from @BotFather)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowBotFatherGuide((prev) => !prev)}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#003857] hover:underline cursor-pointer"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                      {showBotFatherGuide ? 'Hide Token Guide' : 'Where is my Bot Token?'}
+                    </button>
+                  </div>
+
+                  {showBotFatherGuide && (
+                    <div className="mb-2.5 p-3.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 text-xs space-y-2.5">
+                      <div className="font-bold text-sky-900 flex items-center justify-between">
+                        <span>How to find your Bot Token in Telegram:</span>
+                        <span className="text-[10px] text-sky-600 font-normal">Takes ~30 seconds</span>
+                      </div>
+                      <ol className="list-decimal list-inside space-y-1.5 text-[11.5px] leading-relaxed text-slate-700">
+                        <li>
+                          Open Telegram Desktop (or Mobile) and search for{' '}
+                          <strong className="text-zinc-900 font-mono">@BotFather</strong> (the one with the verified blue checkmark).
+                        </li>
+                        <li>
+                          In the chat with @BotFather, type or click:{' '}
+                          <div className="inline-flex items-center gap-1.5 my-1">
+                            <code className="px-2 py-0.5 rounded bg-white border border-sky-300 font-mono font-bold text-zinc-900">
+                              /mybots
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard?.writeText('/mybots');
+                                if (onToast) onToast('Copied "/mybots" to clipboard!');
+                              }}
+                              className="px-2 py-0.5 rounded bg-[#003857] text-white text-[10px] font-bold hover:bg-[#002a42] cursor-pointer inline-flex items-center gap-1"
+                            >
+                              <Copy className="w-3 h-3" />
+                              Copy
+                            </button>
+                          </div>
+                        </li>
+                        <li>
+                          Click on your bot:{' '}
+                          <strong className="text-zinc-900 font-mono">@POS_SoundBox_Config_bot</strong>
+                        </li>
+                        <li>
+                          Click <strong className="text-zinc-900">API Token</strong>. BotFather will display your token string (e.g. <code className="px-1 bg-white rounded border border-slate-200">7891234567:AAHxxxxxxxxxxxxxxxxxxxxxxx</code>).
+                        </li>
+                        <li>
+                          Click the token string to copy it, then paste it into the field below.
+                        </li>
+                      </ol>
+                      <div className="pt-1.5 border-t border-sky-200/80 text-[11px] text-slate-600">
+                        <em>Need to create a new bot instead?</em> Send <code className="px-1.5 py-0.5 bg-white rounded border font-mono font-bold">/newbot</code> to @BotFather, name it, and it will immediately generate a fresh token!
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="password"
-                      value={tgBotToken}
-                      onChange={(e) => setTgBotToken(e.target.value)}
-                      placeholder="e.g. 7123456789:AAF-xyz1234567890abcdef..."
-                      className="flex-1 px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                    />
+                    <div className="relative flex-1">
+                      <input
+                        type={showBotToken ? 'text' : 'password'}
+                        value={tgBotToken}
+                        onChange={(e) => setTgBotToken(e.target.value)}
+                        placeholder="e.g. 7123456789:AAF-xyz1234567890abcdef..."
+                        className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowBotToken((prev) => !prev)}
+                        title={showBotToken ? 'Hide Bot Token' : 'Show Bot Token'}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        {showBotToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                     <button
                       type="button"
                       disabled={!tgBotToken.trim() || tgDetecting}
@@ -1974,7 +2048,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
                         const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(picked.id)}`;
                         setTgConfigChatId(picked.id);
-                        setTgErrorChatId(picked.id);
                         setTgWebhookUrl(builtWebhook);
                         saveTelegramWebhookConfig({
                           botToken: cleanToken,
@@ -2032,7 +2105,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
                               const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(c.id)}`;
                               setTgConfigChatId(c.id);
-                              setTgErrorChatId(c.id);
                               setTgWebhookUrl(builtWebhook);
                               saveTelegramWebhookConfig({
                                 botToken: cleanToken,
@@ -2053,18 +2125,23 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                    2. Staff Telegram Group Chat ID
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold uppercase text-slate-600">
+                      2. Staff Telegram Group Chat ID
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      Your Group ID: <strong>-5428585935</strong>
+                    </span>
+                  </div>
                   <input
                     type="text"
                     value={tgConfigChatId}
                     onChange={(e) => setTgConfigChatId(e.target.value)}
-                    placeholder="e.g. -1001987654321"
+                    placeholder="e.g. -5428585935 or -1005428585935"
                     className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                   />
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Telegram group where POS &amp; Sound Box staff receive &ldquo;Open device &amp; wait for app push&rdquo; notifications.
+                    Telegram group where POS &amp; Sound Box staff receive &ldquo;Open device &amp; wait for app push&rdquo; notifications. Both standard (<code>-5428585935</code>) and supergroup (<code>-1005428585935</code>) ID formats are supported.
                   </p>
                 </div>
 
@@ -2093,7 +2170,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         webhookUrl: tgWebhookUrl,
                       });
                       setTgTesting(true);
-                      const ok = await sendDeviceConfigTelegramAlert({
+                      const res = await sendDeviceConfigTelegramAlert({
                         serial: 'SN-TEST-0001',
                         type: 'POS Terminal',
                         model: 'PAX A920 Pro',
@@ -2107,11 +2184,14 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       });
                       setTgTesting(false);
                       if (onToast) {
-                        onToast(
-                          ok
-                            ? 'Sent test "Under Configuring" alert to Telegram group!'
-                            : 'Could not send Telegram message. Check Bot Token & Group Chat ID.'
-                        );
+                        if (res.ok) {
+                          if (res.resolvedChatId && res.resolvedChatId !== tgConfigChatId) {
+                            setTgConfigChatId(res.resolvedChatId);
+                          }
+                          onToast(`Sent test "Under Configuring" alert to Telegram (${res.resolvedChatId || tgConfigChatId})! Check your Telegram group.`);
+                        } else {
+                          onToast(`Telegram Alert failed: ${res.error || 'Check Bot Token & Group Chat ID'}`);
+                        }
                       }
                     }}
                     className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer transition disabled:opacity-50 shadow-xs"

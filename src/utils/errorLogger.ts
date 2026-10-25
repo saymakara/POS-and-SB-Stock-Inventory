@@ -224,58 +224,164 @@ export async function reportCaughtError(
  * on an Under Configuring device, alerting the assigned staff to open the POS Terminal / device
  * and wait for pushing the app to the device.
  */
-export async function sendDeviceConfigTelegramAlert(info: {
+export interface DeviceConfigTelegramAlertInfo {
   serial: string;
-  type: string;
-  model: string;
-  mid: string;
-  tid: string;
-  merchantName: string;
-  branchId: string;
-  branchName: string;
-  staff: string;
-  actor: string;
-}): Promise<boolean> {
+  type?: string;
+  deviceType?: string;
+  model?: string;
+  mid?: string;
+  tid?: string;
+  merchantName?: string;
+  branchId?: string;
+  branchName?: string;
+  staff?: string;
+  staffName?: string;
+  actor?: string;
+  adminOperator?: string;
+}
+
+export interface DeviceConfigTelegramAlertResult {
+  ok: boolean;
+  error?: string;
+  resolvedChatId?: string;
+}
+
+/**
+ * Policy #11: Sends a Telegram Group notification when Admin finishes setting up a Merchant Profile
+ * on an Under Configuring device, alerting the assigned staff to open the POS Terminal / device
+ * and wait for pushing the app to the device.
+ */
+export async function sendDeviceConfigTelegramAlert(
+  info: DeviceConfigTelegramAlertInfo
+): Promise<DeviceConfigTelegramAlertResult> {
   const { webhookUrl, botToken, chatId, configChatId } = getTelegramWebhookConfig();
-  const targetChatId = configChatId || chatId;
+  let cleanToken = botToken.trim().replace(/^["']|["']$/g, '');
+  const match = cleanToken.match(/(?:bot)?(\d+:[A-Za-z0-9_-]+)/);
+  if (match) cleanToken = match[1];
+
+  const primaryChatId = (configChatId || chatId || '').trim();
   const timestamp = stampSecPP();
+
+  const devType = info.type || info.deviceType || 'Device';
+  const devModel = info.model ? ` · ${info.model}` : '';
+  const assignedStaff = info.staff || info.staffName || 'Branch Officer';
+  const branchName = info.branchName || 'Branch';
+  const branchId = info.branchId || '100';
+  const merchantName = info.merchantName || 'Configured Merchant';
+  const actor = info.actor || info.adminOperator || 'System Admin';
+
   const formattedText = [
     `📲 *Under Configuring — Ready for App Push*`,
     `• *Action Required:* Please *OPEN the device* and connect to network to wait for pushing the app!`,
-    `• *Assigned Staff:* *${info.staff || 'Branch Officer'}*`,
-    `• *Branch:* Code \`${info.branchId}\` (${info.branchName})`,
-    `• *Hardware Serial:* \`${info.serial}\` (${info.type} · ${info.model})`,
-    `• *Merchant Name:* *${info.merchantName || 'Configured Merchant'}*`,
+    `• *Assigned Staff:* *${assignedStaff}*`,
+    `• *Branch:* Code \`${branchId}\` (${branchName})`,
+    `• *Hardware Serial:* \`${info.serial}\` (${devType}${devModel})`,
+    `• *Merchant Name:* *${merchantName}*`,
     `• *MID:* \`${info.mid || '—'}\`  |  *TID:* \`${info.tid || '—'}\``,
-    `• *Configured By:* ${info.actor}`,
+    `• *Configured By:* ${actor}`,
     `• *Timestamp:* ${timestamp}`,
   ].join('\n');
 
-  try {
-    if (botToken && targetChatId) {
-      const tgUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
-      const res = await fetch(tgUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: targetChatId,
+  const plainText = [
+    `[Under Configuring — Ready for App Push]`,
+    `Action Required: Please OPEN the device and connect to network to wait for pushing the app!`,
+    `Assigned Staff: ${assignedStaff}`,
+    `Branch: Code ${branchId} (${branchName})`,
+    `Hardware Serial: ${info.serial} (${devType}${devModel})`,
+    `Merchant Name: ${merchantName}`,
+    `MID: ${info.mid || '—'}  |  TID: ${info.tid || '—'}`,
+    `Configured By: ${actor}`,
+    `Timestamp: ${timestamp}`,
+  ].join('\n');
+
+  // Candidate chat IDs to try (handling basic group vs supergroup -100 prefix)
+  const candidateChatIds: string[] = [];
+  if (primaryChatId) {
+    candidateChatIds.push(primaryChatId);
+    if (primaryChatId.startsWith('-100')) {
+      // e.g. -1005428585935 -> also try -5428585935
+      candidateChatIds.push('-' + primaryChatId.slice(4));
+    } else if (primaryChatId.startsWith('-')) {
+      // e.g. -5428585935 -> also try -1005428585935
+      candidateChatIds.push('-100' + primaryChatId.slice(1));
+    } else {
+      // e.g. 5428585935 -> try -5428585935 and -1005428585935
+      candidateChatIds.push('-' + primaryChatId);
+      candidateChatIds.push('-100' + primaryChatId);
+    }
+  }
+
+  let lastError = '';
+
+  if (cleanToken && candidateChatIds.length > 0) {
+    const tgUrl = `https://api.telegram.org/bot${cleanToken}/sendMessage`;
+    for (const testChatId of candidateChatIds) {
+      try {
+        // Use application/x-www-form-urlencoded (URLSearchParams) to avoid browser CORS preflight OPTIONS failure
+        const params = new URLSearchParams({
+          chat_id: testChatId,
           text: formattedText,
           parse_mode: 'Markdown',
-        }),
-      });
-      if (res.ok) return true;
-    }
+        });
+        const res = await fetch(tgUrl, {
+          method: 'POST',
+          body: params,
+        });
 
-    if (webhookUrl) {
-      let urlChatId = targetChatId;
-      try {
-        const parsedUrl = new URL(webhookUrl);
-        if (!urlChatId && parsedUrl.searchParams.get('chat_id')) {
-          urlChatId = parsedUrl.searchParams.get('chat_id') || '';
+        const data = await res.json().catch(() => null);
+
+        if (res.ok && data?.ok) {
+          if (testChatId !== primaryChatId) {
+            saveTelegramWebhookConfig({ configChatId: testChatId, chatId: testChatId });
+          }
+          return { ok: true, resolvedChatId: testChatId };
         }
-      } catch {
-        // ignore URL parse error
+
+        // If markdown parser rejected entities (e.g. unescaped character in merchant name), retry with plain text
+        if (data?.description && /can't parse entities|entities|markdown/i.test(data.description)) {
+          const retryParams = new URLSearchParams({
+            chat_id: testChatId,
+            text: plainText,
+          });
+          const retryRes = await fetch(tgUrl, {
+            method: 'POST',
+            body: retryParams,
+          });
+          const retryData = await retryRes.json().catch(() => null);
+          if (retryRes.ok && retryData?.ok) {
+            if (testChatId !== primaryChatId) {
+              saveTelegramWebhookConfig({ configChatId: testChatId, chatId: testChatId });
+            }
+            return { ok: true, resolvedChatId: testChatId };
+          }
+        }
+
+        lastError = data?.description || `HTTP ${res.status}`;
+        // If chat was not found, continue loop to try alternative format (-100 vs -)
+        if (data?.description && /chat not found/i.test(data.description)) {
+          continue;
+        }
+      } catch (err: any) {
+        const isFetch = err?.message?.toLowerCase().includes('fetch') || err?.name === 'TypeError';
+        lastError = isFetch
+          ? 'Browser network blocked api.telegram.org. If you use Brave or an AdBlocker, please allow this site.'
+          : (err?.message || 'Network error connecting to Telegram');
       }
+    }
+  }
+
+  // Webhook fallback if custom webhook is provided
+  if (webhookUrl) {
+    let urlChatId = primaryChatId;
+    try {
+      const parsedUrl = new URL(webhookUrl);
+      if (!urlChatId && parsedUrl.searchParams.get('chat_id')) {
+        urlChatId = parsedUrl.searchParams.get('chat_id') || '';
+      }
+    } catch {
+      // ignore URL parse error
+    }
+    try {
       const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -288,12 +394,17 @@ export async function sendDeviceConfigTelegramAlert(info: {
           timestamp,
         }),
       });
-      if (res.ok) return true;
+      if (res.ok) return { ok: true, resolvedChatId: urlChatId };
+      lastError = `Webhook HTTP ${res.status}`;
+    } catch (err: any) {
+      lastError = err?.message || 'Webhook failed';
     }
-  } catch {
-    // Non-blocking notification
   }
-  return false;
+
+  return {
+    ok: false,
+    error: lastError || 'Check Bot Token & Group Chat ID (ensure bot has been added to the Telegram group).',
+  };
 }
 
 /**
@@ -313,7 +424,12 @@ export async function detectTelegramGroupChats(
   const match = cleanToken.match(/(?:bot)?(\d+:[A-Za-z0-9_-]+)/);
   if (match) cleanToken = match[1];
   if (!cleanToken) {
-    return { ok: false, botUsername: '', error: 'Please paste a valid Bot Token from @BotFather.', chats: [] };
+    return {
+      ok: false,
+      botUsername: '',
+      error: 'Please paste a valid Bot Token from @BotFather (e.g. 7891234567:AAHxxxxxxxxxxxx). If you need help finding it, see the instructions below.',
+      chats: [],
+    };
   }
 
   try {
@@ -324,17 +440,21 @@ export async function detectTelegramGroupChats(
       return {
         ok: false,
         botUsername: '',
-        error: meJson?.description || `Invalid Bot Token (HTTP ${meRes.status}). Check your token from @BotFather.`,
+        error: meJson?.description || `Invalid Bot Token (HTTP ${meRes.status}). Verify your token from @BotFather.`,
         chats: [],
       };
     }
     const botUsername = String(meJson.result?.username || '');
 
     // 2. Fetch getUpdates (if 409 Conflict because a webhook was set previously, clear webhook so getUpdates works)
-    let res = await fetch(`https://api.telegram.org/bot${cleanToken}/getUpdates?limit=100`);
+    let res = await fetch(
+      `https://api.telegram.org/bot${cleanToken}/getUpdates?limit=100&allowed_updates=["message","edited_message","my_chat_member","chat_member"]`
+    );
     if (res.status === 409) {
       await fetch(`https://api.telegram.org/bot${cleanToken}/deleteWebhook?drop_pending_updates=false`);
-      res = await fetch(`https://api.telegram.org/bot${cleanToken}/getUpdates?limit=100`);
+      res = await fetch(
+        `https://api.telegram.org/bot${cleanToken}/getUpdates?limit=100&allowed_updates=["message","edited_message","my_chat_member","chat_member"]`
+      );
     }
     if (!res.ok) {
       return {
@@ -376,31 +496,35 @@ export async function detectTelegramGroupChats(
       return aIsGroup - bIsGroup;
     });
 
-    // 3. If we found at least one chat, send an immediate confirmation message so the user sees it in Telegram!
+    // 3. If we found at least one chat, send an immediate confirmation message via application/x-www-form-urlencoded
     if (list.length > 0) {
       const target = list[0];
+      const confirmParams = new URLSearchParams({
+        chat_id: target.id,
+        text: [
+          `✅ *POS & Sound Box Inventory Connected!*`,
+          `• *Bot:* @${botUsername}`,
+          `• *Linked Chat:* ${target.title} (\`${target.id}\`)`,
+          `• *Active Alerts:* POS & Sound Box Under Configuring (App Push Alerts)`,
+        ].join('\n'),
+        parse_mode: 'Markdown',
+      });
       await fetch(`https://api.telegram.org/bot${cleanToken}/sendMessage`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: target.id,
-          text: [
-            `✅ *POS & Sound Box Inventory Connected!*`,
-            `• *Bot:* @${botUsername}`,
-            `• *Linked Chat:* ${target.title} (\`${target.id}\`)`,
-            `• *Active Alerts:* POS & Sound Box Under Configuring (App Push Alerts)`,
-          ].join('\n'),
-          parse_mode: 'Markdown',
-        }),
+        body: confirmParams,
       }).catch(() => undefined);
     }
 
     return { ok: true, botUsername, chats: list };
   } catch (e: any) {
+    const isFetchErr = e?.message?.toLowerCase().includes('fetch') || e?.name === 'TypeError';
+    const errorMsg = isFetchErr
+      ? 'Browser cannot reach api.telegram.org ("Failed to fetch"). If your browser uses an AdBlocker (uBlock, AdGuard, or Brave Shields), please pause it for this site, or manually enter the Group ID below.'
+      : (e?.message || 'Network error connecting to api.telegram.org.');
     return {
       ok: false,
       botUsername: '',
-      error: e?.message || 'Network error connecting to api.telegram.org.',
+      error: errorMsg,
       chats: [],
     };
   }
