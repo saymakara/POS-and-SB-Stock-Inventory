@@ -479,7 +479,7 @@ export function buildDeviceConfigCsv(
 ): string {
   const headers = [
     'No.',
-    'Push Tracking ID',
+    'Tracking ID',
     'Serial Number',
     'Device Type',
     'Model',

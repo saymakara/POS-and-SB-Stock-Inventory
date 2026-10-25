@@ -672,8 +672,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     if (filteredDevices.length === 0) return;
     const headers = [
       'No.',
-      'Push Tracking ID',
-      'Date & Time of Request Push',
+      'Tracking ID',
+      'Date & Time',
       'Serial & Model',
       'Merchant Name & MID / TID',
       'Configure By (Staff)',
@@ -717,8 +717,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     if (tg.devices.length === 0) return;
     const headers = [
       'No.',
-      'Push Tracking ID',
-      'Date & Time of Request Push',
+      'Tracking ID',
+      'Date & Time',
       'Serial & Model',
       'Merchant Name & MID / TID',
       'Configure By (Staff)',
@@ -767,7 +767,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     if (selectedDevices.length === 0) return;
     const headers = [
       'No.',
-      'Date & Time of Request Push',
+      'Date & Time',
       'Serial & Model',
       'Merchant Name & MID / TID',
       'Configure By (Staff)',
@@ -1245,8 +1245,8 @@ return (
                     className="rounded border-slate-300 cursor-pointer accent-[#003857]"
                   />
                 </th>
-                <th className="py-3 px-4">Push Tracking ID</th>
-                <th className="py-3 px-4">Date &amp; Time of Request Push</th>
+                <th className="py-3 px-4">Tracking ID</th>
+                <th className="py-3 px-4">Date &amp; Time</th>
                 <th className="py-3 px-4">Serial &amp; Model</th>
                 <th className="py-3 px-4">Merchant Name &amp; MID / TID</th>
                 <th className="py-3 px-4">Configure By (Staff)</th>
@@ -1313,7 +1313,7 @@ return (
                                   ? 'bg-sky-50 text-sky-900 border-sky-200/90'
                                   : 'bg-sky-950/60 text-sky-200 border-sky-800'
                               }`}
-                              title={`Push Tracking ID: ${devPushId} (Search in Telegram)`}
+                              title={`Tracking ID: ${devPushId} (Search in Telegram)`}
                             >
                               <span className="text-sky-600 dark:text-sky-400 font-black">#</span>
                               <span>{devPushId}</span>
@@ -1325,7 +1325,7 @@ return (
                                 handleCopyPushId(devPushId);
                               }}
                               className="p-1 rounded-md text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                              title="Copy Push Tracking ID (to find in Telegram)"
+                              title="Copy Tracking ID (to find in Telegram)"
                             >
                               {copiedPushId === devPushId ? (
                                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
