@@ -508,25 +508,22 @@ export const FieldReviewTab: React.FC<Props> = ({
         type="button"
         onClick={() => setTypeFilter(t)}
         aria-pressed={active}
-        className={`relative isolate btn-press px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+        className={`relative isolate btn-press px-3 py-1.5 rounded-xl text-xs font-normal border transition-all cursor-pointer ${
           active
-            ? 'text-white border-slate-900 shadow-xs'
-            : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+            ? 'text-white border-slate-800'
+            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900'
         }`}
       >
         {active && (
           <motion.span
             layoutId="fr-type-pill"
             aria-hidden
-            className="absolute inset-0 -z-10 rounded-[11px] bg-slate-900"
+            className="absolute inset-0 -z-10 rounded-[11px] bg-slate-800"
             transition={SPRING}
           />
         )}
-        {t !== 'ALL' && (
-          <span className={`inline-block w-2 h-2 rounded-full mr-1.5 align-middle ${DOT[t]}`} aria-hidden />
-        )}
         <span>{label}</span>{' '}
-        <span className={`font-mono tabular-nums ${active ? 'text-sky-200' : 'text-slate-500'}`}>({n})</span>
+        <span className={`font-mono tabular-nums ${active ? 'text-slate-300' : 'text-slate-400'}`}>({n})</span>
       </button>
     );
   };
@@ -544,32 +541,27 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col gap-3.5 apple-tab-panel">
-      {/* Section 1 — Crisp Enterprise Command & Filter Header */}
+      {/* Section 1 — Clean Filter Header */}
       <section
-        className="bg-white rounded-2xl border border-slate-200/90 px-4 py-3.5 shadow-sm transition-all"
+        className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs transition-all"
         aria-label="Filters"
       >
         <div className="flex flex-wrap items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-[#003857] text-white flex items-center justify-center shadow-2xs mr-0.5">
-            <Smartphone className="w-4 h-4" aria-hidden />
-          </div>
-          <div className="mr-2">
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-extrabold text-slate-950 tracking-tight">Phone App Review</h2>
+          <div className="mr-2 flex items-center gap-2">
+            <h2 className="text-sm font-medium text-slate-900">Phone App Review</h2>
+            <span
+              className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200"
+              title="New records from the phone app appear here as they are saved"
+            >
               <span
-                className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
-                title="New records from the phone app appear here as they are saved"
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${live ? 'bg-emerald-500 sync-dot' : 'bg-emerald-500'}`}
-                  aria-hidden
-                />
-                {live ? 'Realtime Live' : 'Connected'}
-              </span>
-            </div>
+                className={`w-1.5 h-1.5 rounded-full ${live ? 'bg-emerald-500 sync-dot' : 'bg-slate-400'}`}
+                aria-hidden
+              />
+              {live ? 'Live' : 'Connected'}
+            </span>
           </div>
 
-          {/* Apple-grade segmented status tabs */}
+          {/* Segmented status tabs */}
           <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200/80 gap-1">
             {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as Filter[]).map((f) => {
               const isActive = filter === f;
@@ -579,22 +571,22 @@ export const FieldReviewTab: React.FC<Props> = ({
                   type="button"
                   onClick={() => setFilter(f)}
                   aria-pressed={isActive}
-                  className={`relative isolate btn-press px-3 py-1.5 rounded-lg text-xs font-extrabold transition-colors cursor-pointer ${
-                    isActive ? 'text-white' : 'text-slate-700 hover:text-slate-950'
+                  className={`relative isolate btn-press px-3 py-1.5 rounded-lg text-xs font-normal transition-colors cursor-pointer ${
+                    isActive ? 'text-slate-900 font-medium' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   {isActive && (
                     <motion.span
                       layoutId="fr-status-pill"
                       aria-hidden
-                      className="absolute inset-0 -z-10 rounded-lg bg-[#003857] shadow-xs"
+                      className="absolute inset-0 -z-10 rounded-lg bg-white border border-slate-200/90 shadow-2xs"
                       transition={SPRING}
                     />
                   )}
                   <span>
                     {f === 'PENDING' ? 'Waiting' : f === 'ALL' ? 'All' : f === 'APPROVED' ? 'Approved' : 'Rejected'}
                   </span>{' '}
-                  <span className={`font-mono tabular-nums ${isActive ? 'text-sky-200' : 'text-slate-500'}`}>
+                  <span className="font-mono tabular-nums text-slate-400">
                     ({counts[f]})
                   </span>
                 </button>
@@ -602,7 +594,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             })}
           </div>
 
-          <span className="hidden sm:block w-px h-6 bg-slate-200 mx-1" aria-hidden />
+          <span className="hidden sm:block w-px h-5 bg-slate-200 mx-1" aria-hidden />
 
           {typePill('ALL', 'All devices', typeCounts.pos + typeCounts.sb)}
           {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
@@ -612,27 +604,27 @@ export const FieldReviewTab: React.FC<Props> = ({
           <button
             type="button"
             onClick={() => setActiveScope((prev) => (prev === 'ALL' ? 'PHNOM_PENH' : 'ALL'))}
-            className={`btn-press px-3 py-1.5 rounded-xl text-xs font-extrabold border inline-flex items-center gap-1.5 transition-all cursor-pointer ${
+            className={`btn-press px-3 py-1.5 rounded-xl text-xs font-normal border inline-flex items-center gap-1.5 transition-all cursor-pointer ${
               activeScope === 'PHNOM_PENH'
-                ? 'bg-emerald-50 text-emerald-900 border-emerald-300 shadow-2xs'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-300'
+                ? 'bg-slate-100 text-slate-800 border-slate-300'
+                : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
             }`}
             title="Click to switch between Phnom Penh staff only (33 Branches) and All Branches (Phnom Penh + Regional)"
           >
-            <MapPin className={`w-3.5 h-3.5 ${activeScope === 'PHNOM_PENH' ? 'text-emerald-600' : 'text-slate-500'}`} />
+            <MapPin className="w-3.5 h-3.5 text-slate-500" />
             <span>
-              {activeScope === 'PHNOM_PENH' ? 'Phnom Penh Staff Only' : 'All Branches (PP & Regional)'}
+              {activeScope === 'PHNOM_PENH' ? 'Phnom Penh Staff Only' : 'All Branches'}
             </span>
           </button>
 
           <div className="relative ml-auto w-full sm:w-60">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search Serial, MID, Staff, Branch…"
               aria-label="Search records"
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-900 placeholder:text-slate-400 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/15 transition-all"
+              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs font-normal text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400 transition-all"
             />
           </div>
           <ClearFiltersButton
@@ -665,10 +657,10 @@ export const FieldReviewTab: React.FC<Props> = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.99 }}
             transition={SPRING}
-            className="sticky top-2 z-10 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-300 shadow-md px-4 py-3 flex flex-wrap items-center gap-3"
+            className="sticky top-2 z-10 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-sm px-4 py-3 flex flex-wrap items-center gap-3"
             aria-label="Decide the selected records"
           >
-            <span className="px-2.5 py-1 rounded-lg bg-[#003857] text-white text-xs font-extrabold font-mono">
+            <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-normal font-mono">
               {selectedShown.length} Selected
             </span>
             <input
@@ -677,10 +669,10 @@ export const FieldReviewTab: React.FC<Props> = ({
               maxLength={500}
               placeholder="Reason (required to reject selected records)"
               aria-label="Reason for the selected records"
-              className="flex-1 min-w-[180px] px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-900 outline-none focus:border-[#003857]"
+              className="flex-1 min-w-[180px] px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-normal text-slate-800 outline-none focus:border-slate-400"
             />
             {selectedShown.some(hasWarn) && (
-              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-800 cursor-pointer">
+              <label className="flex items-center gap-1.5 text-xs font-normal text-slate-700 cursor-pointer">
                 <input type="checkbox" checked={bulkAck} onChange={(e) => setBulkAck(e.target.checked)} /> I checked
                 the warnings
               </label>
@@ -689,12 +681,12 @@ export const FieldReviewTab: React.FC<Props> = ({
               type="button"
               onClick={() => runBulk('reject')}
               disabled={!!bulkBusy}
-              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-extrabold border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-normal border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
             >
               {bulkBusy === 'reject' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <XCircle className="w-3.5 h-3.5" />
+                <XCircle className="w-3.5 h-3.5 text-slate-500" />
               )}{' '}
               Reject {selectedShown.length}
             </button>
@@ -702,7 +694,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               type="button"
               onClick={() => runBulk('approve')}
               disabled={!!bulkBusy}
-              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer shadow-xs"
+              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-normal bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
             >
               {bulkBusy === 'approve' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -734,14 +726,14 @@ export const FieldReviewTab: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Section 3 — Modern Animated Table Frame */}
+      {/* Section 3 — Clean Table Frame */}
       <section
-        className="fr-table-frame bg-white rounded-2xl border border-slate-300/90 shadow-sm overflow-x-auto"
+        className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto"
         aria-label="Records"
       >
         <div className="min-w-[1040px]">
           <div
-            className={`${GRID} navy-header-bar text-white border-b border-slate-300 text-[11px] font-extrabold uppercase tracking-wider px-3.5 py-3`}
+            className={`${GRID} bg-slate-50 text-slate-600 border-b border-slate-200 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`}
             role="row"
           >
             <span>
@@ -751,12 +743,12 @@ export const FieldReviewTab: React.FC<Props> = ({
                   aria-label={allSelected ? 'Unselect all' : 'Select all waiting'}
                   aria-pressed={allSelected}
                   onClick={() => setSelected(allSelected ? new Set() : new Set(shownPending.map((e) => e.id)))}
-                  className="cursor-pointer flex text-white"
+                  className="cursor-pointer flex text-slate-600"
                 >
                   {allSelected ? (
-                    <CheckSquare className="w-4 h-4 text-emerald-300" />
+                    <CheckSquare className="w-4 h-4 text-slate-800" />
                   ) : (
-                    <Square className="w-4 h-4 text-white/75 hover:text-white" />
+                    <Square className="w-4 h-4 text-slate-400 hover:text-slate-700" />
                   )}
                 </button>
               )}
@@ -861,26 +853,26 @@ const SortBtn: React.FC<{
       onClick={() => onSort(k)}
       aria-sort={a ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
       title="Sort: ascending, descending, original order"
-      className={`inline-flex items-center gap-1 cursor-pointer uppercase font-extrabold tracking-wider whitespace-nowrap ${
+      className={`inline-flex items-center gap-1 cursor-pointer uppercase font-medium tracking-wider whitespace-nowrap ${
         right ? 'justify-end' : ''
       }`}
     >
       <span>{children}</span>
-      <I className={`w-3 h-3 shrink-0 ${a ? 'opacity-100 text-sky-300' : 'opacity-60'}`} aria-hidden />
+      <I className={`w-3 h-3 shrink-0 ${a ? 'opacity-100 text-slate-900' : 'opacity-45'}`} aria-hidden />
     </button>
   );
 };
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div className="min-w-0">
-    <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#003857] mb-2">{title}</div>
-    <div className="flex flex-col gap-1.5 text-xs text-slate-900 font-medium">{children}</div>
+    <div className="text-[11px] font-medium uppercase tracking-wider text-slate-500 mb-2">{title}</div>
+    <div className="flex flex-col gap-1.5 text-xs text-slate-700 font-normal">{children}</div>
   </div>
 );
 const Line: React.FC<{ k: string; children: React.ReactNode; mono?: boolean }> = ({ k, children, mono }) => (
   <div className="flex gap-2">
-    <span className="w-28 shrink-0 text-slate-500 font-semibold">{k}</span>
-    <span className={`min-w-0 break-words text-slate-900 font-semibold ${mono ? 'font-mono' : ''}`}>
+    <span className="w-28 shrink-0 text-slate-500 font-normal">{k}</span>
+    <span className={`min-w-0 break-words text-slate-800 font-normal ${mono ? 'font-mono' : ''}`}>
       {children || '—'}
     </span>
   </div>
@@ -954,8 +946,8 @@ const ReviewRow = memo(function ReviewRow({
         checked ? 'bg-sky-50/80' : isOpen ? 'bg-slate-50/95' : 'bg-white hover:bg-slate-50/75'
       }`}
     >
-      {/* Crisp High-Contrast Row */}
-      <div className={`${GRID} px-3.5 py-3 text-xs`}>
+      {/* Clean Row */}
+      <div className={`${GRID} px-3.5 py-2.5 text-xs font-normal text-slate-700`}>
         <span>
           {isAdmin && pending && (
             <button
@@ -966,94 +958,80 @@ const ReviewRow = memo(function ReviewRow({
               className="cursor-pointer flex"
             >
               {checked ? (
-                <CheckSquare className="w-4 h-4 text-[#003857]" />
+                <CheckSquare className="w-4 h-4 text-slate-800" />
               ) : (
-                <Square className="w-4 h-4 text-slate-400 hover:text-slate-700" />
+                <Square className="w-4 h-4 text-slate-400 hover:text-slate-600" />
               )}
             </button>
           )}
         </span>
-        <span className="text-right text-slate-600 font-mono font-bold tabular-nums">{no}</span>
-        <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-bold text-slate-900">
-          <span
-            className={`w-2 h-2 rounded-full ${type === 'Sound Box' ? 'bg-violet-600' : 'bg-sky-600'}`}
-            aria-hidden
-          />
+        <span className="text-right text-slate-500 font-mono font-normal tabular-nums">{no}</span>
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-normal text-slate-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" aria-hidden />
           {type}
         </span>
-        <span className="truncate leading-snug font-bold text-slate-900" title={KIND_LABEL[e.kind]}>
+        <span className="truncate leading-snug font-normal text-slate-700" title={KIND_LABEL[e.kind]}>
           {KIND_LABEL[e.kind]}
           {units > 1 && (
-            <span className="block text-[10.5px] font-semibold text-indigo-700">
+            <span className="block text-[10.5px] font-normal text-slate-500">
               Device {e.unitNo} of {units}
             </span>
           )}
         </span>
-        <span className="tabular-nums font-medium text-slate-800 whitespace-nowrap" title={fmtTime(e.receivedAt)}>
+        <span className="tabular-nums font-normal text-slate-600 whitespace-nowrap" title={fmtTime(e.receivedAt)}>
           {fmtTime(e.receivedAt)}
         </span>
         <button
           type="button"
           onClick={() => onToggle(e.id)}
           aria-expanded={isOpen}
-          className="text-left font-mono font-extrabold text-[#002f49] truncate cursor-pointer hover:underline inline-flex items-center gap-1.5"
+          className="text-left font-mono font-normal text-slate-800 truncate cursor-pointer hover:underline inline-flex items-center gap-1.5"
           title="Open record details"
         >
           <ChevronDown
-            className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform duration-300 ${
-              isOpen ? 'rotate-180 text-[#003857]' : ''
+            className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${
+              isOpen ? 'rotate-180 text-slate-700' : ''
             }`}
             aria-hidden
           />
-          <span className="flex flex-col min-w-0 leading-snug">
-            <span className="truncate">{e.serial}</span>
-            {entry.serial && (
-              <span
-                className={`font-sans text-[10px] font-bold ${
-                  entry.serial === 'SCAN' ? 'text-emerald-700' : 'text-amber-700'
-                }`}
-              >
-                {entry.serial === 'SCAN' ? '● Scanned' : '● Typed'}
-              </span>
-            )}
-          </span>
+          <span className="truncate">{e.serial}</span>
         </button>
         <span className="min-w-0 leading-snug" title={merchant}>
-          <span className="block truncate khmer font-bold text-slate-900">
+          <span className="block truncate khmer font-normal text-slate-800">
             {e.terminalName || e.outletName || '—'}
           </span>
           {e.mid && (
-            <span className="block truncate font-mono text-[11px] font-semibold text-slate-600" title={`MID ${e.mid}`}>
+            <span className="block truncate font-mono text-[11px] font-normal text-slate-500" title={`MID ${e.mid}`}>
               {e.mid}
             </span>
           )}
         </span>
         <span className="truncate leading-snug" title={`${e.branchText || ''} · ${e.staffName || ''}`}>
-          <span className="block truncate font-bold text-slate-900">{e.branchText || '—'}</span>
-          <span className="block text-[11px] font-semibold text-slate-600 truncate">
+          <span className="block truncate font-normal text-slate-800">{e.branchText || '—'}</span>
+          <span className="block text-[11px] font-normal text-slate-500 truncate">
             {e.staffName || '—'}
             {e.staffId ? ` (${e.staffId})` : ''}
           </span>
         </span>
         <span className="leading-snug">
           <span
-            className={`inline-block px-2 py-0.5 rounded-md text-[10.5px] font-extrabold border ${
+            className={`inline-block px-2 py-0.5 rounded-md text-[10.5px] font-normal border ${
               e.status === 'PENDING'
-                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                ? 'bg-slate-100 text-slate-700 border-slate-200'
                 : e.status === 'APPROVED'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                ? 'bg-emerald-50/70 text-emerald-700 border-emerald-200/80'
                 : e.status === 'REJECTED'
-                ? 'bg-rose-50 text-rose-800 border-rose-200'
-                : 'bg-slate-100 text-slate-700 border-slate-200'
+                ? 'bg-rose-50/70 text-rose-700 border-rose-200/80'
+                : 'bg-slate-100 text-slate-600 border-slate-200'
             }`}
           >
             {STATUS_LABEL[e.status].length > 12 ? 'Closed' : STATUS_LABEL[e.status]}
           </span>
           {(blocks > 0 || warns > 0) && pending && (
-            <span className="block text-[10.5px] font-bold mt-0.5 text-slate-600">
-              {blocks > 0 && <span className="text-rose-700">{blocks} to fix</span>}
+            <span className="block text-[10.5px] font-normal mt-0.5 text-slate-500">
+              {blocks > 0 && <span className="text-rose-600">{blocks} to fix</span>}
               {blocks > 0 && warns > 0 && ' · '}
-              {warns > 0 && <span className="text-amber-700">{warns} to check</span>}
+              {warns > 0 && <span className="text-amber-600">{warns} to check</span>}
             </span>
           )}
         </span>
@@ -1064,7 +1042,7 @@ const ReviewRow = memo(function ReviewRow({
                 type="button"
                 onClick={() => onReject(e)}
                 disabled={busy}
-                className="btn-press px-2.5 py-1.5 rounded-lg text-xs font-extrabold border border-slate-300 text-slate-800 bg-white hover:bg-slate-100 disabled:opacity-60 cursor-pointer"
+                className="btn-press px-2.5 py-1 rounded-lg text-xs font-normal border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
               >
                 Reject
               </button>
@@ -1079,7 +1057,7 @@ const ReviewRow = memo(function ReviewRow({
                     ? 'Open the line and choose the branch'
                     : undefined
                 }
-                className="btn-press px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-45 cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                className="btn-press px-2.5 py-1 rounded-lg text-xs font-normal bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-45 cursor-pointer inline-flex items-center gap-1"
               >
                 {busy && <Loader2 className="w-3 h-3 animate-spin" />}Approve
               </button>
@@ -1088,7 +1066,7 @@ const ReviewRow = memo(function ReviewRow({
             <button
               type="button"
               onClick={() => onToggle(e.id)}
-              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[11px] font-bold text-slate-700 cursor-pointer"
+              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-normal text-slate-600 cursor-pointer"
             >
               {isOpen ? 'Hide' : 'Details'}
             </button>
@@ -1152,7 +1130,7 @@ const ReviewRow = memo(function ReviewRow({
                 <button
                   type="button"
                   onClick={() => onOpenWorkflow(device.serial)}
-                  className="self-start text-xs font-extrabold text-[#003857] hover:underline cursor-pointer mt-1.5"
+                  className="self-start text-xs font-normal text-slate-700 hover:underline cursor-pointer mt-1.5"
                 >
                   Open this device in Stock Inventory →
                 </button>
@@ -1163,12 +1141,12 @@ const ReviewRow = memo(function ReviewRow({
               {pending && isAdmin ? (
                 <>
                   {needsBranch && (
-                    <label className="flex flex-col gap-1 text-slate-700 font-bold">
+                    <label className="flex flex-col gap-1 text-slate-600 font-normal">
                       Branch of this installation
                       <select
                         value={r.branchId}
                         onChange={(x) => onOpt(e.id, { branchId: x.target.value })}
-                        className="px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-900"
+                        className="px-2.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-normal text-slate-800"
                       >
                         <option value="">Choose a branch…</option>
                         {branches.map((b) => (
@@ -1180,29 +1158,29 @@ const ReviewRow = memo(function ReviewRow({
                     </label>
                   )}
                   {needsReturn && (
-                    <label className="flex flex-col gap-1 text-slate-700 font-bold">
+                    <label className="flex flex-col gap-1 text-slate-600 font-normal">
                       {e.kind === 'REPLACE' ? 'The old unit goes to' : 'The returned sound box goes to'}
                       <select
                         value={r.returnStage}
                         onChange={(x) => onOpt(e.id, { returnStage: x.target.value })}
-                        className="px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-900"
+                        className="px-2.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-normal text-slate-800"
                       >
                         <option value="HQ_STOCK">Back to HQ stock</option>
                         <option value="BRANCH_RESERVE">Branch reserve</option>
                       </select>
                     </label>
                   )}
-                  <label className="flex flex-col gap-1 text-slate-700 font-bold">
+                  <label className="flex flex-col gap-1 text-slate-600 font-normal">
                     Reason (required to reject)
                     <input
                       value={r.note}
                       onChange={(x) => onOpt(e.id, { note: x.target.value })}
                       maxLength={500}
-                      className="px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-900"
+                      className="px-2.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-normal text-slate-800"
                     />
                   </label>
                   {(warns > 0 || /warning/i.test(err)) && !blocks && (
-                    <label className="flex items-center gap-1.5 text-slate-800 font-bold cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-slate-700 font-normal cursor-pointer">
                       <input
                         type="checkbox"
                         checked={r.ack}
@@ -1212,13 +1190,13 @@ const ReviewRow = memo(function ReviewRow({
                     </label>
                   )}
                   {err && (
-                    <div role="alert" className="text-rose-700 font-bold">
+                    <div role="alert" className="text-rose-600 font-normal">
                       {err}
                     </div>
                   )}
                 </>
               ) : (
-                <div className="font-semibold text-slate-800">
+                <div className="font-normal text-slate-700">
                   {STATUS_LABEL[e.status]}
                   {e.reviewedByName ? ` by ${e.reviewedByName}` : ''}
                   {e.reviewedAt ? ` · ${fmtTime(e.reviewedAt)}` : ''}
