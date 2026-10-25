@@ -183,6 +183,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, delay: idx * 0.02, ease: 'easeOut' }}
             whileHover={clickable ? { y: -2, transition: { duration: 0.12 } } : undefined}
+            whileTap={clickable ? { scale: 0.98 } : undefined}
             onClick={clickable ? select : undefined}
             onKeyDown={
               clickable
