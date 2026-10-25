@@ -190,12 +190,22 @@ export async function sendTelegramErrorAlert(payload: TechnicalErrorPopupPayload
 
     // 2. Direct Webhook URL (Telegram sendMessage URL or custom webhook endpoint)
     if (webhookUrl) {
+      let urlChatId = chatId;
+      try {
+        const parsedUrl = new URL(webhookUrl);
+        if (!urlChatId && parsedUrl.searchParams.get('chat_id')) {
+          urlChatId = parsedUrl.searchParams.get('chat_id') || '';
+        }
+      } catch {
+        // relative or non-standard URL
+      }
       const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: chatId || undefined,
+          chat_id: urlChatId || undefined,
           text: formattedText,
+          parse_mode: 'Markdown',
           errorCode: payload.code,
           operation: payload.operation,
           errorMessage: payload.message,
@@ -344,12 +354,22 @@ export async function sendDeviceConfigTelegramAlert(info: {
     }
 
     if (webhookUrl) {
+      let urlChatId = targetChatId;
+      try {
+        const parsedUrl = new URL(webhookUrl);
+        if (!urlChatId && parsedUrl.searchParams.get('chat_id')) {
+          urlChatId = parsedUrl.searchParams.get('chat_id') || '';
+        }
+      } catch {
+        // ignore URL parse error
+      }
       const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: targetChatId || undefined,
+          chat_id: urlChatId || undefined,
           text: formattedText,
+          parse_mode: 'Markdown',
           type: 'DEVICE_CONFIG_APP_PUSH',
           ...info,
           timestamp,
@@ -361,4 +381,48 @@ export async function sendDeviceConfigTelegramAlert(info: {
     // Non-blocking notification
   }
   return false;
+}
+
+/**
+ * Queries Telegram Bot API `getUpdates` to automatically discover Group Chat IDs
+ * where the bot has been added on Telegram Desktop / Mobile.
+ */
+export async function detectTelegramGroupChats(
+  botTokenInput: string
+): Promise<{ id: string; title: string; type: string }[]> {
+  let cleanToken = botTokenInput.trim();
+  const match = cleanToken.match(/bot(\d+:[A-Za-z0-9_-]+)/);
+  if (match) cleanToken = match[1];
+  if (!cleanToken) return [];
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${cleanToken}/getUpdates`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const list: { id: string; title: string; type: string }[] = [];
+    const seen = new Set<string>();
+    const results = Array.isArray(data?.result) ? data.result : [];
+    for (let i = results.length - 1; i >= 0; i--) {
+      const u = results[i];
+      const chat =
+        u?.message?.chat ||
+        u?.my_chat_member?.chat ||
+        u?.channel_post?.chat ||
+        u?.edited_message?.chat;
+      if (chat && chat.id !== undefined) {
+        const idStr = String(chat.id);
+        if (!seen.has(idStr)) {
+          seen.add(idStr);
+          list.push({
+            id: idStr,
+            title: String(chat.title || chat.username || chat.first_name || 'Telegram Chat'),
+            type: String(chat.type || 'group'),
+          });
+        }
+      }
+    }
+    return list;
+  } catch {
+    return [];
+  }
 }
