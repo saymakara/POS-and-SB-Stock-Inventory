@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   RotateCw,
 } from 'lucide-react';
+import { HologramStages3DBackground } from './HologramStages3DBackground';
 
 interface PushConfiguringTabProps {
   devices: Device[];
@@ -739,8 +740,11 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
 return (
     <div className="space-y-6 pb-24">
-      {/* 1. HERO HEADER WITH LIVE PIPELINE STATS */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-linear-to-br from-[#002238] via-[#003857] to-[#004e75] text-white shadow-xl border border-white/10">
+      {/* 1. HERO HEADER WITH 3D GLASSMORPHIC STAGES BACKGROUND & LIVE PIPELINE STATS */}
+      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-[#001424] text-white shadow-2xl border border-white/15">
+        {/* 3D Glassmorphic Hologram Stages Animation */}
+        <HologramStages3DBackground />
+
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-sky-500/15 text-sky-200 border border-sky-400/30">
@@ -798,8 +802,8 @@ return (
         </div>
 
         {/* KPI Mini-Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/10 transition-colors duration-150">
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
+          <div className="p-3.5 rounded-2xl bg-slate-900/65 border border-white/15 backdrop-blur-md hover:bg-slate-900/80 shadow-md transition-colors duration-150">
             <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Total Waiting Push</div>
             <div className="text-2xl font-black text-white mt-1">{waitingDevices.length}</div>
             <div className="text-[10px] text-sky-300 font-medium mt-0.5">
@@ -808,7 +812,7 @@ return (
                 : 'High-volume daily queue'}
             </div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/10 transition-colors duration-150">
+          <div className="p-3.5 rounded-2xl bg-slate-900/65 border border-white/15 backdrop-blur-md hover:bg-slate-900/80 shadow-md transition-colors duration-150">
             <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-blue-400" />
               POS Terminals
@@ -816,7 +820,7 @@ return (
             <div className="text-2xl font-black text-white mt-1">{posCount}</div>
             <div className="text-[10px] text-slate-300 font-medium mt-0.5">Under Configuring</div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/10 transition-colors duration-150">
+          <div className="p-3.5 rounded-2xl bg-slate-900/65 border border-white/15 backdrop-blur-md hover:bg-slate-900/80 shadow-md transition-colors duration-150">
             <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-purple-400" />
               Sound Boxes
@@ -824,7 +828,7 @@ return (
             <div className="text-2xl font-black text-white mt-1">{sbCount}</div>
             <div className="text-[10px] text-slate-300 font-medium mt-0.5">Under Configuring</div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/10 transition-colors duration-150">
+          <div className="p-3.5 rounded-2xl bg-slate-900/65 border border-white/15 backdrop-blur-md hover:bg-slate-900/80 shadow-md transition-colors duration-150">
             <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-sky-300" />
               Active Teams
