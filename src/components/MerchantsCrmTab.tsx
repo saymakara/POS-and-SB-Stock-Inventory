@@ -137,7 +137,7 @@ interface MerchantsCrmTabProps {
     replacedByStaff: string,
     reason: string
   ) => void;
-  onNotifyConfigReady?: (serial: string) => void;
+  onNotifyConfigReady?: (serialOrSerials: string | string[]) => void;
   theme?: ThemeMode;
 }
 

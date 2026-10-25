@@ -82,7 +82,7 @@ interface WorkflowModalProps {
   onReturnToBranchReserve?: (serial: string, branchId: string, reason: string) => void;
   onRemoveFromDashboard?: (serial: string, reason: string) => void;
   onChangeBattery?: (device: Device) => void;
-  onNotifyConfigReady?: (serial: string) => void;
+  onNotifyConfigReady?: (serialOrSerials: string | string[]) => void;
   onRenameSerial?: (oldSerial: string, newSerial: string) => Promise<string>;
   /** Super Admin only: delete this unit from the whole system (database included) */
   onDeletePermanently?: (serial: string) => void;

@@ -246,12 +246,12 @@ export async function sendDeviceConfigTelegramAlert(
   const formattedText = [
     `📲 *Under Configuring — Ready for App Push*`,
     `• *Action Required:* Please *OPEN the device* and connect to network to wait for pushing the app!`,
-    `• *Assigned Staff:* *${assignedStaff}*`,
+    `• *Assigned By:* *${actor}*`,
+    `• *Configure By:* *${assignedStaff}*`,
     `• *Branch:* Code \`${branchId}\` (${branchName})`,
     `• *Hardware Serial:* \`${info.serial}\` (${devType}${devModel})`,
     `• *Merchant Name:* *${merchantName}*`,
     `• *MID:* \`${info.mid || '—'}\`  |  *TID:* \`${info.tid || '—'}\``,
-    `• *Configured By:* ${actor}`,
     `• *Timestamp:* ${timestamp}`,
   ].join('\n');
 
@@ -385,6 +385,203 @@ export async function sendDeviceConfigTelegramAlert(
     error: lastError || 'Check Bot Token & Group Chat ID (ensure bot has been added to the Telegram group).',
   };
 }
+
+export interface BatchDeviceConfigItem {
+  serial: string;
+  type?: string;
+  deviceType?: string;
+  model?: string;
+  mid?: string;
+  tid?: string;
+  merchantName?: string;
+  branchId?: string;
+  branchName?: string;
+  staff?: string;
+  staffName?: string;
+}
+
+export interface BatchDeviceConfigTelegramAlertInfo {
+  devices: BatchDeviceConfigItem[];
+  adminOperator?: string;
+  actor?: string;
+}
+
+/**
+ * Sends a consolidated Telegram notification for multiple Under Configuring devices
+ * (supporting high daily volumes, e.g. ~200 units), cleanly grouping them by assigned team / staff.
+ */
+export async function sendBatchDeviceConfigTelegramAlert(
+  info: BatchDeviceConfigTelegramAlertInfo
+): Promise<DeviceConfigTelegramAlertResult> {
+  const { webhookUrl, botToken, chatId, configChatId } = getTelegramWebhookConfig();
+  let cleanToken = botToken.trim().replace(/^["']|["']$/g, '');
+  const match = cleanToken.match(/(?:bot)?(\d+:[A-Za-z0-9_-]+)/);
+  if (match) cleanToken = match[1];
+
+  const primaryChatId = (configChatId || chatId || '').trim();
+  const timestamp = stampSecPP();
+  const actor = info.actor || info.adminOperator || 'System Admin';
+
+  if (!info.devices || info.devices.length === 0) {
+    return { ok: false, error: 'No devices provided for batch alert.' };
+  }
+
+  // Group devices by assigned team / staff
+  const byStaff = new Map<string, BatchDeviceConfigItem[]>();
+  for (const d of info.devices) {
+    const staff = d.staff || d.staffName || 'Branch Staff';
+    const branch = d.branchName ? ` (${d.branchName})` : (d.branchId ? ` (Branch ${d.branchId})` : '');
+    const key = `${staff}${branch}`;
+    if (!byStaff.has(key)) byStaff.set(key, []);
+    byStaff.get(key)!.push(d);
+  }
+
+  const lines: string[] = [
+    `📲 *Batch Under Configuring — Ready for App Push*`,
+    `• *Total Devices:* *${info.devices.length} units*`,
+    `• *Assigned By:* *${actor}*`,
+    `• *Action Required:* Assigned teams please *OPEN devices* and connect to network to wait for pushing the app!`,
+    ``,
+    `👥 *Configure By (Assigned Staff / Teams):*`,
+  ];
+
+  for (const [teamName, items] of byStaff.entries()) {
+    const sampleSerials = items.slice(0, 4).map((x) => `\`${x.serial}\``).join(', ');
+    const moreCount = items.length - 4;
+    const moreText = moreCount > 0 ? ` (+${moreCount} more)` : '';
+    lines.push(`• *${teamName}*: *${items.length} units*`);
+    lines.push(`  └ Serials: ${sampleSerials}${moreText}`);
+  }
+
+  lines.push(``);
+  lines.push(`• *Timestamp:* ${timestamp}`);
+  const formattedText = lines.join('\n');
+
+  let lastError = '';
+
+  // 1. Primary: Use Supabase Cloud Relay
+  if (isSupabaseConfigured && cleanToken && primaryChatId) {
+    try {
+      const { data, error } = await supabase.rpc('rpc_send_telegram_message', {
+        p_bot_token: cleanToken,
+        p_chat_id: primaryChatId,
+        p_text: formattedText,
+        p_parse_mode: 'Markdown',
+      });
+      if (!error && data && data.ok) {
+        if (data.resolvedChatId && data.resolvedChatId !== primaryChatId) {
+          saveTelegramWebhookConfig({ configChatId: data.resolvedChatId, chatId: data.resolvedChatId });
+        }
+        return { ok: true, resolvedChatId: data.resolvedChatId || primaryChatId };
+      }
+      if (data?.error) {
+        lastError = data.error;
+      } else if (error?.message) {
+        lastError = error.message;
+      }
+    } catch (err: any) {
+      lastError = err?.message || 'Cloud relay error';
+    }
+  }
+
+  // 2. Direct browser fallback
+  const candidateChatIds: string[] = [];
+  if (primaryChatId) {
+    candidateChatIds.push(primaryChatId);
+    if (primaryChatId.startsWith('-100')) {
+      candidateChatIds.push('-' + primaryChatId.slice(4));
+    } else if (primaryChatId.startsWith('-')) {
+      candidateChatIds.push('-100' + primaryChatId.slice(1));
+    } else {
+      candidateChatIds.push('-' + primaryChatId);
+      candidateChatIds.push('-100' + primaryChatId);
+    }
+  }
+
+  if (cleanToken && candidateChatIds.length > 0) {
+    const tgUrl = `https://api.telegram.org/bot${cleanToken}/sendMessage`;
+    for (const testChatId of candidateChatIds) {
+      try {
+        const params = new URLSearchParams({
+          chat_id: testChatId,
+          text: formattedText,
+          parse_mode: 'Markdown',
+        });
+        const res = await fetch(tgUrl, { method: 'POST', body: params });
+        const data = await res.json().catch(() => null);
+
+        if (res.ok && data?.ok) {
+          if (testChatId !== primaryChatId) {
+            saveTelegramWebhookConfig({ configChatId: testChatId, chatId: testChatId });
+          }
+          return { ok: true, resolvedChatId: testChatId };
+        }
+
+        if (data?.description && /can't parse entities|entities|markdown/i.test(data.description)) {
+          const plainParams = new URLSearchParams({
+            chat_id: testChatId,
+            text: formattedText.replace(/[*_`\[\]]/g, ''),
+          });
+          const retryRes = await fetch(tgUrl, { method: 'POST', body: plainParams });
+          const retryData = await retryRes.json().catch(() => null);
+          if (retryRes.ok && retryData?.ok) {
+            if (testChatId !== primaryChatId) {
+              saveTelegramWebhookConfig({ configChatId: testChatId, chatId: testChatId });
+            }
+            return { ok: true, resolvedChatId: testChatId };
+          }
+        }
+
+        lastError = data?.description || `HTTP ${res.status}`;
+        if (data?.description && /chat not found/i.test(data.description)) {
+          continue;
+        }
+      } catch (err: any) {
+        const isFetch = err?.message?.toLowerCase().includes('fetch') || err?.name === 'TypeError';
+        lastError = isFetch
+          ? 'Browser network blocked api.telegram.org.'
+          : (err?.message || 'Network error connecting to Telegram');
+      }
+    }
+  }
+
+  // 3. Webhook fallback
+  if (webhookUrl) {
+    let urlChatId = primaryChatId;
+    try {
+      const parsedUrl = new URL(webhookUrl);
+      if (!urlChatId && parsedUrl.searchParams.get('chat_id')) {
+        urlChatId = parsedUrl.searchParams.get('chat_id') || '';
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: urlChatId || undefined,
+          text: formattedText,
+          type: 'BATCH_DEVICE_CONFIG_APP_PUSH',
+          totalDevices: info.devices.length,
+          teamsCount: byStaff.size,
+          timestamp,
+        }),
+      });
+      if (res.ok) return { ok: true, resolvedChatId: urlChatId };
+      lastError = `Webhook HTTP ${res.status}`;
+    } catch (err: any) {
+      lastError = err?.message || 'Webhook failed';
+    }
+  }
+
+  return {
+    ok: false,
+    error: lastError || 'Check Bot Token & Group Chat ID.',
+  };
+}
+
 
 /**
  * Queries Telegram Bot API via Supabase Cloud Relay (or direct fallback) to automatically

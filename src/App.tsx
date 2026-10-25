@@ -113,6 +113,7 @@ import {
   subscribeTechnicalErrorPopup,
   TechnicalErrorPayload,
   sendDeviceConfigTelegramAlert,
+  sendBatchDeviceConfigTelegramAlert,
 } from './utils/errorLogger';
 import { SetupAlert } from './components/SetupAlert';
 import {
@@ -1994,36 +1995,101 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     triggerToast(`Restored ${serials.length} serial(s) to active dashboard`);
   };
 
-  // Notify Handling Staff & Telegram Group when a device Under Configuring is ready for App Push (#11)
-  const handleNotifyConfigReady = (serial: string) => {
-    const dev = devices.find((d) => d.serial === serial);
-    if (!dev) return;
-    const staffTarget = dev.staff || 'Assigned Branch Staff';
-    const bName = dev.branchName || `Branch ${dev.branchId}`;
-    const mName = dev.merchantName || 'Merchant Profile';
-    addNotification(
-      `Open Device for App Push • ${dev.serial}`,
-      `Admin configured ${mName} (${dev.mid || 'MID Pending'}) on ${dev.type} SN ${dev.serial} (${bName}). Staff (${staffTarget}): Please power ON and open the device now to wait for app push.`,
-      'REQUEST',
-      dev.branchId,
-      'inventory'
-    );
-    void sendDeviceConfigTelegramAlert({
-      serial: dev.serial,
-      deviceType: dev.type,
-      mid: dev.mid || '—',
-      tid: dev.tid || '—',
-      merchantName: mName,
-      branchId: dev.branchId,
-      branchName: bName,
-      staffName: staffTarget,
-      adminOperator: operatorLabel || 'Admin HQ',
-    });
-    addAuditLog(
-      'App Push Notification Sent',
-      `Notified staff (${staffTarget}) and alerted Telegram group to open ${dev.type} ${dev.serial} (${mName}) for app push`
-    );
-    triggerToast(`Notification sent to ${staffTarget} & Telegram group alerted: Open ${dev.serial} to wait for app push!`);
+  // Notify Handling Staff & Telegram Group when devices Under Configuring are ready for App Push (#11)
+  // Supports single or batch selection (e.g. ~200 units daily across multiple assigned teams)
+  const handleNotifyConfigReady = async (serialOrSerials: string | string[]) => {
+    const list = Array.isArray(serialOrSerials) ? serialOrSerials : [serialOrSerials];
+    if (list.length === 0) return;
+
+    const targets = devices.filter((d) => list.includes(d.serial));
+    if (targets.length === 0) return;
+
+    const operator = operatorLabel || profile?.name || 'System Admin';
+
+    if (targets.length === 1) {
+      const dev = targets[0];
+      const staffTarget = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
+      const bName = dev.branchName || `Branch ${dev.branchId}`;
+      const mName = dev.merchantName || 'Merchant Profile';
+
+      addNotification(
+        `Open Device for App Push • ${dev.serial}`,
+        `Assigned By: ${operator}. Configure By (Staff): ${staffTarget}. Please power ON and open ${dev.type} SN ${dev.serial} (${mName}) to wait for app push.`,
+        'REQUEST',
+        dev.branchId,
+        'inventory'
+      );
+
+      const res = await sendDeviceConfigTelegramAlert({
+        serial: dev.serial,
+        deviceType: dev.type,
+        model: dev.model,
+        mid: dev.mid || '—',
+        tid: dev.tid || '—',
+        merchantName: mName,
+        branchId: dev.branchId,
+        branchName: bName,
+        staffName: staffTarget,
+        adminOperator: operator,
+      });
+
+      addAuditLog(
+        'App Push Notification Sent',
+        `Assigned by ${operator}. Configure by staff (${staffTarget}): alert sent for ${dev.type} ${dev.serial} (${mName})`
+      );
+
+      triggerToast(
+        res.ok
+          ? `Notification sent to ${staffTarget} & Telegram group alerted: Open ${dev.serial} to wait for app push!`
+          : `In-app alert recorded for SN ${dev.serial}. (Telegram: ${res.error || 'Check settings'})`
+      );
+    } else {
+      // Bulk notification for multiple devices (supporting ~200 units daily across multiple teams)
+      const byStaff = new Map<string, typeof targets>();
+      for (const dev of targets) {
+        const staffKey = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
+        if (!byStaff.has(staffKey)) byStaff.set(staffKey, []);
+        byStaff.get(staffKey)!.push(dev);
+      }
+
+      // Add in-app notification per staff group/branch
+      for (const [staffKey, groupDevs] of byStaff.entries()) {
+        const sampleB = groupDevs[0]?.branchId || '100';
+        addNotification(
+          `Batch App Push Ready (${groupDevs.length} Units)`,
+          `Assigned By: ${operator}. Configure By: ${staffKey}. Please power ON and open ${groupDevs.length} assigned device(s) to wait for app push.`,
+          'REQUEST',
+          sampleB,
+          'inventory'
+        );
+      }
+
+      const res = await sendBatchDeviceConfigTelegramAlert({
+        devices: targets.map((d) => ({
+          serial: d.serial,
+          type: d.type,
+          model: d.model,
+          mid: d.mid,
+          tid: d.tid,
+          merchantName: d.merchantName,
+          branchId: d.branchId,
+          branchName: d.branchName,
+          staff: d.staff || d.installedByStaff,
+        })),
+        adminOperator: operator,
+      });
+
+      addAuditLog(
+        'Bulk App Push Notification Sent',
+        `Assigned by ${operator}. Notified ${targets.length} device(s) ready for app push across ${byStaff.size} assigned team(s).`
+      );
+
+      triggerToast(
+        res.ok
+          ? `Sent batch App Push alert for ${targets.length} unit(s) across ${byStaff.size} team(s) to Telegram!`
+          : `Sent in-app batch alert for ${targets.length} units. (Telegram: ${res.error || 'Check settings'})`
+      );
+    }
   };
 
   // Super Admin & Admin: Edit / Rename Device Serial Number if uploaded wrong (#28)

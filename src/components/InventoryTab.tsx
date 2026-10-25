@@ -80,7 +80,7 @@ interface InventoryTabProps {
   onRestoreToDashboard?: (serials: string[]) => void;
   onDeletePermanently?: (serials: string[]) => void;
   onChangeBattery?: (serial: string) => void;
-  onNotifyConfigReady?: (serial: string) => void;
+  onNotifyConfigReady?: (serialOrSerials: string | string[]) => void;
   theme?: ThemeMode;
   customFields?: CustomFieldDefinition[];
   syncingSerials?: Set<string>;
@@ -775,6 +775,44 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
         </div>
       </div>
 
+      {/* BATCH APP PUSH BANNER WHEN FILTERING UNDER CONFIGURING (FOR HIGH VOLUME e.g. ~200 UNITS) */}
+      {stageFilter === 'CONFIGURING' && !showArchivedView && isAdminLike && onNotifyConfigReady && (
+        <div className="rounded-2xl p-3.5 border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/90 border-emerald-300 text-emerald-950">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Send className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-black text-emerald-900 flex items-center gap-2">
+                <span>Batch App Push — Under Configuring Devices</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-800">
+                  {filteredDevices.filter((d) => d.stage === 'CONFIGURING').length} Units Ready
+                </span>
+              </div>
+              <div className="text-[11px] text-emerald-800/90 mt-0.5">
+                Notify all assigned teams to power ON and open devices for pushing the app.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const configuringList = filteredDevices
+                .filter((d) => d.stage === 'CONFIGURING')
+                .map((d) => d.serial);
+              if (configuringList.length > 0) {
+                onNotifyConfigReady(configuringList);
+              }
+            }}
+            disabled={filteredDevices.filter((d) => d.stage === 'CONFIGURING').length === 0}
+            className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>Notify All Ready ({filteredDevices.filter((d) => d.stage === 'CONFIGURING').length} Units)</span>
+          </button>
+        </div>
+      )}
+
       {/* GUIDED REQUISITION FULFILLMENT BANNER */}
       {fulfillingRequisition && isAdminLike && (
         <motion.div
@@ -1353,6 +1391,25 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>{isAdminLike ? 'Return to Admin Stock' : 'Request Return to Admin Stock'}</span>
+                    </button>
+                  )}
+
+                  {isAdminLike && onNotifyConfigReady && selectedSns.some((sn) => devices.find((x) => x.serial === sn)?.stage === 'CONFIGURING') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const configuringSns = selectedSns.filter((sn) => devices.find((x) => x.serial === sn)?.stage === 'CONFIGURING');
+                        onNotifyConfigReady(configuringSns);
+                        setSelectedSns([]);
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold tracking-wide transition cursor-pointer shadow-xs"
+                      title="Notify assigned staff/teams to open devices and wait for app push"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>
+                        Notify &amp; Push App (
+                        {selectedSns.filter((sn) => devices.find((x) => x.serial === sn)?.stage === 'CONFIGURING').length} Units)
+                      </span>
                     </button>
                   )}
 
