@@ -820,17 +820,6 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             </div>
           )}
 
-          {/* 33 Branch Codes Connected (Green Positive Status) + Fast Ping + Who is Online Now */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold shrink-0 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>{branches.length} Branch Codes Connected</span>
-            {pingMs !== null && (
-              <span className="ml-1 pl-1.5 border-l border-emerald-200 font-mono text-[10px] text-emerald-800">
-                {pingMs}ms
-              </span>
-            )}
-          </div>
-
           {/* Live System Presence (Who Is Online Using the System) */}
           <div className="relative shrink-0">
             <button
