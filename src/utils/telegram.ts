@@ -251,7 +251,25 @@ export async function dispatchTelegramDocument(
   const chatId = (targetChatId || '').trim();
   let lastError = '';
 
-  // 1. Direct browser call to Telegram Bot API sendDocument
+  // 1. Supabase cloud relay RPC (immune to browser CORS / ad-blockers, sends real CSV document to Telegram)
+  if (isSupabaseConfigured && token && chatId) {
+    try {
+      const { data, error } = await supabase.rpc('rpc_send_telegram_document', {
+        p_bot_token: token,
+        p_chat_id: chatId,
+        p_file_content: fileContent,
+        p_file_name: fileName,
+        p_caption: caption,
+        p_parse_mode: 'Markdown',
+      });
+      if (!error && data?.ok) return { ok: true, resolvedChatId: data.resolvedChatId || chatId };
+      lastError = data?.error || error?.message || lastError;
+    } catch (err: any) {
+      lastError = err?.message || 'Cloud document relay error';
+    }
+  }
+
+  // 2. Direct browser call to Telegram Bot API sendDocument (fallback if Supabase not configured)
   if (token && chatId) {
     const url = `https://api.telegram.org/bot${token}/sendDocument`;
     for (const candidate of chatIdVariants(chatId)) {

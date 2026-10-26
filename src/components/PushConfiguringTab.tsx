@@ -1710,25 +1710,30 @@ return (
         </div>
       </div>
 
-      {/* 5. FLOATING BATCH ACTION BAR WHEN ITEMS ARE CHECKED (Must Click 2 Times) */}
+      {/* 5. FLOATING BATCH ACTION BAR WHEN ITEMS ARE CHECKED (Sleek System Design Language) */}
       <AnimatePresence>
         {selectedSns.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3.5 rounded-2xl bg-[#18191e] text-white shadow-2xl border border-zinc-700/80 flex flex-wrap items-center gap-4 max-w-xl w-[90vw]"
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.96 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[#002238]/95 dark:bg-[#0c121e]/95 text-white shadow-2xl border border-white/15 dark:border-slate-700/80 backdrop-blur-xl flex items-center gap-2.5 sm:gap-3 max-w-[95vw] overflow-x-auto ring-1 ring-black/20"
           >
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-xl bg-white text-zinc-900 font-mono text-xs font-black shadow-2xs">
+            {/* Selection Count Pill */}
+            <div className="flex items-center gap-2 pr-2.5 border-r border-white/15 shrink-0">
+              <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-sky-400/20 text-sky-300 font-mono text-xs font-black border border-sky-400/30">
                 {selectedSns.length}
               </span>
-              <span className="text-xs font-bold text-white">Units Selected</span>
+              <span className="text-xs font-bold text-white whitespace-nowrap hidden sm:inline">
+                {selectedSns.length === 1 ? 'Unit Selected' : 'Units Selected'}
+              </span>
             </div>
 
-            <div className="flex items-center gap-2 ml-auto">
+            {/* Middle Controls */}
+            <div className="flex items-center gap-2 shrink-0">
               {isAdminLike && onAssignStaff && (
-                <div className="relative">
+                <div className="relative shrink-0">
                   <select
                     onChange={(e) => {
                       if (e.target.value) {
@@ -1737,7 +1742,8 @@ return (
                       }
                     }}
                     defaultValue=""
-                    className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-semibold text-white outline-none cursor-pointer"
+                    aria-label="Assign to Staff"
+                    className="w-36 sm:w-44 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-medium text-white outline-none cursor-pointer truncate transition"
                   >
                     <option value="" disabled className="bg-slate-900 text-slate-300">Assign to Staff...</option>
                     {users.filter(u => u.status !== 'Suspended').map((u) => (
@@ -1748,16 +1754,22 @@ return (
                   </select>
                 </div>
               )}
+
               <button
                 type="button"
                 onClick={handleDownloadSelectedFile}
-                className="px-3 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer active:scale-[0.97] transition-all"
-                title="Download and open configuration file for selected devices"
+                className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer active:scale-[0.98] transition shrink-0"
+                title="Download & view CSV configuration file for selected devices"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Open File ({selectedSns.length})</span>
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="hidden sm:inline">Open File</span>
+                <span className="sm:hidden">File</span>
+                <span className="font-mono text-[11px] opacity-80">({selectedSns.length})</span>
               </button>
+            </div>
 
+            {/* Action Buttons */}
+            <div className="flex items-center gap-1.5 ml-auto shrink-0">
               {isAdminLike && onNotifyConfigReady && (() => {
                 const isBatchCooldown = getBatchCooldownSecs() > 0;
                 const isBatchAllPushed = selectedSns.length > 0 && selectedSns.every((sn) => isDevicePushed(sn));
@@ -1767,11 +1779,10 @@ return (
                     <button
                       type="button"
                       disabled
-                      className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90 shadow-2xs"
-                      title={`Batch pushed to Telegram! 1-minute cooldown active (${getBatchCooldownSecs()}s remaining)`}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90 shadow-2xs shrink-0"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>File &amp; Alert Sent · {getBatchCooldownSecs()}s</span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>Sent · {getBatchCooldownSecs()}s</span>
                     </button>
                   );
                 }
@@ -1780,16 +1791,18 @@ return (
                   <button
                     type="button"
                     onClick={() => handleBatchPushClick(pushMode === 'total_csv')}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.98] shadow-md shrink-0 ${
                       confirmingBatch
                         ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse'
                         : isBatchAllPushed
-                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
-                        : 'bg-sky-600 hover:bg-sky-500 text-white shadow-xs'
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                        : pushMode === 'total_csv'
+                        ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
+                        : 'bg-sky-500 hover:bg-sky-400 text-white'
                     }`}
                     title={
                       confirmingBatch
-                        ? `Click 2nd time to confirm push for selected devices (${getBatchConfirmSecs()}s window)`
+                        ? `Click 2nd time to confirm push (${getBatchConfirmSecs()}s window)`
                         : isBatchAllPushed
                         ? 'Selected devices already pushed. Click to initiate re-push'
                         : pushMode === 'total_csv'
@@ -1799,25 +1812,26 @@ return (
                   >
                     {confirmingBatch ? (
                       <>
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-200 shrink-0" />
                         <span>
-                          {isBatchAllPushed ? 'Confirm Re-push' : 'Click 2nd Time to Push'}{' '}
-                          {pushMode === 'total_csv' ? 'Total CSV' : 'Alerts'} ({selectedSns.length}) ({getBatchConfirmSecs()}s)
+                          {isBatchAllPushed ? 'Confirm' : 'Click 2nd Time'} ({getBatchConfirmSecs()}s)
                         </span>
                       </>
                     ) : isBatchAllPushed ? (
                       <>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />
-                        <span>Re-push {pushMode === 'total_csv' ? 'Total CSV' : 'Alerts'} ({selectedSns.length})</span>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
+                        <span>Re-push ({selectedSns.length})</span>
                       </>
                     ) : (
                       <>
                         {pushMode === 'total_csv' ? (
-                          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-300" />
+                          <FileSpreadsheet className="w-3.5 h-3.5 text-white shrink-0" />
                         ) : (
-                          <Send className="w-3.5 h-3.5" />
+                          <Send className="w-3.5 h-3.5 shrink-0" />
                         )}
-                        <span>Push {pushMode === 'total_csv' ? 'Total CSV' : 'Queue'} ({selectedSns.length})</span>
+                        <span>
+                          {pushMode === 'total_csv' ? 'Push Total CSV' : 'Push Alerts'} ({selectedSns.length})
+                        </span>
                       </>
                     )}
                   </button>
@@ -1830,9 +1844,11 @@ return (
                   setSelectedSns([]);
                   setConfirmingBatch(false);
                 }}
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-slate-300 active:scale-[0.97] transition-all duration-150 cursor-pointer"
+                className="p-1.5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0 ml-0.5"
+                title="Cancel selection"
+                aria-label="Cancel selection"
               >
-                Cancel
+                <X className="w-4 h-4" />
               </button>
             </div>
           </motion.div>
