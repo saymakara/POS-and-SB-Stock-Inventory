@@ -90,17 +90,17 @@
   background-color: #f3f4f6;
 }
 
-/* Executive Charcoal Black Sidebar */
+/* Signature Deep Navy Blue Sidebar (Cloned from Push Configuring Hub) */
 .sb-sidebar-gradient {
-  background-color: #121316;
+  background-color: #002238;
   background-image: linear-gradient(
     180deg,
-    #1c1d22 0%,
-    #141519 50%,
-    #0c0d10 100%
+    #002238 0%,
+    #003857 50%,
+    #004e75 100%
   );
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 4px 0 24px -4px rgba(0, 0, 0, 0.65);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 4px 0 24px -4px rgba(0, 34, 56, 0.65);
 }
 
 /* Glassmorphic Bar in Signature Navy Blue */
@@ -409,15 +409,15 @@ button:hover:not(:disabled),
   color: #3f3f46 !important; /* Promoted from #71717a to zinc-700 */
 }
 
-/* Maintain bright crisp light text inside dark executive sidebar */
+/* Maintain bright crisp light text inside signature navy blue sidebar */
 .sb-sidebar-gradient .text-zinc-400,
 .sb-sidebar-gradient .text-slate-400 {
-  color: #94a3b8 !important;
+  color: #a5d2eb !important;
 }
 
 .sb-sidebar-gradient .text-zinc-500,
 .sb-sidebar-gradient .text-slate-500 {
-  color: #cbd5e1 !important;
+  color: #bae6fd !important;
 }
 
 .will-change-gpu {
