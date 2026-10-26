@@ -643,7 +643,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <SortTh k="mid" sort={histSort} onSort={histToggle}>Merchant ID (MID)</SortTh>
                 <SortTh k="serial" sort={histSort} onSort={histToggle}>Serial Number</SortTh>
                 <SortTh k="branch" sort={histSort} onSort={histToggle}>Staff / Branch</SortTh>
-                <SortTh k="service" sort={histSort} onSort={histToggle}>In Service</SortTh>
                 <SortTh k="reason" sort={histSort} onSort={histToggle}>Return Reason</SortTh>
                 <th className="text-right col-actions">Actions</th>
               </tr>
@@ -651,7 +650,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             <tbody ref={flipRef}>
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center">
+                  <td colSpan={9} className="py-12 text-center">
                     <Store className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="cell-main">No merchant history matches the search or filters.</p>
                     <p className="cell-sub">Adjust the search or filter options.</p>
@@ -702,10 +701,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       <td>
                         <div className={`cell-main max-w-[190px] truncate ${hasKhmer(officer) ? 'khmer' : ''}`} title={officer}>{dash(officer)}</div>
                         <div className="cell-sub max-w-[190px] truncate" title={`Code ${rec.branchId} · ${rec.branchName}`}>{rec.branchId} · {rec.branchName.replace(' Branch', '')}</div>
-                      </td>
-                      <td className="whitespace-nowrap">
-                        <div className="cell-main font-medium">{serviceLength(rec.installedDate, rec.returnedDate)}</div>
-                        {rec.installedDate && <div className="cell-sub">since {rec.installedDate}</div>}
                       </td>
                       <td>
                         <div className="cell-main font-medium max-w-[170px] truncate" title={rec.returnReason}>{dash(rec.returnReason)}</div>
@@ -1060,6 +1055,36 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         >
                           Code {selectedRecord.branchId}
                         </span>
+                      </div>
+                    </div>
+
+                    {/* In Service Duration & Timeline Details */}
+                    <div
+                      className={`p-2.5 rounded-xl border flex flex-col gap-1.5 ${
+                        isLight ? 'bg-white border-slate-200/90' : 'bg-[#18191e] border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-[#003857] dark:text-sky-400" /> In Service Duration
+                        </span>
+                        <span className="font-bold text-xs text-[#003857] dark:text-sky-300">
+                          {serviceLength(selectedRecord.installedDate, selectedRecord.returnedDate)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100 dark:border-white/5">
+                        <div className="flex flex-col">
+                          <span className="text-[9.5px] text-slate-400 uppercase font-semibold">Active Since</span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                            {dash(selectedRecord.installedDate)}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[9.5px] text-slate-400 uppercase font-semibold">Returned Date</span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                            {dash(selectedRecord.returnedDate)}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
