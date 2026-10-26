@@ -317,6 +317,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   const [copiedHeaders, setCopiedHeaders] = useState(false);
   const [uploadedFileMeta, setUploadedFileMeta] = useState<{ name: string; size: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounterRef = useRef(0);
 
   // Target stock destination defaults (used only for rows that give no branch / stage)
   const [defaultBranchId, setDefaultBranchId] = useState('100');
@@ -831,33 +832,73 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posPasteText, sbPasteText, posModel, sbModel, defaultBranch, defaultStage, branches, staffLabel]);
 
+  const processCsvFile = (file: File) => {
+    const sizeKb = (file.size / 1024).toFixed(1);
+    setUploadedFileMeta({ name: file.name, size: `${sizeKb} KB` });
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = (evt.target?.result as string) || '';
+      setTableCsvText(text);
+    };
+    reader.onerror = (err) => {
+      console.error('Error reading file:', err);
+    };
+    reader.readAsText(file);
+  };
+
   const handleTableCsvFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const sizeKb = (file.size / 1024).toFixed(1);
-    setUploadedFileMeta({ name: file.name, size: `${sizeKb} KB` });
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const content = (evt.target?.result as string) || '';
-      setTableCsvText(content);
-    };
-    reader.readAsText(file);
+    processCsvFile(file);
     if (e.target) e.target.value = '';
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    if (!isDragging) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
+
+    let file: File | null = null;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      file = e.dataTransfer.files[0];
+    } else if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      const item = e.dataTransfer.items[0];
+      if (item.kind === 'file') {
+        file = item.getAsFile();
+      }
+    }
     if (!file) return;
-    const sizeKb = (file.size / 1024).toFixed(1);
-    setUploadedFileMeta({ name: file.name, size: `${sizeKb} KB` });
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const content = (evt.target?.result as string) || '';
-      setTableCsvText(content);
-    };
-    reader.readAsText(file);
+
+    processCsvFile(file);
   };
 
   const handleClearCsv = () => {
@@ -1346,21 +1387,28 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 <div className="flex flex-col gap-3">
                   {/* Drag and Drop Zone + Action Bar */}
                   <div
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setIsDragging(true);
-                    }}
-                    onDragLeave={() => setIsDragging(false)}
+                    onDragEnter={handleDragEnter}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className={`p-4 rounded-2xl border-2 border-dashed transition-all flex flex-col sm:flex-row items-center justify-between gap-3.5 ${
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`relative overflow-hidden p-4 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-3.5 select-none ${
                       isDragging
-                        ? 'border-[#1e5b88] bg-sky-50 dark:bg-sky-950/30'
+                        ? 'border-[#003857] dark:border-sky-400 bg-sky-50 dark:bg-sky-950/40 ring-4 ring-sky-500/20 scale-[1.01]'
                         : isLight
-                        ? 'border-slate-300/80 bg-slate-50/60 hover:bg-slate-50'
-                        : 'border-slate-700/80 bg-slate-900/30 hover:bg-slate-900/50'
+                        ? 'border-slate-300/90 bg-slate-50/70 hover:bg-slate-100/80 hover:border-[#003857]/60 shadow-2xs'
+                        : 'border-slate-700/90 bg-slate-900/40 hover:bg-slate-900/70 hover:border-sky-500/60 shadow-2xs'
                     }`}
                   >
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                    {/* Active Drag Overlay */}
+                    {isDragging && (
+                      <div className="absolute inset-0 z-20 flex items-center justify-center gap-3 bg-[#003857]/90 dark:bg-[#002a42]/95 text-white backdrop-blur-xs font-bold text-sm pointer-events-none animate-in fade-in duration-150">
+                        <Upload className="w-6 h-6 animate-bounce text-sky-300" />
+                        <span>Drop your CSV or TXT file here to upload</span>
+                      </div>
+                    )}
+
+                    <div className={`flex items-center gap-3 w-full sm:w-auto ${isDragging ? 'pointer-events-none' : ''}`}>
                       <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#1e5b88] to-[#246da1] text-white shadow-xs shrink-0">
                         <Upload className="w-5 h-5" />
                       </div>
@@ -1375,13 +1423,18 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          Drag and drop <code>.csv</code> file, or click Browse. Parsed locally in browser before any database call.
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Drag and drop <code>.csv</code> file here, or click to browse. Parsed locally in browser before any database call.
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap shrink-0 w-full sm:w-auto justify-end">
+                    <div
+                      className={`flex items-center gap-2 flex-wrap shrink-0 w-full sm:w-auto justify-end ${
+                        isDragging ? 'pointer-events-none' : ''
+                      }`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -1393,7 +1446,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         whileHover={{ y: -1 }}
                         whileTap={{ scale: 0.96 }}
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
+                        }}
                         className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5"
                       >
                         <Upload className="w-3.5 h-3.5" />
@@ -1404,7 +1460,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         whileHover={{ y: -1 }}
                         whileTap={{ scale: 0.96 }}
                         type="button"
-                        onClick={() => handleDownloadTemplate(activeCycle)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadTemplate(activeCycle);
+                        }}
                         className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 shadow-2xs transition cursor-pointer flex items-center gap-1.5"
                         title={`Download ${activeCycleSchema.name} CSV template (${activeCycleSchema.columns.length} columns)`}
                       >
@@ -1416,7 +1475,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       {tableCsvText && (
                         <button
                           type="button"
-                          onClick={handleClearCsv}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleClearCsv();
+                          }}
                           className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white transition cursor-pointer flex items-center gap-1"
                           title="Clear CSV Content"
                         >
@@ -1682,7 +1744,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
               {/* Staged Output Table (Matches Inventory Table Format) */}
               <div
-                className={`border rounded-2xl overflow-hidden shadow-2xs ${
+                onDragEnter={method === 'tableCsv' ? handleDragEnter : undefined}
+                onDragOver={method === 'tableCsv' ? handleDragOver : undefined}
+                onDragLeave={method === 'tableCsv' ? handleDragLeave : undefined}
+                onDrop={method === 'tableCsv' ? handleDrop : undefined}
+                className={`border rounded-2xl overflow-hidden shadow-2xs transition-all ${
+                  isDragging && method === 'tableCsv' ? 'ring-2 ring-[#003857] border-[#003857]' : ''
+                } ${
                   isLight ? 'border-slate-200/90' : 'border-slate-800'
                 }`}
               >
@@ -1858,9 +1926,17 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         <tr>
                           <td
                             colSpan={11}
-                            className="py-8 text-center text-slate-400 text-xs"
+                            className="py-12 text-center text-slate-400 text-xs"
                           >
-                            No entries staged yet. Upload a CSV file or enter serials above.
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <Upload className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                              <p className="font-semibold text-slate-600 dark:text-slate-300">
+                                No entries staged yet
+                              </p>
+                              <p className="text-[11px] text-slate-400">
+                                Drag and drop your CSV file above or click Browse to stage serials
+                              </p>
+                            </div>
                           </td>
                         </tr>
                       )}
