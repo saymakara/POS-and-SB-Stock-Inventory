@@ -19,6 +19,8 @@ import { isValidMidForType, midRuleError } from '../utils/display';
 import { ALLOWED_NEXT, canMove, moveError, onMove } from '../utils/stages';
 import { motion, AnimatePresence } from 'motion/react';
 import {
+  Layers,
+  UserCheck,
   X,
   RotateCcw,
   Calendar,
@@ -914,505 +916,578 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
               {/* Form Body */}
               <form onSubmit={handleSubmit} className="p-4 sm:p-5 flex flex-col gap-3 overflow-y-auto max-h-[calc(88vh-130px)] custom-scrollbar">
-            {/* Row 0: Admin / Super Admin Serial Number Correction (#28) */}
+            {/* Section 0: Admin Serial Number Correction */}
             {isAdminLike && onRenameSerial && (
-              <div className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${isLight ? 'bg-slate-50/90 border-slate-200' : 'bg-[#181c26] border-slate-700/80'}`}>
-                <div className="flex flex-col gap-0.5">
-                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
-                    <Pencil className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
-                    <span>Hardware Serial Number (Super Admin / Admin Correction)</span>
-                  </label>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Correct the serial number if it was uploaded or scanned with a typo.
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <input
-                    type="text"
-                    value={editedSerial}
-                    onChange={(e) => {
-                      setEditedSerial(e.target.value.toUpperCase());
-                      setSerialRenameMsg('');
-                    }}
-                    aria-label="Edit hardware serial number"
-                    className={`w-48 rounded-xl px-3 py-1.5 text-xs font-mono font-bold border focus:outline-none ${
-                      isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-[#121620] border-slate-700 text-white'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    disabled={renamingSerial || !editedSerial.trim() || editedSerial.trim().toUpperCase() === device.serial.toUpperCase()}
-                    onClick={async () => {
-                      const nextSn = editedSerial.trim().toUpperCase();
-                      if (!nextSn || nextSn === device.serial.toUpperCase()) return;
-                      setRenamingSerial(true);
-                      setSerialRenameMsg('');
-                      try {
-                        const err = await onRenameSerial(device.serial, nextSn);
-                        if (err) {
-                          setSerialRenameMsg(err);
-                        } else {
-                          setSerialRenameMsg('Serial updated!');
+              <div className={`p-3.5 rounded-2xl border transition-colors ${
+                isLight ? 'bg-slate-50/80 border-slate-200' : 'bg-[#181c26] border-slate-700/80'
+              }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-sky-100 text-[#003857] dark:bg-sky-950/60 dark:text-sky-300 flex items-center justify-center shrink-0">
+                      <Pencil className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        Hardware Serial Correction
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Super Admin / Admin typo correction for uploaded or scanned hardware
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      type="text"
+                      value={editedSerial}
+                      onChange={(e) => {
+                        setEditedSerial(e.target.value.toUpperCase());
+                        setSerialRenameMsg('');
+                      }}
+                      aria-label="Edit hardware serial number"
+                      className={`w-48 rounded-xl px-3 py-1.5 text-xs font-mono font-bold border focus:outline-none transition ${
+                        isLight ? 'bg-white border-slate-300 text-slate-900 focus:border-[#003857]' : 'bg-[#121620] border-slate-700 text-white focus:border-sky-500'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      disabled={renamingSerial || !editedSerial.trim() || editedSerial.trim().toUpperCase() === device.serial.toUpperCase()}
+                      onClick={async () => {
+                        const nextSn = editedSerial.trim().toUpperCase();
+                        if (!nextSn || nextSn === device.serial.toUpperCase()) return;
+                        setRenamingSerial(true);
+                        setSerialRenameMsg('');
+                        try {
+                          const err = await onRenameSerial(device.serial, nextSn);
+                          if (err) {
+                            setSerialRenameMsg(err);
+                          } else {
+                            setSerialRenameMsg('Serial updated!');
+                          }
+                        } finally {
+                          setRenamingSerial(false);
                         }
-                      } finally {
-                        setRenamingSerial(false);
-                      }
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {renamingSerial ? 'Updating…' : 'Update Serial'}
-                  </button>
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs"
+                    >
+                      {renamingSerial ? 'Updating…' : 'Update Serial'}
+                    </button>
+                  </div>
                 </div>
                 {serialRenameMsg && (
-                  <div className={`text-[11px] font-semibold sm:col-span-2 ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <div className={`text-[11px] font-semibold mt-2 ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {serialRenameMsg}
                   </div>
                 )}
               </div>
             )}
-            {/* Row 1: Lifecycle Stage & Assigned Branch */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Lifecycle Status Stage *
-                </label>
-                <div className="relative">
-                  <select
-                    value={returnMode ? '__RETURN__' : stage}
-                    aria-label="Lifecycle stage"
-                    onChange={(e) => {
-                      if (e.target.value === '__RETURN__') { setReturnMode(true); setMidError(''); return; }
-                      setReturnMode(false);
-                      handleStageChange(e.target.value as LifecycleStage);
-                    }}
-                    className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
-                      isLight
-                        ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                        : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                    }`}
-                  >
-                    {stageOptions.map((s) => {
-                      return (
+
+            {/* Section 1: Lifecycle & Branch Assignment */}
+            <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
+              isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#161a24] border-slate-700/70'
+            }`}>
+              <div className="flex items-center gap-2 pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
+                <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                  <Layers className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    1. Lifecycle &amp; Branch Custody
+                  </h4>
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                    Current deployment status stage and holding branch assignment
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Lifecycle Status Stage */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <span>Lifecycle Status Stage</span>
+                    <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={returnMode ? '__RETURN__' : stage}
+                      aria-label="Lifecycle stage"
+                      onChange={(e) => {
+                        if (e.target.value === '__RETURN__') { setReturnMode(true); setMidError(''); return; }
+                        setReturnMode(false);
+                        handleStageChange(e.target.value as LifecycleStage);
+                      }}
+                      className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
+                        isLight
+                          ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                          : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                      }`}
+                    >
+                      {stageOptions.map((s) => (
                         <option
                           key={s}
                           value={s}
-                          className={
-                            isLight
-                              ? 'bg-white text-slate-900'
-                              : 'bg-slate-900 text-white'
-                          }
+                          className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
                         >
                           {STAGE_META[s].label}
                           {s === device.stage ? ' (current)' : ''}
                         </option>
-                      );
-                    })}
-                    {canReturn && (
-                      <option value="__RETURN__" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>
-                        Return (remove merchant, back to stock)
-                      </option>
-                    )}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                      ))}
+                      {canReturn && (
+                        <option value="__RETURN__" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>
+                          Return (remove merchant, back to stock)
+                        </option>
+                      )}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                {/* Assigned Branch Code */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <Building2 className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                    <span>Assigned Branch Code</span>
+                    <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={branchId}
+                      onChange={(e) => handleBranchChange(e.target.value)}
+                      aria-label="Assigned branch code"
+                      disabled={!isAdminLike || stage === 'HQ_STOCK'}
+                      className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 disabled:opacity-60 disabled:cursor-not-allowed ${
+                        isLight
+                          ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                          : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                      }`}
+                    >
+                      {branches.map((b) => (
+                        <option
+                          key={b.code}
+                          value={b.code}
+                          className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
+                        >
+                          Branch Code {b.code} — {b.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  <Building2 className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                  <span>Assigned Branch Code *</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={branchId}
-                    onChange={(e) => handleBranchChange(e.target.value)}
-                    aria-label="Assigned branch code"
-                    disabled={!isAdminLike || stage === 'HQ_STOCK'}
-                    className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 disabled:opacity-60 disabled:cursor-not-allowed ${
-                      isLight
-                        ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                        : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                    }`}
-                  >
-                    {branches.map((b) => (
-                      <option
-                        key={b.code}
-                        value={b.code}
-                        className={
-                          isLight
-                            ? 'bg-white text-slate-900'
-                            : 'bg-slate-900 text-white'
-                        }
-                      >
-                        Branch Code {b.code} — {b.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
-                </div>
-              </div>
-            </div>
-
-            {returnMode && (
-              <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'}`}>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                  <RotateCcw className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Return to Stock</span>
-                </div>
-                <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
-                  The merchant's name, MID, TID, phone, address and installer are removed from this unit and kept in <strong>Merchant History</strong>. The unit goes back to stock:
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button type="button" onClick={() => setReturnTo('BRANCH_RESERVE')} aria-pressed={returnTo === 'BRANCH_RESERVE'}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
-                    <Building2 className="w-3.5 h-3.5" /><span>Branch Code {device.branchId} reserve</span>
-                  </button>
-                  {isAdminLike ? (
-                    <button type="button" onClick={() => setReturnTo('HQ_STOCK')} aria-pressed={returnTo === 'HQ_STOCK'}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 cursor-pointer ${returnTo === 'HQ_STOCK' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
-                      <RotateCcw className="w-3.5 h-3.5" /><span>Admin HQ stock (Code 100)</span>
+              {returnMode && (
+                <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'}`}>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                    <RotateCcw className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Return to Stock</span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
+                    The merchant's name, MID, TID, phone, address and installer are removed from this unit and kept in <strong>Merchant History</strong>. The unit goes back to stock:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setReturnTo('BRANCH_RESERVE')} aria-pressed={returnTo === 'BRANCH_RESERVE'}
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
+                      <Building2 className="w-3.5 h-3.5" /><span>Branch Code {device.branchId} reserve</span>
                     </button>
-                  ) : (
-                    <span className="px-3 py-2 rounded-xl text-[11px] border border-dashed border-slate-300 text-slate-500 flex items-center justify-center text-center">To send it to HQ, use a stock return request afterwards</span>
-                  )}
+                    {isAdminLike ? (
+                      <button type="button" onClick={() => setReturnTo('HQ_STOCK')} aria-pressed={returnTo === 'HQ_STOCK'}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 cursor-pointer ${returnTo === 'HQ_STOCK' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
+                        <RotateCcw className="w-3.5 h-3.5" /><span>Admin HQ stock (Code 100)</span>
+                      </button>
+                    ) : (
+                      <span className="px-3 py-2 rounded-xl text-[11px] border border-dashed border-slate-300 text-slate-500 flex items-center justify-center text-center">To send it to HQ, use a stock return request afterwards</span>
+                    )}
+                  </div>
+                  <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Reason for the return *
+                    <select value={returnReason} onChange={(e) => setReturnReason(e.target.value)} aria-label="Reason for the return"
+                      className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none cursor-pointer ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#181c26] border-slate-700/80 text-white'}`}>
+                      {['Merchant Closed Business', 'Merchant Relocated', 'Merchant Requested Return', 'Upgraded / Replaced Hardware', 'Voluntary KHQR Switch', 'Seasonal End', 'Other'].map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </label>
                 </div>
-                <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Reason for the return *
-                  <select value={returnReason} onChange={(e) => setReturnReason(e.target.value)} aria-label="Reason for the return"
-                    className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none cursor-pointer ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#181c26] border-slate-700/80 text-white'}`}>
-                    {['Merchant Closed Business', 'Merchant Relocated', 'Merchant Requested Return', 'Upgraded / Replaced Hardware', 'Voluntary KHQR Switch', 'Seasonal End', 'Other'].map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </label>
-              </div>
-            )}
+              )}
 
-            {/* When Terminate / Return is selected, staff must return device to physical stock */}
-            {stage === 'FAULTY' && (
-              <div
-                className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${
-                  isLight
-                    ? 'bg-amber-50/70 border-amber-200 text-slate-800'
-                    : 'bg-amber-950/20 border-amber-800/60 text-slate-100'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                  <RotateCcw className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Where Is the Faulty Unit Held? *</span>
-                </div>
-                <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
-                  The unit is recorded as <strong>Faulty / Returned</strong> and its merchant details are detached. Choose where it is physically held now:
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTerminateDestination('BRANCH_RESERVE')}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition cursor-pointer ${
-                      terminateDestination === 'BRANCH_RESERVE'
-                        ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
-                        : isLight
-                        ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
-                        : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
-                    }`}
-                  >
-                    <Building2 className="w-3.5 h-3.5" />
-                    <span>Held at Branch Code {branchId}</span>
-                  </button>
-                  {isAdminLike ? (
+              {stage === 'FAULTY' && (
+                <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${
+                  isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'
+                }`}>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                    <RotateCcw className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Where Is the Faulty Unit Held? *</span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
+                    The unit is recorded as <strong>Faulty / Returned</strong> and its merchant details are detached. Choose where it is physically held now:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => setTerminateDestination('HQ_STOCK')}
+                      onClick={() => setTerminateDestination('BRANCH_RESERVE')}
                       className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition cursor-pointer ${
-                        terminateDestination === 'HQ_STOCK'
+                        terminateDestination === 'BRANCH_RESERVE'
                           ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
                           : isLight
                           ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                           : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
                       }`}
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Held at Admin HQ (Code 100)</span>
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>Held at Branch Code {branchId}</span>
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
-                      title="Only Admin & Super Admin can return directly to HQ Stock. Units must be returned to Branch Reserve first, then submitted as a Return Request."
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Return to Admin HQ Stock (Admin Only)</span>
-                    </button>
-                  )}
+                    {isAdminLike ? (
+                      <button
+                        type="button"
+                        onClick={() => setTerminateDestination('HQ_STOCK')}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition cursor-pointer ${
+                          terminateDestination === 'HQ_STOCK'
+                            ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                            : isLight
+                            ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                            : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Held at Admin HQ (Code 100)</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
+                        title="Only Admin & Super Admin can return directly to HQ Stock. Units must be returned to Branch Reserve first, then submitted as a Return Request."
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Return to Admin HQ Stock (Admin Only)</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {stage === 'LOST' && (
-              <div
-                className={`p-3.5 rounded-xl border flex flex-col gap-2 ${
-                  isLight
-                    ? 'bg-amber-50/70 border-amber-200 text-slate-800'
-                    : 'bg-amber-950/20 border-amber-800/60 text-slate-100'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                  <SearchX className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Device Status: Device Lost / Missing</span>
+              {stage === 'LOST' && (
+                <div className={`p-3.5 rounded-xl border flex flex-col gap-2 ${
+                  isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'
+                }`}>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                    <SearchX className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Device Status: Device Lost / Missing</span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
+                    This terminal or sound box will be flagged as <strong>Device Lost</strong> in the system inventory. Active merchant assignments will be detached and recorded in the audit trail.
+                  </p>
                 </div>
-                <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
-                  This terminal or sound box will be flagged as <strong>Device Lost</strong> in the system inventory. Active merchant assignments will be detached and recorded in the audit trail.
-                </p>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* (23 Oct 2026) Return: the merchant, officer and battery fields are not needed */}
             {!returnMode && (<>
-            {/* Row 2: Staff Officer & Deployment Date */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    <User className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                    <span>Assigned Branch Staff Officer</span>
-                  </label>
-                  {staff && (
-                    <button
-                      type="button"
-                      onClick={() => setStaff('')}
-                      className="text-[11px] text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
-                    >
-                      Clear
-                    </button>
-                  )}
+              {/* Section 2: Staff Officer & Deployment Schedule */}
+              <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
+                isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#161a24] border-slate-700/70'
+              }`}>
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                      <UserCheck className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        2. Field Staff &amp; Deployment Schedule
+                      </h4>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                        Technician responsible for configuration and scheduled installation date
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Quick Staff Search / Filter */}
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={staffQuery}
-                    onChange={(e) => setStaffQuery(e.target.value)}
-                    placeholder={`Search staff in Branch ${branchId || 'selected'}...`}
-                    className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border outline-none mb-1.5 ${
-                      isLight
-                        ? 'bg-white border-slate-200 text-slate-900 focus:border-[#003857]'
-                        : 'bg-[#181c26] border-slate-700 text-white focus:border-sky-500'
-                    }`}
-                  />
-                </div>
-
-                <div className="relative">
-                  <select
-                    value={staff}
-                    aria-label="Assigned branch staff officer"
-                    onChange={(e) => {
-                      setStaff(e.target.value);
-                      setStaffQuery('');
-                    }}
-                    className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
-                      isLight
-                        ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                        : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                    }`}
-                  >
-                    <option
-                      value=""
-                      className={
-                        isLight
-                          ? 'bg-white text-slate-500'
-                          : 'bg-slate-900 text-slate-400'
-                      }
-                    >
-                      -- Unassigned --
-                    </option>
-                    {staff && !availableStaff.includes(staff) && (
-                      <option value={staff}>{staff} (Assigned)</option>
-                    )}
-
-                    {/* Staff selection exclusively for the selected branch */}
-                    {allStaffOptions
-                      .filter((s) => !staffQuery || s.name.toLowerCase().includes(staffQuery.toLowerCase()) || (s.empId && s.empId.includes(staffQuery)) || (s.telegram && s.telegram.toLowerCase().includes(staffQuery.toLowerCase())))
-                      .map((st) => (
-                        <option
-                          key={`${st.name}__${st.empId || ''}__${st.branchId}`}
-                          value={st.name}
-                          className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Staff Officer */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <User className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                        <span>Assigned Branch Staff Officer</span>
+                      </label>
+                      {staff && (
+                        <button
+                          type="button"
+                          onClick={() => setStaff('')}
+                          className="text-[11px] text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
                         >
-                          {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''}
+                          Clear
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Quick Staff Search / Filter */}
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={staffQuery}
+                        onChange={(e) => setStaffQuery(e.target.value)}
+                        placeholder={`Search staff in Branch ${branchId || 'selected'}...`}
+                        className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border outline-none mb-1 ${
+                          isLight
+                            ? 'bg-white border-slate-200 text-slate-900 focus:border-[#003857]'
+                            : 'bg-[#121620] border-slate-700 text-white focus:border-sky-500'
+                        }`}
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <select
+                        value={staff}
+                        aria-label="Assigned branch staff officer"
+                        onChange={(e) => {
+                          setStaff(e.target.value);
+                          setStaffQuery('');
+                        }}
+                        className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
+                          isLight
+                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                        }`}
+                      >
+                        <option value="" className={isLight ? 'bg-white text-slate-500' : 'bg-slate-900 text-slate-400'}>
+                          -- Unassigned --
                         </option>
-                      ))}
-                    {allStaffOptions.length === 0 && (
-                      <option disabled value="" className="text-slate-400 italic">
-                        No staff assigned to Branch {branchId}
-                      </option>
-                    )}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
-                </div>
+                        {staff && !availableStaff.includes(staff) && (
+                          <option value={staff}>{staff} (Assigned)</option>
+                        )}
+                        {allStaffOptions
+                          .filter((s) => !staffQuery || s.name.toLowerCase().includes(staffQuery.toLowerCase()) || (s.empId && s.empId.includes(staffQuery)) || (s.telegram && s.telegram.toLowerCase().includes(staffQuery.toLowerCase())))
+                          .map((st) => (
+                            <option
+                              key={`${st.name}__${st.empId || ''}__${st.branchId}`}
+                              value={st.name}
+                              className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
+                            >
+                              {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''}
+                            </option>
+                          ))}
+                        {allStaffOptions.length === 0 && (
+                          <option disabled value="" className="text-slate-400 italic">
+                            No staff assigned to Branch {branchId}
+                          </option>
+                        )}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                    </div>
+                  </div>
 
-
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  <Calendar className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                  <span>Installation / Deployment Date</span>
-                </label>
-                <input
-                  type="date"
-                  value={deployedDate}
-                  onChange={(e) => setDeployedDate(e.target.value)}
-                  className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
-                    isLight
-                      ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                      : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                  }`}
-                />
-              </div>
-            </div>
-
-            {merchantLocked && (
-              <div role="note" className="p-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium">
-                The merchant details of an installed unit can be changed by Admin HQ only. Please contact HQ if something is wrong.
-              </div>
-            )}
-            <fieldset disabled={merchantLocked} className="contents">
-            {/* Row 3: Merchant Name, MID, TID */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="flex flex-col gap-1 sm:col-span-1">
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  <Store className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                  <span>Merchant Name</span>
-                </label>
-                <input
-                  type="text"
-                  value={merchantName}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setMerchantName(val);
-                    if (isAdminLike && val.trim() && (stage === 'HQ_STOCK' || stage === 'BRANCH_RESERVE')) {
-                      setStage('CONFIGURING');
-                    }
-                  }}
-                  placeholder="e.g. Brown Coffee BKK"
-                  className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
-                    isLight
-                      ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                      : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                  }`}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Merchant ID (MID)
-                  </label>
-                </div>
-                <input
-                  type="text"
-                  value={mid}
-                  onChange={(e) => {
-                    const clean = e.target.value.replace(/\D/g, '').slice(0, 15);
-                    setMid(clean);
-                    if (isAdminLike && clean.length > 0 && (stage === 'HQ_STOCK' || stage === 'BRANCH_RESERVE')) {
-                      setStage('CONFIGURING');
-                    }
-                    setTid(clean.length >= 8 ? clean.slice(-8) : '');
-                    if (midError) setMidError('');
-                  }}
-                  maxLength={15}
-                  inputMode="numeric"
-                  aria-label="Merchant ID (MID)"
-                  placeholder="15-digit MID from the merchant record"
-                  className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
-                    midError
-                      ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/50'
-                      : isLight
-                      ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                      : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                  }`}
-                />
-                <div className="flex items-center justify-between text-[10px] px-0.5">
-                  {midError ? (
-                    <span className="text-rose-600 font-semibold">{midError}</span>
-                  ) : (
-                    <span className="text-slate-400">
-                      {device.type === 'Sound Box' ? '15 digits starting with 6' : '15 digits starting with 2'}
-                    </span>
-                  )}
-                  <span className="font-mono text-slate-400">{mid.length}/15</span>
+                  {/* Installation / Deployment Date */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <Calendar className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                      <span>Installation / Deployment Date</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={deployedDate}
+                      onChange={(e) => setDeployedDate(e.target.value)}
+                      className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                        isLight
+                          ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                          : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                      }`}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Terminal ID (TID)
-                </label>
-                <input
-                  type="text"
-                  value={mid.length >= 8 ? mid.slice(-8) : tid}
-                  readOnly
-                  title="Filled automatically: the last 8 digits of the MID"
-                  placeholder="Automatic: last 8 digits of MID"
-                  className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
-                    isLight
-                      ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                      : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                  }`}
-                />
-              </div>
-            </div>
+              {/* Section 3: Merchant & Terminal Setup */}
+              <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
+                isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#161a24] border-slate-700/70'
+              }`}>
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                      <Store className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        3. Merchant &amp; Terminal Setup
+                      </h4>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                        Merchant business name, 15-digit banking MID, and 8-digit Terminal ID
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-            {/* Dynamic Custom & Additional Fields Section */}
-            {activeCustomFields.length > 0 && (
-              <div
-                className={`p-3 rounded-xl border flex flex-col gap-2.5 transition-colors ${
-                  isLight
-                    ? 'bg-slate-50/70 border-slate-200'
-                    : 'bg-[#181c26] border-slate-700/80'
-                }`}
-              >
-                <div className="flex items-center justify-between pb-1 border-b border-slate-200/50 dark:border-white/[0.06]">
-                  <div className="flex items-center gap-1.5">
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      Additional Attributes ({activeCustomFields.length})
+                {merchantLocked && (
+                  <div role="note" className="p-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium">
+                    The merchant details of an installed unit can be changed by Admin HQ only. Please contact HQ if something is wrong.
+                  </div>
+                )}
+
+                <fieldset disabled={merchantLocked} className="contents">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    {/* Merchant Name */}
+                    <div className="flex flex-col gap-1.5 sm:col-span-1">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <Store className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                        <span>Merchant Name</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={merchantName}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMerchantName(val);
+                          if (isAdminLike && val.trim() && (stage === 'HQ_STOCK' || stage === 'BRANCH_RESERVE')) {
+                            setStage('CONFIGURING');
+                          }
+                        }}
+                        placeholder="e.g. Brown Coffee BKK"
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
+                          isLight
+                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                        }`}
+                      />
+                    </div>
+
+                    {/* MID */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Merchant ID (MID)
+                      </label>
+                      <input
+                        type="text"
+                        value={mid}
+                        onChange={(e) => {
+                          const clean = e.target.value.replace(/\D/g, '').slice(0, 15);
+                          setMid(clean);
+                          if (isAdminLike && clean.length > 0 && (stage === 'HQ_STOCK' || stage === 'BRANCH_RESERVE')) {
+                            setStage('CONFIGURING');
+                          }
+                          setTid(clean.length >= 8 ? clean.slice(-8) : '');
+                          if (midError) setMidError('');
+                        }}
+                        maxLength={15}
+                        inputMode="numeric"
+                        aria-label="Merchant ID (MID)"
+                        placeholder="15-digit MID from merchant record"
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                          midError
+                            ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/50'
+                            : isLight
+                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                        }`}
+                      />
+                      <div className="flex items-center justify-between text-[10px] px-0.5">
+                        {midError ? (
+                          <span className="text-rose-600 font-semibold">{midError}</span>
+                        ) : (
+                          <span className="text-slate-400">
+                            {device.type === 'Sound Box' ? '15 digits starting with 6' : '15 digits starting with 2'}
+                          </span>
+                        )}
+                        <span className="font-mono text-slate-400">{mid.length}/15</span>
+                      </div>
+                    </div>
+
+                    {/* TID */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Terminal ID (TID)
+                      </label>
+                      <input
+                        type="text"
+                        value={mid.length >= 8 ? mid.slice(-8) : tid}
+                        readOnly
+                        title="Filled automatically: the last 8 digits of the MID"
+                        placeholder="Automatic: last 8 digits of MID"
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                          isLight
+                            ? 'bg-slate-100/80 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                            : 'bg-[#181c26] border-slate-700 text-white placeholder:text-slate-500'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+
+              {/* Dynamic Custom & Additional Fields Section */}
+              {activeCustomFields.length > 0 && (
+                <div
+                  className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${
+                    isLight
+                      ? 'bg-slate-50/70 border-slate-200/90'
+                      : 'bg-[#161a24] border-slate-700/70'
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        Additional Custom Attributes ({activeCustomFields.length})
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-medium font-mono">
+                      Configured in Settings
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-medium font-mono">
-                    Configured in Settings
-                  </span>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {activeCustomFields.map((field) => {
-                    const val = customFieldValues[field.id] ?? '';
-                    const getFieldIcon = () => {
-                      if (field.id === 'location') return <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
-                      if (field.id === 'merchantPhone' || field.type === 'phone') return <Phone className="w-3.5 h-3.5 text-sky-500 shrink-0" />;
-                      if (field.id === 'address') return <Building2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
-                      if (field.type === 'number') return <Hash className="w-3.5 h-3.5 text-indigo-500 shrink-0" />;
-                      return <Type className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
-                    };
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {activeCustomFields.map((field) => {
+                      const val = customFieldValues[field.id] ?? '';
+                      const getFieldIcon = () => {
+                        if (field.id === 'location') return <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
+                        if (field.id === 'merchantPhone' || field.type === 'phone') return <Phone className="w-3.5 h-3.5 text-sky-500 shrink-0" />;
+                        if (field.id === 'address') return <Building2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
+                        if (field.type === 'number') return <Hash className="w-3.5 h-3.5 text-indigo-500 shrink-0" />;
+                        return <Type className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+                      };
 
-                    return (
-                      <div key={field.id} className="flex flex-col gap-1">
-                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                          <span className="flex items-center gap-1.5">
-                            {getFieldIcon()}
-                            <span>{field.label}</span>
-                            {field.required && <span className="text-rose-500 font-bold">*</span>}
-                          </span>
-                          <span className="font-mono text-[9px] uppercase px-1.5 py-0.2 rounded bg-slate-200/70 dark:bg-white/10 text-slate-500">
-                            {field.type}
-                          </span>
-                        </label>
+                      return (
+                        <div key={field.id} className="flex flex-col gap-1.5">
+                          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              {getFieldIcon()}
+                              <span>{field.label}</span>
+                              {field.required && <span className="text-rose-500 font-bold">*</span>}
+                            </span>
+                            <span className="font-mono text-[9px] uppercase px-1.5 py-0.2 rounded bg-slate-200/70 dark:bg-white/10 text-slate-500">
+                              {field.type}
+                            </span>
+                          </label>
 
-                        {field.type === 'select' && field.options && field.options.length > 0 ? (
-                          <div className="relative">
-                            <select
+                          {field.type === 'select' && field.options && field.options.length > 0 ? (
+                            <div className="relative">
+                              <select
+                                value={val}
+                                onChange={(e) =>
+                                  setCustomFieldValues((prev) => ({
+                                    ...prev,
+                                    [field.id]: e.target.value,
+                                  }))
+                                }
+                                className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
+                                  isLight
+                                    ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                                    : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                                }`}
+                              >
+                                <option value="">-- Choose {field.label} --</option>
+                                {field.options.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                            </div>
+                          ) : (
+                            <input
+                              type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                               value={val}
                               onChange={(e) =>
                                 setCustomFieldValues((prev) => ({
@@ -1420,264 +1495,213 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                   [field.id]: e.target.value,
                                 }))
                               }
-                              required={field.required}
-                              className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
+                              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
+                              required={field.required && !(field.id === 'merchantPhone' && device.merchantPhone)}
+                              className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                                 isLight
-                                  ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                                  : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                                  ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                                  : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                               }`}
-                            >
-                              <option value="">-- {field.placeholder || 'Select Option'} --</option>
-                              {field.options.map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
-                          </div>
-                        ) : field.type === 'date' ? (
-                          <input
-                            type="date"
-                            value={val}
-                            onChange={(e) =>
-                              setCustomFieldValues((prev) => ({
-                                ...prev,
-                                [field.id]: e.target.value,
-                              }))
-                            }
-                            required={field.required}
-                            className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
-                              isLight
-                                ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                                : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                            }`}
-                          />
-                        ) : field.type === 'number' ? (
-                          <input
-                            type="number"
-                            value={val}
-                            onChange={(e) =>
-                              setCustomFieldValues((prev) => ({
-                                ...prev,
-                                [field.id]: e.target.value,
-                              }))
-                            }
-                            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-                            required={field.required}
-                            className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
-                              isLight
-                                ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                                : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                            }`}
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            value={val}
-                            onChange={(e) =>
-                              setCustomFieldValues((prev) => ({
-                                ...prev,
-                                [field.id]: e.target.value,
-                              }))
-                            }
-                            placeholder={
-                              field.id === 'merchantPhone' && !showFullPhone && device.merchantPhone
-                                ? `On record: ${phoneFor(role, device.merchantPhone)} (type to replace)`
-                                : field.placeholder || `Enter ${field.label.toLowerCase()}`
-                            }
-                            aria-label={field.label}
-                            required={field.required && !(field.id === 'merchantPhone' && device.merchantPhone)}
-                            className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
-                              isLight
-                                ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-700'
-                                : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                            }`}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            </fieldset>
-
-            {/* Row 4: 24-Month POS Battery Lifecycle Card */}
-            <div
-              className={`p-3 rounded-xl border flex flex-col gap-2.5 transition-colors ${
-                previewBatteryInfo.state === 'EXPIRED'
-                  ? isLight
-                    ? 'bg-rose-50/60 border-rose-200'
-                    : 'bg-rose-950/20 border-rose-800/60'
-                  : previewBatteryInfo.state === 'DUE_SOON'
-                  ? isLight
-                    ? 'bg-amber-50/60 border-amber-200'
-                    : 'bg-amber-950/20 border-amber-800/60'
-                  : isLight
-                  ? 'bg-slate-50/70 border-slate-200'
-                  : 'bg-[#181c26] border-slate-700/80'
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-1.5">
-                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  <BatteryCharging
-                    className={`w-3.5 h-3.5 ${
-                      previewBatteryInfo.state === 'EXPIRED'
-                        ? 'text-rose-600'
-                        : previewBatteryInfo.state === 'DUE_SOON'
-                        ? 'text-amber-600'
-                        : 'text-emerald-600'
-                    }`}
-                  />
-                  <span>POS Terminal Battery (24-Month Cycle Standard)</span>
-                </span>
-                <span
-                  className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-full border ${
+              {/* Section 4: 24-Month POS Battery Lifecycle Card (Only displayed for POS Terminal or units with battery) */}
+              {(device.type === 'POS Terminal' || Boolean(device.batterySerial)) && (
+                <div
+                  className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${
                     previewBatteryInfo.state === 'EXPIRED'
-                      ? 'bg-rose-100/90 text-rose-800 border-rose-300'
+                      ? isLight
+                        ? 'bg-rose-50/60 border-rose-200'
+                        : 'bg-rose-950/20 border-rose-800/60'
                       : previewBatteryInfo.state === 'DUE_SOON'
-                      ? 'bg-amber-100/90 text-amber-800 border-amber-300'
-                      : 'bg-emerald-100/90 text-emerald-800 border-emerald-300'
+                      ? isLight
+                        ? 'bg-amber-50/60 border-amber-200'
+                        : 'bg-amber-950/20 border-amber-800/60'
+                      : isLight
+                      ? 'bg-slate-50/70 border-slate-200/90'
+                      : 'bg-[#161a24] border-slate-700/70'
                   }`}
                 >
-                  {previewBatteryInfo.state === 'EXPIRED'
-                    ? 'EXPIRED — 24M Change Required'
-                    : previewBatteryInfo.state === 'DUE_SOON'
-                    ? 'Due Soon (<3M Left)'
-                    : 'Active / Healthy'}
-                </span>
-              </div>
-
-              {/* Status Message Banner */}
-              <div
-                className={`px-2.5 py-1.5 rounded-lg text-[11px] flex items-center gap-2 border ${
-                  previewBatteryInfo.state === 'EXPIRED'
-                    ? 'bg-rose-100/70 border-rose-200 text-rose-800 font-medium'
-                    : previewBatteryInfo.state === 'DUE_SOON'
-                    ? 'bg-amber-100/70 border-amber-200 text-amber-800 font-medium'
-                    : isLight
-                    ? 'bg-white border-slate-200 text-slate-600'
-                    : 'bg-white/[0.04] border-white/10 text-slate-300'
-                }`}
-              >
-                {previewBatteryInfo.state === 'EXPIRED' ? (
-                  <>
-                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    <span>
-                      Battery reached {previewBatteryInfo.monthsUsed} months of service (&ge; 24-month limit). Replacement is required immediately!
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        previewBatteryInfo.state === 'EXPIRED'
+                          ? 'bg-rose-100 text-rose-700'
+                          : previewBatteryInfo.state === 'DUE_SOON'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        <BatteryCharging className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                          4. POS Terminal Battery Lifecycle (24-Month Standard)
+                        </h4>
+                        <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                          Track hardware battery health, age, and 24-month replacement standard
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] font-mono font-medium px-2.5 py-0.5 rounded-full border ${
+                        previewBatteryInfo.state === 'EXPIRED'
+                          ? 'bg-rose-100/90 text-rose-800 border-rose-300'
+                          : previewBatteryInfo.state === 'DUE_SOON'
+                          ? 'bg-amber-100/90 text-amber-800 border-amber-300'
+                          : 'bg-emerald-100/90 text-emerald-800 border-emerald-300'
+                      }`}
+                    >
+                      {previewBatteryInfo.state === 'EXPIRED'
+                        ? 'EXPIRED — 24M Change Required'
+                        : previewBatteryInfo.state === 'DUE_SOON'
+                        ? 'Due Soon (<3M Left)'
+                        : 'Active / Healthy'}
                     </span>
-                  </>
-                ) : previewBatteryInfo.state === 'DUE_SOON' ? (
-                  <>
-                    <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>
-                      Battery is {previewBatteryInfo.monthsUsed} months old with {previewBatteryInfo.monthsRemaining} months remaining until 24-month expiration.
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>
-                      Battery in good standing ({previewBatteryInfo.monthsUsed} of 24 months elapsed · {previewBatteryInfo.monthsRemaining} months remaining).
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {/* Battery Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                      Battery Serial Number
-                    </label>
                   </div>
-                  <input
-                    type="text"
-                    value={batterySerial}
-                    onChange={(e) => setBatterySerial(e.target.value)}
-                    id="workflow-battery-serial"
-                    aria-label="Battery serial number"
-                    placeholder="Serial printed on the battery"
-                    className={`w-full rounded-xl px-3 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
-                      isLight
-                        ? 'bg-white border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400'
-                        : 'bg-black/20 border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                    }`}
-                  />
-                  <span className="text-[10px] text-slate-400 font-mono px-0.5">
-                    Format: 160525A + 7 digits
-                  </span>
-                </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                    Battery Installed / Commissioned Date
-                  </label>
-                  <input
-                    type="date"
-                    value={batteryInstalledDate}
-                    max={todayPP()}
-                    aria-label="Battery installed date"
-                    onChange={(e) => setBatteryInstalledDate(e.target.value)}
-                    className={`w-full rounded-xl px-3 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
-                      isLight
-                        ? 'bg-white border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400'
-                        : 'bg-black/20 border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                  {/* Status Message Banner */}
+                  <div
+                    className={`px-3 py-2 rounded-xl text-[11px] flex items-center gap-2 border ${
+                      previewBatteryInfo.state === 'EXPIRED'
+                        ? 'bg-rose-100/70 border-rose-200 text-rose-800 font-medium'
+                        : previewBatteryInfo.state === 'DUE_SOON'
+                        ? 'bg-amber-100/70 border-amber-200 text-amber-800 font-medium'
+                        : isLight
+                        ? 'bg-white border-slate-200 text-slate-600'
+                        : 'bg-white/[0.04] border-white/10 text-slate-300'
                     }`}
-                  />
-                  <span className="text-[10px] text-slate-400 font-mono px-0.5">
-                    24M Expiry Date: <strong className="text-slate-700 dark:text-slate-200">{previewBatteryInfo.dueDate}</strong>
-                  </span>
-                </div>
-              </div>
-
-              {/* Battery Actions */}
-              <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-                {onChangeBattery && device && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onChangeBattery(device);
-                    }}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                      isLight
-                        ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
-                        : 'bg-white/10 hover:bg-white/15 border-white/15 text-white'
-                    }`}
-                    title="Open battery replacement wizard"
                   >
-                    <BatteryCharging className="w-3.5 h-3.5 text-[#133e5e] dark:text-sky-400" />
-                    <span>Battery Replacement Wizard</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    // New battery: the operator types/scans its serial; the 24-month cycle starts today.
-                    setBatterySerial('');
-                    setBatteryInstalledDate(todayPP());
-                    setTimeout(() => document.getElementById('workflow-battery-serial')?.focus(), 0);
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
-                  title="Enter the new battery's serial and reset the 24-month countdown from today"
-                >
-                  <BatteryCharging className="w-3.5 h-3.5" />
-                  <span>Change Battery (Install New &amp; Reset 24M)</span>
-                </button>
-              </div>
-            </div>
+                    {previewBatteryInfo.state === 'EXPIRED' ? (
+                      <>
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                        <span>
+                          Battery reached {previewBatteryInfo.monthsUsed} months of service (&ge; 24-month limit). Replacement is required immediately!
+                        </span>
+                      </>
+                    ) : previewBatteryInfo.state === 'DUE_SOON' ? (
+                      <>
+                        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>
+                          Battery is {previewBatteryInfo.monthsUsed} months old with {previewBatteryInfo.monthsRemaining} months remaining until 24-month expiration.
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>
+                          Battery in good standing ({previewBatteryInfo.monthsUsed} of 24 months elapsed · {previewBatteryInfo.monthsRemaining} months remaining).
+                        </span>
+                      </>
+                    )}
+                  </div>
 
+                  {/* Battery Fields */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Battery Serial Number
+                      </label>
+                      <input
+                        type="text"
+                        value={batterySerial}
+                        onChange={(e) => setBatterySerial(e.target.value)}
+                        id="workflow-battery-serial"
+                        aria-label="Battery serial number"
+                        placeholder="Serial printed on battery (e.g. 160525A1234567)"
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                          isLight
+                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                        }`}
+                      />
+                      <span className="text-[10px] text-slate-400 font-mono px-0.5">
+                        Format: 160525A + 7 digits
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Battery Installed / Commissioned Date
+                      </label>
+                      <input
+                        type="date"
+                        value={batteryInstalledDate}
+                        max={todayPP()}
+                        aria-label="Battery installed date"
+                        onChange={(e) => setBatteryInstalledDate(e.target.value)}
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                          isLight
+                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                        }`}
+                      />
+                      <span className="text-[10px] text-slate-400 font-mono px-0.5">
+                        24M Expiry Date: <strong className="text-slate-700 dark:text-slate-200">{previewBatteryInfo.dueDate}</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Battery Actions */}
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                    {onChangeBattery && device && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onChangeBattery(device);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                          isLight
+                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
+                            : 'bg-white/10 hover:bg-white/15 border-white/15 text-white'
+                        }`}
+                        title="Open battery replacement wizard"
+                      >
+                        <BatteryCharging className="w-3.5 h-3.5 text-[#133e5e] dark:text-sky-400" />
+                        <span>Battery Replacement Wizard</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBatterySerial('');
+                        setBatteryInstalledDate(todayPP());
+                        setTimeout(() => document.getElementById('workflow-battery-serial')?.focus(), 0);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                      title="Enter the new battery's serial and reset the 24-month countdown from today"
+                    >
+                      <BatteryCharging className="w-3.5 h-3.5" />
+                      <span>Change Battery (Install New &amp; Reset 24M)</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </>)}
-            {/* Row 5: Audit Note */}
-            <div className="flex flex-col gap-1">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                <FileText className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-                <span>Audit Note / Update Reason</span>
-              </label>
+
+            {/* Section 5: Audit Note / Update Reason */}
+            <div className={`p-4 rounded-2xl border space-y-2.5 transition-colors ${
+              isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#161a24] border-slate-700/70'
+            }`}>
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
+                <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                  <FileText className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    Audit Note &amp; Update Reason
+                  </h4>
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                    Required note documenting reason for stage change, merchant deployment, or branch transfer
+                  </p>
+                </div>
+              </div>
               <input
                 type="text"
                 value={note}
@@ -1685,8 +1709,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 placeholder="Describe reason for stage change, merchant deployment, or branch transfer..."
                 className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                   isLight
-                    ? 'bg-slate-50/80 hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400'
-                    : 'bg-[#181c26] hover:bg-[#1e2330] border-slate-700/80 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-slate-400/20 focus:border-slate-500'
+                    ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                    : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                 }`}
               />
             </div>
