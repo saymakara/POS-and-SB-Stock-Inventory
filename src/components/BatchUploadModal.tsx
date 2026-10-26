@@ -29,6 +29,7 @@ import { motion } from 'motion/react';
 import { normalizeMid, isValidMidForType, midRuleError } from '../utils/display';
 import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
+import { tidFromMid } from '../utils/tid';
 import { CSV_BATCH_SIZE, CSV_BATCH_DELAY_MS, checkExistingSerialsOnServer } from '../services/supabaseService';
 
 export type IntakeCycle = 'HQ_STOCK' | 'BRANCH_RESERVE' | 'CONFIGURING' | 'COMPLETE';
@@ -99,8 +100,8 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
     cycle: 'CONFIGURING',
     name: 'Under Configuring Intake',
     tag: 'Under Configuring',
-    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In captured dynamically',
-    description: 'Hardware undergoing merchant technical setup. Stock-In date is auto-captured dynamically to upload date.',
+    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In & TID captured dynamically',
+    description: 'Hardware undergoing merchant technical setup. Stock-In date and TID are auto-captured dynamically.',
     filename: 'template_under_configuring.csv',
     columns: [
       { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
@@ -112,20 +113,19 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'CONFIGURING', req: false },
       { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Configuring Staff Officer', req: false },
       { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Merchant Business Name', req: true },
-      { id: 'MID', label: 'MID', desc: '15-digit Merchant ID', req: true },
-      { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
+      { id: 'MID', label: 'MID', desc: '15-digit Merchant ID (TID auto-derived)', req: true },
     ],
     sampleRows: [
-      ['WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Main Branch', 'CONFIGURING', 'Babe (11122)', 'Amazon Cafe BKK', '100000000012345', '00012345'],
-      ['SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Main Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Lucky Mart Tuol Kork', '100000000054321', '00054321'],
+      ['WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Main Branch', 'CONFIGURING', 'Babe (11122)', 'Amazon Cafe BKK', '100000000012345'],
+      ['SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Main Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Lucky Mart Tuol Kork', '100000000054321'],
     ],
   },
   COMPLETE: {
     cycle: 'COMPLETE',
     name: 'Installed Live Intake',
     tag: 'Live Merchant',
-    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In captured dynamically',
-    description: 'Active hardware live at merchant store. Stock-In date is auto-captured dynamically to upload date.',
+    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In & TID captured dynamically',
+    description: 'Active hardware live at merchant store. Stock-In date and TID are auto-captured dynamically.',
     filename: 'template_installed_live.csv',
     columns: [
       { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
@@ -137,12 +137,11 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'COMPLETE', req: false },
       { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Field Deployment Officer', req: false },
       { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Active Merchant Store', req: true },
-      { id: 'MID', label: 'MID', desc: '15-digit Merchant ID', req: true },
-      { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
+      { id: 'MID', label: 'MID', desc: '15-digit Merchant ID (TID auto-derived)', req: true },
     ],
     sampleRows: [
-      ['WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Main Branch', 'COMPLETE', 'Babe (11122)', 'Lucky Supermarket Monivong', '100000000098765', '00098765'],
-      ['SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Main Branch', 'COMPLETE', 'KY Vibol (27267)', 'Brown Coffee 57', '100000000087654', '00087654'],
+      ['WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Main Branch', 'COMPLETE', 'Babe (11122)', 'Lucky Supermarket Monivong', '100000000098765'],
+      ['SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Main Branch', 'COMPLETE', 'KY Vibol (27267)', 'Brown Coffee 57', '100000000087654'],
     ],
   },
 };
@@ -157,8 +156,7 @@ export const SCHEMA_COLUMNS = [
   { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'Current Stock Stage', req: false },
   { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Staff Custodian Name / ID', req: false },
   { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Assigned Merchant Business', req: false },
-  { id: 'MID', label: 'MID', desc: 'Merchant ID (15 digits)', req: false },
-  { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
+  { id: 'MID', label: 'MID', desc: 'Merchant ID (15 digits; TID auto-derived)', req: false },
 ];
 
 export interface CsvCellValidationError {
@@ -489,8 +487,22 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           stage: 6,
           staff: 7,
         };
+      } else if (sample.length === 10) {
+        // Exactly 10 columns (TID auto-derived from MID): Serial_SN, Product_Type, Model, Battery_Serial, Branch_Code, Branch_Name, Lifecycle_Stage, Assigned_Staff, Merchant_Name, MID
+        colMap = {
+          serial: 0,
+          type: 1,
+          model: 2,
+          batterySerial: 3,
+          branchCode: 4,
+          branchName: 5,
+          stage: 6,
+          staff: 7,
+          merchantName: 8,
+          mid: 9,
+        };
       } else if (sample.length === 11) {
-        // Exactly 11 columns: Serial_SN, Product_Type, Model, Battery_Serial, Branch_Code, Branch_Name, Lifecycle_Stage, Assigned_Staff, Merchant_Name, MID, TID
+        // Legacy 11 columns with TID: Serial_SN, Product_Type, Model, Battery_Serial, Branch_Code, Branch_Name, Lifecycle_Stage, Assigned_Staff, Merchant_Name, MID, TID
         colMap = {
           serial: 0,
           type: 1,
@@ -734,7 +746,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         stockInDate,
         merchantName: (effectiveStage === 'CONFIGURING' || effectiveStage === 'COMPLETE') ? rawMerchantName : (rawMerchantName || ''),
         mid: (effectiveStage === 'CONFIGURING' || effectiveStage === 'COMPLETE') ? normalizedMidVal : (normalizedMidVal || ''),
-        tid: (effectiveStage === 'CONFIGURING' || effectiveStage === 'COMPLETE') ? (/^\d{15}$/.test(normalizedMidVal) ? normalizedMidVal.slice(-8) : rawTidInput) : (rawTidInput || ''),
+        tid: (effectiveStage === 'CONFIGURING' || effectiveStage === 'COMPLETE') ? tidFromMid(normalizedMidVal, rawTidInput) : (rawTidInput || tidFromMid(normalizedMidVal)),
         redeployCount,
         isDuplicate: false,
         error: cellErrors.map((ce) => `Row ${ce.row}, Col ${ce.column} (${ce.columnName}): ${ce.message}`).join('; ') || undefined,
