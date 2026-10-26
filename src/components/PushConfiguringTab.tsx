@@ -1195,7 +1195,7 @@ return (
                             }`}
                             title={dev.type}
                           />
-                          <span className="font-mono font-bold text-zinc-900 dark:text-white">{dev.serial}</span>
+                          <span className="font-mono text-zinc-800 dark:text-slate-200">{dev.serial}</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 pl-4">
                           {dev.type} {dev.model ? `· ${dev.model}` : ''}
@@ -1204,7 +1204,7 @@ return (
 
                       {/* Merchant & MID / TID */}
                       <td className="py-3 px-4">
-                        <div className="font-bold text-zinc-900 dark:text-white truncate max-w-[200px]" title={dev.merchantName}>
+                        <div className="text-zinc-800 dark:text-slate-200 truncate max-w-[200px]" title={dev.merchantName}>
                           {dev.merchantName || 'Merchant Profile Pending'}
                         </div>
                         <div className="text-[10.5px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
