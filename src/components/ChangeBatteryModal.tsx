@@ -283,7 +283,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
             {/* Replacement Reason Presets */}
             <div>
               <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700 mb-1.5">
-                Reason for Battery Change
+                Reason for Battery Change *
               </label>
               <div className="grid grid-cols-2 gap-1.5 mb-2">
                 {COMMON_REASONS.map((r) => (

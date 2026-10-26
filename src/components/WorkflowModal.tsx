@@ -1216,6 +1216,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                         <User className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                         <span>Assigned Branch Staff Officer</span>
+                        <span className="text-rose-500 font-bold">*</span>
                       </label>
                       {staff && (
                         <button
@@ -1290,6 +1291,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                       <Calendar className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                       <span>Installation / Deployment Date</span>
+                      <span className="text-rose-500 font-bold">*</span>
                     </label>
                     <input
                       type="date"
@@ -1338,6 +1340,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                         <Store className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                         <span>Merchant Name</span>
+                        <span className="text-rose-500 font-bold">*</span>
                       </label>
                       <input
                         type="text"
@@ -1360,8 +1363,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
                     {/* MID */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Merchant ID (MID)
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <span>Merchant ID (MID)</span>
+                        <span className="text-rose-500 font-bold">*</span>
                       </label>
                       <input
                         type="text"
@@ -1401,8 +1405,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
                     {/* TID */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Terminal ID (TID)
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <span>Terminal ID (TID)</span>
+                        <span className="text-rose-500 font-bold">*</span>
                       </label>
                       <input
                         type="text"
@@ -1520,7 +1525,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               )}
 
               {/* Section 4: 24-Month POS Battery Lifecycle Card (Only displayed for POS Terminal or units with battery) */}
-              {(device.type === 'POS Terminal' || Boolean(device.batterySerial)) && (
+              {(device.type === 'POS Terminal' || (Boolean(device.batterySerial) && device.batterySerial?.trim() !== '' && device.batterySerial?.trim().toUpperCase() !== 'N/A')) && (
                 <div
                   className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${
                     previewBatteryInfo.state === 'EXPIRED'
@@ -1626,8 +1631,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   {/* Battery Fields */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Battery Serial Number
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <span>Battery Serial Number</span>
+                        <span className="text-rose-500 font-bold">*</span>
                       </label>
                       <input
                         type="text"
@@ -1648,8 +1654,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Battery Installed / Commissioned Date
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <span>Battery Installed / Commissioned Date</span>
+                        <span className="text-rose-500 font-bold">*</span>
                       </label>
                       <input
                         type="date"
@@ -1705,8 +1712,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   <FileText className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                    Audit Note &amp; Update Reason
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <span>Audit Note &amp; Update Reason</span>
+                    <span className="text-rose-500 font-bold">*</span>
                   </h4>
                   <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
                     Required note documenting reason for stage change, merchant deployment, or branch transfer
