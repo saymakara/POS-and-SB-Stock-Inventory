@@ -129,7 +129,8 @@ interface MerchantsCrmTabProps {
     destination: 'HQ_STOCK' | 'BRANCH_RESERVE',
     reason: string,
     notes?: string,
-    targetBranchId?: string
+    targetBranchId?: string,
+    returnedByStaff?: string
   ) => void;
   onReplaceMerchantDevice?: (
     oldSerial: string,
@@ -213,6 +214,20 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   const [terminateModalMerchant, setTerminateModalMerchant] = useState<MerchantProfile | null>(null);
   const [terminateDestination, setTerminateDestination] = useState<'BRANCH_RESERVE' | 'HQ_STOCK'>('BRANCH_RESERVE');
   const [returnBranchId, setReturnBranchId] = useState<string>('');
+  const [returnStaffName, setReturnStaffName] = useState<string>('');
+
+  const returnStaffOptions = useMemo(() => {
+    const list = new Set<string>();
+    if (activeStaff) list.add(activeStaff);
+    if (terminateModalMerchant?.accountOfficer) list.add(terminateModalMerchant.accountOfficer);
+    const targetBranch = branches.find((b) => (b.code || b.id) === returnBranchId);
+    (targetBranch?.staff || []).forEach((s) => list.add(s));
+    (targetBranch?.staffDetails || []).forEach((u) => list.add(u.name));
+    const curBranch = branches.find((b) => (b.code || b.id) === terminateModalMerchant?.branchId);
+    (curBranch?.staff || []).forEach((s) => list.add(s));
+    (curBranch?.staffDetails || []).forEach((u) => list.add(u.name));
+    return Array.from(list).filter(Boolean);
+  }, [activeStaff, terminateModalMerchant, returnBranchId, branches]);
   const [terminateReason, setTerminateReason] = useState<string>('Returned by Merchant');
   const [terminateNotes, setTerminateNotes] = useState<string>('');
   const [replaceModalDevice, setReplaceModalDevice] = useState<Device | null>(null);
@@ -1062,6 +1077,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
         ? activeBranchId
         : (branches.find((b) => (b.code || b.id) !== '100')?.code || '101');
     setReturnBranchId(defaultBranch);
+    setReturnStaffName(activeStaff || merchant.accountOfficer || '');
     setTerminateReason('Returned by Merchant');
     setTerminateNotes('');
   };
@@ -1074,7 +1090,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       terminateDestination,
       terminateReason,
       terminateNotes.trim(),
-      terminateDestination === 'BRANCH_RESERVE' ? returnBranchId : undefined
+      terminateDestination === 'BRANCH_RESERVE' ? returnBranchId : undefined,
+      returnStaffName.trim() || activeStaff || 'Staff'
     );
     setTerminateModalMerchant(null);
   };
@@ -3036,9 +3053,9 @@ return (
                   : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
               }`}
             >
-              <div className="bg-[#002f49] px-6 py-4 flex items-center justify-between text-white border-b border-amber-500/30">
+              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-white/10 text-cyan-300 border border-white/20 flex items-center justify-center shrink-0">
                     <RotateCcw className="w-4 h-4" />
                   </div>
                   <div>
@@ -3053,7 +3070,7 @@ return (
                 <button
                   type="button"
                   onClick={() => setTerminateModalMerchant(null)}
-                  aria-label="Close terminate dialog"
+                  aria-label="Close return dialog"
                   title="Close"
                   className="p-1 rounded-full text-slate-300 hover:text-white cursor-pointer"
                 >
@@ -3062,30 +3079,38 @@ return (
               </div>
 
               <div className="p-6 flex flex-col gap-4 text-xs">
-                {/* Hardware Attached Notice */}
+                {/* Hardware Attached Notice (System Style) */}
                 <div
-                  className={`p-3 rounded-2xl border ${
+                  className={`p-3.5 rounded-2xl border ${
                     isLight
-                      ? 'bg-amber-50 border-amber-200 text-amber-900'
-                      : 'bg-amber-950/20 border-amber-500/25 text-amber-200'
+                      ? 'bg-slate-50/90 border-slate-200/90 text-slate-800'
+                      : 'bg-slate-900/60 border-slate-800 text-slate-200'
                   }`}
                 >
-                  <div className="text-[11px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                    <span>
-                      {terminateModalMerchant.devices.length} Physical Device(s) To Return
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-md bg-[#003857]/10 dark:bg-sky-500/20 text-[#003857] dark:text-sky-300 flex items-center justify-center shrink-0">
+                        <RotateCcw className="w-3 h-3" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                        {terminateModalMerchant.devices.length} Physical Device(s) To Return
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      Stock Return Notice
                     </span>
                   </div>
-                  <p className="text-[11px] opacity-90 mb-2">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mb-2 leading-relaxed">
                     Returning clears the merchant assignment from each serial in Stock Inventory, moves units back to stock, and records the return event in Merchant History:
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {terminateModalMerchant.devices.map((d) => (
                       <span
                         key={d.serial}
-                        className="px-2 py-1 rounded-lg font-mono text-[11px] font-bold border bg-white dark:bg-black/30 text-[#002f49] dark:text-cyan-300 border-amber-300 dark:border-amber-500/30"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 shadow-2xs"
                       >
-                        {d.serial} ({d.model})
+                        <span className="font-bold">{d.serial}</span>
+                        <span className="text-slate-400 dark:text-slate-500 text-[10px]">({d.model})</span>
                       </span>
                     ))}
                   </div>
@@ -3102,9 +3127,9 @@ return (
                       onClick={() => setTerminateDestination('BRANCH_RESERVE')}
                       className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition cursor-pointer ${
                         terminateDestination === 'BRANCH_RESERVE'
-                          ? 'bg-[#004953] text-white border-emerald-500/30 ring-2 ring-emerald-400/20'
+                          ? 'bg-[#003857] text-white border-[#003857] ring-2 ring-[#003857]/20 shadow-xs'
                           : isLight
-                          ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                          ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                           : 'bg-[#18191e] hover:bg-[#252730] text-slate-300 border-slate-700'
                       }`}
                     >
@@ -3114,7 +3139,7 @@ return (
                       </div>
                       <span
                         className={`text-[10px] ${
-                          terminateDestination === 'BRANCH_RESERVE' ? 'text-emerald-100' : 'text-slate-500'
+                          terminateDestination === 'BRANCH_RESERVE' ? 'text-sky-200' : 'text-slate-500'
                         }`}
                       >
                         Return to Branch {returnBranchId || terminateModalMerchant.branchId} Reserve for immediate redeployment.
@@ -3126,9 +3151,9 @@ return (
                       onClick={() => setTerminateDestination('HQ_STOCK')}
                       className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition cursor-pointer ${
                         terminateDestination === 'HQ_STOCK'
-                          ? 'bg-[#004953] text-white border-emerald-500/30 ring-2 ring-emerald-400/20'
+                          ? 'bg-[#003857] text-white border-[#003857] ring-2 ring-[#003857]/20 shadow-xs'
                           : isLight
-                          ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                          ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                           : 'bg-[#18191e] hover:bg-[#252730] text-slate-300 border-slate-700'
                       }`}
                     >
@@ -3138,7 +3163,7 @@ return (
                       </div>
                       <span
                         className={`text-[10px] ${
-                          terminateDestination === 'HQ_STOCK' ? 'text-cyan-200' : 'text-slate-500'
+                          terminateDestination === 'HQ_STOCK' ? 'text-sky-200' : 'text-slate-500'
                         }`}
                       >
                         Return to Admin HQ Central Stock (Branch Code 100) warehouse.
@@ -3152,17 +3177,17 @@ return (
                   <div
                     className={`p-3 rounded-2xl border ${
                       isLight
-                        ? 'bg-emerald-50/60 border-emerald-200/80 text-emerald-950'
-                        : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'
+                        ? 'bg-slate-50/70 border-slate-200/90 text-slate-800'
+                        : 'bg-slate-900/50 border-slate-800 text-slate-200'
                     } space-y-1.5`}
                   >
                     <div className="flex items-center justify-between">
-                      <label className="block font-bold text-[11px] uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                      <label className="block font-bold text-[11px] uppercase tracking-wider text-slate-700 dark:text-slate-300">
                         Receiving Branch Reserve *
                       </label>
                       {terminateModalMerchant.branchId &&
                         terminateModalMerchant.branchId !== returnBranchId && (
-                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                          <span className="text-[10px] text-sky-700 dark:text-sky-300 font-bold bg-sky-50 dark:bg-sky-950/50 px-2 py-0.5 rounded-full border border-sky-200 dark:border-sky-800">
                             Transferring to different branch
                           </span>
                         )}
@@ -3186,13 +3211,39 @@ return (
                     </select>
                     <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
                       Devices will be checked into{' '}
-                      <strong className="text-emerald-700 dark:text-emerald-300">
+                      <strong className="text-slate-800 dark:text-slate-200">
                         Branch Code {returnBranchId}
                       </strong>{' '}
                       reserve stock for redeployment.
                     </p>
                   </div>
                 )}
+
+                {/* Staff Who Processed Return */}
+                <div>
+                  <label className="block font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
+                    Returned By Staff / Officer *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      list="return-staff-datalist"
+                      value={returnStaffName}
+                      onChange={(e) => setReturnStaffName(e.target.value)}
+                      placeholder="Enter staff full name who received / processed return..."
+                      className={`w-full rounded-xl px-3 py-2 border font-semibold ${inputClass}`}
+                    />
+                    <datalist id="return-staff-datalist">
+                      {returnStaffOptions.map((name) => (
+                        <option key={name} value={name} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1">
+                    This staff officer will be recorded on the returned device and in Merchant History.
+                  </p>
+                </div>
 
                 {/* Reason Selection */}
                 <div>
@@ -3240,7 +3291,7 @@ return (
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl text-xs font-extrabold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm flex items-center gap-1.5 cursor-pointer"
+                    className="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs flex items-center gap-1.5 cursor-pointer transition"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Confirm Hardware Return</span>

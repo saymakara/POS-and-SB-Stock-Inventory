@@ -2030,11 +2030,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     destination: 'HQ_STOCK' | 'BRANCH_RESERVE',
     reason: string = 'Returned by Merchant',
     notes?: string,
-    targetBranchId?: string
+    targetBranchId?: string,
+    returnedByStaff?: string
   ) => {
     const today = todayPP();
     const nowTime = stampSecPP();
-    const actor = operatorLabel || 'Staff';
+    const actor = returnedByStaff?.trim() || operatorLabel || 'Staff';
     const affected = devices.filter((d) => d.mid === mid && inScope(d));
     if (!affected.length) { triggerToast('No unit of this merchant is in your branch.'); return; }
     if (destination === 'HQ_STOCK' && role === 'BRANCH') { triggerToast('Branch staff return units to the branch reserve; HQ approves a return to HQ.'); return; }
@@ -2049,7 +2050,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       reason,
       status: 'RETURNED',
       actor,
-      notes: notes || `Unit returned to ${destLabel}.`,
+      notes: notes || `Unit returned to ${destLabel} by ${actor}.`,
     }));
 
     const nextMap = new Map(affected.map((d) => {
@@ -2068,7 +2069,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         deployedDate: '',
         redeployCount: (d.redeployCount || 0) + 1,
         updatedAt: today,
-        note: `Returned to ${destLabel} (${reason})`,
+        note: `Returned to ${destLabel} (${reason}) by ${actor}`,
         history: [
           `${nowTime} | Hardware Return | Returned from ${d.merchantName || 'merchant'} to ${destLabel}${isBranchChanged ? ` (transferred from Branch ${d.branchId})` : ''} — Reason: ${reason} — Officer: ${actor}`,
           ...(d.history || [])
@@ -2079,8 +2080,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
     setDevices((prev) => prev.map((d) => nextMap.get(d.serial) || d));
     setHistoricalMerchants((prev) => [...records, ...prev]);
-    addAuditLog('Hardware Returned', `Returned ${affected.length} unit(s) from merchant ${merchantName} (${mid}) to ${destLabel}`);
-    triggerToast(`Returned ${affected.length} unit(s) from ${merchantName} to ${destLabel}.`);
+    addAuditLog('Hardware Returned', `Returned ${affected.length} unit(s) from merchant ${merchantName} (${mid}) to ${destLabel} by ${actor}`);
+    triggerToast(`Returned ${affected.length} unit(s) from ${merchantName} to ${destLabel} by ${actor}.`);
   };
 
   // Remove from Dashboard (Archive) & Restore
