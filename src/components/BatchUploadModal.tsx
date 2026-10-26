@@ -346,6 +346,30 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   const currentInspectCycle = inspectedCycle || activeCycle;
   const currentInspectSchema = CYCLE_SCHEMAS[currentInspectCycle];
 
+  const [stageFilter, setStageFilter] = useState<'ALL' | IntakeCycle>('ALL');
+
+  const handleSelectStage = useCallback(
+    (newStage: LifecycleStage | IntakeCycle) => {
+      const cycle: IntakeCycle =
+        newStage === 'BRANCH_RESERVE' || newStage === 'CONFIGURING' || newStage === 'COMPLETE'
+          ? newStage
+          : 'HQ_STOCK';
+      setDefaultStage(newStage as LifecycleStage);
+      setInspectedCycle(cycle);
+      setStageFilter('ALL');
+
+      if (newStage === 'HQ_STOCK') {
+        setDefaultBranchId('100');
+      } else if (newStage === 'BRANCH_RESERVE' && defaultBranchId === '100') {
+        const nonHqBranch = branches.find((b) => b.id !== '100');
+        if (nonHqBranch) {
+          setDefaultBranchId(nonHqBranch.id);
+        }
+      }
+    },
+    [defaultBranchId, branches]
+  );
+
   // Field 1: POS Terminal state (Method B: By Hardware Type)
   const [posModel, setPosModel] = useState('Wizar POS Q2 Pro');
   const [posPasteText, setPosPasteText] = useState('');
@@ -675,7 +699,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
       // 5. Check Lifecycle_Stage data type
       const rawStage = cell(row, 'stage');
-      const fallbackStage: LifecycleStage = targetBranch?.id === '100' ? 'HQ_STOCK' : defaultStage;
+      const fallbackStage: LifecycleStage = defaultStage;
       const stage = parseStageValue(rawStage, fallbackStage);
       if (!stage) {
         addErr(
@@ -892,7 +916,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
         const targetBranchId = curBranch?.id || defaultBranchId;
         const targetBranchObj = curBranch || defaultBranch;
-        const targetStage = targetBranchId === '100' ? 'HQ_STOCK' : defaultStage;
+        const targetStage = defaultStage;
 
         // Dynamic stock lookup: is this unit currently available in existing stock?
         const inStockDev = existingDevices.find((d) => d.serial.trim().toUpperCase() === serial);
@@ -1182,6 +1206,28 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     }
     return list;
   }, [activeStagedBatch]);
+
+  const isStaffColVisible = useMemo(() => {
+    return (
+      activeCycle === 'BRANCH_RESERVE' ||
+      activeCycle === 'CONFIGURING' ||
+      activeCycle === 'COMPLETE' ||
+      activeStagedBatch.some((i) => !!i.staff)
+    );
+  }, [activeCycle, activeStagedBatch]);
+
+  const isMerchantColVisible = useMemo(() => {
+    return (
+      activeCycle === 'CONFIGURING' ||
+      activeCycle === 'COMPLETE' ||
+      activeStagedBatch.some((i) => !!i.merchantName || !!i.mid)
+    );
+  }, [activeCycle, activeStagedBatch]);
+
+  const displayedStagedBatch = useMemo(() => {
+    if (stageFilter === 'ALL') return activeStagedBatch;
+    return activeStagedBatch.filter((item) => item.stage === stageFilter);
+  }, [activeStagedBatch, stageFilter]);
 
   const { validItems, dupCount, errorCount, validPosCount, validSbCount, isUploadHalted } = useMemo(() => {
     const valid = activeStagedBatch.filter((i) => !i.isDuplicate && !i.error);
@@ -1519,7 +1565,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     <select
                       value={defaultStage}
                       onChange={(e) =>
-                        setDefaultStage(e.target.value as LifecycleStage)
+                        handleSelectStage(e.target.value as LifecycleStage)
                       }
                       className={`w-full rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${inputClass}`}
                     >
@@ -1749,15 +1795,15 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs">
                           {(['HQ_STOCK', 'BRANCH_RESERVE', 'CONFIGURING', 'COMPLETE'] as IntakeCycle[]).map((cKey) => {
                             const cDef = CYCLE_SCHEMAS[cKey];
-                            const isSelected = currentInspectCycle === cKey;
+                            const isSelected = activeCycle === cKey;
                             return (
                               <button
                                 key={cKey}
                                 type="button"
-                                onClick={() => setInspectedCycle(cKey)}
+                                onClick={() => handleSelectStage(cKey)}
                                 className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                                   isSelected
-                                    ? 'bg-[#003857] text-white shadow-2xs'
+                                    ? 'bg-[#003857] text-white shadow-2xs ring-2 ring-[#003857]/30'
                                     : isLight
                                     ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                                     : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
@@ -2072,16 +2118,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 }`}
               >
                 <div
-                  className={`px-4 py-2 border-b flex items-center justify-between text-xs ${
+                  className={`px-4 py-2 border-b flex items-center justify-between text-xs flex-wrap gap-2 ${
                     isLight
                       ? 'bg-slate-50 border-slate-200 text-slate-800'
                       : 'bg-slate-900 border-slate-800 text-white'
                   }`}
                 >
-                  <span className="font-bold flex items-center gap-2">
+                  <div className="font-bold flex items-center gap-2 flex-wrap">
                     <FileSpreadsheet className="w-4 h-4 text-[#1e5b88] dark:text-sky-400" />
                     <span>
                       Staged Inventory Table Live Preview
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#003857]/10 dark:bg-sky-400/10 text-[#003857] dark:text-sky-300 border border-[#003857]/20 dark:border-sky-400/20">
+                      {activeCycleSchema.tag} Schema ({activeCycleSchema.columns.length} Cols)
                     </span>
                     <span className="text-[11px] font-normal text-slate-500 font-mono">
                       ({validItems.length} valid: {validPosCount} POS, {validSbCount} Sound Box
@@ -2097,31 +2146,73 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       )}
                       {' '}· {activeStagedBatch.length} row{activeStagedBatch.length === 1 ? '' : 's'} read)
                     </span>
-                  </span>
-                  {(dupCount > 0 || errorCount > 0) && (
-                    <span className="text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 text-[11px] bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      {dupCount > 0 && `${dupCount} duplicate(s) halt upload`}
-                      {dupCount > 0 && errorCount > 0 && ' · '}
-                      {errorCount > 0 && `${errorCount} row(s) with errors`}
-                    </span>
-                  )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {activeStagedBatch.length > 0 && (
+                      <div className="flex items-center gap-1 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => setStageFilter('ALL')}
+                          className={`px-2 py-0.5 rounded-md font-semibold transition cursor-pointer ${
+                            stageFilter === 'ALL'
+                              ? 'bg-[#003857] text-white'
+                              : isLight
+                              ? 'bg-slate-200/70 hover:bg-slate-200 text-slate-700'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                          }`}
+                        >
+                          All ({activeStagedBatch.length})
+                        </button>
+                        {(['HQ_STOCK', 'BRANCH_RESERVE', 'CONFIGURING', 'COMPLETE'] as IntakeCycle[]).map((cKey) => {
+                          const count = activeStagedBatch.filter((i) => i.stage === cKey).length;
+                          if (count === 0) return null;
+                          const cDef = CYCLE_SCHEMAS[cKey];
+                          const isActive = stageFilter === cKey;
+                          return (
+                            <button
+                              key={cKey}
+                              type="button"
+                              onClick={() => setStageFilter(cKey)}
+                              className={`px-2 py-0.5 rounded-md font-semibold transition cursor-pointer ${
+                                isActive
+                                  ? 'bg-[#003857] text-white'
+                                  : isLight
+                                  ? 'bg-slate-200/70 hover:bg-slate-200 text-slate-700'
+                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                              }`}
+                            >
+                              {cDef.tag} ({count})
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {(dupCount > 0 || errorCount > 0) && (
+                      <span className="text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 text-[11px] bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        {dupCount > 0 && `${dupCount} duplicate(s) halt upload`}
+                        {dupCount > 0 && errorCount > 0 && ' · '}
+                        {errorCount > 0 && `${errorCount} row(s) with errors`}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="overflow-auto min-h-[240px] max-h-[62vh]">
-                  <table className="w-full text-left text-xs min-w-[800px]">
+                  <table className="w-full text-left text-xs min-w-[700px]">
                     <thead className="glass-table-thead text-[10px] uppercase font-extrabold text-white sticky top-0 z-10">
                       <tr>
                         <th className="py-2.5 px-3">Row</th>
-                        <th className="py-2.5 px-3">Stock-In Date</th>
                         <th className="py-2.5 px-3">Serial Number</th>
                         <th className="py-2.5 px-3">Device Type</th>
                         <th className="py-2.5 px-3">Model</th>
                         <th className="py-2.5 px-3">Battery Serial</th>
                         <th className="py-2.5 px-3">Branch Code &amp; Name</th>
                         <th className="py-2.5 px-3">Lifecycle Stage</th>
-                        <th className="py-2.5 px-3">Assigned Staff</th>
-                        <th className="py-2.5 px-3">Merchant / MID</th>
+                        {isStaffColVisible && <th className="py-2.5 px-3">Assigned Staff</th>}
+                        {isMerchantColVisible && <th className="py-2.5 px-3">Merchant / MID</th>}
                         <th className="py-2.5 px-3 text-right">Pre-Validation</th>
                       </tr>
                     </thead>
@@ -2130,7 +2221,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         isLight ? 'divide-slate-100 bg-white' : 'divide-slate-800/60 bg-[#12151e]'
                       }`}
                     >
-                      {activeStagedBatch.map((item, idx) => (
+                      {displayedStagedBatch.map((item, idx) => (
                         <tr
                           key={`${item.serial}-${idx}`}
                           className={
@@ -2143,9 +2234,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         >
                           <td className="py-1.5 px-3 font-mono text-slate-400">
                             #{item.csvRowNumber || idx + 1}
-                          </td>
-                          <td className="py-1.5 px-3 font-mono text-slate-500 whitespace-nowrap">
-                            {item.stockInDate || '—'}
                           </td>
                           <td
                             className={`py-1.5 px-3 font-mono font-bold whitespace-nowrap ${
@@ -2190,7 +2278,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                             {item.model}
                           </td>
                           <td className="py-1.5 px-3 font-mono font-semibold text-[#003857] dark:text-sky-300 whitespace-nowrap">
-                            {item.batterySerial}
+                            {item.batterySerial || '—'}
                           </td>
                           <td
                             className={`py-1.5 px-3 whitespace-nowrap ${
@@ -2202,43 +2290,59 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               ({item.branchName})
                             </span>
                           </td>
-                          <td className="py-1.5 px-3 text-slate-600 dark:text-slate-300 whitespace-nowrap font-medium">
-                            {STAGE_META[item.stage]?.short || item.stage}
-                          </td>
                           <td className="py-1.5 px-3 whitespace-nowrap">
-                            {item.staff ? (
-                              <div className="flex items-center gap-1 text-slate-800 dark:text-slate-200 font-semibold">
-                                <UserIcon className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                                <span>{item.staff}</span>
-                              </div>
-                            ) : item.stage === 'BRANCH_RESERVE' || item.stage === 'CONFIGURING' || item.stage === 'COMPLETE' ? (
-                              <span className="text-rose-600 dark:text-rose-400 font-bold text-[11px] flex items-center gap-1 bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20">
-                                <AlertCircle className="w-3 h-3" /> Missing Staff
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic text-[11px]">Unassigned (HQ Stock)</span>
-                            )}
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold ${
+                              item.stage === 'HQ_STOCK'
+                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60'
+                                : item.stage === 'BRANCH_RESERVE'
+                                ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60'
+                                : item.stage === 'CONFIGURING'
+                                ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60'
+                                : item.stage === 'COMPLETE'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60'
+                                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                            }`}>
+                              {STAGE_META[item.stage]?.short || item.stage}
+                            </span>
                           </td>
-                          <td className="py-1.5 px-3 whitespace-nowrap text-slate-500">
-                            {item.merchantName ? (
-                              <div className="flex flex-col">
-                                <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[140px]">
-                                  {item.merchantName}
+                          {isStaffColVisible && (
+                            <td className="py-1.5 px-3 whitespace-nowrap">
+                              {item.staff ? (
+                                <div className="flex items-center gap-1 text-slate-800 dark:text-slate-200 font-semibold">
+                                  <UserIcon className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                                  <span>{item.staff}</span>
+                                </div>
+                              ) : item.stage === 'BRANCH_RESERVE' || item.stage === 'CONFIGURING' || item.stage === 'COMPLETE' ? (
+                                <span className="text-rose-600 dark:text-rose-400 font-bold text-[11px] flex items-center gap-1 bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20">
+                                  <AlertCircle className="w-3 h-3" /> Missing Staff
                                 </span>
-                                {item.mid && (
-                                  <span className="text-[10px] font-mono text-slate-400">
-                                    MID: {item.mid}
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px]">Unassigned (HQ Stock)</span>
+                              )}
+                            </td>
+                          )}
+                          {isMerchantColVisible && (
+                            <td className="py-1.5 px-3 whitespace-nowrap text-slate-500">
+                              {item.merchantName ? (
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[140px]">
+                                    {item.merchantName}
                                   </span>
-                                )}
-                              </div>
-                            ) : (item.stage === 'CONFIGURING' || item.stage === 'COMPLETE') ? (
-                              <span className="text-rose-600 dark:text-rose-400 font-bold text-[11px] flex items-center gap-1 bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20">
-                                <AlertCircle className="w-3 h-3" /> Missing Merchant
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic text-[11px]">Unassigned (Stock)</span>
-                            )}
-                          </td>
+                                  {item.mid && (
+                                    <span className="text-[10px] font-mono text-slate-400">
+                                      MID: {item.mid}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (item.stage === 'CONFIGURING' || item.stage === 'COMPLETE') ? (
+                                <span className="text-rose-600 dark:text-rose-400 font-bold text-[11px] flex items-center gap-1 bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20">
+                                  <AlertCircle className="w-3 h-3" /> Missing Merchant
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px]">Unassigned (Stock)</span>
+                              )}
+                            </td>
+                          )}
                           <td className="py-1.5 px-3 text-right whitespace-nowrap">
                             {item.error ? (
                               <span
@@ -2262,19 +2366,23 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         </tr>
                       ))}
 
-                      {activeStagedBatch.length === 0 && (
+                      {displayedStagedBatch.length === 0 && (
                         <tr>
                           <td
-                            colSpan={11}
+                            colSpan={7 + (isStaffColVisible ? 1 : 0) + (isMerchantColVisible ? 1 : 0) + 1}
                             className="py-12 text-center text-slate-400 text-xs"
                           >
                             <div className="flex flex-col items-center justify-center gap-2">
                               <Upload className="w-8 h-8 text-slate-300 dark:text-slate-600" />
                               <p className="font-semibold text-slate-600 dark:text-slate-300">
-                                No entries staged yet
+                                {activeStagedBatch.length > 0
+                                  ? `No entries staged matching ${activeCycleSchema.name}`
+                                  : `No entries staged yet for ${activeCycleSchema.name}`}
                               </p>
                               <p className="text-[11px] text-slate-400">
-                                Drag and drop your CSV file above or click Browse to stage serials
+                                {activeStagedBatch.length > 0
+                                  ? 'Switch filters above to view other staged intake records'
+                                  : `Drag and drop your ${activeCycleSchema.tag} CSV file above or click Browse to stage serials`}
                               </p>
                             </div>
                           </td>
@@ -2444,19 +2552,18 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     isLight ? 'border-slate-200 bg-white' : 'border-slate-800 bg-[#12151e]'
                   }`}
                 >
-                  <table className="w-full text-left text-xs min-w-[850px]">
+                  <table className="w-full text-left text-xs min-w-[750px]">
                     <thead className="glass-table-thead text-[10px] uppercase font-extrabold text-white">
                       <tr>
                         <th className="py-2.5 px-3">No.</th>
-                        <th className="py-2.5 px-3">Stock-In Date</th>
                         <th className="py-2.5 px-3">Serial Number</th>
                         <th className="py-2.5 px-3">Device Type</th>
                         <th className="py-2.5 px-3">Model</th>
                         <th className="py-2.5 px-3">Battery Serial</th>
                         <th className="py-2.5 px-3">Stock Location</th>
                         <th className="py-2.5 px-3">Initial Stage</th>
-                        <th className="py-2.5 px-3">Assigned Staff</th>
-                        <th className="py-2.5 px-3">Merchant / MID</th>
+                        {isStaffColVisible && <th className="py-2.5 px-3">Assigned Staff</th>}
+                        {isMerchantColVisible && <th className="py-2.5 px-3">Merchant / MID</th>}
                       </tr>
                     </thead>
                     <tbody
@@ -2472,32 +2579,55 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <td className="py-1.5 px-3 font-mono font-bold text-slate-400">
                             {idx + 1}
                           </td>
-                          <td className="py-1.5 px-3 font-mono text-slate-500">
-                            {item.stockInDate || '—'}
-                          </td>
                           <td className="py-1.5 px-3 font-mono font-bold text-[#1e5b88] dark:text-sky-300">
                             {item.serial}
                           </td>
                           <td className="py-1.5 px-3 font-semibold">{item.type}</td>
                           <td className="py-1.5 px-3 text-slate-500">{item.model}</td>
                           <td className="py-1.5 px-3 font-mono text-slate-600 dark:text-slate-300">
-                            {item.batterySerial}
+                            {item.batterySerial || '—'}
                           </td>
                           <td className="py-1.5 px-3 font-medium text-slate-600 dark:text-slate-300">
                             Code {item.branchId} ({item.branchName})
                           </td>
                           <td className="py-1.5 px-3 font-medium">
-                            {STAGE_META[item.stage]?.short || item.stage}
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold ${
+                              item.stage === 'HQ_STOCK'
+                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60'
+                                : item.stage === 'BRANCH_RESERVE'
+                                ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60'
+                                : item.stage === 'CONFIGURING'
+                                ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/60'
+                                : item.stage === 'COMPLETE'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60'
+                                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                            }`}>
+                              {STAGE_META[item.stage]?.short || item.stage}
+                            </span>
                           </td>
-                          <td className="py-1.5 px-3 text-slate-500">
-                            {item.merchantName ? (
-                              <span>
-                                {item.merchantName} {item.mid ? `(${item.mid})` : ''}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic">Unassigned</span>
-                            )}
-                          </td>
+                          {isStaffColVisible && (
+                            <td className="py-1.5 px-3 text-slate-600 dark:text-slate-300">
+                              {item.staff ? (
+                                <div className="flex items-center gap-1">
+                                  <UserIcon className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                                  <span>{item.staff}</span>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 italic">Unassigned</span>
+                              )}
+                            </td>
+                          )}
+                          {isMerchantColVisible && (
+                            <td className="py-1.5 px-3 text-slate-500">
+                              {item.merchantName ? (
+                                <span>
+                                  {item.merchantName} {item.mid ? `(${item.mid})` : ''}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic">Unassigned</span>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
