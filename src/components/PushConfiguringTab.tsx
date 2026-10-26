@@ -1350,13 +1350,6 @@ return (
                               Pending Push
                             </span>
                           )}
-
-                          {dev.tid && (
-                            <div className="text-[10.5px] font-mono text-slate-600 dark:text-slate-300 font-medium pl-0.5 flex items-center gap-1">
-                              <span className="text-slate-400 dark:text-slate-500 font-normal">TID:</span>
-                              <span className="text-zinc-800 dark:text-slate-200">{dev.tid}</span>
-                            </div>
-                          )}
                         </div>
                       </td>
 
