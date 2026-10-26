@@ -511,6 +511,31 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     });
   }, []);
 
+  // Synchronize pushedConfiguringSerials from backend devices state (ensures PC and Phone sync immediately)
+  useEffect(() => {
+    let changed = false;
+    setPushedConfiguringSerials((prev) => {
+      const next = new Set(prev);
+      devices.forEach((d) => {
+        if (d.stage === 'CONFIGURING' && (d.pushTrackingId || d.pushDate)) {
+          if (!next.has(d.serial)) {
+            next.add(d.serial);
+            changed = true;
+          }
+        }
+      });
+      if (changed) {
+        try {
+          localStorage.setItem(STORAGE_KEY_PUSHED_CONFIGURING, JSON.stringify([...next]));
+        } catch (e) {
+          // ignore
+        }
+        return next;
+      }
+      return prev;
+    });
+  }, [devices]);
+
   useEffect(() => {
     if (historicalMerchants.length > 0) {
       saveHistoricalMerchantsToIdb(historicalMerchants).catch(() => {});
@@ -842,6 +867,37 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       unsubscribeField();
     };
   }, [reloadFromServer]);
+
+  // Mobile & Background Resume: Re-sync state when browser tab becomes active or device resumes from sleep
+  useEffect(() => {
+    if (!isSupabaseConfigured || !serverReady) return;
+    let lastActive = Date.now();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const elapsed = Date.now() - lastActive;
+        // If device was in background or asleep for more than 4 seconds, refresh state from server
+        if (elapsed > 4000) {
+          reloadFromServer().catch(() => {});
+        }
+        lastActive = Date.now();
+      } else {
+        lastActive = Date.now();
+      }
+    };
+
+    const handleOnline = () => {
+      reloadFromServer().catch(() => {});
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [serverReady, reloadFromServer]);
 
   // Instant Cache Hydration from IndexedDB (runs on initial mount for instant UI load)
   useEffect(() => {

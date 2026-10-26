@@ -33,7 +33,13 @@ function mapRowToDevice(row: any): Device {
     returnedByStaff: cf.returnedByStaff || undefined,
     returnedDate: cf.returnedDate || undefined,
     replacementDate: cf.replacementDate || undefined,
+    replacedDate: cf.replacedDate || undefined,
     replacedFromSerial: cf.replacedFromSerial || undefined,
+    replacedPrevSerial: cf.replacedPrevSerial || undefined,
+    pushTrackingId: cf.pushTrackingId || row.push_tracking_id || undefined,
+    pushDate: cf.pushDate || row.push_date || undefined,
+    pushedBy: cf.pushedBy || row.pushed_by || undefined,
+    staffTelegram: cf.staffTelegram || row.staff_telegram || undefined,
     serial: row.serial,
     batterySerial: row.battery_serial || undefined,
     batteryInstalledDate: row.battery_installed_date || undefined,
@@ -111,7 +117,13 @@ function mapDeviceToRow(dev: Device): any {
             'returnedByStaff',
             'returnedDate',
             'replacementDate',
+            'replacedDate',
             'replacedFromSerial',
+            'replacedPrevSerial',
+            'staffTelegram',
+            'pushTrackingId',
+            'pushDate',
+            'pushedBy',
           ] as const
         )
           .filter((k) => dev[k])

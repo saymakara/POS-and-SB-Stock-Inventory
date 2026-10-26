@@ -186,6 +186,64 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     }
   }, [pushedSerials]);
 
+  // Synchronize push metadata and pushed serials directly from devices loaded from Supabase
+  useEffect(() => {
+    let trackingChanged = false;
+    let serialsChanged = false;
+    let timestampsChanged = false;
+
+    setPushTrackingMap((prev) => {
+      const next = { ...prev };
+      devices.forEach((d) => {
+        if (d.pushTrackingId && !next[d.serial]) {
+          next[d.serial] = {
+            pushId: d.pushTrackingId,
+            pushTime: d.pushDate || d.updatedAt || todayPP(),
+            pushedBy: d.pushedBy || 'System Admin',
+          };
+          trackingChanged = true;
+        }
+      });
+      if (trackingChanged) {
+        try { localStorage.setItem(STORAGE_KEY_PUSH_TRACKING, JSON.stringify(next)); } catch (e) {}
+        return next;
+      }
+      return prev;
+    });
+
+    setPushTimestamps((prev) => {
+      const next = { ...prev };
+      devices.forEach((d) => {
+        if (d.pushDate && !next[d.serial]) {
+          next[d.serial] = d.pushDate;
+          timestampsChanged = true;
+        }
+      });
+      if (timestampsChanged) {
+        try { localStorage.setItem(STORAGE_KEY_PUSH_TIMESTAMPS, JSON.stringify(next)); } catch (e) {}
+        return next;
+      }
+      return prev;
+    });
+
+    setPushedSerialsLocal((prev) => {
+      const next = new Set(prev);
+      devices.forEach((d) => {
+        if (d.stage === 'CONFIGURING' && (d.pushTrackingId || d.pushDate)) {
+          if (!next.has(d.serial)) {
+            next.add(d.serial);
+            serialsChanged = true;
+          }
+        }
+      });
+      if (serialsChanged) {
+        try { localStorage.setItem(STORAGE_KEY_PUSHED_CONFIGURING, JSON.stringify([...next])); } catch (e) {}
+        return next;
+      }
+      return prev;
+    });
+  }, [devices]);
+
   const recordPushedSerials = useCallback((serials: string[], batchId?: string) => {
     if (serials.length === 0) return;
     const nowStamp = stampSecPP();
@@ -229,19 +287,22 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     onMarkPushed?.(serials);
   }, [onMarkPushed, operatorLabel]);
 
-  const isDevicePushed = useCallback((serial: string): boolean => {
+  const isDevicePushed = useCallback((serial: string, devObj?: Device): boolean => {
+    const dev = devObj || devices.find((d) => d.serial === serial);
     return (
+      Boolean(dev?.pushTrackingId) ||
+      Boolean(dev?.pushDate) ||
       Boolean(pushedSerials?.has(serial)) ||
       Boolean(pushedSerialsLocal.has(serial)) ||
       Boolean(pushTimestamps[serial])
     );
-  }, [pushedSerials, pushedSerialsLocal, pushTimestamps]);
+  }, [devices, pushedSerials, pushedSerialsLocal, pushTimestamps]);
 
   const getDevicePushId = useCallback((dev: Device): string | null => {
     if (dev.pushTrackingId) return dev.pushTrackingId;
     if (pushTrackingMap[dev.serial]?.pushId) return pushTrackingMap[dev.serial].pushId;
-    if (isDevicePushed(dev.serial)) {
-      const existingDate = pushTimestamps[dev.serial] || dev.updatedAt;
+    if (isDevicePushed(dev.serial, dev)) {
+      const existingDate = pushTimestamps[dev.serial] || dev.pushDate || dev.updatedAt;
       const dStr = existingDate ? existingDate.slice(2, 10).replace(/-/g, '') : todayPP().slice(2).replace(/-/g, '');
       let hash = 0;
       for (let i = 0; i < dev.serial.length; i++) {
@@ -303,8 +364,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return configuringDevices.filter((d) => {
       if (branchFilter !== 'ALL' && d.branchId !== branchFilter) return false;
       if (typeFilter !== 'ALL' && d.type !== typeFilter) return false;
-      if (pushStatusFilter === 'WAITING' && isDevicePushed(d.serial)) return false;
-      if (pushStatusFilter === 'PUSHED' && !isDevicePushed(d.serial)) return false;
+      if (pushStatusFilter === 'WAITING' && isDevicePushed(d.serial, d)) return false;
+      if (pushStatusFilter === 'PUSHED' && !isDevicePushed(d.serial, d)) return false;
       if (!q) return true;
       const pushId = (getDevicePushId(d) || '').toLowerCase();
       return (
@@ -363,15 +424,15 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
   // Devices waiting to be pushed vs already pushed
   const waitingDevices = useMemo(() => {
-    return configuringDevices.filter((d) => !isDevicePushed(d.serial));
+    return configuringDevices.filter((d) => !isDevicePushed(d.serial, d));
   }, [configuringDevices, isDevicePushed]);
 
   const alreadyPushedDevices = useMemo(() => {
-    return configuringDevices.filter((d) => isDevicePushed(d.serial));
+    return configuringDevices.filter((d) => isDevicePushed(d.serial, d));
   }, [configuringDevices, isDevicePushed]);
 
   const filteredWaitingCount = useMemo(() => {
-    return filteredDevices.filter((d) => !isDevicePushed(d.serial)).length;
+    return filteredDevices.filter((d) => !isDevicePushed(d.serial, d)).length;
   }, [filteredDevices, isDevicePushed]);
 
   // Checkbox helpers
@@ -432,6 +493,13 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
   // Helper to extract formatted Date and Time of Request Push
   const getRequestPushDateTime = (dev: Device): { full: string; date: string; time: string } => {
+    // 0. If actively pushed and persisted to backend (matches PC across all devices)
+    if (dev.pushDate) {
+      const full = dev.pushDate;
+      const [d, t] = full.split(' ');
+      return { full, date: d || todayPP(), time: t || clockPP() };
+    }
+
     // 1. If actively pushed in current session, use recorded push timestamp
     if (pushTimestamps[dev.serial]) {
       const full = pushTimestamps[dev.serial];
@@ -1163,7 +1231,7 @@ return (
                 const branchKey = `Branch_${branchFilter}`;
                 const branchSerials = filteredDevices.map((d) => d.serial);
                 const isBranchCooldown = getTeamCooldownSecs(branchKey) > 0;
-                const isBranchAllPushed = filteredDevices.length > 0 && filteredDevices.every((d) => isDevicePushed(d.serial));
+                const isBranchAllPushed = filteredDevices.length > 0 && filteredDevices.every((d) => isDevicePushed(d.serial, d));
 
                 if (isBranchCooldown) {
                   return (
@@ -1433,7 +1501,7 @@ return (
                       <td className="py-3 px-4 text-right">
                         <div className="inline-flex items-center gap-1.5 justify-end">
                           {isAdminLike && (() => {
-                            const devIsPushed = isDevicePushed(dev.serial);
+                            const devIsPushed = isDevicePushed(dev.serial, dev);
                             const cooldownSecs = getRowCooldownSecs(dev.serial);
 
                             if (cooldownSecs > 0) {
