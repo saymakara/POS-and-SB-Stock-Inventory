@@ -56,11 +56,10 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
     cycle: 'HQ_STOCK',
     name: 'Admin HQ Stock Intake',
     tag: 'Admin Stock',
-    badge: 'No Staff or Merchant required',
-    description: 'Bulk intake into central warehouse (Branch 100). No staff assignment or merchant details required.',
+    badge: 'No Staff or Merchant required · Stock-In captured dynamically',
+    description: 'Bulk intake into central warehouse (Branch 100). Stock-In date is auto-captured dynamically to upload date.',
     filename: 'template_admin_hq_stock.csv',
     columns: [
-      { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
       { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
       { id: 'Product_Type', label: 'Product_Type', desc: 'POS Terminal | Sound Box', req: false },
       { id: 'Model', label: 'Model', desc: 'Hardware Model Name', req: false },
@@ -68,11 +67,10 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Branch_Code', label: 'Branch_Code', desc: 'Branch ID (100 for HQ)', req: false },
       { id: 'Branch_Name', label: 'Branch_Name', desc: 'Head Office', req: false },
       { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'HQ_STOCK', req: false },
-      { id: 'Serial_Cycles_Count', label: 'Serial_Cycles_Count', desc: 'Redeployment Count', req: false },
     ],
     sampleRows: [
-      ['2026-10-25', 'WP5400PQ23200101', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-1001', '100', 'Head Office', 'HQ_STOCK', '0'],
-      ['2026-10-25', 'SB2026000101', 'Sound Box', 'Q161 Pro', 'BAT-SB-1001', '100', 'Head Office', 'HQ_STOCK', '0'],
+      ['WP5400PQ23200101', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-1001', '100', 'Head Office', 'HQ_STOCK'],
+      ['SB2026000101', 'Sound Box', 'Q161 Pro', 'BAT-SB-1001', '100', 'Head Office', 'HQ_STOCK'],
     ],
   },
   BRANCH_RESERVE: {
@@ -475,6 +473,17 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
             redeployCount: 12,
           };
         }
+      } else if (sample.length === 7) {
+        // Exactly 7 columns: Serial_SN, Product_Type, Model, Battery_Serial, Branch_Code, Branch_Name, Lifecycle_Stage
+        colMap = {
+          serial: 0,
+          type: 1,
+          model: 2,
+          batterySerial: 3,
+          branchCode: 4,
+          branchName: 5,
+          stage: 6,
+        };
       } else if (sample.length >= 2 && !/^\d{4}-\d{2}-\d{2}/.test(sample[0])) {
         colMap = {
           serial: 0,
@@ -521,7 +530,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           'COLUMN_COUNT',
           `Incorrect column count: row has ${row.length} column(s), expected ${expectedColCount} matching header row`
         );
-      } else if (!hasHeader && ![1, 2, 3, 12, 13].includes(row.length) && row.length !== expectedColCount) {
+      } else if (!hasHeader && ![1, 2, 3, 7, 8, 9, 10, 12, 13].includes(row.length) && row.length !== expectedColCount) {
         addErr(
           row.length || 1,
           'Column_Count',
