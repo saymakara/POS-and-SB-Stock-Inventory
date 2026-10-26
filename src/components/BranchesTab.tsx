@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
@@ -49,9 +50,11 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
   role,
   onSelectBranchFilter,
   onOpenNewBranchModal: _onOpenNewBranchModal,
+  theme = 'dark',
   onOpenEditBranchModal,
   onSelectDevice,
 }) => {
+  const isLight = theme === 'light';
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'LOW_RESERVE' | 'HEALTHY'>('ALL');
   const [displayLayout, setDisplayLayout] = useState<'TABLE' | 'GRID'>('TABLE');
@@ -910,121 +913,243 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
       </div>
 
       {/* Inspect Branch Modal Drawer */}
-      <AnimatePresence>
-        {inspectedBranch && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 10 }}
-              className="w-full max-w-5xl rounded-2xl border p-6 sm:p-8 max-h-[92vh] overflow-y-auto shadow-2xl bg-white border-slate-200 text-slate-900"
-            >
-              <div className="flex items-start justify-between gap-4 pb-4 mb-4 border-b border-slate-200">
-                <div>
-                  <span className="text-[11px] font-mono font-extrabold text-zinc-900">
-                    Branch Code: {inspectedBranch.code}
-                  </span>
-                  <h3 className="text-xl font-black mt-0.5 text-zinc-900">
-                    {inspectedBranch.name}
-                  </h3>
-                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                    <span>POS: <strong className="text-slate-800">{inspectedBranch.posCount}</strong></span>
-                    <span>Sound Box: <strong className="text-slate-800">{inspectedBranch.sbCount}</strong></span>
-                    <span>Reserve: <strong className="text-amber-700">{inspectedBranch.reserveCount}</strong></span>
-                    <span>Live: <strong className="text-emerald-700">{inspectedBranch.completeCount}</strong></span>
-                  </div>
-                </div>
-                <button
-                  type="button"
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {inspectedBranch && (
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   onClick={() => setInspectedBranchCode(null)}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+                  className="fixed inset-0 bg-slate-950/75 backdrop-blur-md"
+                />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-2 flex items-center justify-between">
-                    <span>Assigned Branch Staff ({inspectedBranch.staffList.length})</span>
-                  </h4>
-                  {inspectedBranch.staffList.length === 0 ? (
-                    <div className="text-xs text-slate-400 p-4 border border-slate-200 rounded-xl bg-slate-50 text-center">
-                      No IAM users assigned to this branch. Default staff: {(inspectedBranch.staff || []).join(', ') || 'Branch Officer'}
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                      {inspectedBranch.staffList.map((st) => (
-                        <div
-                          key={st.uid}
-                          className="p-2.5 rounded-xl border text-xs flex items-center justify-between bg-slate-50 border-slate-200/80"
-                        >
-                          <div>
-                            <div className="font-bold text-zinc-900">{st.name}</div>
-                            <div className="text-[10px] text-slate-500">
-                              {st.position} · ID: {st.empId}
-                            </div>
-                          </div>
-                          <span className="font-mono text-[10px] font-bold text-emerald-700 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200">
-                            {st.status}
+                {/* Modal Container */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 14 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 12 }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  className={`relative w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden my-auto z-10 border-0 flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
+                    isLight ? 'bg-white text-[#002f49]' : 'bg-[#12151e] text-slate-100'
+                  }`}
+                >
+                  {/* Signature Navy Header Bar */}
+                  <div className="navy-header-bar rounded-t-3xl px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-sky-300">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-base sm:text-lg font-extrabold text-white tracking-tight truncate">
+                            {inspectedBranch.name}
+                          </h3>
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/15 text-white border border-white/20">
+                            Branch Code {inspectedBranch.code}
                           </span>
                         </div>
-                      ))}
+                        <p className="text-xs text-slate-200/90 font-medium mt-0.5 truncate">
+                          Branch inventory hub · Assigned staff &amp; live hardware allocation
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => setInspectedBranchCode(null)}
+                      aria-label="Close"
+                      className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0 ml-2"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
 
-                <div>
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-2 flex items-center justify-between">
-                    <span>Assigned Hardware Units ({inspectedBranch.devices.length})</span>
+                  {/* Sub-Header Context & Metric Strip */}
+                  <div
+                    className={`px-6 py-2.5 border-b flex items-center justify-between text-xs shrink-0 flex-wrap gap-2 ${
+                      isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-[#151924] border-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/60 text-sky-800 dark:text-sky-300 font-mono font-bold text-[11px]">
+                        <Cpu className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                        <span>{inspectedBranch.posCount} POS</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-800 dark:text-indigo-300 font-mono font-bold text-[11px]">
+                        <Volume2 className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                        <span>{inspectedBranch.sbCount} Sound Box</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 font-mono font-bold text-[11px]">
+                        <Package className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                        <span>{inspectedBranch.reserveCount} Reserve</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 font-mono font-bold text-[11px]">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        <span>{inspectedBranch.completeCount} Live</span>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Live Custody Directory</span>
+                    </div>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className="p-6 overflow-y-auto max-h-[68vh] space-y-4 text-xs">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Section 1: Assigned Branch Staff */}
+                      <div className={`p-4 rounded-2xl border space-y-3 ${
+                        isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
+                      }`}>
+                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 dark:border-white/[0.06]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                              <Users className="w-3.5 h-3.5" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                                1. Assigned Branch Staff ({inspectedBranch.staffList.length})
+                              </h4>
+                              <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                                Active custodian officers deployed at this branch
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {inspectedBranch.staffList.length === 0 ? (
+                          <div className="text-xs text-slate-500 p-4 border border-slate-200/80 dark:border-slate-800 rounded-xl bg-white dark:bg-[#121620] text-center shadow-2xs">
+                            No IAM users assigned to this branch. Default staff: {(inspectedBranch.staff || []).join(', ') || 'Branch Officer'}
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                            {inspectedBranch.staffList.map((st) => (
+                              <div
+                                key={st.uid}
+                                className="p-3 rounded-xl border text-xs flex items-center justify-between bg-white dark:bg-[#121620] border-slate-200/90 dark:border-slate-800 shadow-2xs"
+                              >
+                                <div>
+                                  <div className="font-bold text-slate-900 dark:text-white">{st.name}</div>
+                                  <div className="text-[10px] text-slate-500 mt-0.5">
+                                    {st.position} · ID: <span className="font-mono font-semibold">{st.empId}</span>
+                                  </div>
+                                </div>
+                                <span className="font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 shadow-2xs">
+                                  {st.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Section 2: Assigned Hardware Units */}
+                      <div className={`p-4 rounded-2xl border space-y-3 ${
+                        isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
+                      }`}>
+                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 dark:border-white/[0.06]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                              <Package className="w-3.5 h-3.5" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                                2. Hardware Units ({inspectedBranch.devices.length})
+                              </h4>
+                              <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                                Physical stock in reserve or live at merchant
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInspectedBranchCode(null);
+                              onSelectBranchFilter(inspectedBranch.code);
+                            }}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs transition flex items-center gap-1 cursor-pointer shrink-0"
+                            title="Filter stock inventory ledger to this branch"
+                          >
+                            <span>Open in Ledger</span>
+                            <ArrowUpRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {inspectedBranch.devices.length === 0 ? (
+                          <div className="text-xs text-slate-500 p-4 border border-slate-200/80 dark:border-slate-800 rounded-xl bg-white dark:bg-[#121620] text-center shadow-2xs">
+                            No hardware units currently registered for this branch code.
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                            {inspectedBranch.devices.map((d) => (
+                              <div
+                                key={d.serial}
+                                onClick={() => {
+                                  setInspectedBranchCode(null);
+                                  if (onSelectDevice) onSelectDevice(d.serial);
+                                }}
+                                className="p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer bg-white dark:bg-[#121620] hover:bg-slate-50 dark:hover:bg-slate-800/60 border-slate-200/90 dark:border-slate-800 shadow-2xs transition"
+                                title="Click to view hardware serial lifecycle"
+                              >
+                                <div>
+                                  <div className="font-mono font-bold text-slate-900 dark:text-white">
+                                    {d.serial}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 mt-0.5">
+                                    {d.type} · {d.model} {d.merchantName ? `· ${d.merchantName}` : ''}
+                                  </div>
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STAGE_META[d.stage]?.badgeClassLight || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                  {STAGE_META[d.stage].short}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div
+                    className={`px-6 py-4 flex items-center justify-between text-xs border-t shrink-0 ${
+                      isLight ? 'bg-slate-50 border-slate-200/90' : 'bg-[#0f121a] border-slate-800'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setInspectedBranchCode(null)}
+                      className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                        isLight
+                          ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-2xs'
+                          : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700 shadow-2xs'
+                      }`}
+                    >
+                      Close
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
                         setInspectedBranchCode(null);
                         onSelectBranchFilter(inspectedBranch.code);
                       }}
-                      className="text-[10px] text-zinc-800 hover:underline font-bold cursor-pointer"
+                      className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 border border-white/10"
                     >
-                      Open in Ledger &rarr;
+                      <ArrowUpRight className="w-4 h-4 text-sky-300" />
+                      <span>View Branch in Stock Ledger ({inspectedBranch.devices.length})</span>
                     </button>
-                  </h4>
-                  {inspectedBranch.devices.length === 0 ? (
-                    <div className="text-xs text-slate-400 p-4 border border-slate-200 rounded-xl bg-slate-50 text-center">
-                      No hardware units currently registered for this branch code.
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                      {inspectedBranch.devices.map((d) => (
-                        <div
-                          key={d.serial}
-                          onClick={() => {
-                            setInspectedBranchCode(null);
-                            if (onSelectDevice) onSelectDevice(d.serial);
-                          }}
-                          className="p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer bg-slate-50 hover:bg-zinc-100 border-slate-200/80 transition"
-                          title="Click to view hardware serial lifecycle"
-                        >
-                          <div>
-                            <div className="font-mono font-bold text-zinc-900">
-                              {d.serial}
-                            </div>
-                            <div className="text-[10px] text-slate-500">
-                              {d.type} · {d.model} {d.merchantName ? `· ${d.merchantName}` : ''}
-                            </div>
-                          </div>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STAGE_META[d.stage]?.badgeClassLight || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                            {STAGE_META[d.stage].short}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                  </div>
+                </motion.div>
               </div>
-            </motion.div>
-          </div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </div>
   );
 };
