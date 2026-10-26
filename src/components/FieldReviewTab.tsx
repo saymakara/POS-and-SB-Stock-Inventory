@@ -126,6 +126,46 @@ const entryOf = (e: FieldEvent): { serial: How; mid: How; oldSerial: How } => {
 };
 const howText = (h: How) => (h === 'SCAN' ? 'Scanned' : h === 'TYPED' ? 'Typed by hand' : 'Not reported');
 
+const InputMethodBadge: React.FC<{
+  method: How;
+  titlePrefix?: string;
+  showFallback?: boolean;
+}> = ({ method, titlePrefix = 'Value', showFallback = false }) => {
+  if (method === 'SCAN') {
+    return (
+      <span
+        title={`${titlePrefix} was scanned using mobile barcode scanner`}
+        className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-emerald-50 text-emerald-700 border border-emerald-200/90 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/80 whitespace-nowrap shadow-2xs"
+      >
+        <ScanLine className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+        <span>Scan</span>
+      </span>
+    );
+  }
+  if (method === 'TYPED') {
+    return (
+      <span
+        title={`${titlePrefix} was typed manually by hand on mobile keyboard`}
+        className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-slate-100 text-slate-700 border border-slate-200/90 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 whitespace-nowrap shadow-2xs"
+      >
+        <Keyboard className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" aria-hidden="true" />
+        <span>Typed</span>
+      </span>
+    );
+  }
+  if (showFallback) {
+    return (
+      <span
+        title={`${titlePrefix} scan type not reported`}
+        className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-slate-50 text-slate-500 border border-slate-200/80 dark:bg-slate-800/60 dark:text-slate-400 dark:border-slate-700/80 whitespace-nowrap"
+      >
+        <span>Not reported</span>
+      </span>
+    );
+  }
+  return null;
+};
+
 export const FieldReviewTab: React.FC<Props> = ({
   role,
   branches,
@@ -1043,30 +1083,7 @@ const ReviewRow = memo(function ReviewRow({
           </button>
 
           <div className="pl-5 mt-0.5 flex items-center gap-1.5 flex-wrap">
-            {entry.serial === 'SCAN' ? (
-              <span
-                title="Serial was scanned using mobile barcode scanner"
-                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-emerald-50 text-emerald-700 border border-emerald-200/90 whitespace-nowrap shadow-2xs"
-              >
-                <ScanLine className="w-2.5 h-2.5 text-emerald-600" aria-hidden="true" />
-                <span>Scan</span>
-              </span>
-            ) : entry.serial === 'TYPED' ? (
-              <span
-                title="Serial was typed manually by hand on mobile keyboard"
-                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-amber-50 text-amber-700 border border-amber-200/90 whitespace-nowrap shadow-2xs"
-              >
-                <Keyboard className="w-2.5 h-2.5 text-amber-600" aria-hidden="true" />
-                <span>Typed</span>
-              </span>
-            ) : (
-              <span
-                title="Scan type not reported"
-                className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-slate-50 text-slate-500 border border-slate-200/80 whitespace-nowrap"
-              >
-                <span>Not reported</span>
-              </span>
-            )}
+            <InputMethodBadge method={entry.serial} titlePrefix="Serial" showFallback />
 
             {e.oldSerial && (
               <span
@@ -1076,15 +1093,7 @@ const ReviewRow = memo(function ReviewRow({
                 <span>←</span>
                 <span className="truncate">{e.oldSerial}</span>
                 {entry.oldSerial && (
-                  <span
-                    className={`px-1 py-0.2 rounded text-[9px] font-normal ${
-                      entry.oldSerial === 'SCAN'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}
-                  >
-                    {entry.oldSerial === 'SCAN' ? 'Scan' : 'Typed'}
-                  </span>
+                  <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" />
                 )}
               </span>
             )}
@@ -1097,12 +1106,7 @@ const ReviewRow = memo(function ReviewRow({
           {e.mid && (
             <span className="flex items-center gap-1.5 truncate font-mono text-[11px] font-normal text-slate-500" title={`MID ${e.mid}`}>
               <span className="truncate">{e.mid}</span>
-              {entry.mid === 'SCAN' && (
-                <span className="px-1 py-0.2 rounded text-[9px] font-normal bg-emerald-50 text-emerald-700 border border-emerald-200" title="MID was scanned via barcode scanner">Scan</span>
-              )}
-              {entry.mid === 'TYPED' && (
-                <span className="px-1 py-0.2 rounded text-[9px] font-normal bg-amber-50 text-amber-700 border border-amber-200" title="MID was typed manually">Typed</span>
-              )}
+              <InputMethodBadge method={entry.mid} titlePrefix="MID" />
             </span>
           )}
         </span>
