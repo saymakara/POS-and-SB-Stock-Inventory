@@ -10,7 +10,7 @@ CREATE OR REPLACE FUNCTION public.rpc_send_telegram_document(
   p_file_content text,
   p_file_name text,
   p_caption text DEFAULT '',
-  p_parse_mode text DEFAULT 'Markdown'
+  p_parse_mode text DEFAULT 'HTML'
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -73,7 +73,7 @@ BEGIN
                 v_safe_caption || E'\r\n' ||
                 '--' || v_boundary || E'\r\n' ||
                 'Content-Disposition: form-data; name="parse_mode"' || E'\r\n\r\n' ||
-                COALESCE(p_parse_mode, 'Markdown') || E'\r\n' ||
+                COALESCE(p_parse_mode, 'HTML') || E'\r\n' ||
                 '--' || v_boundary || E'\r\n' ||
                 'Content-Disposition: form-data; name="document"; filename="' || v_safe_filename || '"' || E'\r\n' ||
                 'Content-Type: text/csv; charset=utf-8' || E'\r\n\r\n' ||
@@ -100,7 +100,7 @@ BEGIN
                   v_candidate || E'\r\n' ||
                   '--' || v_boundary || E'\r\n' ||
                   'Content-Disposition: form-data; name="caption"' || E'\r\n\r\n' ||
-                  regexp_replace(v_safe_caption, '[*_`\[\]]', '', 'g') || E'\r\n' ||
+                  regexp_replace(v_safe_caption, '<[^>]+>', '', 'g') || E'\r\n' ||
                   '--' || v_boundary || E'\r\n' ||
                   'Content-Disposition: form-data; name="document"; filename="' || v_safe_filename || '"' || E'\r\n' ||
                   'Content-Type: text/csv; charset=utf-8' || E'\r\n\r\n' ||

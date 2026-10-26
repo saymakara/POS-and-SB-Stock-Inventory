@@ -171,7 +171,7 @@ export async function dispatchTelegramMessage(
         p_bot_token: token,
         p_chat_id: chatId,
         p_text: text,
-        p_parse_mode: 'Markdown',
+        p_parse_mode: 'HTML',
       });
       if (!error && data?.ok) return { ok: true, resolvedChatId: data.resolvedChatId || chatId };
       lastError = data?.error || error?.message || lastError;
@@ -189,11 +189,11 @@ export async function dispatchTelegramMessage(
     };
     for (const candidate of chatIdVariants(chatId)) {
       try {
-        let { res, data } = await post({ chat_id: candidate, text, parse_mode: 'Markdown' });
+        let { res, data } = await post({ chat_id: candidate, text, parse_mode: 'HTML' });
         if (res.ok && data?.ok) return { ok: true, resolvedChatId: candidate };
-        // Markdown rejected (e.g. an underscore in a name): resend as plain text
-        if (data?.description && /can't parse entities|markdown/i.test(data.description)) {
-          ({ res, data } = await post({ chat_id: candidate, text: text.replace(/[*_`[\]]/g, '') }));
+        // If entity parsing failed: resend as plain text without parse_mode (never strip underscores!)
+        if (data?.description && /can't parse entities|html|markdown/i.test(data.description)) {
+          ({ res, data } = await post({ chat_id: candidate, text: text.replace(/<[^>]+>/g, '') }));
           if (res.ok && data?.ok) return { ok: true, resolvedChatId: candidate };
         }
         lastError = data?.description || `HTTP ${res.status}`;
@@ -260,7 +260,7 @@ export async function dispatchTelegramDocument(
         p_file_content: fileContent,
         p_file_name: fileName,
         p_caption: caption,
-        p_parse_mode: 'Markdown',
+        p_parse_mode: 'HTML',
       });
       if (!error && data?.ok) return { ok: true, resolvedChatId: data.resolvedChatId || chatId };
       lastError = data?.error || error?.message || lastError;
@@ -282,7 +282,7 @@ export async function dispatchTelegramDocument(
           // Telegram caption limit is 1024 characters
           const safeCaption = caption.length > 1000 ? `${caption.slice(0, 990)}...` : caption;
           formData.append('caption', safeCaption);
-          formData.append('parse_mode', 'Markdown');
+          formData.append('parse_mode', 'HTML');
         }
 
         let res = await fetch(url, { method: 'POST', body: formData });
@@ -290,13 +290,13 @@ export async function dispatchTelegramDocument(
 
         if (res.ok && data?.ok) return { ok: true, resolvedChatId: candidate };
 
-        // If Markdown entities failed in caption, retry with clean plain text caption
-        if (data?.description && /can't parse entities|markdown/i.test(data.description)) {
+        // If HTML entities failed in caption, retry with clean plain text caption without parse_mode (never strip underscores!)
+        if (data?.description && /can't parse entities|html|markdown/i.test(data.description)) {
           const plainFormData = new FormData();
           plainFormData.append('chat_id', candidate);
           plainFormData.append('document', blob, fileName);
           if (caption) {
-            plainFormData.append('caption', caption.replace(/[*_`[\]]/g, '').slice(0, 1000));
+            plainFormData.append('caption', caption.replace(/<[^>]+>/g, '').slice(0, 1000));
           }
           res = await fetch(url, { method: 'POST', body: plainFormData });
           data = await res.json().catch(() => null);
@@ -348,15 +348,31 @@ export async function dispatchTelegramDocument(
 // -----------------------------------------------------------------------------
 
 
+/** Escapes HTML special characters for Telegram HTML parse mode */
+export function escapeHtml(str: string): string {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 /**
- * Normalizes a Telegram username to ensure valid mention syntax:
- * - strips leading @
- * - validates telegram username format (alphanumeric + underscores, 3-32 chars)
+ * Normalizes a Telegram username or User ID to ensure valid mention syntax:
+ * - If numeric ID (e.g. 634628318): returns <a href="tg://user?id=634628318">@name</a>
+ * - If username (e.g. @Sokheng_MerchantSupport or Sokheng_MerchantSupport):
+ *   preserves all characters including underscores!
  * - returns formatted `@username`
  */
-export function formatTelegramMention(raw?: string | null): string {
+export function formatTelegramMention(raw?: string | null, staffDisplayName?: string): string {
   if (!raw) return '';
-  const clean = raw.trim().replace(/^@/, '');
+  const trimmed = raw.trim();
+  const numericMatch = trimmed.match(/^(?:id:)?(\d{5,15})$/i);
+  if (numericMatch) {
+    const userId = numericMatch[1];
+    const label = staffDisplayName ? `@${staffDisplayName.replace(/\s+/g, '_')}` : `@user_${userId}`;
+    return `<a href="tg://user?id=${userId}">${escapeHtml(label)}</a>`;
+  }
+  const clean = trimmed.replace(/^@/, '');
   if (!clean || !/^[A-Za-z0-9_]{3,32}$/.test(clean)) return '';
   return `@${clean}`;
 }
@@ -419,21 +435,21 @@ export async function sendDeviceConfigTelegramAlert(
 
   const devType = info.type || info.deviceType || 'Device';
   const devModel = info.model ? ` · ${info.model}` : '';
-  const mention = formatTelegramMention(info.staffTelegram);
   const staffDisplay = info.staff || info.staffName || 'Branch Officer';
+  const mention = formatTelegramMention(info.staffTelegram, staffDisplay);
   const pushId = info.pushId || info.pushTrackingId || generatePushTrackingId();
   const text = [
-    `📲 *Ready for App Push*`,
-    `🆔 *Push Tracking ID:* \`${pushId}\``,
-    `• *Assigned Staff:* *${staffDisplay}*${mention ? ` (${mention})` : ''}`,
-    `• *Assigned By:* *${info.actor || info.adminOperator || 'System Admin'}*`,
-    `• *Branch:* Code \`${info.branchId || '100'}\` (${info.branchName || 'Branch'})`,
-    target.isRegional ? `• *Destination Group:* *${target.groupName}*` : null,
-    `• *Serial Number:* \`${info.serial}\` (${devType}${devModel})`,
-    `• *Merchant Name:* *${info.merchantName || 'Configured Merchant'}*`,
-    `• *MID:* \`${info.mid || '—'}\`  |  *TID:* \`${info.tid || '—'}\``,
-    `• *Action:* Please power ON device to wait for App Push.`,
-    `• *Timestamp:* ${stampSecPP()}`,
+    `📲 <b>Ready for App Push</b>`,
+    `🆔 <b>Push Tracking ID:</b> <code>${escapeHtml(pushId)}</code>`,
+    `• <b>Assigned Staff:</b> <b>${escapeHtml(staffDisplay)}</b>${mention ? ` (${mention})` : ''}`,
+    `• <b>Assigned By:</b> <b>${escapeHtml(info.actor || info.adminOperator || 'System Admin')}</b>`,
+    `• <b>Branch:</b> Code <code>${escapeHtml(info.branchId || '100')}</code> (${escapeHtml(info.branchName || 'Branch')})`,
+    target.isRegional ? `• <b>Destination Group:</b> <b>${escapeHtml(target.groupName)}</b>` : null,
+    `• <b>Serial Number:</b> <code>${escapeHtml(info.serial)}</code> (${escapeHtml(devType)}${escapeHtml(devModel)})`,
+    `• <b>Merchant Name:</b> <b>${escapeHtml(info.merchantName || 'Configured Merchant')}</b>`,
+    `• <b>MID:</b> <code>${escapeHtml(info.mid || '—')}</code>  |  <b>TID:</b> <code>${escapeHtml(info.tid || '—')}</code>`,
+    `• <b>Action:</b> Please power ON device to wait for App Push.`,
+    `• <b>Timestamp:</b> ${stampSecPP()}`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -619,19 +635,19 @@ export async function sendBatchDeviceConfigTelegramAlert(
 
     const fileName = `${cleanStaff}_${devTypeLabel}_Total_${dest.devices.length}_Merchants_${batchPushId}.csv`;
     const fileCsv = buildDeviceConfigCsv(dest.devices, sampleBranch, actor, batchPushId);
-    const mention = formatTelegramMention(dest.staffTelegram);
+    const mention = formatTelegramMention(dest.staffTelegram, dest.staffName);
 
-    // Build 1 consolidated Telegram notification per staff (Mandatory data only - details in attached CSV)
+    // Build 1 consolidated Telegram notification per staff (Mandatory data only - HTML formatted, preserves underscores in mentions)
     const lines: string[] = [
-      `📲 *Ready for App Push*`,
-      `🆔 *Push Tracking ID:* \`${batchPushId}\``,
-      `• *Assigned Staff:* *${dest.staffName}*${mention ? ` (${mention})` : ''}`,
-      `• *Assigned By:* *${actor}*`,
-      `• *Branch:* Code \`${sampleBranch}\` (${sampleBranchName})`,
-      dest.isRegional ? `• *Destination Group:* *${groupName}*` : null,
-      `• *Total Devices:* *${dest.devices.length} unit${dest.devices.length === 1 ? '' : 's'}* (Details in attached CSV)`,
-      `• *Action:* Please power ON device${dest.devices.length === 1 ? '' : 's'} to wait for App Push.`,
-      `• *Timestamp:* ${timestamp}`,
+      `📲 <b>Ready for App Push</b>`,
+      `🆔 <b>Push Tracking ID:</b> <code>${escapeHtml(batchPushId)}</code>`,
+      `• <b>Assigned Staff:</b> <b>${escapeHtml(dest.staffName)}</b>${mention ? ` (${mention})` : ''}`,
+      `• <b>Assigned By:</b> <b>${escapeHtml(actor)}</b>`,
+      `• <b>Branch:</b> Code <code>${escapeHtml(sampleBranch)}</code> (${escapeHtml(sampleBranchName)})`,
+      dest.isRegional ? `• <b>Destination Group:</b> <b>${escapeHtml(groupName)}</b>` : null,
+      `• <b>Total Devices:</b> <b>${dest.devices.length} unit${dest.devices.length === 1 ? '' : 's'}</b> (Details in attached CSV)`,
+      `• <b>Action:</b> Please power ON device${dest.devices.length === 1 ? '' : 's'} to wait for App Push.`,
+      `• <b>Timestamp:</b> ${timestamp}`,
     ].filter(Boolean) as string[];
 
     const res = await dispatchTelegramDocument(
