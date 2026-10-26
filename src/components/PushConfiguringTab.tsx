@@ -110,12 +110,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     }
   };
 
-  // State for Dedicated Consolidated Total CSV per Staff Dispatch Modal
-  const [isTotalCsvModalOpen, setIsTotalCsvModalOpen] = useState(false);
-
-  // 3. Double-click confirmation & 1-minute cooldown state for Telegram push
-  // User has up to 1 minute (60s) to execute the 2nd confirmation click, and after pushing, a 1-minute cooldown prevents spam
-  const CONFIRM_TIMEOUT_MS = 60000;
+  // 3. Cooldown state for Telegram push (1-minute cooldown prevents accidental spam)
   const COOLDOWN_TIMEOUT_MS = 60000;
 
   const STORAGE_KEY_PUSHED_CONFIGURING = 'crm_pos_pushed_configuring_serials_v1';
@@ -157,9 +152,6 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return new Set();
   });
 
-  const [confirmingRowSerial, setConfirmingRowSerial] = useState<string | null>(null);
-  const [confirmingTeamKey, setConfirmingTeamKey] = useState<string | null>(null);
-  const [confirmingBatch, setConfirmingBatch] = useState(false);
   const [pushedCooldowns, setPushedCooldowns] = useState<Record<string, number>>({});
   const [pushTimestamps, setPushTimestamps] = useState<Record<string, string>>(() => {
     try {
@@ -257,21 +249,9 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return null;
   }, [pushTrackingMap, isDevicePushed, pushTimestamps]);
 
-  const rowTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const teamTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const batchTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const rowConfirmExpiresRef = useRef<number>(0);
-  const teamConfirmExpiresRef = useRef<number>(0);
-  const batchConfirmExpiresRef = useRef<number>(0);
-
-  // Ticker for live 1-minute confirmation countdown and 1-minute cooldown timers
+  // Ticker for live 1-minute cooldown timers (prevents repeated spamming)
   useEffect(() => {
-    const hasActiveTimer =
-      confirmingRowSerial !== null ||
-      confirmingTeamKey !== null ||
-      confirmingBatch ||
-      Object.keys(pushedCooldowns).length > 0;
-
+    const hasActiveTimer = Object.keys(pushedCooldowns).length > 0;
     if (!hasActiveTimer) return;
 
     const interval = setInterval(() => {
@@ -294,16 +274,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [confirmingRowSerial, confirmingTeamKey, confirmingBatch, pushedCooldowns]);
-
-  // Clean up timers on unmount
-  useEffect(() => {
-    return () => {
-      if (rowTimerRef.current) clearTimeout(rowTimerRef.current);
-      if (teamTimerRef.current) clearTimeout(teamTimerRef.current);
-      if (batchTimerRef.current) clearTimeout(batchTimerRef.current);
-    };
-  }, []);
+  }, [pushedCooldowns]);
 
   // 4. Push to All Password Verification Modal State
   const [isPushAllModalOpen, setIsPushAllModalOpen] = useState(false);
@@ -396,24 +367,6 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return filteredDevices.filter((d) => !isDevicePushed(d.serial)).length;
   }, [filteredDevices, isDevicePushed]);
 
-  // Staff waiting map (only devices waiting push) - used for Total CSV per Staff Dispatch
-  const staffWaitingGroups = useMemo(() => {
-    const map = new Map<string, { staff: string; staffTelegram?: string; branchId: string; branchName: string; devices: Device[] }>();
-    for (const d of waitingDevices) {
-      const rawStaff = d.staff || d.installedByStaff || 'Unassigned Staff';
-      const staffName = normalizeStaffName(resolveStaffFromDirectory(rawStaff, d.branchId, users));
-      const bObj = branches.find((b) => b.code === d.branchId);
-      const bName = bObj ? bObj.name : (d.branchName || `Branch ${d.branchId}`);
-      const key = `${staffName}__${d.branchId}`;
-      if (!map.has(key)) {
-        const tgHandle = d.staffTelegram || userTelegramMap.get(staffName.toLowerCase().trim());
-        map.set(key, { staff: staffName, staffTelegram: tgHandle, branchId: d.branchId, branchName: bName, devices: [] });
-      }
-      map.get(key)!.devices.push(d);
-    }
-    return Array.from(map.values()).sort((a, b) => b.devices.length - a.devices.length);
-  }, [waitingDevices, branches, userTelegramMap, users]);
-
   // Map of normalized staff name → count of waiting devices
   const staffWaitingCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -440,32 +393,17 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     );
   };
 
-  // Countdown & Cooldown Seconds Helpers
-  const getRowConfirmSecs = (serial: string): number => {
-    if (confirmingRowSerial !== serial) return 0;
-    return Math.max(1, Math.ceil((rowConfirmExpiresRef.current - tickerNow) / 1000));
-  };
-
+  // Cooldown Seconds Helpers (1-minute live countdown after push)
   const getRowCooldownSecs = (serial: string): number => {
     const exp = pushedCooldowns[`sn_${serial}`];
     if (!exp || exp <= tickerNow) return 0;
     return Math.max(1, Math.ceil((exp - tickerNow) / 1000));
   };
 
-  const getTeamConfirmSecs = (teamKey: string): number => {
-    if (confirmingTeamKey !== teamKey) return 0;
-    return Math.max(1, Math.ceil((teamConfirmExpiresRef.current - tickerNow) / 1000));
-  };
-
   const getTeamCooldownSecs = (teamKey: string): number => {
     const exp = pushedCooldowns[`team_${teamKey}`];
     if (!exp || exp <= tickerNow) return 0;
     return Math.max(1, Math.ceil((exp - tickerNow) / 1000));
-  };
-
-  const getBatchConfirmSecs = (): number => {
-    if (!confirmingBatch) return 0;
-    return Math.max(1, Math.ceil((batchConfirmExpiresRef.current - tickerNow) / 1000));
   };
 
   const getBatchCooldownSecs = (): number => {
@@ -548,73 +486,28 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return operatorLabel || 'System Admin';
   };
 
-  // Double-click handlers for Telegram pushes (1-min confirmation window & 1-min cooldown)
+  // Single-click immediate push handlers with 1-minute anti-spam cooldown
   const handleRowPushClick = (serial: string) => {
     if (getRowCooldownSecs(serial) > 0) return;
 
-    if (confirmingRowSerial === serial) {
-      // 2nd click confirmed: execute push
-      if (rowTimerRef.current) clearTimeout(rowTimerRef.current);
-      setConfirmingRowSerial(null);
-      rowConfirmExpiresRef.current = 0;
+    const dev = configuringDevices.find((d) => d.serial === serial);
+    const rawStaff = dev?.staff || dev?.installedByStaff || 'Assigned Branch Staff';
+    const staffName = normalizeStaffName(resolveStaffFromDirectory(rawStaff, dev?.branchId, users));
+    const tgHandle = dev?.staffTelegram || userTelegramMap.get(staffName.toLowerCase().trim());
 
-      const dev = configuringDevices.find((d) => d.serial === serial);
-      const rawStaff = dev?.staff || dev?.installedByStaff || 'Assigned Branch Staff';
-      const staffName = normalizeStaffName(resolveStaffFromDirectory(rawStaff, dev?.branchId, users));
-      const tgHandle = dev?.staffTelegram || userTelegramMap.get(staffName.toLowerCase().trim());
+    // Single unit alert or single unit file
+    const pushId = generatePushTrackingId();
+    recordPushedSerials([serial], pushId);
 
-      // If pushMode === 'total_csv', find all waiting devices for this staff member
-      const staffWaitingDevs = waitingDevices.filter((d) => {
-        const s = normalizeStaffName(resolveStaffFromDirectory(d.staff || d.installedByStaff || 'Assigned Branch Staff', d.branchId, users));
-        return s === staffName && (!dev?.branchId || d.branchId === dev.branchId);
-      });
+    const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
+    setPushedCooldowns((prev) => ({ ...prev, [`sn_${serial}`]: cooldownExp }));
 
-      if (pushMode === 'total_csv' && staffWaitingDevs.length > 1) {
-        // Consolidated push for all waiting devices of this staff (e.g. all 10 for Khon Rithy in 1 message + CSV)
-        const staffSerials = staffWaitingDevs.map((d) => d.serial);
-        const pushId = generatePushTrackingId();
-        recordPushedSerials(staffSerials, pushId);
-
-        const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
-        setPushedCooldowns((prev) => {
-          const next = { ...prev };
-          staffSerials.forEach((sn) => {
-            next[`sn_${sn}`] = cooldownExp;
-          });
-          return next;
-        });
-
-        onNotifyConfigReady?.(staffSerials, {
-          forceCsvFile: true,
-          targetStaffName: staffName,
-          targetStaffTelegram: tgHandle,
-          pushTrackingId: pushId,
-        });
-      } else {
-        // Single unit alert or single unit file
-        const pushId = generatePushTrackingId();
-        recordPushedSerials([serial], pushId);
-
-        const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
-        setPushedCooldowns((prev) => ({ ...prev, [`sn_${serial}`]: cooldownExp }));
-
-        onNotifyConfigReady?.(serial, {
-          forceCsvFile: pushMode === 'total_csv',
-          targetStaffName: staffName,
-          targetStaffTelegram: tgHandle,
-          pushTrackingId: pushId,
-        });
-      }
-    } else {
-      // 1st click: prime confirmation state with 1-minute window
-      setConfirmingRowSerial(serial);
-      rowConfirmExpiresRef.current = Date.now() + CONFIRM_TIMEOUT_MS;
-      if (rowTimerRef.current) clearTimeout(rowTimerRef.current);
-      rowTimerRef.current = setTimeout(() => {
-        setConfirmingRowSerial(null);
-        rowConfirmExpiresRef.current = 0;
-      }, CONFIRM_TIMEOUT_MS);
-    }
+    onNotifyConfigReady?.(serial, {
+      forceCsvFile: pushMode === 'total_csv',
+      targetStaffName: staffName,
+      targetStaffTelegram: tgHandle,
+      pushTrackingId: pushId,
+    });
   };
 
   const handleTeamPushClick = (
@@ -623,84 +516,52 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     targetStaffName?: string,
     targetStaffTelegram?: string
   ) => {
-    if (getTeamCooldownSecs(key) > 0) return;
+    if (getTeamCooldownSecs(key) > 0 || serials.length === 0) return;
 
-    if (confirmingTeamKey === key) {
-      // 2nd click confirmed: execute push
-      if (teamTimerRef.current) clearTimeout(teamTimerRef.current);
-      setConfirmingTeamKey(null);
-      teamConfirmExpiresRef.current = 0;
+    // Record push timestamp and mark pushed for all units in team
+    const pushId = generatePushTrackingId();
+    recordPushedSerials(serials, pushId);
 
-      // Record push timestamp and mark pushed for all units in team
-      const pushId = generatePushTrackingId();
-      recordPushedSerials(serials, pushId);
-
-      // 1-minute cooldown for this team and all devices in it
-      const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
-      setPushedCooldowns((prev) => {
-        const next: Record<string, number> = { ...prev, [`team_${key}`]: cooldownExp };
-        serials.forEach((sn) => {
-          next[`sn_${sn}`] = cooldownExp;
-        });
-        return next;
+    // 1-minute cooldown for this team and all devices in it
+    const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
+    setPushedCooldowns((prev) => {
+      const next: Record<string, number> = { ...prev, [`team_${key}`]: cooldownExp };
+      serials.forEach((sn) => {
+        next[`sn_${sn}`] = cooldownExp;
       });
+      return next;
+    });
 
-      onNotifyConfigReady?.(serials, {
-        forceCsvFile: true,
-        targetStaffName,
-        targetStaffTelegram,
-        pushTrackingId: pushId,
-      });
-    } else {
-      // 1st click: prime confirmation state with 1-minute window
-      setConfirmingTeamKey(key);
-      teamConfirmExpiresRef.current = Date.now() + CONFIRM_TIMEOUT_MS;
-      if (teamTimerRef.current) clearTimeout(teamTimerRef.current);
-      teamTimerRef.current = setTimeout(() => {
-        setConfirmingTeamKey(null);
-        teamConfirmExpiresRef.current = 0;
-      }, CONFIRM_TIMEOUT_MS);
-    }
+    onNotifyConfigReady?.(serials, {
+      forceCsvFile: true,
+      targetStaffName,
+      targetStaffTelegram,
+      pushTrackingId: pushId,
+    });
   };
 
   const handleBatchPushClick = (forceCsv = true) => {
-    if (getBatchCooldownSecs() > 0) return;
+    if (getBatchCooldownSecs() > 0 || selectedSns.length === 0) return;
 
-    if (confirmingBatch) {
-      // 2nd click confirmed: execute push
-      if (batchTimerRef.current) clearTimeout(batchTimerRef.current);
-      setConfirmingBatch(false);
-      batchConfirmExpiresRef.current = 0;
+    // Record push timestamp and mark pushed for all selected units
+    const pushId = generatePushTrackingId();
+    recordPushedSerials(selectedSns, pushId);
 
-      // Record push timestamp and mark pushed for all selected units
-      const pushId = generatePushTrackingId();
-      recordPushedSerials(selectedSns, pushId);
-
-      // 1-minute cooldown for batch and selected devices
-      const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
-      setPushedCooldowns((prev) => {
-        const next: Record<string, number> = { ...prev, batch: cooldownExp };
-        selectedSns.forEach((sn) => {
-          next[`sn_${sn}`] = cooldownExp;
-        });
-        return next;
+    // 1-minute cooldown for batch and selected devices
+    const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
+    setPushedCooldowns((prev) => {
+      const next: Record<string, number> = { ...prev, batch: cooldownExp };
+      selectedSns.forEach((sn) => {
+        next[`sn_${sn}`] = cooldownExp;
       });
+      return next;
+    });
 
-      onNotifyConfigReady?.(selectedSns, {
-        forceCsvFile: forceCsv,
-        pushTrackingId: pushId,
-      });
-      setSelectedSns([]);
-    } else {
-      // 1st click: prime confirmation state with 1-minute window
-      setConfirmingBatch(true);
-      batchConfirmExpiresRef.current = Date.now() + CONFIRM_TIMEOUT_MS;
-      if (batchTimerRef.current) clearTimeout(batchTimerRef.current);
-      batchTimerRef.current = setTimeout(() => {
-        setConfirmingBatch(false);
-        batchConfirmExpiresRef.current = 0;
-      }, CONFIRM_TIMEOUT_MS);
-    }
+    onNotifyConfigReady?.(selectedSns, {
+      forceCsvFile: forceCsv,
+      pushTrackingId: pushId,
+    });
+    setSelectedSns([]);
   };
 
   // PIN / Password verification for Push to All
@@ -941,24 +802,8 @@ return (
             </p>
           </div>
 
-          {/* Quick Action Buttons for Entire Queue */}
+          {/* Quick Action Button for Entire Queue */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            {isAdminLike && onNotifyConfigReady && (
-              <button
-                type="button"
-                onClick={() => setIsTotalCsvModalOpen(true)}
-                disabled={configuringDevices.length === 0}
-                className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-400/80"
-                title="Consolidated Total CSV per Staff: Send 1 message with CSV file per officer (no separate spam)"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-white shrink-0 group-hover:scale-110 transition-transform duration-150" />
-                <span className="tracking-tight font-bold">Total CSV by Staff</span>
-                <span className="px-1.5 py-0.5 rounded-md text-[11px] font-mono font-bold bg-white/20 text-white">
-                  {staffWaitingGroups.length > 0 ? staffWaitingGroups.length : teamGroups.length}
-                </span>
-              </button>
-            )}
-
             {isAdminLike && onNotifyConfigReady && (
               <button
                 type="button"
@@ -1045,13 +890,12 @@ return (
               <Users className="w-4 h-4 text-[#003857] dark:text-sky-400" />
               <span>Assigned Teams &amp; Branches ({teamGroups.length})</span>
             </h2>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">Click &ldquo;Notify Team&rdquo; twice to alert only that group</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">Grouped queue by technician &amp; branch</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {teamGroups.map((tg) => {
               const teamKey = `${tg.staff}__${tg.branchId}`;
-              const isConfirmingThisTeam = confirmingTeamKey === teamKey;
               const teamSerials = tg.devices.map((d) => d.serial);
               const isTeamAllPushed = teamSerials.length > 0 && teamSerials.every((sn) => isDevicePushed(sn));
               const teamChat = resolveTelegramChatForBranch(tg.branchId, regionalGroups, branches);
@@ -1060,9 +904,7 @@ return (
                 <div
                   key={teamKey}
                   className={`p-4 rounded-2xl border shadow-2xs hover:shadow-md transition-all duration-150 flex flex-col justify-between gap-3 ${
-                    isConfirmingThisTeam
-                      ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-50/20 dark:bg-amber-950/20'
-                      : isLight
+                    isLight
                       ? 'bg-white border-slate-200/90 text-zinc-900 hover:border-slate-300'
                       : 'bg-[#141822] border-slate-800 text-white hover:border-slate-700'
                   }`}
@@ -1119,45 +961,25 @@ return (
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                           <span>Queue &amp; File Sent · {getTeamCooldownSecs(teamKey)}s</span>
                         </button>
+                      ) : isTeamAllPushed ? (
+                        <button
+                          type="button"
+                          onClick={() => handleTeamPushClick(teamKey, teamSerials, tg.staff, tg.staffTelegram)}
+                          className="w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs active:scale-[0.98]"
+                          title={`Click to re-push Telegram alert + CSV file for ${tg.staff}`}
+                        >
+                          <RotateCw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <span>Re-push Total CSV ({tg.devices.length})</span>
+                        </button>
                       ) : (
                         <button
                           type="button"
                           onClick={() => handleTeamPushClick(teamKey, teamSerials, tg.staff, tg.staffTelegram)}
-                          className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] ${
-                            isConfirmingThisTeam
-                              ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse shadow-sm ring-2 ring-amber-400'
-                              : isTeamAllPushed
-                              ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs group'
-                              : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs'
-                          }`}
-                          title={
-                            isConfirmingThisTeam
-                              ? `Click 2nd time to ${isTeamAllPushed ? 're-push' : 'send'} 1 Telegram alert + file for this team (${getTeamConfirmSecs(teamKey)}s window)`
-                              : isTeamAllPushed
-                              ? 'Team already pushed. Click to initiate Re-push Telegram alert + file'
-                              : `Click once, then click 2nd time to send 1 Telegram alert + CSV file of ${tg.devices.length} merchants to ${tg.staff} (instead of ${tg.devices.length} pop-up messages)`
-                          }
+                          className="w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs active:scale-[0.98]"
+                          title={`Send 1 Telegram alert + CSV file of ${tg.devices.length} merchants to ${tg.staff}`}
                         >
-                          {isConfirmingThisTeam ? (
-                            <>
-                              <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
-                              <span>{isTeamAllPushed ? 'Confirm Re-push' : 'Click 2nd Time'} to Send CSV ({getTeamConfirmSecs(teamKey)}s)</span>
-                            </>
-                          ) : isTeamAllPushed ? (
-                            <>
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                              <span className="font-extrabold">Pushed</span>
-                              <span className="text-[11px] border-l border-emerald-300 dark:border-emerald-700/60 pl-1.5 flex items-center gap-1 text-emerald-700/80 dark:text-emerald-300/80 group-hover:text-emerald-950 dark:group-hover:text-white">
-                                <RotateCw className="w-3 h-3 group-hover:rotate-180 transition-transform duration-300" />
-                                Re-push Total CSV ({tg.devices.length})
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-3.5 h-3.5" />
-                              <span>Push Total CSV &amp; File ({tg.devices.length})</span>
-                            </>
-                          )}
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Push Total CSV &amp; File ({tg.devices.length})</span>
                         </button>
                       )
                     )}
@@ -1304,7 +1126,6 @@ return (
                 const branchKey = `Branch_${branchFilter}`;
                 const branchSerials = filteredDevices.map((d) => d.serial);
                 const isBranchCooldown = getTeamCooldownSecs(branchKey) > 0;
-                const isConfirmingBranch = confirmingTeamKey === branchKey;
                 const isBranchAllPushed = filteredDevices.length > 0 && filteredDevices.every((d) => isDevicePushed(d.serial));
 
                 if (isBranchCooldown) {
@@ -1320,45 +1141,29 @@ return (
                   );
                 }
 
+                if (isBranchAllPushed) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => handleTeamPushClick(branchKey, branchSerials)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs active:scale-[0.98]"
+                      title="Re-push alert & file for this branch"
+                    >
+                      <RotateCw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Re-push Branch ({filteredDevices.length})</span>
+                    </button>
+                  );
+                }
+
                 return (
                   <button
                     type="button"
                     onClick={() => handleTeamPushClick(branchKey, branchSerials)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.98] ${
-                      isConfirmingBranch
-                        ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse shadow-sm ring-2 ring-amber-400'
-                        : isBranchAllPushed
-                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs group'
-                        : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs'
-                    }`}
-                    title={
-                      isConfirmingBranch
-                        ? `Click 2nd time to ${isBranchAllPushed ? 're-push' : 'send'} 1 Telegram alert + file for this branch (${getTeamConfirmSecs(branchKey)}s window)`
-                        : isBranchAllPushed
-                        ? 'Branch already pushed. Click to initiate Re-push alert + file'
-                        : 'Sends 1 single Telegram notification with attached file for this branch instead of separate popups'
-                    }
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs active:scale-[0.98]"
+                    title="Sends 1 single Telegram notification with attached file for this branch"
                   >
-                    {isConfirmingBranch ? (
-                      <>
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
-                        <span>{isBranchAllPushed ? 'Confirm Re-push' : 'Click 2nd Time'} ({getTeamConfirmSecs(branchKey)}s)</span>
-                      </>
-                    ) : isBranchAllPushed ? (
-                      <>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span className="font-extrabold">Pushed</span>
-                        <span className="text-[11px] border-l border-emerald-300 dark:border-emerald-700/60 pl-1.5 flex items-center gap-1 text-emerald-700/80 dark:text-emerald-300/80 group-hover:text-emerald-950 dark:group-hover:text-white">
-                          <RotateCw className="w-3 h-3 group-hover:rotate-180 transition-transform duration-300" />
-                          Re-push Branch ({filteredDevices.length})
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-3.5 h-3.5" />
-                        <span>Send Branch Alert &amp; File ({filteredDevices.length})</span>
-                      </>
-                    )}
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Send Branch Alert &amp; File ({filteredDevices.length})</span>
                   </button>
                 );
               })()}
@@ -1384,17 +1189,6 @@ return (
             <div className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">
               Assigned By: <strong className="text-zinc-900 dark:text-white">{operatorLabel}</strong>
             </div>
-            {isAdminLike && onNotifyConfigReady && (
-              <button
-                type="button"
-                onClick={() => setIsTotalCsvModalOpen(true)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
-                title="Open Consolidated Total CSV Dispatch Modal (send 1 message per staff with attached CSV of all their merchants)"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Total CSV by Staff ({staffWaitingGroups.length > 0 ? staffWaitingGroups.length : teamGroups.length})</span>
-              </button>
-            )}
             <button
               type="button"
               onClick={handleExportCsv}
@@ -1596,92 +1390,45 @@ return (
                         </div>
                       </td>
 
-                      {/* Row Actions (Must Click 2 Times) */}
+                      {/* Row Actions */}
                       <td className="py-3 px-4 text-right">
                         <div className="inline-flex items-center gap-1.5 justify-end">
-                          {isAdminLike && onNotifyConfigReady && (() => {
+                          {isAdminLike && (() => {
                             const devIsPushed = isDevicePushed(dev.serial);
                             const cooldownSecs = getRowCooldownSecs(dev.serial);
-                            const confirmSecs = getRowConfirmSecs(dev.serial);
-                            const devStaffName = normalizeStaffName(resolveStaffFromDirectory(dev.staff || dev.installedByStaff || 'Assigned Branch Staff', dev.branchId, users));
-                            const staffWaitingCount = staffWaitingCounts.get(devStaffName) || 0;
 
                             if (cooldownSecs > 0) {
                               return (
-                                <button
-                                  type="button"
-                                  disabled
-                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90 shadow-2xs"
-                                  title={`Pushed to Telegram! 1-minute cooldown active (${cooldownSecs}s remaining)`}
+                                <span
+                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-2xs"
+                                  title={`Pushed to Telegram! ${cooldownSecs}s cooldown active`}
                                 >
                                   <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                                   <span>Pushed · {cooldownSecs}s</span>
-                                </button>
-                              );
-                            }
-
-                            if (isConfirmingThisRow) {
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRowPushClick(dev.serial)}
-                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse"
-                                  title={`Click 2nd time to confirm Telegram ${devIsPushed ? 're-push' : 'push'} (${confirmSecs}s window)`}
-                                >
-                                  <AlertTriangle className="w-3 h-3 text-amber-200" />
-                                  <span>
-                                    {devIsPushed
-                                      ? 'Confirm Re-push'
-                                      : pushMode === 'total_csv' && staffWaitingCount > 1
-                                      ? `Confirm Total CSV (${staffWaitingCount})`
-                                      : 'Click 2nd Time'} ({confirmSecs}s)
-                                  </span>
-                                </button>
+                                </span>
                               );
                             }
 
                             if (devIsPushed) {
                               return (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRowPushClick(dev.serial)}
-                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs hover:shadow-xs group"
-                                  title="Status: Pushed to Telegram. Click once, then click 2nd time within 1 minute to re-push alert."
+                                <span
+                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs"
+                                  title={`Status: Pushed to Telegram (${requestPushInfo.full})`}
                                 >
                                   <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                  <span className="font-extrabold">Pushed</span>
-                                  <span className="text-[10px] text-emerald-700/80 dark:text-emerald-300/80 font-semibold border-l border-emerald-300 dark:border-emerald-700/60 pl-1.5 flex items-center gap-1 group-hover:text-emerald-950 dark:group-hover:text-white">
-                                    <RotateCw className="w-2.5 h-2.5 opacity-70 group-hover:rotate-180 transition-transform duration-300" />
-                                    Re-push
-                                  </span>
-                                </button>
-                              );
-                            }
-
-                            if (pushMode === 'total_csv' && staffWaitingCount > 1) {
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRowPushClick(dev.serial)}
-                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs hover:shadow-xs border border-emerald-400/40"
-                                  title={`Click once, then click 2nd time to send 1 consolidated Telegram alert + CSV file of all ${staffWaitingCount} merchants for ${devStaffName} (instead of ${staffWaitingCount} separate pop-ups)`}
-                                >
-                                  <FileSpreadsheet className="w-3 h-3 text-emerald-400 shrink-0" />
-                                  <span>Total CSV ({staffWaitingCount})</span>
-                                </button>
+                                  <span>Pushed</span>
+                                </span>
                               );
                             }
 
                             return (
-                              <button
-                                type="button"
-                                onClick={() => handleRowPushClick(dev.serial)}
-                                className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.97] bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs hover:shadow-xs"
-                                title="Click once, then click 2nd time within 1 minute to push alert to Telegram"
+                              <span
+                                className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1.5 bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200/90 dark:border-sky-800/60 shadow-2xs"
+                                title="Device is configured and ready. Select with checkbox to push via the action bar."
                               >
-                                <Send className="w-3 h-3" />
-                                <span>{pushMode === 'total_csv' ? 'Push CSV File' : 'Notify & Push'}</span>
-                              </button>
+                                <Clock className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0" />
+                                <span>Ready to Push</span>
+                              </span>
                             );
                           })()}
 
@@ -1792,35 +1539,24 @@ return (
                     type="button"
                     onClick={() => handleBatchPushClick(pushMode === 'total_csv')}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.98] shadow-md shrink-0 ${
-                      confirmingBatch
-                        ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm ring-2 ring-amber-400 animate-pulse'
-                        : isBatchAllPushed
+                      isBatchAllPushed
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                         : pushMode === 'total_csv'
                         ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
                         : 'bg-sky-500 hover:bg-sky-400 text-white'
                     }`}
                     title={
-                      confirmingBatch
-                        ? `Click 2nd time to confirm push (${getBatchConfirmSecs()}s window)`
-                        : isBatchAllPushed
-                        ? 'Selected devices already pushed. Click to initiate re-push'
+                      isBatchAllPushed
+                        ? 'Selected devices already pushed. Click to re-push'
                         : pushMode === 'total_csv'
                         ? 'Send consolidated Total CSV file per staff member with all their selected devices'
                         : 'Send single-unit text alerts for selected devices'
                     }
                   >
-                    {confirmingBatch ? (
+                    {isBatchAllPushed ? (
                       <>
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-200 shrink-0" />
-                        <span>
-                          {isBatchAllPushed ? 'Confirm' : 'Click 2nd Time'} ({getBatchConfirmSecs()}s)
-                        </span>
-                      </>
-                    ) : isBatchAllPushed ? (
-                      <>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
-                        <span>Re-push ({selectedSns.length})</span>
+                        <RotateCw className="w-3.5 h-3.5 text-white shrink-0" />
+                        <span>Re-push Total CSV ({selectedSns.length})</span>
                       </>
                     ) : (
                       <>
@@ -1840,10 +1576,7 @@ return (
 
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedSns([]);
-                  setConfirmingBatch(false);
-                }}
+                onClick={() => setSelectedSns([])}
                 className="p-1.5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0 ml-0.5"
                 title="Cancel selection"
                 aria-label="Cancel selection"
@@ -2067,262 +1800,7 @@ return (
           document.body
         )}
 
-      {/* 7. CONSOLIDATED TOTAL CSV BY STAFF DISPATCH MODAL */}
-      {typeof document !== 'undefined' &&
-        createPortal(
-          <AnimatePresence>
-            {isTotalCsvModalOpen && (
-              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setIsTotalCsvModalOpen(false)}
-                  className="fixed inset-0 bg-slate-950/75 backdrop-blur-md"
-                />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 14 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
-                  className={`relative w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-auto z-10 border border-slate-200/80 dark:border-slate-800 flex flex-col max-h-[90vh] ${
-                    isLight ? 'bg-white text-slate-800' : 'bg-[#12151e] text-slate-100'
-                  }`}
-                >
-                  {/* Navy Header Bar */}
-                  <div className="navy-header-bar rounded-t-2xl px-5 py-3.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0 shadow-xs text-white">
-                        <FileSpreadsheet className="w-4.5 h-4.5 text-emerald-300" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2">
-                          <span>Consolidated Total CSV by Staff</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-black bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
-                            1 File / Officer
-                          </span>
-                        </h3>
-                        <p className="text-[11px] text-white/75 font-mono mt-0.5">
-                          Sends 1 Telegram alert + attached CSV file of all merchants per technician (No spam)
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsTotalCsvModalOpen(false)}
-                      aria-label="Close"
-                      className="p-1.5 rounded-xl text-white/75 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0 ml-2"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
 
-                  {/* Summary Bar */}
-                  <div
-                    className={`px-5 py-2.5 border-b flex flex-wrap items-center justify-between gap-2 text-xs ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#151924] border-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-                      <span>Waiting Push:</span>
-                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-black">
-                        {waitingDevices.length} Units
-                      </span>
-                      <span className="text-slate-400">across</span>
-                      <span className="font-black text-zinc-900 dark:text-white">
-                        {staffWaitingGroups.length > 0 ? staffWaitingGroups.length : teamGroups.length} Staff Member{teamGroups.length === 1 ? '' : 's'}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                      Example: Khon Rithy receives 1 message + file containing all 10 merchants
-                    </div>
-                  </div>
-
-                  {/* Staff List */}
-                  <div className="p-5 overflow-y-auto space-y-3.5 flex-1">
-                    {(staffWaitingGroups.length > 0 ? staffWaitingGroups : teamGroups).length === 0 ? (
-                      <div className="py-12 text-center text-slate-400">
-                        <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-                        <div className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                          All Devices Pushed!
-                        </div>
-                        <div className="text-xs text-slate-400 mt-0.5">
-                          There are no devices waiting for push in the queue right now.
-                        </div>
-                      </div>
-                    ) : (
-                      (staffWaitingGroups.length > 0 ? staffWaitingGroups : teamGroups).map((sg) => {
-                        const teamKey = `${sg.staff}__${sg.branchId}`;
-                        const isConfirming = confirmingTeamKey === teamKey;
-                        const cooldownSecs = getTeamCooldownSecs(teamKey);
-                        const confirmSecs = getTeamConfirmSecs(teamKey);
-                        const serials = sg.devices.map((d) => d.serial);
-                        const isAllPushed = serials.length > 0 && serials.every((sn) => isDevicePushed(sn));
-                        const teamChat = resolveTelegramChatForBranch(sg.branchId, regionalGroups, branches);
-
-                        return (
-                          <div
-                            key={teamKey}
-                            className={`p-4 rounded-2xl border transition-all ${
-                              isConfirming
-                                ? 'border-amber-400 ring-2 ring-amber-400/50 bg-amber-50/20 dark:bg-amber-950/20'
-                                : isLight
-                                ? 'bg-slate-50/70 border-slate-200 hover:border-slate-300'
-                                : 'bg-[#181c26] border-slate-800'
-                            }`}
-                          >
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-sm font-black text-[#003857] dark:text-sky-300">
-                                    {sg.staff}
-                                  </span>
-                                  {sg.staffTelegram && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-mono font-bold bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800">
-                                      @{sg.staffTelegram}
-                                    </span>
-                                  )}
-                                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
-                                    {sg.devices.length} {sg.devices.length === 1 ? 'Merchant' : 'Merchants'}
-                                  </span>
-                                </div>
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                                  <span className="flex items-center gap-1">
-                                    <Building2 className="w-3 h-3 text-slate-400" />
-                                    <span>Code {sg.branchId} ({sg.branchName})</span>
-                                  </span>
-                                  <span className="flex items-center gap-1 font-mono text-[10.5px]">
-                                    <Send className="w-2.5 h-2.5 text-sky-500" />
-                                    <span>{teamChat.groupName}</span>
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Actions */}
-                              <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDownloadTeamFile(sg)}
-                                  className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs"
-                                  title={`Download & preview ${sg.staff}'s CSV file (${sg.devices.length} merchants)`}
-                                >
-                                  <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                                </button>
-
-                                {cooldownSecs > 0 ? (
-                                  <button
-                                    type="button"
-                                    disabled
-                                    className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90 shadow-2xs"
-                                  >
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                    <span>File Sent · {cooldownSecs}s</span>
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleTeamPushClick(teamKey, serials, sg.staff, sg.staffTelegram)}
-                                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.98] ${
-                                      isConfirming
-                                        ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse shadow-sm ring-2 ring-amber-400'
-                                        : isAllPushed
-                                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs'
-                                        : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs'
-                                    }`}
-                                    title={`Send 1 Telegram alert + attached CSV file with all ${sg.devices.length} merchants to ${sg.staff}`}
-                                  >
-                                    {isConfirming ? (
-                                      <>
-                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-200" />
-                                        <span>Confirm Send CSV ({confirmSecs}s)</span>
-                                      </>
-                                    ) : isAllPushed ? (
-                                      <>
-                                        <RotateCw className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                        <span>Re-push Total CSV ({sg.devices.length})</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Send className="w-3.5 h-3.5" />
-                                        <span>Send Total CSV ({sg.devices.length})</span>
-                                      </>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Merchant Mini-List */}
-                            <div className="mt-3 pt-3 border-t border-slate-200/70 dark:border-slate-800/80">
-                              <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                                Included Merchants in File:
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                {sg.devices.slice(0, 6).map((d, idx) => (
-                                  <div
-                                    key={d.serial}
-                                    className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 text-[11px] truncate flex items-center gap-1.5"
-                                  >
-                                    <span className="font-mono font-bold text-slate-400 text-[10px]">{idx + 1}.</span>
-                                    <span className="font-bold text-zinc-900 dark:text-white truncate">
-                                      {d.merchantName || 'Merchant'}
-                                    </span>
-                                    <span className="font-mono text-[10px] text-slate-400 ml-auto shrink-0">
-                                      {d.serial}
-                                    </span>
-                                  </div>
-                                ))}
-                                {sg.devices.length > 6 && (
-                                  <div className="px-2 py-1 text-[11px] text-sky-600 dark:text-sky-400 font-semibold italic flex items-center">
-                                    + {sg.devices.length - 6} more merchants in attached CSV file
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  {/* Footer */}
-                  <div
-                    className={`px-5 py-3.5 flex items-center justify-between text-xs border-t shrink-0 ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0f121a] border-slate-800'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setIsTotalCsvModalOpen(false)}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                        isLight
-                          ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
-                          : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
-                      }`}
-                    >
-                      Close
-                    </button>
-
-                    {isAdminLike && onNotifyConfigReady && waitingDevices.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsTotalCsvModalOpen(false);
-                          setIsPushAllModalOpen(true);
-                        }}
-                        className="px-4 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-sm active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 border border-white/10"
-                      >
-                        <Lock className="w-3.5 h-3.5" />
-                        <span>Push Total CSVs for All Staff ({waitingDevices.length})</span>
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>,
-          document.body
-        )}
     </div>
   );
 });
