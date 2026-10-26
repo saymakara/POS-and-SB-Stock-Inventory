@@ -57,6 +57,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
 }) => {
   const isLight = theme === 'light';
   const canExport = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const canExportJson = role === 'SUPER_ADMIN';
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const counts = useMemo(() => {
@@ -287,7 +288,10 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   };
 
   const handleExportFullJson = () => {
-    if (!canExport) return;
+    if (!canExportJson) {
+      onToast('Access Denied: Full JSON system snapshot export is restricted to Super Admin only.', 'warn');
+      return;
+    }
     setDownloadingId('full-json');
     const payload = {
       exportMetadata: {
@@ -350,7 +354,9 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
               </h3>
               <p className="text-xs text-slate-300">
                 {canExport
+                  ? (canExportJson
                   ? 'Download CSV spreadsheets (open in Excel) or a JSON system snapshot'
+                  : 'Download CSV spreadsheets (open in Excel)')
                   : 'Data export is limited to Head Office administrators'}
               </p>
             </div>
@@ -497,19 +503,33 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
 
           {/* 5. Complete JSON & Audit Logs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-            <button
-              type="button"
-              onClick={handleExportFullJson}
-              disabled={downloadingId === 'full-json'}
-              className={`p-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-semibold ${
-                isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
-                  : 'bg-[#18191e] hover:bg-[#252730] text-slate-200 border-white/10'
-              }`}
-            >
-              <FileJson className="w-4 h-4 text-sky-400" aria-hidden="true" />
-              <span>Full JSON Snapshot</span>
-            </button>
+            {canExportJson ? (
+              <button
+                type="button"
+                onClick={handleExportFullJson}
+                disabled={downloadingId === 'full-json'}
+                className={`p-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-semibold ${
+                  isLight
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                    : 'bg-[#18191e] hover:bg-[#252730] text-slate-200 border-white/10'
+                }`}
+              >
+                <FileJson className="w-4 h-4 text-sky-400" aria-hidden="true" />
+                <span>Full JSON Snapshot</span>
+              </button>
+            ) : (
+              <div
+                className={`p-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-medium opacity-50 cursor-not-allowed select-none ${
+                  isLight
+                    ? 'bg-slate-100 text-slate-500 border-slate-200'
+                    : 'bg-[#18191e] text-slate-500 border-white/5'
+                }`}
+                title="Full JSON snapshot export is restricted to Super Admin only."
+              >
+                <Lock className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
+                <span>Full JSON Snapshot (Super Admin Only)</span>
+              </div>
+            )}
 
             <button
               type="button"

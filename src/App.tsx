@@ -1279,6 +1279,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   }, [historicalMerchants, serverReady, triggerToast, noteSaveFailure, reloadAfterFailure]);
 
   const handleExportBackup = useCallback(() => {
+    if (role !== 'SUPER_ADMIN') {
+      triggerToast('Access Denied: Only Super Admin is authorized to export JSON system backup.');
+      return;
+    }
     const backupData = {
       version: '1.0',
       exportedAt: new Date().toISOString(),
@@ -1302,7 +1306,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     URL.revokeObjectURL(url);
     triggerToast('Complete system JSON backup downloaded.');
     addAuditLog('Backup Exported', 'Full system state snapshot exported to JSON');
-  }, [devices, branches, requisitions, users, appSettings, auditLogs, historicalMerchants, triggerToast, addAuditLog]);
+  }, [devices, branches, requisitions, users, appSettings, auditLogs, historicalMerchants, triggerToast, addAuditLog, role]);
 
   const handleImportBackup = useCallback((jsonStr: string) => {
     if (isSupabaseConfigured) {

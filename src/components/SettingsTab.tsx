@@ -1858,14 +1858,24 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </p>
 
               <div className="flex flex-wrap items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={onExportBackup}
-                  className="px-4 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-sm flex items-center gap-2 transition cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download Complete JSON Backup</span>
-                </button>
+                {role === 'SUPER_ADMIN' ? (
+                  <button
+                    type="button"
+                    onClick={onExportBackup}
+                    className="px-4 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-sm flex items-center gap-2 transition cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Complete JSON Backup</span>
+                  </button>
+                ) : (
+                  <div
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 text-slate-400 dark:text-slate-500 text-xs font-semibold flex items-center gap-2 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-none opacity-60"
+                    title="Export restricted to Super Admin only"
+                  >
+                    <Lock className="w-4 h-4 text-amber-500" />
+                    <span>Download Complete JSON Backup (Super Admin Only)</span>
+                  </div>
+                )}
               </div>
             </div>
 
