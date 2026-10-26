@@ -25,7 +25,6 @@ import {
   X,
   Phone,
   MapPin,
-  CheckCircle2,
   AlertTriangle,
   UserCheck,
   Copy,
@@ -1210,35 +1209,19 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   );
                 })()}
 
-                {/* Footer Handover & Close */}
-                <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/10">
-                  {selectedRecord.settlementFinalized ? (
-                    <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-xs">
-                      <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center shrink-0">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <span>Settlement &amp; Inventory Handover Finalized</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-xs">
-                      <AlertTriangle className="w-4 h-4 shrink-0" />
-                      <span>Settlement not yet confirmed</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRecord(null)}
-                      className={`px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
-                        isLight
-                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
-                          : 'bg-white/10 hover:bg-white/15 text-white border border-white/15'
-                      }`}
-                    >
-                      Close
-                    </button>
-                  </div>
+                {/* Footer Close */}
+                <div className="flex items-center justify-end pt-3 border-t border-slate-200 dark:border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRecord(null)}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
+                      isLight
+                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
+                        : 'bg-white/10 hover:bg-white/15 text-white border border-white/15'
+                    }`}
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </motion.div>
