@@ -557,10 +557,9 @@ export const StaffAccountsTab: React.FC<{
                 <SortTh k="location" sort={stSort} onSort={stToggle} className="text-left px-3 py-2.5">
                   Location
                 </SortTh>
-                <SortTh k="status" sort={stSort} onSort={stToggle} className="text-left px-3 py-2.5">
-                  Account Status
+                <SortTh k="status" sort={stSort} onSort={stToggle} align="right" className="text-right px-3 py-2.5">
+                  Status &amp; Actions
                 </SortTh>
-                <th className="px-3 py-2.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -579,7 +578,7 @@ export const StaffAccountsTab: React.FC<{
               ))}
               {list && shown.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-500">
+                  <td colSpan={7} className="py-8 text-center text-slate-500">
                     No accounts match the search.
                   </td>
                 </tr>
@@ -651,54 +650,42 @@ const StaffRow = memo(function StaffRow({
           <span>{locationLabel}</span>
         </span>
       </td>
-      <td className="px-3 py-2.5 whitespace-nowrap">
-        {a.active ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/90 shadow-2xs">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            <span>Retained</span>
-            {a.mustChangePassword && (
-              <span className="text-[10px] opacity-75 font-normal">· 1st login</span>
-            )}
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200/90 shadow-2xs">
-            <Ban className="w-3 h-3 text-rose-600" />
-            <span>Revoked</span>
-          </span>
-        )}
-      </td>
       <td className="px-3 py-2.5 text-right whitespace-nowrap">
-        <div className="flex items-center justify-end gap-1.5">
+        <div className="flex items-center justify-end gap-2.5">
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                a.active ? 'bg-emerald-500' : 'bg-slate-400'
+              }`}
+            />
+            <span className={a.active ? 'text-slate-800 font-medium' : 'text-slate-400 font-medium'}>
+              {a.active ? 'Retained' : 'Revoked'}
+            </span>
+            {a.mustChangePassword && (
+              <span className="text-[10px] text-slate-400 font-mono">· 1st login</span>
+            )}
+          </div>
+
           {editable && (
             <>
-              {a.active ? (
+              <span className="text-slate-200 select-none">|</span>
+              <div className="inline-flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => onToggleStatus(a)}
-                  title={`Revoke access for ${a.name} (${a.empId})`}
-                  className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-rose-700 hover:text-rose-800 hover:bg-rose-50 border border-rose-200 transition cursor-pointer flex items-center gap-1"
+                  title={a.active ? `Revoke access for ${a.name} (${a.empId})` : `Retain access for ${a.name} (${a.empId})`}
+                  className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
                 >
-                  <Ban className="w-3 h-3 text-rose-600" />
-                  <span>Revoke</span>
+                  {a.active ? 'Revoke' : 'Retain'}
                 </button>
-              ) : (
                 <button
                   type="button"
-                  onClick={() => onToggleStatus(a)}
-                  title={`Retain access for ${a.name} (${a.empId})`}
-                  className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border border-emerald-200 transition cursor-pointer flex items-center gap-1"
+                  onClick={() => onEdit(a)}
+                  className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-[#003857] hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
                 >
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  <span>Retain</span>
+                  Edit
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => onEdit(a)}
-                className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-[#003857] hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
-              >
-                Edit
-              </button>
+              </div>
             </>
           )}
         </div>
