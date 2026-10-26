@@ -2624,27 +2624,62 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     triggerToast(`Device replaced! Front table updated to new serial ${newDev.serial} (Replaced by ${staffActor}).`);
   };
 
-  // Batch Stock Upload Handler (from classic BatchUploadModal). (22 Oct 2026) HQ only; new serials only – a serial that
-  // already exists is never overwritten, and nothing is filled in with sample values.
+  // Batch Stock Upload Handler (from classic BatchUploadModal). Supports both:
+  // 1. Reallocating available HQ Stock to Branch Reserve under assigned receiving staff.
+  // 2. Registering brand new serials into inventory.
   const handleCommitBatch = (newBatchItems: Partial<Device>[]) => {
-    if (role === 'BRANCH') { triggerToast('Only HQ can register stock.'); return; }
+    if (role === 'BRANCH') { triggerToast('Only HQ can register or allocate stock.'); return; }
     const today = todayPP();
     const nowTime = stampSecPP();
-    const existing = new Set(devices.map((d) => d.serial.toUpperCase()));
+    const existingMap = new Map(devices.map((d) => [d.serial.toUpperCase(), d]));
     const seen = new Set<string>();
     const problems: string[] = [];
     const created: Device[] = [];
+    const updated: Device[] = [];
+
     newBatchItems.forEach((item) => {
       const sn = String(item.serial || '').trim().toUpperCase();
       if (!sn) { problems.push('a row without a serial'); return; }
-      if (existing.has(sn) || seen.has(sn)) { problems.push(`${sn} (already in the inventory)`); return; }
+      if (seen.has(sn)) { problems.push(`${sn} (duplicate in batch)`); return; }
+      seen.add(sn);
+
       const bCode = item.branchId || '100';
       const branchObj = branches.find((b) => b.code === bCode || b.id === bCode);
       if (!branchObj && bCode !== '100') { problems.push(`${sn} (unknown branch ${bCode})`); return; }
+
+      const existingDev = existingMap.get(sn);
+      if (existingDev) {
+        if (existingDev.stage === 'HQ_STOCK') {
+          // Reallocate available HQ Stock to Branch Reserve!
+          const stg: LifecycleStage = item.stage || (bCode !== '100' ? 'BRANCH_RESERVE' : 'HQ_STOCK');
+          const nextCycleNum = (existingDev.history || []).length + 1;
+          const nextDev: Device = {
+            ...existingDev,
+            ...onMove(existingDev, stg),
+            branchId: stg === 'HQ_STOCK' ? '100' : bCode,
+            branchName: stg === 'HQ_STOCK' ? 'Head Office' : branchObj!.name,
+            staff: item.staff || existingDev.staff,
+            model: item.model || existingDev.model,
+            batterySerial: item.batterySerial || existingDev.batterySerial,
+            type: item.type || existingDev.type,
+            updatedAt: today,
+            history: [
+              `${nowTime} | Cycle #${nextCycleNum}: Branch Allocation | Assigned from HQ Stock to Branch Code ${bCode} (${branchObj?.name || ''}) Reserve — Received by Staff: ${item.staff || operatorLabel || 'Branch Custodian'}`,
+              ...(existingDev.history || []),
+            ],
+          };
+          updated.push(nextDev);
+          return;
+        } else {
+          problems.push(`${sn} (already in ${STAGE_META[existingDev.stage]?.short || existingDev.stage})`);
+          return;
+        }
+      }
+
+      // Brand New Serial Intake
       const hasMerchantInfo = Boolean((item.mid && item.mid.trim()) || (item.merchantName && item.merchantName.trim()));
       const rawStage: LifecycleStage = item.stage || (bCode !== '100' ? 'BRANCH_RESERVE' : 'HQ_STOCK');
       const stg: LifecycleStage = (rawStage === 'HQ_STOCK' || rawStage === 'BRANCH_RESERVE') && hasMerchantInfo ? 'CONFIGURING' : rawStage;
-      seen.add(sn);
       created.push({
         serial: sn,
         batterySerial: item.batterySerial || '',
@@ -2669,16 +2704,34 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         hoursInStage: 0,
         updatedAt: today,
         note: item.note || '',
-        history: [`${nowTime} | Stock Intake | Registered into ${stg === 'HQ_STOCK' ? 'HQ stock' : 'Branch Code ' + bCode + ' reserve'} — Officer: ${operatorLabel || 'HQ'}`],
+        history: [`${nowTime} | Stock Intake | Registered into ${stg === 'HQ_STOCK' ? 'HQ stock' : 'Branch Code ' + bCode + ' reserve'} — Received by Staff: ${item.staff || operatorLabel || 'HQ'}`],
         archived: false,
       });
     });
-    if (!created.length) { triggerToast(`Nothing registered: ${problems.slice(0, 5).join(', ')}${problems.length > 5 ? '…' : ''}.`); return; }
 
-    setDevices((prev) => [...created, ...prev]);
-    triggerOptimisticSync(created.map((c) => c.serial), `Registered ${created.length} new serial(s) into inventory`, created);
-    addAuditLog('Batch Stock Intake', `Registered ${created.length} serial(s) into inventory${problems.length ? `; skipped: ${problems.slice(0, 20).join(', ')}` : ''}`);
-    triggerToast(`Registered ${created.length} new serial(s)` + (problems.length ? `; ${problems.length} skipped (${problems.slice(0, 3).join(', ')}${problems.length > 3 ? '…' : ''})` : '.'));
+    if (!created.length && !updated.length) {
+      triggerToast(`Nothing processed: ${problems.slice(0, 5).join(', ')}${problems.length > 5 ? '…' : ''}.`);
+      return;
+    }
+
+    if (updated.length > 0) {
+      const updatedMap = new Map(updated.map((u) => [u.serial, u]));
+      setDevices((prev) => prev.map((d) => updatedMap.get(d.serial) || d));
+      triggerOptimisticSync(updated.map((u) => u.serial), `Allocated ${updated.length} unit(s) to Branch Reserve`, updated);
+    }
+
+    if (created.length > 0) {
+      setDevices((prev) => [...created, ...prev]);
+      triggerOptimisticSync(created.map((c) => c.serial), `Registered ${created.length} new serial(s) into inventory`, created);
+    }
+
+    const summaryParts: string[] = [];
+    if (updated.length > 0) summaryParts.push(`Allocated ${updated.length} unit(s) from HQ Stock to Branch Reserve`);
+    if (created.length > 0) summaryParts.push(`Registered ${created.length} new serial(s)`);
+    if (problems.length > 0) summaryParts.push(`${problems.length} skipped (${problems.slice(0, 3).join(', ')}${problems.length > 3 ? '…' : ''})`);
+
+    addAuditLog('Batch Stock Operation', summaryParts.join('; '));
+    triggerToast(summaryParts.join(' · ') + '.');
   };
 
   // Every Request Must Alert Notification (from classic RequestStockModal)

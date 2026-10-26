@@ -184,6 +184,7 @@ export interface StagedItem {
   tid?: string;
   redeployCount?: number;
   isDuplicate: boolean;
+  stockOrigin?: 'EXISTING_HQ_STOCK' | 'NEW_SERIAL';
   /** Why this row cannot be imported (unknown branch, bad stage/date, column count…); any error halts the upload. */
   error?: string;
   cellErrors?: CsvCellValidationError[];
@@ -331,6 +332,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   // Target stock destination defaults (used only for rows that give no branch / stage)
   const [defaultBranchId, setDefaultBranchId] = useState('100');
   const [defaultStage, setDefaultStage] = useState<LifecycleStage>('HQ_STOCK');
+  const [defaultStaff, setDefaultStaff] = useState<string>('');
+
+  const [isDraggingPos, setIsDraggingPos] = useState(false);
+  const [isDraggingSb, setIsDraggingSb] = useState(false);
 
   const [inspectedCycle, setInspectedCycle] = useState<IntakeCycle | null>(null);
   const activeCycle: IntakeCycle =
@@ -374,6 +379,43 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     () => branches.find((b) => b.id === defaultBranchId || b.code === defaultBranchId),
     [branches, defaultBranchId]
   );
+
+  // Active staff members for the currently selected fallback branch
+  const branchStaffOptions = useMemo(() => {
+    if (!defaultBranchId || defaultBranchId === '100') {
+      return directoryUsers.filter((u) => u.branchId === '100' && u.status !== 'Suspended');
+    }
+    const branchUsers = directoryUsers.filter(
+      (u) => String(u.branchId).trim() === String(defaultBranchId).trim() && u.status !== 'Suspended'
+    );
+    const branchObj = branches.find((b) => b.id === defaultBranchId || b.code === defaultBranchId);
+    const namesInBranch = new Set(branchUsers.map((u) => u.name.toLowerCase()));
+    const extraStaff = (branchObj?.staff || [])
+      .filter((s) => !namesInBranch.has(s.toLowerCase()))
+      .map((s) => ({
+        uid: `synth-${s}`,
+        empId: '',
+        name: s,
+        label: s,
+        branchId: defaultBranchId,
+        branchName: branchObj?.name || '',
+      }));
+    return [...branchUsers, ...extraStaff];
+  }, [defaultBranchId, directoryUsers, branches]);
+
+  // Keep defaultStaff in sync when defaultBranchId changes
+  React.useEffect(() => {
+    if (branchStaffOptions.length > 0) {
+      const exists = branchStaffOptions.some(
+        (s) => s.name.toLowerCase() === defaultStaff.toLowerCase() || (s.empId && s.empId === defaultStaff)
+      );
+      if (!exists) {
+        setDefaultStaff(branchStaffOptions[0].name);
+      }
+    } else {
+      setDefaultStaff('');
+    }
+  }, [defaultBranchId, branchStaffOptions, defaultStaff]);
   const findBranch = (code: string) => branches.find((b) => b.id === code || b.code === code);
   const staffLabel = operatorLabel.trim();
 
@@ -838,7 +880,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         }
 
         const { branch: curBranch, error: branchError } = resolveBranch(branchPart);
-        if (branchError) {
+        if (branchError && branchPart) {
           cellErrors.push({
             row: csvRowNumber,
             column: 3,
@@ -848,17 +890,66 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           });
         }
 
+        const targetBranchId = curBranch?.id || defaultBranchId;
+        const targetBranchObj = curBranch || defaultBranch;
+        const targetStage = targetBranchId === '100' ? 'HQ_STOCK' : defaultStage;
+
+        // Dynamic stock lookup: is this unit currently available in existing stock?
+        const inStockDev = existingDevices.find((d) => d.serial.trim().toUpperCase() === serial);
+        const isAvailableHqStock = inStockDev && inStockDev.stage === 'HQ_STOCK';
+
+        // Staff assignment: use selected default receiving staff or operator
+        const assignedStaff = targetStage === 'BRANCH_RESERVE'
+          ? (defaultStaff || staffLabel)
+          : (staffLabel);
+
+        // If target stage is BRANCH_RESERVE, validate receiving staff
+        if (targetStage === 'BRANCH_RESERVE') {
+          if (!assignedStaff) {
+            cellErrors.push({
+              row: csvRowNumber,
+              column: 8,
+              columnName: 'Assigned_Staff',
+              category: 'MISSING_REQUIRED',
+              message: 'Missing required Assigned Receiving Staff for Branch Reserve allocation',
+            });
+          } else {
+            const staffVal = validateStaffWithBranch(assignedStaff, targetBranchObj, directoryUsers, branches);
+            if (!staffVal.valid && staffVal.error) {
+              cellErrors.push({
+                row: csvRowNumber,
+                column: 8,
+                columnName: 'Assigned_Staff',
+                category: 'INVALID_TYPE',
+                message: staffVal.error,
+              });
+            }
+          }
+        }
+
+        // If unit is already in another stage (e.g. at another branch, or with a merchant), warn the admin
+        if (inStockDev && inStockDev.stage !== 'HQ_STOCK') {
+          cellErrors.push({
+            row: csvRowNumber,
+            column: 1,
+            columnName: 'Serial_SN',
+            category: 'DUPLICATE_IN_DB',
+            message: `Hardware serial "${serial}" is already in ${STAGE_META[inStockDev.stage]?.short || inStockDev.stage} at ${inStockDev.branchName}${inStockDev.merchantName ? ` (Merchant: ${inStockDev.merchantName})` : ''}`,
+          });
+        }
+
         parsed.push({
           csvRowNumber,
           serial: serial || `MISSING_SN_ROW_${csvRowNumber}`,
-          batterySerial,
-          model: fixedType === 'Sound Box' ? 'Q161 Pro' : modelPart || selectedModel,
-          type: fixedType,
-          branchId: curBranch?.id || branchPart,
-          branchName: curBranch?.name || '',
-          staff: staffLabel,
-          stage: curBranch?.id === '100' ? 'HQ_STOCK' : defaultStage,
+          batterySerial: inStockDev?.batterySerial || batterySerial,
+          model: inStockDev?.model || (fixedType === 'Sound Box' ? 'Q161 Pro' : modelPart || selectedModel),
+          type: inStockDev?.type || fixedType,
+          branchId: targetBranchId,
+          branchName: targetBranchObj?.name || '',
+          staff: assignedStaff,
+          stage: targetStage,
           stockInDate: today,
+          stockOrigin: isAvailableHqStock ? 'EXISTING_HQ_STOCK' : 'NEW_SERIAL',
           isDuplicate: false,
           error: cellErrors.map((ce) => `Row ${ce.row}, Col ${ce.column} (${ce.columnName}): ${ce.message}`).join('; ') || undefined,
           cellErrors,
@@ -871,7 +962,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
     return parsed;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posPasteText, sbPasteText, posModel, sbModel, defaultBranch, defaultStage, branches, staffLabel]);
+  }, [posPasteText, sbPasteText, posModel, sbModel, defaultBranch, defaultStage, defaultBranchId, defaultStaff, branches, staffLabel, existingDevices, directoryUsers]);
 
   const processCsvFile = (file: File) => {
     const sizeKb = (file.size / 1024).toFixed(1);
@@ -1032,7 +1123,12 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     return raw.map((item, idx) => {
       const rowNum = item.csvRowNumber || idx + 1;
       const key = item.serial.trim().toUpperCase();
-      const inDb = existingSerials.has(key);
+      const inStockDev = existingDevices.find((d) => d.serial.trim().toUpperCase() === key);
+      const isAvailableInHqStock = inStockDev && inStockDev.stage === 'HQ_STOCK';
+      const isAllocatingToBranch = item.stage === 'BRANCH_RESERVE' || (item.branchId && item.branchId !== '100');
+      const isValidHqStockAllocation = isAvailableInHqStock && isAllocatingToBranch;
+
+      const inDb = existingSerials.has(key) && !isValidHqStockAllocation;
       const firstRowInFile = firstSeenRowBySerial.get(key);
       const inFileDup = firstRowInFile !== undefined;
       if (!inFileDup && !key.startsWith('MISSING_SN_ROW_')) {
@@ -1047,7 +1143,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           column: method === 'tableCsv' ? 2 : 1,
           columnName: 'Serial_SN',
           category: 'DUPLICATE_IN_FILE',
-          message: `Duplicate serial number "${key}" within CSV file (first seen at Row ${firstRowInFile})`,
+          message: `Duplicate serial number "${key}" within batch (first seen at Row ${firstRowInFile})`,
         });
       } else if (inDb) {
         baseCellErrors.push({
@@ -1055,7 +1151,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           column: method === 'tableCsv' ? 2 : 1,
           columnName: 'Serial_SN',
           category: 'DUPLICATE_IN_DB',
-          message: `Duplicate serial number "${key}" already exists in the inventory database`,
+          message: inStockDev
+            ? `Hardware serial "${key}" is already in ${STAGE_META[inStockDev.stage]?.short || inStockDev.stage} at ${inStockDev.branchName}`
+            : `Duplicate serial number "${key}" already exists in the inventory database`,
         });
       }
 
@@ -1066,12 +1164,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       return {
         ...item,
         csvRowNumber: rowNum,
+        stockOrigin: item.stockOrigin || (isAvailableInHqStock ? 'EXISTING_HQ_STOCK' : 'NEW_SERIAL'),
         isDuplicate,
         error: combinedError,
         cellErrors: baseCellErrors,
       };
     });
-  }, [method, tableCsvBatch, pastedBatch, existingSerials]);
+  }, [method, tableCsvBatch, pastedBatch, existingSerials, existingDevices]);
 
   /** Flatten all row/column validation issues across the staged batch. */
   const allValidationIssues = useMemo(() => {
@@ -1105,29 +1204,41 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     if (validItems.length === 0 || isUploadHalted || isCommittingBatches) return;
 
     if (existingDevices.length >= 10000) {
-      const serverDups = await checkExistingSerialsOnServer(validItems.map((i) => i.serial));
-      if (serverDups.size > 0) {
-        setServerExistingSerials((prev) => {
-          const next = new Set(prev);
-          serverDups.forEach((s) => next.add(s));
-          return next;
-        });
-        setCommitNotice(
-          `${serverDups.size} serial(s) already exist in the 500K-row inventory database. Review the highlighted Row & Column duplicate alert above before uploading.`
-        );
-        return;
+      const candidatesToCheck = validItems
+        .filter((i) => i.stockOrigin !== 'EXISTING_HQ_STOCK')
+        .map((i) => i.serial);
+      if (candidatesToCheck.length > 0) {
+        const serverDups = await checkExistingSerialsOnServer(candidatesToCheck);
+        if (serverDups.size > 0) {
+          setServerExistingSerials((prev) => {
+            const next = new Set(prev);
+            serverDups.forEach((s) => next.add(s));
+            return next;
+          });
+          setCommitNotice(
+            `${serverDups.size} new serial(s) already exist in the 500K-row inventory database. Review the highlighted Row & Column duplicate alert above before uploading.`
+          );
+          return;
+        }
       }
     }
 
-    const stillNew = validItems.filter((i) => !existingSerials.has(i.serial.trim().toUpperCase()));
-    if (stillNew.length !== validItems.length) {
+    const stillEligible = validItems.filter((i) => {
+      const key = i.serial.trim().toUpperCase();
+      if (i.stockOrigin === 'EXISTING_HQ_STOCK') {
+        const dev = existingDevices.find((d) => d.serial.trim().toUpperCase() === key);
+        return dev && dev.stage === 'HQ_STOCK';
+      }
+      return !existingSerials.has(key);
+    });
+    if (stillEligible.length !== validItems.length) {
       setCommitNotice(
-        `${validItems.length - stillNew.length} serial(s) were added to the inventory by someone else while you were reviewing. Fix the duplicates before uploading.`
+        `${validItems.length - stillEligible.length} serial(s) were modified or added to the inventory by someone else while you were reviewing. Please review staged items before uploading.`
       );
       return;
     }
 
-    const cleanPayload = stillNew.map(({ isDuplicate: _d, error: _e, cellErrors: _ce, csvRowNumber: _r, ...rest }) => ({
+    const cleanPayload = stillEligible.map(({ isDuplicate: _d, error: _e, cellErrors: _ce, csvRowNumber: _r, stockOrigin: _so, ...rest }) => ({
       ...rest,
       serial: rest.serial.trim().toUpperCase(),
     }));
@@ -1162,6 +1273,24 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       setBatchProgress(null);
     }
   };
+
+  const posStats = useMemo(() => {
+    if (!posPasteText.trim()) return { total: 0, inHqStock: 0, newSerials: 0, busy: 0 };
+    const items = pastedBatch.filter((i) => i.type === 'POS Terminal');
+    const inHq = items.filter((i) => i.stockOrigin === 'EXISTING_HQ_STOCK').length;
+    const busy = items.filter((i) => i.error && i.error.includes('already in')).length;
+    const news = items.filter((i) => i.stockOrigin === 'NEW_SERIAL' && !i.error).length;
+    return { total: items.length, inHqStock: inHq, newSerials: news, busy };
+  }, [posPasteText, pastedBatch]);
+
+  const sbStats = useMemo(() => {
+    if (!sbPasteText.trim()) return { total: 0, inHqStock: 0, newSerials: 0, busy: 0 };
+    const items = pastedBatch.filter((i) => i.type === 'Sound Box');
+    const inHq = items.filter((i) => i.stockOrigin === 'EXISTING_HQ_STOCK').length;
+    const busy = items.filter((i) => i.error && i.error.includes('already in')).length;
+    const news = items.filter((i) => i.stockOrigin === 'NEW_SERIAL' && !i.error).length;
+    return { total: items.length, inHqStock: inHq, newSerials: news, busy };
+  }, [sbPasteText, pastedBatch]);
 
   const modalBoxClass = isLight
     ? 'bg-white/95 text-slate-800 backdrop-blur-xl'
@@ -1367,7 +1496,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
                       Fallback Branch
@@ -1395,10 +1524,35 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       className={`w-full rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${inputClass}`}
                     >
                       <option value="HQ_STOCK">Admin HQ Stock (Branch Code 100)</option>
-                      <option value="BRANCH_RESERVE">Branch Reserve (Stock-In)</option>
+                      <option value="BRANCH_RESERVE">Branch Reserve (Stock-In / Allocation)</option>
                       <option value="CONFIGURING">Under Configuring (Merchant Setup)</option>
                       <option value="COMPLETE">Installed Live (Active Store)</option>
                       <option value="LOST">Device Lost / Missing</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                        Assigned Receiving Staff
+                      </label>
+                      {defaultStage === 'BRANCH_RESERVE' && (
+                        <span className="text-[9px] font-bold text-rose-500 bg-rose-500/10 px-1 rounded">
+                          REQUIRED
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={defaultStaff}
+                      onChange={(e) => setDefaultStaff(e.target.value)}
+                      className={`w-full rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${inputClass}`}
+                    >
+                      <option value="">-- Select Receiving Staff --</option>
+                      {branchStaffOptions.map((s) => (
+                        <option key={s.uid || s.name} value={s.name}>
+                          {s.name} {s.empId ? `(${s.empId})` : ''}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -1667,7 +1821,49 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               {method === 'paste' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Field 1: POS Terminal */}
-                  <div className="p-4 rounded-2xl border border-[#133e5e]/25 bg-[#133e5e]/[0.03] flex flex-col gap-3">
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDraggingPos(true);
+                    }}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDraggingPos(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDraggingPos(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDraggingPos(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          const content = (evt.target?.result as string) || '';
+                          setPosPasteText((prev) => (prev ? `${prev}\n${content}` : content));
+                        };
+                        reader.readAsText(file);
+                      }
+                    }}
+                    className={`relative p-4 rounded-2xl border transition-all ${
+                      isDraggingPos
+                        ? 'border-sky-500 bg-sky-500/10 ring-2 ring-sky-500/40 shadow-lg'
+                        : 'border-[#133e5e]/25 bg-[#133e5e]/[0.03]'
+                    } flex flex-col gap-3`}
+                  >
+                    {isDraggingPos && (
+                      <div className="absolute inset-0 z-20 rounded-2xl bg-sky-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-4 text-center border-2 border-dashed border-sky-400">
+                        <Upload className="w-8 h-8 text-sky-400 animate-bounce mb-1" />
+                        <span className="text-xs font-bold text-white">Drop POS Serials / CSV File Here</span>
+                        <span className="text-[10px] text-sky-200">Auto-populates serials into Field 1</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="p-1.5 rounded-lg bg-[#133e5e] text-white">
@@ -1721,10 +1917,71 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         className={`w-full rounded-xl p-3 text-xs font-mono placeholder-slate-400 focus:outline-none focus:border-[#133e5e] border ${inputClass}`}
                       />
                     </div>
+
+                    {posPasteText.trim() && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold flex-wrap pt-0.5">
+                        <span className="text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                          <strong>{posStats.inHqStock}</strong> in HQ Stock
+                        </span>
+                        <span className="text-sky-700 dark:text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20 flex items-center gap-1">
+                          <FilePlus className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                          <strong>{posStats.newSerials}</strong> New Serials
+                        </span>
+                        {posStats.busy > 0 && (
+                          <span className="text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                            <strong>{posStats.busy}</strong> In Another Stage
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Field 2: Sound Box */}
-                  <div className="p-4 rounded-2xl border border-[#1e5b88]/25 bg-[#1e5b88]/[0.03] flex flex-col gap-3">
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDraggingSb(true);
+                    }}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDraggingSb(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDraggingSb(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDraggingSb(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          const content = (evt.target?.result as string) || '';
+                          setSbPasteText((prev) => (prev ? `${prev}\n${content}` : content));
+                        };
+                        reader.readAsText(file);
+                      }
+                    }}
+                    className={`relative p-4 rounded-2xl border transition-all ${
+                      isDraggingSb
+                        ? 'border-sky-500 bg-sky-500/10 ring-2 ring-sky-500/40 shadow-lg'
+                        : 'border-[#1e5b88]/25 bg-[#1e5b88]/[0.03]'
+                    } flex flex-col gap-3`}
+                  >
+                    {isDraggingSb && (
+                      <div className="absolute inset-0 z-20 rounded-2xl bg-sky-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-4 text-center border-2 border-dashed border-sky-400">
+                        <Upload className="w-8 h-8 text-sky-400 animate-bounce mb-1" />
+                        <span className="text-xs font-bold text-white">Drop Sound Box Serials / CSV File Here</span>
+                        <span className="text-[10px] text-sky-200">Auto-populates serials into Field 2</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="p-1.5 rounded-lg bg-[#1e5b88] text-white">
@@ -1779,6 +2036,25 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         className={`w-full rounded-xl p-3 text-xs font-mono placeholder-slate-400 focus:outline-none focus:border-[#133e5e] border ${inputClass}`}
                       />
                     </div>
+
+                    {sbPasteText.trim() && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold flex-wrap pt-0.5">
+                        <span className="text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                          <strong>{sbStats.inHqStock}</strong> in HQ Stock
+                        </span>
+                        <span className="text-sky-700 dark:text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20 flex items-center gap-1">
+                          <FilePlus className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                          <strong>{sbStats.newSerials}</strong> New Serials
+                        </span>
+                        {sbStats.busy > 0 && (
+                          <span className="text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                            <strong>{sbStats.busy}</strong> In Another Stage
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1808,7 +2084,18 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       Staged Inventory Table Live Preview
                     </span>
                     <span className="text-[11px] font-normal text-slate-500 font-mono">
-                      ({validItems.length} valid: {validPosCount} POS, {validSbCount} Sound Box · {activeStagedBatch.length} row{activeStagedBatch.length === 1 ? '' : 's'} read)
+                      ({validItems.length} valid: {validPosCount} POS, {validSbCount} Sound Box
+                      {activeStagedBatch.some((i) => i.stockOrigin === 'EXISTING_HQ_STOCK') && (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold ml-1">
+                          · {activeStagedBatch.filter((i) => i.stockOrigin === 'EXISTING_HQ_STOCK').length} in HQ Stock
+                        </span>
+                      )}
+                      {activeStagedBatch.some((i) => i.stockOrigin === 'NEW_SERIAL') && (
+                        <span className="text-sky-600 dark:text-sky-400 font-bold ml-1">
+                          · {activeStagedBatch.filter((i) => i.stockOrigin === 'NEW_SERIAL').length} new
+                        </span>
+                      )}
+                      {' '}· {activeStagedBatch.length} row{activeStagedBatch.length === 1 ? '' : 's'} read)
                     </span>
                   </span>
                   {(dupCount > 0 || errorCount > 0) && (
@@ -1865,7 +2152,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               isLight ? 'text-slate-900' : 'text-white'
                             }`}
                           >
-                            {item.serial}
+                            <div className="flex items-center gap-1.5">
+                              <span>{item.serial}</span>
+                              {item.stockOrigin === 'EXISTING_HQ_STOCK' && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded font-sans font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
+                                  ✓ In HQ Stock
+                                </span>
+                              )}
+                              {item.stockOrigin === 'NEW_SERIAL' && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded font-sans font-bold bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/25">
+                                  + New
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-1.5 px-3 whitespace-nowrap">
                             <div className="flex items-center gap-1.5">
