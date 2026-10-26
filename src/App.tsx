@@ -3684,14 +3684,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             }}
             onSignOut={() => {
               if (isSupabaseConfigured) {                                  // (21 Oct 2026) the server session ends; this browser keeps nothing
-                writeAuditLog('Session Terminated', 'Signed out').finally(() => signOutEverywhere());
+                writeAuditLog('Session Ended', 'Signed out').finally(() => signOutEverywhere());
                 return;
               }
               try {
                 localStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
                 sessionStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
               } catch {}
-              addAuditLog('Session Terminated', 'Operator signed out of workstation session');
+              addAuditLog('Session Ended', 'Operator signed out of workstation session');
               setIsSessionLocked(false);
               setIsBatchModalOpen(false);
               setIsReqModalOpen(false);

@@ -440,7 +440,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Complete registry of merchants previously deployed with POS Terminals &amp; Sound Boxes that have since returned devices, closed business, or terminated service.
+              Complete registry of merchants previously deployed with POS Terminals &amp; Sound Boxes that have since returned devices or closed business.
             </p>
           </div>
         </div>
@@ -1464,7 +1464,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                    Return / Termination Reason
+                    Return Reason
                   </label>
                   <select
                     value={formReason}
@@ -1473,12 +1473,12 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                   >
                     <option value="Merchant Closed Business">Merchant Closed Business</option>
-                    <option value="Terminated Contract — Merchant Relocated">Terminated Contract — Merchant Relocated</option>
+                    <option value="Contract Ended — Merchant Relocated">Contract Ended — Merchant Relocated</option>
                     <option value="Upgraded from Sound Box to POS Terminal">Upgraded from Sound Box to POS Terminal</option>
                     <option value="Voluntary Return — Switch to Online KHQR Only">Voluntary Return — Switch to Online KHQR Only</option>
                     <option value="Degraded Battery (≥24M) & Merchant Inactivity">Degraded Battery (≥24M) &amp; Merchant Inactivity</option>
-                    <option value="Franchise Ownership Transfer / Account Terminated">Franchise Ownership Transfer / Account Terminated</option>
-                    <option value="Seasonal Merchant Termination">Seasonal Merchant Termination</option>
+                    <option value="Franchise Ownership Transfer / Account Closed">Franchise Ownership Transfer / Account Closed</option>
+                    <option value="Seasonal Merchant Return">Seasonal Merchant Return</option>
                   </select>
                 </div>
 

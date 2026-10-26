@@ -992,7 +992,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                      Terminated Device Return to HQ SLA (Days)
+                      Returned Device to HQ SLA (Days)
                     </label>
                     <input
                       type="number"
@@ -1126,7 +1126,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         <td className="py-2 px-2 text-right font-medium text-slate-600">Technical Officer</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-2 font-semibold text-zinc-800">Terminated / HQ Return</td>
+                        <td className="py-2 px-2 font-semibold text-zinc-800">Returned Hardware / HQ Return</td>
                         <td className="py-2 px-2 font-mono font-bold text-amber-700">&le; {formState.slaRmaReturnDays ?? 7} Days</td>
                         <td className="py-2 px-2 font-mono text-amber-600">{((formState.slaRmaReturnDays ?? 7) * ((formState.slaWarningThresholdPercent ?? 80) / 100)).toFixed(1)} Days</td>
                         <td className="py-2 px-2 text-right font-medium text-slate-600">Operations Head</td>

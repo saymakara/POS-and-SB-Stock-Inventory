@@ -79,7 +79,7 @@ const STAGE_STYLES: Record<
   },
 };
 
-/** Summary cards: the stock stages plus the Terminated & Returned count (reflected from Merchant History). */
+/** Summary cards: the stock stages plus the Returned count (reflected from Merchant History). */
 const CARD_ORDER: LifecycleStage[] = [...STAGE_ORDER.filter((s) => s !== 'LOST'), 'FAULTY', 'LOST'];
 
 export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
@@ -118,7 +118,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
       }
     }
 
-    // Policy #9: Card Summary Terminate and Returned reflects Merchant History count directly
+    // Policy #9: Card Summary Returned reflects Merchant History count directly
     let histPos = 0;
     let histSb = 0;
     for (let i = 0; i < historicalMerchants.length; i++) {

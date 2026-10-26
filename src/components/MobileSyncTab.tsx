@@ -544,7 +544,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
         const isUnbound = isTerminated || isReused || isLost;
 
         const finalNote = isTerminated
-          ? `Merchant terminated — Physical hardware returned to ${
+          ? `Physical hardware returned to ${
               mobileTerminateDestination === 'HQ_STOCK'
                 ? 'Admin HQ Stock (100)'
                 : `Branch ${branchId} Reserve`
@@ -632,7 +632,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
     {
       id: 'FAULTY',
       subMode: 'STEP10_TERMINATE',
-      label: 'Terminate',
+      label: 'Return Device',
       sub: 'Return to Bank',
       icon: RefreshCw,
       activeClass: 'bg-[#004953] text-white border-emerald-500/30 shadow-sm',
@@ -1604,7 +1604,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         : stage === 'LOST'
                         ? 'Report Device Lost'
                         : mobileSubAction === 'STEP10_TERMINATE'
-                        ? 'Confirm Device Termination'
+                        ? 'Confirm Hardware Return'
                         : mobileSubAction === 'STEP11_REUSE'
                         ? 'Return to Branch Reserve'
                         : mobileSubAction === 'STEP9_REPLACE'

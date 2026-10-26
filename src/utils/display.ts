@@ -72,6 +72,7 @@ export function serviceLength(from?: string, to?: string): string {
 /** Title-case status text for chips (TERMINATED → Terminated). */
 export const statusText = (s: string | null | undefined): string => {
   const t = String(s || '').toLowerCase();
+  if (t === 'terminated') return 'Returned';
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : '—';
 };
 
