@@ -2534,19 +2534,6 @@ return (
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const target = selectedMerchantProfile;
-                      setSelectedMid(null);
-                      handleOpenBindModal(target);
-                    }}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#004953] hover:bg-[#005a66] text-white flex items-center gap-1.5 transition cursor-pointer shadow-xs border border-emerald-400/30"
-                    title="Bind another reserve POS Terminal or Sound Box to this merchant"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Bind Unit</span>
-                  </button>
                   {onTerminateMerchant && (
                     <button
                       type="button"
