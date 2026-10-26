@@ -493,7 +493,6 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                   </tr>
                 ) : (
                   pagedBranches.map((b, rowIdx) => {
-                    const isHQ = b.code === '100';
                     const isExpanded = expandedBranchCode === b.code;
                     const totalUnits = Math.max(b.totalDevices, 1);
                     const completePct = Math.round((b.completeCount / totalUnits) * 100);
@@ -527,22 +526,9 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
                           {/* Branch Code */}
                           <td className="py-3 px-3.5 font-mono">
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className={`px-2 py-0.5 rounded-md text-xs font-mono ${
-                                  isHQ
-                                    ? 'bg-slate-800 text-white'
-                                    : 'bg-zinc-100 text-zinc-900 border border-zinc-200'
-                                }`}
-                              >
+                            <span className="px-2 py-0.5 rounded-md text-xs font-mono bg-zinc-100 text-zinc-900 border border-zinc-200">
                                 Code {b.code}
                               </span>
-                              {isHQ && (
-                                <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-700">
-                                  HQ
-                                </span>
-                              )}
-                            </div>
                           </td>
 
                           {/* Branch Name */}
