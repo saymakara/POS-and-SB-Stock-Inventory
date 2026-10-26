@@ -42,6 +42,7 @@ interface PushConfiguringTabProps {
     serialOrSerials: string | string[],
     options?: {
       forceCsvFile?: boolean;
+      combineAllStaffCsv?: boolean;
       targetStaffName?: string;
       targetStaffTelegram?: string;
       pushTrackingId?: string;
@@ -88,20 +89,22 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [selectedSns, setSelectedSns] = useState<string[]>([]);
 
-  // Push Mode: 'total_csv' (Consolidated Total CSV per staff member) vs 'single_alert' (Individual device text alerts)
-  // Default to 'total_csv' so technicians with up to 10 devices receive 1 message + file instead of 10 messages
+  // Push Mode:
+  // - 'total_csv': Consolidated Total CSV per staff member (1 file/message per staff)
+  // - 'total_csv_all': Total CSV file with all staff included together in one master file
+  // - 'single_alert': Individual device text alerts
   const STORAGE_KEY_PUSH_MODE = 'crm_pos_push_mode_v1';
-  const [pushMode, setPushMode] = useState<'total_csv' | 'single_alert'>(() => {
+  const [pushMode, setPushMode] = useState<'total_csv' | 'total_csv_all' | 'single_alert'>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_PUSH_MODE);
-      if (saved === 'single_alert' || saved === 'total_csv') return saved;
+      if (saved === 'single_alert' || saved === 'total_csv' || saved === 'total_csv_all') return saved;
     } catch (e) {
       // ignore
     }
     return 'total_csv';
   });
 
-  const handleSetPushMode = (mode: 'total_csv' | 'single_alert') => {
+  const handleSetPushMode = (mode: 'total_csv' | 'total_csv_all' | 'single_alert') => {
     setPushMode(mode);
     try {
       localStorage.setItem(STORAGE_KEY_PUSH_MODE, mode);
@@ -524,7 +527,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     });
 
     onNotifyConfigReady?.(selectedSns, {
-      forceCsvFile: forceCsv,
+      forceCsvFile: pushMode === 'total_csv' || pushMode === 'total_csv_all',
+      combineAllStaffCsv: pushMode === 'total_csv_all',
       pushTrackingId: pushId,
     });
     setSelectedSns([]);
@@ -551,7 +555,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     const staffTelegram = dev.staffTelegram || (staffName ? userTelegramMap.get(staffName.toLowerCase().trim()) : undefined);
 
     onNotifyConfigReady?.([dev.serial], {
-      forceCsvFile: pushMode === 'total_csv',
+      forceCsvFile: pushMode === 'total_csv' || pushMode === 'total_csv_all',
+      combineAllStaffCsv: pushMode === 'total_csv_all',
       targetStaffName: staffName && staffName !== 'Unassigned Staff' ? staffName : undefined,
       targetStaffTelegram: staffTelegram,
       pushTrackingId: pushId,
@@ -633,7 +638,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       return next;
     });
     onNotifyConfigReady?.(allSerials, {
-      forceCsvFile: forceCsv,
+      forceCsvFile: pushMode === 'total_csv' || pushMode === 'total_csv_all',
+      combineAllStaffCsv: pushMode === 'total_csv_all',
       pushTrackingId: pushId,
     });
     setSelectedSns([]);
@@ -937,6 +943,45 @@ return (
                         : 'bg-slate-800 text-slate-400'
                   }`}>
                     1 Msg
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetPushMode('total_csv_all')}
+                className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
+                  pushMode === 'total_csv_all'
+                    ? isLight ? 'text-[#003857]' : 'text-sky-300'
+                    : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Combine all devices across all staff into 1 single CSV file and message"
+              >
+                {pushMode === 'total_csv_all' && (
+                  <motion.div
+                    layoutId="activePushModeIndicator"
+                    className={`absolute inset-0 rounded-lg shadow-xs ${
+                      isLight
+                        ? 'bg-white border border-slate-200/90'
+                        : 'bg-slate-800 border border-slate-700/80'
+                    }`}
+                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <FileSpreadsheet className={`w-3.5 h-3.5 transition-colors ${
+                    pushMode === 'total_csv_all' ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400'
+                  }`} />
+                  <span>Total CSV (All Staff)</span>
+                  <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono transition-colors ${
+                    pushMode === 'total_csv_all'
+                      ? isLight
+                        ? 'bg-teal-50 text-teal-700 border border-teal-200/70'
+                        : 'bg-teal-950/70 text-teal-300 border border-teal-800/80'
+                      : isLight
+                        ? 'bg-slate-200/60 text-slate-500'
+                        : 'bg-slate-800 text-slate-400'
+                  }`}>
+                    1 File
                   </span>
                 </span>
               </button>
@@ -1474,10 +1519,12 @@ return (
                 return (
                   <button
                     type="button"
-                    onClick={() => handleBatchPushClick(pushMode === 'total_csv')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.98] shadow-md shrink-0 ${
+                    onClick={() => handleBatchPushClick(pushMode === 'total_csv' || pushMode === 'total_csv_all')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.98] shadow-md shrink-0 ${
                       isBatchAllPushed
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                        : pushMode === 'total_csv_all'
+                        ? 'bg-teal-600 hover:bg-teal-500 text-white'
                         : pushMode === 'total_csv'
                         ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
                         : 'bg-sky-500 hover:bg-sky-400 text-white'
@@ -1485,6 +1532,8 @@ return (
                     title={
                       isBatchAllPushed
                         ? 'Selected devices already pushed. Click to re-push'
+                        : pushMode === 'total_csv_all'
+                        ? 'Send 1 combined master CSV file for all staff members containing all selected devices'
                         : pushMode === 'total_csv'
                         ? 'Send consolidated Total CSV file per staff member with all their selected devices'
                         : 'Send single-unit text alerts for selected devices'
@@ -1493,17 +1542,21 @@ return (
                     {isBatchAllPushed ? (
                       <>
                         <RotateCw className="w-3.5 h-3.5 text-white shrink-0" />
-                        <span>Re-push Total CSV ({selectedSns.length})</span>
+                        <span>Re-push ({selectedSns.length})</span>
                       </>
                     ) : (
                       <>
-                        {pushMode === 'total_csv' ? (
+                        {pushMode === 'total_csv_all' || pushMode === 'total_csv' ? (
                           <FileSpreadsheet className="w-3.5 h-3.5 text-white shrink-0" />
                         ) : (
                           <Send className="w-3.5 h-3.5 shrink-0" />
                         )}
                         <span>
-                          {pushMode === 'total_csv' ? 'Push Total CSV' : 'Push Alerts'} ({selectedSns.length})
+                          {pushMode === 'total_csv_all'
+                            ? `Push All in 1 CSV (${selectedSns.length})`
+                            : pushMode === 'total_csv'
+                            ? `Push Total CSV (${selectedSns.length})`
+                            : `Push Alerts (${selectedSns.length})`}
                         </span>
                       </>
                     )}

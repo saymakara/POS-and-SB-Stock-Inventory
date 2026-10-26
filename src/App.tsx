@@ -2255,6 +2255,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     serialOrSerials: string | string[],
     options?: {
       forceCsvFile?: boolean;
+      combineAllStaffCsv?: boolean;
       targetStaffName?: string;
       targetStaffTelegram?: string;
       pushTrackingId?: string;
@@ -2373,72 +2374,130 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           : `[${pushId}] In-app alert recorded for SN ${dev.serial}. (Telegram: ${res.error || 'Check settings'})`
       );
     } else {
-      // Consolidated Total CSV notification (1 file per assigned staff containing all their merchants)
-      const byStaff = new Map<string, typeof targets>();
-      for (const dev of targets) {
-        const staffKey = dev.staff || dev.installedByStaff || options?.targetStaffName || 'Assigned Branch Staff';
-        if (!byStaff.has(staffKey)) byStaff.set(staffKey, []);
-        byStaff.get(staffKey)!.push(dev);
-      }
+      const isCombineAllStaff = options?.combineAllStaffCsv === true;
 
-      // Add in-app notification per staff group/branch
-      for (const [staffKey, groupDevs] of byStaff.entries()) {
-        const sampleB = groupDevs[0]?.branchId || '100';
+      if (isCombineAllStaff) {
+        // Master Total CSV notification: All staff included together in one single file & message
+        const sampleB = targets[0]?.branchId || '100';
         addNotification(
-          `Batch App Push Ready (${groupDevs.length} Units) [${pushId}]`,
-          `Assigned By: ${operator}. Configure By: ${staffKey}. Batch Tracking ID: ${pushId}. Please power ON and open ${groupDevs.length} assigned device(s) to wait for app push.`,
+          `Batch App Push Ready (${targets.length} Units - All Staff Master File) [${pushId}]`,
+          `Assigned By: ${operator}. Batch Tracking ID: ${pushId}. 1 combined master CSV file covering ${targets.length} device(s) across all staff to wait for app push.`,
           'REQUEST',
           sampleB,
           'inventory'
         );
+
+        const res = await sendBatchDeviceConfigTelegramAlert({
+          devices: targets.map((d) => {
+            const sName = d.staff || d.installedByStaff || options?.targetStaffName || '';
+            const tg =
+              d.staffTelegram ||
+              staffTelegramMap.get(sName.toLowerCase().trim()) ||
+              staffTelegramMap.get((d.staff || '').toLowerCase().trim());
+            return {
+              serial: d.serial,
+              type: d.type,
+              deviceType: d.type,
+              model: d.model,
+              mid: d.mid,
+              tid: d.tid,
+              merchantName: d.merchantName,
+              branchId: d.branchId,
+              branchName: d.branchName,
+              staff: sName,
+              staffName: sName,
+              staffTelegram: tg,
+              pushId,
+            };
+          }),
+          pushId,
+          adminOperator: operator,
+          actor: operator,
+          regionalGroups: appSettings.telegramRegionalGroups,
+          branches: branches,
+          groupByStaff: false,
+          targetStaffName: options?.targetStaffName,
+          targetStaffTelegram: options?.targetStaffTelegram,
+        });
+
+        addAuditLog(
+          'Bulk App Push Total CSV (All Staff Master) Notification Sent',
+          `Assigned by ${operator}. Batch Push ID: ${pushId}. Dispatched 1 combined master CSV file for all staff with ${targets.length} unit(s) to Telegram.`
+        );
+
+        triggerToast(
+          res.ok
+            ? `[${pushId}] Sent 1 Combined CSV file for all staff (${targets.length} units) to Telegram!`
+            : `[${pushId}] Sent in-app batch alert for ${targets.length} units. (Telegram: ${res.error || 'Check settings'})`
+        );
+      } else {
+        // Consolidated Total CSV notification (1 file per assigned staff containing all their merchants)
+        const byStaff = new Map<string, typeof targets>();
+        for (const dev of targets) {
+          const staffKey = dev.staff || dev.installedByStaff || options?.targetStaffName || 'Assigned Branch Staff';
+          if (!byStaff.has(staffKey)) byStaff.set(staffKey, []);
+          byStaff.get(staffKey)!.push(dev);
+        }
+
+        // Add in-app notification per staff group/branch
+        for (const [staffKey, groupDevs] of byStaff.entries()) {
+          const sampleB = groupDevs[0]?.branchId || '100';
+          addNotification(
+            `Batch App Push Ready (${groupDevs.length} Units) [${pushId}]`,
+            `Assigned By: ${operator}. Configure By: ${staffKey}. Batch Tracking ID: ${pushId}. Please power ON and open ${groupDevs.length} assigned device(s) to wait for app push.`,
+            'REQUEST',
+            sampleB,
+            'inventory'
+          );
+        }
+
+        const res = await sendBatchDeviceConfigTelegramAlert({
+          devices: targets.map((d) => {
+            const sName = d.staff || d.installedByStaff || options?.targetStaffName || '';
+            const tg =
+              d.staffTelegram ||
+              (options?.targetStaffName && sName.toLowerCase().trim() === options.targetStaffName.toLowerCase().trim()
+                ? options.targetStaffTelegram
+                : undefined) ||
+              staffTelegramMap.get(sName.toLowerCase().trim()) ||
+              staffTelegramMap.get((d.staff || '').toLowerCase().trim());
+            return {
+              serial: d.serial,
+              type: d.type,
+              deviceType: d.type,
+              model: d.model,
+              mid: d.mid,
+              tid: d.tid,
+              merchantName: d.merchantName,
+              branchId: d.branchId,
+              branchName: d.branchName,
+              staff: sName,
+              staffName: sName,
+              staffTelegram: tg,
+              pushId,
+            };
+          }),
+          pushId,
+          adminOperator: operator,
+          actor: operator,
+          regionalGroups: appSettings.telegramRegionalGroups,
+          branches: branches,
+          groupByStaff: true,
+          targetStaffName: options?.targetStaffName,
+          targetStaffTelegram: options?.targetStaffTelegram,
+        });
+
+        addAuditLog(
+          'Bulk App Push Total CSV Notification Sent',
+          `Assigned by ${operator}. Batch Push ID: ${pushId}. Dispatched Total CSV alert for ${targets.length} unit(s) across ${byStaff.size} staff member(s) and ${res.groupsSent} Telegram regional destination(s).`
+        );
+
+        triggerToast(
+          res.ok
+            ? `[${pushId}] Sent Total CSV alert for ${targets.length} unit(s) (${byStaff.size} staff member(s)) across ${res.groupsSent} Telegram destination(s)!`
+            : `[${pushId}] Sent in-app batch alert for ${targets.length} units. (Telegram: ${res.error || 'Check settings'})`
+        );
       }
-
-      const res = await sendBatchDeviceConfigTelegramAlert({
-        devices: targets.map((d) => {
-          const sName = d.staff || d.installedByStaff || options?.targetStaffName || '';
-          const tg =
-            d.staffTelegram ||
-            (options?.targetStaffName && sName.toLowerCase().trim() === options.targetStaffName.toLowerCase().trim()
-              ? options.targetStaffTelegram
-              : undefined) ||
-            staffTelegramMap.get(sName.toLowerCase().trim()) ||
-            staffTelegramMap.get((d.staff || '').toLowerCase().trim());
-          return {
-            serial: d.serial,
-            type: d.type,
-            deviceType: d.type,
-            model: d.model,
-            mid: d.mid,
-            tid: d.tid,
-            merchantName: d.merchantName,
-            branchId: d.branchId,
-            branchName: d.branchName,
-            staff: sName,
-            staffName: sName,
-            staffTelegram: tg,
-            pushId,
-          };
-        }),
-        pushId,
-        adminOperator: operator,
-        actor: operator,
-        regionalGroups: appSettings.telegramRegionalGroups,
-        branches: branches,
-        groupByStaff: true,
-        targetStaffName: options?.targetStaffName,
-        targetStaffTelegram: options?.targetStaffTelegram,
-      });
-
-      addAuditLog(
-        'Bulk App Push Total CSV Notification Sent',
-        `Assigned by ${operator}. Batch Push ID: ${pushId}. Dispatched Total CSV alert for ${targets.length} unit(s) across ${byStaff.size} staff member(s) and ${res.groupsSent} Telegram regional destination(s).`
-      );
-
-      triggerToast(
-        res.ok
-          ? `[${pushId}] Sent Total CSV alert for ${targets.length} unit(s) (${byStaff.size} staff member(s)) across ${res.groupsSent} Telegram destination(s)!`
-          : `[${pushId}] Sent in-app batch alert for ${targets.length} units. (Telegram: ${res.error || 'Check settings'})`
-      );
     }
   };
 

@@ -620,10 +620,26 @@ export async function sendBatchDeviceConfigTelegramAlert(
     const groupName = Array.from(dest.names).join(' + ');
     const sampleBranch = dest.devices[0]?.branchId || '100';
     const sampleBranchName = dest.devices[0]?.branchName || groupName;
-    const cleanStaff = (dest.staffName || 'Staff')
-      .replace(/[^a-zA-Z0-9]/g, '_')
-      .replace(/_+/g, '_')
-      .replace(/^_|_$/g, '');
+
+    // Distinct staff members and telegram handles
+    const uniqueStaffList = Array.from(
+      new Set(dest.devices.map((d) => (d.staff || d.staffName || '').trim()).filter(Boolean))
+    );
+    const uniqueMentions = Array.from(
+      new Set(
+        dest.devices
+          .map((d) => formatTelegramMention(d.staffTelegram, d.staff || d.staffName || ''))
+          .filter(Boolean)
+      )
+    );
+
+    const isAllStaffMode = !groupByStaff && uniqueStaffList.length > 1;
+    const cleanStaff = isAllStaffMode
+      ? 'All_Staff'
+      : (dest.staffName || 'Staff')
+          .replace(/[^a-zA-Z0-9]/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_|_$/g, '');
 
     // Device type label for filename
     const devTypes = new Set(dest.devices.map((d) => (d.deviceType || d.type || '').toLowerCase()));
@@ -635,17 +651,27 @@ export async function sendBatchDeviceConfigTelegramAlert(
 
     const fileName = `${cleanStaff}_${devTypeLabel}_Total_${dest.devices.length}_Merchants_${batchPushId}.csv`;
     const fileCsv = buildDeviceConfigCsv(dest.devices, sampleBranch, actor, batchPushId);
-    const mention = formatTelegramMention(dest.staffTelegram, dest.staffName);
 
-    // Build 1 consolidated Telegram notification per staff (Mandatory data only - HTML formatted, preserves underscores in mentions)
+    const staffDisplayName = isAllStaffMode
+      ? uniqueStaffList.join(', ')
+      : dest.staffName;
+    const staffMentionStr = isAllStaffMode
+      ? (uniqueMentions.length > 0 ? ` (${uniqueMentions.join(' ')})` : '')
+      : (formatTelegramMention(dest.staffTelegram, dest.staffName)
+          ? ` (${formatTelegramMention(dest.staffTelegram, dest.staffName)})`
+          : '');
+
+    // Build consolidated Telegram notification (Mandatory data only - HTML formatted, preserves underscores in mentions)
     const lines: string[] = [
-      `📲 <b>Ready for App Push</b>`,
+      isAllStaffMode
+        ? `📲 <b>Ready for App Push (All Staff Master File)</b>`
+        : `📲 <b>Ready for App Push</b>`,
       `🆔 <b>Push Tracking ID:</b> <code>${escapeHtml(batchPushId)}</code>`,
-      `• <b>Assigned Staff:</b> <b>${escapeHtml(dest.staffName)}</b>${mention ? ` (${mention})` : ''}`,
+      `• <b>Assigned Staff${isAllStaffMode ? ` (${uniqueStaffList.length})` : ''}:</b> <b>${escapeHtml(staffDisplayName)}</b>${staffMentionStr}`,
       `• <b>Assigned By:</b> <b>${escapeHtml(actor)}</b>`,
       `• <b>Branch:</b> Code <code>${escapeHtml(sampleBranch)}</code> (${escapeHtml(sampleBranchName)})`,
       dest.isRegional ? `• <b>Destination Group:</b> <b>${escapeHtml(groupName)}</b>` : null,
-      `• <b>Total Devices:</b> <b>${dest.devices.length} unit${dest.devices.length === 1 ? '' : 's'}</b> (Details in attached CSV)`,
+      `• <b>Total Devices:</b> <b>${dest.devices.length} unit${dest.devices.length === 1 ? '' : 's'}${isAllStaffMode ? ' (All staff included in 1 file)' : ''}</b> (Details in attached CSV)`,
       `• <b>Action:</b> Please power ON device${dest.devices.length === 1 ? '' : 's'} to wait for App Push.`,
       `• <b>Timestamp:</b> ${timestamp}`,
     ].filter(Boolean) as string[];
