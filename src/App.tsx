@@ -229,7 +229,6 @@ const TabLoading = () => (
     <div className="skeleton h-64 rounded-2xl" />
   </div>
 );
-const TERMINATION_REASON = /clos|terminat|franchise|seasonal|cancel/i;
 const loadServerAuditLogs = (limit = 50, offset = 0) => fetchAuditLogs(limit, offset);
 /** A server staff account in the shape the screens use (no password: sign-in is handled by the server). */
 const staffToUser = (a: StaffAccount, branchName?: string): User => ({
@@ -1980,7 +1979,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const records: HistoricalMerchantRecord[] = [];
     targets.forEach((d) => {
       // (22 Oct 2026) the unit stays in its own branch unless HQ names another; no default branch is guessed
-      const bId = role === 'BRANCH' ? d.branchId : targetBranchId || (d.branchId !== '100' ? d.branchId : '');
+      const bId = targetBranchId || (d.branchId !== '100' ? d.branchId : '');
       const bObj = branches.find((b) => b.id === bId || b.code === bId);
       if (!inScope(d)) { problems.push(`${d.serial} (another branch)`); return; }
       if (!bObj || bId === '100') { problems.push(`${d.serial} (choose the branch to hold it)`); return; }
@@ -2030,7 +2029,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     mid: string,
     destination: 'HQ_STOCK' | 'BRANCH_RESERVE',
     reason: string = 'Returned by Merchant',
-    notes?: string
+    notes?: string,
+    targetBranchId?: string
   ) => {
     const today = todayPP();
     const nowTime = stampSecPP();
@@ -2039,19 +2039,29 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (!affected.length) { triggerToast('No unit of this merchant is in your branch.'); return; }
     if (destination === 'HQ_STOCK' && role === 'BRANCH') { triggerToast('Branch staff return units to the branch reserve; HQ approves a return to HQ.'); return; }
     const merchantName = affected[0].merchantName || mid;
-    const records = affected.map((d) => historyRecordFor(d, { reason, status: 'RETURNED', actor,
-      notes: notes || `Unit returned to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}.` }));
+    const toHq = destination === 'HQ_STOCK';
+    const fallbackBranchId = affected[0].branchId !== '100' ? affected[0].branchId : (branches.find((b) => (b.code || b.id) !== '100')?.code || '101');
+    const bId = toHq ? '100' : (targetBranchId || fallbackBranchId);
+    const bObj = branches.find((b) => b.id === bId || b.code === bId);
+    const destLabel = toHq ? 'HQ Central Stock (Code 100)' : `Branch Reserve (${bObj?.name || 'Branch Code ' + bId})`;
+
+    const records = affected.map((d) => historyRecordFor(d, {
+      reason,
+      status: 'RETURNED',
+      actor,
+      notes: notes || `Unit returned to ${destLabel}.`,
+    }));
+
     const nextMap = new Map(affected.map((d) => {
-      const toHq = destination === 'HQ_STOCK' || d.branchId === '100';
-      const bId = toHq ? '100' : d.branchId;
-      const bObj = branches.find((b) => b.id === bId || b.code === bId);
+      const devBId = toHq ? '100' : (targetBranchId || (d.branchId !== '100' ? d.branchId : fallbackBranchId));
+      const devBObj = branches.find((b) => b.id === devBId || b.code === devBId);
       const to: LifecycleStage = toHq ? 'HQ_STOCK' : 'BRANCH_RESERVE';
-      const destLabel = toHq ? 'HQ stock' : `branch reserve (${bObj?.name || 'Branch Code ' + bId})`;
+      const isBranchChanged = !toHq && devBId !== d.branchId;
       const next: Device = {
         ...onMove(d, to),
-        branchId: bId,
-        branchName: toHq ? 'Head Office' : bObj?.name || d.branchName,
-        staff: toHq ? '' : d.staff,
+        branchId: devBId,
+        branchName: toHq ? 'Head Office' : devBObj?.name || d.branchName,
+        staff: toHq ? '' : (isBranchChanged ? '' : d.staff),
         returnedByStaff: actor,
         returnedDate: today,
         returnReason: reason,
@@ -2059,14 +2069,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         redeployCount: (d.redeployCount || 0) + 1,
         updatedAt: today,
         note: `Returned to ${destLabel} (${reason})`,
-        history: [`${nowTime} | Hardware Return | Returned from ${d.merchantName || 'merchant'} to ${destLabel} — Reason: ${reason} — Officer: ${actor}`, ...(d.history || [])],
+        history: [
+          `${nowTime} | Hardware Return | Returned from ${d.merchantName || 'merchant'} to ${destLabel}${isBranchChanged ? ` (transferred from Branch ${d.branchId})` : ''} — Reason: ${reason} — Officer: ${actor}`,
+          ...(d.history || [])
+        ],
       };
       return [d.serial, next] as const;
     }));
+
     setDevices((prev) => prev.map((d) => nextMap.get(d.serial) || d));
     setHistoricalMerchants((prev) => [...records, ...prev]);
-    addAuditLog('Hardware Returned', `Returned ${affected.length} unit(s) from merchant ${merchantName} (${mid}) to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}`);
-    triggerToast(`Returned ${affected.length} unit(s) from ${merchantName} to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}.`);
+    addAuditLog('Hardware Returned', `Returned ${affected.length} unit(s) from merchant ${merchantName} (${mid}) to ${destLabel}`);
+    triggerToast(`Returned ${affected.length} unit(s) from ${merchantName} to ${destLabel}.`);
   };
 
   // Remove from Dashboard (Archive) & Restore

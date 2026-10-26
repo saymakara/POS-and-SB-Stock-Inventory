@@ -64,13 +64,6 @@ interface MerchantHistoryTabProps {
 }
 
 
-/** Reasons that end the merchant relationship are TERMINATED; a unit handed back while the merchant stays is RETURNED. */
-const TERMINATING_REASONS = [
-  'Merchant Closed Business',
-  'Terminated Contract — Merchant Relocated',
-  'Franchise Ownership Transfer / Account Terminated',
-  'Seasonal Merchant Termination',
-];
 const statusForReason = (_reason: string): HistoricalMerchantRecord['status'] => 'RETURNED';
 
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');

@@ -30,7 +30,7 @@ import { normalizeMid, isValidMidForType, midRuleError } from '../utils/display'
 import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
 import { tidFromMid } from '../utils/tid';
-import { validateStaffWithBranch, normalizeStaffName } from '../utils/staffUtils';
+import { validateStaffWithBranch } from '../utils/staffUtils';
 import { CSV_BATCH_SIZE, CSV_BATCH_DELAY_MS, checkExistingSerialsOnServer } from '../services/supabaseService';
 
 export type IntakeCycle = 'HQ_STOCK' | 'BRANCH_RESERVE' | 'CONFIGURING' | 'COMPLETE';
@@ -309,7 +309,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   theme = 'light',
   operatorLabel = '',
 }) => {
-  const directoryUsers = useMemo(() => {
+  const directoryUsers: User[] = useMemo(() => {
     if (users && users.length > 0) return users;
     try {
       const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('crm_pos_users_v20') : null;
@@ -431,7 +431,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   React.useEffect(() => {
     if (branchStaffOptions.length > 0) {
       const exists = branchStaffOptions.some(
-        (s) => s.name.toLowerCase() === defaultStaff.toLowerCase() || (s.empId && s.empId === defaultStaff)
+        (s: any) => s.name.toLowerCase() === defaultStaff.toLowerCase() || (s.empId && s.empId === defaultStaff)
       );
       if (!exists) {
         setDefaultStaff(branchStaffOptions[0].name);
@@ -1594,7 +1594,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       className={`w-full rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${inputClass}`}
                     >
                       <option value="">-- Select Receiving Staff --</option>
-                      {branchStaffOptions.map((s) => (
+                      {branchStaffOptions.map((s: any) => (
                         <option key={s.uid || s.name} value={s.name}>
                           {s.name} {s.empId ? `(${s.empId})` : ''}
                         </option>

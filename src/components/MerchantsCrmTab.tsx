@@ -128,7 +128,8 @@ interface MerchantsCrmTabProps {
     mid: string,
     destination: 'HQ_STOCK' | 'BRANCH_RESERVE',
     reason: string,
-    notes?: string
+    notes?: string,
+    targetBranchId?: string
   ) => void;
   onReplaceMerchantDevice?: (
     oldSerial: string,
@@ -211,6 +212,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   // Modal state for terminating a merchant & returning all hardware
   const [terminateModalMerchant, setTerminateModalMerchant] = useState<MerchantProfile | null>(null);
   const [terminateDestination, setTerminateDestination] = useState<'BRANCH_RESERVE' | 'HQ_STOCK'>('BRANCH_RESERVE');
+  const [returnBranchId, setReturnBranchId] = useState<string>('');
   const [terminateReason, setTerminateReason] = useState<string>('Returned by Merchant');
   const [terminateNotes, setTerminateNotes] = useState<string>('');
   const [replaceModalDevice, setReplaceModalDevice] = useState<Device | null>(null);
@@ -1053,6 +1055,13 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   const handleOpenTerminateModal = (merchant: MerchantProfile) => {
     setTerminateModalMerchant(merchant);
     setTerminateDestination('BRANCH_RESERVE');
+    const defaultBranch =
+      (merchant.branchId && merchant.branchId !== '100')
+        ? merchant.branchId
+        : (activeBranchId && activeBranchId !== '100')
+        ? activeBranchId
+        : (branches.find((b) => (b.code || b.id) !== '100')?.code || '101');
+    setReturnBranchId(defaultBranch);
     setTerminateReason('Returned by Merchant');
     setTerminateNotes('');
   };
@@ -1064,7 +1073,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       terminateModalMerchant.mid,
       terminateDestination,
       terminateReason,
-      terminateNotes.trim()
+      terminateNotes.trim(),
+      terminateDestination === 'BRANCH_RESERVE' ? returnBranchId : undefined
     );
     setTerminateModalMerchant(null);
   };
@@ -3107,7 +3117,7 @@ return (
                           terminateDestination === 'BRANCH_RESERVE' ? 'text-emerald-100' : 'text-slate-500'
                         }`}
                       >
-                        Return to Branch {terminateModalMerchant.branchId} Reserve for immediate redeployment.
+                        Return to Branch {returnBranchId || terminateModalMerchant.branchId} Reserve for immediate redeployment.
                       </span>
                     </button>
 
@@ -3136,6 +3146,53 @@ return (
                     </button>
                   </div>
                 </div>
+
+                {/* Receiving Branch Selection (when returning to Branch Reserve) */}
+                {terminateDestination === 'BRANCH_RESERVE' && (
+                  <div
+                    className={`p-3 rounded-2xl border ${
+                      isLight
+                        ? 'bg-emerald-50/60 border-emerald-200/80 text-emerald-950'
+                        : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'
+                    } space-y-1.5`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <label className="block font-bold text-[11px] uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                        Receiving Branch Reserve *
+                      </label>
+                      {terminateModalMerchant.branchId &&
+                        terminateModalMerchant.branchId !== returnBranchId && (
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                            Transferring to different branch
+                          </span>
+                        )}
+                    </div>
+                    <select
+                      value={returnBranchId}
+                      onChange={(e) => setReturnBranchId(e.target.value)}
+                      className={`w-full rounded-xl px-3 py-2 border font-semibold text-xs ${inputClass}`}
+                    >
+                      {branches
+                        .filter((b) => (b.code || b.id) !== '100')
+                        .map((b) => {
+                          const code = b.code || b.id;
+                          const isCurrent = code === terminateModalMerchant.branchId;
+                          return (
+                            <option key={code} value={code}>
+                              Branch Code {code} - {b.name} {isCurrent ? '(Current Servicing Branch)' : ''}
+                            </option>
+                          );
+                        })}
+                    </select>
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                      Devices will be checked into{' '}
+                      <strong className="text-emerald-700 dark:text-emerald-300">
+                        Branch Code {returnBranchId}
+                      </strong>{' '}
+                      reserve stock for redeployment.
+                    </p>
+                  </div>
+                )}
 
                 {/* Reason Selection */}
                 <div>

@@ -411,8 +411,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       if (returnTo === 'HQ_STOCK' && isAdminLike) {
         setPendingPayload({ ...quickMove('HQ_STOCK', 'RETURN_ADMIN_STOCK', 'Return to Stock · Admin HQ (Code 100)', '100', operatorLabel.trim(), why), note: why });
       } else {
-        if (!device.branchId || device.branchId === '100') return fail('This unit has no branch to hold it. Return it to Admin HQ stock instead.');
-        setPendingPayload({ ...quickMove('BRANCH_RESERVE', 'RETURN_BRANCH_RESERVE', `Return to Stock · Branch Code ${device.branchId} reserve`, device.branchId, device.staff || '', why), note: why });
+        const targetBId = branchId && branchId !== '100' ? branchId : (device.branchId !== '100' ? device.branchId : '');
+        if (!targetBId) return fail('This unit has no branch to hold it. Return it to Admin HQ stock instead.');
+        setPendingPayload({ ...quickMove('BRANCH_RESERVE', 'RETURN_BRANCH_RESERVE', `Return to Stock · Branch Code ${targetBId} reserve`, targetBId, device.staff || '', why), note: why });
       }
       setMidError('');
       setEditedSerial(device.serial);
@@ -1095,7 +1096,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button type="button" onClick={() => setReturnTo('BRANCH_RESERVE')} aria-pressed={returnTo === 'BRANCH_RESERVE'}
                       className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
-                      <Building2 className="w-3.5 h-3.5" /><span>Branch Code {device.branchId} reserve</span>
+                      <Building2 className="w-3.5 h-3.5" /><span>Branch Code {branchId && branchId !== '100' ? branchId : device.branchId} reserve</span>
                     </button>
                     {isAdminLike ? (
                       <button type="button" onClick={() => setReturnTo('HQ_STOCK')} aria-pressed={returnTo === 'HQ_STOCK'}
