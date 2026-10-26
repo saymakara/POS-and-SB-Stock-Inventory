@@ -423,17 +423,16 @@ export async function sendDeviceConfigTelegramAlert(
   const staffDisplay = info.staff || info.staffName || 'Branch Officer';
   const pushId = info.pushId || info.pushTrackingId || generatePushTrackingId();
   const text = [
-    `📲 *Under Configuring — Ready for App Push*`,
+    `📲 *Ready for App Push*`,
     `🆔 *Push Tracking ID:* \`${pushId}\``,
-    `• *Action Required:* Please *OPEN the device* and connect to network to wait for pushing the app!`,
+    `• *Assigned Staff:* *${staffDisplay}*${mention ? ` (${mention})` : ''}`,
     `• *Assigned By:* *${info.actor || info.adminOperator || 'System Admin'}*`,
-    `• *Configure By:* *${staffDisplay}*`,
     `• *Branch:* Code \`${info.branchId || '100'}\` (${info.branchName || 'Branch'})`,
-    target.isRegional ? `• *Destination Regional Group:* *${target.groupName}*` : null,
+    target.isRegional ? `• *Destination Group:* *${target.groupName}*` : null,
     `• *Serial Number:* \`${info.serial}\` (${devType}${devModel})`,
     `• *Merchant Name:* *${info.merchantName || 'Configured Merchant'}*`,
     `• *MID:* \`${info.mid || '—'}\`  |  *TID:* \`${info.tid || '—'}\``,
-    mention ? `\n👉 *Attention ${mention}:* Please power ON and open the device now to wait for app push!` : null,
+    `• *Action:* Please power ON device to wait for App Push.`,
     `• *Timestamp:* ${stampSecPP()}`,
   ]
     .filter(Boolean)
@@ -622,46 +621,18 @@ export async function sendBatchDeviceConfigTelegramAlert(
     const fileCsv = buildDeviceConfigCsv(dest.devices, sampleBranch, actor, batchPushId);
     const mention = formatTelegramMention(dest.staffTelegram);
 
-    // Build 1 consolidated Telegram notification per staff (instead of 10 separate pop-up messages!)
+    // Build 1 consolidated Telegram notification per staff (Mandatory data only - details in attached CSV)
     const lines: string[] = [
-      `📲 *${dest.staffName}${mention ? ` (${mention})` : ''} — Configuration Queue (${dest.devices.length} Merchants)*`,
+      `📲 *Ready for App Push*`,
       `🆔 *Push Tracking ID:* \`${batchPushId}\``,
-      `• *Assigned Staff:* *${dest.staffName}* ${mention ? `(${mention})` : ''}`,
+      `• *Assigned Staff:* *${dest.staffName}*${mention ? ` (${mention})` : ''}`,
       `• *Assigned By:* *${actor}*`,
       `• *Branch:* Code \`${sampleBranch}\` (${sampleBranchName})`,
       dest.isRegional ? `• *Destination Group:* *${groupName}*` : null,
-      `• *Total Devices:* *${dest.devices.length} units to configure*`,
-      `• *Attached CSV:* 📁 \`${fileName}\` (Contains all ${dest.devices.length} merchants, MIDs, and TIDs)`,
-      mention
-        ? `\n👉 *Attention ${mention}:* Please power ON and open your ${dest.devices.length} assigned device(s) now to wait for App Push!`
-        : `\n👉 *Action Required:* Please power ON and open your ${dest.devices.length} assigned device(s) now to wait for App Push!`,
-      ``,
-      `📋 *Merchant & Device List (${dest.devices.length} units):*`,
+      `• *Total Devices:* *${dest.devices.length} unit${dest.devices.length === 1 ? '' : 's'}* (Details in attached CSV)`,
+      `• *Action:* Please power ON device${dest.devices.length === 1 ? '' : 's'} to wait for App Push.`,
+      `• *Timestamp:* ${timestamp}`,
     ].filter(Boolean) as string[];
-
-    // List devices concisely while strictly obeying Telegram's 1024-character caption limit
-    let listedCount = 0;
-    for (let i = 0; i < dest.devices.length; i++) {
-      const d = dest.devices[i];
-      const devType = d.deviceType || d.type || 'Device';
-      const mName = d.merchantName ? `*${d.merchantName}*` : 'Merchant Pending';
-      const midTid = d.mid || d.tid ? ` (MID: \`${d.mid || '—'}\` | TID: \`${d.tid || '—'}\`)` : '';
-      const itemLine = `${i + 1}. 🔹 \`${d.serial}\` (${devType})\n   └ ${mName}${midTid}`;
-
-      // Check caption character limit (keep margin under 900 chars)
-      const projectedLen = lines.join('\n').length + itemLine.length + 80;
-      if (projectedLen > 900) {
-        lines.push(`... and ${dest.devices.length - listedCount} more merchants in attached CSV file.`);
-        break;
-      }
-      lines.push(itemLine);
-      listedCount++;
-    }
-
-    lines.push(
-      ``,
-      `• *Timestamp:* ${timestamp}`
-    );
 
     const res = await dispatchTelegramDocument(
       config.botToken,
