@@ -513,25 +513,40 @@ export const FieldReviewTab: React.FC<Props> = ({
         type="button"
         onClick={() => setTypeFilter(t)}
         aria-pressed={active}
-        className={`relative isolate btn-press px-3 py-1.5 rounded-xl text-xs font-normal border transition-all cursor-pointer ${
-          active
-            ? 'text-white border-[#003857]'
-            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900'
+        className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
+          active ? 'text-[#003857]' : 'text-slate-600 hover:text-slate-900'
         }`}
       >
         {active && (
-          <motion.span
+          <motion.div
             layoutId="fr-type-pill"
             aria-hidden
-            className="absolute inset-0 -z-10 rounded-[11px] bg-linear-to-r from-[#003857] to-[#004e75] shadow-xs"
+            className="absolute inset-0 rounded-lg bg-white border border-slate-200/90 shadow-xs"
             transition={SPRING}
           />
         )}
-        {t !== 'ALL' && (
-          <span className={`inline-block w-2 h-2 rounded-full mr-1.5 align-middle ${active ? (t === 'POS Terminal' ? 'bg-sky-300' : 'bg-purple-300') : DOT[t]}`} aria-hidden />
-        )}
-        <span>{label}</span>{' '}
-        <span className={`font-mono tabular-nums ${active ? 'text-sky-200' : 'text-slate-400'}`}>({n})</span>
+        <span className="relative z-10 flex items-center gap-1.5">
+          {t !== 'ALL' && (
+            <span
+              className={`w-2 h-2 rounded-full ${DOT[t] || 'bg-slate-400'}`}
+              aria-hidden
+            />
+          )}
+          <span>{label}</span>
+          <span
+            className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md transition-colors ${
+              active
+                ? t === 'POS Terminal'
+                  ? 'bg-sky-50 text-sky-700 border border-sky-200/70'
+                  : t === 'Sound Box'
+                  ? 'bg-purple-50 text-purple-700 border border-purple-200/70'
+                  : 'bg-slate-100 text-slate-700 border border-slate-200/70'
+                : 'bg-slate-200/60 text-slate-500'
+            }`}
+          >
+            {n}
+          </span>
+        </span>
       </button>
     );
   };
@@ -570,32 +585,46 @@ export const FieldReviewTab: React.FC<Props> = ({
           </div>
 
           {/* Segmented status tabs */}
-          <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200/80 gap-1">
+          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1">
             {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as Filter[]).map((f) => {
               const isActive = filter === f;
+              const label =
+                f === 'PENDING' ? 'Waiting' : f === 'ALL' ? 'All' : f === 'APPROVED' ? 'Approved' : 'Rejected';
               return (
                 <button
                   key={f}
                   type="button"
                   onClick={() => setFilter(f)}
                   aria-pressed={isActive}
-                  className={`relative isolate btn-press px-3 py-1.5 rounded-lg text-xs font-normal transition-colors cursor-pointer ${
-                    isActive ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+                  className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
+                    isActive ? 'text-[#003857]' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   {isActive && (
-                    <motion.span
+                    <motion.div
                       layoutId="fr-status-pill"
                       aria-hidden
-                      className="absolute inset-0 -z-10 rounded-lg bg-linear-to-r from-[#003857] to-[#004e75] shadow-xs"
+                      className="absolute inset-0 rounded-lg bg-white border border-slate-200/90 shadow-xs"
                       transition={SPRING}
                     />
                   )}
-                  <span>
-                    {f === 'PENDING' ? 'Waiting' : f === 'ALL' ? 'All' : f === 'APPROVED' ? 'Approved' : 'Rejected'}
-                  </span>{' '}
-                  <span className={`font-mono tabular-nums font-normal ${isActive ? 'text-sky-200' : 'text-slate-400'}`}>
-                    ({counts[f]})
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <span>{label}</span>
+                    <span
+                      className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md transition-colors ${
+                        isActive
+                          ? f === 'PENDING'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200/70'
+                            : f === 'APPROVED'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
+                            : f === 'REJECTED'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200/70'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200/70'
+                          : 'bg-slate-200/60 text-slate-500'
+                      }`}
+                    >
+                      {counts[f]}
+                    </span>
                   </span>
                 </button>
               );
@@ -604,9 +633,12 @@ export const FieldReviewTab: React.FC<Props> = ({
 
           <span className="hidden sm:block w-px h-5 bg-slate-200 mx-1" aria-hidden />
 
-          {typePill('ALL', 'All devices', typeCounts.pos + typeCounts.sb)}
-          {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
-          {typePill('Sound Box', 'Sound Box', typeCounts.sb)}
+          {/* Segmented device type tabs */}
+          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1">
+            {typePill('ALL', 'All devices', typeCounts.pos + typeCounts.sb)}
+            {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
+            {typePill('Sound Box', 'Sound Box', typeCounts.sb)}
+          </div>
 
 
           {/* Scope Toggle: Phnom Penh Staff Only vs All Branches */}
