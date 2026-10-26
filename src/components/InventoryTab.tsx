@@ -1215,20 +1215,19 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       <AnimatePresence>
         {selectedSns.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 24 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 36, mass: 0.6 }}
+            initial={{ opacity: 0, y: 28, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.7 }}
             role="region"
             aria-label="Selected units"
-            // (23 Oct 2026) under the table, held at the bottom of the screen: the table no longer jumps down after the
-            // first tick, so the next units can be ticked where they are
-            className="sticky bottom-4 z-40 max-h-[45vh] overflow-y-auto rounded-2xl p-4 border shadow-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-[#18191e] text-white border-zinc-700/80"
+            className="sticky bottom-4 z-40 max-h-[45vh] overflow-y-auto rounded-2xl p-3.5 sm:p-4 border shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65)] flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-gradient-to-r from-[#002238]/95 via-[#003857]/95 to-[#004e75]/95 text-white border-white/20 backdrop-blur-xl ring-1 ring-white/10 transition-all duration-300 ease-out transform-gpu will-change-transform"
           >
             <div className="flex flex-wrap items-center gap-3">
-              <span className="px-3 py-1 rounded-xl bg-white text-zinc-900 font-mono text-xs font-bold shadow-2xs">
-                {selectedSns.length} Serial{selectedSns.length === 1 ? '' : 's'} Selected
-              </span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#003857] font-mono text-xs font-bold shadow-xs shrink-0">
+                <CheckSquare className="w-3.5 h-3.5 text-[#003857]" />
+                <span>{selectedSns.length} Serial{selectedSns.length === 1 ? '' : 's'} Selected</span>
+              </div>
               {fulfillingRequisition && isAdminLike ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded-md bg-sky-500/20 text-sky-300 font-mono text-[11px] font-bold border border-sky-400/30">
@@ -1239,9 +1238,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   </span>
                 </div>
               ) : (
-                <span className="text-xs font-semibold text-white/90">
+                <span className="text-xs font-medium text-slate-200">
                   {isAdminLike
-                    ? 'Batch assign selected units to a target Branch Code, return to Admin Stock, or remove from dashboard:'
+                    ? 'Batch assign selected units to a target Branch Code or return to Admin Stock:'
                     : 'Request the return of the selected units to Head Office Admin Stock:'}
                 </span>
               )}
@@ -1275,12 +1274,13 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center bg-[#24262d] rounded-xl p-1 border border-white/15">
+                    <div className="flex items-center bg-white/10 hover:bg-white/15 rounded-xl p-1 border border-white/20 transition-colors">
+                      <Building2 className="w-3.5 h-3.5 text-sky-300 ml-2 shrink-0" />
                       <select
                         value={targetBulkBranch}
                         onChange={(e) => setTargetBulkBranch(e.target.value)}
                         aria-label="Target branch for bulk transfer"
-                        className="bg-transparent text-white text-xs font-semibold px-2.5 py-1.5 outline-none cursor-pointer"
+                        className="bg-transparent text-white text-xs font-semibold px-2 py-1.5 outline-none cursor-pointer max-w-[210px] truncate"
                       >
                         <option value="" disabled className="bg-[#003857] text-white">
                           Choose target branch…
@@ -1301,7 +1301,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         type="button"
                         onClick={handleOpenBulkAssign}
                         disabled={!targetBulkBranch}
-                        className="px-3 py-1.5 rounded-lg bg-white text-zinc-900 hover:bg-slate-100 text-xs font-semibold tracking-wide transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3.5 py-1.5 rounded-lg bg-white text-[#003857] hover:bg-slate-100 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
                       >
                         {targetBulkBranch
                           ? `Assign ${selectedSns.length} to Branch Code ${targetBulkBranch}`
@@ -1313,32 +1313,19 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   {!fulfillingRequisition && (
                     <button
                       onClick={handleOpenBulkReturnAdmin}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-900 text-xs font-semibold tracking-wide transition cursor-pointer"
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-300" />
                       <span>{isAdminLike ? 'Return to Admin Stock' : 'Request Return to Admin Stock'}</span>
-                    </button>
-                  )}
-
-
-
-
-                  {!fulfillingRequisition && isAdminLike && onRemoveFromDashboard && (
-                    <button
-                      onClick={handleOpenBulkRemove}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remove from Dashboard</span>
                     </button>
                   )}
 
                   {role === 'SUPER_ADMIN' && onDeletePermanently && (
                     <button
                       onClick={handleOpenBulkDelete}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-900 hover:bg-rose-800 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5 text-rose-300" />
                       <span>Delete Permanently</span>
                     </button>
                   )}
@@ -1348,17 +1335,17 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 {role === 'SUPER_ADMIN' && onDeletePermanently && (
                   <button
                     onClick={handleOpenBulkDelete}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-900 hover:bg-rose-800 text-white text-xs font-semibold tracking-wide transition cursor-pointer"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5 text-rose-300" />
                     <span>Delete Permanently</span>
                   </button>
                 )}
                 <button
                   onClick={handleOpenBulkRestore}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#133e5e] text-xs font-semibold tracking-wide transition cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#003857] text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
                 >
-                  <ArchiveRestore className="w-3.5 h-3.5" />
+                  <ArchiveRestore className="w-3.5 h-3.5 text-[#003857]" />
                   <span>Restore {selectedSns.length} to Active Dashboard</span>
                 </button>
                 </>
@@ -1366,7 +1353,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
               <button
                 onClick={() => setSelectedSns([])}
-                className="px-2.5 py-2 rounded-xl bg-white/12 hover:bg-white/22 text-xs font-semibold tracking-wide transition cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white border border-white/15 text-xs font-semibold tracking-wide transition-all active:scale-[0.98] cursor-pointer"
               >
                 Clear
               </button>
