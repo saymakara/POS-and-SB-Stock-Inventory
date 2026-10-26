@@ -348,7 +348,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                             : 'bg-rose-50 text-rose-700 border border-rose-200'
                         }`}
                       >
-                        {u.status}
+                        {u.status === 'Operating' ? 'Retained' : u.status === 'Suspended' ? 'Revoked' : u.status}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right space-x-1.5">

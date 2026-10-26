@@ -113,7 +113,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
     }
     if (!p || !p.active) {
       await supabase.auth.signOut();
-      setError(p ? 'This account is not active. Please contact your admin.' : 'No staff account is linked to this sign-in. Please contact your admin.');
+      setError(p ? 'This account access has been revoked. Please contact your admin.' : 'No staff account is linked to this sign-in. Please contact your admin.');
       setPhase('signin');
       return;
     }
