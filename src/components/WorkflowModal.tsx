@@ -1283,7 +1283,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <div className="flex flex-col gap-1 sm:col-span-1">
                 <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   <Store className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
-                  <span>Merchant DBA Name</span>
+                  <span>Merchant Name</span>
                 </label>
                 <input
                   type="text"
