@@ -27,10 +27,10 @@ export const Pager: React.FC<{ pg: PagerState; label?: string }> = ({ pg, label 
           </select>
         </label>
         <button type="button" onClick={() => go(pg.page - 1)} disabled={pg.page <= 1} aria-label="Previous page"
-          className="p-1.5 rounded-lg border border-slate-200 bg-white disabled:opacity-40 hover:bg-slate-100 cursor-pointer disabled:cursor-default"><ChevronLeft className="w-3.5 h-3.5" /></button>
+          className="btn-tactile p-1.5 rounded-lg border border-slate-200 bg-white disabled:opacity-40 hover:bg-slate-100 cursor-pointer disabled:cursor-default"><ChevronLeft className="w-3.5 h-3.5" /></button>
         <span className="tabular-nums min-w-[72px] text-center">Page {pg.page} / {pg.pages}</span>
         <button type="button" onClick={() => go(pg.page + 1)} disabled={pg.page >= pg.pages} aria-label="Next page"
-          className="p-1.5 rounded-lg border border-slate-200 bg-white disabled:opacity-40 hover:bg-slate-100 cursor-pointer disabled:cursor-default"><ChevronRight className="w-3.5 h-3.5" /></button>
+          className="btn-tactile p-1.5 rounded-lg border border-slate-200 bg-white disabled:opacity-40 hover:bg-slate-100 cursor-pointer disabled:cursor-default"><ChevronRight className="w-3.5 h-3.5" /></button>
       </div>
     </div>
   );

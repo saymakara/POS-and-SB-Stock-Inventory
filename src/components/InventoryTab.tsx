@@ -865,7 +865,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   <button
                     type="button"
                     onClick={toggleSelectAll}
-                    className="flex items-center justify-center text-white cursor-pointer"
+                    className="flex items-center justify-center text-white cursor-pointer active:scale-90 transition-transform duration-100"
                     title="Select All Visible Serials"
                     aria-label={allVisibleSelected ? 'Unselect all serials on this page' : 'Select all serials on this page'}
                     aria-pressed={allVisibleSelected}
@@ -930,7 +930,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         <button
                           type="button"
                           onClick={() => toggleSelectOne(dev.serial)}
-                          className="flex items-center justify-center cursor-pointer p-2 -m-2 rounded-md"
+                          className="flex items-center justify-center cursor-pointer p-2 -m-2 rounded-md active:scale-90 transition-transform duration-100"
                           aria-label={`${isChecked ? 'Unselect' : 'Select'} serial ${dev.serial}`}
                           aria-pressed={isChecked}
                         >

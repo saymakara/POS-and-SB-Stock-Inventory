@@ -108,7 +108,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
                 key={s.id}
                 type="button"
                 onClick={() => onSelectStage(s.id)}
-                className={`px-3 py-1.5 rounded-md border text-left flex items-center gap-2 cursor-pointer active:scale-[0.98] transition-all duration-150 ease-out ${
+                className={`btn-tactile px-3 py-1.5 rounded-md border text-left flex items-center gap-2 cursor-pointer ${
                   isSelected
                     ? 'bg-[#003857] border-sky-400/40 text-white shadow-xs'
                     : isLight
