@@ -8,7 +8,7 @@ import {defineConfig, type Plugin} from 'vite';
 const CSP = [
   "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com", "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co", "worker-src 'self' blob:", "object-src 'none'",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.telegram.org", "worker-src 'self' blob:", "object-src 'none'",
   "base-uri 'self'", "form-action 'self'",
 ].join('; ');
 const cspPlugin = (): Plugin => ({

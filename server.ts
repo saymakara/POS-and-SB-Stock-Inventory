@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -72,26 +72,52 @@ function sanitizeField(input: unknown, maxLen = 160): string {
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
+  const isProd = process.env.NODE_ENV === 'production';
+
+  // Reverse proxy trust (1 hop) for accurate IP resolution behind cloud load balancers
+  app.set('trust proxy', 1);
 
   app.disable('x-powered-by');
   app.use(express.json({ limit: '512kb' }));
 
   // Banking Security & Hardening Headers across all routes
-  app.use((_req, res, next) => {
+  app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    if (isProd) {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
     next();
   });
 
-  // Sliding window in-memory rate limiter for /api
+  // Sliding window in-memory rate limiter for /api with automatic memory leak pruning
   const ipRequests = new Map<string, { count: number; resetAt: number }>();
-  app.use('/api', (req, res, next) => {
+  const MAX_RATE_LIMIT_ENTRIES = 5000;
+
+  // Prune expired rate limit entries every 2 minutes
+  const rateLimitPruner = setInterval(() => {
+    const now = Date.now();
+    for (const [ip, entry] of ipRequests.entries()) {
+      if (now > entry.resetAt) {
+        ipRequests.delete(ip);
+      }
+    }
+  }, 2 * 60 * 1000);
+  rateLimitPruner.unref?.();
+
+  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
     const ip = (req.ip || req.socket.remoteAddress || 'unknown') as string;
     const now = Date.now();
     const windowMs = 60 * 1000;
     const maxReqs = 180;
+
+    // Safety guard against memory overflow from distributed spoofed IPs
+    if (ipRequests.size > MAX_RATE_LIMIT_ENTRIES) {
+      ipRequests.clear();
+    }
 
     const current = ipRequests.get(ip);
     if (!current || now > current.resetAt) {
@@ -100,6 +126,7 @@ async function startServer() {
       current.count += 1;
       if (current.count > maxReqs) {
         res.status(429).json({
+          ok: false,
           error: 'Too Many Requests',
           message: 'Rate limit exceeded. Please wait 1 minute before retrying.',
         });
@@ -110,7 +137,7 @@ async function startServer() {
   });
 
   // Security & CORS headers on /api/*
-  app.use('/api', (req, res, next) => {
+  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Installer-Key');
@@ -130,6 +157,7 @@ async function startServer() {
       connectedClients: sseClients.size,
       totalWebhookEvents: webhookLogs.length,
       timestamp: new Date().toISOString(),
+      uptimeSeconds: Math.floor(process.uptime()),
     });
   });
 
@@ -144,8 +172,9 @@ async function startServer() {
   // 3. Real-Time Server-Sent Events (SSE) Stream
   app.get('/api/v1/stream', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering on Nginx / proxies
     res.flushHeaders?.();
 
     // Send initial state snapshot so reconnecting clients reconcile missed events
@@ -158,19 +187,22 @@ async function startServer() {
 
     sseClients.add(res);
 
+    const cleanup = () => {
+      clearInterval(heartbeat);
+      sseClients.delete(res);
+    };
+
     const heartbeat = setInterval(() => {
       try {
         res.write(`: heartbeat ${Date.now()}\n\n`);
       } catch {
-        clearInterval(heartbeat);
-        sseClients.delete(res);
+        cleanup();
       }
     }, 25000);
 
-    req.on('close', () => {
-      clearInterval(heartbeat);
-      sseClients.delete(res);
-    });
+    req.on('close', cleanup);
+    req.on('error', cleanup);
+    res.on('error', cleanup);
   });
 
   // 4. Mobile Installer Webhook Endpoint (POST /api/v1/installations/sync)
@@ -238,7 +270,7 @@ async function startServer() {
   });
 
   // Vite middleware in development, static dist in production
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProd) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -257,18 +289,56 @@ async function startServer() {
         }
       }
     }));
-    app.get('*', (_req, res) => {
+    app.get('*', (_req: Request, res: Response) => {
       res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  // Centralized Error Handling Middleware
+  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    const errorMsg = err instanceof Error ? err.message : 'Internal Server Error';
+    console.error('[API Server Error]:', err);
+    if (!res.headersSent) {
+      res.status(500).json({
+        ok: false,
+        error: 'Internal Server Error',
+        message: isProd ? 'An unexpected server error occurred.' : errorMsg,
+      });
+    }
+  });
+
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(
       `[POS & Sound Box CRM Server] Running on http://0.0.0.0:${PORT} (SSE + Mobile System Webhook API Active)`
     );
   });
+
+  // Graceful shutdown handlers for container/process managers
+  const gracefulShutdown = (signal: string) => {
+    console.log(`[Server] Received ${signal}. Starting graceful shutdown...`);
+    clearInterval(rateLimitPruner);
+    for (const client of sseClients) {
+      try {
+        client.end();
+      } catch {
+        // ignore
+      }
+    }
+    sseClients.clear();
+    server.close(() => {
+      console.log('[Server] HTTP server closed gracefully.');
+      process.exit(0);
+    });
+    // Force terminate if still alive after 10s
+    setTimeout(() => {
+      console.error('[Server] Forcefully terminating after timeout.');
+      process.exit(1);
+    }, 10000).unref();
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 }
 
 startServer();
-

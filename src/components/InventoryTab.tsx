@@ -438,15 +438,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     }
   };
 
-  const handleOpenBulkRemove = () => {
-    if (!selectedSns.length || !isAdminLike) return;
-    setPendingBulkAction({
-      type: 'REMOVE',
-      title: 'Bulk Remove from Active Dashboard Inventory',
-      serials: [...selectedSns],
-      impactDescription: `You are about to archive ${selectedSns.length} hardware unit(s) from the active inventory ledger. They will be removed from live views and safely stored in the Removed / Archived tab for inspection or future restoration.`,
-    });
-  };
 
   const handleOpenBulkDelete = () => {
     if (!selectedSns.length || role !== 'SUPER_ADMIN') return;
