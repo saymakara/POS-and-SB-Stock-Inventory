@@ -77,11 +77,10 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
     cycle: 'BRANCH_RESERVE',
     name: 'Branch Staff Reserve Intake',
     tag: 'Branch Staff Reserve',
-    badge: 'Staff Assignment REQUIRED · No Merchant',
-    description: 'Stock allocated to branch inventory assigned to a staff custodian officer. Staff assignment is REQUIRED. No merchant info required.',
+    badge: 'Staff Assignment REQUIRED · Stock-In captured dynamically',
+    description: 'Stock allocated to branch inventory assigned to a staff custodian officer. Stock-In date is auto-captured dynamically to upload date.',
     filename: 'template_branch_staff_reserve.csv',
     columns: [
-      { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
       { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
       { id: 'Product_Type', label: 'Product_Type', desc: 'POS Terminal | Sound Box', req: false },
       { id: 'Model', label: 'Model', desc: 'Hardware Model Name', req: false },
@@ -92,19 +91,18 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Staff Custodian Name / ID', req: true },
     ],
     sampleRows: [
-      ['2026-10-25', 'WP5400PQ23200201', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'Babe (11122)'],
-      ['2026-10-25', 'SB2026000201', 'Sound Box', 'Q161 Pro', 'BAT-SB-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'KY Vibol (27267)'],
+      ['WP5400PQ23200201', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'Babe (11122)'],
+      ['SB2026000201', 'Sound Box', 'Q161 Pro', 'BAT-SB-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'KY Vibol (27267)'],
     ],
   },
   CONFIGURING: {
     cycle: 'CONFIGURING',
     name: 'Under Configuring Intake',
     tag: 'Under Configuring',
-    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED',
-    description: 'Hardware undergoing merchant technical setup. Merchant Name and 15-digit MID are REQUIRED. Staff assignment recorded.',
+    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In captured dynamically',
+    description: 'Hardware undergoing merchant technical setup. Stock-In date is auto-captured dynamically to upload date.',
     filename: 'template_under_configuring.csv',
     columns: [
-      { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
       { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
       { id: 'Product_Type', label: 'Product_Type', desc: 'POS Terminal | Sound Box', req: false },
       { id: 'Model', label: 'Model', desc: 'Hardware Model Name', req: false },
@@ -118,19 +116,18 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
     ],
     sampleRows: [
-      ['2026-10-25', 'WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Main Branch', 'CONFIGURING', 'Babe (11122)', 'Amazon Cafe BKK', '100000000012345', '00012345'],
-      ['2026-10-25', 'SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Main Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Lucky Mart Tuol Kork', '100000000054321', '00054321'],
+      ['WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Main Branch', 'CONFIGURING', 'Babe (11122)', 'Amazon Cafe BKK', '100000000012345', '00012345'],
+      ['SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Main Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Lucky Mart Tuol Kork', '100000000054321', '00054321'],
     ],
   },
   COMPLETE: {
     cycle: 'COMPLETE',
     name: 'Installed Live Intake',
     tag: 'Live Merchant',
-    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED',
-    description: 'Active hardware live at merchant store. Merchant Name and 15-digit MID are REQUIRED.',
+    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In captured dynamically',
+    description: 'Active hardware live at merchant store. Stock-In date is auto-captured dynamically to upload date.',
     filename: 'template_installed_live.csv',
     columns: [
-      { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
       { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
       { id: 'Product_Type', label: 'Product_Type', desc: 'POS Terminal | Sound Box', req: false },
       { id: 'Model', label: 'Model', desc: 'Hardware Model Name', req: false },
@@ -144,14 +141,13 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
     ],
     sampleRows: [
-      ['2026-10-25', 'WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Main Branch', 'COMPLETE', 'Babe (11122)', 'Lucky Supermarket Monivong', '100000000098765', '00098765'],
-      ['2026-10-25', 'SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Main Branch', 'COMPLETE', 'KY Vibol (27267)', 'Brown Coffee 57', '100000000087654', '00087654'],
+      ['WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Main Branch', 'COMPLETE', 'Babe (11122)', 'Lucky Supermarket Monivong', '100000000098765', '00098765'],
+      ['SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Main Branch', 'COMPLETE', 'KY Vibol (27267)', 'Brown Coffee 57', '100000000087654', '00087654'],
     ],
   },
 };
 
 export const SCHEMA_COLUMNS = [
-  { id: 'Stock_In_Date', label: 'Stock_In_Date', desc: 'Date (YYYY-MM-DD)', req: false },
   { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
   { id: 'Product_Type', label: 'Product_Type', desc: 'POS Terminal | Sound Box', req: false },
   { id: 'Model', label: 'Model', desc: 'Hardware Model Name', req: false },
@@ -480,6 +476,33 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           branchName: 5,
           stage: 6,
         };
+      } else if (sample.length === 8) {
+        // Exactly 8 columns: Serial_SN, Product_Type, Model, Battery_Serial, Branch_Code, Branch_Name, Lifecycle_Stage, Assigned_Staff
+        colMap = {
+          serial: 0,
+          type: 1,
+          model: 2,
+          batterySerial: 3,
+          branchCode: 4,
+          branchName: 5,
+          stage: 6,
+          staff: 7,
+        };
+      } else if (sample.length === 11) {
+        // Exactly 11 columns: Serial_SN, Product_Type, Model, Battery_Serial, Branch_Code, Branch_Name, Lifecycle_Stage, Assigned_Staff, Merchant_Name, MID, TID
+        colMap = {
+          serial: 0,
+          type: 1,
+          model: 2,
+          batterySerial: 3,
+          branchCode: 4,
+          branchName: 5,
+          stage: 6,
+          staff: 7,
+          merchantName: 8,
+          mid: 9,
+          tid: 10,
+        };
       } else if (sample.length >= 2 && !/^\d{4}-\d{2}-\d{2}/.test(sample[0])) {
         colMap = {
           serial: 0,
@@ -526,7 +549,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           'COLUMN_COUNT',
           `Incorrect column count: row has ${row.length} column(s), expected ${expectedColCount} matching header row`
         );
-      } else if (!hasHeader && ![1, 2, 3, 7, 8, 9, 10, 12, 13].includes(row.length) && row.length !== expectedColCount) {
+      } else if (!hasHeader && ![1, 2, 3, 7, 8, 9, 10, 11, 12, 13].includes(row.length) && row.length !== expectedColCount) {
         addErr(
           row.length || 1,
           'Column_Count',
