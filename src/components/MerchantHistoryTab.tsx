@@ -260,7 +260,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   }, [uniqueRecords, role, selectedBranch, branchFilter, typeFilter, reasonFilter, deferredQuery, showFullContact]);
   const { sorted: filteredRecords, sort: histSort, toggle: histToggle } = useSort<HistoricalMerchantRecord>(matchedRecords, {
     returned: (r) => r.returnedDate, type: (r) => r.status, merchant: (r) => r.merchantName, mid: (r) => r.mid, serial: (r) => r.serial,
-    branch: (r) => Number(r.branchId) || r.branchId, service: (r) => r.activeDurationMonths, reason: (r) => r.returnReason,
+    branch: (r) => (r.returnedByStaff || r.handledByStaff || '') + (r.branchId || ''), service: (r) => r.activeDurationMonths, reason: (r) => r.returnReason,
   });
 
   // Paging: back to page 1 whenever the filters or search change.
@@ -306,7 +306,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       'Merchant ID (MID)',
       'Serial Number',
       'Device Type & Model',
-      'Branch / Staff',
+      'Staff / Branch',
       'In Service',
       'Return Reason',
     ];
@@ -314,7 +314,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
     const rows = filteredRecords.map((r, idx) => {
       const bName = (branchMap.get(r.branchId) || r.branchName || `Branch ${r.branchId}`).replace(' Branch', '');
       const officer = r.returnedByStaff || r.handledByStaff || '-';
-      const branchStaff = `${r.branchId} · ${bName} (${officer})`;
+      const branchStaff = `${officer} (${r.branchId} · ${bName})`;
       const typeModel = `${r.deviceType}${r.model ? ' · ' + r.model : ''}`;
       const inService = r.installedDate
         ? `${serviceLength(r.installedDate, r.returnedDate)} (since ${r.installedDate})`
@@ -650,7 +650,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <SortTh k="merchant" sort={histSort} onSort={histToggle}>Merchant Name</SortTh>
                 <SortTh k="mid" sort={histSort} onSort={histToggle}>Merchant ID (MID)</SortTh>
                 <SortTh k="serial" sort={histSort} onSort={histToggle}>Serial Number</SortTh>
-                <SortTh k="branch" sort={histSort} onSort={histToggle}>Branch / Staff</SortTh>
+                <SortTh k="branch" sort={histSort} onSort={histToggle}>Staff / Branch</SortTh>
                 <SortTh k="service" sort={histSort} onSort={histToggle}>In Service</SortTh>
                 <SortTh k="reason" sort={histSort} onSort={histToggle}>Return Reason</SortTh>
                 <th className="text-right col-actions">Actions</th>
@@ -708,8 +708,8 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         </div>
                       </td>
                       <td>
-                        <div className="cell-main max-w-[190px] truncate" title={`Code ${rec.branchId} · ${rec.branchName}`}>{rec.branchId} · {rec.branchName.replace(' Branch', '')}</div>
-                        <div className={`cell-sub max-w-[190px] truncate ${hasKhmer(officer) ? 'khmer' : ''}`} title={officer}>{dash(officer)}</div>
+                        <div className={`cell-main max-w-[190px] truncate ${hasKhmer(officer) ? 'khmer' : ''}`} title={officer}>{dash(officer)}</div>
+                        <div className="cell-sub max-w-[190px] truncate" title={`Code ${rec.branchId} · ${rec.branchName}`}>{rec.branchId} · {rec.branchName.replace(' Branch', '')}</div>
                       </td>
                       <td className="whitespace-nowrap">
                         <div className="cell-main font-medium">{serviceLength(rec.installedDate, rec.returnedDate)}</div>
