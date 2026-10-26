@@ -1137,7 +1137,7 @@ return (
                     className="rounded border-slate-300 cursor-pointer accent-[#003857]"
                   />
                 </th>
-                <th className="py-3 px-4">Tracking ID</th>
+                <th className="py-3 px-4">Tracking ID &amp; TID</th>
                 <th className="py-3 px-4">Date &amp; Time</th>
                 <th className="py-3 px-4">Serial &amp; Model</th>
                 <th className="py-3 px-4">Merchant Name &amp; MID / TID</th>
@@ -1194,42 +1194,51 @@ return (
                         />
                       </td>
 
-                      {/* Push Tracking ID */}
+                      {/* Push Tracking ID & TID */}
                       <td className="py-3 px-4 whitespace-nowrap">
-                        {devPushId ? (
-                          <div className="inline-flex items-center gap-1.5">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition shadow-2xs ${
-                                isLight
-                                  ? 'bg-sky-50 text-sky-900 border-sky-200/90'
-                                  : 'bg-sky-950/60 text-sky-200 border-sky-800'
-                              }`}
-                              title={`Tracking ID: ${devPushId} (Search in Telegram)`}
-                            >
-                              <span className="text-sky-600 dark:text-sky-400 font-black">#</span>
-                              <span>{devPushId}</span>
+                        <div className="flex flex-col gap-1 items-start">
+                          {devPushId ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-mono text-[11px] font-medium border transition shadow-2xs ${
+                                  isLight
+                                    ? 'bg-sky-50 text-sky-900 border-sky-200/90'
+                                    : 'bg-sky-950/60 text-sky-200 border-sky-800'
+                                }`}
+                                title={`Tracking ID: ${devPushId} (Search in Telegram)`}
+                              >
+                                <span className="text-sky-600 dark:text-sky-400 font-bold">#</span>
+                                <span>{devPushId}</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyPushId(devPushId);
+                                }}
+                                className="p-1 rounded-md text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                                title="Copy Tracking ID (to find in Telegram)"
+                              >
+                                {copiedPushId === devPushId ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                              Pending Push
                             </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopyPushId(devPushId);
-                              }}
-                              className="p-1 rounded-md text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                              title="Copy Tracking ID (to find in Telegram)"
-                            >
-                              {copiedPushId === devPushId ? (
-                                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                            Pending Push
-                          </span>
-                        )}
+                          )}
+
+                          {dev.tid && (
+                            <div className="text-[10.5px] font-mono text-slate-600 dark:text-slate-300 font-medium pl-0.5 flex items-center gap-1">
+                              <span className="text-slate-400 dark:text-slate-500 font-normal">TID:</span>
+                              <span className="text-zinc-800 dark:text-slate-200">{dev.tid}</span>
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Date & Time of Request Push */}
@@ -1271,8 +1280,9 @@ return (
                         <div className="text-zinc-800 dark:text-slate-200 truncate max-w-[200px]" title={dev.merchantName}>
                           {dev.merchantName || 'Merchant Profile Pending'}
                         </div>
-                        <div className="text-[10.5px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
-                          MID: {dev.mid || '—'} {dev.tid ? `| TID: ${dev.tid}` : ''}
+                        <div className="text-[10.5px] font-mono text-slate-500 dark:text-slate-400 mt-0.5 flex flex-col gap-0.5">
+                          <div className="whitespace-nowrap">MID: {dev.mid || '—'}</div>
+                          {dev.tid && <div className="whitespace-nowrap">TID: {dev.tid}</div>}
                         </div>
                       </td>
 
