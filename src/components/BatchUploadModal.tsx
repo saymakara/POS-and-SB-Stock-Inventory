@@ -184,6 +184,9 @@ export interface StagedItem {
   tid?: string;
   redeployCount?: number;
   isDuplicate: boolean;
+  isDuplicateInFile?: boolean;
+  isAlreadyInDb?: boolean;
+  alreadyInDbMessage?: string;
   stockOrigin?: 'EXISTING_HQ_STOCK' | 'NEW_SERIAL';
   /** Why this row cannot be imported (unknown branch, bad stage/date, column count…); any error halts the upload. */
   error?: string;
@@ -868,10 +871,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
       rows.forEach((parts, rowIdx) => {
         const csvRowNumber = rowIdx + 1;
-        const first = (parts[0] || '').toLowerCase();
+        const first = (parts[0] || '').trim().toLowerCase();
         if (first.startsWith('serial') || first.startsWith('stock')) return;
 
-        let serial = (parts[0] || '').toUpperCase();
+        let serial = (parts[0] || '').trim().toUpperCase();
         let batterySerial = '';
         let modelPart = parts[1] || '';
         let branchPart = parts[2] || '';
@@ -949,17 +952,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               });
             }
           }
-        }
-
-        // If unit is already in another stage (e.g. at another branch, or with a merchant), warn the admin
-        if (inStockDev && inStockDev.stage !== 'HQ_STOCK') {
-          cellErrors.push({
-            row: csvRowNumber,
-            column: 1,
-            columnName: 'Serial_SN',
-            category: 'DUPLICATE_IN_DB',
-            message: `Hardware serial "${serial}" is already in ${STAGE_META[inStockDev.stage]?.short || inStockDev.stage} at ${inStockDev.branchName}${inStockDev.merchantName ? ` (Merchant: ${inStockDev.merchantName})` : ''}`,
-          });
         }
 
         parsed.push({
@@ -1161,6 +1153,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
       const isDuplicate = inDb || inFileDup;
       const baseCellErrors = item.cellErrors ? [...item.cellErrors] : [];
+
       if (inFileDup) {
         baseCellErrors.push({
           row: rowNum,
@@ -1170,26 +1163,39 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           message: `Duplicate serial number "${key}" within batch (first seen at Row ${firstRowInFile})`,
         });
       } else if (inDb) {
-        baseCellErrors.push({
-          row: rowNum,
-          column: method === 'tableCsv' ? 2 : 1,
-          columnName: 'Serial_SN',
-          category: 'DUPLICATE_IN_DB',
-          message: inStockDev
-            ? `Hardware serial "${key}" is already in ${STAGE_META[inStockDev.stage]?.short || inStockDev.stage} at ${inStockDev.branchName}`
-            : `Duplicate serial number "${key}" already exists in the inventory database`,
-        });
+        if (!baseCellErrors.some((ce) => ce.category === 'DUPLICATE_IN_DB')) {
+          const reserveDetail = inStockDev
+            ? `already in ${STAGE_META[inStockDev.stage]?.short || inStockDev.stage} at ${inStockDev.branchName}${inStockDev.merchantName ? ` (${inStockDev.merchantName})` : ''}`
+            : 'already in inventory database';
+          baseCellErrors.push({
+            row: rowNum,
+            column: method === 'tableCsv' ? 2 : 1,
+            columnName: 'Serial_SN',
+            category: 'DUPLICATE_IN_DB',
+            message: `Hardware serial "${key}" is ${reserveDetail}`,
+          });
+        }
       }
 
+      const alreadyInDbMessage = inDb
+        ? inStockDev
+          ? `Already in ${STAGE_META[inStockDev.stage]?.short || inStockDev.stage} at ${inStockDev.branchName}${inStockDev.merchantName ? ` (${inStockDev.merchantName})` : ''}`
+          : 'Already exists in inventory database'
+        : undefined;
+
+      const syntaxErrorsOnly = baseCellErrors.filter((ce) => ce.category !== 'DUPLICATE_IN_DB');
       const combinedError =
-        baseCellErrors.map((ce) => `Row ${ce.row}, Col ${ce.column} (${ce.columnName}): ${ce.message}`).join('; ') ||
-        item.error;
+        syntaxErrorsOnly.map((ce) => `Row ${ce.row}, Col ${ce.column} (${ce.columnName}): ${ce.message}`).join('; ') ||
+        (item.error && !item.error.includes('already in') ? item.error : undefined);
 
       return {
         ...item,
         csvRowNumber: rowNum,
         stockOrigin: item.stockOrigin || (isAvailableInHqStock ? 'EXISTING_HQ_STOCK' : 'NEW_SERIAL'),
         isDuplicate,
+        isDuplicateInFile: inFileDup,
+        isAlreadyInDb: inDb,
+        alreadyInDbMessage,
         error: combinedError,
         cellErrors: baseCellErrors,
       };
@@ -1206,6 +1212,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     }
     return list;
   }, [activeStagedBatch]);
+
+  /** Hard halting validation issues: only intra-batch duplicates and syntax/missing column errors halt upload. Serials already in reserve do NOT halt upload. */
+  const haltingValidationIssues = useMemo(() => {
+    return allValidationIssues.filter((issue) => issue.category !== 'DUPLICATE_IN_DB');
+  }, [allValidationIssues]);
 
   const isStaffColVisible = useMemo(() => {
     return (
@@ -1229,21 +1240,38 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     return activeStagedBatch.filter((item) => item.stage === stageFilter);
   }, [activeStagedBatch, stageFilter]);
 
-  const { validItems, dupCount, errorCount, validPosCount, validSbCount, isUploadHalted } = useMemo(() => {
-    const valid = activeStagedBatch.filter((i) => !i.isDuplicate && !i.error);
-    const dups = activeStagedBatch.filter((i) => i.isDuplicate).length;
-    const errs = activeStagedBatch.filter((i) => !i.isDuplicate && i.error).length;
-    // Strict Client-Side Pre-Validation: If ANY error or duplicate serial is found in CSV mode, halt the upload completely!
-    const halted = activeStagedBatch.length > 0 && (errs > 0 || dups > 0 || allValidationIssues.length > 0);
+  const {
+    validItems,
+    fileDupCount,
+    alreadyInDbCount,
+    syntaxErrorCount,
+    validPosCount,
+    validSbCount,
+    isUploadHalted,
+  } = useMemo(() => {
+    const valid = activeStagedBatch.filter(
+      (i) => !i.isDuplicateInFile && !i.isAlreadyInDb && !i.error
+    );
+    const fileDups = activeStagedBatch.filter((i) => i.isDuplicateInFile).length;
+    const inDbDups = activeStagedBatch.filter((i) => i.isAlreadyInDb).length;
+    const syntaxErrs = activeStagedBatch.filter(
+      (i) => !i.isDuplicateInFile && !i.isAlreadyInDb && !!i.error
+    ).length;
+
+    // Strict Client-Side Pre-Validation: Only hard syntax errors and intra-file duplicates halt upload completely.
+    // Serials already in branch reserve / inventory do NOT halt upload; they are simply marked "Validation: Not OK" in the table.
+    const halted = activeStagedBatch.length > 0 && haltingValidationIssues.length > 0;
+
     return {
       validItems: valid,
-      dupCount: dups,
-      errorCount: errs,
+      fileDupCount: fileDups,
+      alreadyInDbCount: inDbDups,
+      syntaxErrorCount: syntaxErrs,
       validPosCount: valid.filter((i) => i.type === 'POS Terminal').length,
       validSbCount: valid.filter((i) => i.type === 'Sound Box').length,
       isUploadHalted: halted,
     };
-  }, [activeStagedBatch, allValidationIssues]);
+  }, [activeStagedBatch, haltingValidationIssues]);
 
   const handleCommit = async () => {
     // Strict Pre-Validation Gate: Never ping the database if any error or duplicate exists in the batch
@@ -1284,10 +1312,22 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       return;
     }
 
-    const cleanPayload = stillEligible.map(({ isDuplicate: _d, error: _e, cellErrors: _ce, csvRowNumber: _r, stockOrigin: _so, ...rest }) => ({
-      ...rest,
-      serial: rest.serial.trim().toUpperCase(),
-    }));
+    const cleanPayload = stillEligible.map(
+      ({
+        isDuplicate: _d,
+        isDuplicateInFile: _df,
+        isAlreadyInDb: _db,
+        alreadyInDbMessage: _adm,
+        error: _e,
+        cellErrors: _ce,
+        csvRowNumber: _r,
+        stockOrigin: _so,
+        ...rest
+      }) => ({
+        ...rest,
+        serial: rest.serial.trim().toUpperCase(),
+      })
+    );
 
     setIsCommittingBatches(true);
     const totalBatches = Math.max(1, Math.ceil(cleanPayload.length / CSV_BATCH_SIZE));
@@ -1322,21 +1362,21 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
   const posStats = useMemo(() => {
     if (!posPasteText.trim()) return { total: 0, inHqStock: 0, newSerials: 0, busy: 0 };
-    const items = pastedBatch.filter((i) => i.type === 'POS Terminal');
-    const inHq = items.filter((i) => i.stockOrigin === 'EXISTING_HQ_STOCK').length;
-    const busy = items.filter((i) => i.error && i.error.includes('already in')).length;
-    const news = items.filter((i) => i.stockOrigin === 'NEW_SERIAL' && !i.error).length;
+    const items = activeStagedBatch.filter((i) => i.type === 'POS Terminal');
+    const inHq = items.filter((i) => i.stockOrigin === 'EXISTING_HQ_STOCK' && !i.isAlreadyInDb).length;
+    const busy = items.filter((i) => i.isAlreadyInDb).length;
+    const news = items.filter((i) => i.stockOrigin === 'NEW_SERIAL' && !i.isAlreadyInDb && !i.error).length;
     return { total: items.length, inHqStock: inHq, newSerials: news, busy };
-  }, [posPasteText, pastedBatch]);
+  }, [posPasteText, activeStagedBatch]);
 
   const sbStats = useMemo(() => {
     if (!sbPasteText.trim()) return { total: 0, inHqStock: 0, newSerials: 0, busy: 0 };
-    const items = pastedBatch.filter((i) => i.type === 'Sound Box');
-    const inHq = items.filter((i) => i.stockOrigin === 'EXISTING_HQ_STOCK').length;
-    const busy = items.filter((i) => i.error && i.error.includes('already in')).length;
-    const news = items.filter((i) => i.stockOrigin === 'NEW_SERIAL' && !i.error).length;
+    const items = activeStagedBatch.filter((i) => i.type === 'Sound Box');
+    const inHq = items.filter((i) => i.stockOrigin === 'EXISTING_HQ_STOCK' && !i.isAlreadyInDb).length;
+    const busy = items.filter((i) => i.isAlreadyInDb).length;
+    const news = items.filter((i) => i.stockOrigin === 'NEW_SERIAL' && !i.isAlreadyInDb && !i.error).length;
     return { total: items.length, inHqStock: inHq, newSerials: news, busy };
-  }, [sbPasteText, pastedBatch]);
+  }, [sbPasteText, activeStagedBatch]);
 
   const modalBoxClass = isLight
     ? 'bg-white/95 text-slate-800 backdrop-blur-xl'
@@ -1497,7 +1537,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       <Ban className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                       <div>
                         <div className="text-xs font-extrabold uppercase tracking-wider text-rose-700 dark:text-rose-300">
-                          Upload Halted by Client-Side Pre-Validation ({allValidationIssues.length} Error{allValidationIssues.length === 1 ? '' : 's'} Found)
+                          Upload Halted by Client-Side Pre-Validation ({haltingValidationIssues.length} Error{haltingValidationIssues.length === 1 ? '' : 's'} Found)
                         </div>
                         <p className="text-[11px] text-rose-800 dark:text-rose-200 mt-0.5">
                           To protect the database and prevent incomplete batch uploads, no API calls have been made to Supabase. Fix the exact row and column errors listed below in your CSV and re-upload:
@@ -1507,7 +1547,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   </div>
 
                   <div className="max-h-36 overflow-y-auto rounded-xl bg-white/90 dark:bg-slate-900/80 border border-rose-200 dark:border-rose-800/80 p-2.5 font-mono text-[11px] space-y-1">
-                    {allValidationIssues.slice(0, 50).map((issue, idx) => (
+                    {haltingValidationIssues.slice(0, 50).map((issue, idx) => (
                       <div key={idx} className="flex items-start gap-2 text-rose-700 dark:text-rose-300">
                         <span className="px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-900/60 font-bold shrink-0">
                           Row {issue.row}, Column {issue.column} ({issue.columnName})
@@ -1515,9 +1555,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         <span className="font-sans font-medium">{issue.message}</span>
                       </div>
                     ))}
-                    {allValidationIssues.length > 50 && (
+                    {haltingValidationIssues.length > 50 && (
                       <div className="text-rose-600 font-bold pt-1">
-                        …and {allValidationIssues.length - 50} more validation error(s).
+                        …and {haltingValidationIssues.length - 50} more validation error(s).
                       </div>
                     )}
                   </div>
@@ -2187,12 +2227,22 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       </div>
                     )}
 
-                    {(dupCount > 0 || errorCount > 0) && (
+                    {fileDupCount > 0 && (
                       <span className="text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 text-[11px] bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
                         <AlertCircle className="w-3.5 h-3.5" />
-                        {dupCount > 0 && `${dupCount} duplicate(s) halt upload`}
-                        {dupCount > 0 && errorCount > 0 && ' · '}
-                        {errorCount > 0 && `${errorCount} row(s) with errors`}
+                        {fileDupCount} duplicate(s) in batch halt upload
+                      </span>
+                    )}
+                    {syntaxErrorCount > 0 && (
+                      <span className="text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 text-[11px] bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        {syntaxErrorCount} syntax error(s) halt upload
+                      </span>
+                    )}
+                    {alreadyInDbCount > 0 && (
+                      <span className="text-amber-700 dark:text-amber-300 font-semibold flex items-center gap-1 text-[11px] bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        {alreadyInDbCount} already in inventory (Validation: Not OK)
                       </span>
                     )}
                   </div>
@@ -2223,8 +2273,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         <tr
                           key={`${item.serial}-${idx}`}
                           className={
-                            item.error || item.isDuplicate
+                            item.error || item.isDuplicateInFile
                               ? 'bg-rose-50/60 dark:bg-rose-950/20'
+                              : item.isAlreadyInDb
+                              ? 'bg-rose-50/40 dark:bg-rose-950/15'
                               : isLight
                               ? 'hover:bg-slate-50'
                               : 'hover:bg-slate-800/30'
@@ -2342,22 +2394,36 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                             </td>
                           )}
                           <td className="py-1.5 px-3 text-right whitespace-nowrap">
-                            {item.error ? (
+                            {item.isAlreadyInDb ? (
+                              <span
+                                title={item.alreadyInDbMessage}
+                                className="text-rose-600 dark:text-rose-400 font-bold text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 inline-flex items-center gap-1 max-w-[340px] truncate align-middle"
+                              >
+                                <AlertCircle className="w-3 h-3 shrink-0" />
+                                <span className="truncate">
+                                  Validation: Not OK — {item.alreadyInDbMessage || 'Already in Branch Reserve'}
+                                </span>
+                              </span>
+                            ) : item.isDuplicateInFile ? (
+                              <span
+                                title="Duplicate serial within uploaded batch"
+                                className="text-rose-600 dark:text-rose-400 font-bold text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 inline-flex items-center gap-1"
+                              >
+                                <AlertCircle className="w-3 h-3 shrink-0" />
+                                <span>Validation: Not OK — Duplicate in batch</span>
+                              </span>
+                            ) : item.error ? (
                               <span
                                 title={item.error}
-                                className="text-rose-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 inline-block max-w-[260px] truncate align-middle"
+                                className="text-rose-600 dark:text-rose-400 font-bold text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 inline-flex items-center gap-1 max-w-[340px] truncate align-middle"
                               >
-                                {item.error}
-                              </span>
-                            ) : item.isDuplicate ? (
-                              <span className="text-rose-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20">
-                                {existingSerials.has(item.serial.trim().toUpperCase())
-                                  ? 'Already in inventory (Halts Upload)'
-                                  : 'Duplicate in file (Halts Upload)'}
+                                <AlertCircle className="w-3 h-3 shrink-0" />
+                                <span className="truncate">Validation: Not OK — {item.error}</span>
                               </span>
                             ) : (
-                              <span className="text-emerald-600 font-bold text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                                Validated OK
+                              <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 inline-flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 shrink-0" />
+                                <span>Validated OK</span>
                               </span>
                             )}
                           </td>
@@ -2380,7 +2446,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               <p className="text-[11px] text-slate-400">
                                 {activeStagedBatch.length > 0
                                   ? 'Switch filters above to view other staged intake records'
-                                  : `Drag and drop your ${activeCycleSchema.tag} CSV file above or click Browse to stage serials`}
+                                  : method === 'tableCsv'
+                                  ? `Drag and drop your ${activeCycleSchema.tag} CSV file above or click Browse to stage serials`
+                                  : 'Paste serial numbers in the text areas above to stage inventory'}
                               </p>
                             </div>
                           </td>
@@ -2404,16 +2472,24 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 {isUploadHalted ? (
                   <span className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-bold text-xs bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20">
                     <Ban className="w-3.5 h-3.5" />
-                    <span>Upload halted: fix {allValidationIssues.length} row/column error(s) in CSV to proceed</span>
+                    <span>Upload halted: fix {haltingValidationIssues.length} row/column error(s) in CSV to proceed</span>
                   </span>
                 ) : validItems.length > 0 ? (
                   <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{validItems.length} pre-validated serials ready ({Math.ceil(validItems.length / CSV_BATCH_SIZE)} batch{Math.ceil(validItems.length / CSV_BATCH_SIZE) === 1 ? '' : 'es'} of {CSV_BATCH_SIZE})</span>
+                    <span>
+                      {validItems.length} pre-validated serials ready ({Math.ceil(validItems.length / CSV_BATCH_SIZE)} batch{Math.ceil(validItems.length / CSV_BATCH_SIZE) === 1 ? '' : 'es'} of {CSV_BATCH_SIZE})
+                    </span>
+                    {alreadyInDbCount > 0 && (
+                      <span className="text-amber-700 dark:text-amber-300 font-medium ml-1">
+                        ({alreadyInDbCount} already in reserve skipped)
+                      </span>
+                    )}
                   </span>
                 ) : (
                   <span className="text-slate-400 text-xs">
                     0 valid serials ready for intake staging
+                    {alreadyInDbCount > 0 && ` (${alreadyInDbCount} already in reserve skipped)`}
                   </span>
                 )}
               </div>
