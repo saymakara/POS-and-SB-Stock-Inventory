@@ -387,6 +387,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 });
 
 interface HeaderProps {
+  appSettings?: AppSettings;
   role: UserRole;
   onSetRole?: (role: UserRole) => void;
   branches: Branch[];

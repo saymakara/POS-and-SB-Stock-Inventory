@@ -1,5 +1,5 @@
 import { csvFile } from '../utils/csv';
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
@@ -367,17 +367,6 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return filteredDevices.filter((d) => !isDevicePushed(d.serial)).length;
   }, [filteredDevices, isDevicePushed]);
 
-  // Map of normalized staff name → count of waiting devices
-  const staffWaitingCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const d of waitingDevices) {
-      const rawStaff = d.staff || d.installedByStaff || 'Assigned Branch Staff';
-      const sName = normalizeStaffName(resolveStaffFromDirectory(rawStaff, d.branchId, users));
-      map.set(sName, (map.get(sName) || 0) + 1);
-    }
-    return map;
-  }, [waitingDevices, users]);
-
   // Checkbox helpers
   const handleToggleSelectAll = () => {
     if (selectedSns.length === filteredDevices.length && filteredDevices.length > 0) {
@@ -487,29 +476,6 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   };
 
   // Single-click immediate push handlers with 1-minute anti-spam cooldown
-  const handleRowPushClick = (serial: string) => {
-    if (getRowCooldownSecs(serial) > 0) return;
-
-    const dev = configuringDevices.find((d) => d.serial === serial);
-    const rawStaff = dev?.staff || dev?.installedByStaff || 'Assigned Branch Staff';
-    const staffName = normalizeStaffName(resolveStaffFromDirectory(rawStaff, dev?.branchId, users));
-    const tgHandle = dev?.staffTelegram || userTelegramMap.get(staffName.toLowerCase().trim());
-
-    // Single unit alert or single unit file
-    const pushId = generatePushTrackingId();
-    recordPushedSerials([serial], pushId);
-
-    const cooldownExp = Date.now() + COOLDOWN_TIMEOUT_MS;
-    setPushedCooldowns((prev) => ({ ...prev, [`sn_${serial}`]: cooldownExp }));
-
-    onNotifyConfigReady?.(serial, {
-      forceCsvFile: pushMode === 'total_csv',
-      targetStaffName: staffName,
-      targetStaffTelegram: tgHandle,
-      pushTrackingId: pushId,
-    });
-  };
-
   const handleTeamPushClick = (
     key: string,
     serials: string[],
@@ -1245,7 +1211,6 @@ return (
               ) : (
                 filteredDevices.map((dev) => {
                   const isSelected = selectedSns.includes(dev.serial);
-                  const isConfirmingThisRow = confirmingRowSerial === dev.serial;
                   const isPos = dev.type === 'POS Terminal';
                   const bObj = branches.find((b) => b.code === dev.branchId);
                   const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
