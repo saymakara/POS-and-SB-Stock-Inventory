@@ -870,39 +870,75 @@ return (
           {/* Filters & Push Mode Toggle */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Push Mode Selector */}
-            <div className={`flex items-center gap-1 p-1 rounded-xl border ${isLight ? 'bg-slate-100/90 border-slate-200' : 'bg-slate-800/80 border-slate-700'}`}>
+            <div className={`relative flex items-center gap-1 p-1 rounded-xl border transition-colors ${
+              isLight ? 'bg-slate-100/90 border-slate-200/90' : 'bg-slate-900/60 border-slate-800'
+            }`}>
               <button
                 type="button"
                 onClick={() => handleSetPushMode('total_csv')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
                   pushMode === 'total_csv'
-                    ? 'bg-[#003857] text-white shadow-2xs'
-                    : isLight
-                    ? 'text-slate-600 hover:text-zinc-900'
-                    : 'text-slate-400 hover:text-white'
+                    ? isLight ? 'text-[#003857]' : 'text-sky-300'
+                    : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Consolidate devices per staff member into 1 Telegram message + CSV file (e.g. 10 merchants for Khon Rithy in 1 message, no spam)"
               >
-                <FileSpreadsheet className={`w-3.5 h-3.5 ${pushMode === 'total_csv' ? 'text-emerald-400' : 'text-slate-400'}`} />
-                <span>Total CSV by Staff</span>
-                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-bold ${pushMode === 'total_csv' ? 'bg-emerald-500/30 text-emerald-200' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
-                  1 Msg
+                {pushMode === 'total_csv' && (
+                  <motion.div
+                    layoutId="activePushModeIndicator"
+                    className={`absolute inset-0 rounded-lg shadow-xs ${
+                      isLight
+                        ? 'bg-white border border-slate-200/90'
+                        : 'bg-slate-800 border border-slate-700/80'
+                    }`}
+                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <FileSpreadsheet className={`w-3.5 h-3.5 transition-colors ${
+                    pushMode === 'total_csv' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+                  }`} />
+                  <span>Total CSV by Staff</span>
+                  <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono transition-colors ${
+                    pushMode === 'total_csv'
+                      ? isLight
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
+                        : 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/80'
+                      : isLight
+                        ? 'bg-slate-200/60 text-slate-500'
+                        : 'bg-slate-800 text-slate-400'
+                  }`}>
+                    1 Msg
+                  </span>
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => handleSetPushMode('single_alert')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
                   pushMode === 'single_alert'
-                    ? 'bg-[#003857] text-white shadow-2xs'
-                    : isLight
-                    ? 'text-slate-600 hover:text-zinc-900'
-                    : 'text-slate-400 hover:text-white'
+                    ? isLight ? 'text-[#003857]' : 'text-sky-300'
+                    : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Send individual 1-device alert without attached CSV file"
               >
-                <Send className={`w-3 h-3 ${pushMode === 'single_alert' ? 'text-sky-300' : 'text-slate-400'}`} />
-                <span>Single Alerts</span>
+                {pushMode === 'single_alert' && (
+                  <motion.div
+                    layoutId="activePushModeIndicator"
+                    className={`absolute inset-0 rounded-lg shadow-xs ${
+                      isLight
+                        ? 'bg-white border border-slate-200/90'
+                        : 'bg-slate-800 border border-slate-700/80'
+                    }`}
+                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <Send className={`w-3 h-3 transition-colors ${
+                    pushMode === 'single_alert' ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400'
+                  }`} />
+                  <span>Single Alerts</span>
+                </span>
               </button>
             </div>
 
