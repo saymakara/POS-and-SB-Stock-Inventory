@@ -1564,7 +1564,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // Count of devices in CONFIGURING stage that have NOT yet been pushed (controls sidebar badge pill)
   const unpushedConfiguringCount = useMemo(() => {
     return scopedDevices.filter(
-      (d) => !d.archived && d.stage === 'CONFIGURING' && !pushedConfiguringSerials.has(d.serial)
+      (d) =>
+        !d.archived &&
+        d.stage === 'CONFIGURING' &&
+        !d.pushTrackingId &&
+        !d.pushDate &&
+        !pushedConfiguringSerials.has(d.serial)
     ).length;
   }, [scopedDevices, pushedConfiguringSerials]);
 
@@ -1746,7 +1751,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       replacedByStaff: leftMerchant ? '' : d.replacedByStaff,   // (23 Oct 2026) a returned unit keeps no merchant details: they live on in Merchant History
       returnedByStaff: leftMerchant ? actor : d.returnedByStaff,
       returnedDate: leftMerchant ? today : d.returnedDate,
-      customFields: { ...(d.customFields || {}), ...(updates.customFields || {}) },
+      pushTrackingId: updates.stage === 'CONFIGURING' ? d.pushTrackingId : undefined,
+      pushDate: updates.stage === 'CONFIGURING' ? d.pushDate : undefined,
+      pushedBy: updates.stage === 'CONFIGURING' ? d.pushedBy : undefined,
+      customFields: {
+        ...(d.customFields || {}),
+        ...(updates.customFields || {}),
+        ...(updates.stage !== 'CONFIGURING' ? { pushTrackingId: '', pushDate: '', pushedBy: '' } : {}),
+      },
       deployedDate: updates.stage === 'COMPLETE' ? updates.deployedDate || d.deployedDate || today : leftMerchant ? '' : d.deployedDate,
       batteryInstalledDate: updates.batteryInstalledDate !== undefined ? updates.batteryInstalledDate : (d.batteryInstalledDate || ''),
       redeployCount: leftMerchant ? (d.redeployCount || 0) + 1 : d.redeployCount || 0,
@@ -2379,22 +2391,34 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }
 
     // 3. Update in-memory devices state with push tracking metadata and history event
+    const updatedDevices: Device[] = [];
     setDevices((prev) =>
-      prev.map((d) =>
-        list.includes(d.serial)
-          ? {
-              ...d,
-              pushTrackingId: pushId,
-              pushDate: nowTime,
-              pushedBy: operator,
-              history: [
-                `${nowTime} | App Push Notified | Push ID: ${pushId} — Officer: ${operator}`,
-                ...(d.history || []),
-              ],
-            }
-          : d
-      )
+      prev.map((d) => {
+        if (!list.includes(d.serial)) return d;
+        const cf = {
+          ...(d.customFields || {}),
+          pushTrackingId: pushId,
+          pushDate: nowTime,
+          pushedBy: operator,
+        };
+        const updated: Device = {
+          ...d,
+          pushTrackingId: pushId,
+          pushDate: nowTime,
+          pushedBy: operator,
+          customFields: cf,
+          history: [
+            `${nowTime} | App Push Notified | Push ID: ${pushId} — Officer: ${operator}`,
+            ...(d.history || []),
+          ],
+        };
+        updatedDevices.push(updated);
+        return updated;
+      })
     );
+
+    // 4. Trigger optimistic sync and row pulse across all connected devices
+    triggerOptimisticSync(list, `Dispatched App Push alert for ${list.length} device(s) [${pushId}]`, updatedDevices);
 
     // If targets.length === 1 and NOT forcing CSV file, send single-unit alert
     if (targets.length === 1 && !options?.forceCsvFile) {
