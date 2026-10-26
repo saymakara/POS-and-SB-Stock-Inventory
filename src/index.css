@@ -220,20 +220,14 @@ th.sticky {
   border-radius: 0.65rem;
 }
 
-/* Natural Amber Status Point with Soft Organic Halo */
+/* Natural Amber Status Point */
 .natural-amber-point {
   background-color: #f59e0b;
-  box-shadow:
-    0 0 0 3px rgba(245, 158, 11, 0.25),
-    0 0 8px rgba(245, 158, 11, 0.45);
 }
 
-/* Natural Red Status Point with Soft Organic Halo */
+/* Natural Red Status Point */
 .natural-red-point {
   background-color: #f43f5e;
-  box-shadow:
-    0 0 0 3px rgba(244, 63, 94, 0.25),
-    0 0 8px rgba(244, 63, 94, 0.45);
 }
 
 /* iPhone 18 Pro Max Space Black Titanium Hardware Frame & Photorealistic Aesthetics */

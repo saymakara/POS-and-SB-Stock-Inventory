@@ -946,7 +946,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             >
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full natural-amber-point text-white font-mono text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white">
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white font-mono text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white">
                   {unreadCount}
                 </span>
               )}
@@ -1166,7 +1166,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           >
             <span>{t.label}</span>
             {t.redPoint && (
-              <span className="w-1.5 h-1.5 rounded-full natural-amber-point" />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             )}
           </button>
         ))}
