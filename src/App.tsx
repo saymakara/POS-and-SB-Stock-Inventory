@@ -3322,7 +3322,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             type: (isSb ? 'Sound Box' : 'POS Terminal') as
               | 'POS Terminal'
               | 'Sound Box',
-            model: isSb ? 'Q161 Pro' : 'PAX A920 Pro',
+            model: isSb ? 'Q161 Pro' : 'Wizar POS Q2 Pro',
             stockInDate: today,
             branchId: e.branchId || selectedBranch,
             branchName: bObj?.name || `Branch Code ${e.branchId || selectedBranch}`,

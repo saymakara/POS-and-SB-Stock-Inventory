@@ -238,7 +238,7 @@ function parseDeviceTypeStrict(rawType: string, serial: string): 'POS Terminal' 
   if (t.includes('sound') || t.includes('audio') || t.includes('box') || t === 'sb') {
     return 'Sound Box';
   }
-  if (t.includes('pos') || t.includes('terminal') || t.includes('wizar') || t.includes('pax') || t.includes('verifone')) {
+  if (t.includes('pos') || t.includes('terminal') || t.includes('wizar')) {
     return 'POS Terminal';
   }
   return null;
@@ -1946,8 +1946,6 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border ${inputClass}`}
                       >
                         <option value="Wizar POS Q2 Pro">Wizar POS Q2 Pro</option>
-                        <option value="PAX A920 Pro">PAX A920 Pro</option>
-                        <option value="Verifone V200c">Verifone V200c</option>
                       </select>
                     </div>
 

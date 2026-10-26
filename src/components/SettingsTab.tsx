@@ -2371,7 +2371,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           const res = await sendDeviceConfigTelegramAlert({
                             serial: 'SN-TEST-0001',
                             type: 'POS Terminal',
-                            model: 'PAX A920 Pro',
+                            model: 'Wizar POS Q2 Pro',
                             mid: '200000000012345',
                             tid: 'TID-10001',
                             merchantName: 'Test Merchant (Default Group)',
@@ -2536,7 +2536,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                     const res = await sendDeviceConfigTelegramAlert({
                                       serial: `SN-TEST-${rg.name.slice(0, 3).toUpperCase()}-01`,
                                       type: 'POS Terminal',
-                                      model: 'PAX A920 Pro',
+                                      model: 'Wizar POS Q2 Pro',
                                       mid: '200000000088888',
                                       tid: 'TID-REGIONAL',
                                       merchantName: `Test Merchant (${rg.name})`,
