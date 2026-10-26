@@ -2250,8 +2250,16 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   }, [users]);
 
   // Notify Handling Staff & Telegram Group when devices Under Configuring are ready for App Push (#11)
-  // Supports single or batch selection (e.g. ~200 units daily across multiple assigned teams)
-  const handleNotifyConfigReady = async (serialOrSerials: string | string[]) => {
+  // Supports single or batch selection, with consolidated Total CSV file per staff (e.g. 10 merchants for Khon Rithy in 1 file)
+  const handleNotifyConfigReady = async (
+    serialOrSerials: string | string[],
+    options?: {
+      forceCsvFile?: boolean;
+      targetStaffName?: string;
+      targetStaffTelegram?: string;
+      pushTrackingId?: string;
+    }
+  ) => {
     const list = Array.isArray(serialOrSerials) ? serialOrSerials : [serialOrSerials];
     if (list.length === 0) return;
 
@@ -2265,20 +2273,22 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const nowTime = stampSecPP();
 
     // 1. Resolve or generate unique Push Tracking ID (e.g. PUSH-261025-4819)
-    let pushId = '';
-    try {
-      const rawTracking = localStorage.getItem(STORAGE_KEY_PUSH_TRACKING);
-      if (rawTracking) {
-        const trackingMap = JSON.parse(rawTracking);
-        for (const sn of list) {
-          if (trackingMap[sn]?.pushId) {
-            pushId = trackingMap[sn].pushId;
-            break;
+    let pushId = options?.pushTrackingId || '';
+    if (!pushId) {
+      try {
+        const rawTracking = localStorage.getItem(STORAGE_KEY_PUSH_TRACKING);
+        if (rawTracking) {
+          const trackingMap = JSON.parse(rawTracking);
+          for (const sn of list) {
+            if (trackingMap[sn]?.pushId) {
+              pushId = trackingMap[sn].pushId;
+              break;
+            }
           }
         }
+      } catch (e) {
+        // ignore
       }
-    } catch (e) {
-      // ignore
     }
     if (!pushId) {
       pushId = generatePushTrackingId();
@@ -2314,9 +2324,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       )
     );
 
-    if (targets.length === 1) {
+    // If targets.length === 1 and NOT forcing CSV file, send single-unit alert
+    if (targets.length === 1 && !options?.forceCsvFile) {
       const dev = targets[0];
-      const staffTarget = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
+      const staffTarget = dev.staff || dev.installedByStaff || options?.targetStaffName || 'Assigned Branch Staff';
       const bName = dev.branchName || `Branch ${dev.branchId}`;
       const mName = dev.merchantName || 'Merchant Profile';
 
@@ -2328,7 +2339,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         'inventory'
       );
 
-      const singleStaffTg = dev.staffTelegram || staffTelegramMap.get((dev.staff || dev.installedByStaff || '').toLowerCase().trim()) || staffTelegramMap.get((dev.staff || '').toLowerCase().trim());
+      const singleStaffTg =
+        dev.staffTelegram ||
+        options?.targetStaffTelegram ||
+        staffTelegramMap.get((dev.staff || dev.installedByStaff || '').toLowerCase().trim()) ||
+        staffTelegramMap.get((dev.staff || '').toLowerCase().trim());
+
       const res = await sendDeviceConfigTelegramAlert({
         serial: dev.serial,
         deviceType: dev.type,
@@ -2342,6 +2358,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         staffTelegram: singleStaffTg,
         adminOperator: operator,
         pushId,
+        regionalGroups: appSettings.telegramRegionalGroups,
+        branches: branches,
       });
 
       addAuditLog(
@@ -2355,10 +2373,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           : `[${pushId}] In-app alert recorded for SN ${dev.serial}. (Telegram: ${res.error || 'Check settings'})`
       );
     } else {
-      // Bulk notification for multiple devices (supporting ~200 units daily across multiple teams)
+      // Consolidated Total CSV notification (1 file per assigned staff containing all their merchants)
       const byStaff = new Map<string, typeof targets>();
       for (const dev of targets) {
-        const staffKey = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
+        const staffKey = dev.staff || dev.installedByStaff || options?.targetStaffName || 'Assigned Branch Staff';
         if (!byStaff.has(staffKey)) byStaff.set(staffKey, []);
         byStaff.get(staffKey)!.push(dev);
       }
@@ -2377,11 +2395,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
       const res = await sendBatchDeviceConfigTelegramAlert({
         devices: targets.map((d) => {
-          const sName = d.staff || d.installedByStaff || '';
-          const tg = d.staffTelegram || staffTelegramMap.get(sName.toLowerCase().trim()) || staffTelegramMap.get((d.staff || '').toLowerCase().trim());
+          const sName = d.staff || d.installedByStaff || options?.targetStaffName || '';
+          const tg =
+            d.staffTelegram ||
+            (options?.targetStaffName && sName.toLowerCase().trim() === options.targetStaffName.toLowerCase().trim()
+              ? options.targetStaffTelegram
+              : undefined) ||
+            staffTelegramMap.get(sName.toLowerCase().trim()) ||
+            staffTelegramMap.get((d.staff || '').toLowerCase().trim());
           return {
             serial: d.serial,
             type: d.type,
+            deviceType: d.type,
             model: d.model,
             mid: d.mid,
             tid: d.tid,
@@ -2389,24 +2414,29 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             branchId: d.branchId,
             branchName: d.branchName,
             staff: sName,
+            staffName: sName,
             staffTelegram: tg,
             pushId,
           };
         }),
         pushId,
         adminOperator: operator,
+        actor: operator,
         regionalGroups: appSettings.telegramRegionalGroups,
         branches: branches,
+        groupByStaff: true,
+        targetStaffName: options?.targetStaffName,
+        targetStaffTelegram: options?.targetStaffTelegram,
       });
 
       addAuditLog(
-        'Bulk App Push Notification Sent',
-        `Assigned by ${operator}. Batch Push ID: ${pushId}. Notified ${targets.length} device(s) ready for app push across ${byStaff.size} assigned team(s) and ${res.groupsSent} Telegram regional group(s).`
+        'Bulk App Push Total CSV Notification Sent',
+        `Assigned by ${operator}. Batch Push ID: ${pushId}. Dispatched Total CSV alert for ${targets.length} unit(s) across ${byStaff.size} staff member(s) and ${res.groupsSent} Telegram regional destination(s).`
       );
 
       triggerToast(
         res.ok
-          ? `[${pushId}] Sent batch App Push alert for ${targets.length} unit(s) across ${res.groupsSent} regional Telegram group(s)!`
+          ? `[${pushId}] Sent Total CSV alert for ${targets.length} unit(s) (${byStaff.size} staff member(s)) across ${res.groupsSent} Telegram destination(s)!`
           : `[${pushId}] Sent in-app batch alert for ${targets.length} units. (Telegram: ${res.error || 'Check settings'})`
       );
     }

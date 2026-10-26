@@ -457,6 +457,10 @@ export interface BatchDeviceConfigTelegramAlertInfo {
   /** Optional pre-generated Batch Push Tracking ID (e.g. PUSH-261025-4819). */
   pushId?: string;
   pushTrackingId?: string;
+  /** When true or default, consolidates devices by Assigned Staff + Chat so each technician gets 1 message with their merchants */
+  groupByStaff?: boolean;
+  targetStaffName?: string;
+  targetStaffTelegram?: string;
 }
 
 export interface BatchDeviceConfigTelegramAlertResult {
@@ -518,9 +522,10 @@ export function buildDeviceConfigCsv(
 }
 
 /**
- * Batch alert for Under Configuring devices (e.g. up to 10 devices per branch).
+ * Batch alert for Under Configuring devices (e.g. up to 10 devices per staff member or branch).
  * Sends 1 consolidated Telegram notification with attached configuration file (.csv) to open,
- * instead of 10 individual pop-up messages.
+ * instead of sending 10 individual spam messages in the group.
+ * Grouped per staff member so each technician (e.g. Khon Rithy) receives 1 message + their total file.
  */
 export async function sendBatchDeviceConfigTelegramAlert(
   info: BatchDeviceConfigTelegramAlertInfo
@@ -532,51 +537,107 @@ export async function sendBatchDeviceConfigTelegramAlert(
   const timestamp = stampSecPP();
   const actor = info.actor || info.adminOperator || 'System Admin';
   const batchPushId = info.pushId || info.pushTrackingId || generatePushTrackingId();
+  const groupByStaff = info.groupByStaff !== false;
 
-  // chat ID → devices (+ every group name that routes there, so a shared chat is labelled correctly)
-  const destinations = new Map<string, { names: Set<string>; isRegional: boolean; devices: BatchDeviceConfigItem[] }>();
+  interface DestinationGroup {
+    chatId: string;
+    names: Set<string>;
+    isRegional: boolean;
+    staffName: string;
+    staffTelegram?: string;
+    devices: BatchDeviceConfigItem[];
+  }
+
+  // Group destinations by Chat + Staff (so each staff member like Khon Rithy gets exactly 1 message with their 10 merchants file)
+  const destinations = new Map<string, DestinationGroup>();
+
   for (const d of info.devices) {
     const r = resolveTelegramChatForBranch(d.branchId, info.regionalGroups, info.branches, config);
-    let dest = destinations.get(r.chatId);
-    if (!dest) destinations.set(r.chatId, (dest = { names: new Set(), isRegional: false, devices: [] }));
+    const rawStaff = d.staff || d.staffName || info.targetStaffName || 'Assigned Branch Staff';
+    const staffKey = rawStaff.toLowerCase().trim();
+    const destKey = groupByStaff ? `${r.chatId}___${staffKey}` : r.chatId;
+
+    let dest = destinations.get(destKey);
+    if (!dest) {
+      const tgHandle =
+        d.staffTelegram ||
+        (info.targetStaffName && staffKey === info.targetStaffName.toLowerCase().trim() ? info.targetStaffTelegram : undefined);
+
+      dest = {
+        chatId: r.chatId,
+        names: new Set(),
+        isRegional: false,
+        staffName: rawStaff,
+        staffTelegram: tgHandle,
+        devices: [],
+      };
+      destinations.set(destKey, dest);
+    }
+
     dest.names.add(r.groupName);
     dest.isRegional = dest.isRegional || r.isRegional;
+    if (!dest.staffTelegram && d.staffTelegram) {
+      dest.staffTelegram = d.staffTelegram;
+    }
     dest.devices.push(d);
   }
 
   const details: BatchDeviceConfigTelegramAlertResult['details'] = [];
-  for (const [chatId, dest] of destinations) {
+  for (const [, dest] of destinations) {
     const groupName = Array.from(dest.names).join(' + ');
     const sampleBranch = dest.devices[0]?.branchId || '100';
     const sampleBranchName = dest.devices[0]?.branchName || groupName;
-    const fileName = `Branch_${sampleBranch}_Config_Queue_${batchPushId}.csv`;
+    const cleanStaff = (dest.staffName || 'Staff')
+      .replace(/[^a-zA-Z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+
+    // Device type label for filename
+    const devTypes = new Set(dest.devices.map((d) => (d.deviceType || d.type || '').toLowerCase()));
+    let devTypeLabel = 'Devices';
+    if (devTypes.size === 1) {
+      if (devTypes.has('sound box')) devTypeLabel = 'SoundBox';
+      else if (devTypes.has('pos terminal')) devTypeLabel = 'POSTerminal';
+    }
+
+    const fileName = `${cleanStaff}_${devTypeLabel}_Total_${dest.devices.length}_Merchants_${batchPushId}.csv`;
     const fileCsv = buildDeviceConfigCsv(dest.devices, sampleBranch, actor, batchPushId);
+    const mention = formatTelegramMention(dest.staffTelegram);
 
-    // Build 1 consolidated Telegram notification (instead of 10 separate pop-up messages!)
-    const lines = [
-      `📲 *Branch Code ${sampleBranch} (${sampleBranchName}) — Configuration Queue*`,
+    // Build 1 consolidated Telegram notification per staff (instead of 10 separate pop-up messages!)
+    const lines: string[] = [
+      `📲 *${dest.staffName}${mention ? ` (${mention})` : ''} — Configuration Queue (${dest.devices.length} Merchants)*`,
       `🆔 *Push Tracking ID:* \`${batchPushId}\``,
-      `• *${dest.isRegional ? 'Regional Group' : 'Destination'}:* *${groupName}*`,
-      `• *Total Devices:* *${dest.devices.length} units to configure*`,
+      `• *Assigned Staff:* *${dest.staffName}* ${mention ? `(${mention})` : ''}`,
       `• *Assigned By:* *${actor}*`,
-      `• *Action Required:* Assigned officers please *OPEN devices* and connect to network to wait for App Push!`,
-      `• *Attached File:* 📁 \`${fileName}\` (tap file to open device & merchant list)`,
+      `• *Branch:* Code \`${sampleBranch}\` (${sampleBranchName})`,
+      dest.isRegional ? `• *Destination Group:* *${groupName}*` : null,
+      `• *Total Devices:* *${dest.devices.length} units to configure*`,
+      `• *Attached CSV:* 📁 \`${fileName}\` (Contains all ${dest.devices.length} merchants, MIDs, and TIDs)`,
+      mention
+        ? `\n👉 *Attention ${mention}:* Please power ON and open your ${dest.devices.length} assigned device(s) now to wait for App Push!`
+        : `\n👉 *Action Required:* Please power ON and open your ${dest.devices.length} assigned device(s) now to wait for App Push!`,
       ``,
-      `📋 *Device Queue (${dest.devices.length} units):*`,
-    ];
+      `📋 *Merchant & Device List (${dest.devices.length} units):*`,
+    ].filter(Boolean) as string[];
 
-    // List all devices (up to 10) with full details
-    const maxListed = Math.min(dest.devices.length, 10);
-    for (let i = 0; i < maxListed; i++) {
+    // List devices concisely while strictly obeying Telegram's 1024-character caption limit
+    let listedCount = 0;
+    for (let i = 0; i < dest.devices.length; i++) {
       const d = dest.devices[i];
       const devType = d.deviceType || d.type || 'Device';
-      const mName = d.merchantName ? `*${d.merchantName}*` : 'Merchant Profile Pending';
+      const mName = d.merchantName ? `*${d.merchantName}*` : 'Merchant Pending';
       const midTid = d.mid || d.tid ? ` (MID: \`${d.mid || '—'}\` | TID: \`${d.tid || '—'}\`)` : '';
-      const stf = d.staff || d.staffName ? ` · Configure By: *${d.staff || d.staffName}*` : '';
-      lines.push(`${i + 1}. 🔹 \`${d.serial}\` (${devType})${stf}\n   └ ${mName}${midTid}`);
-    }
-    if (dest.devices.length > 10) {
-      lines.push(`... and ${dest.devices.length - 10} more units in attached configuration file.`);
+      const itemLine = `${i + 1}. 🔹 \`${d.serial}\` (${devType})\n   └ ${mName}${midTid}`;
+
+      // Check caption character limit (keep margin under 900 chars)
+      const projectedLen = lines.join('\n').length + itemLine.length + 80;
+      if (projectedLen > 900) {
+        lines.push(`... and ${dest.devices.length - listedCount} more merchants in attached CSV file.`);
+        break;
+      }
+      lines.push(itemLine);
+      listedCount++;
     }
 
     lines.push(
@@ -586,13 +647,13 @@ export async function sendBatchDeviceConfigTelegramAlert(
 
     const res = await dispatchTelegramDocument(
       config.botToken,
-      chatId,
+      dest.chatId,
       config.webhookUrl,
       fileCsv,
       fileName,
       lines.join('\n')
     );
-    details.push({ chatId, groupName, units: dest.devices.length, ok: res.ok, error: res.error });
+    details.push({ chatId: dest.chatId, groupName, units: dest.devices.length, ok: res.ok, error: res.error });
   }
 
   const groupsSent = details.filter((d) => d.ok).length;
