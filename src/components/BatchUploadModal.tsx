@@ -90,11 +90,10 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Branch_Name', label: 'Branch_Name', desc: 'Branch Location Name', req: false },
       { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'BRANCH_RESERVE', req: false },
       { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Staff Custodian Name / ID', req: true },
-      { id: 'Serial_Cycles_Count', label: 'Serial_Cycles_Count', desc: 'Redeployment Count', req: false },
     ],
     sampleRows: [
-      ['2026-10-25', 'WP5400PQ23200201', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'Babe (11122)', '0'],
-      ['2026-10-25', 'SB2026000201', 'Sound Box', 'Q161 Pro', 'BAT-SB-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'KY Vibol (27267)', '0'],
+      ['2026-10-25', 'WP5400PQ23200201', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'Babe (11122)'],
+      ['2026-10-25', 'SB2026000201', 'Sound Box', 'Q161 Pro', 'BAT-SB-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'KY Vibol (27267)'],
     ],
   },
   CONFIGURING: {
@@ -117,11 +116,10 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Merchant Business Name', req: true },
       { id: 'MID', label: 'MID', desc: '15-digit Merchant ID', req: true },
       { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
-      { id: 'Serial_Cycles_Count', label: 'Serial_Cycles_Count', desc: 'Redeployment Count', req: false },
     ],
     sampleRows: [
-      ['2026-10-25', 'WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Main Branch', 'CONFIGURING', 'Babe (11122)', 'Amazon Cafe BKK', '100000000012345', '00012345', '0'],
-      ['2026-10-25', 'SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Main Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Lucky Mart Tuol Kork', '100000000054321', '00054321', '0'],
+      ['2026-10-25', 'WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Main Branch', 'CONFIGURING', 'Babe (11122)', 'Amazon Cafe BKK', '100000000012345', '00012345'],
+      ['2026-10-25', 'SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Main Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Lucky Mart Tuol Kork', '100000000054321', '00054321'],
     ],
   },
   COMPLETE: {
@@ -144,11 +142,10 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Active Merchant Store', req: true },
       { id: 'MID', label: 'MID', desc: '15-digit Merchant ID', req: true },
       { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
-      { id: 'Serial_Cycles_Count', label: 'Serial_Cycles_Count', desc: 'Redeployment Count', req: false },
     ],
     sampleRows: [
-      ['2026-10-25', 'WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Main Branch', 'COMPLETE', 'Babe (11122)', 'Lucky Supermarket Monivong', '100000000098765', '00098765', '0'],
-      ['2026-10-25', 'SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Main Branch', 'COMPLETE', 'KY Vibol (27267)', 'Brown Coffee 57', '100000000087654', '00087654', '0'],
+      ['2026-10-25', 'WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Main Branch', 'COMPLETE', 'Babe (11122)', 'Lucky Supermarket Monivong', '100000000098765', '00098765'],
+      ['2026-10-25', 'SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Main Branch', 'COMPLETE', 'KY Vibol (27267)', 'Brown Coffee 57', '100000000087654', '00087654'],
     ],
   },
 };
@@ -166,7 +163,6 @@ export const SCHEMA_COLUMNS = [
   { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Assigned Merchant Business', req: false },
   { id: 'MID', label: 'MID', desc: 'Merchant ID (15 digits)', req: false },
   { id: 'TID', label: 'TID', desc: 'Terminal ID (8 digits)', req: false },
-  { id: 'Serial_Cycles_Count', label: 'Serial_Cycles_Count', desc: 'Redeployment Count', req: false },
 ];
 
 export interface CsvCellValidationError {
