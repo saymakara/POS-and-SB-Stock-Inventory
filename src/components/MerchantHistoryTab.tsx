@@ -22,7 +22,6 @@ import {
   RotateCcw,
   Cpu,
   Volume2,
-  FileText,
   X,
   Phone,
   MapPin,
@@ -1210,40 +1209,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     </div>
                   );
                 })()}
-
-                {/* Return Reason & Clearance */}
-                <div
-                  className={`p-4 rounded-2xl border ${
-                    isLight ? 'bg-slate-50/70 border-slate-200' : 'bg-white/5 border-white/10'
-                  } space-y-2`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                      <FileText className="w-4 h-4 text-slate-500" />
-                      <span>Return / Decommission Reason</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      Physical Custody Transferred
-                    </span>
-                  </div>
-                  <div className="font-bold text-slate-900 dark:text-white text-xs">
-                    {selectedRecord.returnReason}
-                  </div>
-                  {selectedRecord.notes && (
-                    <div
-                      className={`text-xs p-3 rounded-xl border leading-relaxed ${
-                        isLight
-                          ? 'bg-white border-slate-200 text-slate-700'
-                          : 'bg-[#18191e] border-white/10 text-slate-300'
-                      }`}
-                    >
-                      <span className="text-[10px] font-semibold text-slate-400 block mb-0.5 uppercase">
-                        Handover Memo / Return Note:
-                      </span>
-                      {selectedRecord.notes}
-                    </div>
-                  )}
-                </div>
 
                 {/* Footer Handover & Close */}
                 <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/10">
