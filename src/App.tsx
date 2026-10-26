@@ -4137,6 +4137,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           isOpen={isBatchModalOpen}
           onClose={() => setIsBatchModalOpen(false)}
           branches={branches}
+          users={users}
           existingDevices={devices}
           onCommitBatch={handleCommitBatch}
           activeBranchId={selectedBranch}

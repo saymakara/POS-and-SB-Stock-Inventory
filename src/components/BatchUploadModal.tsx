@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Branch, LifecycleStage, Device, ThemeMode } from '../types';
+import { Branch, LifecycleStage, Device, ThemeMode, User } from '../types';
 import { STAGE_META } from '../data/initialData';
 import {
   X,
@@ -23,13 +23,14 @@ import {
   Layers,
   FileText,
   Ban,
-  User,
+  User as UserIcon,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { normalizeMid, isValidMidForType, midRuleError } from '../utils/display';
 import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
 import { tidFromMid } from '../utils/tid';
+import { validateStaffWithBranch, normalizeStaffName } from '../utils/staffUtils';
 import { CSV_BATCH_SIZE, CSV_BATCH_DELAY_MS, checkExistingSerialsOnServer } from '../services/supabaseService';
 
 export type IntakeCycle = 'HQ_STOCK' | 'BRANCH_RESERVE' | 'CONFIGURING' | 'COMPLETE';
@@ -89,19 +90,19 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Branch_Code', label: 'Branch_Code', desc: 'Branch ID (e.g. 101, 102)', req: true },
       { id: 'Branch_Name', label: 'Branch_Name', desc: 'Branch Location Name', req: false },
       { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'BRANCH_RESERVE', req: false },
-      { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Staff Custodian Name / ID', req: true },
+      { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Staff Custodian Name / ID (Validated with Directory)', req: true },
     ],
     sampleRows: [
-      ['WP5400PQ23200201', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'Babe (11122)'],
-      ['SB2026000201', 'Sound Box', 'Q161 Pro', 'BAT-SB-2001', '101', 'Main Branch', 'BRANCH_RESERVE', 'KY Vibol (27267)'],
+      ['WP5400PQ23200201', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-2001', '101', 'Borei Keyla Branch', 'BRANCH_RESERVE', 'KY Vibol (27267)'],
+      ['SB2026000201', 'Sound Box', 'Q161 Pro', 'BAT-SB-2001', '101', 'Borei Keyla Branch', 'BRANCH_RESERVE', 'SEOUN Chettra (25490)'],
     ],
   },
   CONFIGURING: {
     cycle: 'CONFIGURING',
     name: 'Under Configuring Intake',
     tag: 'Under Configuring',
-    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In & TID captured dynamically',
-    description: 'Hardware undergoing merchant technical setup. Stock-In date and TID are auto-captured dynamically.',
+    badge: 'Staff & Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In & TID captured dynamically',
+    description: 'Hardware undergoing merchant technical setup. Staff & Branch Code are validated with Staff Directory. Stock-In date and TID are auto-captured dynamically.',
     filename: 'template_under_configuring.csv',
     columns: [
       { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
@@ -111,21 +112,21 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Branch_Code', label: 'Branch_Code', desc: 'Branch ID (e.g. 101)', req: true },
       { id: 'Branch_Name', label: 'Branch_Name', desc: 'Branch Location Name', req: false },
       { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'CONFIGURING', req: false },
-      { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Configuring Staff Officer', req: false },
+      { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Configuring Staff Officer (Validated with Directory)', req: true },
       { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Merchant Business Name', req: true },
       { id: 'MID', label: 'MID', desc: '15-digit Merchant ID (TID auto-derived)', req: true },
     ],
     sampleRows: [
-      ['WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Main Branch', 'CONFIGURING', 'Babe (11122)', 'Amazon Cafe BKK', '100000000012345'],
-      ['SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Main Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Lucky Mart Tuol Kork', '100000000054321'],
+      ['WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Borei Keyla Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Amazon Cafe BKK', '100000000012345'],
+      ['SB2026000301', 'Sound Box', 'Q161 Pro', 'BAT-SB-3001', '101', 'Borei Keyla Branch', 'CONFIGURING', 'SEOUN Chettra (25490)', 'Lucky Mart Tuol Kork', '100000000054321'],
     ],
   },
   COMPLETE: {
     cycle: 'COMPLETE',
     name: 'Installed Live Intake',
     tag: 'Live Merchant',
-    badge: 'Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In & TID captured dynamically',
-    description: 'Active hardware live at merchant store. Stock-In date and TID are auto-captured dynamically.',
+    badge: 'Staff & Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In & TID captured dynamically',
+    description: 'Active hardware live at merchant store. Staff & Branch Code are validated with Staff Directory. Stock-In date and TID are auto-captured dynamically.',
     filename: 'template_installed_live.csv',
     columns: [
       { id: 'Serial_SN', label: 'Serial_SN', desc: 'Hardware Serial Number', req: true },
@@ -135,13 +136,13 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Branch_Code', label: 'Branch_Code', desc: 'Branch ID (e.g. 101)', req: true },
       { id: 'Branch_Name', label: 'Branch_Name', desc: 'Branch Location Name', req: false },
       { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'COMPLETE', req: false },
-      { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Field Deployment Officer', req: false },
+      { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Field Deployment Officer (Validated with Directory)', req: true },
       { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Active Merchant Store', req: true },
       { id: 'MID', label: 'MID', desc: '15-digit Merchant ID (TID auto-derived)', req: true },
     ],
     sampleRows: [
-      ['WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Main Branch', 'COMPLETE', 'Babe (11122)', 'Lucky Supermarket Monivong', '100000000098765'],
-      ['SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Main Branch', 'COMPLETE', 'KY Vibol (27267)', 'Brown Coffee 57', '100000000087654'],
+      ['WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Borei Keyla Branch', 'COMPLETE', 'KY Vibol (27267)', 'Lucky Supermarket Monivong', '100000000098765'],
+      ['SB2026000401', 'Sound Box', 'Q161 Pro', 'BAT-SB-4001', '101', 'Borei Keyla Branch', 'COMPLETE', 'SEOUN Chettra (25490)', 'Brown Coffee 57', '100000000087654'],
     ],
   },
 };
@@ -154,7 +155,7 @@ export const SCHEMA_COLUMNS = [
   { id: 'Branch_Code', label: 'Branch_Code', desc: 'Branch ID (e.g. 100, 101)', req: false },
   { id: 'Branch_Name', label: 'Branch_Name', desc: 'Branch Location Name', req: false },
   { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'Current Stock Stage', req: false },
-  { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Staff Custodian Name / ID', req: false },
+  { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Staff Directory Officer (Validated with Branch)', req: false },
   { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Assigned Merchant Business', req: false },
   { id: 'MID', label: 'MID', desc: 'Merchant ID (15 digits; TID auto-derived)', req: false },
 ];
@@ -192,6 +193,7 @@ interface BatchUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   branches: Branch[];
+  users?: User[];
   existingDevices: Device[];
   onCommitBatch: (newDevices: Partial<Device>[]) => void | Promise<void>;
   activeBranchId: string;
@@ -300,11 +302,20 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   isOpen,
   onClose,
   branches,
+  users = [],
   existingDevices,
   onCommitBatch,
   theme = 'light',
   operatorLabel = '',
 }) => {
+  const directoryUsers = useMemo(() => {
+    if (users && users.length > 0) return users;
+    try {
+      const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('crm_pos_users_v20') : null;
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  }, [users]);
   const [batchStep, setBatchStep] = useState<'INPUT' | 'PREVIEW'>('INPUT');
   const [method, setMethod] = useState<'tableCsv' | 'paste'>('tableCsv');
 
@@ -648,28 +659,46 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       // Effective stage determination:
       const effectiveStage = stage || fallbackStage;
 
-      // 7. Check Assigned_Staff based on intake cycle
+      // 7. Check Assigned_Staff based on intake cycle & validate strictly with Staff Directory
       const rawStaff = cell(row, 'staff');
-      const assignedStaff = effectiveStage === 'HQ_STOCK'
+      const isStaffRequired =
+        effectiveStage === 'CONFIGURING' ||
+        effectiveStage === 'COMPLETE' ||
+        effectiveStage === 'BRANCH_RESERVE';
+
+      const stageDisplay =
+        effectiveStage === 'CONFIGURING'
+          ? 'Under Configuring'
+          : effectiveStage === 'COMPLETE'
+          ? 'Installed Live (COMPLETE)'
+          : effectiveStage === 'BRANCH_RESERVE'
+          ? 'Branch Staff Reserve'
+          : 'HQ Stock';
+
+      if (isStaffRequired && !rawStaff) {
+        addErr(
+          colNumber('staff', 8),
+          colLabel('staff', 'Assigned_Staff'),
+          'MISSING_REQUIRED',
+          `Missing required Assigned_Staff for ${stageDisplay} device (must match a registered staff in the Staff Directory)`
+        );
+      }
+
+      let assignedStaff = effectiveStage === 'HQ_STOCK'
         ? (rawStaff || '')
         : (rawStaff || staffLabel);
 
-      if (effectiveStage === 'BRANCH_RESERVE') {
-        // "and if upload to branch staff reserve should have staff assignment"
-        if (!rawStaff && !staffLabel) {
+      if (rawStaff) {
+        const staffVal = validateStaffWithBranch(rawStaff, targetBranch, directoryUsers, branches);
+        if (!staffVal.valid && staffVal.error) {
           addErr(
-            colNumber('staff', 9),
+            colNumber('staff', 8),
             colLabel('staff', 'Assigned_Staff'),
-            'MISSING_REQUIRED',
-            'Missing required Assigned_Staff for Branch Staff Reserve (assign a branch staff officer)'
+            'INVALID_TYPE',
+            staffVal.error
           );
-        } else if (!rawStaff && colMap.staff !== undefined) {
-          addErr(
-            colNumber('staff', 9),
-            colLabel('staff', 'Assigned_Staff'),
-            'MISSING_REQUIRED',
-            'Assigned_Staff column is blank for Branch Staff Reserve row'
-          );
+        } else {
+          assignedStaff = staffVal.resolvedStaffName;
         }
       }
 
@@ -756,7 +785,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
     return parsed;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableCsvText, branches, defaultBranch, defaultStage, posModel, sbModel, staffLabel]);
+  }, [tableCsvText, branches, defaultBranch, defaultStage, posModel, sbModel, staffLabel, directoryUsers]);
 
   // Method B: Parse dual fields for POS Terminal & Sound Box
   const pastedBatch = useMemo(() => {
@@ -1880,10 +1909,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <td className="py-1.5 px-3 whitespace-nowrap">
                             {item.staff ? (
                               <div className="flex items-center gap-1 text-slate-800 dark:text-slate-200 font-semibold">
-                                <User className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                                <UserIcon className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                                 <span>{item.staff}</span>
                               </div>
-                            ) : item.stage === 'BRANCH_RESERVE' ? (
+                            ) : item.stage === 'BRANCH_RESERVE' || item.stage === 'CONFIGURING' || item.stage === 'COMPLETE' ? (
                               <span className="text-rose-600 dark:text-rose-400 font-bold text-[11px] flex items-center gap-1 bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20">
                                 <AlertCircle className="w-3 h-3" /> Missing Staff
                               </span>
