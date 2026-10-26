@@ -18,6 +18,11 @@ import {
   sendDeviceConfigTelegramAlert,
   detectTelegramGroupChats,
   saveTelegramRegionalGroups,
+  getTelegramDetectedChats,
+  saveTelegramDetectedChats,
+  getTelegramBotUsername,
+  saveTelegramBotUsername,
+  clearTelegramConnection,
 } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -31,6 +36,7 @@ import {
   RotateCcw,
   Zap,
   CheckCircle2,
+  Check,
   Sparkles,
   Download,
   Upload,
@@ -134,9 +140,49 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [tgWebhookUrl, setTgWebhookUrl] = useState(initialTg.webhookUrl);
   const [tgTesting, setTgTesting] = useState(false);
   const [tgDetecting, setTgDetecting] = useState(false);
-  const [tgBotUsername, setTgBotUsername] = useState('');
+  const [tgBotUsername, setTgBotUsername] = useState(() => getTelegramBotUsername());
   const [tgDetectError, setTgDetectError] = useState('');
-  const [tgDetectedChats, setTgDetectedChats] = useState<{ id: string; title: string; type: string }[]>([]);
+  const [tgDetectedChats, setTgDetectedChats] = useState<{ id: string; title: string; type: string }[]>(() =>
+    getTelegramDetectedChats()
+  );
+  const [isDeleteConnectionModalOpen, setIsDeleteConnectionModalOpen] = useState(false);
+
+  const handleRemoveDetectedChat = (chatIdToRemove: string) => {
+    const updated = tgDetectedChats.filter((c) => c.id !== chatIdToRemove);
+    setTgDetectedChats(updated);
+    saveTelegramDetectedChats(updated);
+    if (tgConfigChatId === chatIdToRemove) {
+      setTgConfigChatId('');
+      saveTelegramWebhookConfig({ configChatId: '', chatId: '' });
+      if (onToast) onToast(`Removed chat (${chatIdToRemove}) and detached from default routing.`);
+    } else {
+      if (onToast) onToast(`Removed chat (${chatIdToRemove}) from detected list.`);
+    }
+  };
+
+  const handleClearAllDetectedChats = () => {
+    setTgDetectedChats([]);
+    saveTelegramDetectedChats([]);
+    if (onToast) onToast('All detected chats removed from system.');
+  };
+
+  const handleClearDefaultGroup = () => {
+    setTgConfigChatId('');
+    saveTelegramWebhookConfig({ configChatId: '', chatId: '' });
+    if (onToast) onToast('Default connected group removed from system.');
+  };
+
+  const handleDeleteConnection = () => {
+    setTgBotToken('');
+    setTgConfigChatId('');
+    setTgWebhookUrl('');
+    setTgBotUsername('');
+    setTgDetectedChats([]);
+    setTgDetectError('');
+    clearTelegramConnection();
+    setIsDeleteConnectionModalOpen(false);
+    if (onToast) onToast('Telegram bot connection deleted and all linked groups removed from system.');
+  };
   const [showBotToken, setShowBotToken] = useState(false);
   const [showBotFatherGuide, setShowBotFatherGuide] = useState(false);
   const [regionalGroups, setRegionalGroups] = useState<TelegramRegionalGroup[]>(() => {
@@ -2098,7 +2144,17 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                             return;
                           }
                           setTgBotUsername(res.botUsername);
-                          setTgDetectedChats(res.chats);
+                          saveTelegramBotUsername(res.botUsername);
+                          setTgDetectedChats((prev) => {
+                            const map = new Map<string, { id: string; title: string; type: string }>();
+                            res.chats.forEach((c) => map.set(c.id, c));
+                            prev.forEach((c) => {
+                              if (!map.has(c.id)) map.set(c.id, c);
+                            });
+                            const merged = Array.from(map.values());
+                            saveTelegramDetectedChats(merged);
+                            return merged;
+                          });
                           if (res.chats.length === 0) {
                             const cmd = res.botUsername ? `/start@${res.botUsername}` : '/start';
                             setTgDetectError(
@@ -2157,33 +2213,84 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     )}
 
                     {tgDetectedChats.length > 0 && (
-                      <div className="mt-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1.5">
-                        <div className="font-bold">
-                          Connected Bot @{tgBotUsername} — Detected Telegram Chats (Click to select):
+                      <div className="mt-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-bold flex items-center gap-1.5 min-w-0 truncate">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span className="truncate">
+                              Connected Bot {tgBotUsername ? `@${tgBotUsername}` : ''} — Detected Telegram Chats ({tgDetectedChats.length}):
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleClearAllDetectedChats}
+                            className="text-[11px] font-medium text-slate-500 hover:text-red-600 underline cursor-pointer shrink-0 transition"
+                            title="Remove all detected chats from system"
+                          >
+                            Remove All
+                          </button>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {tgDetectedChats.map((c) => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => {
-                                const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
-                                const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(c.id)}`;
-                                setTgConfigChatId(c.id);
-                                setTgWebhookUrl(builtWebhook);
-                                saveTelegramWebhookConfig({
-                                  botToken: cleanToken,
-                                  configChatId: c.id,
-                                  chatId: c.id,
-                                  webhookUrl: builtWebhook,
-                                });
-                                if (onToast) onToast(`Selected "${c.title}" (${c.id})`);
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-white border border-emerald-300 text-emerald-900 font-mono text-[11px] font-semibold hover:bg-emerald-100 cursor-pointer"
-                            >
-                              {c.title} ({c.id}) [{c.type}]
-                            </button>
-                          ))}
+                        <div className="flex flex-wrap gap-2 pt-0.5">
+                          {tgDetectedChats.map((c) => {
+                            const isCurrentActive = tgConfigChatId === c.id;
+                            return (
+                              <div
+                                key={c.id}
+                                className={`inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg border transition ${
+                                  isCurrentActive
+                                    ? 'bg-emerald-700 border-emerald-800 text-white shadow-2xs font-semibold'
+                                    : 'bg-white border-emerald-300 text-emerald-900 hover:bg-emerald-100/80'
+                                }`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const cleanToken = tgBotToken.trim().replace(/^["']|["']$/g, '').replace(/^bot/i, '');
+                                    const builtWebhook = `https://api.telegram.org/bot${cleanToken}/sendMessage?chat_id=${encodeURIComponent(c.id)}`;
+                                    setTgConfigChatId(c.id);
+                                    setTgWebhookUrl(builtWebhook);
+                                    saveTelegramWebhookConfig({
+                                      botToken: cleanToken,
+                                      configChatId: c.id,
+                                      chatId: c.id,
+                                      webhookUrl: builtWebhook,
+                                    });
+                                    if (onToast) onToast(`Selected "${c.title}" (${c.id})`);
+                                  }}
+                                  className="text-left font-mono text-[11px] cursor-pointer flex items-center gap-1.5"
+                                  title="Click to select this group as default"
+                                >
+                                  {isCurrentActive && <Check className="w-3.5 h-3.5 text-white shrink-0" />}
+                                  <span className="truncate max-w-[160px]">{c.title}</span>
+                                  <span className={isCurrentActive ? 'text-emerald-200 text-[10px]' : 'text-slate-500 text-[10px]'}>
+                                    ({c.id})
+                                  </span>
+                                  <span
+                                    className={`text-[9px] px-1 py-0.5 rounded font-sans uppercase ${
+                                      isCurrentActive ? 'bg-emerald-800/80 text-white' : 'bg-slate-100 text-slate-600'
+                                    }`}
+                                  >
+                                    {c.type}
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveDetectedChat(c.id);
+                                  }}
+                                  title={`Remove "${c.title}" (${c.id}) from system`}
+                                  className={`p-1 rounded-md transition cursor-pointer ${
+                                    isCurrentActive
+                                      ? 'hover:bg-emerald-800 text-emerald-200 hover:text-white'
+                                      : 'hover:bg-red-50 text-slate-400 hover:text-red-600'
+                                  }`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -2194,17 +2301,42 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       <label className="text-[11px] font-bold uppercase text-slate-600">
                         2. Default Staff Telegram Group Chat ID
                       </label>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        Fallback: <strong>-5428585935</strong>
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {tgConfigChatId && (
+                          <button
+                            type="button"
+                            onClick={handleClearDefaultGroup}
+                            className="text-[10.5px] font-medium text-red-600 hover:text-red-700 hover:underline cursor-pointer inline-flex items-center gap-0.5 transition"
+                            title="Remove default connected group"
+                          >
+                            <X className="w-3 h-3" />
+                            <span>Remove Group</span>
+                          </button>
+                        )}
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          Fallback: <strong>-5428585935</strong>
+                        </span>
+                      </div>
                     </div>
-                    <input
-                      type="text"
-                      value={tgConfigChatId}
-                      onChange={(e) => setTgConfigChatId(e.target.value)}
-                      placeholder="e.g. -5428585935 or -1005428585935"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={tgConfigChatId}
+                        onChange={(e) => setTgConfigChatId(e.target.value)}
+                        placeholder="e.g. -5428585935 or -1005428585935"
+                        className="w-full px-3 py-2 pr-9 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                      />
+                      {tgConfigChatId && (
+                        <button
+                          type="button"
+                          onClick={handleClearDefaultGroup}
+                          title="Clear / Remove connected group"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-red-600 transition cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <p className="text-[10px] text-slate-500 mt-0.5">
                       Used when a device&apos;s branch is not assigned to any regional group on the right. Supports regular (<code>-5428585935</code>) and supergroup (<code>-1005428585935</code>) IDs.
                     </p>
@@ -2224,63 +2356,79 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      disabled={tgTesting}
-                      onClick={async () => {
-                        saveTelegramWebhookConfig({
-                          botToken: tgBotToken,
-                          configChatId: tgConfigChatId,
-                          chatId: tgConfigChatId,
-                          webhookUrl: tgWebhookUrl,
-                        });
-                        setTgTesting(true);
-                        const res = await sendDeviceConfigTelegramAlert({
-                          serial: 'SN-TEST-0001',
-                          type: 'POS Terminal',
-                          model: 'PAX A920 Pro',
-                          mid: '200000000012345',
-                          tid: 'TID-10001',
-                          merchantName: 'Test Merchant (Default Group)',
-                          branchId: '100',
-                          branchName: 'Head Office',
-                          staff: 'Assigned POS Officer',
-                          actor: 'System Admin',
-                        });
-                        setTgTesting(false);
-                        if (onToast) {
-                          if (res.ok) {
-                            if (res.resolvedChatId && res.resolvedChatId !== tgConfigChatId) {
-                              setTgConfigChatId(res.resolvedChatId);
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={tgTesting || !tgBotToken.trim()}
+                        onClick={async () => {
+                          saveTelegramWebhookConfig({
+                            botToken: tgBotToken,
+                            configChatId: tgConfigChatId,
+                            chatId: tgConfigChatId,
+                            webhookUrl: tgWebhookUrl,
+                          });
+                          setTgTesting(true);
+                          const res = await sendDeviceConfigTelegramAlert({
+                            serial: 'SN-TEST-0001',
+                            type: 'POS Terminal',
+                            model: 'PAX A920 Pro',
+                            mid: '200000000012345',
+                            tid: 'TID-10001',
+                            merchantName: 'Test Merchant (Default Group)',
+                            branchId: '100',
+                            branchName: 'Head Office',
+                            staff: 'Assigned POS Officer',
+                            actor: 'System Admin',
+                          });
+                          setTgTesting(false);
+                          if (onToast) {
+                            if (res.ok) {
+                              if (res.resolvedChatId && res.resolvedChatId !== tgConfigChatId) {
+                                setTgConfigChatId(res.resolvedChatId);
+                              }
+                              onToast(`Sent test alert to Default Group (${res.resolvedChatId || tgConfigChatId})! Check your Telegram.`);
+                            } else {
+                              onToast(`Telegram Alert failed: ${res.error || 'Check Bot Token & Group Chat ID'}`);
                             }
-                            onToast(`Sent test alert to Default Group (${res.resolvedChatId || tgConfigChatId})! Check your Telegram.`);
-                          } else {
-                            onToast(`Telegram Alert failed: ${res.error || 'Check Bot Token & Group Chat ID'}`);
                           }
-                        }
-                      }}
-                      className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer transition disabled:opacity-50 shadow-xs inline-flex items-center gap-2"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{tgTesting ? 'Sending Test...' : 'Test Default Group Alert'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        saveTelegramWebhookConfig({
-                          botToken: tgBotToken,
-                          configChatId: tgConfigChatId,
-                          chatId: tgConfigChatId,
-                          webhookUrl: tgWebhookUrl,
-                          regionalGroups,
-                        });
-                        if (onToast) onToast('Telegram bot configuration saved!');
-                      }}
-                      className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition inline-flex items-center gap-1.5"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Save Bot Config</span>
-                    </button>
+                        }}
+                        className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer transition disabled:opacity-50 shadow-xs inline-flex items-center gap-2"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{tgTesting ? 'Sending Test...' : 'Test Default Group Alert'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveTelegramWebhookConfig({
+                            botToken: tgBotToken,
+                            configChatId: tgConfigChatId,
+                            chatId: tgConfigChatId,
+                            webhookUrl: tgWebhookUrl,
+                            regionalGroups,
+                          });
+                          if (tgBotUsername) saveTelegramBotUsername(tgBotUsername);
+                          if (tgDetectedChats.length > 0) saveTelegramDetectedChats(tgDetectedChats);
+                          if (onToast) onToast('Telegram bot configuration saved!');
+                        }}
+                        className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition inline-flex items-center gap-1.5"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Save Bot Config</span>
+                      </button>
+                    </div>
+
+                    {(tgBotToken || tgConfigChatId || tgWebhookUrl || tgDetectedChats.length > 0) && (
+                      <button
+                        type="button"
+                        onClick={() => setIsDeleteConnectionModalOpen(true)}
+                        className="px-3.5 py-2.5 rounded-xl text-xs font-bold border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 cursor-pointer transition inline-flex items-center gap-1.5"
+                        title="Delete Telegram connection and remove all linked groups from system"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Connection</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2622,6 +2770,50 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold cursor-pointer disabled:opacity-40 shadow-xs"
               >
                 {editingRegionalGroup ? 'Update Regional Group' : 'Add Regional Group'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Telegram Connection Confirmation Dialog */}
+      {isDeleteConnectionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl bg-white border-slate-200 text-slate-900 space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-zinc-900">
+                  Delete Telegram Connection?
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Disconnect bot and wipe configuration
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              This action will delete the Bot Token, default group ID, custom webhook URL, and remove all {tgDetectedChats.length} connected/detected groups from the system.
+            </p>
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+              <strong>Notice:</strong> Push notifications will be recorded in the in-app audit history until a new Telegram bot is configured.
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteConnectionModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConnection}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold tracking-wide cursor-pointer inline-flex items-center gap-1.5 shadow-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Confirm &amp; Delete Connection</span>
               </button>
             </div>
           </div>

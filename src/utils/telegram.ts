@@ -22,6 +22,8 @@ const STORAGE_KEY_TG_BOT_TOKEN = 'crm_telegram_bot_token_v1';
 const STORAGE_KEY_TG_CHAT_ID = 'crm_telegram_chat_id_v1';
 const STORAGE_KEY_TG_CONFIG_CHAT_ID = 'crm_telegram_config_chat_id_v1';
 const STORAGE_KEY_TG_REGIONAL_GROUPS = 'crm_telegram_regional_groups_v1';
+const STORAGE_KEY_TG_DETECTED_CHATS = 'crm_telegram_detected_chats_v1';
+const STORAGE_KEY_TG_BOT_USERNAME = 'crm_telegram_bot_username_v1';
 
 /** Default staff group used when nothing else is configured. */
 export const DEFAULT_TELEGRAM_CHAT_ID = '-5428585935';
@@ -49,6 +51,45 @@ const writeStorage = (key: string, value: string): void => {
     // storage full / disabled: ignore
   }
 };
+
+export function getTelegramDetectedChats(): DetectedTelegramChat[] {
+  const raw = readStorage(STORAGE_KEY_TG_DETECTED_CHATS);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveTelegramDetectedChats(chats: DetectedTelegramChat[]): void {
+  writeStorage(STORAGE_KEY_TG_DETECTED_CHATS, JSON.stringify(chats));
+}
+
+export function getTelegramBotUsername(): string {
+  return readStorage(STORAGE_KEY_TG_BOT_USERNAME);
+}
+
+export function saveTelegramBotUsername(username: string): void {
+  writeStorage(STORAGE_KEY_TG_BOT_USERNAME, username.trim());
+}
+
+/** Clears all stored Telegram connection credentials, tokens, webhooks, and detected chats */
+export function clearTelegramConnection(): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY_TG_WEBHOOK);
+      localStorage.removeItem(STORAGE_KEY_TG_BOT_TOKEN);
+      localStorage.removeItem(STORAGE_KEY_TG_CHAT_ID);
+      localStorage.removeItem(STORAGE_KEY_TG_CONFIG_CHAT_ID);
+      localStorage.removeItem(STORAGE_KEY_TG_DETECTED_CHATS);
+      localStorage.removeItem(STORAGE_KEY_TG_BOT_USERNAME);
+    }
+  } catch {
+    // ignore
+  }
+}
 
 export function getTelegramRegionalGroups(): TelegramRegionalGroup[] {
   const raw = readStorage(STORAGE_KEY_TG_REGIONAL_GROUPS);
@@ -153,6 +194,19 @@ export interface TelegramDispatchResult {
   error?: string;
 }
 
+/** Fast timeout wrapper to prevent hanging cloud RPCs or unresponsive network calls */
+async function withTimeout<T = any>(
+  promise: PromiseLike<T> | Promise<T>,
+  timeoutMs: number,
+  timeoutMsg = 'Operation timed out'
+): Promise<T> {
+  let timer: any;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(timeoutMsg)), timeoutMs);
+  });
+  return Promise.race([Promise.resolve(promise), timeoutPromise]).finally(() => clearTimeout(timer));
+}
+
 /** Sends a Markdown message using relay → direct → webhook, returning the chat ID that accepted it. */
 export async function dispatchTelegramMessage(
   botToken: string,
@@ -164,15 +218,19 @@ export async function dispatchTelegramMessage(
   const chatId = (targetChatId || '').trim();
   let lastError = '';
 
-  // 1. Supabase cloud relay
+  // 1. Supabase cloud relay with fast 5s timeout
   if (isSupabaseConfigured && token && chatId) {
     try {
-      const { data, error } = await supabase.rpc('rpc_send_telegram_message', {
-        p_bot_token: token,
-        p_chat_id: chatId,
-        p_text: text,
-        p_parse_mode: 'HTML',
-      });
+      const { data, error } = await withTimeout(
+        supabase.rpc('rpc_send_telegram_message', {
+          p_bot_token: token,
+          p_chat_id: chatId,
+          p_text: text,
+          p_parse_mode: 'HTML',
+        }),
+        5000,
+        'Cloud relay timeout'
+      );
       if (!error && data?.ok) return { ok: true, resolvedChatId: data.resolvedChatId || chatId };
       lastError = data?.error || error?.message || lastError;
     } catch (err: any) {
@@ -184,13 +242,32 @@ export async function dispatchTelegramMessage(
   if (token) {
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
     const post = async (params: Record<string, string>) => {
-      const res = await fetch(url, { method: 'POST', body: new URLSearchParams(params) });
-      return { res, data: await res.json().catch(() => null) };
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          body: new URLSearchParams(params),
+          signal: controller.signal,
+        });
+        return { res, data: await res.json().catch(() => null) };
+      } finally {
+        clearTimeout(timer);
+      }
     };
     for (const candidate of chatIdVariants(chatId)) {
       try {
         let { res, data } = await post({ chat_id: candidate, text, parse_mode: 'HTML' });
         if (res.ok && data?.ok) return { ok: true, resolvedChatId: candidate };
+
+        // Handle Telegram 429 rate limit gracefully with short retry
+        if (res.status === 429) {
+          const retrySecs = Math.min(Number(data?.parameters?.retry_after) || 1, 3);
+          await new Promise((r) => setTimeout(r, retrySecs * 1000));
+          ({ res, data } = await post({ chat_id: candidate, text, parse_mode: 'HTML' }));
+          if (res.ok && data?.ok) return { ok: true, resolvedChatId: candidate };
+        }
+
         // If entity parsing failed: resend as plain text without parse_mode (never strip underscores!)
         if (data?.description && /can't parse entities|html|markdown/i.test(data.description)) {
           ({ res, data } = await post({ chat_id: candidate, text: text.replace(/<[^>]+>/g, '') }));
@@ -221,6 +298,7 @@ export async function dispatchTelegramMessage(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: hookChatId || undefined, text, type: 'DEVICE_CONFIG_APP_PUSH' }),
+        signal: AbortSignal.timeout(8000),
       });
       if (res.ok) return { ok: true, resolvedChatId: hookChatId };
       lastError = `Webhook HTTP ${res.status}`;
@@ -251,17 +329,21 @@ export async function dispatchTelegramDocument(
   const chatId = (targetChatId || '').trim();
   let lastError = '';
 
-  // 1. Supabase cloud relay RPC (immune to browser CORS / ad-blockers, sends real CSV document to Telegram)
+  // 1. Supabase cloud relay RPC with fast 6s timeout (immune to browser CORS / ad-blockers, sends real CSV document to Telegram)
   if (isSupabaseConfigured && token && chatId) {
     try {
-      const { data, error } = await supabase.rpc('rpc_send_telegram_document', {
-        p_bot_token: token,
-        p_chat_id: chatId,
-        p_file_content: fileContent,
-        p_file_name: fileName,
-        p_caption: caption,
-        p_parse_mode: 'HTML',
-      });
+      const { data, error } = await withTimeout(
+        supabase.rpc('rpc_send_telegram_document', {
+          p_bot_token: token,
+          p_chat_id: chatId,
+          p_file_content: fileContent,
+          p_file_name: fileName,
+          p_caption: caption,
+          p_parse_mode: 'HTML',
+        }),
+        6000,
+        'Cloud document relay timeout'
+      );
       if (!error && data?.ok) return { ok: true, resolvedChatId: data.resolvedChatId || chatId };
       lastError = data?.error || error?.message || lastError;
     } catch (err: any) {
@@ -285,10 +367,19 @@ export async function dispatchTelegramDocument(
           formData.append('parse_mode', 'HTML');
         }
 
-        let res = await fetch(url, { method: 'POST', body: formData });
+        let res = await fetch(url, { method: 'POST', body: formData, signal: AbortSignal.timeout(10000) });
         let data = await res.json().catch(() => null);
 
         if (res.ok && data?.ok) return { ok: true, resolvedChatId: candidate };
+
+        // Handle Telegram 429 rate limit
+        if (res.status === 429) {
+          const retrySecs = Math.min(Number(data?.parameters?.retry_after) || 1, 3);
+          await new Promise((r) => setTimeout(r, retrySecs * 1000));
+          res = await fetch(url, { method: 'POST', body: formData, signal: AbortSignal.timeout(10000) });
+          data = await res.json().catch(() => null);
+          if (res.ok && data?.ok) return { ok: true, resolvedChatId: candidate };
+        }
 
         // If HTML entities failed in caption, retry with clean plain text caption without parse_mode (never strip underscores!)
         if (data?.description && /can't parse entities|html|markdown/i.test(data.description)) {
@@ -298,7 +389,7 @@ export async function dispatchTelegramDocument(
           if (caption) {
             plainFormData.append('caption', caption.replace(/<[^>]+>/g, '').slice(0, 1000));
           }
-          res = await fetch(url, { method: 'POST', body: plainFormData });
+          res = await fetch(url, { method: 'POST', body: plainFormData, signal: AbortSignal.timeout(10000) });
           data = await res.json().catch(() => null);
           if (res.ok && data?.ok) return { ok: true, resolvedChatId: candidate };
         }
@@ -312,7 +403,7 @@ export async function dispatchTelegramDocument(
     }
   }
 
-  // 2. Custom Webhook with file payload
+  // 3. Custom Webhook with file payload
   if (webhookUrl) {
     let hookChatId = chatId;
     try {
@@ -331,6 +422,7 @@ export async function dispatchTelegramDocument(
           fileContent,
           type: 'DEVICE_CONFIG_FILE',
         }),
+        signal: AbortSignal.timeout(10000),
       });
       if (res.ok) return { ok: true, resolvedChatId: hookChatId };
       lastError = `Webhook HTTP ${res.status}`;
@@ -339,7 +431,7 @@ export async function dispatchTelegramDocument(
     }
   }
 
-  // 3. Fallback to sending standard message with formatted device queue
+  // 4. Fallback to sending standard message with formatted device queue
   return dispatchTelegramMessage(botToken, chatId, webhookUrl, caption);
 }
 
@@ -615,77 +707,80 @@ export async function sendBatchDeviceConfigTelegramAlert(
     dest.devices.push(d);
   }
 
-  const details: BatchDeviceConfigTelegramAlertResult['details'] = [];
-  for (const [, dest] of destinations) {
-    const groupName = Array.from(dest.names).join(' + ');
-    const sampleBranch = dest.devices[0]?.branchId || '100';
-    const sampleBranchName = dest.devices[0]?.branchName || groupName;
+  // Parallel concurrent dispatch across all destination groups/staff for maximum speed and stability
+  const destList = Array.from(destinations.values());
+  const details = await Promise.all(
+    destList.map(async (dest) => {
+      const groupName = Array.from(dest.names).join(' + ');
+      const sampleBranch = dest.devices[0]?.branchId || '100';
+      const sampleBranchName = dest.devices[0]?.branchName || groupName;
 
-    // Distinct staff members and telegram handles
-    const uniqueStaffList = Array.from(
-      new Set(dest.devices.map((d) => (d.staff || d.staffName || '').trim()).filter(Boolean))
-    );
-    const uniqueMentions = Array.from(
-      new Set(
-        dest.devices
-          .map((d) => formatTelegramMention(d.staffTelegram, d.staff || d.staffName || ''))
-          .filter(Boolean)
-      )
-    );
+      // Distinct staff members and telegram handles
+      const uniqueStaffList = Array.from(
+        new Set(dest.devices.map((d) => (d.staff || d.staffName || '').trim()).filter(Boolean))
+      );
+      const uniqueMentions = Array.from(
+        new Set(
+          dest.devices
+            .map((d) => formatTelegramMention(d.staffTelegram, d.staff || d.staffName || ''))
+            .filter(Boolean)
+        )
+      );
 
-    const isAllStaffMode = !groupByStaff && uniqueStaffList.length > 1;
-    const cleanStaff = isAllStaffMode
-      ? 'All_Staff'
-      : (dest.staffName || 'Staff')
-          .replace(/[^a-zA-Z0-9]/g, '_')
-          .replace(/_+/g, '_')
-          .replace(/^_|_$/g, '');
+      const isAllStaffMode = !groupByStaff && uniqueStaffList.length > 1;
+      const cleanStaff = isAllStaffMode
+        ? 'All_Staff'
+        : (dest.staffName || 'Staff')
+            .replace(/[^a-zA-Z0-9]/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_|_$/g, '');
 
-    // Device type label for filename
-    const devTypes = new Set(dest.devices.map((d) => (d.deviceType || d.type || '').toLowerCase()));
-    let devTypeLabel = 'Devices';
-    if (devTypes.size === 1) {
-      if (devTypes.has('sound box')) devTypeLabel = 'SoundBox';
-      else if (devTypes.has('pos terminal')) devTypeLabel = 'POSTerminal';
-    }
+      // Device type label for filename
+      const devTypes = new Set(dest.devices.map((d) => (d.deviceType || d.type || '').toLowerCase()));
+      let devTypeLabel = 'Devices';
+      if (devTypes.size === 1) {
+        if (devTypes.has('sound box')) devTypeLabel = 'SoundBox';
+        else if (devTypes.has('pos terminal')) devTypeLabel = 'POSTerminal';
+      }
 
-    const fileName = `${cleanStaff}_${devTypeLabel}_Total_${dest.devices.length}_Merchants_${batchPushId}.csv`;
-    const fileCsv = buildDeviceConfigCsv(dest.devices, sampleBranch, actor, batchPushId);
+      const fileName = `${cleanStaff}_${devTypeLabel}_Total_${dest.devices.length}_Merchants_${batchPushId}.csv`;
+      const fileCsv = buildDeviceConfigCsv(dest.devices, sampleBranch, actor, batchPushId);
 
-    const staffDisplayName = isAllStaffMode
-      ? uniqueStaffList.join(', ')
-      : dest.staffName;
-    const staffMentionStr = isAllStaffMode
-      ? (uniqueMentions.length > 0 ? ` (${uniqueMentions.join(' ')})` : '')
-      : (formatTelegramMention(dest.staffTelegram, dest.staffName)
-          ? ` (${formatTelegramMention(dest.staffTelegram, dest.staffName)})`
-          : '');
+      const staffDisplayName = isAllStaffMode
+        ? uniqueStaffList.join(', ')
+        : dest.staffName;
+      const staffMentionStr = isAllStaffMode
+        ? (uniqueMentions.length > 0 ? ` (${uniqueMentions.join(' ')})` : '')
+        : (formatTelegramMention(dest.staffTelegram, dest.staffName)
+            ? ` (${formatTelegramMention(dest.staffTelegram, dest.staffName)})`
+            : '');
 
-    // Build consolidated Telegram notification (Mandatory data only - HTML formatted, preserves underscores in mentions)
-    const lines: string[] = [
-      isAllStaffMode
-        ? `📲 <b>Ready for App Push (All Staff Master File)</b>`
-        : `📲 <b>Ready for App Push</b>`,
-      `🆔 <b>Push Tracking ID:</b> <code>${escapeHtml(batchPushId)}</code>`,
-      `• <b>Assigned Staff${isAllStaffMode ? ` (${uniqueStaffList.length})` : ''}:</b> <b>${escapeHtml(staffDisplayName)}</b>${staffMentionStr}`,
-      `• <b>Assigned By:</b> <b>${escapeHtml(actor)}</b>`,
-      `• <b>Branch:</b> Code <code>${escapeHtml(sampleBranch)}</code> (${escapeHtml(sampleBranchName)})`,
-      dest.isRegional ? `• <b>Destination Group:</b> <b>${escapeHtml(groupName)}</b>` : null,
-      `• <b>Total Devices:</b> <b>${dest.devices.length} unit${dest.devices.length === 1 ? '' : 's'}${isAllStaffMode ? ' (All staff included in 1 file)' : ''}</b> (Details in attached CSV)`,
-      `• <b>Action:</b> Please power ON device${dest.devices.length === 1 ? '' : 's'} to wait for App Push.`,
-      `• <b>Timestamp:</b> ${timestamp}`,
-    ].filter(Boolean) as string[];
+      // Build consolidated Telegram notification (Mandatory data only - HTML formatted, preserves underscores in mentions)
+      const lines: string[] = [
+        isAllStaffMode
+          ? `📲 <b>Ready for App Push (All Staff Master File)</b>`
+          : `📲 <b>Ready for App Push</b>`,
+        `🆔 <b>Push Tracking ID:</b> <code>${escapeHtml(batchPushId)}</code>`,
+        `• <b>Assigned Staff${isAllStaffMode ? ` (${uniqueStaffList.length})` : ''}:</b> <b>${escapeHtml(staffDisplayName)}</b>${staffMentionStr}`,
+        `• <b>Assigned By:</b> <b>${escapeHtml(actor)}</b>`,
+        `• <b>Branch:</b> Code <code>${escapeHtml(sampleBranch)}</code> (${escapeHtml(sampleBranchName)})`,
+        dest.isRegional ? `• <b>Destination Group:</b> <b>${escapeHtml(groupName)}</b>` : null,
+        `• <b>Total Devices:</b> <b>${dest.devices.length} unit${dest.devices.length === 1 ? '' : 's'}${isAllStaffMode ? ' (All staff included in 1 file)' : ''}</b> (Details in attached CSV)`,
+        `• <b>Action:</b> Please power ON device${dest.devices.length === 1 ? '' : 's'} to wait for App Push.`,
+        `• <b>Timestamp:</b> ${timestamp}`,
+      ].filter(Boolean) as string[];
 
-    const res = await dispatchTelegramDocument(
-      config.botToken,
-      dest.chatId,
-      config.webhookUrl,
-      fileCsv,
-      fileName,
-      lines.join('\n')
-    );
-    details.push({ chatId: dest.chatId, groupName, units: dest.devices.length, ok: res.ok, error: res.error });
-  }
+      const res = await dispatchTelegramDocument(
+        config.botToken,
+        dest.chatId,
+        config.webhookUrl,
+        fileCsv,
+        fileName,
+        lines.join('\n')
+      );
+      return { chatId: dest.chatId, groupName, units: dest.devices.length, ok: res.ok, error: res.error };
+    })
+  );
 
   const groupsSent = details.filter((d) => d.ok).length;
   return {
@@ -727,10 +822,14 @@ export async function detectTelegramGroupChats(botTokenInput: string): Promise<D
     };
   }
 
-  // 1. Supabase cloud relay
+  // 1. Supabase cloud relay with fast 5s timeout
   if (isSupabaseConfigured) {
     try {
-      const { data, error } = await supabase.rpc('rpc_detect_telegram_chats', { p_bot_token: token });
+      const { data, error } = await withTimeout(
+        supabase.rpc('rpc_detect_telegram_chats', { p_bot_token: token }),
+        5000,
+        'Cloud chat detection timeout'
+      );
       if (!error && data) {
         return data.ok
           ? { ok: true, botUsername: data.botUsername || '', chats: Array.isArray(data.chats) ? data.chats : [] }
@@ -744,7 +843,7 @@ export async function detectTelegramGroupChats(botTokenInput: string): Promise<D
   // 2. Direct browser fallback
   const api = `https://api.telegram.org/bot${token}`;
   try {
-    const meRes = await fetch(`${api}/getMe`);
+    const meRes = await fetch(`${api}/getMe`, { signal: AbortSignal.timeout(6000) });
     const me = await meRes.json().catch(() => null);
     if (!meRes.ok || !me?.ok) {
       return {
@@ -757,11 +856,11 @@ export async function detectTelegramGroupChats(botTokenInput: string): Promise<D
     const botUsername = String(me.result?.username || '');
 
     const updatesUrl = `${api}/getUpdates?limit=100&allowed_updates=["message","edited_message","my_chat_member","chat_member"]`;
-    let res = await fetch(updatesUrl);
+    let res = await fetch(updatesUrl, { signal: AbortSignal.timeout(6000) });
     if (res.status === 409) {
       // a webhook is set on the bot, which blocks getUpdates
-      await fetch(`${api}/deleteWebhook?drop_pending_updates=false`);
-      res = await fetch(updatesUrl);
+      await fetch(`${api}/deleteWebhook?drop_pending_updates=false`, { signal: AbortSignal.timeout(6000) });
+      res = await fetch(updatesUrl, { signal: AbortSignal.timeout(6000) });
     }
     if (!res.ok) return { ok: true, botUsername, error: `Could not read updates (HTTP ${res.status}).`, chats: [] };
 
@@ -790,6 +889,7 @@ export async function detectTelegramGroupChats(botTokenInput: string): Promise<D
       await fetch(`${api}/sendMessage`, {
         method: 'POST',
         body: new URLSearchParams({ chat_id: target.id, text: confirm, parse_mode: 'Markdown' }),
+        signal: AbortSignal.timeout(6000),
       }).catch(() => undefined);
     }
     return { ok: true, botUsername, chats };
