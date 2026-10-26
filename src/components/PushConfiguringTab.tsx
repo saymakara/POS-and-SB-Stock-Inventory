@@ -1,5 +1,5 @@
 import { csvFile } from '../utils/csv';
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
@@ -87,7 +87,9 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
+  const [pushStatusFilter, setPushStatusFilter] = useState<'ALL' | 'WAITING' | 'PUSHED'>('ALL');
   const [selectedSns, setSelectedSns] = useState<string[]>([]);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   // Push Mode:
   // - 'total_csv': Consolidated Total CSV per staff member (1 file/message per staff)
@@ -301,6 +303,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     return configuringDevices.filter((d) => {
       if (branchFilter !== 'ALL' && d.branchId !== branchFilter) return false;
       if (typeFilter !== 'ALL' && d.type !== typeFilter) return false;
+      if (pushStatusFilter === 'WAITING' && isDevicePushed(d.serial)) return false;
+      if (pushStatusFilter === 'PUSHED' && !isDevicePushed(d.serial)) return false;
       if (!q) return true;
       const pushId = (getDevicePushId(d) || '').toLowerCase();
       return (
@@ -317,7 +321,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         (d.stockInDate || '').toLowerCase().includes(q)
       );
     });
-  }, [configuringDevices, search, branchFilter, typeFilter, getDevicePushId]);
+  }, [configuringDevices, search, branchFilter, typeFilter, pushStatusFilter, isDevicePushed, getDevicePushId]);
 
   // Lookup map for staff Telegram handles
   const userTelegramMap = useMemo(() => {
@@ -377,6 +381,28 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     } else {
       setSelectedSns(filteredDevices.map((d) => d.serial));
     }
+  };
+
+  // Scroll and filter table when KPI mini-cards are clicked
+  const handleCardClick = (target: 'WAITING' | 'POS' | 'SB' | 'ALL') => {
+    if (target === 'WAITING') {
+      if (waitingDevices.length === 0) {
+        setPushStatusFilter('ALL');
+      } else {
+        setPushStatusFilter((prev) => (prev === 'WAITING' ? 'ALL' : 'WAITING'));
+      }
+    } else if (target === 'POS') {
+      setTypeFilter((prev) => (prev === 'POS Terminal' ? 'ALL' : 'POS Terminal'));
+    } else if (target === 'SB') {
+      setTypeFilter((prev) => (prev === 'Sound Box' ? 'ALL' : 'Sound Box'));
+    } else if (target === 'ALL') {
+      setPushStatusFilter('ALL');
+      setTypeFilter('ALL');
+      setBranchFilter('ALL');
+      setSearch('');
+    }
+    // Smooth scroll directly to the hardware queue table
+    tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleToggleSelectOne = (sn: string) => {
@@ -844,41 +870,88 @@ return (
           </div>
         </div>
 
-        {/* KPI Mini-Cards */}
+        {/* KPI Mini-Cards (Clickable to view and filter queue table) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/10 transition-colors duration-150">
-            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Total Waiting Push</div>
+          <button
+            type="button"
+            onClick={() => handleCardClick('WAITING')}
+            className={`group p-3.5 rounded-2xl border backdrop-blur-xs transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+              pushStatusFilter === 'WAITING'
+                ? 'bg-white/20 border-white/40 ring-2 ring-sky-300 shadow-md'
+                : 'bg-white/5 border-white/10 hover:bg-white/15 hover:border-white/25'
+            }`}
+            title="Click to view table and filter waiting devices"
+          >
+            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+              <span>Total Waiting Push</span>
+              <span className="text-[10px] text-sky-200/70 group-hover:text-white transition-colors">View Table ↓</span>
+            </div>
             <div className="text-2xl font-black text-white mt-1">{waitingDevices.length}</div>
-            <div className="text-[10px] text-sky-300 font-medium mt-0.5">
+            <div className="text-[10px] text-sky-300 font-medium mt-0.5 truncate">
               {alreadyPushedDevices.length > 0
                 ? `${alreadyPushedDevices.length} already pushed (${configuringDevices.length} total)`
-                : 'High-volume daily queue'}
+                : 'Click to view hardware queue'}
             </div>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/10 transition-colors duration-150">
-            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-400" />
-              POS Terminals
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleCardClick('POS')}
+            className={`group p-3.5 rounded-2xl border backdrop-blur-xs transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+              typeFilter === 'POS Terminal'
+                ? 'bg-white/20 border-white/40 ring-2 ring-blue-300 shadow-md'
+                : 'bg-white/5 border-white/10 hover:bg-white/15 hover:border-white/25'
+            }`}
+            title="Click to view and filter POS Terminals in queue"
+          >
+            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-400" />
+                POS Terminals
+              </span>
+              <span className="text-[10px] text-sky-200/70 group-hover:text-white transition-colors">View Table ↓</span>
             </div>
             <div className="text-2xl font-black text-white mt-1">{posCount}</div>
             <div className="text-[10px] text-slate-300 font-medium mt-0.5">Under Configuring</div>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/10 transition-colors duration-150">
-            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-purple-400" />
-              Sound Boxes
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleCardClick('SB')}
+            className={`group p-3.5 rounded-2xl border backdrop-blur-xs transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+              typeFilter === 'Sound Box'
+                ? 'bg-white/20 border-white/40 ring-2 ring-purple-300 shadow-md'
+                : 'bg-white/5 border-white/10 hover:bg-white/15 hover:border-white/25'
+            }`}
+            title="Click to view and filter Sound Boxes in queue"
+          >
+            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-purple-400" />
+                Sound Boxes
+              </span>
+              <span className="text-[10px] text-sky-200/70 group-hover:text-white transition-colors">View Table ↓</span>
             </div>
             <div className="text-2xl font-black text-white mt-1">{sbCount}</div>
             <div className="text-[10px] text-slate-300 font-medium mt-0.5">Under Configuring</div>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/10 transition-colors duration-150">
-            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-sky-300" />
-              Active Teams
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleCardClick('ALL')}
+            className="group p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/15 hover:border-white/25 transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none"
+            title="Click to view all active teams in queue"
+          >
+            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-sky-300" />
+                Active Teams
+              </span>
+              <span className="text-[10px] text-sky-200/70 group-hover:text-white transition-colors">View Table ↓</span>
             </div>
             <div className="text-2xl font-black text-white mt-1">{teamGroups.length}</div>
             <div className="text-[10px] text-sky-200 font-medium mt-0.5">Assigned branch teams</div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -1042,13 +1115,14 @@ return (
               ))}
             </select>
 
-            {(search || typeFilter !== 'ALL' || branchFilter !== 'ALL') && (
+            {(search || typeFilter !== 'ALL' || branchFilter !== 'ALL' || pushStatusFilter !== 'ALL') && (
               <button
                 type="button"
                 onClick={() => {
                   setSearch('');
                   setTypeFilter('ALL');
                   setBranchFilter('ALL');
+                  setPushStatusFilter('ALL');
                 }}
                 className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer active:scale-[0.97] transition-all duration-150"
               >
@@ -1136,7 +1210,7 @@ return (
       </div>
 
       {/* 4. HARDWARE QUEUE TABLE WITH DATE & TIME OF REQUEST PUSH */}
-      <div className={`rounded-2xl border shadow-xs overflow-hidden ${isLight ? 'border-slate-200/90 bg-white' : 'border-slate-800 bg-[#141822]'}`}>
+      <div ref={tableRef} className={`rounded-2xl border shadow-xs overflow-hidden scroll-mt-6 ${isLight ? 'border-slate-200/90 bg-white' : 'border-slate-800 bg-[#141822]'}`}>
         <div className={`p-4 border-b flex items-center justify-between gap-3 ${isLight ? 'border-slate-100 text-slate-700' : 'border-slate-800 text-slate-300'}`}>
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase tracking-wider">
