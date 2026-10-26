@@ -927,7 +927,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             {/* Section 0: Admin Serial Number Correction */}
             {isAdminLike && onRenameSerial && (
               <div className={`p-3.5 rounded-2xl border transition-colors ${
-                isLight ? 'bg-slate-50/80 border-slate-200' : 'bg-[#181c26] border-slate-700/80'
+                isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#181c26] border-slate-700/80'
               }`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
@@ -991,7 +991,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
             {/* Section 1: Lifecycle & Branch Assignment */}
             <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
-              isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#161a24] border-slate-700/70'
+              isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
             }`}>
               <div className="flex items-center gap-2 pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
                 <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
@@ -1191,7 +1191,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             {!returnMode && (<>
               {/* Section 2: Staff Officer & Deployment Schedule */}
               <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
-                isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#161a24] border-slate-700/70'
+                isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
               }`}>
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
                   <div className="flex items-center gap-2">
@@ -1309,7 +1309,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
               {/* Section 3: Merchant & Terminal Setup */}
               <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
-                isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#161a24] border-slate-700/70'
+                isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
               }`}>
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
                   <div className="flex items-center gap-2">
@@ -1417,7 +1417,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         placeholder="Automatic: last 8 digits of MID"
                         className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
-                            ? 'bg-slate-100/80 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                            ? 'bg-slate-200/60 border-slate-300/80 text-slate-700 placeholder:text-slate-400'
                             : 'bg-[#181c26] border-slate-700 text-white placeholder:text-slate-500'
                         }`}
                       />
@@ -1431,7 +1431,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 <div
                   className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${
                     isLight
-                      ? 'bg-slate-50/70 border-slate-200/90'
+                      ? 'bg-slate-100/90 border-slate-200 shadow-2xs'
                       : 'bg-[#161a24] border-slate-700/70'
                   }`}
                 >
@@ -1537,7 +1537,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         ? 'bg-amber-50/60 border-amber-200'
                         : 'bg-amber-950/20 border-amber-800/60'
                       : isLight
-                      ? 'bg-slate-50/70 border-slate-200/90'
+                      ? 'bg-slate-100/90 border-slate-200 shadow-2xs'
                       : 'bg-[#161a24] border-slate-700/70'
                   }`}
                 >
@@ -1705,7 +1705,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
             {/* Section 5: Audit Note / Update Reason */}
             <div className={`p-4 rounded-2xl border space-y-2.5 transition-colors ${
-              isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#161a24] border-slate-700/70'
+              isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
             }`}>
               <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
                 <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">

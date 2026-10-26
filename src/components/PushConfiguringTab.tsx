@@ -1791,7 +1791,7 @@ return (
 
                       {/* Section 2: Operator Security Authorization */}
                       <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
-                        isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#161a24] border-slate-700/70'
+                        isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
                       }`}>
                         <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
                           <div className="flex items-center gap-2">
