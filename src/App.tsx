@@ -1662,7 +1662,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const histRec = leftMerchant
       ? historyRecordFor(d, {
           reason: (userNote.replace(/^Returned:\s*/i, '')) || (updates.stage === 'LOST' ? 'Device lost at merchant' : 'Taken back from merchant'),
-          status: updates.stage === 'LOST' || TERMINATION_REASON.test(userNote) ? 'TERMINATED' : 'RETURNED',
+          status: 'RETURNED',
           actor,
           notes: `Unit moved to ${stageLabel}.`,
         })
@@ -1868,7 +1868,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (!moving.length) { triggerToast('Nothing to return: the units are already in HQ stock, lost or allocated to a request.'); return; }
     const why = reason || 'Returned to HQ stock';
     const records = moving.filter((d) => d.mid || d.merchantName).map((d) => historyRecordFor(d, {
-      reason: why, status: TERMINATION_REASON.test(why) ? 'TERMINATED' : 'RETURNED', actor, notes: 'Returned to HQ.' }));
+      reason: why, status: 'RETURNED', actor, notes: 'Returned to HQ.' }));
     const movedMap = new Map(moving.map((d) => {
       const to: LifecycleStage = d.stage === 'FAULTY' ? 'FAULTY' : 'HQ_STOCK';
       const next: Device = {
@@ -1988,7 +1988,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       if (role === 'BRANCH' && d.stage === 'HQ_STOCK') { problems.push(`${d.serial} (HQ stock)`); return; }
       const why = reason || `Returned to Branch Code ${bId} reserve`;
       const hadMerchant = !!(d.mid || d.merchantName);
-      if (hadMerchant) records.push(historyRecordFor(d, { reason: why, status: TERMINATION_REASON.test(why) ? 'TERMINATED' : 'RETURNED', actor, notes: 'Unit kept in branch reserve.' }));
+      if (hadMerchant) records.push(historyRecordFor(d, { reason: why, status: 'RETURNED', actor, notes: 'Unit kept in branch reserve.' }));
       nextMap.set(d.serial, {
         ...onMove(d, 'BRANCH_RESERVE'),
         branchId: bId,
@@ -2029,7 +2029,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const handleTerminateMerchant = (
     mid: string,
     destination: 'HQ_STOCK' | 'BRANCH_RESERVE',
-    reason: string = 'Merchant Terminated Contract',
+    reason: string = 'Returned by Merchant',
     notes?: string
   ) => {
     const today = todayPP();
@@ -2039,8 +2039,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (!affected.length) { triggerToast('No unit of this merchant is in your branch.'); return; }
     if (destination === 'HQ_STOCK' && role === 'BRANCH') { triggerToast('Branch staff return units to the branch reserve; HQ approves a return to HQ.'); return; }
     const merchantName = affected[0].merchantName || mid;
-    const records = affected.map((d) => historyRecordFor(d, { reason, status: 'TERMINATED', actor,
-      notes: notes || `Terminated; unit returned to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}.` }));
+    const records = affected.map((d) => historyRecordFor(d, { reason, status: 'RETURNED', actor,
+      notes: notes || `Unit returned to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}.` }));
     const nextMap = new Map(affected.map((d) => {
       const toHq = destination === 'HQ_STOCK' || d.branchId === '100';
       const bId = toHq ? '100' : d.branchId;
@@ -2058,15 +2058,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         deployedDate: '',
         redeployCount: (d.redeployCount || 0) + 1,
         updatedAt: today,
-        note: `Returned to ${destLabel} after merchant termination (${reason})`,
-        history: [`${nowTime} | Terminated Return | Returned from ${d.merchantName || 'merchant'} to ${destLabel} — Reason: ${reason} — Officer: ${actor}`, ...(d.history || [])],
+        note: `Returned to ${destLabel} (${reason})`,
+        history: [`${nowTime} | Hardware Return | Returned from ${d.merchantName || 'merchant'} to ${destLabel} — Reason: ${reason} — Officer: ${actor}`, ...(d.history || [])],
       };
       return [d.serial, next] as const;
     }));
     setDevices((prev) => prev.map((d) => nextMap.get(d.serial) || d));
     setHistoricalMerchants((prev) => [...records, ...prev]);
-    addAuditLog('Merchant Terminated', `Merchant ${merchantName} (${mid}) terminated. ${affected.length} unit(s) returned to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}`);
-    triggerToast(`Merchant ${merchantName} terminated. ${affected.length} unit(s) returned to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}.`);
+    addAuditLog('Hardware Returned', `Returned ${affected.length} unit(s) from merchant ${merchantName} (${mid}) to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}`);
+    triggerToast(`Returned ${affected.length} unit(s) from ${merchantName} to ${destination === 'HQ_STOCK' ? 'HQ stock' : 'branch reserve'}.`);
   };
 
   // Remove from Dashboard (Archive) & Restore

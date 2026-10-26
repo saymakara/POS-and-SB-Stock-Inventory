@@ -71,8 +71,7 @@ const TERMINATING_REASONS = [
   'Franchise Ownership Transfer / Account Terminated',
   'Seasonal Merchant Termination',
 ];
-const statusForReason = (reason: string): HistoricalMerchantRecord['status'] =>
-  TERMINATING_REASONS.includes(reason) || /closed|terminat/i.test(reason) ? 'TERMINATED' : 'RETURNED';
+const statusForReason = (_reason: string): HistoricalMerchantRecord['status'] => 'RETURNED';
 
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
 
@@ -441,7 +440,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 Historical Merchant Records
               </h2>
               <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
-                · {filteredRecords.length} Terminated &amp; Returned Devices
+                · {filteredRecords.length} Returned Devices
               </span>
               <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-[#eef5f9] text-[#003857] border border-[#003857]/20 dark:bg-white/10 dark:text-slate-300 dark:border-white/10">
                 Archival Ledger
@@ -667,7 +666,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 </tr>
               ) : (
                 pagedRecords.map((rec, rowIdx) => {
-                  const chip = rec.status === 'TERMINATED' ? 'chip-red' : rec.status === 'RETURNED' ? 'chip-amber' : 'chip-slate';
+                  const chip = 'chip-amber';
                   const midOk = isValidMid(rec.mid);
                   const officer = rec.returnedByStaff || rec.handledByStaff;
                   return (
@@ -677,7 +676,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         <div className="cell-mono">{dash(rec.returnedDate)}</div>
                       </td>
                       <td className="whitespace-nowrap">
-                        <span className={`chip ${chip}`}>{statusText(rec.status)}</span>
+                        <span className={`chip ${chip}`}>{statusText(rec.status) === 'Terminated' ? 'Returned' : statusText(rec.status)}</span>
                       </td>
                       <td>
                         <div className={`cell-main max-w-[160px] truncate ${hasKhmer(rec.merchantName) ? 'khmer' : ''}`} title={rec.merchantName}>

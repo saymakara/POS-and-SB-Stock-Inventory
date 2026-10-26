@@ -211,7 +211,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   // Modal state for terminating a merchant & returning all hardware
   const [terminateModalMerchant, setTerminateModalMerchant] = useState<MerchantProfile | null>(null);
   const [terminateDestination, setTerminateDestination] = useState<'BRANCH_RESERVE' | 'HQ_STOCK'>('BRANCH_RESERVE');
-  const [terminateReason, setTerminateReason] = useState<string>('Merchant Closed Business');
+  const [terminateReason, setTerminateReason] = useState<string>('Returned by Merchant');
   const [terminateNotes, setTerminateNotes] = useState<string>('');
   const [replaceModalDevice, setReplaceModalDevice] = useState<Device | null>(null);
   const [replaceNewSerial, setReplaceNewSerial] = useState<string>('');
@@ -1053,7 +1053,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   const handleOpenTerminateModal = (merchant: MerchantProfile) => {
     setTerminateModalMerchant(merchant);
     setTerminateDestination('BRANCH_RESERVE');
-    setTerminateReason('Merchant Closed Business');
+    setTerminateReason('Returned by Merchant');
     setTerminateNotes('');
   };
 
@@ -2534,6 +2534,21 @@ return (
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
+                  {role !== 'BRANCH' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = selectedMerchantProfile;
+                        setSelectedMid(null);
+                        handleOpenBindModal(target);
+                      }}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#004953] hover:bg-[#003840] text-emerald-200 border border-emerald-500/30 flex items-center gap-1.5 transition cursor-pointer shadow-sm hover:scale-[1.02]"
+                      title="Bind an additional POS Terminal or Sound Box to this merchant store"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Bind Additional Unit</span>
+                    </button>
+                  )}
                   {onTerminateMerchant && (
                     <button
                       type="button"
@@ -2542,10 +2557,11 @@ return (
                         setSelectedMid(null);
                         handleOpenTerminateModal(m);
                       }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                      title="Return assigned hardware units back to branch reserve or HQ stock"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Terminate Merchant</span>
+                      <span>Return Hardware</span>
                     </button>
                   )}
                   <button
@@ -2644,20 +2660,7 @@ return (
                           <span>Record Device Replacement (Broken / Swap)</span>
                         </button>
                       )}
-                      {role !== 'BRANCH' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const target = selectedMerchantProfile;
-                            setSelectedMid(null);
-                            handleOpenBindModal(target);
-                          }}
-                          className="text-xs font-bold text-cyan-400 hover:underline flex items-center gap-1"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Bind Additional Serial</span>
-                        </button>
-                      )}
+
                     </div>
                   </div>
                   {replaceModalDevice && onReplaceMerchantDevice && (
@@ -3004,7 +3007,7 @@ return (
           document.body
         )}
 
-      {/* Terminate Merchant & Return Hardware Modal */}
+      {/* Return Hardware from Merchant Modal */}
       {typeof document !== 'undefined' &&
         createPortal(
           <>
@@ -3023,14 +3026,14 @@ return (
                   : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
               }`}
             >
-              <div className="bg-[#002f49] px-6 py-4 flex items-center justify-between text-white border-b border-rose-500/30">
+              <div className="bg-[#002f49] px-6 py-4 flex items-center justify-between text-white border-b border-amber-500/30">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
                     <RotateCcw className="w-4 h-4" />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-white">
-                      Terminate Merchant &amp; Return Hardware
+                      Return Hardware from Merchant
                     </h3>
                     <p className="text-[11px] text-cyan-300 font-mono">
                       {terminateModalMerchant.mid} — {dash(terminateModalMerchant.merchantName)}
@@ -3064,7 +3067,7 @@ return (
                     </span>
                   </div>
                   <p className="text-[11px] opacity-90 mb-2">
-                    Terminating clears the merchant name, MID, TID, phone, address and installer from each serial in Stock Inventory, and keeps the old merchant details in Merchant History:
+                    Returning clears the merchant assignment from each serial in Stock Inventory, moves units back to stock, and records the return event in Merchant History:
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {terminateModalMerchant.devices.map((d) => (
@@ -3137,20 +3140,21 @@ return (
                 {/* Reason Selection */}
                 <div>
                   <label className="block font-bold text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
-                    Termination Reason *
+                    Return Reason *
                   </label>
                   <select
                     value={terminateReason}
                     onChange={(e) => setTerminateReason(e.target.value)}
                     className={`w-full rounded-xl px-3 py-2 border font-semibold ${inputClass}`}
                   >
+                    <option value="Returned by Merchant">Returned by Merchant</option>
                     <option value="Merchant Closed Business">Merchant Closed Business</option>
-                    <option value="Terminated Contract — Merchant Relocated">Terminated Contract — Merchant Relocated</option>
-                    <option value="Upgraded from Sound Box to POS Terminal">Upgraded from Sound Box to POS Terminal</option>
+                    <option value="Hardware Malfunction / Replacement">Hardware Malfunction / Replacement</option>
                     <option value="Voluntary Return — Switch to Online KHQR Only">Voluntary Return — Switch to Online KHQR Only</option>
+                    <option value="Upgraded from Sound Box to POS Terminal">Upgraded from Sound Box to POS Terminal</option>
                     <option value="Degraded Battery (≥24M) & Merchant Inactivity">Degraded Battery (≥24M) &amp; Merchant Inactivity</option>
-                    <option value="Franchise Ownership Transfer / Account Terminated">Franchise Ownership Transfer / Account Terminated</option>
-                    <option value="Seasonal Merchant Termination">Seasonal Merchant Termination</option>
+                    <option value="Seasonal Return">Seasonal Return</option>
+                    <option value="Merchant Relocated">Merchant Relocated</option>
                   </select>
                 </div>
 
@@ -3179,10 +3183,10 @@ return (
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white shadow-sm flex items-center gap-1.5 cursor-pointer"
+                    className="px-5 py-2 rounded-xl text-xs font-extrabold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm flex items-center gap-1.5 cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Confirm Termination &amp; Return</span>
+                    <span>Confirm Hardware Return</span>
                   </button>
                 </div>
               </div>
