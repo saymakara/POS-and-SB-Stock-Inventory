@@ -530,6 +530,34 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     setSelectedSns([]);
   };
 
+  // Single-row direct push and repush handler
+  const handleRowPushClick = (dev: Device) => {
+    if (getRowCooldownSecs(dev.serial) > 0) return;
+
+    // Record push timestamp and mark pushed for this device with new push ID
+    const pushId = generatePushTrackingId();
+    recordPushedSerials([dev.serial], pushId);
+
+    // 10-second anti-spam cooldown for single row push/repush
+    const cooldownExp = Date.now() + 10000;
+    setPushedCooldowns((prev) => ({
+      ...prev,
+      [`sn_${dev.serial}`]: cooldownExp,
+    }));
+
+    // Resolve staff name and Telegram handle if available
+    const rawStaff = dev.staff || dev.installedByStaff || '';
+    const staffName = normalizeStaffName(resolveStaffFromDirectory(rawStaff, dev.branchId, users));
+    const staffTelegram = dev.staffTelegram || (staffName ? userTelegramMap.get(staffName.toLowerCase().trim()) : undefined);
+
+    onNotifyConfigReady?.([dev.serial], {
+      forceCsvFile: pushMode === 'total_csv',
+      targetStaffName: staffName && staffName !== 'Unassigned Staff' ? staffName : undefined,
+      targetStaffTelegram: staffTelegram,
+      pushTrackingId: pushId,
+    });
+  };
+
   // PIN / Password verification for Push to All
   const handleConfirmPushAllWithPassword = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -1288,36 +1316,46 @@ return (
 
                             if (cooldownSecs > 0) {
                               return (
-                                <span
-                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-2xs"
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="px-2.5 py-1.5 rounded-lg font-medium text-[11px] inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-2xs opacity-80 cursor-not-allowed select-none"
                                   title={`Pushed to Telegram! ${cooldownSecs}s cooldown active`}
                                 >
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                  <RotateCw className="w-3 h-3 text-emerald-500 animate-spin" />
                                   <span>Pushed · {cooldownSecs}s</span>
-                                </span>
+                                </button>
                               );
                             }
 
                             if (devIsPushed) {
                               return (
-                                <span
-                                  className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700/60 shadow-2xs"
-                                  title={`Status: Pushed to Telegram (${requestPushInfo.full})`}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRowPushClick(dev)}
+                                  className="group px-2.5 py-1.5 rounded-lg font-medium text-[11px] inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 hover:border-emerald-400 dark:border-emerald-700/60 dark:hover:border-emerald-600 shadow-2xs active:scale-[0.97] transition-all cursor-pointer select-none"
+                                  title={`Status: Pushed to Telegram (${requestPushInfo.full}). Click to repush to Telegram.`}
                                 >
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                  <span>Pushed</span>
-                                </span>
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:hidden transition-transform" />
+                                  <RotateCw className="w-3 h-3 text-emerald-700 dark:text-emerald-300 shrink-0 hidden group-hover:inline group-hover:rotate-180 transition-transform duration-300" />
+                                  <span className="group-hover:hidden">Pushed</span>
+                                  <span className="hidden group-hover:inline">Repush</span>
+                                </button>
                               );
                             }
 
                             return (
-                              <span
-                                className="px-2.5 py-1.5 rounded-lg font-bold text-[11px] inline-flex items-center gap-1.5 bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200/90 dark:border-sky-800/60 shadow-2xs"
-                                title="Device is configured and ready. Select with checkbox to push via the action bar."
+                              <button
+                                type="button"
+                                onClick={() => handleRowPushClick(dev)}
+                                className="group px-2.5 py-1.5 rounded-lg font-medium text-[11px] inline-flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100/90 text-sky-800 dark:bg-sky-950/40 dark:hover:bg-sky-900/60 dark:text-sky-300 border border-sky-200/90 hover:border-sky-300 dark:border-sky-800/60 dark:hover:border-sky-700 shadow-2xs active:scale-[0.97] transition-all cursor-pointer select-none"
+                                title="Device configured and ready. Click to push now or select checkbox for batch."
                               >
-                                <Clock className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0" />
-                                <span>Ready to Push</span>
-                              </span>
+                                <Clock className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0 group-hover:hidden" />
+                                <Send className="w-3 h-3 text-sky-700 dark:text-sky-300 shrink-0 hidden group-hover:inline" />
+                                <span className="group-hover:hidden">Ready to Push</span>
+                                <span className="hidden group-hover:inline">Push Now</span>
+                              </button>
                             );
                           })()}
 
