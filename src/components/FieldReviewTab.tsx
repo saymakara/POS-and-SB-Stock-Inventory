@@ -43,6 +43,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 type Filter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
+type RecordTypeFilter = 'ALL' | FieldEvent['kind'];
 const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as const;
 const SPRING = { type: 'spring', stiffness: 460, damping: 36, mass: 0.65 } as const;
 const FRAME_SPRING = { type: 'spring', stiffness: 380, damping: 34, mass: 0.7 } as const;
@@ -194,6 +195,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   const [live, setLive] = useState(false);
   const [filter, setFilter] = useState<Filter>('PENDING');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
+  const [recordTypeFilter, setRecordTypeFilter] = useState<RecordTypeFilter>('ALL');
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -358,22 +360,53 @@ export const FieldReviewTab: React.FC<Props> = ({
     }
   }, [events, counts.PENDING, onPendingCountChange]);
 
+  const availableKinds = useMemo(() => {
+    const defaultKinds: FieldEvent['kind'][] = ['INSTALL', 'REPLACE', 'BATTERY', 'SB_MAINT', 'SB_RETURN'];
+    const dynamicKinds = new Set<FieldEvent['kind']>(defaultKinds);
+    (scoped || []).forEach((e) => {
+      if (e.kind) dynamicKinds.add(e.kind);
+    });
+    return Array.from(dynamicKinds);
+  }, [scoped]);
+
+  const kindCounts = useMemo(() => {
+    const c: Record<string, number> = {
+      ALL: 0,
+      INSTALL: 0,
+      REPLACE: 0,
+      BATTERY: 0,
+      SB_MAINT: 0,
+      SB_RETURN: 0,
+    };
+    scoped
+      .filter((e) => filter === 'ALL' || e.status === filter)
+      .filter((e) => typeFilter === 'ALL' || e.deviceType === typeFilter)
+      .forEach((e) => {
+        c.ALL++;
+        if (c[e.kind] !== undefined) c[e.kind]++;
+        else c[e.kind] = 1;
+      });
+    return c;
+  }, [scoped, filter, typeFilter]);
+
   const typeCounts = useMemo(() => {
     const c = { pos: 0, sb: 0 };
     scoped
       .filter((e) => filter === 'ALL' || e.status === filter)
+      .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
       .forEach((e) => {
         if (e.deviceType === 'Sound Box') c.sb++;
         else c.pos++;
       });
     return c;
-  }, [scoped, filter]);
+  }, [scoped, filter, recordTypeFilter]);
 
 
   const shownBase = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     return scoped
       .filter((e) => filter === 'ALL' || e.status === filter)
+      .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
       .filter((e) => typeFilter === 'ALL' || e.deviceType === typeFilter)
       .filter(
         (e) =>
@@ -397,7 +430,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           b.sourceRecordId.localeCompare(a.sourceRecordId) ||
           a.unitNo - b.unitNo
       );
-  }, [scoped, filter, typeFilter, deferredQuery]);
+  }, [scoped, filter, typeFilter, recordTypeFilter, deferredQuery]);
 
   const { sorted: shown, sort, toggle: toggleSort } = useSort(shownBase, {
     type: (e) => e.deviceType,
@@ -410,7 +443,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     date: (e) => e.receivedAt,
   });
 
-  const pg = usePager(shown.length, [filter, typeFilter, deferredQuery, activeScope, sort]);
+  const pg = usePager(shown.length, [filter, typeFilter, recordTypeFilter, deferredQuery, activeScope, sort]);
 
   const shownPending = useMemo(() => shown.filter((e) => e.status === 'PENDING'), [shown]);
   const selectedShown = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
@@ -697,6 +730,23 @@ export const FieldReviewTab: React.FC<Props> = ({
             </span>
           </button>
 
+          {/* Record Type Select Filter */}
+          <div className="relative inline-flex items-center">
+            <select
+              value={recordTypeFilter}
+              onChange={(e) => setRecordTypeFilter(e.target.value as RecordTypeFilter)}
+              aria-label="Filter by record type"
+              className="btn-press px-3 py-1.5 rounded-xl text-xs font-normal border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-slate-400 transition-all cursor-pointer"
+            >
+              <option value="ALL">All Record Types ({kindCounts.ALL || 0})</option>
+              {availableKinds.map((k) => (
+                <option key={k} value={k}>
+                  {KIND_LABEL[k] || k} ({kindCounts[k] || 0})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="relative ml-auto w-full sm:w-60">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -709,11 +759,12 @@ export const FieldReviewTab: React.FC<Props> = ({
           </div>
           <ClearFiltersButton
             className="!py-1.5"
-            active={!!query || typeFilter !== 'ALL' || filter !== 'PENDING'}
+            active={!!query || typeFilter !== 'ALL' || filter !== 'PENDING' || recordTypeFilter !== 'ALL'}
             onClear={() => {
               setQuery('');
               setTypeFilter('ALL');
               setFilter('PENDING');
+              setRecordTypeFilter('ALL');
             }}
           />
           <button
