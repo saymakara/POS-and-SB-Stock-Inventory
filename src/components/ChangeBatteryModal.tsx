@@ -102,7 +102,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -118,7 +118,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
-                <span>Change POS Terminal Battery</span>
+                <span>Replace Battery from Old to New</span>
               </h3>
               <p className="text-xs text-slate-300 font-mono mt-0.5">
                 {device.serial} · {device.model} · Branch Code {device.branchId}
@@ -150,7 +150,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
                 1
               </span>
-              <span>Battery Details</span>
+              <span>Battery Details (Old → New)</span>
             </button>
 
             <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
@@ -193,7 +193,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
-                  Current Installed Battery
+                  Current Installed Battery (Old)
                 </span>
                 <span
                   className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border ${
@@ -236,7 +236,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700">
-                  New Battery Serial Number *
+                  New Battery Serial Number (New) *
                 </label>
               </div>
               <input
@@ -323,7 +323,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
                 type="submit"
                 className="px-5 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-xs flex items-center gap-2 transition cursor-pointer"
               >
-                <span>Review Replacement (Step 2 Preview)</span>
+                <span>Review Replacement: Old → New</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -350,7 +350,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               <div className="p-3.5 rounded-2xl border bg-slate-50 border-slate-200 space-y-2.5">
                 <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                    Current Battery
+                    Current Battery (Old)
                   </span>
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
                     BEFORE

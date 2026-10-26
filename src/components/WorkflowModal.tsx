@@ -270,6 +270,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceSerial, preset]);
+
+  // Synchronize battery serial and commissioning date when replaced via ChangeBatteryModal
+  useEffect(() => {
+    if (device) {
+      setBatterySerial(device.batterySerial || '');
+      setBatteryInstalledDate(device.batteryInstalledDate || device.stockInDate || '');
+    }
+  }, [device?.batterySerial, device?.batteryInstalledDate]);
   const canReturn = false;
 
   /** Stages this unit may move to from where it is now (plus staying put). Branch users never move a unit into HQ stock. */
@@ -1565,9 +1573,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     </span>
                   </div>
 
-                  {/* Status Message Banner */}
+                  {/* Status Message Banner with Direct "Replace Battery from Old to New" Button */}
                   <div
-                    className={`px-3 py-2 rounded-xl text-[11px] flex items-center gap-2 border ${
+                    className={`p-2.5 sm:px-3.5 sm:py-2.5 rounded-xl text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border ${
                       previewBatteryInfo.state === 'EXPIRED'
                         ? 'bg-rose-100/70 border-rose-200 text-rose-800 font-medium'
                         : previewBatteryInfo.state === 'DUE_SOON'
@@ -1577,27 +1585,41 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         : 'bg-white/[0.04] border-white/10 text-slate-300'
                     }`}
                   >
-                    {previewBatteryInfo.state === 'EXPIRED' ? (
-                      <>
-                        <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                        <span>
-                          Battery reached {previewBatteryInfo.monthsUsed} months of service (&ge; 24-month limit). Replacement is required immediately!
-                        </span>
-                      </>
-                    ) : previewBatteryInfo.state === 'DUE_SOON' ? (
-                      <>
-                        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <span>
-                          Battery is {previewBatteryInfo.monthsUsed} months old with {previewBatteryInfo.monthsRemaining} months remaining until 24-month expiration.
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>
-                          Battery in good standing ({previewBatteryInfo.monthsUsed} of 24 months elapsed · {previewBatteryInfo.monthsRemaining} months remaining).
-                        </span>
-                      </>
+                    <div className="flex items-center gap-2">
+                      {previewBatteryInfo.state === 'EXPIRED' ? (
+                        <>
+                          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>
+                            Battery reached {previewBatteryInfo.monthsUsed} months of service (&ge; 24-month limit). Replacement is required immediately!
+                          </span>
+                        </>
+                      ) : previewBatteryInfo.state === 'DUE_SOON' ? (
+                        <>
+                          <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>
+                            Battery is {previewBatteryInfo.monthsUsed} months old with {previewBatteryInfo.monthsRemaining} months remaining until 24-month expiration.
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>
+                            Battery in good standing ({previewBatteryInfo.monthsUsed} of 24 months elapsed · {previewBatteryInfo.monthsRemaining} months remaining).
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    {onChangeBattery && device && (
+                      <button
+                        type="button"
+                        onClick={() => onChangeBattery(device)}
+                        className="px-3.5 py-1.5 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs shrink-0 self-start sm:self-auto"
+                        title="Click to replace battery from old to new"
+                      >
+                        <BatteryCharging className="w-3.5 h-3.5" />
+                        <span>Replace Battery from Old to New</span>
+                      </button>
                     )}
                   </div>
 
@@ -1648,38 +1670,27 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   </div>
 
                   {/* Battery Actions */}
-                  <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-                    {onChangeBattery && device && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onClose();
-                          onChangeBattery(device);
-                        }}
-                        className={`px-3 py-1.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                          isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
-                            : 'bg-white/10 hover:bg-white/15 border-white/15 text-white'
-                        }`}
-                        title="Open battery replacement wizard"
-                      >
-                        <BatteryCharging className="w-3.5 h-3.5 text-[#133e5e] dark:text-sky-400" />
-                        <span>Battery Replacement Wizard</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBatterySerial('');
-                        setBatteryInstalledDate(todayPP());
-                        setTimeout(() => document.getElementById('workflow-battery-serial')?.focus(), 0);
-                      }}
-                      className="px-3.5 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
-                      title="Enter the new battery's serial and reset the 24-month countdown from today"
-                    >
-                      <BatteryCharging className="w-3.5 h-3.5" />
-                      <span>Change Battery (Install New &amp; Reset 24M)</span>
-                    </button>
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <span>Currently Installed:</span>
+                      <strong className="font-mono font-semibold text-slate-800 dark:text-slate-200">
+                        {device.batterySerial || 'Not recorded'}
+                      </strong>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {onChangeBattery && device && (
+                        <button
+                          type="button"
+                          onClick={() => onChangeBattery(device)}
+                          className="px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition cursor-pointer shadow-xs"
+                          title="Open 2-step verification wizard to replace battery from old to new"
+                        >
+                          <BatteryCharging className="w-4 h-4" />
+                          <span>Replace Battery from Old to New</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
