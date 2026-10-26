@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { Branch, LifecycleStage, Device, ThemeMode, User } from '../types';
 import { STAGE_META } from '../data/initialData';
 import {
