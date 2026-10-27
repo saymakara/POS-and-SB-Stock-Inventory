@@ -1043,9 +1043,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                             </span>
                           </div>
                         ) : (
-                          <span className="text-slate-400 italic text-[11px]">
-                            Unassigned
-                          </span>
+                          <span className="text-slate-400 text-[11px]">-</span>
                         )}
                       </td>
 
