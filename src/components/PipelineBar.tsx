@@ -2,6 +2,7 @@ import React from 'react';
 import { LifecycleStage, UserRole, ThemeMode } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { Odometer } from './Odometer';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Layers,
   Warehouse,
@@ -104,28 +105,36 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
             const Icon = s.icon;
             const isSelected = currentStageFilter === s.id;
             return (
-              <button
+              <motion.button
                 key={s.id}
                 type="button"
+                whileTap={{ scale: 0.96 }}
                 onClick={() => onSelectStage(s.id)}
-                className={`btn-tactile px-3 py-1.5 rounded-md border text-left flex items-center gap-2 cursor-pointer ${
+                className={`relative px-3 py-1.5 rounded-md border text-left flex items-center gap-2 cursor-pointer transition-colors duration-200 ${
                   isSelected
-                    ? 'bg-[#003857] border-sky-400/40 text-white shadow-xs'
+                    ? 'border-transparent text-white'
                     : isLight
                     ? 'bg-white border-slate-200 text-zinc-800 hover:border-zinc-400'
                     : 'bg-[#18191e] border-zinc-800 text-slate-200 hover:border-zinc-600'
                 }`}
               >
+                {isSelected && (
+                  <motion.div
+                    layoutId="activePipelineStagePill"
+                    transition={{ type: 'spring', stiffness: 480, damping: 30, mass: 0.55 }}
+                    className="absolute -inset-[1px] rounded-md bg-[#003857] border border-sky-400/40 shadow-xs z-0 pointer-events-none"
+                  />
+                )}
                 <Icon
-                  className={`w-3.5 h-3.5 shrink-0 ${
+                  className={`w-3.5 h-3.5 shrink-0 relative z-10 transition-colors duration-200 ${
                     isSelected ? 'text-white' : s.accentColor
                   }`}
                 />
-                <span className="text-xs font-bold whitespace-nowrap">
+                <span className="text-xs font-bold whitespace-nowrap relative z-10">
                   {s.title}
                 </span>
                 <span
-                  className={`font-figure text-xs font-extrabold tabular-nums px-1.5 py-0.2 rounded ${
+                  className={`font-figure text-xs font-extrabold tabular-nums px-1.5 py-0.2 rounded relative z-10 transition-colors duration-200 ${
                     isSelected
                       ? 'bg-white/15 text-white'
                       : isLight
@@ -135,26 +144,31 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
                 >
                   <Odometer value={s.count} format={s.count >= 1000} duration={340} />
                 </span>
-              </button>
+              </motion.button>
             );
           })}
         </div>
 
-        {currentStageFilter !== 'ALL' && (
-          <button
-            type="button"
-            onClick={() => onSelectStage('ALL')}
-            className={`px-2.5 py-1.5 rounded-md text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0 ${
-              isLight ? 'text-zinc-700' : 'text-zinc-300'
-            }`}
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>Reset</span>
-          </button>
-        )}
+        <AnimatePresence>
+          {currentStageFilter !== 'ALL' && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9, x: 8 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.9, x: 8 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onSelectStage('ALL')}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer shrink-0 ${
+                isLight ? 'text-zinc-700' : 'text-zinc-300'
+              }`}
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset</span>
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     </section>
   );
 });
-
-
