@@ -945,8 +945,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       <td className="py-2 px-3 text-right text-[11px] text-slate-500 tabular-nums">{(currentPage - 1) * rowsPerPage + index + 1}</td>
 
                       <td className="py-2 px-3 font-mono text-[11px] whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900/5 text-zinc-800 border border-zinc-200 font-bold">
-                          <Calendar className="w-3 h-3" />
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100/80 text-slate-600 border border-slate-200/90 dark:bg-white/10 dark:text-slate-300 dark:border-white/10 font-normal">
+                          <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
                           <span>{dev.stockInDate}</span>
                         </span>
                       </td>

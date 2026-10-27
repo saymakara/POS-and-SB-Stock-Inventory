@@ -1428,11 +1428,11 @@ return (
                             ? 'bg-slate-100/90 text-slate-800 border-slate-200'
                             : 'bg-slate-800/80 text-slate-200 border-slate-700/80'
                         }`}>
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-900 dark:text-white">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200">
                             <Calendar className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
                             <span>{requestPushInfo.date}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                          <div className="flex items-center gap-1.5 text-[11px] font-normal text-slate-500 dark:text-slate-400">
                             <Clock className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0" />
                             <span>{requestPushInfo.time}</span>
                           </div>
