@@ -43,7 +43,7 @@ export const ScanField: React.FC<{ label: string; value: string; onChange: (v: s
       {camErr && <span className="text-rose-700">{camErr}</span>}
       {cam && (
         <div className="fixed inset-0 z-[95] bg-black/80 flex flex-col items-center justify-center p-4 gap-3" role="dialog" aria-modal="true" aria-label="Scan">
-          <video ref={video} className="w-full max-w-sm rounded-xl bg-black" muted playsInline />
+          <video ref={video} className="modal-glide w-full max-w-sm rounded-xl bg-black shadow-2xl" muted playsInline />
           <button type="button" onClick={() => setCam(false)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-slate-800 text-sm cursor-pointer"><X className="w-4 h-4" />Close</button>
         </div>
       )}

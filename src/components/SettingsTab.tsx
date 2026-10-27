@@ -2638,7 +2638,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       {/* Modal to Add / Edit Regional Group */}
       {isRegionalModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border p-6 shadow-2xl bg-white border-slate-200 text-slate-900 space-y-4">
+          <div className="modal-glide w-full max-w-lg rounded-2xl border p-6 shadow-2xl bg-white border-slate-200 text-slate-900 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2 text-[#003857]">
                 <Users className="w-5 h-5 text-emerald-600" />
@@ -2789,7 +2789,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       {/* Delete Telegram Connection Confirmation Dialog */}
       {isDeleteConnectionModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl bg-white border-slate-200 text-slate-900 space-y-4">
+          <div className="modal-glide w-full max-w-md rounded-2xl border p-6 shadow-2xl bg-white border-slate-200 text-slate-900 space-y-4">
             <div className="flex items-center gap-3 text-red-600">
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5 text-red-600" />
@@ -2833,7 +2833,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       {/* Reset Confirmation Dialog */}
       {isResetConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl bg-white border-slate-200 text-slate-900 space-y-4">
+          <div className="modal-glide w-full max-w-md rounded-2xl border p-6 shadow-2xl bg-white border-slate-200 text-slate-900 space-y-4">
             <div className="flex items-center gap-3 text-rose-600">
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <h3 className="text-base font-black text-zinc-900">

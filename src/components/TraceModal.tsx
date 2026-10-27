@@ -59,7 +59,7 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
 
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-6 bg-slate-900/50 overscroll-contain" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} role="dialog" aria-modal="true" aria-label="Search results">
-      <div className="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl bg-slate-50 shadow-2xl border border-slate-200">
+      <div className="modal-glide w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl bg-slate-50 shadow-2xl border border-slate-200">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 bg-white rounded-t-2xl">
           <Search className="w-4 h-4 text-slate-500" />
           <div className="min-w-0">
