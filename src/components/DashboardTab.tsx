@@ -449,7 +449,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     {active && (
                       <motion.div
                         layoutId="dashboardPerfViewPill"
-                        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 32 }}
                         className="absolute inset-0 rounded-md bg-[#004953] shadow-xs"
                       />
                     )}

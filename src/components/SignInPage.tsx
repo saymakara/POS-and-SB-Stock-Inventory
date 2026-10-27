@@ -309,7 +309,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                     initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
-                    transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 32 }}
                     className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2.5 font-bold"
                   >
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
@@ -322,7 +322,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                     initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
-                    transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 32 }}
                     className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2"
                   >
                     <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />

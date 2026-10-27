@@ -133,7 +133,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
                       : 'bg-zinc-800 text-white'
                   }`}
                 >
-                  <Odometer value={s.count} format={s.count >= 1000} duration={850} />
+                  <Odometer value={s.count} format={s.count >= 1000} duration={340} />
                 </span>
               </button>
             );

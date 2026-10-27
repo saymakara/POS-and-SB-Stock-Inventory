@@ -146,7 +146,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 14 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 12 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+          transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
           className={`relative w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col z-10 border-0 transform-gpu will-change-gpu gpu-modal-container ${
             isLight
               ? 'bg-white text-slate-800'

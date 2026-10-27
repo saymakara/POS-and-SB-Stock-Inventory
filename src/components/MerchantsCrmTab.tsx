@@ -2542,7 +2542,7 @@ return (
                   initial={{ opacity: 0, scale: 0.95, y: 14 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
                   className={`relative w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] z-10 border-0 flex flex-col ${
                     isLight
                       ? 'bg-white text-slate-800'
@@ -2927,7 +2927,7 @@ return (
                   initial={{ opacity: 0, scale: 0.95, y: 14 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
                   onSubmit={handleConfirmBindDevice}
                   className={`w-full max-w-2xl rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
                     isLight
@@ -3045,7 +3045,7 @@ return (
               initial={{ opacity: 0, scale: 0.95, y: 14 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+              transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
               onSubmit={handleConfirmTerminate}
               className={`w-full max-w-2xl rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
                 isLight
@@ -3311,7 +3311,7 @@ return (
               initial={{ opacity: 0, scale: 0.95, y: 14 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+              transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
               onSubmit={handleCreateNewMerchant}
               className={`w-full max-w-2xl rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
                 isLight

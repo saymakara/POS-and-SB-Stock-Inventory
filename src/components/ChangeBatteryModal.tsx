@@ -107,7 +107,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
         initial={{ opacity: 0, scale: 0.95, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 12 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+        transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
         className="w-full max-w-lg rounded-3xl border-0 shadow-2xl overflow-hidden my-8 bg-white text-[#002f49] transform-gpu will-change-gpu gpu-modal-container"
       >
         {/* Navy Header */}

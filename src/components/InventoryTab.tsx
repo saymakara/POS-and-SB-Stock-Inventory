@@ -618,7 +618,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               initial={{ y: -8, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -8, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 36, mass: 0.7 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
               className="overflow-hidden border-b border-slate-200 bg-white"
             >
               <div className="px-4 py-3 flex flex-wrap items-center gap-2">
@@ -1209,10 +1209,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             initial={{ opacity: 0, y: 28, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.98 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.7 }}
+            transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
             role="region"
             aria-label="Selected units"
-            className="sticky bottom-4 z-40 max-h-[45vh] overflow-y-auto rounded-2xl p-3.5 sm:p-4 border shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65)] flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-gradient-to-r from-[#002238]/95 via-[#003857]/95 to-[#004e75]/95 text-white border-white/20 backdrop-blur-xl ring-1 ring-white/10 transition-all duration-300 ease-out transform-gpu will-change-transform"
+            className="sticky bottom-4 z-40 max-h-[45vh] overflow-y-auto rounded-2xl p-3.5 sm:p-4 border shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65)] flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-gradient-to-r from-[#002238]/95 via-[#003857]/95 to-[#004e75]/95 text-white border-white/20 backdrop-blur-md ring-1 ring-white/10 transform-gpu will-change-transform"
           >
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#003857] font-mono text-xs font-bold shadow-xs shrink-0">
@@ -1371,7 +1371,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+              transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
               className="relative w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden my-6 z-10 border bg-white border-slate-200 text-slate-800"
             >
               {/* Navy Header */}

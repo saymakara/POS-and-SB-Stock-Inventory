@@ -23,7 +23,7 @@ export function useAnimatedNumber(
   options: UseAnimatedNumberOptions = {}
 ): number {
   const {
-    duration = 950,
+    duration = 340,
     delay = 0,
     startFromZero = true,
   } = options;
@@ -72,9 +72,9 @@ export function useAnimatedNumber(
 
     animatingTargetRef.current = endVal;
 
-    // Small step counts (<= 15) finish slightly quicker so they don't drag
+    // Small step counts (<= 15) finish swiftly without delay
     const delta = Math.abs(endVal - startVal);
-    const effectiveDuration = delta <= 15 ? Math.min(duration, 450) : duration;
+    const effectiveDuration = delta <= 15 ? Math.min(duration, 180) : duration;
 
     let startTime: number | null = null;
 

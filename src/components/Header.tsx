@@ -176,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
         >
           <motion.button
             whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 28 }}
             type="button"
             onClick={() => {
               if (role === 'SUPER_ADMIN') {
@@ -325,7 +325,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           <motion.button
             whileTap={{ scale: 0.94 }}
             whileHover={{ scale: 1.01 }}
-            transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 28 }}
             type="button"
             onClick={onToggleCollapse}
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
@@ -351,7 +351,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       <motion.aside
         initial={false}
         animate={{ width: collapsed ? 76 : 244 }}
-        transition={{ type: 'spring', stiffness: 450, damping: 35, mass: 0.6 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
         style={{ contain: 'layout style', willChange: 'width' }}
         className="sb-sidebar-gradient sticky top-0 left-0 h-screen z-40 text-white shrink-0 hidden md:flex flex-col justify-between select-none overflow-y-auto overflow-x-hidden no-scrollbar relative transform-gpu"
       >
@@ -374,7 +374,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
-              transition={{ type: 'spring', stiffness: 360, damping: 32, mass: 0.8 }}
+              transition={{ type: 'spring', stiffness: 480, damping: 34, mass: 0.6 }}
               className="sb-sidebar-gradient relative w-72 max-w-[85vw] h-full text-white flex flex-col justify-between select-none overflow-y-auto no-scrollbar z-10 shadow-2xl transform-gpu will-change-transform"
             >
               {renderNavContent(true)}
@@ -868,7 +868,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   initial={{ opacity: 0, y: 8, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                  transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
                   className="absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl border bg-white border-slate-200 text-zinc-900 overflow-hidden z-50 divide-y divide-slate-100"
                 >
                   <div className="px-4 py-2.5 bg-emerald-50/80 flex items-center justify-between">
@@ -958,7 +958,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   initial={{ opacity: 0, y: 8, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                  transition={{ type: 'spring', stiffness: 420, damping: 28, mass: 0.7 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
                   className="absolute right-0 mt-2.5 w-[360px] sm:w-[420px] rounded-2xl shadow-2xl border bg-white border-slate-200/90 text-zinc-900 overflow-hidden z-50 divide-y divide-slate-100 transform-gpu will-change-gpu"
                 >
                   {/* Clean, Modern Header */}

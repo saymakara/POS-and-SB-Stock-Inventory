@@ -1066,7 +1066,7 @@ return (
                         ? 'bg-white border border-slate-200/90'
                         : 'bg-slate-800 border border-slate-700/80'
                     }`}
-                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
                   />
                 )}
                 <span className="relative z-10 flex items-center gap-1.5">
@@ -1105,7 +1105,7 @@ return (
                         ? 'bg-white border border-slate-200/90'
                         : 'bg-slate-800 border border-slate-700/80'
                     }`}
-                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
                   />
                 )}
                 <span className="relative z-10 flex items-center gap-1.5">
@@ -1144,7 +1144,7 @@ return (
                         ? 'bg-white border border-slate-200/90'
                         : 'bg-slate-800 border border-slate-700/80'
                     }`}
-                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
                   />
                 )}
                 <span className="relative z-10 flex items-center gap-1.5">
@@ -1581,7 +1581,7 @@ return (
             initial={{ opacity: 0, y: 24, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.96 }}
-            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[#002238]/95 dark:bg-[#0c121e]/95 text-white shadow-2xl border border-white/15 dark:border-slate-700/80 backdrop-blur-xl flex items-center gap-2.5 sm:gap-3 max-w-[95vw] overflow-x-auto ring-1 ring-black/20"
           >
             {/* Selection Count Pill */}
@@ -1737,7 +1737,7 @@ return (
                   initial={{ opacity: 0, scale: 0.95, y: 14 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
                   className={`relative w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden my-auto z-10 border-0 flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
                     isLight ? 'bg-white text-[#002f49]' : 'bg-[#12151e] text-slate-100'
                   }`}

@@ -1103,7 +1103,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                   {/* iPhone 18 Pro Max Dynamic Island with TrueDepth Lens (Dead-center on iPhone Screen) */}
                   <motion.div
                     layout
-                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 32 }}
                     className="absolute left-1/2 -translate-x-1/2 top-2.5 bg-black text-white px-3.5 py-1.5 rounded-full flex items-center gap-2 shadow-lg border border-white/10 z-30"
                   >
                     {/* TrueDepth Sapphire Front Camera Lens */}
@@ -1788,7 +1788,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                       initial={{ opacity: 0, y: -8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: 16 }}
-                      transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+                      transition={{ type: 'spring', stiffness: 480, damping: 32, mass: 0.6 }}
                       className={`p-4 rounded-2xl border flex flex-col gap-3 backdrop-blur-md transition-all ${
                         isOutOfSync
                           ? 'bg-amber-500/[0.06] border-amber-500/35 shadow-xs'

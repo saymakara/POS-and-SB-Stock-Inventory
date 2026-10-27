@@ -335,7 +335,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 12 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 350, mass: 0.75 }}
+        transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
         className={`w-full max-w-xl rounded-xl overflow-hidden shadow-2xl border-0 transform-gpu will-change-gpu gpu-modal-container ${
           isLight
             ? 'bg-white text-zinc-900'

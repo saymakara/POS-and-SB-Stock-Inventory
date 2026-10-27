@@ -45,8 +45,8 @@ type Filter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
 type RecordTypeFilter = 'ALL' | FieldEvent['kind'];
 const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as const;
-const SPRING = { type: 'spring', stiffness: 460, damping: 36, mass: 0.65 } as const;
-const FRAME_SPRING = { type: 'spring', stiffness: 380, damping: 34, mass: 0.7 } as const;
+const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
+const FRAME_SPRING = { type: 'spring', stiffness: 480, damping: 32, mass: 0.6 } as const;
 const GRID =
   'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_128px_minmax(150px,1.1fr)_minmax(130px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
 const CACHE_KEY = 'fe_review_cache_v3';

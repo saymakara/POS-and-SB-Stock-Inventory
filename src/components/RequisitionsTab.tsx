@@ -599,7 +599,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setRejectingReq(null); }}>
                 <motion.div
                   initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
-                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
                   className="w-full max-w-md rounded-2xl bg-white text-slate-900 shadow-2xl overflow-hidden" role="dialog" aria-modal="true" aria-label="Reject request"
                 >
                   <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white">
@@ -644,7 +644,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   initial={{ opacity: 0, scale: 0.96, y: 12 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 12 }}
-                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
                   className="w-full max-w-md rounded-2xl bg-white text-slate-900 shadow-2xl overflow-hidden"
                 >
                   <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white">
@@ -694,7 +694,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   initial={{ opacity: 0, scale: 0.96, y: 14 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 12 }}
-                  transition={{ type: 'spring', damping: 28, stiffness: 340, mass: 0.75 }}
+                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
                   className={`my-auto border-0 rounded-3xl w-full max-w-5xl xl:max-w-6xl shadow-2xl overflow-hidden flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
                     isLight
                       ? 'bg-white text-slate-900'

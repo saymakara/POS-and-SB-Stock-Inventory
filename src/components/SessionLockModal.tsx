@@ -74,7 +74,7 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
         initial={{ opacity: 0, scale: 0.95, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 12 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 350, mass: 0.75 }}
+        transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
         className={`border-0 rounded-2xl w-full max-w-sm shadow-2xl p-6 flex flex-col items-center text-center transform-gpu will-change-gpu gpu-modal-container ${
           isLight
             ? 'bg-white text-slate-800'

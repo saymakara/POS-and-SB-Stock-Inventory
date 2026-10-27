@@ -1394,7 +1394,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         initial={{ opacity: 0, scale: 0.94, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.94, y: 14 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 350, mass: 0.75 }}
+        transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
         className={`${modalBoxClass} border-0 rounded-3xl w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] transform-gpu will-change-gpu gpu-modal-container`}
       >
         {/* Header (Signature Navy Bar) */}
