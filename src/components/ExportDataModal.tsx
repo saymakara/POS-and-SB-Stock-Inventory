@@ -228,28 +228,28 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
     setDownloadingId('reqs-csv');
     const headers = [
       'No.',
+      'Request Date',
       'Request ID',
-      'Date',
-      'Branch / Staff',
+      'Request Type',
+      'Staff / Branch',
       'Quantity',
-      'Serials',
       'Reason',
       'Status',
     ];
     const rows = requisitions.map((r, idx) => {
       const bName = (r.branchName || `Branch ${r.branchId}`).replace(' Branch', '');
-      const branchStaff = `${r.branchId} · ${bName} (${r.staff || '-'})`;
+      const staffBranch = `${r.staff || '-'} (Code ${r.branchId} · ${bName})`;
+      const reqType = r.type === 'STOCK_RETURN' ? 'Stock Return' : 'Stock Request';
       const qtyFormatted = `POS: ${r.posQty || 0}, SB: ${r.sbQty || 0} (Total: ${(r.posQty || 0) + (r.sbQty || 0)})`;
-      const serials = (r.arrangedDevices || []).map((ad) => ad.serial).join(', ') || '-';
-      const statusLabel = r.status === 'RECEIVED' ? 'Received' : r.status === 'DISPATCHED' ? 'Dispatched' : r.status === 'REJECTED' ? 'Rejected' : 'Pending';
+      const statusLabel = r.status === 'RECEIVED' ? (r.type === 'STOCK_RETURN' ? 'Received at HQ' : 'Received') : r.status === 'DISPATCHED' ? 'Dispatched' : r.status === 'REJECTED' ? 'Rejected' : (r.type === 'STOCK_RETURN' ? 'Return Pending' : 'Pending');
 
       return [
         String(idx + 1),
-        r.reqId,
         r.date,
-        branchStaff,
+        r.reqId,
+        reqType,
+        staffBranch,
         qtyFormatted,
-        serials,
         r.reason || '-',
         statusLabel,
       ];

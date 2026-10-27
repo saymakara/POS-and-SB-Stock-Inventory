@@ -74,8 +74,14 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
 }) => {
   const flipRef = useRef<HTMLTableSectionElement>(null);
   const { sorted: sortedReqs, sort: reqSort, toggle: reqToggle } = useSort<Requisition>(requisitions, {
-    request: (r) => r.reqId, branch: (r) => Number(r.branchId) || r.branchId, qty: (r) => (r.posQty || 0) + (r.sbQty || 0),
-    serials: (r) => (r.arrangedDevices || []).length, status: (r) => r.status, date: (r) => r.date, reason: (r) => r.reason || '',
+    date: (r) => r.date,
+    request: (r) => r.reqId,
+    type: (r) => r.type || 'STOCK_REQUEST',
+    staff: (r) => `${(r.staff || '').toLowerCase()} ${String(r.branchId).padStart(4, '0')}`,
+    branch: (r) => Number(r.branchId) || r.branchId,
+    qty: (r) => (r.posQty || 0) + (r.sbQty || 0),
+    status: (r) => r.status,
+    reason: (r) => r.reason || '',
   });
   // (review) long request lists are drawn progressively: 60 rows at once, more while scrolling
   const pg = usePager(sortedReqs.length, [reqSort]);
@@ -378,28 +384,28 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
     if (shownReqs.length === 0) return;
     const headers = [
       'No.',
+      'Request Date',
       'Request ID',
-      'Date',
-      'Branch / Staff',
+      'Request Type',
+      'Staff / Branch',
       'Quantity',
-      'Serials',
       'Reason',
       'Status',
     ];
     const rows = shownReqs.map((r, idx) => {
       const bName = (r.branchName || `Branch ${r.branchId}`).replace(' Branch', '');
-      const branchStaff = `${r.branchId} · ${bName} (${r.staff || '-'})`;
+      const staffBranch = `${r.staff || '-'} (Code ${r.branchId} · ${bName})`;
+      const reqType = r.type === 'STOCK_RETURN' ? 'Stock Return' : 'Stock Request';
       const qtyFormatted = `POS: ${r.posQty || 0}, SB: ${r.sbQty || 0} (Total: ${(r.posQty || 0) + (r.sbQty || 0)})`;
-      const serials = (r.arrangedDevices || []).map((ad) => ad.serial).join(', ') || '-';
-      const statusLabel = r.status === 'RECEIVED' ? 'Received' : r.status === 'DISPATCHED' ? 'Dispatched' : r.status === 'REJECTED' ? 'Rejected' : 'Pending';
+      const statusLabel = r.status === 'RECEIVED' ? (r.type === 'STOCK_RETURN' ? 'Received at HQ' : 'Received') : r.status === 'DISPATCHED' ? 'Dispatched' : r.status === 'REJECTED' ? 'Rejected' : (r.type === 'STOCK_RETURN' ? 'Return Pending' : 'Pending');
 
       return [
         String(idx + 1),
-        r.reqId,
         r.date,
-        branchStaff,
+        r.reqId,
+        reqType,
+        staffBranch,
         qtyFormatted,
-        serials,
         r.reason || '-',
         statusLabel,
       ];
@@ -462,11 +468,11 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
             <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
               <tr>
                 <th className="py-2.5 px-3 w-10 text-right">No.</th>
-                <SortTh k="request" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Request ID</SortTh>
                 <SortTh k="date" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Date</SortTh>
-                <SortTh k="branch" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Branch / Staff</SortTh>
+                <SortTh k="request" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Request ID</SortTh>
+                <SortTh k="type" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Request Type</SortTh>
+                <SortTh k="staff" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Staff / Branch</SortTh>
                 <SortTh k="qty" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Quantity</SortTh>
-                <SortTh k="serials" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Serials</SortTh>
                 <SortTh k="reason" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Reason</SortTh>
                 <SortTh k="status" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Status</SortTh>
                 <th className="py-2.5 px-3 text-right">Actions</th>
@@ -475,7 +481,6 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
             <tbody ref={flipRef} className="divide-y divide-slate-100 dark:divide-slate-800/80 bg-white dark:bg-slate-900/60">
               {shownReqs.map((req, rowIdx) => {
                 const isReturnReq = req.type === 'STOCK_RETURN';
-                const arranged = req.arrangedDevices || [];
                 let statusLabel = 'Pending';
                 let actionBtn: React.ReactNode = <span className="text-slate-300 dark:text-slate-600 text-xs">-</span>;
                 const canEdit = Boolean(onEditRequisition) && req.status === 'PENDING_ADMIN' && !isReturnReq;
@@ -568,7 +573,6 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   );
                 }
 
-                const serialList = isReturnReq ? (req.returnSerials || []) : arranged.map((a) => a.serial);
                 return (
                   <tr
                     key={req.reqId}
@@ -578,38 +582,43 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     <td className="py-2.5 px-3 text-right text-[11px] text-slate-400 font-mono tabular-nums">
                       {pg.start + rowIdx + 1}
                     </td>
-                    <td className="py-2.5 px-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRequisition(req)}
-                        className="font-mono text-xs font-semibold text-[#003857] dark:text-sky-400 hover:underline cursor-pointer text-left block whitespace-nowrap"
-                        title="View requisition details"
-                      >
-                        {req.reqId}
-                      </button>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 whitespace-nowrap">
-                        {isReturnReq ? (
-                          <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                        ) : (
-                          <SendHorizontal className="w-3 h-3 text-slate-400 shrink-0" />
-                        )}
-                        <span>{isReturnReq ? 'Stock Return' : 'Stock Request'}</span>
-                      </div>
-                    </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <div className="flex items-center gap-1.5 font-mono text-xs text-slate-700 dark:text-slate-300">
                         <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span>{req.date}</span>
                       </div>
                     </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRequisition(req)}
+                        className="font-mono text-xs font-semibold text-[#003857] dark:text-sky-400 hover:underline cursor-pointer text-left block"
+                        title="View requisition details"
+                      >
+                        {req.reqId}
+                      </button>
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      {isReturnReq ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60">
+                          <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                          <span>Stock Return</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-50 text-sky-700 border border-sky-200/80 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60">
+                          <SendHorizontal className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0" />
+                          <span>Stock Request</span>
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3">
-                      <div className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate max-w-[190px]" title={`Code ${req.branchId} · ${req.branchName}`}>
+                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[190px] flex items-center gap-1" title={req.staff || 'Branch Staff'}>
+                        <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{req.staff || 'Branch Staff'}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[190px] mt-0.5" title={`Code ${req.branchId} · ${req.branchName}`}>
                         <span className="font-mono text-slate-400 mr-1">{req.branchId} ·</span>
                         <span>{req.branchName.replace(' Branch', '')}</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[190px] mt-0.5 flex items-center gap-1">
-                        <User className="w-3 h-3 text-slate-400 shrink-0" />
-                        <span>{req.staff || 'Branch Staff'}</span>
                       </div>
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
@@ -633,27 +642,6 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                           </div>
                         )}
                       </div>
-                    </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
-                      {serialList.length > 0 ? (
-                        <div className="flex items-center gap-1.5 whitespace-nowrap" title={serialList.join(', ')}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRequisition(req)}
-                            className="serial-btn font-mono text-[11px]"
-                            title="View assigned serials"
-                          >
-                            {serialList[0]}
-                          </button>
-                          {serialList.length > 1 && (
-                            <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300">
-                              +{serialList.length - 1} more
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-xs font-mono">-</span>
-                      )}
                     </td>
                     <td className="py-2.5 px-3">
                       <div className="text-xs text-slate-700 dark:text-slate-300 max-w-[220px] truncate" title={req.reason || ''}>
@@ -1223,7 +1211,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                           </span>
                         </div>
                         <p className="text-xs text-white/80 font-mono mt-0.5 truncate">
-                          Branch Code {selectedRequisition.branchId} ({selectedRequisition.branchName}) · {selectedRequisition.staff}
+                          {selectedRequisition.staff || 'Branch Staff'} · Branch Code {selectedRequisition.branchId} ({selectedRequisition.branchName})
                         </p>
                       </div>
                     </div>
@@ -1247,12 +1235,12 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         <span className="font-mono text-xs font-semibold mt-0.5 block">{selectedRequisition.date}</span>
                       </div>
                       <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Branch Location</span>
-                        <span className="text-xs font-semibold truncate mt-0.5 block" title={selectedRequisition.branchName}>Code {selectedRequisition.branchId} · {selectedRequisition.branchName.replace(' Branch', '')}</span>
-                      </div>
-                      <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                         <span className="text-[10px] uppercase font-bold text-slate-400 block">Requested By</span>
                         <span className="text-xs font-semibold truncate mt-0.5 block">{selectedRequisition.staff || 'Branch Staff'}</span>
+                      </div>
+                      <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Branch Location</span>
+                        <span className="text-xs font-semibold truncate mt-0.5 block" title={selectedRequisition.branchName}>Code {selectedRequisition.branchId} · {selectedRequisition.branchName.replace(' Branch', '')}</span>
                       </div>
                       <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                         <span className="text-[10px] uppercase font-bold text-slate-400 block">Requested Qty</span>
