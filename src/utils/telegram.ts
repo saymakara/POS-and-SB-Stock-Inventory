@@ -527,11 +527,15 @@ export async function sendDeviceConfigTelegramAlert(
 
   const devType = info.type || info.deviceType || 'Device';
   const devModel = info.model ? ` · ${info.model}` : '';
+  const isSoundBox = /sound\s*box|speaker/i.test(devType);
+  const isPos = /pos/i.test(devType);
+  const devEmoji = isSoundBox ? '🔊' : isPos ? '💳' : '📦';
+  const typeHeader = isSoundBox ? 'Sound Box · Ready for App Push' : isPos ? 'POS Terminal · Ready for App Push' : `${devType} · Ready for App Push`;
   const staffDisplay = info.staff || info.staffName || 'Branch Officer';
   const mention = formatTelegramMention(info.staffTelegram, staffDisplay);
   const pushId = info.pushId || info.pushTrackingId || generatePushTrackingId();
   const text = [
-    `📲 <b>Ready for App Push</b>`,
+    `${devEmoji} <b>${escapeHtml(typeHeader)}</b>`,
     `🆔 <b>Push Tracking ID:</b> <code>${escapeHtml(pushId)}</code>`,
     `• <b>Assigned Staff:</b> <b>${escapeHtml(staffDisplay)}</b>${mention ? ` (${mention})` : ''}`,
     `• <b>Assigned By:</b> <b>${escapeHtml(info.actor || info.adminOperator || 'System Admin')}</b>`,
@@ -755,11 +759,16 @@ export async function sendBatchDeviceConfigTelegramAlert(
             ? ` (${formatTelegramMention(dest.staffTelegram, dest.staffName)})`
             : '');
 
+      const isAllSoundBox = devTypes.size === 1 && Array.from(devTypes).some((t) => /sound\s*box|speaker/i.test(t));
+      const isAllPos = devTypes.size === 1 && Array.from(devTypes).some((t) => /pos/i.test(t));
+      const batchEmoji = isAllSoundBox ? '🔊' : isAllPos ? '💳' : '📦';
+      const batchTypeHeader = isAllSoundBox ? 'Sound Box' : isAllPos ? 'POS Terminal' : 'Batch Devices';
+
       // Build consolidated Telegram notification (Mandatory data only - HTML formatted, preserves underscores in mentions)
       const lines: string[] = [
         isAllStaffMode
-          ? `📲 <b>Ready for App Push (All Staff Master File)</b>`
-          : `📲 <b>Ready for App Push</b>`,
+          ? `${batchEmoji} <b>${batchTypeHeader} · Ready for App Push (All Staff Master File)</b>`
+          : `${batchEmoji} <b>${batchTypeHeader} · Ready for App Push</b>`,
         `🆔 <b>Push Tracking ID:</b> <code>${escapeHtml(batchPushId)}</code>`,
         `• <b>Assigned Staff${isAllStaffMode ? ` (${uniqueStaffList.length})` : ''}:</b> <b>${escapeHtml(staffDisplayName)}</b>${staffMentionStr}`,
         `• <b>Assigned By:</b> <b>${escapeHtml(actor)}</b>`,
