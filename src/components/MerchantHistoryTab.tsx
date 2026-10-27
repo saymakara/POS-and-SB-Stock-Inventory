@@ -692,9 +692,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         </button>
                         <div className="cell-sub flex items-center gap-1 max-w-[160px] truncate" title={`${rec.deviceType}${rec.model ? ' · ' + rec.model : ''}`}>
                           {rec.deviceType === 'POS Terminal' ? (
-                            <Cpu className="w-3 h-3 text-sky-600 shrink-0" aria-hidden />
+                            <Cpu className="w-3 h-3 text-slate-400 shrink-0" aria-hidden />
                           ) : (
-                            <Volume2 className="w-3 h-3 text-indigo-600 shrink-0" aria-hidden />
+                            <Volume2 className="w-3 h-3 text-slate-400 shrink-0" aria-hidden />
                           )}
                           <span className="truncate">{rec.deviceType}{rec.model ? ` · ${rec.model}` : ''}</span>
                         </div>

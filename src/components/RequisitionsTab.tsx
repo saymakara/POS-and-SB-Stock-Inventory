@@ -580,11 +580,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         {req.reqId}
                       </div>
                       <div className="mt-0.5 inline-flex items-center gap-1">
-                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-normal border ${
-                          isReturnReq
-                            ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60'
-                            : 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60'
-                        }`}>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-normal border bg-slate-100 text-slate-600 border-slate-200/80 dark:bg-white/5 dark:text-slate-400 dark:border-white/10">
                           {isReturnReq ? 'Stock Return' : 'Stock Request'}
                         </span>
                       </div>
@@ -609,18 +605,18 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       <div className="flex flex-col gap-1">
                         {req.posQty > 0 && (
                           <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 font-normal">
-                            <Cpu className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                            <Cpu className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                             <span>POS Terminal</span>
-                            <span className="font-mono text-[10.5px] px-1.5 py-0.2 rounded bg-sky-50 text-sky-700 border border-sky-200/80 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800 font-normal">
+                            <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/80 dark:bg-white/10 dark:text-slate-300 dark:border-white/10 font-normal">
                               ×{req.posQty}
                             </span>
                           </div>
                         )}
                         {req.sbQty > 0 && (
                           <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 font-normal">
-                            <Volume2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <Volume2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                             <span>Sound Box</span>
-                            <span className="font-mono text-[10.5px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/80 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 font-normal">
+                            <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/80 dark:bg-white/10 dark:text-slate-300 dark:border-white/10 font-normal">
                               ×{req.sbQty}
                             </span>
                           </div>
@@ -648,7 +644,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         {req.reason || <span className="text-slate-400">-</span>}
                       </div>
                       {req.status === 'REJECTED' && (
-                        <div className="text-[11px] text-rose-600 dark:text-rose-400 max-w-[220px] truncate mt-0.5" title={`Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}`}>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 max-w-[220px] truncate mt-0.5" title={`Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}`}>
                           Rejected: {req.rejectReason || 'no reason recorded'}
                         </div>
                       )}
