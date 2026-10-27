@@ -620,21 +620,19 @@ button:hover:not(:disabled),
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
-/* Stable, hardware-accelerated CSS transition for page changes (no layout shift, no blackout) */
+/* Stable, hardware-accelerated CSS transition for page changes (zero jump, zero layout shift) */
 @keyframes pageGlideIn {
   from {
-    opacity: 0.72;
-    transform: translateY(3px);
+    opacity: 0.88;
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 .page-glide-in {
-  animation: pageGlideIn 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: opacity, transform;
+  animation: pageGlideIn 140ms ease-out both;
+  will-change: opacity;
 }
 
 /* (23 Oct 2026) rows are no longer animated one by one (that stuttered); a page change glides the whole list (utils/glide.ts) */

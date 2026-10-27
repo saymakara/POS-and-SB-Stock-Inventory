@@ -142,6 +142,34 @@ const STORAGE_KEY_SETTINGS = 'crm_pos_settings_v20';
 const STORAGE_KEY_AUTH_SESSION = 'crm_pos_auth_session_v20';
 const STORAGE_KEY_PUSHED_CONFIGURING = 'crm_pos_pushed_configuring_serials_v1';
 export const STORAGE_KEY_PUSH_TRACKING = 'crm_pos_push_tracking_v1';
+export const STORAGE_KEY_ACTIVE_TAB = 'crm_pos_active_tab_v20';
+export const STORAGE_KEY_SETTINGS_SUB_TAB = 'crm_pos_settings_sub_tab_v20';
+
+const VALID_TABS = new Set([
+  'dashboard',
+  'merchants',
+  'merchant_history',
+  'mobile_sync',
+  'inventory',
+  'push_configuring',
+  'requisitions',
+  'branches',
+  'users',
+  'iam',
+  'audit_log',
+  'settings',
+  'brand_logo',
+]);
+
+const VALID_SETTINGS_SUB_TABS = new Set<SettingsSubTab>([
+  'policy',
+  'brand_logo',
+  'hardware',
+  'sla',
+  'customFields',
+  'data',
+  'security',
+]);
 
 interface StoredAuthSession {
   role: UserRole;
@@ -1031,14 +1059,40 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }
     return '';
   });
-  const [activeTab, setActiveTabRaw] = useState<string>('dashboard');
+  const [activeTab, setActiveTabRaw] = useState<string>(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hashTab = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
+      if (hashTab && VALID_TABS.has(hashTab)) {
+        return hashTab;
+      }
+    }
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const savedTab = localStorage.getItem(STORAGE_KEY_ACTIVE_TAB);
+        if (savedTab && VALID_TABS.has(savedTab)) {
+          return savedTab;
+        }
+      } catch {}
+    }
+    return 'dashboard';
+  });
   // (22 Oct 2026) changing page glides: the browser morphs the old page into the new one (View Transitions);
   // older browsers get a short CSS glide-in instead. Respects "reduce motion".
   const setActiveTab = useCallback((tab: string) => setActiveTabRaw(tab), []);
   // (23 Oct 2026) the menu highlight moves at once; the new page is prepared in the background (React keeps drawing
   // frames meanwhile, so nothing freezes) and glides in when ready
   const shownTab = useDeferredValue(activeTab);
-  const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('policy');
+  const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>(() => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const savedSub = localStorage.getItem(STORAGE_KEY_SETTINGS_SUB_TAB) as SettingsSubTab | null;
+        if (savedSub && VALID_SETTINGS_SUB_TABS.has(savedSub)) {
+          return savedSub;
+        }
+      } catch {}
+    }
+    return 'policy';
+  });
 
   const handleSelectTab = (tabId: string, subTab?: string) => {
     if ((tabId === 'settings' || tabId === 'brand_logo') && role !== 'SUPER_ADMIN') {
@@ -1066,6 +1120,38 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       setActiveTabRaw('settings');
     }
   }, [activeTab, role]);
+
+  // Persist activeTab to localStorage and keep URL hash in sync for instant browser reload retention
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_ACTIVE_TAB, activeTab);
+      if (typeof window !== 'undefined') {
+        const currentHash = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
+        if (currentHash !== activeTab) {
+          window.history.replaceState(null, '', '#' + activeTab);
+        }
+      }
+    } catch {}
+  }, [activeTab]);
+
+  // Persist settingsSubTab to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SETTINGS_SUB_TAB, settingsSubTab);
+    } catch {}
+  }, [settingsSubTab]);
+
+  // Handle browser back / forward navigation via hash change
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hashTab = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
+      if (hashTab && VALID_TABS.has(hashTab)) {
+        setActiveTabRaw((prev) => (prev !== hashTab ? hashTab : prev));
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeAlertNotif, setActiveAlertNotif] = useState<SystemNotification | null>(null);
 
@@ -3835,6 +3921,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               try {
                 localStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
                 sessionStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
+                try { localStorage.removeItem(STORAGE_KEY_ACTIVE_TAB); } catch {}
               } catch {}
               addAuditLog('Session Ended', 'Operator signed out of workstation session');
               setIsSessionLocked(false);

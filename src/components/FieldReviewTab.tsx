@@ -923,8 +923,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             key={`${filter}-${typeFilter}-${activeScope}`}
             className="divide-y divide-slate-200/90 page-glide-in"
           >
-            <AnimatePresence initial={false}>
-              {visibleRows.map((e, idx) => (
+            {visibleRows.map((e, idx) => (
                 <ReviewRow
                   key={e.id}
                   e={e}
@@ -947,7 +946,6 @@ export const FieldReviewTab: React.FC<Props> = ({
                   onOpenWorkflow={onOpenWorkflow}
                 />
               ))}
-            </AnimatePresence>
           </div>
           <Pager pg={pg} label="records" />
         </div>
@@ -1055,11 +1053,7 @@ const ReviewRow = memo(function ReviewRow({
   const canApprove = !blocks && !busy && (!needsBranch || !!r.branchId);
 
   return (
-    <motion.div
-      initial={false}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, x: 24, transition: { duration: 0.16 } }}
-      transition={SPRING}
+    <div
       className={`transition-colors ${
         checked ? 'bg-sky-50/80' : isOpen ? 'bg-slate-50/95' : 'bg-white hover:bg-slate-50/75'
       }`}
@@ -1341,6 +1335,6 @@ const ReviewRow = memo(function ReviewRow({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 });
