@@ -46,7 +46,6 @@ type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
 type RecordTypeFilter = 'ALL' | FieldEvent['kind'];
 const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as const;
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
-const FRAME_SPRING = { type: 'spring', stiffness: 480, damping: 32, mass: 0.6 } as const;
 const GRID =
   'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_128px_minmax(150px,1.1fr)_minmax(130px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
 const CACHE_KEY = 'fe_review_cache_v3';
@@ -919,12 +918,10 @@ export const FieldReviewTab: React.FC<Props> = ({
             </div>
           )}
 
-          <motion.div
-            key={`${filter}-${typeFilter}-${activeScope}-${pg.page}`}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={FRAME_SPRING}
-            className="divide-y divide-slate-200/90"
+          <div
+            data-page-content
+            key={`${filter}-${typeFilter}-${activeScope}`}
+            className="divide-y divide-slate-200/90 page-glide-in"
           >
             <AnimatePresence initial={false}>
               {visibleRows.map((e, idx) => (
@@ -951,7 +948,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                 />
               ))}
             </AnimatePresence>
-          </motion.div>
+          </div>
           <Pager pg={pg} label="records" />
         </div>
       </section>

@@ -7,12 +7,14 @@ import { glideIn } from '../utils/glide';
 /** The same page bar under every table: rows shown, page buttons and 50 / 100 rows per page. */
 export const Pager: React.FC<{ pg: PagerState; label?: string }> = ({ pg, label = 'rows' }) => {
   const bar = useRef<HTMLDivElement | null>(null);
-  /** Another page: the new rows glide in smoothly without scrolling the viewport. */
+  /** Another page: the new rows glide in smoothly using pure CSS without moving the pager or scrolling. */
   const go = (p: number) => {
     pg.setPage(p);
     const box = bar.current?.parentElement;
-    requestAnimationFrame(() => glideIn(box?.querySelector('tbody') || box));
-
+    const target = box?.querySelector('tbody') || box?.querySelector('[data-page-content]');
+    if (target) {
+      glideIn(target);
+    }
   };
   if (pg.total === 0) return null;
   return (
