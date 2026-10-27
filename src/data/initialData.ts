@@ -86,43 +86,43 @@ export function buildInitialBranches(users: User[]): Branch[] {
 export const STAGE_META: Record<LifecycleStage, StageInfo> = {
   HQ_STOCK: {
     label: 'Admin HQ Stock (Branch Code 100)',
-    badgeClassLight: 'bg-slate-100 text-slate-700 border-slate-300 font-bold',
-    badgeClassDark: 'bg-slate-100 text-slate-700 border-slate-300 font-bold',
+    badgeClassLight: 'bg-slate-100 text-slate-700 border-slate-300 font-normal',
+    badgeClassDark: 'bg-slate-100 text-slate-700 border-slate-300 font-normal',
     short: 'Admin HQ Stock',
     color: '#334155'
   },
   BRANCH_RESERVE: {
     label: 'Branch Reserve',
-    badgeClassLight: 'bg-sky-100 text-sky-800 border-sky-300 font-bold dark:bg-sky-500/20 dark:text-sky-200 dark:border-sky-400/40',
-    badgeClassDark: 'bg-sky-500/20 text-sky-200 border-sky-400/40 font-bold',
+    badgeClassLight: 'bg-sky-100 text-sky-800 border-sky-300 font-normal dark:bg-sky-500/20 dark:text-sky-200 dark:border-sky-400/40',
+    badgeClassDark: 'bg-sky-500/20 text-sky-200 border-sky-400/40 font-normal',
     short: 'Branch Reserve',
     color: '#0284c7'
   },
   CONFIGURING: {
     label: 'Under Configuring',
-    badgeClassLight: 'bg-indigo-50 text-indigo-800 border-indigo-200 font-bold',
-    badgeClassDark: 'bg-slate-800 text-slate-100 border-slate-700 font-bold',
+    badgeClassLight: 'bg-indigo-50 text-indigo-800 border-indigo-200 font-normal',
+    badgeClassDark: 'bg-slate-800 text-slate-100 border-slate-700 font-normal',
     short: 'Under Configuring',
     color: '#475569'
   },
   COMPLETE: {
     label: 'Installed Live',
-    badgeClassLight: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-bold',
-    badgeClassDark: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-bold',
+    badgeClassLight: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-normal',
+    badgeClassDark: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-normal',
     short: 'Installed Live',
     color: '#0f766e'
   },
   FAULTY: {
     label: 'Returned',
-    badgeClassLight: 'bg-rose-50 text-rose-800 border-rose-200 font-bold',
-    badgeClassDark: 'bg-rose-50 text-rose-800 border-rose-200 font-bold',
+    badgeClassLight: 'bg-rose-50 text-rose-800 border-rose-200 font-normal',
+    badgeClassDark: 'bg-rose-50 text-rose-800 border-rose-200 font-normal',
     short: 'Returned',
     color: '#be123c'
   },
   LOST: {
     label: 'Device Lost',
-    badgeClassLight: 'bg-amber-50 text-amber-800 border-amber-200 font-bold',
-    badgeClassDark: 'bg-amber-50 text-amber-800 border-amber-200 font-bold',
+    badgeClassLight: 'bg-amber-50 text-amber-800 border-amber-200 font-normal',
+    badgeClassDark: 'bg-amber-50 text-amber-800 border-amber-200 font-normal',
     short: 'Device Lost',
     color: '#d97706'
   }
