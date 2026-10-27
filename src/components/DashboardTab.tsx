@@ -23,7 +23,7 @@ import {
   Volume2,
   BatteryCharging,
   Calendar,
-  FileDown,
+  FileSpreadsheet,
   Building2,
   ScrollText,
   Package,
@@ -389,7 +389,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <button
               type="button"
               onClick={() => onNavigateTab('inventory')}
-              className="px-3.5 py-2 rounded-lg text-xs font-bold bg-white hover:bg-slate-100 text-zinc-800 border border-slate-200 transition cursor-pointer"
+              className="px-3.5 py-2 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer shadow-2xs"
             >
               View Stock Inventory
             </button>
@@ -399,9 +399,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <button
               type="button"
               onClick={onOpenExportModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer"
+              className="px-3.5 py-2 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
+              title="Export Reports & Data"
             >
-              <FileDown className="w-3.5 h-3.5" aria-hidden="true" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
               <span>Export Report</span>
             </button>
           )}
