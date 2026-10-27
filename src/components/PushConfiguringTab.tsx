@@ -746,7 +746,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       'Tracking ID',
       'Date & Time',
       'Serial & Model',
-      'Merchant Name & MID / TID',
+      'Merchant Name & MID',
       'Configure By (Staff)',
       'Assigned By',
       'Branch',
@@ -757,7 +757,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       const devPushId = getDevicePushId(dev) || 'Pending Push';
       const reqInfo = getRequestPushDateTime(dev);
       const serialModel = `${dev.serial} (${dev.model || dev.type})`;
-      const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
+      const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'}`;
       const staffName = resolveStaffFromDirectory(dev.staff || dev.installedByStaff, dev.branchId, users) || 'Assigned Branch Staff';
       const assignedBy = getAssignedBy(dev);
       const branchDisplay = `${dev.branchId} · ${bName.replace(' Branch', '')}`;
@@ -791,7 +791,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       'Tracking ID',
       'Date & Time',
       'Serial & Model',
-      'Merchant Name & MID / TID',
+      'Merchant Name & MID',
       'Configure By (Staff)',
       'Assigned By',
       'Branch Code',
@@ -804,7 +804,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       const devPushId = getDevicePushId(dev) || 'Pending Push';
       const reqInfo = getRequestPushDateTime(dev);
       const serialModel = `${dev.serial} (${dev.model || dev.type})`;
-      const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
+      const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'}`;
       const staffName = dev.staff || dev.installedByStaff || tg.staff;
       const assignedBy = getAssignedBy(dev);
       return [
@@ -840,7 +840,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       'No.',
       'Date & Time',
       'Serial & Model',
-      'Merchant Name & MID / TID',
+      'Merchant Name & MID',
       'Configure By (Staff)',
       'Assigned By',
       'Branch Code',
@@ -852,7 +852,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
       const reqInfo = getRequestPushDateTime(dev);
       const serialModel = `${dev.serial} (${dev.model || dev.type})`;
-      const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'} / TID: ${dev.tid || '—'}`;
+      const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'}`;
       const staffName = dev.staff || dev.installedByStaff || 'Assigned Branch Staff';
       const assignedBy = getAssignedBy(dev);
       return [
@@ -1324,10 +1324,10 @@ return (
                     className="rounded border-slate-300 cursor-pointer accent-[#003857]"
                   />
                 </th>
-                <th className="py-3 px-4">Tracking ID &amp; TID</th>
+                <th className="py-3 px-4">Tracking ID</th>
                 <th className="py-3 px-4">Date &amp; Time</th>
                 <th className="py-3 px-4">Serial &amp; Model</th>
-                <th className="py-3 px-4">Merchant Name &amp; MID / TID</th>
+                <th className="py-3 px-4">Merchant Name &amp; MID</th>
                 <th className="py-3 px-4">Configure By (Staff)</th>
                 <th className="py-3 px-4">Assigned By</th>
                 <th className="py-3 px-4">Branch</th>
@@ -1455,14 +1455,13 @@ return (
                         </div>
                       </td>
 
-                      {/* Merchant & MID / TID */}
+                      {/* Merchant & MID */}
                       <td className="py-3 px-4">
                         <div className="text-zinc-800 dark:text-slate-200 truncate max-w-[200px]" title={dev.merchantName}>
                           {dev.merchantName || 'Merchant Profile Pending'}
                         </div>
-                        <div className="text-[10.5px] font-mono text-slate-500 dark:text-slate-400 mt-0.5 flex flex-col gap-0.5">
+                        <div className="text-[10.5px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
                           <div className="whitespace-nowrap">MID: {dev.mid || '—'}</div>
-                          {dev.tid && <div className="whitespace-nowrap">TID: {dev.tid}</div>}
                         </div>
                       </td>
 
