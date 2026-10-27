@@ -751,8 +751,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       'Serial & Model',
       'Merchant Name & MID',
       'Configure By (Staff)',
-      'Assigned By',
       'Branch',
+      'Assigned By',
     ];
     const rows = filteredDevices.map((dev, idx) => {
       const bObj = branches.find((b) => b.code === dev.branchId);
@@ -772,8 +772,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         serialModel,
         merchantMidTid,
         staffName,
-        assignedBy,
         branchDisplay,
+        assignedBy,
       ];
     });
     const url = URL.createObjectURL(csvFile([headers, ...rows]));
@@ -1339,8 +1339,8 @@ return (
                 <th>Serial &amp; Model</th>
                 <th>Merchant Name &amp; MID</th>
                 <th>Configure By (Staff)</th>
-                <th>Assigned By</th>
                 <th>Branch</th>
+                <th>Assigned By</th>
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
@@ -1468,15 +1468,6 @@ return (
                         </div>
                       </td>
 
-                      {/* Assigned By */}
-                      <td>
-                        <div className="cell-main flex items-center gap-1.5 truncate max-w-[170px]" title={assignedBy}>
-                          <ShieldCheck className="w-3.5 h-3.5 text-[#003857] shrink-0" />
-                          <span className="truncate">{assignedBy}</span>
-                        </div>
-                        <div className="cell-sub pl-5">Authorizing Admin</div>
-                      </td>
-
                       {/* Branch */}
                       <td>
                         <div className="cell-main">Code {dev.branchId} · {bName.replace(' Branch', '')}</div>
@@ -1484,6 +1475,15 @@ return (
                           <Send className="w-2.5 h-2.5 text-sky-600 shrink-0" />
                           <span className="truncate max-w-[150px]">{resolveTelegramChatForBranch(dev.branchId, regionalGroups, branches).groupName}</span>
                         </div>
+                      </td>
+
+                      {/* Assigned By */}
+                      <td>
+                        <div className="cell-main flex items-center gap-1.5 truncate max-w-[170px]" title={assignedBy}>
+                          <ShieldCheck className="w-3.5 h-3.5 text-[#003857] shrink-0" />
+                          <span className="truncate">{assignedBy}</span>
+                        </div>
+                        <div className="cell-sub pl-5">Authorizing Admin</div>
                       </td>
 
                       {/* Row Actions */}
