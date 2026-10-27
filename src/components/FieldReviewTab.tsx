@@ -864,7 +864,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       >
         <div className="min-w-[1040px]">
           <div
-            className={`${GRID} navy-header-bar text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`}
+            className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`}
             role="row"
           >
             <span>
