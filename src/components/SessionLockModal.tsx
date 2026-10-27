@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, ShieldCheck, KeyRound } from 'lucide-react';
+import { ShieldCheck, KeyRound } from 'lucide-react';
 import { AppBrandLogo } from './AppBrandLogo';
 import { ThemeMode } from '../types';
 import { motion } from 'motion/react';
@@ -81,11 +81,8 @@ export const SessionLockModal: React.FC<SessionLockModalProps> = ({
             : 'bg-[#0f1b2e] text-white'
         }`}
       >
-        <div className="relative mb-3 flex items-center justify-center">
+        <div className="mb-3 flex items-center justify-center">
           <AppBrandLogo size="lg" showGlow />
-          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-md ring-2 ring-[#0f1b2e]">
-            <Lock className="w-3 h-3 stroke-[2.5]" />
-          </div>
         </div>
 
         <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
