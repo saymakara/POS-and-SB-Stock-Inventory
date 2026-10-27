@@ -891,7 +891,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               Terminal / MID
             </SortBtn>
             <SortBtn k="branch" sort={sort} onSort={toggleSort}>
-              Branch / Staff
+              Staff / Branch
             </SortBtn>
             <SortBtn k="status" sort={sort} onSort={toggleSort}>
               Status
@@ -1150,11 +1150,11 @@ const ReviewRow = memo(function ReviewRow({
             </span>
           )}
         </span>
-        <span className="truncate leading-snug" title={`${e.branchText || ''} · ${e.staffName || ''}`}>
-          <span className="block truncate font-normal text-slate-800">{e.branchText || '—'}</span>
+        <span className="truncate leading-snug" title={`${e.staffName || ''} · ${e.branchText || ''}`}>
+          <span className="block truncate font-medium text-slate-800">{e.staffName || '—'}{e.staffId ? ` (${e.staffId})` : ''}</span>
           <span className="block text-[11px] font-normal text-slate-500 truncate">
-            {e.staffName || '—'}
-            {e.staffId ? ` (${e.staffId})` : ''}
+            {e.branchText || '—'}
+
           </span>
         </span>
         <span className="leading-snug">

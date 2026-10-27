@@ -5,6 +5,8 @@ import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as App
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
 import { generatePushTrackingId } from '../utils/telegram';
 import { normalizeStaffName, resolveStaffFromDirectory } from '../utils/staffUtils';
+import { hasKhmer } from '../utils/display';
+const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
 import { todayPP, stampSecPP, clockPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -22,8 +24,6 @@ import {
   EyeOff,
   X,
   AlertCircle,
-  Calendar,
-  Clock,
   KeyRound,
   User,
   FileSpreadsheet,
@@ -31,6 +31,8 @@ import {
   RotateCw,
   Copy,
   Check,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 
 interface PushConfiguringTabProps {
@@ -77,6 +79,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 }) => {
   const isLight = theme === 'light';
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  const cardClass = isLight ? 'surface-card-light text-[#002f49]' : 'surface-card-dark text-slate-100';
 
   // 1. Filter only devices in CONFIGURING stage
   const configuringDevices = useMemo(() => {
@@ -1278,10 +1281,10 @@ return (
       </div>
 
       {/* 4. HARDWARE QUEUE TABLE WITH DATE & TIME OF REQUEST PUSH */}
-      <div ref={tableRef} className={`rounded-2xl border shadow-xs overflow-hidden scroll-mt-6 ${isLight ? 'border-slate-200/90 bg-white' : 'border-slate-800 bg-[#141822]'}`}>
-        <div className={`p-4 border-b flex items-center justify-between gap-3 ${isLight ? 'border-slate-100 text-slate-700' : 'border-slate-800 text-slate-300'}`}>
+      <div ref={tableRef} className={`${cardClass} border border-slate-200/90 dark:border-slate-800 rounded-xl overflow-hidden scroll-mt-6`}>
+        <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-black uppercase tracking-wider">
+            <span className="text-xs font-black uppercase tracking-wider text-[#003857] dark:text-sky-400">
               Queue Ready for App Push
             </span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
@@ -1289,10 +1292,15 @@ return (
                 ? `${filteredWaitingCount} waiting · ${filteredDevices.length} total`
                 : `${filteredDevices.length} total (all pushed)`}
             </span>
+            {selectedSns.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                {selectedSns.length} selected
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2.5">
             <div className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">
-              Assigned By: <strong className="text-zinc-900 dark:text-white">{operatorLabel}</strong>
+              Assigned By: <strong className={isLight ? 'text-zinc-900' : 'text-white'}>{operatorLabel}</strong>
             </div>
             <button
               type="button"
@@ -1308,43 +1316,45 @@ return (
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className={`border-b text-[11px] font-bold uppercase tracking-wider ${
-                isLight
-                  ? 'bg-slate-50/90 border-slate-200 text-slate-600'
-                  : 'bg-slate-900/90 border-slate-800 text-slate-400'
-              }`}>
-                <th className="py-3 px-4 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selectedSns.length === filteredDevices.length && filteredDevices.length > 0}
-                    onChange={handleToggleSelectAll}
+          <table className="data-table min-w-[960px]">
+            <thead className="glass-table-thead">
+              <tr>
+                <th className="w-10 text-center">
+                  <button
+                    type="button"
+                    onClick={handleToggleSelectAll}
+                    className="flex items-center justify-center text-white cursor-pointer active:scale-90 transition-transform duration-100 mx-auto"
+                    title="Select all in queue"
                     aria-label="Select all in queue"
-                    className="rounded border-slate-300 cursor-pointer accent-[#003857]"
-                  />
+                  >
+                    {selectedSns.length === filteredDevices.length && filteredDevices.length > 0 ? (
+                      <CheckSquare className="w-4 h-4 text-white" />
+                    ) : (
+                      <Square className="w-4 h-4 text-white/75 hover:text-white" />
+                    )}
+                  </button>
                 </th>
-                <th className="py-3 px-4">Tracking ID</th>
-                <th className="py-3 px-4">Date &amp; Time</th>
-                <th className="py-3 px-4">Serial &amp; Model</th>
-                <th className="py-3 px-4">Merchant Name &amp; MID</th>
-                <th className="py-3 px-4">Configure By (Staff)</th>
-                <th className="py-3 px-4">Assigned By</th>
-                <th className="py-3 px-4">Branch</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th>Tracking ID</th>
+                <th>Date &amp; Time</th>
+                <th>Serial &amp; Model</th>
+                <th>Merchant Name &amp; MID</th>
+                <th>Configure By (Staff)</th>
+                <th>Assigned By</th>
+                <th>Branch</th>
+                <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody className={`divide-y ${isLight ? 'divide-slate-100' : 'divide-slate-800/60'}`}>
+            <tbody>
               {filteredDevices.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400">
                     <Boxes className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                    <div className="text-sm font-bold text-slate-600 dark:text-slate-300">No devices in Push Configuring queue</div>
-                    <div className="text-xs text-slate-400 mt-0.5">
+                    <p className="cell-main">No devices in Push Configuring queue</p>
+                    <p className="cell-sub">
                       {search || typeFilter !== 'ALL' || branchFilter !== 'ALL'
                         ? 'Try clearing the search filters above.'
                         : 'When an admin configures a merchant profile on a device, it will appear here.'}
-                    </div>
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -1361,143 +1371,123 @@ return (
                   return (
                     <tr
                       key={dev.serial}
-                      className={`transition-colors duration-150 ${
-                        isLight
-                          ? isSelected
-                            ? 'bg-sky-50/70 hover:bg-sky-50'
-                            : 'hover:bg-slate-50/70'
-                          : isSelected
-                          ? 'bg-sky-950/40 hover:bg-sky-950/50'
-                          : 'hover:bg-slate-800/40'
-                      }`}
+                      className={`interactive-row ${isSelected ? '!bg-sky-50/70' : ''}`}
                     >
-                      <td className="py-3 px-4">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleSelectOne(dev.serial)}
+                      <td className="w-10 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSelectOne(dev.serial)}
+                          className="flex items-center justify-center cursor-pointer p-1 rounded active:scale-90 transition-transform duration-100 mx-auto"
                           aria-label={`Select ${dev.serial}`}
-                          className="rounded border-slate-300 cursor-pointer accent-[#003857]"
-                        />
-                      </td>
-
-                      {/* Push Tracking ID & TID */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex flex-col gap-1 items-start">
-                          {devPushId ? (
-                            <div className="inline-flex items-center gap-1.5">
-                              <span
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-mono text-[11px] font-medium border transition shadow-2xs ${
-                                  isLight
-                                    ? 'bg-sky-50 text-sky-900 border-sky-200/90'
-                                    : 'bg-sky-950/60 text-sky-200 border-sky-800'
-                                }`}
-                                title={`Tracking ID: ${devPushId} (Search in Telegram)`}
-                              >
-                                <span className="text-sky-600 dark:text-sky-400 font-bold">#</span>
-                                <span>{devPushId}</span>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCopyPushId(devPushId);
-                                }}
-                                className="p-1 rounded-md text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                                title="Copy Tracking ID (to find in Telegram)"
-                              >
-                                {copiedPushId === devPushId ? (
-                                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                ) : (
-                                  <Copy className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-                            </div>
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-[#003857]" />
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-medium bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                              Pending Push
-                            </span>
+                            <Square className="w-4 h-4 text-slate-400 hover:text-slate-600" />
                           )}
-                        </div>
+                        </button>
                       </td>
 
-                      {/* Date & Time of Request Push */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className={`inline-flex flex-col gap-1 px-2.5 py-1.5 rounded-xl font-mono border transition-colors ${
-                          isLight
-                            ? 'bg-slate-100/90 text-slate-800 border-slate-200'
-                            : 'bg-slate-800/80 text-slate-200 border-slate-700/80'
-                        }`}>
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200">
-                            <Calendar className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
-                            <span>{requestPushInfo.date}</span>
+                      {/* Push Tracking ID */}
+                      <td className="whitespace-nowrap">
+                        {devPushId ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyPushId(devPushId);
+                              }}
+                              className="serial-btn font-mono"
+                              title={`Tracking ID: #${devPushId} (Click to copy)`}
+                            >
+                              #{devPushId}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyPushId(devPushId);
+                              }}
+                              className="p-1 rounded-md text-slate-400 hover:text-[#003857] hover:bg-slate-100 transition cursor-pointer"
+                              title="Copy Tracking ID"
+                            >
+                              {copiedPushId === devPushId ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                            <Clock className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0" />
-                            <span>{requestPushInfo.time}</span>
-                          </div>
-                        </div>
+                        ) : (
+                          <span className="chip chip-slate">Pending Push</span>
+                        )}
+                      </td>
+
+                      {/* Date & Time */}
+                      <td className="whitespace-nowrap">
+                        <div className="cell-mono">{requestPushInfo.date}</div>
+                        <div className="cell-mono-sub">{requestPushInfo.time}</div>
                       </td>
 
                       {/* Serial & Model */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
+                      <td className="whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
                           <span
                             className={`w-2 h-2 rounded-full shrink-0 ${
-                              isPos ? 'bg-blue-500' : 'bg-purple-500'
+                              isPos ? 'bg-sky-500' : 'bg-purple-500'
                             }`}
                             title={dev.type}
                           />
-                          <span className="font-mono text-zinc-800 dark:text-slate-200">{dev.serial}</span>
+                          <span className="cell-mono font-medium">{dev.serial}</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 pl-4">
+                        <div className="cell-sub pl-3.5">
                           {dev.type} {dev.model ? `· ${dev.model}` : ''}
                         </div>
                       </td>
 
-                      {/* Merchant & MID */}
-                      <td className="py-3 px-4">
-                        <div className="text-zinc-800 dark:text-slate-200 truncate max-w-[200px]" title={dev.merchantName}>
-                          {dev.merchantName || 'Merchant Profile Pending'}
+                      {/* Merchant Name & MID */}
+                      <td>
+                        <div className={`cell-main max-w-[200px] truncate ${hasKhmer(dev.merchantName) ? 'khmer' : ''}`} title={dev.merchantName || 'Merchant Profile Pending'}>
+                          {dash(dev.merchantName)}
                         </div>
-                        <div className="text-[10.5px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
-                          <div className="whitespace-nowrap">MID: {dev.mid || '—'}</div>
+                        <div className="cell-mono-sub truncate">
+                          MID: {dev.mid || '—'}
                         </div>
                       </td>
 
                       {/* Configure By (Staff) */}
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-zinc-800 dark:text-slate-200">{staffName}</div>
-                        <div className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      <td>
+                        <div className={`cell-main font-medium max-w-[190px] truncate ${hasKhmer(staffName) ? 'khmer' : ''}`} title={staffName}>
+                          {staffName}
+                        </div>
+                        <div className="cell-sub max-w-[190px] truncate">
                           {userTelegramMap.get(staffName.toLowerCase().trim())
                             ? `@${userTelegramMap.get(staffName.toLowerCase().trim())}`
                             : 'Field Technician'}
                         </div>
                       </td>
 
-                      {/* Assigned By (Admin / Operator) */}
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-zinc-800 dark:text-slate-200 flex items-center gap-1.5">
-                          <ShieldCheck className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
-                          <span className="truncate max-w-[150px]" title={assignedBy}>{assignedBy}</span>
+                      {/* Assigned By */}
+                      <td>
+                        <div className="cell-main flex items-center gap-1.5 truncate max-w-[170px]" title={assignedBy}>
+                          <ShieldCheck className="w-3.5 h-3.5 text-[#003857] shrink-0" />
+                          <span className="truncate">{assignedBy}</span>
                         </div>
-                        <div className="text-[10px] text-slate-400 pl-5">
-                          Authorizing Admin
-                        </div>
+                        <div className="cell-sub pl-5">Authorizing Admin</div>
                       </td>
 
                       {/* Branch */}
-                      <td className="py-3 px-4">
-                        <div className="text-zinc-800 dark:text-slate-200 font-medium">Code {dev.branchId}</div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[140px]">{bName}</div>
-                        <div className="text-[10px] text-sky-700 dark:text-sky-300 font-semibold flex items-center gap-1 mt-0.5">
-                          <Send className="w-2.5 h-2.5 text-sky-600 dark:text-sky-400 shrink-0" />
-                          <span className="truncate max-w-[140px]">{resolveTelegramChatForBranch(dev.branchId, regionalGroups, branches).groupName}</span>
+                      <td>
+                        <div className="cell-main">Code {dev.branchId} · {bName.replace(' Branch', '')}</div>
+                        <div className="cell-sub text-sky-700 flex items-center gap-1 mt-0.5">
+                          <Send className="w-2.5 h-2.5 text-sky-600 shrink-0" />
+                          <span className="truncate max-w-[150px]">{resolveTelegramChatForBranch(dev.branchId, regionalGroups, branches).groupName}</span>
                         </div>
                       </td>
 
                       {/* Row Actions */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="text-right col-actions">
                         <div className="inline-flex items-center gap-1.5 justify-end">
                           {isAdminLike && (() => {
                             const devIsPushed = isDevicePushed(dev.serial, dev);
@@ -1505,15 +1495,10 @@ return (
 
                             if (cooldownSecs > 0) {
                               return (
-                                <button
-                                  type="button"
-                                  disabled
-                                  className="px-2.5 py-1.5 rounded-lg font-medium text-[11px] inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-2xs opacity-80 cursor-not-allowed select-none"
-                                  title={`Pushed to Telegram! ${cooldownSecs}s cooldown active`}
-                                >
+                                <span className="chip chip-green opacity-80" title={`Pushed to Telegram! ${cooldownSecs}s cooldown active`}>
                                   <RotateCw className="w-3 h-3 text-emerald-500 animate-spin" />
-                                  <span>Pushed · {cooldownSecs}s</span>
-                                </button>
+                                  <span>Pushed · ${cooldownSecs}s</span>
+                                </span>
                               );
                             }
 
@@ -1522,11 +1507,11 @@ return (
                                 <button
                                   type="button"
                                   onClick={() => handleRowPushClick(dev)}
-                                  className="group px-2.5 py-1.5 rounded-lg font-medium text-[11px] inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300/80 hover:border-emerald-400 dark:border-emerald-700/60 dark:hover:border-emerald-600 shadow-2xs active:scale-[0.97] transition-all cursor-pointer select-none"
-                                  title={`Status: Pushed to Telegram (${requestPushInfo.full}). Click to repush to Telegram.`}
+                                  className="chip chip-green hover:!bg-emerald-100 cursor-pointer transition active:scale-95 group"
+                                  title={`Status: Pushed to Telegram (${requestPushInfo.full}). Click to repush.`}
                                 >
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:hidden transition-transform" />
-                                  <RotateCw className="w-3 h-3 text-emerald-700 dark:text-emerald-300 shrink-0 hidden group-hover:inline group-hover:rotate-180 transition-transform duration-300" />
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 group-hover:hidden" />
+                                  <RotateCw className="w-3 h-3 text-emerald-700 hidden group-hover:inline group-hover:rotate-180 transition-transform duration-300" />
                                   <span className="group-hover:hidden">Pushed</span>
                                   <span className="hidden group-hover:inline">Repush</span>
                                 </button>
@@ -1537,13 +1522,10 @@ return (
                               <button
                                 type="button"
                                 onClick={() => handleRowPushClick(dev)}
-                                className="group px-2.5 py-1.5 rounded-lg font-medium text-[11px] inline-flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100/90 text-sky-800 dark:bg-sky-950/40 dark:hover:bg-sky-900/60 dark:text-sky-300 border border-sky-200/90 hover:border-sky-300 dark:border-sky-800/60 dark:hover:border-sky-700 shadow-2xs active:scale-[0.97] transition-all cursor-pointer select-none"
+                                className="row-btn !text-sky-700 !bg-sky-50 !border-sky-200 hover:!bg-sky-600 hover:!text-white active:scale-95"
                                 title="Device configured and ready. Click to push now or select checkbox for batch."
                               >
-                                <Clock className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0 group-hover:hidden" />
-                                <Send className="w-3 h-3 text-sky-700 dark:text-sky-300 shrink-0 hidden group-hover:inline" />
-                                <span className="group-hover:hidden">Ready to Push</span>
-                                <span className="hidden group-hover:inline">Push Now</span>
+                                Push Now
                               </button>
                             );
                           })()}
@@ -1552,11 +1534,7 @@ return (
                             <button
                               type="button"
                               onClick={() => onSelectDevice(dev.serial)}
-                              className={`px-2.5 py-1.5 rounded-lg border font-semibold text-[11px] active:scale-[0.97] transition-all duration-150 cursor-pointer ${
-                                isLight
-                                  ? 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
-                                  : 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
-                              }`}
+                              className="row-btn"
                               title="Manage device profile or complete deployment"
                             >
                               Manage
