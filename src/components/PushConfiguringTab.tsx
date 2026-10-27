@@ -1066,7 +1066,7 @@ return (
                     layoutId="activePushModeIndicator"
                     className={`absolute inset-0 rounded-lg shadow-xs ${
                       isLight
-                        ? 'bg-[#003857] border border-white/10'
+                        ? 'tab-active-blue border border-white/10'
                         : 'bg-slate-800 border border-slate-700/80'
                     }`}
                     transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
@@ -1105,7 +1105,7 @@ return (
                     layoutId="activePushModeIndicator"
                     className={`absolute inset-0 rounded-lg shadow-xs ${
                       isLight
-                        ? 'bg-[#003857] border border-white/10'
+                        ? 'tab-active-blue border border-white/10'
                         : 'bg-slate-800 border border-slate-700/80'
                     }`}
                     transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
@@ -1144,7 +1144,7 @@ return (
                     layoutId="activePushModeIndicator"
                     className={`absolute inset-0 rounded-lg shadow-xs ${
                       isLight
-                        ? 'bg-[#003857] border border-white/10'
+                        ? 'tab-active-blue border border-white/10'
                         : 'bg-slate-800 border border-slate-700/80'
                     }`}
                     transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}

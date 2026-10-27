@@ -593,7 +593,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           <motion.div
             layoutId="fr-type-pill"
             aria-hidden
-            className="absolute inset-0 rounded-lg bg-[#003857] border border-white/10 shadow-xs"
+            className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs"
             transition={SPRING}
           />
         )}
@@ -672,7 +672,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                     <motion.div
                       layoutId="fr-status-pill"
                       aria-hidden
-                      className="absolute inset-0 rounded-lg bg-[#003857] border border-white/10 shadow-xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs"
                       transition={SPRING}
                     />
                   )}

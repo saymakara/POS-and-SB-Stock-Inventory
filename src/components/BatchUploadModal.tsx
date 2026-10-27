@@ -1843,7 +1843,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                                 onClick={() => handleSelectStage(cKey)}
                                 className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                                   isSelected
-                                    ? 'bg-[#003857] text-white shadow-2xs ring-2 ring-[#003857]/30'
+                                    ? 'tab-active-blue text-white shadow-2xs ring-2 ring-[#004e75]/30'
                                     : isLight
                                     ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                                     : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
@@ -2194,7 +2194,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           onClick={() => setStageFilter('ALL')}
                           className={`px-2 py-0.5 rounded-md font-semibold transition cursor-pointer ${
                             stageFilter === 'ALL'
-                              ? 'bg-[#003857] text-white'
+                              ? 'tab-active-blue text-white'
                               : isLight
                               ? 'bg-slate-200/70 hover:bg-slate-200 text-slate-700'
                               : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
@@ -2214,7 +2214,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               onClick={() => setStageFilter(cKey)}
                               className={`px-2 py-0.5 rounded-md font-semibold transition cursor-pointer ${
                                 isActive
-                                  ? 'bg-[#003857] text-white'
+                                  ? 'tab-active-blue text-white'
                                   : isLight
                                   ? 'bg-slate-200/70 hover:bg-slate-200 text-slate-700'
                                   : 'bg-slate-800 hover:bg-slate-700 text-slate-300'

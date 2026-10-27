@@ -189,6 +189,21 @@ th.sticky {
   border-color: rgba(0, 73, 83, 0.35) !important;
 }
 
+/* Signature Sidebar-Blue Active Tabs & Segmented Filters (Clean blue, not too navy) */
+.tab-active-blue,
+.bg-sidebar-blue {
+  background-color: #004e75 !important;
+  background-image: linear-gradient(135deg, #003d5c 0%, #004e75 55%, #005a87 100%) !important;
+}
+
+.text-sidebar-blue {
+  color: #004e75 !important;
+}
+
+.border-sidebar-blue {
+  border-color: rgba(0, 78, 117, 0.35) !important;
+}
+
 /* Elevated Cards with Crisp Solid White & Sharp Borders */
 .surface-card,
 .surface-card-light {

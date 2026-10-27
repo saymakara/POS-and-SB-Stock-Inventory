@@ -122,7 +122,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
                   <motion.div
                     layoutId="activePipelineStagePill"
                     transition={{ type: 'spring', stiffness: 480, damping: 30, mass: 0.55 }}
-                    className="absolute -inset-[1px] rounded-md bg-[#003857] border border-sky-400/40 shadow-xs z-0 pointer-events-none"
+                    className="absolute -inset-[1px] rounded-md tab-active-blue border border-sky-400/40 shadow-xs z-0 pointer-events-none"
                   />
                 )}
                 <Icon

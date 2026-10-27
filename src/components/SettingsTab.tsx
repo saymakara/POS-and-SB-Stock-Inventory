@@ -470,7 +470,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           onClick={() => handleSubTabSelect('policy')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'policy'
-              ? 'bg-[#003857] text-white shadow-xs'
+              ? 'tab-active-blue text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -483,7 +483,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           onClick={() => handleSubTabSelect('brand_logo')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'brand_logo'
-              ? 'bg-[#003857] text-white shadow-xs'
+              ? 'tab-active-blue text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -496,7 +496,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           onClick={() => handleSubTabSelect('hardware')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'hardware'
-              ? 'bg-[#003857] text-white shadow-xs'
+              ? 'tab-active-blue text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -509,7 +509,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           onClick={() => handleSubTabSelect('sla')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'sla'
-              ? 'bg-[#003857] text-white shadow-xs'
+              ? 'tab-active-blue text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -522,7 +522,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           onClick={() => handleSubTabSelect('customFields')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'customFields'
-              ? 'bg-[#003857] text-white shadow-xs'
+              ? 'tab-active-blue text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -544,7 +544,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           onClick={() => handleSubTabSelect('data')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'data'
-              ? 'bg-[#003857] text-white shadow-xs'
+              ? 'tab-active-blue text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -557,7 +557,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           onClick={() => handleSubTabSelect('security')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'security'
-              ? 'bg-[#003857] text-white shadow-xs'
+              ? 'tab-active-blue text-white shadow-xs'
               : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
           }`}
         >

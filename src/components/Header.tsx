@@ -938,7 +938,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               title="Alerts: Branch Staff Stock Requests"
               className={`p-2 rounded-xl cursor-pointer relative border backdrop-blur-md transition ${
                 notifOpen
-                  ? 'bg-[#003857] text-white border-[#003857]'
+                  ? 'tab-active-blue text-white border-[#004e75]'
                   : unreadCount > 0
                   ? 'bg-zinc-900/10 hover:bg-zinc-900/15 text-zinc-900 border-zinc-300'
                   : 'bg-slate-100/80 hover:bg-slate-200 text-zinc-700 border-zinc-200'

@@ -1363,7 +1363,7 @@ return (
                 onClick={() => setTrendChartMode('POS_VS_SB')}
                 className={`px-2.5 py-1 rounded-md font-semibold transition ${
                   trendChartMode === 'POS_VS_SB'
-                    ? 'bg-[#003857] text-white shadow-2xs'
+                    ? 'tab-active-blue text-white shadow-2xs'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -1374,7 +1374,7 @@ return (
                 onClick={() => setTrendChartMode('BY_MID_STACKED')}
                 className={`px-2.5 py-1 rounded-md font-semibold transition ${
                   trendChartMode === 'BY_MID_STACKED'
-                    ? 'bg-[#003857] text-white shadow-2xs'
+                    ? 'tab-active-blue text-white shadow-2xs'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -1393,7 +1393,7 @@ return (
                 onClick={() => setTrendHorizon('6M')}
                 className={`px-2.5 py-1 rounded-md font-bold transition ${
                   trendHorizon === '6M'
-                    ? 'bg-[#003857] text-white shadow-2xs'
+                    ? 'tab-active-blue text-white shadow-2xs'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -1404,7 +1404,7 @@ return (
                 onClick={() => setTrendHorizon('12M')}
                 className={`px-2.5 py-1 rounded-md font-bold transition ${
                   trendHorizon === '12M'
-                    ? 'bg-[#003857] text-white shadow-2xs'
+                    ? 'tab-active-blue text-white shadow-2xs'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -1915,7 +1915,7 @@ return (
                       onClick={() => setValidatorTab('BULK_PREFLIGHT')}
                       className={`px-3 py-1.5 rounded-lg font-bold transition ${
                         validatorTab === 'BULK_PREFLIGHT'
-                          ? 'bg-[#005a8c] text-white shadow-xs'
+                          ? 'tab-active-blue text-white shadow-xs'
                           : 'text-slate-300 hover:text-white'
                       }`}
                     >
@@ -1926,7 +1926,7 @@ return (
                       onClick={() => setValidatorTab('REGISTRY_AUDIT')}
                       className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
                         validatorTab === 'REGISTRY_AUDIT'
-                          ? 'bg-[#005a8c] text-white shadow-xs'
+                          ? 'tab-active-blue text-white shadow-xs'
                           : 'text-slate-300 hover:text-white'
                       }`}
                     >
