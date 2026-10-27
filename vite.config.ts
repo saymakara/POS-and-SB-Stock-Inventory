@@ -30,6 +30,12 @@ export default defineConfig(() => {
       target: 'esnext',
       cssCodeSplit: true,
       chunkSizeWarningLimit: 1000,
+      modulePreload: {
+        resolveDependencies: (_filename, deps) => {
+          // Keep heavy vendor-charts on-demand so initial entry avoids downloading the 401kB Recharts bundle upfront
+          return deps.filter((dep) => !dep.includes('vendor-charts'));
+        },
+      },
       rollupOptions: {
         output: {
           manualChunks: (id) => {
