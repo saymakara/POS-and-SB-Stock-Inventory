@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Store,
+  Calendar,
   Search,
   FileSpreadsheet,
   Building2,
@@ -66,7 +67,7 @@ interface MerchantHistoryTabProps {
 
 const statusForReason = (_reason: string): HistoricalMerchantRecord['status'] => 'RETURNED';
 
-const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
+const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '-');
 
 /** Whole months between two YYYY-MM-DD dates; 0 when either date is missing or the order is wrong. */
 function monthsBetween(from: string, to: string): number {
@@ -293,7 +294,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
     const headers = [
       'No.',
       'Returned Date',
-      'Record Type',
       'Merchant Name',
       'Merchant ID (MID)',
       'Serial Number',
@@ -301,6 +301,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       'Staff / Branch',
       'In Service',
       'Return Reason',
+      'Record Type',
     ];
 
     const rows = filteredRecords.map((r, idx) => {
@@ -315,7 +316,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       return [
         String(idx + 1),
         r.returnedDate || '-',
-        statusText(r.status),
         r.merchantName || '-',
         r.mid || '-',
         r.serial,
@@ -323,6 +323,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
         branchStaff,
         inService,
         r.returnReason || '-',
+        statusText(r.status),
       ];
     });
 
@@ -638,12 +639,12 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <tr>
                 <th className="col-no">No.</th>
                 <SortTh k="returned" sort={histSort} onSort={histToggle}>Returned Date</SortTh>
-                <SortTh k="type" sort={histSort} onSort={histToggle}>Record Type</SortTh>
                 <SortTh k="merchant" sort={histSort} onSort={histToggle}>Merchant Name</SortTh>
                 <SortTh k="mid" sort={histSort} onSort={histToggle}>Merchant ID (MID)</SortTh>
                 <SortTh k="serial" sort={histSort} onSort={histToggle}>Serial Number</SortTh>
                 <SortTh k="branch" sort={histSort} onSort={histToggle}>Staff / Branch</SortTh>
                 <SortTh k="reason" sort={histSort} onSort={histToggle}>Return Reason</SortTh>
+                <SortTh k="type" sort={histSort} onSort={histToggle}>Record Type</SortTh>
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
@@ -665,10 +666,10 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     <tr key={rec.recordId} data-flip={rec.recordId}>
                       <td className="col-no">{pg.start + rowIdx + 1}</td>
                       <td className="whitespace-nowrap">
-                        <div className="cell-mono">{dash(rec.returnedDate)}</div>
-                      </td>
-                      <td className="whitespace-nowrap">
-                        <span className={`chip ${chip}`}>{statusText(rec.status) === 'Terminated' ? 'Returned' : statusText(rec.status)}</span>
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100/80 text-slate-600 border border-slate-200/90 dark:bg-white/10 dark:text-slate-300 dark:border-white/10 font-mono text-[11px] font-normal">
+                          <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span>{dash(rec.returnedDate)}</span>
+                        </span>
                       </td>
                       <td>
                         <div className={`cell-main max-w-[160px] truncate ${hasKhmer(rec.merchantName) ? 'khmer' : ''}`} title={rec.merchantName}>
@@ -703,7 +704,10 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         <div className="cell-sub max-w-[190px] truncate" title={`Code ${rec.branchId} · ${rec.branchName}`}>{rec.branchId} · {rec.branchName.replace(' Branch', '')}</div>
                       </td>
                       <td>
-                        <div className="cell-main font-medium max-w-[170px] truncate" title={rec.returnReason}>{dash(rec.returnReason)}</div>
+                        <div className="cell-main font-normal max-w-[170px] truncate" title={rec.returnReason}>{dash(rec.returnReason)}</div>
+                      </td>
+                      <td className="whitespace-nowrap">
+                        <span className={`chip ${chip}`}>{statusText(rec.status) === 'Terminated' ? 'Returned' : statusText(rec.status)}</span>
                       </td>
                       <td className="text-right col-actions">
                         <button type="button" onClick={() => setSelectedRecord(rec)} className="row-btn">
