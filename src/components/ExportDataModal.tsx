@@ -107,7 +107,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
       'Staff',
       'Lifecycle Stage',
       'Merchant Name',
-      'Merchant ID (MID)',
+      'MID',
       'Terminal ID (TID)',
       'Serial Cycles',
       'Note',
@@ -189,7 +189,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
 
     const headers = [
       'No.',
-      'Merchant ID (MID)',
+      'MID',
       'Merchant Name',
       'Staff Name',
       'Branch Code & Name',

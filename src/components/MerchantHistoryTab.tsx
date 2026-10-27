@@ -295,7 +295,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       'No.',
       'Returned Date',
       'Merchant Name',
-      'Merchant ID (MID)',
+      'MID',
       'Serial Number',
       'Device Type & Model',
       'Staff / Branch',
@@ -350,7 +350,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
     }
     const cleanMid = formMid.replace(/\D/g, '').slice(0, 15);
     if (cleanMid.length !== 15) {
-      setFormError('Merchant ID (MID) must be exactly 15 digits.');
+      setFormError('MID must be exactly 15 digits.');
       return;
     }
     const serial = formSerial.trim().toUpperCase();
@@ -640,7 +640,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <th className="col-no">No.</th>
                 <SortTh k="returned" sort={histSort} onSort={histToggle}>Returned Date</SortTh>
                 <SortTh k="merchant" sort={histSort} onSort={histToggle}>Merchant Name</SortTh>
-                <SortTh k="mid" sort={histSort} onSort={histToggle}>Merchant ID (MID)</SortTh>
+                <SortTh k="mid" sort={histSort} onSort={histToggle}>MID</SortTh>
                 <SortTh k="serial" sort={histSort} onSort={histToggle}>Serial Number</SortTh>
                 <SortTh k="branch" sort={histSort} onSort={histToggle}>Staff / Branch</SortTh>
                 <SortTh k="reason" sort={histSort} onSort={histToggle}>Return Reason</SortTh>
@@ -677,7 +677,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         </div>
                       </td>
                       <td className="whitespace-nowrap">
-                        <div className={`cell-mono ${midOk ? '' : 'warn-text'}`} title={midOk ? 'Merchant ID' : 'This MID is not 15 digits (for example a number shortened by Excel). Please correct it.'}>
+                        <div className={`cell-mono ${midOk ? '' : 'warn-text'}`} title={midOk ? 'MID' : 'This MID is not 15 digits (for example a number shortened by Excel). Please correct it.'}>
                           {dash(rec.mid)}{!midOk && rec.mid ? ' ⚠' : ''}
                         </div>
                       </td>
@@ -692,9 +692,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         </button>
                         <div className="cell-sub flex items-center gap-1 max-w-[160px] truncate" title={`${rec.deviceType}${rec.model ? ' · ' + rec.model : ''}`}>
                           {rec.deviceType === 'POS Terminal' ? (
-                            <Cpu className="w-3 h-3 text-slate-400 shrink-0" aria-hidden />
+                            <Cpu className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0" aria-hidden />
                           ) : (
-                            <Volume2 className="w-3 h-3 text-slate-400 shrink-0" aria-hidden />
+                            <Volume2 className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" aria-hidden />
                           )}
                           <span className="truncate">{rec.deviceType}{rec.model ? ` · ${rec.model}` : ''}</span>
                         </div>
@@ -977,7 +977,11 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         Product Type &amp; Model
                       </span>
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-md bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 flex items-center justify-center shrink-0">
+                        <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+                          selectedRecord.deviceType === 'POS Terminal'
+                            ? 'bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300'
+                            : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+                        }`}>
                           {selectedRecord.deviceType === 'POS Terminal' ? (
                             <Cpu className="w-3.5 h-3.5" />
                           ) : (

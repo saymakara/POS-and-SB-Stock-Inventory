@@ -1494,7 +1494,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         <Hash className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <div className="text-[9.5px] uppercase tracking-wider text-slate-400 font-bold">
-                            Merchant ID
+                            MID
                           </div>
                           <input
                             type="text"

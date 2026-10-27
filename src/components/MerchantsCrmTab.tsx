@@ -176,7 +176,7 @@ export interface EvaluatedBulkRow extends BulkValidationRow {
   status: 'VALID' | 'WARNING' | 'ERROR';
 }
 
-// Standard 15-Digit Merchant ID (MID) Regex & TID Regex
+// Standard 15-Digit MID Regex & TID Regex
 const MID_REGEX = /^\d{15}$/;
 // TID Format: TID-<3-digit branchId><2 to 5 digits> e.g. TID-10501
 const TID_REGEX = /^TID-(\d{3})(\d{2,5})$/;
@@ -528,7 +528,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
         issues.push({
           code: 'MID_FORMAT_MISMATCH',
           severity: 'ERROR',
-          message: 'Merchant ID (MID) is required (15 numeric digits).',
+          message: 'MID is required (15 numeric digits).',
         });
       } else if (!is15Digit) {
         issues.push({
@@ -691,7 +691,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     const tidClean = newMerchTid.trim().toUpperCase();
 
     if (!midClean) {
-      errs.push('Merchant ID (MID) is required (15 numeric digits).');
+      errs.push('MID is required (15 numeric digits).');
     } else if (!isValidMidForType(midClean, deviceBySerial.get(newMerchSerial.trim().toUpperCase())?.type)) {
       errs.push(midRuleError(midClean, deviceBySerial.get(newMerchSerial.trim().toUpperCase())?.type));
     }
@@ -1124,7 +1124,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     }
     const headers = [
       'No.',
-      'Merchant ID (MID)',
+      'MID',
       'Merchant Name',
       'Staff Name',
       'Branch Code & Name',
@@ -1692,7 +1692,7 @@ return (
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
-                <SortTh k="mid" sort={crmSort} onSort={crmToggle}>Merchant ID (MID)</SortTh>
+                <SortTh k="mid" sort={crmSort} onSort={crmToggle}>MID</SortTh>
                 <SortTh k="merchant" sort={crmSort} onSort={crmToggle}>Merchant Name</SortTh>
                 <SortTh k="staff" sort={crmSort} onSort={crmToggle}>Staff Name</SortTh>
                 <SortTh k="device" sort={crmSort} onSort={crmToggle}>Device Type</SortTh>
@@ -1712,7 +1712,7 @@ return (
                   <tr key={m.mid} data-flip={m.mid}>
                     <td className="col-no">{(merchantPage - 1) * merchantsPerPage + rowIdx + 1}</td>
                     <td className="whitespace-nowrap">
-                      <div className={`cell-mono ${isValidMidForType(m.mid, m.devices[0]?.type) ? '' : 'warn-text'}`} title={isValidMidForType(m.mid, m.devices[0]?.type) ? `Merchant ID (${m.devices[0]?.type === 'Sound Box' ? 'Starts with 6' : 'Starts with 2'})` : midRuleError(m.mid, m.devices[0]?.type)}>
+                      <div className={`cell-mono ${isValidMidForType(m.mid, m.devices[0]?.type) ? '' : 'warn-text'}`} title={isValidMidForType(m.mid, m.devices[0]?.type) ? `MID (${m.devices[0]?.type === 'Sound Box' ? 'Starts with 6' : 'Starts with 2'})` : midRuleError(m.mid, m.devices[0]?.type)}>
                         {m.mid}{isValidMidForType(m.mid, m.devices[0]?.type) ? '' : ' ⚠'}
                         {/* Validated by device type */}
                       </div>
@@ -2138,7 +2138,7 @@ return (
                         <thead className="glass-table-thead text-[11px] uppercase tracking-wider font-extrabold">
                           <tr>
                             <th className="py-2.5 px-3">Hardware Serial</th>
-                            <th className="py-2.5 px-3">Merchant ID (MID)</th>
+                            <th className="py-2.5 px-3">MID</th>
                             <th className="py-2.5 px-3">Terminal ID (TID)</th>
                             <th className="py-2.5 px-3">Merchant Name</th>
                             <th className="py-2.5 px-3">Validation Diagnostics</th>

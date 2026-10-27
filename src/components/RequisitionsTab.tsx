@@ -633,7 +633,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       <div className="flex flex-col gap-1.5">
                         {req.posQty > 0 && (
                           <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 font-normal">
-                            <Cpu className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                            <Cpu className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
                             <span>POS Terminal</span>
                             <span className="font-mono text-[11px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200/80 dark:bg-white/10 dark:text-slate-200 dark:border-white/10">
                               ×{req.posQty}
@@ -642,7 +642,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         )}
                         {req.sbQty > 0 && (
                           <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 font-normal">
-                            <Volume2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                            <Volume2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
                             <span>Sound Box</span>
                             <span className="font-mono text-[11px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200/80 dark:bg-white/10 dark:text-slate-200 dark:border-white/10">
                               ×{req.sbQty}

@@ -593,7 +593,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm font-extrabold text-zinc-900">
-                    15-Digit Merchant ID (MID) Standard
+                    15-Digit MID Standard
                   </h3>
                   <p className="text-[11px] text-slate-500">
                     Mandated 15-digit numeric structure for POS Terminal &amp; KHQR onboarding
@@ -1511,7 +1511,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <div className="grid grid-cols-2 gap-2.5">
                       <div>
                         <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                          Merchant ID (MID) *
+                          MID *
                         </label>
                         <input
                           type="text"

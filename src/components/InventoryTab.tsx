@@ -15,7 +15,8 @@ import {
 } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { detectDuplicateMids } from '../utils/crmUtils';
-import { isValidMidForType, midRuleError } from '../utils/display';
+import { hasKhmer, isValidMidForType, midRuleError } from '../utils/display';
+const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -31,7 +32,7 @@ import {
   History,
   Cpu,
   Volume2,
-  Calendar,
+
   ArchiveRestore,
   Boxes,
   ChevronLeft,
@@ -205,6 +206,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   ]);
 
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  const isLight = theme !== 'dark';
+  const cardClass = isLight ? 'surface-card-light text-[#002f49]' : 'surface-card-dark text-slate-100';
   const today = todayPP();
   const [showExportMenu, setShowExportMenu] = useState(false);
   const stageCounts = useMemo(() => {
@@ -855,17 +858,33 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       )}
 
 
-      {/* Restyled Glassmorphic Medium-Navy Hardware Serial Ledger Table */}
-      <div className="surface-card rounded-2xl border border-slate-200/90 overflow-hidden no-scrollbar">
-        <div className="overflow-x-auto no-scrollbar">
-          <table className="w-full min-w-[960px] text-left">
-            <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
+      {/* Clean Hardware Serial Ledger Table (Matching Merchant Deployment style) */}
+      <div className={`${cardClass} border border-slate-200/90 dark:border-slate-800 rounded-xl overflow-hidden`}>
+        <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black uppercase tracking-wider text-[#003857] dark:text-sky-400">
+              Hardware Serial Ledger
+            </span>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
+              {effectiveTotalCount.toLocaleString()} Serial{effectiveTotalCount === 1 ? '' : 's'}
+            </span>
+            {selectedSns.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                {selectedSns.length} selected
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="data-table min-w-[960px]">
+            <thead className="glass-table-thead">
               <tr>
-                <th className="py-2.5 px-3 w-10">
+                <th className="w-10 text-center">
                   <button
                     type="button"
                     onClick={toggleSelectAll}
-                    className="flex items-center justify-center text-white cursor-pointer active:scale-90 transition-transform duration-100"
+                    className="flex items-center justify-center text-white cursor-pointer active:scale-90 transition-transform duration-100 mx-auto"
                     title="Select All Visible Serials"
                     aria-label={allVisibleSelected ? 'Unselect all serials on this page' : 'Select all serials on this page'}
                     aria-pressed={allVisibleSelected}
@@ -877,24 +896,25 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     )}
                   </button>
                 </th>
-                <th className="py-2.5 px-3 w-10 text-right">No.</th>
-                <SortTh k="stockIn" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Stock-In Date</SortTh>
-                <SortTh k="serial" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Serial Number</SortTh>
-                <SortTh k="type" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Device Type</SortTh>
-                <SortTh k="model" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Model</SortTh>
-                <SortTh k="branch" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Branch Code &amp; Name</SortTh>
-                <SortTh k="stage" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Lifecycle Stage</SortTh>
-                <SortTh k="merchant" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Merchant Name</SortTh>
-                <SortTh k="mid" sort={invSort} onSort={invToggle} className="py-2.5 px-3">Merchant ID (MID)</SortTh>
-                <SortTh k="cycles" sort={invSort} onSort={invToggle} align="center" className="py-2.5 px-3 text-center">Serial Cycles</SortTh>
-                <th className="py-2.5 px-3 text-right">Actions</th>
+                <th className="col-no">No.</th>
+                <SortTh k="stockIn" sort={invSort} onSort={invToggle}>Stock-In Date</SortTh>
+                <SortTh k="serial" sort={invSort} onSort={invToggle}>Serial Number</SortTh>
+                <SortTh k="type" sort={invSort} onSort={invToggle}>Device Type</SortTh>
+                <SortTh k="model" sort={invSort} onSort={invToggle}>Model</SortTh>
+                <SortTh k="branch" sort={invSort} onSort={invToggle}>Staff / Branch</SortTh>
+                <SortTh k="stage" sort={invSort} onSort={invToggle}>Lifecycle Stage</SortTh>
+                <SortTh k="merchant" sort={invSort} onSort={invToggle}>Merchant Name</SortTh>
+                <SortTh k="mid" sort={invSort} onSort={invToggle}>MID</SortTh>
+                <SortTh k="cycles" sort={invSort} onSort={invToggle} align="center" className="text-center">Cycles</SortTh>
+                <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody ref={flipRef} className="divide-y divide-slate-200/80 text-xs bg-white">
+            <tbody ref={flipRef}>
               {pagedDevices.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-8 text-center text-slate-400">
-                    No hardware serials match the current filters.
+                  <td colSpan={12} className="py-12 text-center">
+                    <p className="cell-main">No hardware serials match the current filters.</p>
+                    <p className="cell-sub">Try clearing search terms or changing status filter.</p>
                   </td>
                 </tr>
               ) : (
@@ -907,58 +927,49 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     branchNameByCode.get(dev.branchId) ||
                     dev.branchName ||
                     `Branch ${dev.branchId}`;
-                  // Only the unit's own recorded battery serial is shown; nothing is made up.
                   const formattedBatterySerial = dev.batterySerial?.trim() || 'No battery serial';
-
                   const isSyncingThisDevice = syncingSerials?.has(dev.serial);
 
                   return (
                     <tr
                       key={dev.serial}
                       data-flip={dev.serial}
-                      className={`transition-colors interactive-row ${
+                      className={`interactive-row ${
                         isSyncingThisDevice ? 'optimistic-sync-active' : ''
-                      } ${
-                        isChecked
-                          ? 'bg-zinc-100'
-                          : index % 2 === 1
-                          ? 'bg-slate-50/45 hover:bg-zinc-50'
-                          : 'hover:bg-zinc-50'
-                      }`}
+                      } ${isChecked ? '!bg-sky-50/70' : ''}`}
                     >
-                      <td className="py-2 px-3">
+                      <td className="w-10 text-center">
                         <button
                           type="button"
                           onClick={() => toggleSelectOne(dev.serial)}
-                          className="flex items-center justify-center cursor-pointer p-2 -m-2 rounded-md active:scale-90 transition-transform duration-100"
+                          className="flex items-center justify-center cursor-pointer p-1 rounded active:scale-90 transition-transform duration-100 mx-auto"
                           aria-label={`${isChecked ? 'Unselect' : 'Select'} serial ${dev.serial}`}
                           aria-pressed={isChecked}
                         >
                           {isChecked ? (
-                            <CheckSquare className="w-4 h-4 text-zinc-900" />
+                            <CheckSquare className="w-4 h-4 text-[#003857]" />
                           ) : (
-                            <Square className="w-4 h-4 text-slate-400 hover:text-zinc-900" />
+                            <Square className="w-4 h-4 text-slate-400 hover:text-slate-600" />
                           )}
                         </button>
                       </td>
 
-                      <td className="py-2 px-3 text-right text-[11px] text-slate-500 tabular-nums">{(currentPage - 1) * rowsPerPage + index + 1}</td>
+                      <td className="col-no">{(currentPage - 1) * rowsPerPage + index + 1}</td>
 
-                      <td className="py-2 px-3 font-mono text-[11px] whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100/80 text-slate-600 border border-slate-200/90 dark:bg-white/10 dark:text-slate-300 dark:border-white/10 font-normal">
-                          <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span>{dev.stockInDate}</span>
-                        </span>
+                      <td className="whitespace-nowrap">
+                        <div className="cell-mono">{dev.stockInDate || '—'}</div>
                       </td>
 
-                      <td
-                        onClick={() => onSelectDevice(dev.serial)}
-                        className="py-2 px-3 cursor-pointer group"
-                      >
-                        <div className="font-mono text-xs text-slate-700 group-hover:underline">
+                      <td className="whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => onSelectDevice(dev.serial)}
+                          className="serial-btn font-mono"
+                          title={`Open ${dev.serial}${dev.model ? ` (${dev.model})` : ''}`}
+                        >
                           {dev.serial}
-                        </div>
-                        {dev.type === 'POS Terminal' ? (
+                        </button>
+                        {dev.type === 'POS Terminal' && formattedBatterySerial !== 'No battery serial' ? (
                           <div
                             onClick={(e) => {
                               if (onChangeBattery) {
@@ -966,159 +977,106 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                                 onChangeBattery(dev.serial);
                               }
                             }}
+                            className="cell-sub flex items-center gap-1.5 hover:text-zinc-900 cursor-pointer"
                             title={`POS Terminal Battery: ${formattedBatterySerial} (${batt.monthsUsed}/24m · Click to Change Battery)`}
-                            className="mt-0.5 font-mono text-[11px] text-slate-600 hover:text-zinc-900 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                           >
-                            <span className="hover:underline">{formattedBatterySerial}</span>
+                            <span>{formattedBatterySerial}</span>
                             {batt.state === 'EXPIRED' && (
-                              <span
-                                title={`Battery Expired (${batt.monthsUsed} months >= 24M limit) — Click to Change Battery`}
-                                className="px-1.5 py-0.2 rounded text-[9px] bg-rose-100 text-rose-700 border border-rose-300 flex items-center gap-1 shrink-0"
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse inline-block" />
-                                <span>Expired (≥24M)</span>
-                              </span>
+                              <span className="chip chip-red text-[9px] px-1.5 py-0 font-medium">Expired</span>
                             )}
                             {batt.state === 'DUE_SOON' && (
-                              <span
-                                title={`Battery Due Soon (${batt.monthsRemaining}m remaining) — Click to Change Battery`}
-                                className="px-1.5 py-0.2 rounded text-[9px] bg-amber-100 text-amber-800 border border-amber-300 shrink-0"
-                              >
-                                Due Soon
-                              </span>
+                              <span className="chip chip-amber text-[9px] px-1.5 py-0 font-medium">Due Soon</span>
                             )}
                           </div>
                         ) : dev.batterySerial ? (
-                          <div className="mt-0.5 font-mono text-[11px] text-slate-500">
-                            {dev.batterySerial}
-                          </div>
+                          <div className="cell-mono-sub">{dev.batterySerial}</div>
                         ) : null}
                       </td>
 
-                      <td className="py-2 px-3">
-                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                      <td className="whitespace-nowrap">
+                        <div className="cell-main flex items-center gap-1.5 font-medium">
                           {dev.type === 'POS Terminal' ? (
-                            <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                            <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />
                           ) : (
-                            <Volume2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" aria-hidden />
                           )}
-                          <span className="text-slate-700 text-xs">
-                            {dev.type}
-                          </span>
+                          <span>{dev.type}</span>
                         </div>
                       </td>
 
-                      <td className="py-2 px-3">
-                        <div className="text-zinc-900 text-xs whitespace-nowrap">
-                          {dev.model}
-                        </div>
+                      <td className="whitespace-nowrap">
+                        <div className="cell-main">{dev.model}</div>
                       </td>
 
-                      <td className="py-2 px-3">
-                        <div className="khmer text-xs text-slate-700 max-w-[200px] leading-snug" title={`${dev.installedByStaff || dev.staff || '-'} · ${dev.branchId} · ${resolvedBranchName}`}>
-                          <div className="truncate text-[11px] text-slate-500">{dev.installedByStaff || dev.staff || '-'}</div>
-                          <div className="truncate">
-                            <span className="font-mono text-[11px] text-slate-600">{dev.branchId}</span>
-                            <span> · {resolvedBranchName.replace(' Branch', '')}</span>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="py-2 px-3">
-                        <span
-                          className={`inline-block text-[10px] px-2 py-0.5 rounded-md border ${meta.badgeClassLight}`}
+                      <td>
+                        <div
+                          className={`cell-main font-medium max-w-[190px] truncate ${hasKhmer(dev.installedByStaff || dev.staff) ? 'khmer' : ''}`}
+                          title={dev.installedByStaff || dev.staff || '-'}
                         >
+                          {dash(dev.installedByStaff || dev.staff)}
+                        </div>
+                        <div className="cell-sub max-w-[190px] truncate">
+                          Code {dev.branchId} · {resolvedBranchName.replace(' Branch', '')}
+                        </div>
+                      </td>
+
+                      <td className="whitespace-nowrap">
+                        <span className={`chip ${meta.badgeClassLight}`}>
                           {meta.short}
                         </span>
                       </td>
 
-                      <td className="py-2 px-3">
-                        {dev.merchantName ? (
-                          <div className="flex flex-col max-w-[175px]">
-                            <span
-                              className="khmer text-slate-700 text-xs font-normal truncate cursor-pointer"
-                              title={`${dev.merchantName} · Installed: ${dev.installedByStaff || dev.staff || '-'}${dev.replacedByStaff ? ` · Replaced: ${dev.replacedByStaff}` : ''}${dev.returnedByStaff ? ` · Returned: ${dev.returnedByStaff}` : ''}`}
-                            >
-                              {dev.merchantName}
-                            </span>
+                      <td>
+                        <div
+                          className={`cell-main max-w-[180px] truncate ${hasKhmer(dev.merchantName) ? 'khmer' : ''}`}
+                          title={dev.merchantName || '-'}
+                        >
+                          {dash(dev.merchantName)}
+                        </div>
+                      </td>
+
+                      <td className="whitespace-nowrap">
+                        <div
+                          className={`cell-mono ${!dev.mid ? 'cell-sub' : isValidMidForType(dev.mid, dev.type) ? '' : 'warn-text'}`}
+                          title={dev.mid ? (isValidMidForType(dev.mid, dev.type) ? `MID: ${dev.mid}` : midRuleError(dev.mid, dev.type)) : '-'}
+                        >
+                          {dev.mid ? dev.mid : '—'}{dev.mid && !isValidMidForType(dev.mid, dev.type) ? ' ⚠' : ''}
+                        </div>
+                        {dev.mid && duplicateMidsMap.has(dev.mid.trim().toUpperCase()) && (
+                          <div className="cell-sub">
+                            {duplicateMidsMap.get(dev.mid.trim().toUpperCase())?.serials.length} units
                           </div>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">-</span>
                         )}
                       </td>
 
-                      <td className="py-2 px-3 font-mono">
-                        {dev.mid ? (
-                          <div className="flex flex-col gap-1 items-start">
-                            <div className="inline-flex items-center gap-1">
-                              <span
-                                className={`px-1.5 py-0.5 rounded border text-[10px] whitespace-nowrap ${
-                                  isValidMidForType(dev.mid, dev.type)
-                                    ? 'text-slate-700 bg-slate-100/90 border-slate-200 dark:text-slate-200 dark:bg-white/10 dark:border-white/10'
-                                    : 'text-rose-700 bg-rose-50 border-rose-300 dark:text-rose-300 dark:bg-rose-500/20 dark:border-rose-500/30'
-                                }`}
-                                title={
-                                  isValidMidForType(dev.mid, dev.type)
-                                    ? `Merchant ID: ${dev.mid} (15 Digits Standard)`
-                                    : midRuleError(dev.mid, dev.type)
-                                }
-                              >
-                                {dev.mid}
-                              </span>
-                              {!isValidMidForType(dev.mid, dev.type) && (
-                                <span
-                                  className="text-[9px] font-bold text-rose-600 bg-rose-100 px-1 py-0.2 rounded"
-                                  title={midRuleError(dev.mid, dev.type)}
-                                >
-                                  !15D
-                                </span>
-                              )}
-                            </div>
-                            {duplicateMidsMap.has(dev.mid.trim().toUpperCase()) && (
-                              <span
-                                title={`Active Serials on this MID: ${duplicateMidsMap.get(dev.mid.trim().toUpperCase())?.serials.join(', ')} (Device swap / change in progress)`}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-white/10 dark:text-slate-300 dark:border-white/15 whitespace-nowrap"
-                              >
-                                <span>
-                                  {duplicateMidsMap.get(dev.mid.trim().toUpperCase())?.serials.length} Serials
-                                </span>
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">-</span>
-                        )}
-                      </td>
-
-                      <td className="py-2 px-3 text-center">
+                      <td className="text-center whitespace-nowrap">
                         <button
+                          type="button"
                           onClick={() => onSelectDevice(dev.serial)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border font-mono text-[10px] transition cursor-pointer whitespace-nowrap bg-slate-100 hover:bg-[#003857] text-slate-700 hover:text-white border-slate-200"
+                          className="inline-flex items-center gap-1 font-mono text-[11px] text-slate-500 hover:text-[#003857] transition cursor-pointer"
                           title="Serial Cycle count after return from other merchant (click to view history)"
                         >
-                          <History className="w-3 h-3" />
-                          <span>
-                            {cycleCount} Cycle{cycleCount === 1 ? '' : 's'}
-                          </span>
+                          <History className="w-3 h-3 text-slate-400" />
+                          <span>{cycleCount}</span>
                         </button>
                       </td>
 
-                      <td className="py-2 px-3 text-right">
-                        <div className="inline-flex items-center gap-1">
+                      <td className="text-right col-actions">
+                        <div className="inline-flex items-center gap-1.5 justify-end">
                           <button
+                            type="button"
                             onClick={() => onSelectDevice(dev.serial)}
-                            className="px-2.5 py-1 rounded-md bg-[#003857] hover:bg-[#002a42] text-white text-[10px] font-medium shadow-2xs transition cursor-pointer whitespace-nowrap"
+                            className="row-btn"
+                            title="Manage hardware serial"
                           >
                             Manage
                           </button>
-
-
-
-
                           {showArchivedView && isAdminLike && onRestoreToDashboard && (
                             <button
+                              type="button"
                               onClick={() => onRestoreToDashboard([dev.serial])}
-                              className="px-2.5 py-1.5 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-[11px] font-bold cursor-pointer transition shadow-2xs"
+                              className="row-btn !text-emerald-700 !bg-emerald-50 !border-emerald-200 hover:!bg-emerald-600 hover:!text-white"
+                              title="Restore to dashboard"
                             >
                               Restore
                             </button>
@@ -1133,69 +1091,90 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           </table>
         </div>
 
-        {/* Pagination Bar with 100 Row Max */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
-          <div className="flex items-center gap-3">
-            <span className="font-medium text-slate-500">
+        {/* Clean High-Throughput Pagination Footer */}
+        <div
+          className={`px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t text-xs ${
+            isLight
+              ? 'bg-slate-50 border-slate-200 text-slate-600'
+              : 'bg-white/[0.02] border-white/[0.08] text-slate-400'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span>
               Showing{' '}
-              <strong className="text-zinc-900">
-                {effectiveTotalCount === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}
+              <strong className={isLight ? 'text-zinc-900' : 'text-white'}>
+                {effectiveTotalCount === 0 ? 0 : ((currentPage - 1) * rowsPerPage + 1).toLocaleString()}
               </strong>{' '}
-              –{' '}
-              <strong className="text-zinc-900">
-                {Math.min(currentPage * rowsPerPage, effectiveTotalCount)}
+              to{' '}
+              <strong className={isLight ? 'text-zinc-900' : 'text-white'}>
+                {Math.min(currentPage * rowsPerPage, effectiveTotalCount).toLocaleString()}
               </strong>{' '}
-              of <strong className="text-zinc-900">{effectiveTotalCount}</strong> Serials
+              of{' '}
+              <strong className={isLight ? 'text-zinc-900' : 'text-white'}>
+                {effectiveTotalCount.toLocaleString()}
+              </strong>{' '}
+              serials
             </span>
-
-            <div className="hidden md:flex items-center gap-1 pl-3 border-l border-slate-200">
-              <span className="text-[11px] text-slate-400 font-semibold">Rows:</span>
-              {[50, 100].map((num) => (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => {
-                    setRowsPerPage(num);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer transition ${
-                    rowsPerPage === num
-                      ? 'bg-[#004953] text-white shadow-2xs'
-                      : 'bg-white hover:bg-slate-200 text-slate-600 border border-slate-200'
-                  }`}
-                >
-                  {num}{num === 100 ? ' Max' : ''}
-                </button>
-              ))}
-            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="p-1.5 rounded-lg border bg-white border-slate-200 text-slate-600 hover:text-zinc-900 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
-              title="Previous Page"
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px]">Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => {
+                  setRowsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className={`text-xs rounded-lg px-2 py-1 border outline-none font-semibold cursor-pointer ${
+                  isLight
+                    ? 'bg-white border-slate-200 text-zinc-900'
+                    : 'bg-slate-800 border-slate-700 text-white'
+                }`}
+              >
+                {[25, 50, 100].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            <span className="font-mono text-xs font-bold px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-zinc-900">
-              Page {currentPage} of {totalPages}
-            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className={`p-1.5 rounded-lg border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isLight
+                    ? 'bg-white border-slate-200 hover:bg-slate-100 text-zinc-800'
+                    : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-white'
+                }`}
+                title="Previous page"
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
 
-            <button
-              type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="p-1.5 rounded-lg border bg-white border-slate-200 text-slate-600 hover:text-zinc-900 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
-              title="Next Page"
-              aria-label="Next page"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+              <span className="px-2.5 py-1 text-xs font-mono font-bold">
+                {currentPage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className={`p-1.5 rounded-lg border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isLight
+                    ? 'bg-white border-slate-200 hover:bg-slate-100 text-zinc-800'
+                    : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-white'
+                }`}
+                title="Next page"
+                aria-label="Next page"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -114,7 +114,7 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'CONFIGURING', req: false },
       { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Configuring Staff Officer (Validated with Directory)', req: true },
       { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Merchant Business Name', req: true },
-      { id: 'MID', label: 'MID', desc: '15-digit Merchant ID (TID auto-derived)', req: true },
+      { id: 'MID', label: 'MID', desc: '15-digit MID (TID auto-derived)', req: true },
     ],
     sampleRows: [
       ['WP5400PQ23200301', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-3001', '101', 'Borei Keyla Branch', 'CONFIGURING', 'KY Vibol (27267)', 'Amazon Cafe BKK', '100000000012345'],
@@ -138,7 +138,7 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
       { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'COMPLETE', req: false },
       { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Field Deployment Officer (Validated with Directory)', req: true },
       { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Active Merchant Store', req: true },
-      { id: 'MID', label: 'MID', desc: '15-digit Merchant ID (TID auto-derived)', req: true },
+      { id: 'MID', label: 'MID', desc: '15-digit MID (TID auto-derived)', req: true },
     ],
     sampleRows: [
       ['WP5400PQ23200401', 'POS Terminal', 'Wizar POS Q2 Pro', 'BAT-4001', '101', 'Borei Keyla Branch', 'COMPLETE', 'KY Vibol (27267)', 'Lucky Supermarket Monivong', '100000000098765'],
@@ -157,7 +157,7 @@ export const SCHEMA_COLUMNS = [
   { id: 'Lifecycle_Stage', label: 'Lifecycle_Stage', desc: 'Current Stock Stage', req: false },
   { id: 'Assigned_Staff', label: 'Assigned_Staff', desc: 'Staff Directory Officer (Validated with Branch)', req: false },
   { id: 'Merchant_Name', label: 'Merchant_Name', desc: 'Assigned Merchant Business', req: false },
-  { id: 'MID', label: 'MID', desc: 'Merchant ID (15 digits; TID auto-derived)', req: false },
+  { id: 'MID', label: 'MID', desc: 'MID (15 digits; TID auto-derived)', req: false },
 ];
 
 export interface CsvCellValidationError {

@@ -586,21 +586,21 @@ export const FieldReviewTab: React.FC<Props> = ({
         onClick={() => setTypeFilter(t)}
         aria-pressed={active}
         className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
-          active ? 'text-[#003857]' : 'text-slate-600 hover:text-slate-900'
+          active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
         }`}
       >
         {active && (
           <motion.div
             layoutId="fr-type-pill"
             aria-hidden
-            className="absolute inset-0 rounded-lg bg-white border border-slate-200/90 shadow-xs"
+            className="absolute inset-0 rounded-lg bg-[#003857] border border-white/10 shadow-xs"
             transition={SPRING}
           />
         )}
         <span className="relative z-10 flex items-center gap-1.5">
           {t !== 'ALL' && (
             <span
-              className={`w-2 h-2 rounded-full ${DOT[t] || 'bg-slate-400'}`}
+              className={`w-2 h-2 rounded-full ${active ? (t === 'POS Terminal' ? 'bg-sky-300' : 'bg-purple-300') : (DOT[t] || 'bg-slate-400')}`}
               aria-hidden
             />
           )}
@@ -608,11 +608,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           <span
             className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md transition-colors ${
               active
-                ? t === 'POS Terminal'
-                  ? 'bg-sky-50 text-sky-700 border border-sky-200/70'
-                  : t === 'Sound Box'
-                  ? 'bg-purple-50 text-purple-700 border border-purple-200/70'
-                  : 'bg-slate-100 text-slate-700 border border-slate-200/70'
+                ? 'bg-white/20 text-white font-bold'
                 : 'bg-slate-200/60 text-slate-500'
             }`}
           >
@@ -669,14 +665,14 @@ export const FieldReviewTab: React.FC<Props> = ({
                   onClick={() => setFilter(f)}
                   aria-pressed={isActive}
                   className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
-                    isActive ? 'text-[#003857]' : 'text-slate-600 hover:text-slate-900'
+                    isActive ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="fr-status-pill"
                       aria-hidden
-                      className="absolute inset-0 rounded-lg bg-white border border-slate-200/90 shadow-xs"
+                      className="absolute inset-0 rounded-lg bg-[#003857] border border-white/10 shadow-xs"
                       transition={SPRING}
                     />
                   )}
@@ -685,13 +681,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                     <span
                       className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md transition-colors ${
                         isActive
-                          ? f === 'PENDING'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200/70'
-                            : f === 'APPROVED'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
-                            : f === 'REJECTED'
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200/70'
-                            : 'bg-slate-100 text-slate-700 border border-slate-200/70'
+                          ? 'bg-white/20 text-white font-bold'
                           : 'bg-slate-200/60 text-slate-500'
                       }`}
                     >

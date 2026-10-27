@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Square,
   AlertTriangle,
+  MapPin,
   X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -319,8 +320,9 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                       {resolvedBranchName}
                     </td>
                     <td className="py-3 px-3">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200 font-bold text-[11px]">
-                        {u.location || 'Phnom Penh'}
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-semibold text-[11px]">
+                        <MapPin className="w-3 h-3 text-slate-500 dark:text-slate-400" />
+                        <span>{u.location || 'Phnom Penh'}</span>
                       </span>
                     </td>
                     <td className="py-3 px-3">

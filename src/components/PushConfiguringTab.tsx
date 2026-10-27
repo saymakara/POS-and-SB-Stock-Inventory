@@ -1053,7 +1053,7 @@ return (
                 onClick={() => handleSetPushMode('total_csv')}
                 className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
                   pushMode === 'total_csv'
-                    ? isLight ? 'text-[#003857]' : 'text-sky-300'
+                    ? isLight ? 'text-white font-semibold' : 'text-sky-300 font-semibold'
                     : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Consolidate devices per staff member into 1 Telegram message + CSV file (e.g. 10 merchants for Khon Rithy in 1 message, no spam)"
@@ -1063,7 +1063,7 @@ return (
                     layoutId="activePushModeIndicator"
                     className={`absolute inset-0 rounded-lg shadow-xs ${
                       isLight
-                        ? 'bg-white border border-slate-200/90'
+                        ? 'bg-[#003857] border border-white/10'
                         : 'bg-slate-800 border border-slate-700/80'
                     }`}
                     transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
@@ -1071,13 +1071,13 @@ return (
                 )}
                 <span className="relative z-10 flex items-center gap-1.5">
                   <FileSpreadsheet className={`w-3.5 h-3.5 transition-colors ${
-                    pushMode === 'total_csv' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+                    pushMode === 'total_csv' ? isLight ? 'text-emerald-300' : 'text-emerald-400' : 'text-slate-400'
                   }`} />
                   <span>Total CSV by Staff</span>
                   <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono transition-colors ${
                     pushMode === 'total_csv'
                       ? isLight
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
+                        ? 'bg-white/20 text-white font-bold'
                         : 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/80'
                       : isLight
                         ? 'bg-slate-200/60 text-slate-500'
@@ -1092,7 +1092,7 @@ return (
                 onClick={() => handleSetPushMode('total_csv_all')}
                 className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
                   pushMode === 'total_csv_all'
-                    ? isLight ? 'text-[#003857]' : 'text-sky-300'
+                    ? isLight ? 'text-white font-semibold' : 'text-sky-300 font-semibold'
                     : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Combine all devices across all staff into 1 single CSV file and message"
@@ -1102,7 +1102,7 @@ return (
                     layoutId="activePushModeIndicator"
                     className={`absolute inset-0 rounded-lg shadow-xs ${
                       isLight
-                        ? 'bg-white border border-slate-200/90'
+                        ? 'bg-[#003857] border border-white/10'
                         : 'bg-slate-800 border border-slate-700/80'
                     }`}
                     transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
@@ -1110,13 +1110,13 @@ return (
                 )}
                 <span className="relative z-10 flex items-center gap-1.5">
                   <FileSpreadsheet className={`w-3.5 h-3.5 transition-colors ${
-                    pushMode === 'total_csv_all' ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400'
+                    pushMode === 'total_csv_all' ? isLight ? 'text-teal-300' : 'text-teal-400' : 'text-slate-400'
                   }`} />
                   <span>Total CSV (All Staff)</span>
                   <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono transition-colors ${
                     pushMode === 'total_csv_all'
                       ? isLight
-                        ? 'bg-teal-50 text-teal-700 border border-teal-200/70'
+                        ? 'bg-white/20 text-white font-bold'
                         : 'bg-teal-950/70 text-teal-300 border border-teal-800/80'
                       : isLight
                         ? 'bg-slate-200/60 text-slate-500'
@@ -1131,7 +1131,7 @@ return (
                 onClick={() => handleSetPushMode('single_alert')}
                 className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
                   pushMode === 'single_alert'
-                    ? isLight ? 'text-[#003857]' : 'text-sky-300'
+                    ? isLight ? 'text-white font-semibold' : 'text-sky-300 font-semibold'
                     : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Send individual 1-device alert without attached CSV file"
@@ -1141,7 +1141,7 @@ return (
                     layoutId="activePushModeIndicator"
                     className={`absolute inset-0 rounded-lg shadow-xs ${
                       isLight
-                        ? 'bg-white border border-slate-200/90'
+                        ? 'bg-[#003857] border border-white/10'
                         : 'bg-slate-800 border border-slate-700/80'
                     }`}
                     transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
@@ -1149,7 +1149,7 @@ return (
                 )}
                 <span className="relative z-10 flex items-center gap-1.5">
                   <Send className={`w-3 h-3 transition-colors ${
-                    pushMode === 'single_alert' ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400'
+                    pushMode === 'single_alert' ? isLight ? 'text-sky-300' : 'text-sky-400' : 'text-slate-400'
                   }`} />
                   <span>Single Alerts</span>
                 </span>

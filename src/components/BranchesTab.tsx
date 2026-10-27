@@ -1104,7 +1104,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                                     {d.type} · {d.model} {d.merchantName ? `· ${d.merchantName}` : ''}
                                   </div>
                                 </div>
-                                <span className={`text-[10px] font-normal px-2 py-0.5 rounded border ${STAGE_META[d.stage]?.badgeClassLight || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                <span className={`text-[10px] px-2 py-0.5 rounded border ${STAGE_META[d.stage]?.badgeClassLight || 'bg-slate-100 text-slate-700 border-slate-200 font-semibold'}`}>
                                   {STAGE_META[d.stage].short}
                                 </span>
                               </div>
