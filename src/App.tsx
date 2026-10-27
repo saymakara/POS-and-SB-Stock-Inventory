@@ -76,7 +76,7 @@ const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then(
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
 const PushConfiguringTab = lazyTab(() => import('./components/PushConfiguringTab').then((m) => ({ default: m.PushConfiguringTab })));
 
-import { SendHorizontal, Lock } from 'lucide-react';
+import { SendHorizontal, Lock, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import {
   fetchDevicesFromSupabase,
@@ -3691,14 +3691,75 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         )}
       </AnimatePresence>
 
-      {/* (22 Oct 2026) messages: every action's result is shown and read out to screen readers */}
-      <div aria-live="polite" role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] w-[min(92vw,560px)] pointer-events-none">
-        {toastMessage && (
-          <div className="pointer-events-auto flex items-start gap-3 rounded-2xl bg-slate-900 text-white text-xs font-semibold px-4 py-3 shadow-2xl">
-            <span className="flex-1 leading-snug">{toastMessage}</span>
-            <button type="button" onClick={() => setToastMessage(null)} aria-label="Dismiss message" className="text-slate-300 hover:text-white font-bold cursor-pointer">✕</button>
-          </div>
-        )}
+      {/* Toast Notification with Smooth Motion & Corporate Navy System Styling */}
+      <div
+        aria-live="polite"
+        role="status"
+        className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] w-[min(92vw,580px)] pointer-events-none"
+      >
+        <AnimatePresence>
+          {toastMessage && (() => {
+            const isError = /error|failed|denied|restricted|cannot|refused|problem/i.test(toastMessage);
+            const isPush = /\[PUSH-|telegram|push/i.test(toastMessage);
+            const match = toastMessage.match(/^(\[[A-Z0-9_-]+\])\s*(.*)$/);
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
+                className={`pointer-events-auto flex items-start gap-3 rounded-2xl p-3.5 sm:p-4 text-xs font-medium text-white backdrop-blur-md border shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65),0_6px_16px_-4px_rgba(0,0,0,0.35),inset_0_1px_0_0_rgba(255,255,255,0.22)] ${
+                  isError
+                    ? 'bg-gradient-to-r from-rose-950/95 via-rose-900/95 to-slate-950/95 border-rose-500/30'
+                    : 'bg-[#003857]/95 dark:bg-[#002840]/95 border-white/20'
+                }`}
+              >
+                <div
+                  className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${
+                    isError
+                      ? 'bg-rose-500/20 text-rose-300 border-rose-400/30'
+                      : isPush
+                      ? 'bg-sky-400/20 text-sky-300 border-sky-300/30'
+                      : 'bg-emerald-400/20 text-emerald-300 border-emerald-300/30'
+                  }`}
+                >
+                  {isError ? (
+                    <AlertCircle className="w-4 h-4" />
+                  ) : isPush ? (
+                    <SendHorizontal className="w-3.5 h-3.5" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0 pt-0.5 leading-relaxed">
+                  {match ? (
+                    <>
+                      <span className="inline-block font-mono text-[10.5px] font-bold text-sky-200 bg-white/10 border border-white/20 px-2 py-0.5 rounded-md mr-1.5 align-baseline shadow-2xs">
+                        {match[1].replace(/[\[\]]/g, '')}
+                      </span>
+                      <span className="text-white/95">{match[2]}</span>
+                    </>
+                  ) : (
+                    <span className="text-white/95">{toastMessage}</span>
+                  )}
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  type="button"
+                  onClick={() => setToastMessage(null)}
+                  aria-label="Dismiss message"
+                  className="p-1.5 -mr-1 -mt-1 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </motion.button>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
       </div>
       {serverError && (
         <div role="alert" className="fixed top-0 inset-x-0 z-[70] bg-rose-700 text-white text-xs font-bold px-4 py-2.5 flex items-center justify-center gap-3">
