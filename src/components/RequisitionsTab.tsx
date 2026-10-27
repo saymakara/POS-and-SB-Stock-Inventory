@@ -26,6 +26,8 @@ import {
   Pencil,
   Ban,
   FileSpreadsheet,
+  Calendar,
+  User,
 } from 'lucide-react';
 
 interface RequisitionsTabProps {
@@ -452,137 +454,218 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="data-table min-w-[900px]">
-            <thead className="glass-table-thead">
+        <div className="overflow-x-auto no-scrollbar">
+          <table className="w-full text-left text-xs min-w-[960px]">
+            <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
               <tr>
-                <th className="col-no">No.</th>
-                <SortTh k="request" sort={reqSort} onSort={reqToggle}>Request ID</SortTh>
-                <SortTh k="date" sort={reqSort} onSort={reqToggle}>Date</SortTh>
-                <SortTh k="branch" sort={reqSort} onSort={reqToggle}>Branch / Staff</SortTh>
-                <SortTh k="qty" sort={reqSort} onSort={reqToggle}>Quantity</SortTh>
-                <SortTh k="serials" sort={reqSort} onSort={reqToggle}>Serials</SortTh>
-                <SortTh k="reason" sort={reqSort} onSort={reqToggle}>Reason</SortTh>
-                <SortTh k="status" sort={reqSort} onSort={reqToggle}>Status</SortTh>
-                <th className="text-right">Actions</th>
+                <th className="py-2.5 px-3 w-10 text-right">No.</th>
+                <SortTh k="request" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Request ID</SortTh>
+                <SortTh k="date" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Date</SortTh>
+                <SortTh k="branch" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Branch / Staff</SortTh>
+                <SortTh k="qty" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Quantity</SortTh>
+                <SortTh k="serials" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Serials</SortTh>
+                <SortTh k="reason" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Reason</SortTh>
+                <SortTh k="status" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Status</SortTh>
+                <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody ref={flipRef}>
+            <tbody ref={flipRef} className="divide-y divide-slate-100 dark:divide-slate-800/80 bg-white dark:bg-slate-900/60">
               {shownReqs.map((req, rowIdx) => {
                 const isReturnReq = req.type === 'STOCK_RETURN';
                 const arranged = req.arrangedDevices || [];
-                let chip = 'chip-amber';
                 let statusLabel = 'Pending';
-                let actionBtn: React.ReactNode = null;
+                let actionBtn: React.ReactNode = <span className="text-slate-300 dark:text-slate-600 text-xs">-</span>;
                 const canEdit = Boolean(onEditRequisition) && req.status === 'PENDING_ADMIN' && !isReturnReq;
                 const editBtn = canEdit ? (
-                  <button type="button" onClick={() => openEdit(req)} className="row-btn inline-flex items-center !px-2" title="Edit the quantity or reason" aria-label="Edit">
+                  <button type="button" onClick={() => openEdit(req)} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 inline-flex items-center cursor-pointer transition shadow-2xs active:scale-90" title="Edit the quantity or reason" aria-label="Edit">
                     <Pencil className="w-3.5 h-3.5" aria-hidden />
                   </button>
                 ) : null;
 
                 const rejectBtn = isAdmin && onRejectRequisition && req.status === 'PENDING_ADMIN' ? (
-                  <button type="button" onClick={() => { setRejectingReq(req); setRejectText(''); }} className="row-btn inline-flex items-center !px-2" title="Reject this request with a reason (for example no stock)" aria-label="Reject">
+                  <button type="button" onClick={() => { setRejectingReq(req); setRejectText(''); }} className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 inline-flex items-center cursor-pointer transition shadow-2xs active:scale-90" title="Reject this request with a reason (for example no stock)" aria-label="Reject">
                     <Ban className="w-3.5 h-3.5" aria-hidden />
                   </button>
                 ) : null;
 
                 if (req.status === 'PENDING_ADMIN') {
                   if (isReturnReq) {
-                    statusLabel = 'Return pending';
+                    statusLabel = 'Return Pending';
                     actionBtn = isAdmin ? (
                       <div className="inline-flex items-center gap-1.5">
                         {rejectBtn}
                         <button
                           type="button"
                           onClick={() => onApproveReturnRequisition?.(req.reqId, req.returnSerials, req.reason)}
-                          className="row-btn inline-flex items-center gap-1"
+                          className="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95"
                           title="Approve and receive the returned units into Head Office stock"
                         >
-                          <CheckCircle2 className="w-3 h-3" aria-hidden />
+                          <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
                           <span>Approve &amp; Receive</span>
                         </button>
                       </div>
-                    ) : <span className="cell-sub">Awaiting HQ</span>;
+                    ) : <span className="text-slate-400 text-xs italic">Awaiting HQ</span>;
                   } else {
                     actionBtn = (
                       <div className="inline-flex items-center gap-1.5">
                         {editBtn}
                         {rejectBtn}
                         {isAdmin ? (
-                          <button type="button" onClick={() => openArrangeModal(req)} className="row-btn inline-flex items-center gap-1 !px-2.5" title="Choose the serials and dispatch to the branch" aria-label="Dispatch">
+                          <button type="button" onClick={() => openArrangeModal(req)} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[#003857] hover:bg-[#002a42] text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95" title="Choose the serials and dispatch to the branch" aria-label="Dispatch">
                             <Truck className="w-3.5 h-3.5" aria-hidden />
-                            <span className="hidden 2xl:inline">Dispatch</span>
+                            <span>Dispatch</span>
                           </button>
-                        ) : <span className="cell-sub">Awaiting HQ</span>}
+                        ) : <span className="text-slate-400 text-xs italic">Awaiting HQ</span>}
                       </div>
                     );
                   }
                 } else if (req.status === 'DISPATCHED') {
-                  chip = 'chip-slate';
                   statusLabel = 'Dispatched';
                   actionBtn = (
-                    <button type="button" onClick={() => onReceiveRequisition(req.reqId)} className="row-btn inline-flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" aria-hidden />
+                    <button type="button" onClick={() => onReceiveRequisition(req.reqId)} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95">
+                      <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
                       <span>Confirm Receipt</span>
                     </button>
                   );
                 } else if (req.status === 'REJECTED') {
-                  chip = 'chip-red';
                   statusLabel = 'Rejected';
+                  actionBtn = <span className="text-slate-300 dark:text-slate-600 text-xs">-</span>;
                 } else if (req.status === 'RECEIVED') {
-                  chip = 'chip-green';
                   statusLabel = isReturnReq ? 'Received at HQ' : 'Received';
+                  actionBtn = <span className="text-slate-300 dark:text-slate-600 text-xs">-</span>;
+                }
+
+                let statusBadge = (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-normal border bg-amber-50 text-amber-700 border-amber-200/90 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    <span>{statusLabel}</span>
+                  </span>
+                );
+
+                if (req.status === 'DISPATCHED') {
+                  statusBadge = (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-normal border bg-sky-50 text-sky-700 border-sky-200/90 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60 whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                      <span>{statusLabel}</span>
+                    </span>
+                  );
+                } else if (req.status === 'REJECTED') {
+                  statusBadge = (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-normal border bg-rose-50 text-rose-700 border-rose-200/90 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60 whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                      <span>{statusLabel}</span>
+                    </span>
+                  );
+                } else if (req.status === 'RECEIVED') {
+                  statusBadge = (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-normal border bg-emerald-50 text-emerald-700 border-emerald-200/90 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60 whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span>{statusLabel}</span>
+                    </span>
+                  );
                 }
 
                 const serialList = isReturnReq ? (req.returnSerials || []) : arranged.map((a) => a.serial);
                 return (
-                  <tr key={req.reqId} data-flip={req.reqId}>
-                    <td className="col-no">{pg.start + rowIdx + 1}</td>
-                    <td>
-                      <div className="cell-mono whitespace-nowrap">{req.reqId}</div>
-                      <div className="cell-sub whitespace-nowrap">{isReturnReq ? 'Stock return' : 'Stock request'}</div>
+                  <tr
+                    key={req.reqId}
+                    data-flip={req.reqId}
+                    className="transition-colors interactive-row hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                  >
+                    <td className="py-2.5 px-3 text-right text-[11px] text-slate-500 tabular-nums">
+                      {pg.start + rowIdx + 1}
                     </td>
-                    <td className="whitespace-nowrap tabular-nums text-[12px] text-slate-700">{req.date}</td>
-                    <td>
-                      <div className="cell-main max-w-[170px] truncate" title={`Code ${req.branchId} · ${req.branchName}`}>
-                        {req.branchId} · {req.branchName.replace(' Branch', '')}
+                    <td className="py-2.5 px-3">
+                      <div className="font-mono text-xs font-normal text-slate-800 dark:text-slate-100 whitespace-nowrap">
+                        {req.reqId}
                       </div>
-                      <div className="cell-sub max-w-[170px] truncate">{req.staff}</div>
+                      <div className="mt-0.5 inline-flex items-center gap-1">
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-normal border ${
+                          isReturnReq
+                            ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60'
+                            : 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60'
+                        }`}>
+                          {isReturnReq ? 'Stock Return' : 'Stock Request'}
+                        </span>
+                      </div>
                     </td>
-                    <td className="whitespace-nowrap">
-                      {req.posQty > 0 && <div className="cell-main flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />POS Terminal × {req.posQty}</div>}
-                      {req.sbQty > 0 && <div className="cell-main flex items-center gap-1.5"><Volume2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" aria-hidden />Sound Box × {req.sbQty}</div>}
+                    <td className="py-2.5 px-3 font-mono text-[11px] whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100/80 text-slate-600 border border-slate-200/90 dark:bg-white/10 dark:text-slate-300 dark:border-white/10 font-normal">
+                        <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span>{req.date}</span>
+                      </span>
                     </td>
-                    <td className="whitespace-nowrap">
+                    <td className="py-2.5 px-3">
+                      <div className="text-xs font-normal text-slate-800 dark:text-slate-200 truncate max-w-[190px]" title={`Code ${req.branchId} · ${req.branchName}`}>
+                        <span className="font-mono text-slate-500 mr-1">{req.branchId} ·</span>
+                        <span>{req.branchName.replace(' Branch', '')}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[190px] mt-0.5 flex items-center gap-1">
+                        <User className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span>{req.staff || 'Branch Staff'}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
+                        {req.posQty > 0 && (
+                          <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 font-normal">
+                            <Cpu className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                            <span>POS Terminal</span>
+                            <span className="font-mono text-[10.5px] px-1.5 py-0.2 rounded bg-sky-50 text-sky-700 border border-sky-200/80 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800 font-normal">
+                              ×{req.posQty}
+                            </span>
+                          </div>
+                        )}
+                        {req.sbQty > 0 && (
+                          <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 font-normal">
+                            <Volume2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <span>Sound Box</span>
+                            <span className="font-mono text-[10.5px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/80 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 font-normal">
+                              ×{req.sbQty}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
                       {serialList.length > 0 ? (
-                        <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap" title={serialList.join(', ')}>
-                          {serialList.slice(0, 1).map((sn) => (
-                            <span key={sn} className="cell-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">{sn}</span>
-                          ))}
-                          {serialList.length > 1 && <span className="cell-sub !mt-0 pl-0.5">+{serialList.length - 1} more</span>}
+                        <div className="flex items-center gap-1.5 whitespace-nowrap" title={serialList.join(', ')}>
+                          <span className="font-mono text-[11px] text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-normal">
+                            {serialList[0]}
+                          </span>
+                          {serialList.length > 1 && (
+                            <span className="text-[10px] font-mono font-normal px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                              +{serialList.length - 1} more
+                            </span>
+                          )}
                         </div>
                       ) : (
-                        <span className="cell-sub">{isReturnReq ? 'No serials listed' : 'Not arranged yet'}</span>
+                        <span className="text-slate-400 text-xs italic">{isReturnReq ? 'No serials listed' : 'Not arranged yet'}</span>
                       )}
                     </td>
-                    <td>
-                      <div className="khmer max-w-[128px] truncate" title={req.reason || ''}>{req.reason || <span className="cell-sub">—</span>}</div>
+                    <td className="py-2.5 px-3">
+                      <div className="text-xs text-slate-700 dark:text-slate-300 max-w-[220px] truncate" title={req.reason || ''}>
+                        {req.reason || <span className="text-slate-400">-</span>}
+                      </div>
                       {req.status === 'REJECTED' && (
-                        <div className="cell-sub khmer max-w-[128px] truncate" title={`Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}`}>
+                        <div className="text-[11px] text-rose-600 dark:text-rose-400 max-w-[220px] truncate mt-0.5" title={`Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}`}>
                           Rejected: {req.rejectReason || 'no reason recorded'}
                         </div>
                       )}
                     </td>
-                    <td className="whitespace-nowrap"><span className={`chip ${chip}`}>{statusLabel}</span></td>
-                    <td className="text-right whitespace-nowrap">{actionBtn}</td>
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      {statusBadge}
+                    </td>
+                    <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                      {actionBtn}
+                    </td>
                   </tr>
                 );
               })}
 
               {requisitions.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center"><span className="cell-sub">No stock requests found.</span></td>
+                  <td colSpan={9} className="py-12 text-center text-slate-400 text-xs">No stock requests found.</td>
                 </tr>
               )}
             </tbody>
