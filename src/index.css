@@ -513,7 +513,7 @@ button:hover:not(:disabled),
   color: #0f172a;
 }
 .data-table thead th {
-  padding: 10px 10px;
+  padding: 12px 12px;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -522,7 +522,7 @@ button:hover:not(:disabled),
   text-align: left;
 }
 .data-table tbody td {
-  padding: 8px 10px;
+  padding: 13px 12px;
   vertical-align: middle;
   border-bottom: 1px solid #edf0f3;
   background: #ffffff;
@@ -530,14 +530,14 @@ button:hover:not(:disabled),
 }
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .data-table tbody tr:hover td { background: #f4f8fb; }
-.data-table .cell-main { font-size: 13px; font-weight: 400; color: #0f172a; line-height: 1.4; }
+.data-table .cell-main { font-size: 13px; font-weight: 400; color: #0f172a; line-height: 1.45; }
 /* (22 Oct 2026) plain, regular-weight text in tables (no bold), for easy reading */
 .data-table tbody td,
 .data-table tbody td * { font-weight: 400 !important; }
 .data-table tbody td .chip { font-weight: 500 !important; }
-.data-table .cell-sub { font-size: 11px; color: #64748b !important; margin-top: 2px; line-height: 1.35; }
+.data-table .cell-sub { font-size: 11px; color: #64748b !important; margin-top: 3.5px; line-height: 1.4; }
 .data-table .cell-mono { font-family: var(--font-mono); font-size: 12px; color: #0f172a; font-variant-numeric: tabular-nums; }
-.data-table .cell-mono-sub { font-family: var(--font-mono); font-size: 11px; color: #64748b !important; margin-top: 2px; }
+.data-table .cell-mono-sub { font-family: var(--font-mono); font-size: 11px; color: #64748b !important; margin-top: 3.5px; }
 .data-table .chip {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px; border-radius: 9999px;
@@ -560,10 +560,10 @@ button:hover:not(:disabled),
   padding: 2px 8px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc; cursor: pointer;
 }
 .data-table .serial-btn:hover { border-color: #003857; color: #003857; background: #eef5f9; }
-.data-table th:first-child, .data-table td:first-child { padding-left: 14px; }
+.data-table th:first-child, .data-table td:first-child { padding-left: 16px; }
 /* the action button stays in view on small screens */
-.data-table th.col-no, .data-table td.col-no { width: 44px; min-width: 44px; text-align: right; color: #64748b; font-variant-numeric: tabular-nums; padding-right: 6px; padding-left: 10px; }
-.data-table .col-actions { position: sticky; right: 0; z-index: 1; padding-right: 14px; }
+.data-table th.col-no, .data-table td.col-no { width: 44px; min-width: 44px; text-align: right; color: #64748b; font-variant-numeric: tabular-nums; padding-right: 8px; padding-left: 12px; }
+.data-table .col-actions { position: sticky; right: 0; z-index: 1; padding-right: 16px; }
 
 .data-table .warn-text { color: #b45309 !important; font-weight: 600; }
 

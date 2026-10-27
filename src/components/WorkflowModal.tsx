@@ -31,9 +31,7 @@ import {
   User,
   Store,
   ChevronDown,
-  Check,
   AlertTriangle,
-  Clock,
   Sparkles,
   FileText,
   Search,
@@ -687,14 +685,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 12 }}
           transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-          className={`relative w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] z-10 border-0 flex flex-col ${
+          className={`relative w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[96vh] z-10 border-0 flex flex-col ${
             isLight
               ? 'bg-white text-slate-800'
               : 'bg-[#12151e] text-slate-100'
           }`}
         >
           {/* Header */}
-          <div className="navy-header-bar rounded-t-2xl px-5 py-3 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+          <div className="navy-header-bar rounded-t-2xl px-4 py-2.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-xs text-white">
                 {device.type === 'POS Terminal' ? (
@@ -740,7 +738,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
           {/* Stepper Progress Bar (Double-Step Flow) */}
           <div
-            className={`px-5 py-2 border-b flex items-center justify-between text-xs shrink-0 ${
+            className={`px-4 py-1.5 border-b flex items-center justify-between text-xs shrink-0 ${
               isLight
                 ? 'bg-slate-50 border-slate-200 text-slate-700'
                 : 'bg-[#151922] border-slate-800 text-slate-300'
@@ -796,7 +794,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               {/* Quick Action Toolbar Strip */}
               {hasQuickActions && (
                 <div
-                  className={`px-5 py-2 border-b flex items-center justify-between flex-wrap gap-2 text-xs shrink-0 ${
+                  className={`px-4 py-1.5 border-b flex items-center justify-between flex-wrap gap-2 text-xs shrink-0 ${
                     isLight
                       ? 'bg-slate-50/90 border-slate-200/80 text-slate-600'
                       : 'bg-[#181c26] border-slate-700/80 text-slate-300'
@@ -924,24 +922,24 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               )}
 
               {/* Form Body */}
-              <form onSubmit={handleSubmit} className="p-4 sm:p-5 flex flex-col gap-3 overflow-y-auto max-h-[calc(88vh-130px)] custom-scrollbar">
+              <form onSubmit={handleSubmit} className="p-3 sm:p-3.5 flex flex-col gap-2.5 overflow-y-auto max-h-[calc(94vh-110px)] custom-scrollbar">
             {/* Section 0: Admin Serial Number Correction */}
             {isAdminLike && onRenameSerial && (
-              <div className={`p-3.5 rounded-2xl border transition-colors ${
-                isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#181c26] border-slate-700/80'
+              <div className={`p-2 sm:px-3 sm:py-1.5 rounded-xl border transition-colors shrink-0 ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#181c26] border-slate-700/80'
               }`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-sky-100 text-[#003857] dark:bg-sky-950/60 dark:text-sky-300 flex items-center justify-center shrink-0">
-                      <Pencil className="w-4 h-4" />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md bg-sky-100 text-[#003857] dark:bg-sky-950/60 dark:text-sky-300 flex items-center justify-center shrink-0">
+                      <Pencil className="w-3 h-3" />
                     </div>
-                    <div>
+                    <div className="flex items-baseline gap-2">
                       <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
                         Hardware Serial Correction
                       </h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Super Admin / Admin typo correction for uploaded or scanned hardware
-                      </p>
+                      <span className="text-[10.5px] text-slate-400 hidden sm:inline">
+                        (Super Admin / Admin typo correction)
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -953,7 +951,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         setSerialRenameMsg('');
                       }}
                       aria-label="Edit hardware serial number"
-                      className={`w-48 rounded-xl px-3 py-1.5 text-xs font-mono font-bold border focus:outline-none transition ${
+                      className={`w-40 sm:w-44 rounded-lg px-2.5 py-1 text-xs font-mono font-bold border focus:outline-none transition ${
                         isLight ? 'bg-white border-slate-300 text-slate-900 focus:border-[#003857]' : 'bg-[#121620] border-slate-700 text-white focus:border-sky-500'
                       }`}
                     />
@@ -976,370 +974,355 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           setRenamingSerial(false);
                         }
                       }}
-                      className="px-3.5 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs"
+                      className="px-3 py-1 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs"
                     >
                       {renamingSerial ? 'Updating…' : 'Update Serial'}
                     </button>
+                    {serialRenameMsg && (
+                      <span className={`text-[11px] font-semibold ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {serialRenameMsg}
+                      </span>
+                    )}
                   </div>
                 </div>
-                {serialRenameMsg && (
-                  <div className={`text-[11px] font-semibold mt-2 ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {serialRenameMsg}
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Section 1: Lifecycle & Branch Assignment */}
-            <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
-              isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
-            }`}>
-              <div className="flex items-center gap-2 pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
-                <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
-                  <Layers className="w-3.5 h-3.5" />
-                </div>
-                <div>
+            {/* Sections 1 & 2: Lifecycle Custody & Field Staff in 2 Columns */}
+            <div className={returnMode ? '' : 'grid grid-cols-1 md:grid-cols-2 gap-2.5'}>
+              {/* Section 1: Lifecycle & Branch Assignment */}
+              <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
+                isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
+              }`}>
+                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
+                  <div className="w-5 h-5 rounded-md bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                    <Layers className="w-3 h-3" />
+                  </div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                     1. Lifecycle &amp; Branch Custody
                   </h4>
-                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
-                    Current deployment status stage and holding branch assignment
-                  </p>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* Lifecycle Status Stage */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <span>Lifecycle Status Stage</span>
-                    <span className="text-rose-500 font-bold">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={returnMode ? '__RETURN__' : stage}
-                      aria-label="Lifecycle stage"
-                      onChange={(e) => {
-                        if (e.target.value === '__RETURN__') { setReturnMode(true); setMidError(''); return; }
-                        setReturnMode(false);
-                        handleStageChange(e.target.value as LifecycleStage);
-                      }}
-                      className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
-                        isLight
-                          ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                          : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                      }`}
-                    >
-                      {stageOptions.map((s) => (
-                        <option
-                          key={s}
-                          value={s}
-                          className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
-                        >
-                          {STAGE_META[s].label}
-                          {s === device.stage ? ' (current)' : ''}
-                        </option>
-                      ))}
-                      {canReturn && (
-                        <option value="__RETURN__" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>
-                          Return (remove merchant, back to stock)
-                        </option>
-                      )}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                <div className="space-y-2 pt-2">
+                  {/* Lifecycle Status Stage */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                      <span>Lifecycle Status Stage</span>
+                      <span className="text-rose-500 font-bold">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={returnMode ? '__RETURN__' : stage}
+                        aria-label="Lifecycle stage"
+                        onChange={(e) => {
+                          if (e.target.value === '__RETURN__') { setReturnMode(true); setMidError(''); return; }
+                          setReturnMode(false);
+                          handleStageChange(e.target.value as LifecycleStage);
+                        }}
+                        className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
+                          isLight
+                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                        }`}
+                      >
+                        {stageOptions.map((s) => (
+                          <option
+                            key={s}
+                            value={s}
+                            className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
+                          >
+                            {STAGE_META[s].label}
+                            {s === device.stage ? ' (current)' : ''}
+                          </option>
+                        ))}
+                        {canReturn && (
+                          <option value="__RETURN__" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>
+                            Return (remove merchant, back to stock)
+                          </option>
+                        )}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+                    </div>
+                  </div>
+
+                  {/* Assigned Branch Code */}
+                  <div className="flex flex-col gap-1">
+                    <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <Building2 className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                      <span>Assigned Branch Code</span>
+                      <span className="text-rose-500 font-bold">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={branchId}
+                        onChange={(e) => handleBranchChange(e.target.value)}
+                        aria-label="Assigned branch code"
+                        disabled={!isAdminLike || stage === 'HQ_STOCK'}
+                        className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 disabled:opacity-60 disabled:cursor-not-allowed ${
+                          isLight
+                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                        }`}
+                      >
+                        {branches.map((b) => (
+                          <option
+                            key={b.code}
+                            value={b.code}
+                            className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
+                          >
+                            Branch Code {b.code} — {b.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+                    </div>
                   </div>
                 </div>
 
-                {/* Assigned Branch Code */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    <Building2 className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                    <span>Assigned Branch Code</span>
-                    <span className="text-rose-500 font-bold">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={branchId}
-                      onChange={(e) => handleBranchChange(e.target.value)}
-                      aria-label="Assigned branch code"
-                      disabled={!isAdminLike || stage === 'HQ_STOCK'}
-                      className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 disabled:opacity-60 disabled:cursor-not-allowed ${
-                        isLight
-                          ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                          : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                      }`}
-                    >
-                      {branches.map((b) => (
-                        <option
-                          key={b.code}
-                          value={b.code}
-                          className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
-                        >
-                          Branch Code {b.code} — {b.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
-                  </div>
-                </div>
-              </div>
-
-              {returnMode && (
-                <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'}`}>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                    <RotateCcw className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Return to Stock</span>
-                  </div>
-                  <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
-                    The merchant's name, MID, TID, phone, address and installer are removed from this unit and kept in <strong>Merchant History</strong>. The unit goes back to stock:
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button type="button" onClick={() => setReturnTo('BRANCH_RESERVE')} aria-pressed={returnTo === 'BRANCH_RESERVE'}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
-                      <Building2 className="w-3.5 h-3.5" /><span>Branch Code {branchId && branchId !== '100' ? branchId : device.branchId} reserve</span>
-                    </button>
-                    {isAdminLike ? (
-                      <button type="button" onClick={() => setReturnTo('HQ_STOCK')} aria-pressed={returnTo === 'HQ_STOCK'}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 cursor-pointer ${returnTo === 'HQ_STOCK' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
-                        <RotateCcw className="w-3.5 h-3.5" /><span>Admin HQ stock (Code 100)</span>
+                {returnMode && (
+                  <div className={`p-3 mt-2 rounded-xl border flex flex-col gap-2 ${isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'}`}>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Return to Stock</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                      Merchant details detached and kept in <strong>Merchant History</strong>. Unit returns to stock:
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setReturnTo('BRANCH_RESERVE')} aria-pressed={returnTo === 'BRANCH_RESERVE'}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
+                        <Building2 className="w-3 h-3" /><span>Branch Code {branchId && branchId !== '100' ? branchId : device.branchId} reserve</span>
                       </button>
-                    ) : (
-                      <span className="px-3 py-2 rounded-xl text-[11px] border border-dashed border-slate-300 text-slate-500 flex items-center justify-center text-center">To send it to HQ, use a stock return request afterwards</span>
-                    )}
+                      {isAdminLike ? (
+                        <button type="button" onClick={() => setReturnTo('HQ_STOCK')} aria-pressed={returnTo === 'HQ_STOCK'}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'HQ_STOCK' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
+                          <RotateCcw className="w-3 h-3" /><span>Admin HQ stock (Code 100)</span>
+                        </button>
+                      ) : (
+                        <span className="px-2.5 py-1.5 rounded-lg text-[10.5px] border border-dashed border-slate-300 text-slate-500 flex items-center justify-center text-center">To send to HQ, submit request</span>
+                      )}
+                    </div>
+                    <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Reason for the return *
+                      <select value={returnReason} onChange={(e) => setReturnReason(e.target.value)} aria-label="Reason for the return"
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none cursor-pointer ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#181c26] border-slate-700/80 text-white'}`}>
+                        {['Merchant Closed Business', 'Merchant Relocated', 'Merchant Requested Return', 'Upgraded / Replaced Hardware', 'Voluntary KHQR Switch', 'Seasonal End', 'Other'].map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </label>
                   </div>
-                  <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Reason for the return *
-                    <select value={returnReason} onChange={(e) => setReturnReason(e.target.value)} aria-label="Reason for the return"
-                      className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none cursor-pointer ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#181c26] border-slate-700/80 text-white'}`}>
-                      {['Merchant Closed Business', 'Merchant Relocated', 'Merchant Requested Return', 'Upgraded / Replaced Hardware', 'Voluntary KHQR Switch', 'Seasonal End', 'Other'].map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                  </label>
-                </div>
-              )}
+                )}
 
-              {stage === 'FAULTY' && (
-                <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${
-                  isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'
-                }`}>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                    <RotateCcw className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Where Is the Faulty Unit Held? *</span>
-                  </div>
-                  <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
-                    The unit is recorded as <strong>Faulty / Returned</strong> and its merchant details are detached. Choose where it is physically held now:
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTerminateDestination('BRANCH_RESERVE')}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition cursor-pointer ${
-                        terminateDestination === 'BRANCH_RESERVE'
-                          ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
-                          : isLight
-                          ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
-                          : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
-                      }`}
-                    >
-                      <Building2 className="w-3.5 h-3.5" />
-                      <span>Held at Branch Code {branchId}</span>
-                    </button>
-                    {isAdminLike ? (
+                {stage === 'FAULTY' && (
+                  <div className={`p-3 mt-2 rounded-xl border flex flex-col gap-2 ${
+                    isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'
+                  }`}>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Where Is the Faulty Unit Held? *</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => setTerminateDestination('HQ_STOCK')}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition cursor-pointer ${
-                          terminateDestination === 'HQ_STOCK'
+                        onClick={() => setTerminateDestination('BRANCH_RESERVE')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                          terminateDestination === 'BRANCH_RESERVE'
                             ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
                             : isLight
                             ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                             : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
                         }`}
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>Held at Admin HQ (Code 100)</span>
+                        <Building2 className="w-3 h-3" />
+                        <span>Held at Branch Code {branchId}</span>
                       </button>
-                    ) : (
+                      {isAdminLike ? (
+                        <button
+                          type="button"
+                          onClick={() => setTerminateDestination('HQ_STOCK')}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                            terminateDestination === 'HQ_STOCK'
+                              ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                              : isLight
+                              ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                              : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
+                          }`}
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Held at HQ (Code 100)</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
+                        >
+                          <span>Return to HQ (Admin Only)</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {stage === 'LOST' && (
+                  <div className={`p-2.5 mt-2 rounded-xl border flex flex-col gap-1 ${
+                    isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'
+                  }`}>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      <SearchX className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Device Status: Device Lost / Missing</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                      Terminal or sound box flagged as <strong>Device Lost</strong>. Merchant details detached.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Staff Officer & Deployment Schedule */}
+              {!returnMode && (
+                <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
+                  isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
+                }`}>
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-md bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                        <UserCheck className="w-3 h-3" />
+                      </div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        2. Field Staff &amp; Deployment Schedule
+                      </h4>
+                    </div>
+                    {staff && (
                       <button
                         type="button"
-                        disabled
-                        className="px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
-                        title="Only Admin & Super Admin can return directly to HQ Stock. Units must be returned to Branch Reserve first, then submitted as a Return Request."
+                        onClick={() => setStaff('')}
+                        className="text-[10.5px] text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>Return to Admin HQ Stock (Admin Only)</span>
+                        Clear
                       </button>
                     )}
                   </div>
-                </div>
-              )}
 
-              {stage === 'LOST' && (
-                <div className={`p-3.5 rounded-xl border flex flex-col gap-2 ${
-                  isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'
-                }`}>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                    <SearchX className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Device Status: Device Lost / Missing</span>
+                  <div className="space-y-2 pt-2">
+                    {/* Staff Officer with Search and Dropdown side by side */}
+                    <div className="flex flex-col gap-1">
+                      <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <User className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                        <span>Assigned Branch Staff Officer</span>
+                        <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <div className="flex gap-1.5">
+                        <div className="relative w-32 sm:w-36 shrink-0">
+                          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={staffQuery}
+                            onChange={(e) => setStaffQuery(e.target.value)}
+                            placeholder="Filter..."
+                            className={`w-full pl-6 pr-2 py-1.5 text-xs rounded-lg border outline-none ${
+                              isLight
+                                ? 'bg-white border-slate-200 text-slate-900 focus:border-[#003857]'
+                                : 'bg-[#121620] border-slate-700 text-white focus:border-sky-500'
+                            }`}
+                          />
+                        </div>
+                        <div className="relative flex-1 min-w-0">
+                          <select
+                            value={staff}
+                            aria-label="Assigned branch staff officer"
+                            onChange={(e) => {
+                              setStaff(e.target.value);
+                              setStaffQuery('');
+                            }}
+                            className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
+                              isLight
+                                ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                                : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                            }`}
+                          >
+                            <option value="" className={isLight ? 'bg-white text-slate-500' : 'bg-slate-900 text-slate-400'}>
+                              -- Unassigned --
+                            </option>
+                            {staff && !availableStaff.includes(staff) && (
+                              <option value={staff}>{staff} (Assigned)</option>
+                            )}
+                            {allStaffOptions
+                              .filter((s) => !staffQuery || s.name.toLowerCase().includes(staffQuery.toLowerCase()) || (s.empId && s.empId.includes(staffQuery)) || (s.telegram && s.telegram.toLowerCase().includes(staffQuery.toLowerCase())))
+                              .map((st) => (
+                                <option
+                                  key={`${st.name}__${st.empId || ''}__${st.branchId}`}
+                                  value={st.name}
+                                  className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
+                                >
+                                  {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''}
+                                </option>
+                              ))}
+                            {allStaffOptions.length === 0 && (
+                              <option disabled value="" className="text-slate-400 italic">
+                                No staff assigned to Branch {branchId}
+                              </option>
+                            )}
+                          </select>
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Installation / Deployment Date */}
+                    <div className="flex flex-col gap-1">
+                      <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <Calendar className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                        <span>Installation / Deployment Date</span>
+                        <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={deployedDate}
+                        onChange={(e) => setDeployedDate(e.target.value)}
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
+                          isLight
+                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                        }`}
+                      />
+                    </div>
                   </div>
-                  <p className="text-[11.5px] text-slate-600 dark:text-slate-300">
-                    This terminal or sound box will be flagged as <strong>Device Lost</strong> in the system inventory. Active merchant assignments will be detached and recorded in the audit trail.
-                  </p>
                 </div>
               )}
             </div>
 
             {/* (23 Oct 2026) Return: the merchant, officer and battery fields are not needed */}
             {!returnMode && (<>
-              {/* Section 2: Staff Officer & Deployment Schedule */}
-              <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
-                isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
-              }`}>
-                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
-                      <UserCheck className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                        2. Field Staff &amp; Deployment Schedule
-                      </h4>
-                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
-                        Technician responsible for configuration and scheduled installation date
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Staff Officer */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <User className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                        <span>Assigned Branch Staff Officer</span>
-                        <span className="text-rose-500 font-bold">*</span>
-                      </label>
-                      {staff && (
-                        <button
-                          type="button"
-                          onClick={() => setStaff('')}
-                          className="text-[11px] text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Quick Staff Search / Filter */}
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        value={staffQuery}
-                        onChange={(e) => setStaffQuery(e.target.value)}
-                        placeholder={`Search staff in Branch ${branchId || 'selected'}...`}
-                        className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border outline-none mb-1 ${
-                          isLight
-                            ? 'bg-white border-slate-200 text-slate-900 focus:border-[#003857]'
-                            : 'bg-[#121620] border-slate-700 text-white focus:border-sky-500'
-                        }`}
-                      />
-                    </div>
-
-                    <div className="relative">
-                      <select
-                        value={staff}
-                        aria-label="Assigned branch staff officer"
-                        onChange={(e) => {
-                          setStaff(e.target.value);
-                          setStaffQuery('');
-                        }}
-                        className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
-                          isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                        }`}
-                      >
-                        <option value="" className={isLight ? 'bg-white text-slate-500' : 'bg-slate-900 text-slate-400'}>
-                          -- Unassigned --
-                        </option>
-                        {staff && !availableStaff.includes(staff) && (
-                          <option value={staff}>{staff} (Assigned)</option>
-                        )}
-                        {allStaffOptions
-                          .filter((s) => !staffQuery || s.name.toLowerCase().includes(staffQuery.toLowerCase()) || (s.empId && s.empId.includes(staffQuery)) || (s.telegram && s.telegram.toLowerCase().includes(staffQuery.toLowerCase())))
-                          .map((st) => (
-                            <option
-                              key={`${st.name}__${st.empId || ''}__${st.branchId}`}
-                              value={st.name}
-                              className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
-                            >
-                              {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''}
-                            </option>
-                          ))}
-                        {allStaffOptions.length === 0 && (
-                          <option disabled value="" className="text-slate-400 italic">
-                            No staff assigned to Branch {branchId}
-                          </option>
-                        )}
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
-                    </div>
-                  </div>
-
-                  {/* Installation / Deployment Date */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      <Calendar className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                      <span>Installation / Deployment Date</span>
-                      <span className="text-rose-500 font-bold">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={deployedDate}
-                      onChange={(e) => setDeployedDate(e.target.value)}
-                      className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
-                        isLight
-                          ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                          : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                      }`}
-                    />
-                  </div>
-                </div>
-              </div>
-
               {/* Section 3: Merchant & Terminal Setup */}
-              <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
+              <div className={`p-3 rounded-xl border transition-colors ${
                 isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
               }`}>
-                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
-                      <Store className="w-3.5 h-3.5" />
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded-md bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                      <Store className="w-3 h-3" />
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                        3. Merchant &amp; Terminal Setup
-                      </h4>
-                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
-                        Merchant business name, 15-digit banking MID, and 8-digit Terminal ID
-                      </p>
-                    </div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      3. Merchant &amp; Terminal Setup
+                    </h4>
                   </div>
+                  <span className="text-[10.5px] text-slate-400 hidden sm:inline">
+                    Merchant business name, 15-digit banking MID, and 8-digit Terminal ID
+                  </span>
                 </div>
 
                 {merchantLocked && (
-                  <div role="note" className="p-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium">
+                  <div role="note" className="p-2 my-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium">
                     The merchant details of an installed unit can be changed by Admin HQ only. Please contact HQ if something is wrong.
                   </div>
                 )}
 
                 <fieldset disabled={merchantLocked} className="contents">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
                     {/* Merchant Name */}
-                    <div className="flex flex-col gap-1.5 sm:col-span-1">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <Store className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                    <div className="flex flex-col gap-1 sm:col-span-1">
+                      <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <Store className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
                         <span>Merchant Name</span>
                         <span className="text-rose-500 font-bold">*</span>
                       </label>
@@ -1354,7 +1337,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           }
                         }}
                         placeholder="e.g. Brown Coffee BKK"
-                        className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition ${
                           isLight
                             ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1363,11 +1346,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     </div>
 
                     {/* MID */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <span>MID</span>
-                        <span className="text-rose-500 font-bold">*</span>
-                      </label>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          <span>MID</span>
+                          <span className="text-rose-500 font-bold">*</span>
+                        </label>
+                        <span className="font-mono text-[10px] text-slate-400">{mid.length}/15</span>
+                      </div>
                       <input
                         type="text"
                         value={mid}
@@ -1383,8 +1369,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         maxLength={15}
                         inputMode="numeric"
                         aria-label="MID"
-                        placeholder="15-digit MID from merchant record"
-                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                        placeholder={device.type === 'Sound Box' ? '15 digits starting with 6' : '15 digits starting with 2'}
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                           midError
                             ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/50'
                             : isLight
@@ -1392,21 +1378,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                         }`}
                       />
-                      <div className="flex items-center justify-between text-[10px] px-0.5">
-                        {midError ? (
-                          <span className="text-rose-600 font-semibold">{midError}</span>
-                        ) : (
-                          <span className="text-slate-400">
-                            {device.type === 'Sound Box' ? '15 digits starting with 6' : '15 digits starting with 2'}
-                          </span>
-                        )}
-                        <span className="font-mono text-slate-400">{mid.length}/15</span>
-                      </div>
+                      {midError && (
+                        <span className="text-rose-600 font-semibold text-[10px]">{midError}</span>
+                      )}
                     </div>
 
                     {/* TID */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <div className="flex flex-col gap-1">
+                      <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
                         <span>Terminal ID (TID)</span>
                         <span className="text-rose-500 font-bold">*</span>
                       </label>
@@ -1416,7 +1395,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         readOnly
                         title="Filled automatically: the last 8 digits of the MID"
                         placeholder="Automatic: last 8 digits of MID"
-                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
                             ? 'bg-slate-200/60 border-slate-300/80 text-slate-700 placeholder:text-slate-400'
                             : 'bg-[#181c26] border-slate-700 text-white placeholder:text-slate-500'
@@ -1430,16 +1409,16 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               {/* Dynamic Custom & Additional Fields Section */}
               {activeCustomFields.length > 0 && (
                 <div
-                  className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${
+                  className={`p-3 rounded-xl border flex flex-col gap-2 transition-colors ${
                     isLight
                       ? 'bg-slate-100/90 border-slate-200 shadow-2xs'
                       : 'bg-[#161a24] border-slate-700/70'
                   }`}
                 >
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
-                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60 dark:border-white/[0.06]">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-md bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                        <SlidersHorizontal className="w-3 h-3" />
                       </div>
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                         Additional Custom Attributes ({activeCustomFields.length})
@@ -1450,7 +1429,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {activeCustomFields.map((field) => {
                       const val = customFieldValues[field.id] ?? '';
                       const getFieldIcon = () => {
@@ -1462,7 +1441,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       };
 
                       return (
-                        <div key={field.id} className="flex flex-col gap-1.5">
+                        <div key={field.id} className="flex flex-col gap-1">
                           <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                             <span className="flex items-center gap-1.5">
                               {getFieldIcon()}
@@ -1484,7 +1463,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                     [field.id]: e.target.value,
                                   }))
                                 }
-                                className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-10 ${
+                                className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
                                   isLight
                                     ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                                     : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1497,7 +1476,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                   </option>
                                 ))}
                               </select>
-                              <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
                             </div>
                           ) : (
                             <input
@@ -1511,7 +1490,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                               }
                               placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
                               required={field.required && !(field.id === 'merchantPhone' && device.merchantPhone)}
-                              className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
+                              className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition ${
                                 isLight
                                   ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                                   : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1528,7 +1507,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               {/* Section 4: 24-Month POS Battery Lifecycle Card (Only displayed for POS Terminal or units with battery) */}
               {(device.type === 'POS Terminal' || (Boolean(device.batterySerial) && device.batterySerial?.trim() !== '' && device.batterySerial?.trim().toUpperCase() !== 'N/A')) && (
                 <div
-                  className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${
+                  className={`p-3 rounded-xl border flex flex-col gap-2 transition-colors ${
                     previewBatteryInfo.state === 'EXPIRED'
                       ? isLight
                         ? 'bg-rose-50/60 border-rose-200'
@@ -1542,28 +1521,23 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       : 'bg-[#161a24] border-slate-700/70'
                   }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1.5 border-b border-slate-200/60 dark:border-white/[0.06]">
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
                         previewBatteryInfo.state === 'EXPIRED'
                           ? 'bg-rose-100 text-rose-700'
                           : previewBatteryInfo.state === 'DUE_SOON'
                           ? 'bg-amber-100 text-amber-700'
                           : 'bg-emerald-100 text-emerald-700'
                       }`}>
-                        <BatteryCharging className="w-3.5 h-3.5" />
+                        <BatteryCharging className="w-3 h-3" />
                       </div>
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                          4. POS Terminal Battery Lifecycle (24-Month Standard)
-                        </h4>
-                        <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
-                          Track hardware battery health, age, and 24-month replacement standard
-                        </p>
-                      </div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        4. POS Battery Lifecycle (24-Month Standard)
+                      </h4>
                     </div>
                     <span
-                      className={`text-[10px] font-mono font-medium px-2.5 py-0.5 rounded-full border ${
+                      className={`text-[9.5px] font-mono font-medium px-2 py-0.2 rounded-full border ${
                         previewBatteryInfo.state === 'EXPIRED'
                           ? 'bg-rose-100/90 text-rose-800 border-rose-300'
                           : previewBatteryInfo.state === 'DUE_SOON'
@@ -1579,60 +1553,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     </span>
                   </div>
 
-                  {/* Status Message Banner with Direct "Replace Battery from Old to New" Button */}
-                  <div
-                    className={`p-2.5 sm:px-3.5 sm:py-2.5 rounded-xl text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border ${
-                      previewBatteryInfo.state === 'EXPIRED'
-                        ? 'bg-rose-100/70 border-rose-200 text-rose-800 font-medium'
-                        : previewBatteryInfo.state === 'DUE_SOON'
-                        ? 'bg-amber-100/70 border-amber-200 text-amber-800 font-medium'
-                        : isLight
-                        ? 'bg-white border-slate-200 text-slate-600'
-                        : 'bg-white/[0.04] border-white/10 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {previewBatteryInfo.state === 'EXPIRED' ? (
-                        <>
-                          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                          <span>
-                            Battery reached {previewBatteryInfo.monthsUsed} months of service (&ge; 24-month limit). Replacement is required immediately!
-                          </span>
-                        </>
-                      ) : previewBatteryInfo.state === 'DUE_SOON' ? (
-                        <>
-                          <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                          <span>
-                            Battery is {previewBatteryInfo.monthsUsed} months old with {previewBatteryInfo.monthsRemaining} months remaining until 24-month expiration.
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span>
-                            Battery in good standing ({previewBatteryInfo.monthsUsed} of 24 months elapsed · {previewBatteryInfo.monthsRemaining} months remaining).
-                          </span>
-                        </>
-                      )}
-                    </div>
-
-                    {onChangeBattery && device && (
-                      <button
-                        type="button"
-                        onClick={() => onChangeBattery(device)}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs shrink-0 self-start sm:self-auto"
-                        title="Click to replace battery from old to new"
-                      >
-                        <BatteryCharging className="w-3.5 h-3.5" />
-                        <span>Replace Battery from Old to New</span>
-                      </button>
-                    )}
-                  </div>
-
                   {/* Battery Fields */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <div className="flex flex-col gap-1">
+                      <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
                         <span>Battery Serial Number</span>
                         <span className="text-rose-500 font-bold">*</span>
                       </label>
@@ -1642,43 +1566,42 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         onChange={(e) => setBatterySerial(e.target.value)}
                         id="workflow-battery-serial"
                         aria-label="Battery serial number"
-                        placeholder="Serial printed on battery (e.g. 160525A1234567)"
-                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                        placeholder="e.g. 160525A1234567"
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
                             ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                         }`}
                       />
-                      <span className="text-[10px] text-slate-400 font-mono px-0.5">
-                        Format: 160525A + 7 digits
-                      </span>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <span>Battery Installed / Commissioned Date</span>
-                        <span className="text-rose-500 font-bold">*</span>
-                      </label>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          <span>Commissioned Date</span>
+                          <span className="text-rose-500 font-bold">*</span>
+                        </label>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          Expiry: <strong className="text-slate-700 dark:text-slate-200">{previewBatteryInfo.dueDate}</strong>
+                        </span>
+                      </div>
                       <input
                         type="date"
                         value={batteryInstalledDate}
                         max={todayPP()}
                         aria-label="Battery installed date"
                         onChange={(e) => setBatteryInstalledDate(e.target.value)}
-                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
                             ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                         }`}
                       />
-                      <span className="text-[10px] text-slate-400 font-mono px-0.5">
-                        24M Expiry Date: <strong className="text-slate-700 dark:text-slate-200">{previewBatteryInfo.dueDate}</strong>
-                      </span>
                     </div>
                   </div>
 
                   {/* Battery Actions */}
-                  <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
                     <div className="flex items-center gap-2 text-xs text-slate-500">
                       <span>Currently Installed:</span>
                       <strong className="font-mono font-semibold text-slate-800 dark:text-slate-200">
@@ -1686,48 +1609,42 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       </strong>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {onChangeBattery && device && (
-                        <button
-                          type="button"
-                          onClick={() => onChangeBattery(device)}
-                          className="px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition cursor-pointer shadow-xs"
-                          title="Open 2-step verification wizard to replace battery from old to new"
-                        >
-                          <BatteryCharging className="w-4 h-4" />
-                          <span>Replace Battery from Old to New</span>
-                        </button>
-                      )}
-                    </div>
+                    {onChangeBattery && device && (
+                      <button
+                        type="button"
+                        onClick={() => onChangeBattery(device)}
+                        className="px-3 py-1 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold tracking-wide flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                        title="Open 2-step verification wizard to replace battery from old to new"
+                      >
+                        <BatteryCharging className="w-3.5 h-3.5" />
+                        <span>Replace Battery</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
             </>)}
 
             {/* Section 5: Audit Note / Update Reason */}
-            <div className={`p-4 rounded-2xl border space-y-2.5 transition-colors ${
+            <div className={`p-2.5 sm:px-3 sm:py-2.5 rounded-xl border flex flex-col gap-1.5 transition-colors ${
               isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
             }`}>
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
-                <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
-                  <FileText className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <span>Audit Note &amp; Update Reason</span>
-                    <span className="text-rose-500 font-bold">*</span>
-                  </h4>
-                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
-                    Required note documenting reason for stage change, merchant deployment, or branch transfer
-                  </p>
-                </div>
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <FileText className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
+                  <span>Audit Note &amp; Update Reason</span>
+                  <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <span className="text-[10.5px] text-slate-400 hidden sm:inline">
+                  Required note documenting reason for stage change, merchant deployment, or branch transfer
+                </span>
               </div>
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Describe reason for stage change, merchant deployment, or branch transfer..."
-                className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
+                className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition ${
                   isLight
                     ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                     : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1737,7 +1654,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
             {/* Footer */}
             <div
-              className={`flex items-center justify-end gap-2 pt-2.5 border-t ${
+              className={`flex items-center justify-end gap-2 pt-2 border-t shrink-0 ${
                 isLight ? 'border-slate-100' : 'border-slate-800/80'
               }`}
             >
@@ -1750,7 +1667,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       onClose();
                     }
                   }}
-                  className="btn-press mr-auto px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 cursor-pointer"
+                  className="btn-press mr-auto px-3 py-1.5 rounded-lg text-xs font-semibold border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 cursor-pointer"
                 >
                   Delete Permanently
                 </button>
@@ -1759,7 +1676,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 whileTap={{ scale: 0.96 }}
                 type="button"
                 onClick={onClose}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                   isLight
                     ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                     : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
@@ -1770,7 +1687,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 type="submit"
-                className="px-4 py-1.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-1.5 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-xs transition cursor-pointer flex items-center gap-1.5"
               >
                 <span>Review Changes (Step 2 Preview)</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1781,7 +1698,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       ) : (
         /* STEP 2: IMPACT PREVIEW & BEFORE/AFTER DIFF CONFIRMATION */
         pendingPayload && (
-          <div className="p-4 sm:p-5 flex flex-col gap-3 max-h-[calc(88vh-130px)] overflow-y-auto custom-scrollbar">
+          <div className="p-3 sm:p-3.5 flex flex-col gap-2.5 max-h-[calc(94vh-110px)] overflow-y-auto custom-scrollbar">
             {/* Impact Notice Alert Banner */}
             <div
               className={`p-3 rounded-xl border flex items-start gap-2.5 ${

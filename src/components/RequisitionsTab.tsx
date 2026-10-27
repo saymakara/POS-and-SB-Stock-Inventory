@@ -463,25 +463,25 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
         </div>
 
         <div className="overflow-x-auto no-scrollbar">
-          <table className="w-full text-left text-xs min-w-[960px]">
-            <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
+          <table className="data-table min-w-[960px]">
+            <thead className="glass-table-thead">
               <tr>
-                <th className="py-2.5 px-3 w-10 text-right">No.</th>
-                <SortTh k="date" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Date</SortTh>
-                <SortTh k="request" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Request ID</SortTh>
-                <SortTh k="type" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Request Type</SortTh>
-                <SortTh k="staff" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Staff / Branch</SortTh>
-                <SortTh k="qty" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Quantity</SortTh>
-                <SortTh k="reason" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Reason</SortTh>
-                <SortTh k="status" sort={reqSort} onSort={reqToggle} className="py-2.5 px-3">Status</SortTh>
-                <th className="py-2.5 px-3 text-right">Actions</th>
+                <th className="col-no">No.</th>
+                <SortTh k="date" sort={reqSort} onSort={reqToggle}>Date</SortTh>
+                <SortTh k="request" sort={reqSort} onSort={reqToggle}>Request ID</SortTh>
+                <SortTh k="type" sort={reqSort} onSort={reqToggle}>Request Type</SortTh>
+                <SortTh k="staff" sort={reqSort} onSort={reqToggle}>Staff / Branch</SortTh>
+                <SortTh k="qty" sort={reqSort} onSort={reqToggle}>Quantity</SortTh>
+                <SortTh k="reason" sort={reqSort} onSort={reqToggle}>Reason</SortTh>
+                <SortTh k="status" sort={reqSort} onSort={reqToggle}>Status</SortTh>
+                <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody ref={flipRef} className="divide-y divide-slate-100 dark:divide-slate-800/80 bg-white dark:bg-slate-900/60">
+            <tbody ref={flipRef}>
               {shownReqs.map((req, rowIdx) => {
                 const isReturnReq = req.type === 'STOCK_RETURN';
                 let statusLabel = 'Pending';
-                let actionBtn: React.ReactNode = <span className="text-slate-300 dark:text-slate-600 text-xs">-</span>;
+                let actionBtn: React.ReactNode = null;
                 const canEdit = Boolean(onEditRequisition) && req.status === 'PENDING_ADMIN' && !isReturnReq;
                 const editBtn = canEdit ? (
                   <button type="button" onClick={() => openEdit(req)} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 inline-flex items-center cursor-pointer transition shadow-2xs active:scale-90" title="Edit the quantity or reason" aria-label="Edit">
@@ -511,7 +511,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                           <span>Approve &amp; Receive</span>
                         </button>
                       </div>
-                    ) : <span className="text-slate-400 text-xs italic">Awaiting HQ</span>;
+                    ) : <span className="cell-sub italic">Awaiting HQ</span>;
                   } else {
                     actionBtn = (
                       <div className="inline-flex items-center gap-1.5">
@@ -522,7 +522,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                             <Truck className="w-3.5 h-3.5" aria-hidden />
                             <span>Dispatch</span>
                           </button>
-                        ) : <span className="text-slate-400 text-xs italic">Awaiting HQ</span>}
+                        ) : <span className="cell-sub italic">Awaiting HQ</span>}
                       </div>
                     );
                   }
@@ -543,7 +543,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 }
 
                 let statusBadge = (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-amber-50 text-amber-800 border-amber-300/90 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700/70 whitespace-nowrap shadow-2xs">
+                  <span className="chip chip-amber">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                     <span>{statusLabel}</span>
                   </span>
@@ -551,122 +551,112 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
 
                 if (req.status === 'DISPATCHED') {
                   statusBadge = (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-sky-50 text-sky-800 border-sky-300/90 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-700/70 whitespace-nowrap shadow-2xs">
+                    <span className="chip chip-slate">
                       <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
                       <span>{statusLabel}</span>
                     </span>
                   );
                 } else if (req.status === 'REJECTED') {
                   statusBadge = (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-rose-50 text-rose-800 border-rose-300/90 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-700/70 whitespace-nowrap shadow-2xs">
+                    <span className="chip chip-red">
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                       <span>{statusLabel}</span>
                     </span>
                   );
                 } else if (req.status === 'RECEIVED') {
-                  if (isReturnReq) {
-                    statusBadge = (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-teal-50 text-teal-800 border-teal-300/90 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-700/70 whitespace-nowrap shadow-2xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-                        <span>{statusLabel}</span>
-                      </span>
-                    );
-                  } else {
-                    statusBadge = (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-emerald-50 text-emerald-800 border-emerald-300/90 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700/70 whitespace-nowrap shadow-2xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        <span>{statusLabel}</span>
-                      </span>
-                    );
-                  }
+                  statusBadge = (
+                    <span className="chip chip-green">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span>{statusLabel}</span>
+                    </span>
+                  );
                 }
 
                 return (
                   <tr
                     key={req.reqId}
                     data-flip={req.reqId}
-                    className="transition-colors interactive-row hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                    className="interactive-row"
                   >
-                    <td className="py-2.5 px-3 text-right text-[11px] text-slate-400 font-mono tabular-nums">
+                    <td className="col-no">
                       {pg.start + rowIdx + 1}
                     </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 font-mono text-xs text-slate-700 dark:text-slate-300">
+                    <td className="whitespace-nowrap">
+                      <div className="cell-mono flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span>{req.date}</span>
                       </div>
                     </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
+                    <td className="whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => setSelectedRequisition(req)}
-                        className="font-mono text-xs font-semibold text-[#003857] dark:text-sky-400 hover:underline cursor-pointer text-left block"
+                        className="serial-btn font-mono"
                         title="View requisition details"
                       >
                         {req.reqId}
                       </button>
                     </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
+                    <td className="whitespace-nowrap">
                       {isReturnReq ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60">
-                          <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <span className="chip chip-amber">
+                          <RotateCcw className="w-3 h-3 text-amber-600 shrink-0" />
                           <span>Stock Return</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-50 text-sky-700 border border-sky-200/80 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60">
-                          <SendHorizontal className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0" />
+                        <span className="chip bg-sky-50 text-sky-800 border-sky-200/90">
+                          <SendHorizontal className="w-3 h-3 text-sky-600 shrink-0" />
                           <span>Stock Request</span>
                         </span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3">
-                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[190px] flex items-center gap-1" title={req.staff || 'Branch Staff'}>
+                    <td>
+                      <div className="cell-main flex items-center gap-1.5 truncate max-w-[190px]" title={req.staff || 'Branch Staff'}>
                         <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{req.staff || 'Branch Staff'}</span>
+                        <span className="truncate">{req.staff || 'Branch Staff'}</span>
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[190px] mt-0.5" title={`Code ${req.branchId} · ${req.branchName}`}>
-                        <span className="font-mono text-slate-400 mr-1">{req.branchId} ·</span>
-                        <span>{req.branchName.replace(' Branch', '')}</span>
+                      <div className="cell-sub truncate max-w-[190px]">
+                        Code {req.branchId} · {req.branchName.replace(' Branch', '')}
                       </div>
                     </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
-                      <div className="flex flex-col gap-1.5">
+                    <td className="whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
                         {req.posQty > 0 && (
-                          <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 font-normal">
-                            <Cpu className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                          <div className="cell-main flex items-center gap-1.5">
+                            <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />
                             <span>POS Terminal</span>
-                            <span className="font-mono text-[11px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200/80 dark:bg-white/10 dark:text-slate-200 dark:border-white/10">
+                            <span className="chip chip-slate font-mono text-[10.5px] px-1.5 py-0">
                               ×{req.posQty}
                             </span>
                           </div>
                         )}
                         {req.sbQty > 0 && (
-                          <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 font-normal">
-                            <Volume2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                          <div className="cell-main flex items-center gap-1.5">
+                            <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" aria-hidden />
                             <span>Sound Box</span>
-                            <span className="font-mono text-[11px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200/80 dark:bg-white/10 dark:text-slate-200 dark:border-white/10">
+                            <span className="chip chip-slate font-mono text-[10.5px] px-1.5 py-0">
                               ×{req.sbQty}
                             </span>
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="py-2.5 px-3">
+                    <td>
                       <div
-                        className="text-xs text-slate-700 dark:text-slate-300 max-w-[240px] truncate"
+                        className="cell-main max-w-[240px] truncate"
                         title={
                           req.status === 'REJECTED' && req.rejectReason
                             ? `${req.reason || 'No reason entered'} (Rejection note: ${req.rejectReason}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''})`
                             : req.reason || ''
                         }
                       >
-                        {req.reason || <span className="text-slate-400 font-mono">-</span>}
+                        {req.reason || <span className="cell-sub font-mono">—</span>}
                       </div>
                     </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
+                    <td className="whitespace-nowrap">
                       {statusBadge}
                     </td>
-                    <td className="py-2.5 px-3 text-right whitespace-nowrap col-actions">
+                    <td className="text-right whitespace-nowrap col-actions">
                       <div className="inline-flex items-center justify-end gap-1.5">
                         {actionBtn}
                         <button
@@ -685,7 +675,9 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
 
               {requisitions.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400 text-xs">No stock requests found.</td>
+                  <td colSpan={9} className="py-12 text-center">
+                    <p className="cell-main">No stock requests found.</p>
+                  </td>
                 </tr>
               )}
             </tbody>
