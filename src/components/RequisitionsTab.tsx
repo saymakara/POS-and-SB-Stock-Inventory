@@ -11,7 +11,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   SendHorizontal,
   RotateCcw,
-  AlertCircle,
   CheckCircle2,
   Truck,
   ScrollText,
@@ -544,7 +543,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 }
 
                 let statusBadge = (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-normal border bg-amber-50 text-amber-700 border-amber-200/90 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60 whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-amber-50 text-amber-800 border-amber-300/90 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700/70 whitespace-nowrap shadow-2xs">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                     <span>{statusLabel}</span>
                   </span>
@@ -552,25 +551,34 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
 
                 if (req.status === 'DISPATCHED') {
                   statusBadge = (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-normal border bg-sky-50 text-sky-700 border-sky-200/90 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-sky-50 text-sky-800 border-sky-300/90 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-700/70 whitespace-nowrap shadow-2xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
                       <span>{statusLabel}</span>
                     </span>
                   );
                 } else if (req.status === 'REJECTED') {
                   statusBadge = (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-normal border bg-rose-50 text-rose-700 border-rose-200/90 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-rose-50 text-rose-800 border-rose-300/90 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-700/70 whitespace-nowrap shadow-2xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                       <span>{statusLabel}</span>
                     </span>
                   );
                 } else if (req.status === 'RECEIVED') {
-                  statusBadge = (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-normal border bg-emerald-50 text-emerald-700 border-emerald-200/90 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60 whitespace-nowrap">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span>{statusLabel}</span>
-                    </span>
-                  );
+                  if (isReturnReq) {
+                    statusBadge = (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-teal-50 text-teal-800 border-teal-300/90 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-700/70 whitespace-nowrap shadow-2xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                        <span>{statusLabel}</span>
+                      </span>
+                    );
+                  } else {
+                    statusBadge = (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-emerald-50 text-emerald-800 border-emerald-300/90 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700/70 whitespace-nowrap shadow-2xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span>{statusLabel}</span>
+                      </span>
+                    );
+                  }
                 }
 
                 return (
@@ -644,18 +652,16 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       </div>
                     </td>
                     <td className="py-2.5 px-3">
-                      <div className="text-xs text-slate-700 dark:text-slate-300 max-w-[220px] truncate" title={req.reason || ''}>
+                      <div
+                        className="text-xs text-slate-700 dark:text-slate-300 max-w-[240px] truncate"
+                        title={
+                          req.status === 'REJECTED' && req.rejectReason
+                            ? `${req.reason || 'No reason entered'} (Rejection note: ${req.rejectReason}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''})`
+                            : req.reason || ''
+                        }
+                      >
                         {req.reason || <span className="text-slate-400 font-mono">-</span>}
                       </div>
-                      {req.status === 'REJECTED' && (
-                        <div
-                          className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200/70 dark:border-rose-800/40 max-w-[220px] truncate"
-                          title={`Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}`}
-                        >
-                          <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
-                          <span className="truncate">{req.rejectReason || 'Rejected'}</span>
-                        </div>
-                      )}
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       {statusBadge}

@@ -86,43 +86,43 @@ export function buildInitialBranches(users: User[]): Branch[] {
 export const STAGE_META: Record<LifecycleStage, StageInfo> = {
   HQ_STOCK: {
     label: 'Admin HQ Stock (Branch Code 100)',
-    badgeClassLight: 'bg-slate-100 text-slate-700 border-slate-300 font-normal',
-    badgeClassDark: 'bg-slate-100 text-slate-700 border-slate-300 font-normal',
+    badgeClassLight: 'bg-slate-100 text-slate-700 border-slate-300 font-semibold',
+    badgeClassDark: 'bg-slate-100 text-slate-700 border-slate-300 font-semibold',
     short: 'Admin HQ Stock',
     color: '#334155'
   },
   BRANCH_RESERVE: {
     label: 'Branch Reserve',
-    badgeClassLight: 'bg-sky-100 text-sky-800 border-sky-300 font-normal dark:bg-sky-500/20 dark:text-sky-200 dark:border-sky-400/40',
-    badgeClassDark: 'bg-sky-500/20 text-sky-200 border-sky-400/40 font-normal',
+    badgeClassLight: 'bg-sky-100 text-sky-800 border-sky-300 font-semibold dark:bg-sky-500/20 dark:text-sky-200 dark:border-sky-400/40',
+    badgeClassDark: 'bg-sky-500/20 text-sky-200 border-sky-400/40 font-semibold',
     short: 'Branch Reserve',
     color: '#0284c7'
   },
   CONFIGURING: {
     label: 'Under Configuring',
-    badgeClassLight: 'bg-indigo-50 text-indigo-800 border-indigo-200 font-normal',
-    badgeClassDark: 'bg-slate-800 text-slate-100 border-slate-700 font-normal',
+    badgeClassLight: 'bg-indigo-50 text-indigo-800 border-indigo-200 font-semibold',
+    badgeClassDark: 'bg-slate-800 text-slate-100 border-slate-700 font-semibold',
     short: 'Under Configuring',
     color: '#475569'
   },
   COMPLETE: {
     label: 'Installed Live',
-    badgeClassLight: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-normal',
-    badgeClassDark: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-normal',
+    badgeClassLight: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold',
+    badgeClassDark: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold',
     short: 'Installed Live',
     color: '#0f766e'
   },
   FAULTY: {
     label: 'Returned',
-    badgeClassLight: 'bg-rose-50 text-rose-800 border-rose-200 font-normal',
-    badgeClassDark: 'bg-rose-50 text-rose-800 border-rose-200 font-normal',
+    badgeClassLight: 'bg-rose-50 text-rose-800 border-rose-200 font-semibold',
+    badgeClassDark: 'bg-rose-50 text-rose-800 border-rose-200 font-semibold',
     short: 'Returned',
     color: '#be123c'
   },
   LOST: {
     label: 'Device Lost',
-    badgeClassLight: 'bg-amber-50 text-amber-800 border-amber-200 font-normal',
-    badgeClassDark: 'bg-amber-50 text-amber-800 border-amber-200 font-normal',
+    badgeClassLight: 'bg-amber-50 text-amber-800 border-amber-200 font-semibold',
+    badgeClassDark: 'bg-amber-50 text-amber-800 border-amber-200 font-semibold',
     short: 'Device Lost',
     color: '#d97706'
   }
