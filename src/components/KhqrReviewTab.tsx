@@ -27,8 +27,8 @@ const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as co
 const SMOOTH_EXPAND = { duration: 0.22, ease: [0.16, 1, 0.3, 1] } as const;
 const GRID =
   'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
-const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
-const SGRID = 'grid items-center gap-x-3 grid-cols-[44px_minmax(170px,1.2fr)_minmax(130px,1fr)_120px_160px_minmax(180px,1fr)]';
+const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_145px_minmax(140px,1.1fr)_95px_minmax(110px,0.9fr)_108px_120px_minmax(130px,1fr)_32px_160px]';
+const SGRID = 'grid items-center gap-x-3 grid-cols-[44px_minmax(160px,1.2fr)_100px_minmax(130px,1fr)_120px_160px_minmax(180px,1fr)]';
 
 /** Start of a period in Phnom Penh time (UTC+7), as ISO. */
 function periodFrom(p: Period): string | null {
@@ -234,10 +234,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             <h3 className="text-[13px] font-medium text-slate-900">Failed attempts by staff</h3>
             <span className="text-[11.5px] text-slate-500">· {PERIOD_LABEL[period]}</span>
           </div>
-          <div className="min-w-[1000px]">
+          <div className="min-w-[1040px]">
             <div className={`${SGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`} role="row">
               <span className="text-right">No.</span>
-              <span>Staff</span>
+              <span>Staff Name</span>
+              <span>Staff ID</span>
               <span>Branch</span>
               <span className="text-right">Failed attempts</span>
               <span>Last failed attempt</span>
@@ -259,9 +260,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
                   className={`${SGRID} w-full text-left px-3.5 py-2 text-[12.5px] text-slate-700 hover:bg-rose-50/60 cursor-pointer`}
                 >
                   <span className="text-right tabular-nums text-slate-500">{i + 1}</span>
-                  <span className="leading-tight min-w-0">
-                    <span className="block truncate text-slate-900">{s.staffName || s.staffId}</span>
-                    <span className="block text-[11px] text-slate-500 font-mono">{s.staffId}</span>
+                  <span className="truncate font-medium text-slate-900" title={s.staffName || s.staffId}>
+                    {s.staffName || '—'}
+                  </span>
+                  <span className="font-mono text-[11.5px] text-slate-600 tabular-nums">
+                    {s.staffId || '—'}
                   </span>
                   <span className="truncate">{s.branchText || '—'}</span>
                   <span className="text-right tabular-nums font-semibold text-rose-700">{s.attempts.toLocaleString()}</span>
@@ -467,11 +470,12 @@ const QrAttemptLog: React.FC<{ from: string | null; activity: 'ALL' | QrActivity
   useEffect(() => { load(); }, [load, reloadKey]);
   return (
     <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Failed attempts log">
-      <div className="min-w-[1080px]">
+      <div className="min-w-[1140px]">
         <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
           <span className="text-right">No.</span>
           <span>Time</span>
-          <span>Staff</span>
+          <span>Staff Name</span>
+          <span>Staff ID</span>
           <span>Branch</span>
           <span>Activity</span>
           <span>Expected MID</span>
@@ -498,9 +502,11 @@ const QrAttemptLog: React.FC<{ from: string | null; activity: 'ALL' | QrActivity
             <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[12.5px] text-slate-700 hover:bg-rose-50/50`}>
               <span className="text-right tabular-nums text-slate-500">{pg.start + i + 1}</span>
               <span className="tabular-nums whitespace-nowrap" title={a.clientAt ? `On the phone: ${stampSecPP(new Date(a.clientAt))}` : undefined}>{stampSecPP(new Date(a.clientAt || a.receivedAt))}</span>
-              <span className="leading-tight min-w-0">
-                <span className="block truncate text-slate-900">{a.staffName || a.staffId}</span>
-                <span className="block text-[11px] text-slate-500 font-mono">{a.staffId}</span>
+              <span className="truncate font-medium text-slate-900" title={a.staffName || a.staffId}>
+                {a.staffName || '—'}
+              </span>
+              <span className="font-mono text-[11.5px] text-slate-600 tabular-nums">
+                {a.staffId || '—'}
               </span>
               <span className="truncate">{a.branchText || '—'}</span>
               <span className="truncate">{a.activity ? QR_ACTIVITY_LABEL[a.activity] : '—'}</span>
