@@ -99,6 +99,7 @@ import {
   insertHistoricalMerchantToSupabase,
   deleteAllHistoricalMerchantsOnServer,
   countPendingFieldEventsByType,
+  prefetchFieldEvents,
   fetchAuditLogs,
   subscribeToFieldEvents,
   dispatchRequisitionOnServer,
@@ -916,6 +917,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       });
       scheduleFlush();
       countPending();
+      if (typeof window !== 'undefined') {
+        const runPrefetch = () => { prefetchFieldEvents(); };
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(runPrefetch, { timeout: 3000 });
+        } else {
+          setTimeout(runPrefetch, 600);
+        }
+      }
       unsubscribeField = subscribeToFieldEvents(() => countPendingSoon());
     })();
 
@@ -4157,7 +4166,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
               {/* Robust Responsive Tab Content with Error Boundary */}
               {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
-              <div key={shownTab} className="tab-view">
+              <div key={shownTab === 'mobile_sync_sb' ? 'mobile_sync' : shownTab} className="tab-view">
                   <ErrorBoundary>
                   <Suspense fallback={<TabLoading />}>
                   {shownTab === 'dashboard' && (

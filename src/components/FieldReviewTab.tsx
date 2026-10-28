@@ -170,6 +170,10 @@ const InputMethodBadge: React.FC<{
   return null;
 };
 
+// Module-level shared cache so switching tabs or sub-menus paints in 0ms without re-fetching
+let memoryEventsCache: FieldEvent[] | null = null;
+let memoryReviewedReady = false;
+
 export const FieldReviewTab: React.FC<Props> = ({
   role,
   branches,
@@ -188,14 +192,22 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [events, setEvents] = useState<FieldEvent[] | null>(() => {
+    if (memoryEventsCache && memoryEventsCache.length > 0) {
+      return memoryEventsCache;
+    }
     try {
       const c = sessionStorage.getItem(CACHE_KEY);
-      return c ? (JSON.parse(c) as FieldEvent[]) : null;
+      if (c) {
+        const parsed = JSON.parse(c) as FieldEvent[];
+        memoryEventsCache = parsed;
+        return parsed;
+      }
     } catch {
-      return null;
+      /* ignore */
     }
+    return null;
   });
-  const [reviewedReady, setReviewedReady] = useState(false);
+  const [reviewedReady, setReviewedReady] = useState(() => memoryReviewedReady);
   const [loadError, setLoadError] = useState('');
   const [live, setLive] = useState(false);
   const [filter, setFilter] = useState<Filter>('PENDING');
@@ -241,28 +253,49 @@ export const FieldReviewTab: React.FC<Props> = ({
     return () => window.clearTimeout(t);
   }, [events]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     setLoadError('');
     try {
-      // Parallel fast fetch with limit 1000 — runs both pending and reviewed simultaneously in ~1s
-      const [pending, reviewed] = await Promise.all([
-        fetchPendingFieldEvents(1000, 0),
-        fetchReviewedFieldEvents(1000, 0),
-      ]);
-      if (!pending && !reviewed) {
-        setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
-        return;
-      }
-      startTransition(() => {
-        setEvents((prev) => {
-          const keepPending = pending ?? (prev || []).filter((e) => e.status === 'PENDING');
-          const keepReviewed = reviewed ?? (prev || []).filter((e) => e.status !== 'PENDING');
-          return [...keepPending, ...keepReviewed];
+      // High-performance 2-stage progressive load:
+      // Initiate both requests concurrently
+      const pendingPromise = fetchPendingFieldEvents(1000, 0, force);
+      const reviewedPromise = fetchReviewedFieldEvents(1000, 0, force);
+
+      // 1. Process waiting records first: display to user in ~100-200ms
+      const pending = await pendingPromise;
+      if (pending) {
+        startTransition(() => {
+          setEvents((prev) => {
+            const keepReviewed = (prev || []).filter((e) => e.status !== 'PENDING');
+            const merged = [...pending, ...keepReviewed];
+            memoryEventsCache = merged;
+            return merged;
+          });
         });
-        setReviewedReady(true);
-      });
+      }
+
+      // 2. Stream historical reviewed records in the background without UI blocking
+      const reviewed = await reviewedPromise;
+      if (reviewed) {
+        startTransition(() => {
+          setEvents((prev) => {
+            const keepPending = pending ?? (prev || []).filter((e) => e.status === 'PENDING');
+            const merged = [...keepPending, ...reviewed];
+            memoryEventsCache = merged;
+            return merged;
+          });
+          setReviewedReady(true);
+          memoryReviewedReady = true;
+        });
+      }
+
+      if (!pending && !reviewed && !memoryEventsCache) {
+        setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
+      }
     } catch {
-      setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
+      if (!memoryEventsCache) {
+        setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
+      }
     }
   }, []);
 
@@ -271,11 +304,13 @@ export const FieldReviewTab: React.FC<Props> = ({
     const unsub = subscribeToFieldEvents((e) => {
       setLive(true);
       setEvents((prev) => {
-        if (!prev) return [e];
+        if (!prev) {
+          memoryEventsCache = [e];
+          return [e];
+        }
         const i = prev.findIndex((x) => x.id === e.id);
-        if (i < 0) return [e, ...prev];
-        const next = prev.slice();
-        next[i] = e;
+        const next = i < 0 ? [e, ...prev] : prev.map((item, idx) => (idx === i ? e : item));
+        memoryEventsCache = next;
         return next;
       });
     });
@@ -406,16 +441,17 @@ export const FieldReviewTab: React.FC<Props> = ({
       SB_MAINT: 0,
       SB_RETURN: 0,
     };
+    const effectiveType = deviceType || typeFilter;
     scoped
       .filter((e) => filter === 'ALL' || e.status === filter)
-      .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
+      .filter((e) => effectiveType === 'ALL' || devType(e) === effectiveType)
       .forEach((e) => {
         c.ALL++;
         if (c[e.kind] !== undefined) c[e.kind]++;
         else c[e.kind] = 1;
       });
     return c;
-  }, [scoped, filter, typeFilter]);
+  }, [scoped, filter, typeFilter, deviceType]);
 
   const typeCounts = useMemo(() => {
     const c = { pos: 0, sb: 0 };
@@ -432,10 +468,11 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const shownBase = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
+    const effectiveType = deviceType || typeFilter;
     return scoped
       .filter((e) => filter === 'ALL' || e.status === filter)
       .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
-      .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
+      .filter((e) => effectiveType === 'ALL' || devType(e) === effectiveType)
       .filter(
         (e) =>
           !q ||
@@ -458,7 +495,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           b.sourceRecordId.localeCompare(a.sourceRecordId) ||
           a.unitNo - b.unitNo
       );
-  }, [scoped, filter, typeFilter, recordTypeFilter, deferredQuery]);
+  }, [scoped, filter, typeFilter, recordTypeFilter, deferredQuery, deviceType]);
 
   const { sorted: shown, sort, toggle: toggleSort } = useSort(shownBase, {
     type: (e) => e.deviceType,
@@ -501,7 +538,12 @@ export const FieldReviewTab: React.FC<Props> = ({
       return n;
     });
   const markDone = (id: number, st: FieldEventStatus) => {
-    setEvents((prev) => prev && prev.map((x) => (x.id === id ? { ...x, status: st } : x)));
+    setEvents((prev) => {
+      if (!prev) return prev;
+      const next = prev.map((x) => (x.id === id ? { ...x, status: st } : x));
+      memoryEventsCache = next;
+      return next;
+    });
     setSelected((p) => {
       if (!p.has(id)) return p;
       const n = new Set(p);
@@ -791,7 +833,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           />
           <button
             type="button"
-            onClick={load}
+            onClick={() => load(true)}
             aria-label="Refresh"
             title="Refresh Phone App Review records"
             className="btn-press p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer transition"
@@ -953,7 +995,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
           <div
             data-page-content
-            key={`${filter}-${typeFilter}-${activeScope}`}
+            key={`${filter}-${deviceType || typeFilter}-${activeScope}`}
             className="divide-y divide-slate-200/90 page-glide-in"
           >
             {visibleRows.map((e, idx) => (
