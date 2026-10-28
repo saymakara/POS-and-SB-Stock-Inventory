@@ -1,9 +1,8 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
-import React, { useState, useMemo, useDeferredValue, useRef } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
 import { createPortal } from 'react-dom';
-import { useFlip } from '../utils/useFlip';
 import { useSort, SortTh } from '../utils/sort';
 import {
   HistoricalMerchantRecord,
@@ -140,11 +139,19 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   const [formNotes, setFormNotes] = useState('');
   const [formError, setFormError] = useState('');
 
-  const deviceBySerial = useMemo(
-    () => new Map<string, Device>(devices.map((d) => [d.serial.trim().toUpperCase(), d])),
-    [devices]
-  );
-  const formDevice = deviceBySerial.get(formSerial.trim().toUpperCase());
+  const formDevice = useMemo(() => {
+    const s = formSerial.trim().toUpperCase();
+    if (!s) return undefined;
+    return devices.find((d) => d.serial.trim().toUpperCase() === s);
+  }, [devices, formSerial]);
+
+  const datalistDevices = useMemo(() => {
+    if (!isLogReturnModalOpen) return [];
+    const q = formSerial.trim().toUpperCase();
+    const scoped = devices.filter((d) => role !== 'BRANCH' || d.branchId === selectedBranch);
+    if (!q) return scoped.slice(0, 50);
+    return scoped.filter((d) => d.serial.toUpperCase().includes(q)).slice(0, 50);
+  }, [devices, isLogReturnModalOpen, formSerial, role, selectedBranch]);
 
   const resetForm = () => {
     setFormMerchantName('');
@@ -251,17 +258,24 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       return true;
     });
   }, [uniqueRecords, role, selectedBranch, branchFilter, typeFilter, reasonFilter, deferredQuery, showFullContact]);
-  const { sorted: filteredRecords, sort: histSort, toggle: histToggle } = useSort<HistoricalMerchantRecord>(matchedRecords, {
-    returned: (r) => r.returnedDate, type: (r) => r.status, merchant: (r) => r.merchantName, mid: (r) => r.mid, serial: (r) => r.serial,
-    branch: (r) => (r.returnedByStaff || r.handledByStaff || '') + (r.branchId || ''), service: (r) => r.activeDurationMonths, reason: (r) => r.returnReason,
-  });
+  const { sorted: filteredRecords, sort: histSort, toggle: histToggle } = useSort<HistoricalMerchantRecord>(
+    matchedRecords,
+    {
+      returned: (r) => `${r.returnedDate || ''}__${r.mid || ''}__${r.serial || ''}__${r.recordId}`,
+      type: (r) => `${r.status || ''}__${r.returnedDate || ''}__${r.recordId}`,
+      merchant: (r) => `${r.merchantName || ''}__${r.returnedDate || ''}__${r.recordId}`,
+      mid: (r) => `${r.mid || ''}__${r.returnedDate || ''}__${r.recordId}`,
+      serial: (r) => `${r.serial || ''}__${r.returnedDate || ''}__${r.recordId}`,
+      branch: (r) => `${r.returnedByStaff || r.handledByStaff || ''}${r.branchId || ''}__${r.returnedDate || ''}__${r.recordId}`,
+      service: (r) => r.activeDurationMonths ?? 0,
+      reason: (r) => `${r.returnReason || ''}__${r.returnedDate || ''}__${r.recordId}`,
+    },
+    { key: 'returned', dir: 'desc' }
+  );
 
-  // Paging: back to page 1 whenever the filters or search change.
-  const pg = usePager(filteredRecords.length, [deferredQuery, branchFilter, typeFilter, reasonFilter]);
+  // Paging: back to page 1 whenever the filters, search or sort change.
+  const pg = usePager(filteredRecords.length, [deferredQuery, branchFilter, typeFilter, reasonFilter, histSort]);
   const pagedRecords = useMemo(() => filteredRecords.slice(pg.start, pg.end), [filteredRecords, pg.start, pg.end]);
-
-  const flipRef = useRef<HTMLTableSectionElement>(null);
-  useFlip(flipRef, [pagedRecords]);
 
   // Analytics KPIs (lifespan averages only records that have a known service length)
   const stats = useMemo(() => {
@@ -648,7 +662,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody ref={flipRef}>
+            <tbody>
               {filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center">
@@ -663,7 +677,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                   const midOk = isValidMid(rec.mid);
                   const officer = rec.returnedByStaff || rec.handledByStaff;
                   return (
-                    <tr key={rec.recordId} data-flip={rec.recordId}>
+                    <tr key={rec.recordId}>
                       <td className="col-no">{pg.start + rowIdx + 1}</td>
                       <td className="whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100/80 text-slate-600 border border-slate-200/90 dark:bg-white/10 dark:text-slate-300 dark:border-white/10 font-mono text-[11px] font-normal">
@@ -1401,13 +1415,11 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         : 'Not in device list — the record is saved, but no stock is moved.'}
                     </div>
                     <datalist id="history-device-serials">
-                      {devices
-                        .filter((d) => role !== 'BRANCH' || d.branchId === selectedBranch)
-                        .map((d) => (
-                          <option key={d.serial} value={d.serial}>
-                            {d.model} • Code {d.branchId}
-                          </option>
-                        ))}
+                      {datalistDevices.map((d) => (
+                        <option key={d.serial} value={d.serial}>
+                          {d.model} • Code {d.branchId}
+                        </option>
+                      ))}
                     </datalist>
                   </div>
                   <div>

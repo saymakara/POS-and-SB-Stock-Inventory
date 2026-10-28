@@ -1026,27 +1026,91 @@ export async function saveRequisitionStrict(req: Requisition, isNew: boolean): P
 export async function deleteDevicesOnServer(serials: string[]): Promise<string> {
   if (!isSupabaseConfigured || !serials.length) return '';
   try {
+    // 1. Proactively refresh auth session if expiring soon to prevent stale token refusal
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session) {
+        const expiresAt = sessionData.session.expires_at || 0;
+        if (expiresAt * 1000 - Date.now() < 120000) {
+          await supabase.auth.refreshSession();
+        }
+      }
+    } catch {}
+
     for (let i = 0; i < serials.length; i += CSV_BATCH_SIZE) {
       const batch = serials.slice(i, i + CSV_BATCH_SIZE);
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('devices')
         .delete()
         .in('serial', batch)
         .select('serial');
 
+      // 2. If token expired or permission error, attempt one token refresh and retry
+      if (
+        error &&
+        ((error as any).code === '42501' ||
+          (error as any).code === 'PGRST301' ||
+          /permission|jwt/i.test(error.message))
+      ) {
+        try {
+          const { data: refData } = await supabase.auth.refreshSession();
+          if (refData?.session) {
+            const retry = await supabase
+              .from('devices')
+              .delete()
+              .in('serial', batch)
+              .select('serial');
+            if (!retry.error) {
+              data = retry.data;
+              error = null;
+            }
+          }
+        } catch {}
+      }
+
       if (error) {
-        throw error;
+        const isPermission =
+          (error as any).code === '42501' ||
+          /permission|policy|privilege/i.test(error.message);
+        const friendly = isPermission
+          ? 'Database refused deletion. Please verify admin permissions.'
+          : friendlyDbError(error.message, batch[0]);
+        await reportCaughtError('deleteDevicesOnServer', error, {
+          target: batch[0],
+          showPopup: !isPermission,
+        });
+        return friendly;
       }
+
+      // 3. If no rows were returned in data, check whether the rows actually still exist on the server
       if (batch.length > 0 && (!data || data.length === 0)) {
-        throw new Error('Database refused deletion. Please verify admin permissions.');
+        try {
+          const { count, error: countErr } = await supabase
+            .from('devices')
+            .select('serial', { count: 'exact', head: true })
+            .in('serial', batch);
+
+          if (!countErr && (count === 0 || count === null)) {
+            // Devices are already absent from the server database — treat as successful deletion
+            continue;
+          }
+        } catch {}
+
+        const permErr = 'Database refused deletion. Please verify admin permissions.';
+        await reportCaughtError('deleteDevicesOnServer', new Error(permErr), {
+          target: batch[0],
+          showPopup: false,
+        });
+        return permErr;
       }
+
       if (i + CSV_BATCH_SIZE < serials.length) {
         await sleep(CSV_BATCH_DELAY_MS);
       }
     }
     return '';
   } catch (err) {
-    await reportCaughtError('deleteDevicesOnServer', err, { target: serials[0] });
+    await reportCaughtError('deleteDevicesOnServer', err, { target: serials[0], showPopup: false });
     return err instanceof Error ? err.message : String((err as any)?.message || 'Network error');
   }
 }
