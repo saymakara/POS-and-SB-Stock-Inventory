@@ -204,7 +204,8 @@ async function api(route) {
   const txt = await p.textContent('body');
   ok(/Phone App Review/.test(txt) && /WP0001/.test(txt) && /WP0002/.test(txt) && /Waiting \(3\)/.test(txt), 'Phone App Review lists the 3 waiting records (one row per MID)');
   const card = (sn) => p.locator('div.border-b', { hasText: sn }).last();
-  ok(/POS Terminal/.test(txt) && await p.isVisible('button:has-text("All devices")') && await p.isVisible('button:has-text("Sound Box (")'), 'type filter: All / POS Terminal / Sound Box');
+  // (28 Oct 2026) the device type is chosen in the menu: Phone App Review → POS Terminal / Sound Box / KHQR
+  ok(/Phone App Review\s*·\s*POS Terminal/.test(txt) && await p.locator('aside').first().getByRole('button', { name: /^Sound Box/ }).isVisible() && await p.locator('aside').first().getByRole('button', { name: /^KHQR/ }).isVisible(), 'sub-menus: POS Terminal / Sound Box / KHQR');
   ok(!/Open the location|Remarks/.test(txt), 'no location link and no remarks in the review cards');
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/review.png' });
   { const order = await p.locator('section[aria-label="Records"] button[aria-expanded]').allTextContents(); ok(/WP0002/.test(order[0] || '') && /WP0001/.test(order[1] || '') && /WP0003/.test(order[2] || ''), 'Phone App Review: newest first (by date and time sent), devices of one entry together ' + JSON.stringify(order)); }

@@ -73,6 +73,7 @@ const LogoPageTab = lazyTab(() => import('./components/LogoPageTab').then((m) =>
 const AuditLogTab = lazyTab(() => import('./components/AuditLogTab').then((m) => ({ default: m.AuditLogTab })));
 const SettingsTab = lazyTab(() => import('./components/SettingsTab').then((m) => ({ default: m.SettingsTab })));
 const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
+const KhqrReviewTab = lazyTab(() => import('./components/KhqrReviewTab').then((m) => ({ default: m.KhqrReviewTab })));
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
 const PushConfiguringTab = lazyTab(() => import('./components/PushConfiguringTab').then((m) => ({ default: m.PushConfiguringTab })));
 
@@ -95,7 +96,9 @@ import {
   fetchHistoricalMerchantsFromSupabase,
   insertHistoricalMerchantToSupabase,
   deleteAllHistoricalMerchantsOnServer,
-  countPendingFieldEvents,
+  countPendingFieldEventsByType,
+  countQrNeedsReview,
+  subscribeToQrEntries,
   fetchAuditLogs,
   subscribeToFieldEvents,
   dispatchRequisitionOnServer,
@@ -151,6 +154,8 @@ const VALID_TABS = new Set([
   'merchants',
   'merchant_history',
   'mobile_sync',
+  'mobile_sync_sb',
+  'mobile_sync_khqr',
   'inventory',
   'push_configuring',
   'requisitions',
@@ -646,6 +651,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [serverReady, setServerReady] = useState<boolean>(false);
   const [serverError, setServerError] = useState<string>('');
   const [pendingFieldCount, setPendingFieldCount] = useState<number>(0);
+  // (28 Oct 2026) Phone App Review sub-menus: waiting POS / Sound Box records and KHQR entries that need review
+  const [pendingByType, setPendingByType] = useState<{ pos: number; sb: number }>({ pos: 0, sb: 0 });
+  const [qrNeedsReview, setQrNeedsReview] = useState<number>(0);
+  const applyPendingByType = useCallback((c: { pos: number; sb: number }) => {
+    setPendingByType((prev) => (prev.pos === c.pos && prev.sb === c.sb ? prev : c));
+    setPendingFieldCount(c.pos + c.sb);
+  }, []);
   const [onlineOperators, setOnlineOperators] = useState<OnlineOperatorPresence[]>([]);
   const [pingMs, setPingMs] = useState<number | null>(null);
   useEffect(() => {
@@ -811,9 +823,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     let unsubscribe: () => void = () => {};
     let unsubscribeField: () => void = () => {};
     const countPending = () =>
-      countPendingFieldEvents().then((n) => {
-        if (alive && n !== null) setPendingFieldCount(n);
+      countPendingFieldEventsByType().then((c) => {
+        if (alive && c !== null) applyPendingByType(c);
       });
+    const countQr = () =>
+      countQrNeedsReview().then((n) => {
+        if (alive && n !== null) setQrNeedsReview(n);
+      });
+    let qrTimer: ReturnType<typeof setTimeout> | null = null;
+    const countQrSoon = () => {
+      if (qrTimer) return;
+      qrTimer = setTimeout(() => { qrTimer = null; countQr(); }, 15000);
+    };
+    let unsubscribeQr: () => void = () => {};
     // (22 Oct 2026) a burst of phone records is counted once, at most every 15 seconds (fewer server requests)
     let countTimer: ReturnType<typeof setTimeout> | null = null;
     const countPendingSoon = () => {
@@ -905,16 +927,20 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       scheduleFlush();
       countPending();
       unsubscribeField = subscribeToFieldEvents(() => countPendingSoon());
+      countQr();
+      unsubscribeQr = subscribeToQrEntries(() => countQrSoon());
     })();
 
     return () => {
       alive = false;
       if (countTimer) clearTimeout(countTimer);
+      if (qrTimer) clearTimeout(qrTimer);
+      unsubscribeQr();
       if (flushHandle !== null) { try { cancelAnimationFrame(flushHandle); } catch { /* not a frame */ } }
       unsubscribe();
       unsubscribeField();
     };
-  }, [reloadFromServer]);
+  }, [reloadFromServer, applyPendingByType]);
 
   // Mobile & Background Resume: Re-sync state when browser tab becomes active or device resumes from sleep
   useEffect(() => {
@@ -3835,7 +3861,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         totalDevices={activeDeviceCount}
         totalMerchants={uniqueMerchantsCount}
         totalHistoricalMerchants={historicalMerchants.length}
-        webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
+        webhookCount={isSupabaseConfigured ? pendingFieldCount + qrNeedsReview : outOfSyncWebhooksCount}
+        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb, khqr: qrNeedsReview } : undefined}
         pendingReqs={pendingReqsCount}
         totalBranches={branches.length}
         totalUsers={users.length}
@@ -4078,7 +4105,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             totalDevices={activeDeviceCount}
             totalMerchants={uniqueMerchantsCount}
             totalHistoricalMerchants={historicalMerchants.length}
-            webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
+            webhookCount={isSupabaseConfigured ? pendingFieldCount + qrNeedsReview : outOfSyncWebhooksCount}
+        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb, khqr: qrNeedsReview } : undefined}
             sseConnected={sseConnected}
             pendingReqs={pendingReqsCount}
             totalUsers={users.length}
@@ -4442,7 +4470,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {shownTab === 'mobile_sync' && isSupabaseConfigured && (
+                  {(shownTab === 'mobile_sync' || shownTab === 'mobile_sync_sb') && isSupabaseConfigured && (
                     <FieldReviewTab
                       role={role}
                       branches={branches}
@@ -4450,14 +4478,23 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       triggerToast={triggerToast}
                       onApplied={() => {
                         // the live feed brings the changed units and history; only the waiting count is asked for
-                        countPendingFieldEvents().then((n) => n !== null && setPendingFieldCount(n));
+                        countPendingFieldEventsByType().then((c) => c !== null && applyPendingByType(c));
                       }}
                       onOpenWorkflow={(sn) => setEditingDeviceSerial(sn)}
                       scope={appSettings.phoneReviewScope || 'PHNOM_PENH'}
-                      onPendingCountChange={(n) => setPendingFieldCount(n)}
+                      onPendingCountChange={applyPendingByType}
+                      deviceType={shownTab === 'mobile_sync_sb' ? 'Sound Box' : 'POS Terminal'}
                     />
                   )}
-                  {shownTab === 'mobile_sync' && !isSupabaseConfigured && (
+                  {shownTab === 'mobile_sync_khqr' && isSupabaseConfigured && (
+                    <KhqrReviewTab
+                      role={role}
+                      branches={branches}
+                      triggerToast={triggerToast}
+                      onNeedsReviewChange={setQrNeedsReview}
+                    />
+                  )}
+                  {(shownTab === 'mobile_sync' || shownTab === 'mobile_sync_sb' || shownTab === 'mobile_sync_khqr') && !isSupabaseConfigured && (
                     <MobileSyncTab
                       devices={devices}
                       branches={branches}

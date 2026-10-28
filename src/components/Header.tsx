@@ -39,7 +39,11 @@ import {
   Search,
   Cpu,
   Volume2,
+  QrCode,
 } from 'lucide-react';
+
+/** (28 Oct 2026) the sub-menus of Phone App Review */
+export type ReviewCounts = { pos: number; sb: number; khqr: number };
 
 interface SidebarProps {
   role?: UserRole;
@@ -49,6 +53,7 @@ interface SidebarProps {
   totalMerchants: number;
   totalHistoricalMerchants?: number;
   webhookCount: number;
+  reviewCounts?: ReviewCounts;
   pendingReqs: number;
   totalBranches?: number;
   totalUsers: number;
@@ -69,6 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   totalMerchants,
   totalHistoricalMerchants,
   webhookCount,
+  reviewCounts,
   pendingReqs,
   totalBranches,
   totalUsers,
@@ -87,6 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       icon: React.ElementType;
       count?: number;
       highlight?: boolean;
+      children?: Array<{ id: string; label: string; icon: React.ElementType; count?: number }>;
     }>;
   }> = [
     {
@@ -113,6 +120,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           icon: Smartphone,
           count: webhookCount > 0 ? webhookCount : undefined,
           highlight: webhookCount > 0,
+          children: [
+            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, count: reviewCounts?.pos },
+            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, count: reviewCounts?.sb },
+            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode, count: reviewCounts?.khqr },
+          ],
         },
       ],
     },
@@ -233,11 +245,13 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               <div className="flex flex-col gap-1 relative">
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const isActive = activeTab === item.id;
+                  const childActive = !!item.children?.some((c) => c.id === activeTab);
+                  const isActive = activeTab === item.id || childActive;
+                  const showChildren = !!item.children && (isMobileView || !collapsed);
 
                   return (
+                    <React.Fragment key={item.id}>
                     <button
-                      key={item.id}
                       type="button"
                       onClick={() => {
                         onSelectTab(item.id);
@@ -280,7 +294,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       </div>
 
                       {/* Subtle Counter Badge (hidden when count is 0 or completely synced) */}
-                      {(isMobileView || !collapsed) && item.count !== undefined && item.count > 0 && (
+                      {(isMobileView || !collapsed) && !showChildren && item.count !== undefined && item.count > 0 && (
                         <span
                           className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-all duration-150 ${
                             isActive
@@ -294,6 +308,46 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         </span>
                       )}
                     </button>
+                    {showChildren && (
+                      <div className="relative ml-[22px] pl-2.5 flex flex-col gap-0.5 border-l border-white/12" role="group" aria-label={`${item.label} sections`}>
+                        {item.children!.map((c) => {
+                          const CI = c.icon;
+                          const on = activeTab === c.id;
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                onSelectTab(c.id);
+                                if (isMobileView) onCloseMobile?.();
+                              }}
+                              aria-current={on ? 'page' : undefined}
+                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[12.5px] cursor-pointer transition-colors duration-150 border ${
+                                on
+                                  ? 'text-white font-medium bg-white/12 border-white/15'
+                                  : 'text-zinc-400 hover:text-white hover:bg-white/[0.06] border-transparent'
+                              }`}
+                            >
+                              <span className="flex items-center gap-2 min-w-0">
+                                <CI className={`w-3.5 h-3.5 shrink-0 ${on ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-200'}`} />
+                                <span className="truncate">{c.label}</span>
+                              </span>
+                              {c.count !== undefined && c.count > 0 && (
+                                <span
+                                  className={`font-figure text-[10px] px-1.5 py-0.5 rounded-full tabular-nums shrink-0 ${
+                                    on ? 'bg-white text-zinc-900 font-bold' : c.id === 'mobile_sync_khqr' ? 'bg-rose-500/85 text-white font-medium' : 'bg-white/15 text-white border border-white/20'
+                                  }`}
+                                  title={c.id === 'mobile_sync_khqr' ? 'Failed Attempt entries not reviewed yet' : 'Records waiting for review'}
+                                >
+                                  {c.count}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    </React.Fragment>
                   );
                 })}
               </div>
@@ -393,6 +447,7 @@ interface HeaderProps {
   totalMerchants: number;
   totalHistoricalMerchants?: number;
   webhookCount: number;
+  reviewCounts?: ReviewCounts;
   sseConnected: boolean;
   pendingReqs: number;
   totalUsers: number;
@@ -412,6 +467,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = React.memo(({
   role,
+  reviewCounts,
   onSetRole,
   branches,
   adminUsers,
@@ -580,7 +636,9 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'merchants', label: 'Merchant Deployment' },
     { id: 'merchant_history', label: 'Merchant History' },
-    { id: 'mobile_sync', label: 'Phone App Review' },
+    { id: 'mobile_sync', label: 'Review · POS' },
+    { id: 'mobile_sync_sb', label: 'Review · Sound Box' },
+    { id: 'mobile_sync_khqr', label: 'Review · KHQR', redPoint: (reviewCounts?.khqr || 0) > 0 },
     { id: 'inventory', label: 'Stock Inventory' },
     { id: 'requisitions', label: 'Stock Requests', redPoint: unreadCount > 0 },
     { id: 'branches', label: 'Branch Codes' },
