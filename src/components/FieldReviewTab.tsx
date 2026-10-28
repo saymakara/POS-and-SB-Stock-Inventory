@@ -45,6 +45,8 @@ type Filter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
 type RecordTypeFilter = 'ALL' | FieldEvent['kind'];
 const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as const;
+/** POS Terminal unless the record says Sound Box (the same rule as the row label) */
+const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
   'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_128px_minmax(150px,1.1fr)_minmax(130px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
@@ -90,7 +92,10 @@ interface Props {
   onOpenWorkflow?: (serial: string) => void;
   /** Settings: show Phnom Penh staff only, or Phnom Penh and regional staff */
   scope?: 'PHNOM_PENH' | 'ALL';
-  onPendingCountChange?: (count: number) => void;
+  /** (28 Oct 2026) the waiting count of each device type (badges of the Phone App Review sub-menus) */
+  onPendingCountChange?: (counts: { pos: number; sb: number }) => void;
+  /** (28 Oct 2026) Phone App Review sub-menu: show one device type only (POS Terminal or Sound Box) */
+  deviceType?: 'POS Terminal' | 'Sound Box';
 }
 
 interface RowOpt {
@@ -174,6 +179,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   onOpenWorkflow,
   scope = 'PHNOM_PENH',
   onPendingCountChange,
+  deviceType,
 }) => {
   const [activeScope, setActiveScope] = useState<'ALL' | 'PHNOM_PENH'>(scope === 'ALL' ? 'ALL' : 'PHNOM_PENH');
   useEffect(() => {
@@ -193,7 +199,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   const [loadError, setLoadError] = useState('');
   const [live, setLive] = useState(false);
   const [filter, setFilter] = useState<Filter>('PENDING');
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>(deviceType || 'ALL');
   const [recordTypeFilter, setRecordTypeFilter] = useState<RecordTypeFilter>('ALL');
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
@@ -207,6 +213,13 @@ export const FieldReviewTab: React.FC<Props> = ({
   const [bulkBusy, setBulkBusy] = useState<'' | 'approve' | 'reject'>('');
   const [bulkReport, setBulkReport] = useState<string[]>([]);
   const [regions, setRegions] = useState<Record<string, string>>({});
+  // the sub-menu decides the device type; the list already loaded is kept (no reload when switching)
+  useEffect(() => {
+    setTypeFilter(deviceType || 'ALL');
+    setSelected(new Set());
+    setOpen(null);
+    setRecordTypeFilter('ALL');
+  }, [deviceType]);
 
   useEffect(() => {
     fetchBranchRegions().then((g) => startTransition(() => setRegions(g)));
@@ -346,27 +359,43 @@ export const FieldReviewTab: React.FC<Props> = ({
   const counts = useMemo(() => {
     const c = { PENDING: 0, APPROVED: 0, REJECTED: 0, ALL: 0 };
     scoped.forEach((e) => {
+      if (deviceType && devType(e) !== deviceType) return;
       c.ALL++;
       if (e.status === 'PENDING' || e.status === 'APPROVED' || e.status === 'REJECTED') c[e.status]++;
     });
     return c;
-  }, [scoped]);
+  }, [scoped, deviceType]);
 
-  // Keep parent badge count synchronized with the active scope's exact waiting count
+  // Keep the sub-menu badges synchronized with the active scope's exact waiting count of each device type
+  const pendingByType = useMemo(() => {
+    const c = { pos: 0, sb: 0 };
+    scoped.forEach((e) => {
+      if (e.status !== 'PENDING') return;
+      if (e.deviceType === 'Sound Box') c.sb++;
+      else c.pos++;
+    });
+    return c;
+  }, [scoped]);
   useEffect(() => {
     if (events && onPendingCountChange) {
-      onPendingCountChange(counts.PENDING);
+      onPendingCountChange(pendingByType);
     }
-  }, [events, counts.PENDING, onPendingCountChange]);
+  }, [events, pendingByType, onPendingCountChange]);
 
   const availableKinds = useMemo(() => {
-    const defaultKinds: FieldEvent['kind'][] = ['INSTALL', 'REPLACE', 'BATTERY', 'SB_MAINT', 'SB_RETURN'];
+    const defaultKinds: FieldEvent['kind'][] =
+      deviceType === 'POS Terminal'
+        ? ['INSTALL', 'REPLACE', 'BATTERY']
+        : deviceType === 'Sound Box'
+        ? ['INSTALL', 'REPLACE', 'SB_MAINT', 'SB_RETURN']
+        : ['INSTALL', 'REPLACE', 'BATTERY', 'SB_MAINT', 'SB_RETURN'];
     const dynamicKinds = new Set<FieldEvent['kind']>(defaultKinds);
     (scoped || []).forEach((e) => {
+      if (deviceType && devType(e) !== deviceType) return;
       if (e.kind) dynamicKinds.add(e.kind);
     });
     return Array.from(dynamicKinds);
-  }, [scoped]);
+  }, [scoped, deviceType]);
 
   const kindCounts = useMemo(() => {
     const c: Record<string, number> = {
@@ -379,7 +408,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     };
     scoped
       .filter((e) => filter === 'ALL' || e.status === filter)
-      .filter((e) => typeFilter === 'ALL' || e.deviceType === typeFilter)
+      .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
       .forEach((e) => {
         c.ALL++;
         if (c[e.kind] !== undefined) c[e.kind]++;
@@ -406,7 +435,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     return scoped
       .filter((e) => filter === 'ALL' || e.status === filter)
       .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
-      .filter((e) => typeFilter === 'ALL' || e.deviceType === typeFilter)
+      .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
       .filter(
         (e) =>
           !q ||
@@ -638,7 +667,9 @@ export const FieldReviewTab: React.FC<Props> = ({
       >
         <div className="flex flex-wrap items-center gap-2">
           <div className="mr-2 flex items-center gap-2">
-            <h2 className="text-sm font-medium text-slate-900">Phone App Review</h2>
+            <h2 className="text-sm font-medium text-slate-900">
+              Phone App Review{deviceType ? <span className="text-slate-500 font-normal"> · {deviceType}</span> : null}
+            </h2>
             <span
               className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90"
               title="New records from the phone app appear here as they are saved"
@@ -694,12 +725,14 @@ export const FieldReviewTab: React.FC<Props> = ({
 
           <span className="hidden sm:block w-px h-5 bg-slate-200 mx-1" aria-hidden />
 
-          {/* Segmented device type tabs */}
-          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1">
-            {typePill('ALL', 'All devices', typeCounts.pos + typeCounts.sb)}
-            {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
-            {typePill('Sound Box', 'Sound Box', typeCounts.sb)}
-          </div>
+          {/* Segmented device type tabs (not shown when a sub-menu has chosen the device type) */}
+          {!deviceType && (
+            <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1">
+              {typePill('ALL', 'All devices', typeCounts.pos + typeCounts.sb)}
+              {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
+              {typePill('Sound Box', 'Sound Box', typeCounts.sb)}
+            </div>
+          )}
 
 
           {/* Scope Toggle: Phnom Penh Staff Only vs All Branches */}
@@ -748,10 +781,10 @@ export const FieldReviewTab: React.FC<Props> = ({
           </div>
           <ClearFiltersButton
             className="!py-1.5"
-            active={!!query || typeFilter !== 'ALL' || filter !== 'PENDING' || recordTypeFilter !== 'ALL'}
+            active={!!query || typeFilter !== (deviceType || 'ALL') || filter !== 'PENDING' || recordTypeFilter !== 'ALL'}
             onClear={() => {
               setQuery('');
-              setTypeFilter('ALL');
+              setTypeFilter(deviceType || 'ALL');
               setFilter('PENDING');
               setRecordTypeFilter('ALL');
             }}

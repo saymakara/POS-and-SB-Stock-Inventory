@@ -1495,6 +1495,23 @@ export async function countPendingFieldEvents(): Promise<number | null> {
   }
 }
 
+/** (28 Oct 2026) waiting records per device type (badges of the Phone App Review sub-menus) */
+export async function countPendingFieldEventsByType(): Promise<{ pos: number; sb: number } | null> {
+  try {
+    const [all, sb] = await Promise.all([
+      supabase.from('field_events').select('id', { count: 'exact', head: true }).eq('status', 'PENDING'),
+      supabase.from('field_events').select('id', { count: 'exact', head: true }).eq('status', 'PENDING').eq('device_type', 'Sound Box'),
+    ]);
+    if (all.error) throw all.error;
+    if (sb.error) throw sb.error;
+    const s = sb.count || 0;
+    return { pos: Math.max(0, (all.count || 0) - s), sb: s };
+  } catch (err) {
+    await reportCaughtError('countPendingFieldEventsByType', err, { showPopup: false });
+    return null;
+  }
+}
+
 export function subscribeToFieldEvents(onChange: (e: FieldEvent) => void): () => void {
   if (!isSupabaseConfigured) return () => {};
   const channel = supabase
@@ -1542,6 +1559,217 @@ export async function rejectFieldEvent(id: number, note: string): Promise<void> 
     await reportCaughtError('rejectFieldEvent', err, { target: String(id) });
     throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
   }
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * (28 Oct 2026) KHQR entries from the Merchant Visit phone app: New Installation and QR Replacement.
+ * Written only by the phone app's server (qr_submit); the dashboard reads them page by page (50 or 100 rows, newest
+ * first) and an HQ admin reviews the Failed Attempt entries (qr_review).
+ * ------------------------------------------------------------------------------------------------------------------- */
+export type QrActivity = 'NEW_INSTALLATION' | 'QR_REPLACEMENT';
+export type QrReviewStatus = 'PENDING' | 'CHECKED' | 'ESCALATED';
+export interface QrMismatch {
+  at?: string;
+  expectedMid?: string;
+  gotMid?: string;
+  gotName?: string;
+}
+export interface QrEntry {
+  id: number;
+  recordId: string;
+  activity: QrActivity;
+  staffId: string;
+  staffName: string;
+  branchText: string;
+  branchId: string | null;
+  merchantName: string;
+  merchantNameKh: string;
+  mid: string;
+  qrExpected: number;
+  qrCount: number;
+  failedAttempts: number;
+  status: 'COMPLETED' | 'FAILED_ATTEMPT';
+  attempts: QrMismatch[];
+  latitude: number | null;
+  longitude: number | null;
+  gpsAccuracy: number | null;
+  remark: string;
+  photoCount: number;
+  telegramLink: string;
+  appVersion: string;
+  capturedAt: string | null;
+  submittedAt: string;
+  reviewStatus: QrReviewStatus;
+  reviewedByName: string;
+  reviewedAt: string | null;
+  reviewNote: string;
+}
+export interface QrSummary {
+  total: number;
+  completed: number;
+  failed: number;
+  needsReview: number;
+  install: number;
+  replace: number;
+  qr: number;
+}
+export const QR_ACTIVITY_LABEL: Record<QrActivity, string> = {
+  NEW_INSTALLATION: 'New Installation',
+  QR_REPLACEMENT: 'QR Replacement',
+};
+
+const QR_COLUMNS =
+  'id,record_id,activity,staff_id,staff_name,branch_text,branch_id,merchant_name,merchant_name_kh,mid,qr_expected,qr_count,' +
+  'failed_attempts,status,attempts,latitude,longitude,gps_accuracy,remark,photo_count,telegram_link,app_version,captured_at,' +
+  'submitted_at,review_status,reviewed_by_name,reviewed_at,review_note';
+
+const num = (v: any): number | null => (v === null || v === undefined || v === '' || isNaN(Number(v)) ? null : Number(v));
+export function mapQrEntry(r: any): QrEntry {
+  const attempts = Array.isArray(r.attempts) ? r.attempts : [];
+  return {
+    id: Number(r.id),
+    recordId: r.record_id || '',
+    activity: r.activity === 'QR_REPLACEMENT' ? 'QR_REPLACEMENT' : 'NEW_INSTALLATION',
+    staffId: r.staff_id || '',
+    staffName: r.staff_name || '',
+    branchText: r.branch_text || '',
+    branchId: r.branch_id ?? null,
+    merchantName: r.merchant_name || '',
+    merchantNameKh: r.merchant_name_kh || '',
+    mid: r.mid || '',
+    qrExpected: Number(r.qr_expected) || 0,
+    qrCount: Number(r.qr_count) || 0,
+    failedAttempts: Number(r.failed_attempts) || 0,
+    status: Number(r.failed_attempts) > 0 ? 'FAILED_ATTEMPT' : 'COMPLETED',
+    attempts: attempts.map((a: any) => ({
+      at: a?.at || undefined,
+      expectedMid: a?.expected_mid || a?.expected || undefined,
+      gotMid: a?.got_mid || a?.got || undefined,
+      gotName: a?.got_name || a?.gotName || undefined,
+    })),
+    latitude: num(r.latitude),
+    longitude: num(r.longitude),
+    gpsAccuracy: num(r.gps_accuracy),
+    remark: r.remark || '',
+    photoCount: Number(r.photo_count) || 0,
+    telegramLink: r.telegram_link || '',
+    appVersion: r.app_version || '',
+    capturedAt: r.captured_at || null,
+    submittedAt: r.submitted_at,
+    reviewStatus: (['PENDING', 'CHECKED', 'ESCALATED'].includes(r.review_status) ? r.review_status : 'PENDING') as QrReviewStatus,
+    reviewedByName: r.reviewed_by_name || '',
+    reviewedAt: r.reviewed_at || null,
+    reviewNote: r.review_note || '',
+  };
+}
+
+export interface QrQuery {
+  from?: string | null;        // ISO, inclusive
+  to?: string | null;          // ISO, exclusive
+  status?: 'ALL' | 'COMPLETED' | 'FAILED_ATTEMPT' | 'NEEDS_REVIEW';
+  activity?: 'ALL' | QrActivity;
+  branchId?: string;
+  review?: 'ALL' | QrReviewStatus;
+  search?: string;
+}
+
+function applyQrFilters(q: any, p: QrQuery) {
+  let query = q;
+  if (p.from) query = query.gte('submitted_at', p.from);
+  if (p.to) query = query.lt('submitted_at', p.to);
+  if (p.status === 'COMPLETED') query = query.eq('failed_attempts', 0);
+  else if (p.status === 'FAILED_ATTEMPT') query = query.gt('failed_attempts', 0);
+  else if (p.status === 'NEEDS_REVIEW') query = query.gt('failed_attempts', 0).eq('review_status', 'PENDING');
+  if (p.activity && p.activity !== 'ALL') query = query.eq('activity', p.activity);
+  if (p.branchId) query = query.eq('branch_id', p.branchId);
+  if (p.review && p.review !== 'ALL') query = query.eq('review_status', p.review);
+  const term = (p.search || '').trim().replace(/[,()%*\\]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (term) {
+    if (/^\d{15}$/.test(term)) query = query.eq('mid', term);                       // a full MID: the index is used
+    else if (/^\d{4,14}$/.test(term)) query = query.like('mid', `%${term}%`);
+    else query = query.or(`merchant_name.ilike.%${term}%,merchant_name_kh.ilike.%${term}%,record_id.ilike.%${term}%,staff_name.ilike.%${term}%,staff_id.ilike.%${term}%`);
+  }
+  return query;
+}
+
+/** One page of KHQR entries, newest first. The total counts the same filters. */
+export async function fetchQrEntriesPage(p: QrQuery & { page?: number; pageSize?: number }): Promise<PaginatedResult<QrEntry>> {
+  const pageSize = p.pageSize === 100 ? 100 : 50;
+  const page = Math.max(1, p.page || 1);
+  const offset = (page - 1) * pageSize;
+  try {
+    const q = applyQrFilters(supabase.from('qr_installations').select(QR_COLUMNS, { count: 'exact' }), p)
+      .order('submitted_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    const { data, count, error } = await q;
+    if (error) throw error;
+    return { rows: (data || []).map(mapQrEntry), total: count || 0, page, pageSize };
+  } catch (err) {
+    await reportCaughtError('fetchQrEntriesPage', err, { showPopup: false });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
+/** Totals of a period (one request; the reader's branch rules apply). */
+export async function fetchQrSummary(from: string | null, to: string | null): Promise<QrSummary | null> {
+  try {
+    const { data, error } = await supabase.rpc('qr_summary', { p_from: from, p_to: to });
+    if (error) throw error;
+    const d: any = data || {};
+    return {
+      total: Number(d.total) || 0,
+      completed: Number(d.completed) || 0,
+      failed: Number(d.failed) || 0,
+      needsReview: Number(d.needs_review) || 0,
+      install: Number(d.install) || 0,
+      replace: Number(d.replace) || 0,
+      qr: Number(d.qr) || 0,
+    };
+  } catch (err) {
+    await reportCaughtError('fetchQrSummary', err, { showPopup: false });
+    return null;
+  }
+}
+
+/** Failed Attempt entries not reviewed yet (the menu badge). */
+export async function countQrNeedsReview(): Promise<number | null> {
+  try {
+    const { count, error } = await supabase
+      .from('qr_installations')
+      .select('id', { count: 'exact', head: true })
+      .gt('failed_attempts', 0)
+      .eq('review_status', 'PENDING');
+    if (error) throw error;
+    return count || 0;
+  } catch (err) {
+    await reportCaughtError('countQrNeedsReview', err, { showPopup: false });
+    return null;
+  }
+}
+
+export async function reviewQrEntry(id: number, status: QrReviewStatus, note: string): Promise<void> {
+  try {
+    const { error } = await supabase.rpc('qr_review', { p_id: id, p_status: status, p_note: note || null });
+    if (error) throw error;
+  } catch (err) {
+    await reportCaughtError('reviewQrEntry', err, { target: String(id) });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
+/** New entries and review changes, live. */
+export function subscribeToQrEntries(onChange: (e: QrEntry) => void): () => void {
+  if (!isSupabaseConfigured) return () => {};
+  const channel = supabase
+    .channel(channelName('qr_installations_feed'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'qr_installations' }, (payload) => {
+      if (payload.new && (payload.new as any).id) onChange(mapQrEntry(payload.new));
+    })
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 export interface StaffAccount {
