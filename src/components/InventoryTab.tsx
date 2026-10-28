@@ -443,7 +443,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
 
   const handleOpenBulkDelete = () => {
-    if (!selectedSns.length || role !== 'SUPER_ADMIN') return;
+    if (!selectedSns.length || !isAdminLike) return;
     setPendingBulkAction({
       type: 'DELETE',
       title: 'Delete Permanently from the Shared Database',
@@ -466,7 +466,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const handleConfirmBulkAction = () => {
     if (!pendingBulkAction) return;
 
-    if (pendingBulkAction.type === 'DELETE' && role !== 'SUPER_ADMIN') {
+    if (pendingBulkAction.type === 'DELETE' && !isAdminLike) {
       setPendingBulkAction(null);
       return;
     }
@@ -1288,7 +1288,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     </button>
                   )}
 
-                  {role === 'SUPER_ADMIN' && onDeletePermanently && (
+                  {isAdminLike && onDeletePermanently && (
                     <button
                       onClick={handleOpenBulkDelete}
                       className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
@@ -1300,7 +1300,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 </>
               ) : !isAdminLike ? null : (
                 <>
-                {role === 'SUPER_ADMIN' && onDeletePermanently && (
+                {isAdminLike && onDeletePermanently && (
                   <button
                     onClick={handleOpenBulkDelete}
                     className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"

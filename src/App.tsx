@@ -2364,14 +2364,33 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     triggerToast(`Removed ${serials.length} unit(s) from active dashboard`);
   };
 
-  // (22 Oct 2026) super admin only: remove units for good (the database refuses anyone else)
+  // Admin & Super Admin: remove units for good
   const handleDeletePermanently = (serials: string[]) => {
-    if (role !== 'SUPER_ADMIN') { triggerToast('Only the Super Admin can delete units permanently.'); return; }
+    const isAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
+    if (!isAdmin) {
+      triggerToast('Only administrators can delete units permanently.');
+      return;
+    }
     const gone = new Set(serials);
     const names = serials.slice(0, 20).join(', ') + (serials.length > 20 ? '…' : '');
     const finish = () => {
-      setDevices((prev) => prev.filter((d) => !gone.has(d.serial)));
-      serials.forEach((sn) => syncedDevices.current.delete(sn));
+      setDevices((prev) => {
+        const next = prev.filter((d) => !gone.has(d.serial));
+        saveFullSnapshotToIdb({ devices: next }).catch(() => {});
+        return next;
+      });
+      serials.forEach((sn) => {
+        syncedDevices.current.delete(sn);
+      });
+      setServerDeviceTotal((prev) => (typeof prev === 'number' ? Math.max(0, prev - serials.length) : null));
+      const effectiveBranch = branchFilter !== 'ALL' ? branchFilter : undefined;
+      fetchDeviceStageCountsFromSupabase(effectiveBranch).then((summary) => {
+        if (summary) {
+          setServerStageSummary(summary);
+          try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(summary)); } catch {}
+          setServerDeviceTotal(summary.all + summary.archived);
+        }
+      });
       addAuditLog('Units Deleted Permanently', `Deleted ${serials.length} serial(s): ${names}`);
       triggerToast(`Deleted ${serials.length} unit(s) permanently`);
     };

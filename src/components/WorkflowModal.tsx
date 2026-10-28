@@ -1658,7 +1658,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 isLight ? 'border-slate-100' : 'border-slate-800/80'
               }`}
             >
-              {role === 'SUPER_ADMIN' && onDeletePermanently && device && (
+              {(role === 'SUPER_ADMIN' || role === 'ADMIN') && onDeletePermanently && device && (
                 <button
                   type="button"
                   onClick={() => {
