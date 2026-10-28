@@ -32,16 +32,16 @@
 
 :root {
   /* Enterprise-Banking Timing & Easing Design Tokens */
-  --duration-instant: 75ms;   /* micro-taps, active click depression */
-  --duration-fast: 140ms;     /* hover states, focus rings, dropdown pops, tooltips */
-  --duration-normal: 220ms;   /* modals, drawers, expandables, state changes */
-  --duration-smooth: 280ms;   /* view-transitions, page glides, list transitions */
+  --duration-instant: 120ms;  /* 100–150ms: micro-taps, active click depression, tooltips */
+  --duration-fast: 180ms;     /* 150–200ms: hover states, focus rings, dropdown pops */
+  --duration-normal: 240ms;   /* 200–300ms: standard transitions, accordions, tabs, modals */
+  --duration-smooth: 300ms;   /* 250–350ms: larger panels, overlays, page glides */
 
-  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);  /* swift, calm deceleration (no bounce) */
-  --ease-press: cubic-bezier(0.32, 0.72, 0, 1);     /* organic physical release */
-  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);    /* restrained, zero-overshoot spring */
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);           /* calm enter */
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);            /* subtle exit */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);    /* standard easing: natural, fluid deceleration */
+  --ease-press: cubic-bezier(0.32, 0.72, 0, 1);    /* tactile organic release */
+  --ease-spring: cubic-bezier(0.2, 0, 0, 1);      /* restrained, zero-overshoot spring */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);          /* enter easing */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);           /* exit easing */
 
   --ease-snappy: var(--ease-standard);
   --ease-apple-spring: var(--ease-standard);
@@ -671,8 +671,20 @@ button:hover:not(:disabled),
 
 /* Whoever asked the device for less motion gets none */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
-  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+    animation: none !important;
+  }
+  .modal-glide, .row-in, .page-glide-in, .apple-tab-panel, .btn-press, .vt-glide-in {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+  }
 }
 
 /* (22 Oct 2026) figures in cards and counters: the normal font with even-width digits, so 0 is a plain zero
