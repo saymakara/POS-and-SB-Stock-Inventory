@@ -230,7 +230,7 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   body = await p.textContent('body');
   ok(!(await p.isVisible('text=Admin HQ Stock')) && !(await p.isVisible('text=Branch Code 100 Vault')), 'KHQR page: the stock cards are gone');
   const stats = (await p.textContent('[aria-label="KHQR statistics"]')).replace(/\s+/g, ' ');
-  ok(/KHQR entries\s*120/.test(stats) && /QR materials\s*240/.test(stats) && /Completed\s*108/.test(stats) && /Failed Attempt\s*19\s*12 entries affected/.test(stats) && !/Restricted/.test(stats) && /Staff involved\s*3/.test(stats),
+  ok(/KHQR entries\s*120/.test(stats) && /QR materials\s*240/.test(stats) && !/Completed/.test(stats) && /Failed Attempt\s*19\s*Submit blocked/.test(stats) && !/Restricted/.test(stats) && /Staff involved\s*3/.test(stats),
     'KHQR statistics only: entries, QR, completed, failed attempt entries, restricted submits, staff', stats.slice(0, 400));
   ok(!/Needs review|Mark as checked|Escalate/i.test(body), 'no approval step anywhere');
   const st = await p.locator('[aria-label="Failed attempts by staff"] .divide-y > button').allTextContents();
@@ -253,13 +253,13 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   ok(log.length === 1 && /Ouk Sophea/.test(log[0]) && state.calls.some(c => /qr_attempts.*staff_id=eq\.27225/.test(c)) && /Staff: Ouk Sophea/.test(await p.textContent('main')), 'tap a staff member → their failed attempts (even with no saved entry)');
   await p.getByRole('button', { name: 'Clear filters' }).click(); await sleep(800);
   await p.getByRole('tab', { name: /KHQR entries/ }).click(); await sleep(800);
-  await p.getByRole('button', { name: /^Failed Attempt/ }).last().click(); await sleep(1500);
+  const et = await p.textContent('main');
+  ok(!(await p.getByRole('button', { name: /^Completed/ }).count()) && !/Completed \(/.test(et) && !(await p.locator('[aria-label="KHQR entries"] >> text=Failed Attempt (').count()), 'KHQR entries: no Completed / Failed Attempt split (every entry is a request)');
   await p.locator('[aria-label="KHQR entries"] [data-page-content] > div > button').first().click(); await sleep(800);
   const det = await p.textContent('[aria-label="KHQR entries"]');
-  ok(/Wrong MID 200100000000999 \(OTHER SHOP\)/.test(det) && /Submit blocked: MID did not match/.test(det) && /on Telegram/.test(det), 'details: the wrong MID, Telegram post');
+  ok(/on Telegram/.test(det) && /Phnom Penh · Tuol Kouk/.test(det) && !/Failed attempts \(/.test(det), 'details: location, Telegram post (no failed-attempt box)');
   await p.screenshot({ path: '/tmp/claude-0/t/d2_open.png' });
-  await p.getByRole('button', { name: 'Clear filters' }).click(); await sleep(1500);
-  ok(/Showing 1–50 of 120/.test(await p.textContent('main')), 'Clear filters → back to all');
+  ok(/Showing 1–50 of 120/.test(await p.textContent('main')), 'Clear filters → back to all 120 entries');
   await p.fill('input[aria-label="Search KHQR entries"]', '200100000000077'); await sleep(1500);
   ok((await p.locator('[aria-label="KHQR entries"] [data-page-content] > div').count()) === 1 && state.calls.some(c => /mid=eq\.200100000000077/.test(c)), 'search by a full MID');
   ok(!errs.length, 'no page errors ' + errs.join(' | '));

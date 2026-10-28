@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, RefreshCw, ChevronDown, MapPin, AlertTriangle, CheckCircle2, Loader2, Send, QrCode, Sparkles, UserX } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, MapPin, CheckCircle2, Loader2, Send, QrCode, Sparkles, UserX } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { Pager } from './Pager';
@@ -20,20 +20,14 @@ import {
  */
 
 type Period = 'TODAY' | '7D' | 'MONTH' | '3M' | 'ALL';
-type StatusFilter = NonNullable<QrQuery['status']>;
 const PERIOD_LABEL: Record<Period, string> = {
   TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', '3M': 'Last 3 months', ALL: 'All time',
 };
-const STATUS_TABS: Array<{ v: StatusFilter; label: string }> = [
-  { v: 'ALL', label: 'All' },
-  { v: 'FAILED_ATTEMPT', label: 'Failed Attempt' },
-  { v: 'COMPLETED', label: 'Completed' },
-];
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(190px,1.4fr)_56px_minmax(150px,1fr)_minmax(130px,0.8fr)_150px_20px]';
+  'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
 const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
-const SGRID = 'grid items-center gap-x-3 grid-cols-[44px_minmax(170px,1.2fr)_minmax(130px,1fr)_110px_120px_150px_minmax(220px,1.3fr)]';
+const SGRID = 'grid items-center gap-x-3 grid-cols-[44px_minmax(170px,1.2fr)_minmax(130px,1fr)_120px_160px_minmax(180px,1fr)]';
 
 /** Start of a period in Phnom Penh time (UTC+7), as ISO. */
 function periodFrom(p: Period): string | null {
@@ -50,7 +44,6 @@ function periodFrom(p: Period): string | null {
 
 const isMissingTable = (msg: string) => /qr_installations|qr_summary|qr_staff_failures|PGRST20[25]|does not exist|schema cache/i.test(msg);
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
-const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : '0.0%');
 
 interface Props {
   role: UserRole;
@@ -61,7 +54,6 @@ interface Props {
 export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [period, setPeriod] = useState<Period>('MONTH');
-  const [status, setStatus] = useState<StatusFilter>('ALL');
   const [activity, setActivity] = useState<'ALL' | QrActivity>('ALL');
   const [branchId, setBranchId] = useState('');
   const [staffSel, setStaffSel] = useState<{ id: string; name: string } | null>(null);
@@ -86,9 +78,10 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const [logKey, setLogKey] = useState(0);                            // reloads the failed attempts log
 
   const from = useMemo(() => periodFrom(period), [period]);
-  const filters = useMemo<QrQuery>(() => ({ from, status, activity, branchId: branchId || undefined, staffId: staffSel?.id || undefined, search }),
-    [from, status, activity, branchId, staffSel, search]);
-  const pg = usePager(total, [from, status, activity, branchId, staffSel, search]);
+  // (28 Oct 2026) every KHQR entry is a request: no Completed / Failed Attempt split (failed attempts: the log)
+  const filters = useMemo<QrQuery>(() => ({ from, activity, branchId: branchId || undefined, staffId: staffSel?.id || undefined, search }),
+    [from, activity, branchId, staffSel, search]);
+  const pg = usePager(total, [from, activity, branchId, staffSel, search]);
   const page = pg.page, pageSize = pg.pageSize;
 
   // the statistics and the staff table follow the period only (one request each)
@@ -136,8 +129,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
     return () => { unsub(); clearTimeout(t); if (statTimer) clearTimeout(statTimer); };
   }, [loadStats]);
 
-  const filtersActive = !!query || status !== 'ALL' || activity !== 'ALL' || !!branchId || !!staffSel || period !== 'MONTH';
-  const clearAll = () => { setQuery(''); setSearch(''); setStatus('ALL'); setActivity('ALL'); setBranchId(''); setStaffSel(null); setPeriod('MONTH'); };
+  const filtersActive = !!query || activity !== 'ALL' || !!branchId || !!staffSel || period !== 'MONTH';
+  const clearAll = () => { setQuery(''); setSearch(''); setActivity('ALL'); setBranchId(''); setStaffSel(null); setPeriod('MONTH'); };
   const branchOptions = useMemo(
     () => [...branches].sort((a, b) => String(a.code || a.id).localeCompare(String(b.code || b.id), undefined, { numeric: true })),
     [branches]
@@ -191,13 +184,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             The KHQR tables are not set up in the database yet. Apply the migration <span className="font-mono text-xs">20261028_02_khqr_installation.sql</span>, then refresh.
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
             <Kpi label="KHQR entries" value={summary?.total} sub={summary ? `${summary.install.toLocaleString()} new · ${summary.replace.toLocaleString()} replaced` : ''} />
             <Kpi label="QR materials" value={summary?.qr} sub={summary && summary.total ? `${(summary.qr / summary.total).toFixed(1)} per entry` : PERIOD_LABEL[period]} />
-            <Kpi label="Completed" value={summary?.completed} sub={summary ? `${pct(summary.completed, summary.total)} of entries` : ''} tone="good"
-              onClick={() => { setView('entries'); setStatus('COMPLETED'); }} />
             {/* (3.50) every blocked Submit tap is one failed attempt */}
-            <Kpi label="Failed Attempt" value={summary?.attempts} sub={summary ? `${summary.failed.toLocaleString()} entries affected` : ''} tone={summary?.attempts ? 'bad' : undefined}
+            <Kpi label="Failed Attempt" value={summary?.attempts} sub="Submit blocked · MID did not match" tone={summary?.attempts ? 'bad' : undefined}
               onClick={() => { setView('log'); setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }} />
             <Kpi label="Staff involved" value={summary?.staffFailed} sub="with failed attempts" tone={summary?.staffFailed ? 'bad' : undefined} />
           </div>
@@ -218,7 +209,6 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               <span>Staff</span>
               <span>Branch</span>
               <span className="text-right">Failed attempts</span>
-              <span className="text-right">Entries affected</span>
               <span>Last failed attempt</span>
               <span>Last wrong MID</span>
             </div>
@@ -244,9 +234,6 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
                   </span>
                   <span className="truncate">{s.branchText || '—'}</span>
                   <span className="text-right tabular-nums font-semibold text-rose-700">{s.attempts.toLocaleString()}</span>
-                  <span className="text-right tabular-nums">
-                    {s.entriesFailed.toLocaleString()}<span className="text-slate-400"> / {s.entries.toLocaleString()}</span>
-                  </span>
                   <span className="tabular-nums">{fmt(s.lastAt)}</span>
                   <span className="text-[11.5px] leading-tight">
                     {s.lastGotMid ? (
@@ -293,38 +280,6 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               );
             })}
           </div>
-          {view === 'entries' && (
-          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1">
-            {STATUS_TABS.map((t) => {
-              const active = status === t.v;
-              const n = summary ? (t.v === 'ALL' ? summary.total : t.v === 'FAILED_ATTEMPT' ? summary.failed : summary.completed) : null;
-              return (
-                <button
-                  key={t.v}
-                  type="button"
-                  onClick={() => setStatus(t.v)}
-                  aria-pressed={active}
-                  className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
-                    active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {active && (
-                    <motion.div layoutId="qr-status-pill" aria-hidden className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs" transition={SPRING} />
-                  )}
-                  <span className="relative z-10 flex items-center gap-1.5">
-                    {t.v === 'FAILED_ATTEMPT' && <span className={`w-2 h-2 rounded-full ${active ? 'bg-rose-300' : 'bg-rose-500'}`} aria-hidden />}
-                    <span>{t.label}</span>
-                    {n !== null && (
-                      <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md ${active ? 'bg-white/20 text-white font-bold' : 'bg-slate-200/60 text-slate-500'}`}>
-                        ({n.toLocaleString()})
-                      </span>
-                    )}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          )}
           <select
             value={activity}
             onChange={(e) => setActivity(e.target.value as 'ALL' | QrActivity)}
@@ -404,7 +359,6 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             <span className="text-center">QR</span>
             <span>Staff / Branch</span>
             <span>Location</span>
-            <span>Status</span>
             <span />
           </div>
 
@@ -546,13 +500,11 @@ const Kpi: React.FC<{ label: string; value: number | undefined; sub: string; ton
 };
 
 const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: number; open: boolean; onToggle: () => void }) {
-  const failed = e.failedAttempts > 0;
   const mapUrl = e.latitude !== null && e.longitude !== null ? `https://www.google.com/maps?q=${e.latitude},${e.longitude}` : '';
   const place = [e.location, e.khan].filter(Boolean).join(' · ');
   return (
-    <div className={failed ? 'bg-rose-50/50 hover:bg-rose-50' : 'hover:bg-slate-50'}>
+    <div className="hover:bg-slate-50">
       <button type="button" onClick={onToggle} aria-expanded={open} className={`${GRID} w-full text-left px-3.5 py-2.5 text-[12.5px] text-slate-700 cursor-pointer relative`}>
-        {failed && <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-rose-500" />}
         <span className="text-right tabular-nums text-slate-500">{no}</span>
         <span className="leading-tight">
           <span className="block tabular-nums">{fmt(e.submittedAt)}</span>
@@ -569,24 +521,13 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
           <span className="block text-[11px] text-slate-500 truncate">{e.branchText || e.branchId || '—'}</span>
         </span>
         <span className="truncate" title={place}>{place || '—'}</span>
-        <span>
-          {failed ? (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border bg-rose-50 text-rose-700 border-rose-200">
-              <AlertTriangle className="w-3 h-3" /> Failed Attempt ({e.failedAttempts})
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
-              <CheckCircle2 className="w-3 h-3" /> Completed
-            </span>
-          )}
-        </span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
       </button>
 
       <AnimatePresence initial={false}>
         {open && (
           <motion.div key="d" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={SPRING} className="overflow-hidden">
-            <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-3 text-[12.5px] text-slate-700">
+            <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[12.5px] text-slate-700">
               <div className="space-y-1.5">
                 <Detail k="Record ID" v={<span className="font-mono">{e.recordId}</span>} />
                 <Detail k="Merchant" v={<>{e.merchantName}{e.merchantNameKh && <span className="block text-slate-500">{e.merchantNameKh}</span>}</>} />
@@ -615,29 +556,6 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
                   ) : `${e.photoCount} (Telegram post not linked)`}
                 />
                 <Detail k="App version" v={e.appVersion || '—'} />
-              </div>
-              <div>
-                {failed ? (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2">
-                    <div className="text-[11px] uppercase tracking-wider text-rose-700 font-medium mb-1">Failed attempts ({e.failedAttempts})</div>
-                    <div className="text-[11.5px] text-rose-800 mb-1">Submit blocked: MID did not match.</div>
-                    {e.attempts.length ? (
-                      <ol className="space-y-1">
-                        {e.attempts.map((a, i) => (
-                          <li key={i} className="text-[12px] text-rose-900 leading-snug">
-                            <span className="tabular-nums text-rose-700">{a.at ? stampSecPP(new Date(a.at)) : '—'}</span>{' '}
-                            Wrong MID <span className="font-mono">{a.gotMid || '?'}</span>
-                            {a.gotName ? ` (${a.gotName})` : ''}
-                          </li>
-                        ))}
-                      </ol>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[12px] text-emerald-800">
-                    No failed attempt.
-                  </div>
-                )}
               </div>
             </div>
           </motion.div>
