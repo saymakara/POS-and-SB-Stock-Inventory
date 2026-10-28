@@ -251,8 +251,8 @@ export const StaffAccountsTab: React.FC<{
     <div className="flex flex-col gap-4 apple-tab-panel">
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#003857] text-white flex items-center justify-center shrink-0">
-            <UserCog className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/80 text-slate-300 flex items-center justify-center shrink-0">
+            <UserCog className="w-5 h-5 text-slate-300" />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">

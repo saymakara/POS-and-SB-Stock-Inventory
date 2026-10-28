@@ -286,8 +286,8 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
         className={`${cardClass} p-4 flex flex-col md:flex-row md:items-center justify-between gap-3`}
       >
         <div className="flex items-start sm:items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#003857]/15 text-[#003857] dark:text-[#5cc8ff] flex items-center justify-center shrink-0">
-            {serverMode ? <Server className="w-5 h-5" aria-hidden="true" /> : <History className="w-5 h-5" aria-hidden="true" />}
+          <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/80 text-slate-300 flex items-center justify-center shadow-sm shrink-0">
+            {serverMode ? <Server className="w-5 h-5 text-slate-300" aria-hidden="true" /> : <History className="w-5 h-5 text-slate-300" aria-hidden="true" />}
           </div>
           <div>
             <div className="flex items-center flex-wrap gap-2">
