@@ -351,8 +351,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         {/* Controls Header */}
         <div className="p-4 sm:p-5 border-b border-slate-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white">
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/80 text-slate-300 flex items-center justify-center shadow-xs shrink-0">
-              <Building2 className="w-5 h-5 text-slate-300" />
+            <div className="w-10 h-10 rounded-xl bg-[#003857] text-white flex items-center justify-center shadow-xs shrink-0">
+              <Building2 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
