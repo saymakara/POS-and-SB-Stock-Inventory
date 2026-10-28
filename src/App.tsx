@@ -32,7 +32,6 @@ import { canMove, moveError, statusOf, onMove } from './utils/stages';
 import { csvFile } from './utils/csv';
 import { deduplicateStaffList, normalizeStaffName, resolveStaffFromDirectory, getStaffAliases } from './utils/staffUtils';
 import { tidFromMid } from './utils/tid';
-import { TraceModal } from './components/TraceModal';
 import { SaveGuard, throttled, watchNewVersion } from './utils/saveGuard';
 import { phoneFor } from './utils/privacy';
 import type { MerchantBindPayload } from './components/MerchantsCrmTab';
@@ -41,16 +40,19 @@ import { PipelineBar } from './components/PipelineBar';
 import { KpiCards } from './components/KpiCards';
 import { DashboardTab } from './components/DashboardTab';
 import { InventoryTab } from './components/InventoryTab';
-import { WorkflowModal } from './components/WorkflowModal';
-import { ChangeBatteryModal } from './components/ChangeBatteryModal';
-import { ExportDataModal } from './components/ExportDataModal';
-import { BatchUploadModal } from './components/BatchUploadModal';
-import { RequestStockModal } from './components/RequestStockModal';
-import { SessionLockModal } from './components/SessionLockModal';
 import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { motion, AnimatePresence } from 'motion/react';
+
+// Modals are code-split & lazy-loaded on demand to keep the initial JavaScript bundle lean
+const TraceModal = React.lazy(() => import('./components/TraceModal').then((m) => ({ default: m.TraceModal })));
+const WorkflowModal = React.lazy(() => import('./components/WorkflowModal').then((m) => ({ default: m.WorkflowModal })));
+const ChangeBatteryModal = React.lazy(() => import('./components/ChangeBatteryModal').then((m) => ({ default: m.ChangeBatteryModal })));
+const ExportDataModal = React.lazy(() => import('./components/ExportDataModal').then((m) => ({ default: m.ExportDataModal })));
+const BatchUploadModal = React.lazy(() => import('./components/BatchUploadModal').then((m) => ({ default: m.BatchUploadModal })));
+const RequestStockModal = React.lazy(() => import('./components/RequestStockModal').then((m) => ({ default: m.RequestStockModal })));
+const SessionLockModal = React.lazy(() => import('./components/SessionLockModal').then((m) => ({ default: m.SessionLockModal })));
 
 // (22 Oct 2026, review) Screens other than the Dashboard and Stock Inventory are loaded when first opened, and fetched
 // quietly in the background right after start-up, so the app opens faster and switching tabs is still instant.
@@ -4606,31 +4608,36 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           </footer>
         </div>
 
-      {/* Modals */}
+      {/* Modals wrapped in Suspense boundary for on-demand lazy loading */}
+      <React.Suspense fallback={null}>
         {/* Classic Batch Upload & Stock Intake Modal */}
-        <BatchUploadModal
-          isOpen={isBatchModalOpen}
-          onClose={() => setIsBatchModalOpen(false)}
-          branches={branches}
-          users={users}
-          existingDevices={devices}
-          onCommitBatch={handleCommitBatch}
-          activeBranchId={selectedBranch}
-          theme={theme}
-          operatorLabel={operatorLabel}
-        />
+        {isBatchModalOpen && (
+          <BatchUploadModal
+            isOpen={isBatchModalOpen}
+            onClose={() => setIsBatchModalOpen(false)}
+            branches={branches}
+            users={users}
+            existingDevices={devices}
+            onCommitBatch={handleCommitBatch}
+            activeBranchId={selectedBranch}
+            theme={theme}
+            operatorLabel={operatorLabel}
+          />
+        )}
 
         {/* Classic Request Stock Modal (Triggers Alert Notification) */}
-        <RequestStockModal
-          isOpen={isReqModalOpen}
-          onClose={() => setIsReqModalOpen(false)}
-          branches={branches}
-          activeBranchId={selectedBranch}
-          onSubmitRequest={handleSubmitStockRequest}
-          theme={theme}
-          role={role}
-          operatorLabel={operatorLabel}
-        />
+        {isReqModalOpen && (
+          <RequestStockModal
+            isOpen={isReqModalOpen}
+            onClose={() => setIsReqModalOpen(false)}
+            branches={branches}
+            activeBranchId={selectedBranch}
+            onSubmitRequest={handleSubmitStockRequest}
+            theme={theme}
+            role={role}
+            operatorLabel={operatorLabel}
+          />
+        )}
 
         {traceQuery && (
           <TraceModal
@@ -4645,75 +4652,80 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         )}
 
         {/* Session Lock Modal */}
-        <SessionLockModal
-          isOpen={isSessionLocked}
-          onUnlock={() => {
-            setIsSessionLocked(false);
-            addAuditLog('Session Security Unlock', 'Workstation unlocked successfully via operator security PIN');
-            triggerToast('Workstation unlocked. Welcome back.');
-          }}
-          operatorName={
-            role === 'BRANCH' ? selectedStaffUser : activeAdminStaff
-          }
-          operatorRole={role}
-          theme={theme}
-        />
+        {isSessionLocked && (
+          <SessionLockModal
+            isOpen={isSessionLocked}
+            onUnlock={() => {
+              setIsSessionLocked(false);
+              addAuditLog('Session Security Unlock', 'Workstation unlocked successfully via operator security PIN');
+              triggerToast('Workstation unlocked. Welcome back.');
+            }}
+            operatorName={
+              role === 'BRANCH' ? selectedStaffUser : activeAdminStaff
+            }
+            operatorRole={role}
+            theme={theme}
+          />
+        )}
 
         {/* Workflow & Serial Cycle History Modal */}
         {editingDevice && (
-        <WorkflowModal
-          device={editingDevice}
-          devices={devices}
-          branches={branches}
-          users={users}
-          role={role}
-          theme={theme}
-          onClose={() => { setEditingDeviceSerial(null); setWorkflowPreset(''); }}
-          preset={workflowPreset}
-          onSave={(sn, u) => { setWorkflowPreset(''); handleSaveWorkflow(sn, u); }}
-          onDeletePermanently={(sn) => handleDeletePermanently([sn])}
-          onReturnToAdminStock={(sn, reason) =>
-            handleReturnToAdminStock([sn], reason)
-          }
-          onRequestReturnToAdminStock={(sn, reason) =>
-            handleRequestReturnToAdminStock([sn], reason)
-          }
-          onReturnToBranchReserve={(sn, branchId, reason) =>
-            handleReturnToBranchReserve([sn], branchId, reason)
-          }
-          onRemoveFromDashboard={(sn, reason) =>
-            handleRemoveFromDashboard([sn], reason)
-          }
-          onChangeBattery={(dev) => setBatteryModalDevice(dev)}
-          customFields={appSettings.customFields}
-          onRenameSerial={handleRenameSerial}
-          onNotifyConfigReady={handleNotifyConfigReady}
-          operatorLabel={operatorLabel}
-        />
+          <WorkflowModal
+            device={editingDevice}
+            devices={devices}
+            branches={branches}
+            users={users}
+            role={role}
+            theme={theme}
+            onClose={() => { setEditingDeviceSerial(null); setWorkflowPreset(''); }}
+            preset={workflowPreset}
+            onSave={(sn, u) => { setWorkflowPreset(''); handleSaveWorkflow(sn, u); }}
+            onDeletePermanently={(sn) => handleDeletePermanently([sn])}
+            onReturnToAdminStock={(sn, reason) =>
+              handleReturnToAdminStock([sn], reason)
+            }
+            onRequestReturnToAdminStock={(sn, reason) =>
+              handleRequestReturnToAdminStock([sn], reason)
+            }
+            onReturnToBranchReserve={(sn, branchId, reason) =>
+              handleReturnToBranchReserve([sn], branchId, reason)
+            }
+            onRemoveFromDashboard={(sn, reason) =>
+              handleRemoveFromDashboard([sn], reason)
+            }
+            onChangeBattery={(dev) => setBatteryModalDevice(dev)}
+            customFields={appSettings.customFields}
+            onRenameSerial={handleRenameSerial}
+            onNotifyConfigReady={handleNotifyConfigReady}
+            operatorLabel={operatorLabel}
+          />
         )}
 
         {/* POS Terminal Change Battery Modal (24-Month Lifespan Replacement) */}
         {batteryModalDevice && (
-        <ChangeBatteryModal
-          device={batteryModalDevice}
-          onClose={() => setBatteryModalDevice(null)}
-          onConfirm={handleConfirmChangeBattery}
-          theme={theme}
-        />
+          <ChangeBatteryModal
+            device={batteryModalDevice}
+            onClose={() => setBatteryModalDevice(null)}
+            onConfirm={handleConfirmChangeBattery}
+            theme={theme}
+          />
         )}
 
         {/* Export Data Modal */}
-        <ExportDataModal
-          isOpen={isExportModalOpen}
-          onClose={() => setIsExportModalOpen(false)}
-          devices={devices}
-          requisitions={requisitions}
-          users={users}
-          auditLogs={auditLogs}
-          theme={theme}
-          onToast={(msg) => triggerToast(msg)}
-          role={role}
-        />
+        {isExportModalOpen && (
+          <ExportDataModal
+            isOpen={isExportModalOpen}
+            onClose={() => setIsExportModalOpen(false)}
+            devices={devices}
+            requisitions={requisitions}
+            users={users}
+            auditLogs={auditLogs}
+            theme={theme}
+            onToast={(msg) => triggerToast(msg)}
+            role={role}
+          />
+        )}
+      </React.Suspense>
 
       {/* Branch Code Create/Edit Modal */}
       {isNewBranchModalOpen && (
