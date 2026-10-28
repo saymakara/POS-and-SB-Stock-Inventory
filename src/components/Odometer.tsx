@@ -45,11 +45,15 @@ export function useAnimatedNumber(
   const animatingTargetRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const timerRef = useRef<any>(null);
+  const lastUpdateRef = useRef<number>(0);
 
   useEffect(() => {
     targetValRef.current = targetClean;
 
-    if (prefersReducedMotion) {
+    if (prefersReducedMotion || duration <= 0) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
       setDisplayValue(targetClean);
       currentValRef.current = targetClean;
       animatingTargetRef.current = targetClean;
@@ -66,6 +70,23 @@ export function useAnimatedNumber(
     const startVal = currentValRef.current;
     const endVal = targetClean;
     if (startVal === endVal) {
+      animatingTargetRef.current = endVal;
+      return;
+    }
+
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const timeSinceLast = now - lastUpdateRef.current;
+    lastUpdateRef.current = now;
+
+    // Fast-settle optimization during streaming/batch hydration:
+    // If incoming updates arrive rapidly in succession (< 250ms apart while an animation is already in flight),
+    // snap immediately to avoid an endless spinning slot machine effect on every batch chunk.
+    if (timeSinceLast < 250 && rafRef.current !== null) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      currentValRef.current = endVal;
+      setDisplayValue(endVal);
       animatingTargetRef.current = endVal;
       return;
     }
