@@ -158,7 +158,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const [serverMatchedTotal, setServerMatchedTotal] = useState<number | null>(null);
 
   const isServerPaginated = Boolean(
-    onFetchServerPage && typeof serverTotalDevices === 'number' && serverTotalDevices > 10000
+    onFetchServerPage && typeof serverTotalDevices === 'number' && serverTotalDevices > 10000 && allDevices.length < serverTotalDevices / 2
   );
 
   // Fetch the active server page when the dataset exceeds 100 rows (up to 500,000+ rows)
@@ -1013,7 +1013,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           className={`cell-main font-medium max-w-[190px] truncate ${hasKhmer(dev.installedByStaff || dev.staff) ? 'khmer' : ''}`}
                           title={dev.installedByStaff || dev.staff || '-'}
                         >
-                          {dash(dev.installedByStaff || dev.staff)}
+                          {dash(dev.installedByStaff || dev.staff || dev.customFields?.installedByStaff || (dev as any).custom_fields?.installedByStaff)}
                         </div>
                         <div className="cell-sub max-w-[190px] truncate">
                           Code {dev.branchId} · {resolvedBranchName.replace(' Branch', '')}
@@ -1071,6 +1071,17 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           >
                             Manage
                           </button>
+                          {!showArchivedView && onReturnDevice && (dev.stage === "COMPLETE" || dev.stage === "CONFIGURING") && (dev.mid || dev.merchantName) && (
+                            <button
+                              type="button"
+                              onClick={() => onReturnDevice(dev.serial)}
+                              className="row-btn !border-amber-300 !bg-amber-50 hover:!bg-amber-100 !text-amber-800"
+                              title="Return: remove merchant details and put unit back in stock"
+                              aria-label={`Return ${dev.serial}`}
+                            >
+                              Return
+                            </button>
+                          )}
                           {showArchivedView && isAdminLike && onRestoreToDashboard && (
                             <button
                               type="button"
@@ -1119,7 +1130,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px]">Rows per page:</span>
+              <span className="text-[11px]">Rows:</span>
               <select
                 value={rowsPerPage}
                 onChange={(e) => {

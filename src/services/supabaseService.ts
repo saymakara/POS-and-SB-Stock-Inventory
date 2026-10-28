@@ -344,7 +344,8 @@ export async function fetchDeviceStageCountsFromSupabase(
       return typeof count === 'number' ? count : 0;
     };
 
-    const [archivedCount, ...stageBreakdowns] = await Promise.all([
+    const [totalTableCount, archivedCount, ...stageBreakdowns] = await Promise.all([
+      countQuery({ archived: false }),
       countQuery({ archived: true }),
       ...ALL_LIFECYCLE_STAGES.map(async (st) => {
         const [posCount, sbCount] = await Promise.all([
@@ -354,6 +355,10 @@ export async function fetchDeviceStageCountsFromSupabase(
         return { stage: st, count: posCount + sbCount, posCount, sbCount };
       }),
     ]);
+
+    if (totalTableCount > 0 && archivedCount === totalTableCount && stageBreakdowns.every((sb) => sb.posCount === totalTableCount)) {
+      return null;
+    }
 
     const summary = createEmptyStageSummary();
     summary.archived = archivedCount;
@@ -542,6 +547,7 @@ export async function fetchDevicesFromSupabase(
         }
       }
     }
+    
     return all;
   } catch (err) {
     await reportCaughtError('fetchDevicesFromSupabase', err, { showPopup: false });
@@ -1303,23 +1309,15 @@ export async function fetchPendingFieldEvents(limit = 1000, offset = 0): Promise
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);
   try {
-    const all: any[] = [];
-    let curOffset = safeOffset;
-    while (true) {
-      const { data, error } = await supabase
-        .from('field_events')
-        .select('*')
-        .eq('status', 'PENDING')
-        .order('received_at', { ascending: false })
-        .limit(safeLimit)
-        .range(curOffset, curOffset + safeLimit - 1);
-      if (error) throw error;
-      const rows = data || [];
-      all.push(...rows);
-      if (rows.length < safeLimit || all.length >= 3000) break;
-      curOffset += safeLimit;
-    }
-    return all.map(mapFieldEvent);
+    const { data, error } = await supabase
+      .from('field_events')
+      .select('*')
+      .eq('status', 'PENDING')
+      .order('received_at', { ascending: false })
+      .limit(safeLimit)
+      .range(safeOffset, safeOffset + safeLimit - 1);
+    if (error) throw error;
+    return (data || []).map(mapFieldEvent);
   } catch (err) {
     await reportCaughtError('fetchPendingFieldEvents', err, { showPopup: false });
     return null;
@@ -1330,23 +1328,15 @@ export async function fetchReviewedFieldEvents(limit = 1000, offset = 0): Promis
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);
   try {
-    const all: any[] = [];
-    let curOffset = safeOffset;
-    while (true) {
-      const { data, error } = await supabase
-        .from('field_events')
-        .select('*')
-        .neq('status', 'PENDING')
-        .order('received_at', { ascending: false })
-        .limit(safeLimit)
-        .range(curOffset, curOffset + safeLimit - 1);
-      if (error) throw error;
-      const rows = data || [];
-      all.push(...rows);
-      if (rows.length < safeLimit || all.length >= 2000) break;
-      curOffset += safeLimit;
-    }
-    return all.map(mapFieldEvent);
+    const { data, error } = await supabase
+      .from('field_events')
+      .select('*')
+      .neq('status', 'PENDING')
+      .order('received_at', { ascending: false })
+      .limit(safeLimit)
+      .range(safeOffset, safeOffset + safeLimit - 1);
+    if (error) throw error;
+    return (data || []).map(mapFieldEvent);
   } catch (err) {
     await reportCaughtError('fetchReviewedFieldEvents', err, { showPopup: false });
     return null;

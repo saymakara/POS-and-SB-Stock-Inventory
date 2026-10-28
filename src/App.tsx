@@ -760,9 +760,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       });
     }
     if (stageSummary) {
-      setServerStageSummary(stageSummary);
-      try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(stageSummary)); } catch {}
-      setServerDeviceTotal(stageSummary.all + stageSummary.archived);
+      if (!devs || devs.length === 0 || stageSummary.all <= devs.length) {
+        setServerStageSummary(stageSummary);
+        try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(stageSummary)); } catch {}
+        if (!devs || devs.length === 0) {
+          setServerDeviceTotal(stageSummary.all + stageSummary.archived);
+        }
+      }
     }
     let allDevs = devs || [];
     if (configuringDevs && configuringDevs.length > 0) {
@@ -828,8 +832,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       flushHandle = null;
       if (!alive || !loadedOnce) return;
       if (pendingDev.size) {
-        const batch = new Map(pendingDev); pendingDev.clear();
-        batch.forEach((d, serial) => { if (d) syncedDevices.current.set(serial, d); else syncedDevices.current.delete(serial); });
+        const batch = new Map(pendingDev); pendingDev.clear(); batch.forEach((d, serial) => { if (d) syncedDevices.current.set(serial, d); else syncedDevices.current.delete(serial); });
         setDevices((prev) => {
           const next: Device[] = [];
           const seen = new Set<string>();
@@ -873,7 +876,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       (d) => { serverCopies.current.add(d); pendingDev.set(d.serial, d); scheduleFlush(); },
       (r) => { serverCopies.current.add(r); pendingReq.set(r.reqId, r); scheduleFlush(); },
       {
-        onDeviceDelete: (serial) => { pendingDev.set(serial, null); scheduleFlush(); },
+        onDeviceDelete: (serial) => { pendingDev.set(serial, null); setServerDeviceTotal((prev) => (typeof prev === "number" && prev > 0 ? prev - 1 : prev)); scheduleFlush(); },
         onRequisitionDelete: (reqId) => { pendingReq.set(reqId, null); scheduleFlush(); },
         onHistoryInsert: (rec) => {
           syncedHist.current.add(rec.recordId);                         // (came from the server: not sent back)
@@ -1673,6 +1676,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         syncedDevices.current.set(d.serial, d);
       });
       setDevices((prev) => {
+        if (prev.length >= 1000) {
+          const incomingBySn = new Map(incoming.map((d) => [d.serial, d]));
+          return prev.map((d) => incomingBySn.get(d.serial) || d);
+        }
         const incomingBySn = new Map(incoming.map((d) => [d.serial, d]));
         const merged: Device[] = [...incoming];
         for (const existing of prev) {
@@ -1828,8 +1835,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   const devicesRef = React.useRef(devices);
   useEffect(() => {
-    devicesRef.current = devices;
-  }, [devices]);
+    devicesRef.current = devices; }, [devices]);
 
   const triggerOptimisticSync = useCallback((serials: string[], _actionText: string, syncPayload?: Device[]) => {
     // 1. Immediately mark serials for instant row highlight

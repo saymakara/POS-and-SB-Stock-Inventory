@@ -138,7 +138,7 @@ const InputMethodBadge: React.FC<{
         className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-emerald-50 text-emerald-700 border border-emerald-200/90 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/80 whitespace-nowrap shadow-2xs"
       >
         <ScanLine className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-        <span>Scan</span>
+        <span>Scanned</span>
       </span>
     );
   }
@@ -603,7 +603,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               aria-hidden
             />
           )}
-          <span>{label}</span>
+          <span>{label}</span>{' '}
           <span
             className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md transition-colors ${
               active
@@ -611,7 +611,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                 : 'bg-slate-200/60 text-slate-500'
             }`}
           >
-            {n}
+            ({n})
           </span>
         </span>
       </button>
@@ -676,7 +676,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                     />
                   )}
                   <span className="relative z-10 flex items-center gap-1.5">
-                    <span>{label}</span>
+                    <span>{label}</span>{' '}
                     <span
                       className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md transition-colors ${
                         isActive
@@ -684,7 +684,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                           : 'bg-slate-200/60 text-slate-500'
                       }`}
                     >
-                      {counts[f]}
+                      ({counts[f]})
                     </span>
                   </span>
                 </button>
@@ -1054,7 +1054,7 @@ const ReviewRow = memo(function ReviewRow({
 
   return (
     <div
-      className={`transition-colors ${
+      className={`transition-colors border-b border-slate-200/90 ${
         checked ? 'bg-sky-50/80' : isOpen ? 'bg-slate-50/95' : 'bg-white hover:bg-slate-50/75'
       }`}
     >
