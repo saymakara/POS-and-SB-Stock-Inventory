@@ -418,13 +418,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   });
 
   const [requisitions, setRequisitions] = useState<Requisition[]>(() => {
+    if (isSupabaseConfigured) return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_REQS);
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
     }
-    if (isSupabaseConfigured) return [];
     return createInitialRequisitions();
   });
   const [traceQuery, setTraceQuery] = useState('');
@@ -465,13 +465,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   });
 
   const [historicalMerchants, setHistoricalMerchants] = useState<HistoricalMerchantRecord[]>(() => {
+    if (isSupabaseConfigured) return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_HISTORICAL_MERCHANTS);
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
     }
-    if (isSupabaseConfigured) return [];
     return INITIAL_HISTORICAL_MERCHANTS;
   });
   const [appSettings, setAppSettings] = useState<AppSettings>(() => {
@@ -680,8 +680,23 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       presenceSub.unsubscribe();
     };
   }, [profile?.emp_id, profile?.name, profile?.role, profile?.branch_id, authUsername]);
-  const [serverDeviceTotal, setServerDeviceTotal] = useState<number | null>(null);
-  const [serverStageSummary, setServerStageSummary] = useState<DeviceStageSummary | null>(null);
+  const [serverDeviceTotal, setServerDeviceTotal] = useState<number | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_STAGE_SUMMARY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.all === 'number') return parsed.all + (parsed.archived || 0);
+      }
+    } catch {}
+    return null;
+  });
+  const [serverStageSummary, setServerStageSummary] = useState<DeviceStageSummary | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_STAGE_SUMMARY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
 
   // versions this browser's own saves produced (serial → sent version → new version): a later edit of the same unit
   // made from the older copy is sent with the right version, while a change by someone else is still refused
@@ -689,19 +704,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const reloadFromServer = useCallback(async (): Promise<boolean> => {
     versionAlias.current = new Map();
     const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
-    const [devs, reqs, hist, srvBranches] = await Promise.all([
+    const effectiveBranch = role === 'BRANCH' ? selectedBranch : (branchFilter !== 'ALL' ? branchFilter : undefined);
+    const [devs, reqs, hist, srvBranches, stageSummary] = await Promise.all([
       fetchDevicesFromSupabase(1000, 0, (firstBatch, total) => {
         setServerDeviceTotal(total);
-        if (total >= 10000) {
-          syncedDevices.current = new Map(firstBatch.map((d) => [d.serial, d]));
-          firstBatch.forEach((d) => serverCopies.current.add(d));
-          setDevices(firstBatch);
-          setServerReady(true);
-        }
       }),
       fetchRequisitionsFromSupabase(),
       fetchHistoricalMerchantsFromSupabase(),
       fetchBranchesFromSupabase(),
+      fetchDeviceStageCountsFromSupabase(effectiveBranch),
     ]);
     if (isAdminProfile) {
       fetchStaffAccounts().then((staffList) => {
@@ -746,23 +757,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         return srvBranches.map((b) => ({ ...(local.get(b.id) || { staff: [], staffDetails: [] }), id: b.id, code: b.code, name: b.id === '100' ? 'Head Office' : b.name }));
       });
     }
+    if (stageSummary) {
+      setServerStageSummary(stageSummary);
+      try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(stageSummary)); } catch {}
+      setServerDeviceTotal(stageSummary.all + stageSummary.archived);
+    }
     if (devs) {
       const devRows = devs;
-      setServerDeviceTotal(devRows.length);
+      if (!stageSummary) {
+        setServerDeviceTotal(devRows.length);
+      }
       syncedDevices.current = new Map(devRows.map((d) => [d.serial, d]));
       devRows.forEach((d) => serverCopies.current.add(d));
       setDevices(devRows);
-      if (devRows.length >= 10000) {
-        fetchDeviceStageCountsFromSupabase().then((summary) => {
-          if (summary) {
-            setServerStageSummary(summary);
-            try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(summary)); } catch {}
-            setServerDeviceTotal(summary.all + summary.archived);
-          }
-        });
-      } else {
-        setServerStageSummary(null);
-      }
     }
     if (reqs) {
       syncedReqs.current = new Map(reqs.map((r) => [r.reqId, r]));
@@ -1337,6 +1344,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       syncedReqs.current.set(r.reqId, r);
       // a status change is made by the database functions (dispatch, receipt, return) – never by saving the row
       if (prior && prior.status !== r.status) return Promise.resolve('');
+      // Postgres requisitions_guard rejects inserts if status is not PENDING_ADMIN
+      if (!prior && r.status !== 'PENDING_ADMIN') return Promise.resolve('');
       return saveRequisitionStrict(r, !prior);
     });
     Promise.all(jobs).then((errs) => {
@@ -1559,21 +1568,22 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
-  // Refresh 500K-row server stage counts when branch scope changes on a large dataset
+  // Refresh server stage counts when branch scope changes
   useEffect(() => {
-    if (!isSupabaseConfigured || !serverDeviceTotal || serverDeviceTotal <= 10000) return;
+    if (!isSupabaseConfigured) return;
     let cancelled = false;
-    const effectiveBranch = role === 'BRANCH' ? selectedBranch : branchFilter;
+    const effectiveBranch = role === 'BRANCH' ? selectedBranch : (branchFilter !== 'ALL' ? branchFilter : undefined);
     fetchDeviceStageCountsFromSupabase(effectiveBranch).then((summary) => {
       if (!cancelled && summary) {
         setServerStageSummary(summary);
         try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(summary)); } catch {}
+        setServerDeviceTotal(summary.all + summary.archived);
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [serverDeviceTotal, role, selectedBranch, branchFilter]);
+  }, [role, selectedBranch, branchFilter]);
 
   // Fetch a specific 50/100-row page from Supabase and merge into syncedDevices + devices (capped at 400 rows in RAM)
   const handleFetchInventoryPage = useCallback(
@@ -2899,13 +2909,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       return;
     }
 
-    if (updated.length > 0) {
+    if (updated.length > 0 && created.length > 0) {
+      const updatedMap = new Map(updated.map((u) => [u.serial, u]));
+      setDevices((prev) => [...created, ...prev.map((d) => updatedMap.get(d.serial) || d)]);
+      triggerOptimisticSync(
+        [...created.map((c) => c.serial), ...updated.map((u) => u.serial)],
+        `Batch processed ${created.length + updated.length} unit(s)`,
+        [...created, ...updated]
+      );
+    } else if (updated.length > 0) {
       const updatedMap = new Map(updated.map((u) => [u.serial, u]));
       setDevices((prev) => prev.map((d) => updatedMap.get(d.serial) || d));
       triggerOptimisticSync(updated.map((u) => u.serial), `Allocated ${updated.length} unit(s) to Branch Reserve`, updated);
-    }
-
-    if (created.length > 0) {
+    } else if (created.length > 0) {
       setDevices((prev) => [...created, ...prev]);
       triggerOptimisticSync(created.map((c) => c.serial), `Registered ${created.length} new serial(s) into inventory`, created);
     }
@@ -4019,6 +4035,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       onNavigateTab={handleSelectTab}
                       batteryLifespanMonths={appSettings.batteryLifespanMonths}
                       batteryWarningMonths={appSettings.batteryWarningMonths}
+                      serverTotalDevices={serverStageSummary ? serverStageSummary.all : serverDeviceTotal}
+                      serverStageCounts={
+                        serverStageSummary
+                          ? {
+                              HQ_STOCK: serverStageSummary.hq,
+                              BRANCH_RESERVE: serverStageSummary.reserve,
+                              CONFIGURING: serverStageSummary.config,
+                              COMPLETE: serverStageSummary.complete,
+                              FAULTY: serverStageSummary.faulty,
+                              LOST: serverStageSummary.lost,
+                            }
+                          : undefined
+                      }
                     />
                   )}
 

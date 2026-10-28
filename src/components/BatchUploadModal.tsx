@@ -1108,7 +1108,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   // When the database has more rows than the in-memory page (e.g. up to 500,000 rows), query the primary-key B-Tree index
   // for candidate CSV serials so duplicates against the full 500K-row database are flagged with exact Row & Column numbers.
   React.useEffect(() => {
-    if (!isOpen || rawStagedItems.length === 0 || existingDevices.length < 10000) {
+    if (!isOpen || rawStagedItems.length === 0) {
       setServerExistingSerials(new Set());
       return;
     }
@@ -1130,7 +1130,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isOpen, rawStagedItems, existingDevices.length]);
+  }, [isOpen, rawStagedItems]);
 
   const activeStagedBatch = useMemo(() => {
     const raw = method === 'tableCsv' ? tableCsvBatch : pastedBatch;
@@ -1277,23 +1277,21 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     // Strict Pre-Validation Gate: Never ping the database if any error or duplicate exists in the batch
     if (validItems.length === 0 || isUploadHalted || isCommittingBatches) return;
 
-    if (existingDevices.length >= 10000) {
-      const candidatesToCheck = validItems
-        .filter((i) => i.stockOrigin !== 'EXISTING_HQ_STOCK')
-        .map((i) => i.serial);
-      if (candidatesToCheck.length > 0) {
-        const serverDups = await checkExistingSerialsOnServer(candidatesToCheck);
-        if (serverDups.size > 0) {
-          setServerExistingSerials((prev) => {
-            const next = new Set(prev);
-            serverDups.forEach((s) => next.add(s));
-            return next;
-          });
-          setCommitNotice(
-            `${serverDups.size} new serial(s) already exist in the 500K-row inventory database. Review the highlighted Row & Column duplicate alert above before uploading.`
-          );
-          return;
-        }
+    const candidatesToCheck = validItems
+      .filter((i) => i.stockOrigin !== 'EXISTING_HQ_STOCK')
+      .map((i) => i.serial.trim().toUpperCase());
+    if (candidatesToCheck.length > 0) {
+      const serverDups = await checkExistingSerialsOnServer(candidatesToCheck);
+      if (serverDups.size > 0) {
+        setServerExistingSerials((prev) => {
+          const next = new Set(prev);
+          serverDups.forEach((s) => next.add(s));
+          return next;
+        });
+        setCommitNotice(
+          `${serverDups.size} new serial(s) already exist in the inventory database. Review the highlighted Row & Column duplicate alert above before uploading.`
+        );
+        return;
       }
     }
 
@@ -1330,23 +1328,15 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     );
 
     setIsCommittingBatches(true);
-    const totalBatches = Math.max(1, Math.ceil(cleanPayload.length / CSV_BATCH_SIZE));
+    setBatchProgress({
+      current: 1,
+      total: 1,
+      rowsSent: cleanPayload.length,
+      totalRows: cleanPayload.length,
+    });
 
     try {
-      for (let bIdx = 0; bIdx < totalBatches; bIdx++) {
-        const start = bIdx * CSV_BATCH_SIZE;
-        const chunk = cleanPayload.slice(start, start + CSV_BATCH_SIZE);
-        setBatchProgress({
-          current: bIdx + 1,
-          total: totalBatches,
-          rowsSent: Math.min(start + chunk.length, cleanPayload.length),
-          totalRows: cleanPayload.length,
-        });
-        await Promise.resolve(onCommitBatch(chunk));
-        if (bIdx + 1 < totalBatches) {
-          await new Promise((r) => setTimeout(r, CSV_BATCH_DELAY_MS));
-        }
-      }
+      await Promise.resolve(onCommitBatch(cleanPayload));
 
       setTableCsvText('');
       setUploadedFileMeta(null);

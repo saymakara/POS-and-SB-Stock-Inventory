@@ -25,7 +25,7 @@ export function useAnimatedNumber(
   const {
     duration = 340,
     delay = 0,
-    startFromZero = true,
+    startFromZero = false,
   } = options;
 
   const prefersReducedMotion =
@@ -122,23 +122,25 @@ export interface OdometerProps {
   delay?: number;
   prefix?: string;
   suffix?: string;
+  startFromZero?: boolean;
 }
 
 /**
  * Odometer / Smooth Running Number Component:
  * Runs smoothly on GPU 60/120 FPS using easeOutExpo requestAnimationFrame.
- * Numbers roll smoothly on refresh and data updates instead of snapping abruptly.
+ * Numbers roll smoothly on data updates instead of snapping abruptly.
  */
 export const Odometer: React.FC<OdometerProps> = React.memo(({
   value,
   className = '',
   format = false,
-  duration = 950,
+  duration = 340,
   delay = 0,
   prefix = '',
   suffix = '',
+  startFromZero = false,
 }) => {
-  const animatedValue = useAnimatedNumber(value, { duration, delay, startFromZero: true });
+  const animatedValue = useAnimatedNumber(value, { duration, delay, startFromZero });
   const text = format ? animatedValue.toLocaleString() : String(animatedValue);
 
   return (
