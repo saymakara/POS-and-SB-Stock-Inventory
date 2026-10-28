@@ -397,7 +397,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
   const isLight = theme === 'light';
   const existingSerials = useMemo(() => {
-    const set = new Set(existingDevices.map((d) => d.serial.trim().toUpperCase()));
+    const set = new Set<string>();
+    const total = existingDevices.length;
+    for (let i = 0; i < total; i++) {
+      set.add(existingDevices[i].serial.trim().toUpperCase());
+    }
     serverExistingSerials.forEach((s) => set.add(s));
     return set;
   }, [existingDevices, serverExistingSerials]);

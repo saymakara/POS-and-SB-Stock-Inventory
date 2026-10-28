@@ -1,9 +1,8 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
-import React, { useState, useMemo, useRef, useDeferredValue } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
 import { useSort, SortTh } from '../utils/sort';
-import { useFlip } from '../utils/useFlip';
 import { User, Branch, UserRole, UserStatus, ThemeMode } from '../types';
 import {
   Search,
@@ -123,8 +122,6 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
   });
 
   const pg = usePager(filteredUsers.length, [branchFilter, roleFilter, statusFilter, deferredSearch, uSort]);
-  const flipRef = useRef<HTMLTableSectionElement>(null);
-  useFlip(flipRef, [filteredUsers, pg.start, pg.end]);
 
   const toggleSelect = (uid: string) => {
     setSelectedIds((prev) =>
@@ -278,7 +275,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody ref={flipRef} className="divide-y divide-slate-200/70 text-xs bg-white">
+            <tbody className="divide-y divide-slate-200/70 text-xs bg-white">
               {filteredUsers.slice(pg.start, pg.end).map((u, rowIdx) => {
                 const isSelected = selectedIds.includes(u.uid);
                 const resolvedBranchName =
@@ -286,7 +283,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                   u.branchName ||
                   `Branch ${u.branchId}`;
                 return (
-                  <tr key={u.uid} data-flip={u.uid} className="hover:bg-slate-50/80">
+                  <tr key={u.uid} className="hover:bg-slate-50/80">
                     <td className="py-3 px-4">
                       <button
                         onClick={() => toggleSelect(u.uid)}
