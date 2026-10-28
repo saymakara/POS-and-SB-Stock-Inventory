@@ -188,15 +188,15 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             The KHQR tables are not set up in the database yet. Apply the migration <span className="font-mono text-xs">20261028_02_khqr_installation.sql</span>, then refresh.
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5">
             <Kpi label="KHQR entries" value={summary?.total} sub={summary ? `${summary.install.toLocaleString()} new · ${summary.replace.toLocaleString()} replaced` : ''} />
             <Kpi label="QR materials" value={summary?.qr} sub={summary && summary.total ? `${(summary.qr / summary.total).toFixed(1)} per entry` : PERIOD_LABEL[period]} />
             <Kpi label="Completed" value={summary?.completed} sub={summary ? `${pct(summary.completed, summary.total)} of entries` : ''} tone="good"
               onClick={() => setStatus('COMPLETED')} />
-            <Kpi label="Failed Attempt" value={summary?.failed} sub={summary ? `${pct(summary.failed, summary.total)} of entries` : ''} tone={summary?.failed ? 'warn' : undefined}
+            {/* (3.50) every blocked Submit tap is one failed attempt */}
+            <Kpi label="Failed Attempt" value={summary?.attempts} sub={summary ? `${summary.failed.toLocaleString()} entries affected` : ''} tone={summary?.attempts ? 'bad' : undefined}
               onClick={() => setStatus('FAILED_ATTEMPT')} />
-            <Kpi label="Restricted submits" value={summary?.attempts} sub="MID did not match" tone={summary?.attempts ? 'bad' : undefined} />
-            <Kpi label="Staff involved" value={summary?.staffFailed} sub="had a failed attempt" tone={summary?.staffFailed ? 'bad' : undefined} />
+            <Kpi label="Staff involved" value={summary?.staffFailed} sub="with failed attempts" tone={summary?.staffFailed ? 'bad' : undefined} />
           </div>
         )}
       </section>
@@ -207,7 +207,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
           <div className="px-4 py-2.5 flex items-center gap-2 border-b border-slate-200">
             <UserX className="w-4 h-4 text-rose-600" />
             <h3 className="text-[13px] font-medium text-slate-900">Failed attempts by staff</h3>
-            <span className="text-[11.5px] text-slate-500">· {PERIOD_LABEL[period]} · Submit tapped while a QR had another MID (restricted by the app)</span>
+            <span className="text-[11.5px] text-slate-500">· {PERIOD_LABEL[period]}</span>
           </div>
           <div className="min-w-[1000px]">
             <div className={`${SGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`} role="row">
@@ -217,7 +217,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               <span className="text-right">Failed attempts</span>
               <span className="text-right">Entries affected</span>
               <span>Last failed attempt</span>
-              <span>Last wrong QR</span>
+              <span>Last wrong MID</span>
             </div>
             {staff === null && <div className="h-[46px] px-3.5 flex items-center"><div className="skeleton h-3.5 rounded w-1/2" /></div>}
             {staff && staff.length === 0 && (
@@ -247,7 +247,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
                   <span className="tabular-nums">{fmt(s.lastAt)}</span>
                   <span className="text-[11.5px] leading-tight">
                     {s.lastGotMid ? (
-                      <>MID <span className="font-mono">{s.lastGotMid}</span> <span className="text-slate-500">instead of</span> <span className="font-mono">{s.lastExpectedMid || '—'}</span></>
+                      <span className="font-mono" title={s.lastExpectedMid ? `Expected ${s.lastExpectedMid}` : undefined}>{s.lastGotMid}</span>
                     ) : '—'}
                   </span>
                 </button>
@@ -491,14 +491,14 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
                 {failed ? (
                   <div className="rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2">
                     <div className="text-[11px] uppercase tracking-wider text-rose-700 font-medium mb-1">Failed attempts ({e.failedAttempts})</div>
-                    <div className="text-[11.5px] text-rose-800 mb-1">Submit was tapped while a QR had another MID; the app restricted it.</div>
+                    <div className="text-[11.5px] text-rose-800 mb-1">Submit blocked: MID did not match.</div>
                     {e.attempts.length ? (
                       <ol className="space-y-1">
                         {e.attempts.map((a, i) => (
                           <li key={i} className="text-[12px] text-rose-900 leading-snug">
                             <span className="tabular-nums text-rose-700">{a.at ? stampSecPP(new Date(a.at)) : '—'}</span>{' '}
-                            QR with MID <span className="font-mono">{a.gotMid || '?'}</span>
-                            {a.gotName ? ` (${a.gotName})` : ''} instead of <span className="font-mono">{a.expectedMid || e.mid}</span>
+                            Wrong MID <span className="font-mono">{a.gotMid || '?'}</span>
+                            {a.gotName ? ` (${a.gotName})` : ''}
                           </li>
                         ))}
                       </ol>
@@ -506,7 +506,7 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
                   </div>
                 ) : (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[12px] text-emerald-800">
-                    Submitted without any failed attempt.
+                    No failed attempt.
                   </div>
                 )}
               </div>
