@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useFlip } from '../utils/useFlip';
+import React, { useState, useEffect, useMemo } from 'react';
 import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
 import { useSort, SortTh } from '../utils/sort';
@@ -71,21 +70,23 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   externalStagedItems,
   onClearExternalArranging,
 }) => {
-  const flipRef = useRef<HTMLTableSectionElement>(null);
-  const { sorted: sortedReqs, sort: reqSort, toggle: reqToggle } = useSort<Requisition>(requisitions, {
-    date: (r) => r.date,
-    request: (r) => r.reqId,
-    type: (r) => r.type || 'STOCK_REQUEST',
-    staff: (r) => `${(r.staff || '').toLowerCase()} ${String(r.branchId).padStart(4, '0')}`,
-    branch: (r) => Number(r.branchId) || r.branchId,
-    qty: (r) => (r.posQty || 0) + (r.sbQty || 0),
-    status: (r) => r.status,
-    reason: (r) => r.reason || '',
-  });
+  const { sorted: sortedReqs, sort: reqSort, toggle: reqToggle } = useSort<Requisition>(
+    requisitions,
+    {
+      date: (r) => (r.date ? r.date.padEnd(16, ' 00:00') : '') + ' ' + r.reqId,
+      request: (r) => r.reqId,
+      type: (r) => r.type || 'STOCK_REQUEST',
+      staff: (r) => `${(r.staff || '').toLowerCase()} ${String(r.branchId).padStart(4, '0')}`,
+      branch: (r) => Number(r.branchId) || r.branchId,
+      qty: (r) => (r.posQty || 0) + (r.sbQty || 0),
+      status: (r) => r.status,
+      reason: (r) => (r.status === 'REJECTED' && r.rejectReason ? `Rejected: ${r.rejectReason}` : r.reason || ''),
+    },
+    { key: 'date', dir: 'desc' }
+  );
   // (review) long request lists are drawn progressively: 60 rows at once, more while scrolling
   const pg = usePager(sortedReqs.length, [reqSort]);
   const shownReqs = useMemo(() => sortedReqs.slice(pg.start, pg.end), [sortedReqs, pg.start, pg.end]);
-  useFlip(flipRef, [shownReqs]);
   const isLight = theme === 'light';
   // Dispatching / approving moves Head Office stock: HQ roles only (the server enforces this too).
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -405,7 +406,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
         reqType,
         staffBranch,
         qtyFormatted,
-        r.reason || '-',
+        r.status === 'REJECTED' && r.rejectReason ? `Rejected: ${r.rejectReason}` : r.reason || '-',
         statusLabel,
       ];
     });
@@ -477,7 +478,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody ref={flipRef}>
+            <tbody>
               {shownReqs.map((req, rowIdx) => {
                 const isReturnReq = req.type === 'STOCK_RETURN';
                 let statusLabel = 'Pending';
@@ -575,7 +576,6 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 return (
                   <tr
                     key={req.reqId}
-                    data-flip={req.reqId}
                     className="interactive-row"
                   >
                     <td className="col-no">
@@ -596,11 +596,6 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       >
                         {req.reqId}
                       </button>
-                      {req.status === 'REJECTED' && (
-                        <div className="cell-sub max-w-[220px] !text-rose-700 font-medium" title={`${req.rejectReason || ''}${req.rejectedBy ? ` · ${req.rejectedBy}` : ''}`}>
-                          <span>Rejected: {req.rejectReason || 'no reason recorded'}</span>
-                        </div>
-                      )}
                     </td>
                     <td className="whitespace-nowrap">
                       {isReturnReq ? (
@@ -648,14 +643,18 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     </td>
                     <td>
                       <div
-                        className="cell-main max-w-[240px] truncate"
+                        className="cell-main max-w-[260px] truncate"
                         title={
-                          req.status === 'REJECTED' && req.rejectReason
-                            ? `${req.reason || 'No reason entered'} (Rejection note: ${req.rejectReason}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''})`
+                          req.status === 'REJECTED'
+                            ? `Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}${req.reason ? ` (Original request: ${req.reason})` : ''}`
                             : req.reason || ''
                         }
                       >
-                        {req.reason || <span className="cell-sub font-mono">—</span>}
+                        {req.status === 'REJECTED' ? (
+                          <span>Rejected: {req.rejectReason || 'no reason recorded'}</span>
+                        ) : (
+                          req.reason || <span className="cell-sub font-mono">—</span>
+                        )}
                       </div>
                     </td>
                     <td className="whitespace-nowrap">

@@ -2169,7 +2169,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     reason: string = 'Return to Admin HQ Stock requested by branch'
   ) => {
     if (!serials.length) return;
-    const today = todayPP();
     const nowTime = stampSecPP();
     const affected = devices.filter((d) => serials.includes(d.serial));
     // (22 Oct 2026) the same rules the server applies when HQ approves the return
@@ -2188,7 +2187,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
     const newReq: Requisition = {
       reqId: newRecordId('RET'),
-      date: today,
+      date: nowTime.slice(0, 16),
       branchId: targetBranchId,
       branchName: branchObj?.name || `Branch Code ${targetBranchId}`,
       staff: actor,
