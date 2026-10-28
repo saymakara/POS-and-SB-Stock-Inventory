@@ -256,7 +256,7 @@ export const StaffAccountsTab: React.FC<{
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-extrabold text-slate-900">Staff Directory &amp; Access</h2>
+              <h2 className="text-lg font-extrabold text-slate-900">Accounts &amp; Access</h2>
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span>{onlineOperators.length || 1} Online Now</span>

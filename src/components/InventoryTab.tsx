@@ -158,7 +158,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const [serverMatchedTotal, setServerMatchedTotal] = useState<number | null>(null);
 
   const isServerPaginated = Boolean(
-    onFetchServerPage && typeof serverTotalDevices === 'number' && serverTotalDevices > 10000
+    onFetchServerPage && typeof serverTotalDevices === 'number' && serverTotalDevices > 10000 && allDevices.length < serverTotalDevices / 2
   );
 
   // Fetch the active server page when the dataset exceeds 100 rows (up to 500,000+ rows)
@@ -506,29 +506,29 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Executive Glassmorphic Medium-Navy Serial Inventory Command Card */}
-      <div className="surface-card rounded-2xl overflow-hidden border border-slate-200/90">
-        {/* Top Glassmorphic Medium-Navy Header Strip (No Emerald Glass) */}
-        <div className="navy-header-bar px-5 py-4 text-white flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* Executive Serial Inventory Command Card */}
+      <div className="surface-card rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm">
+        {/* Top Header Strip - System Grey Palette */}
+        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-white/16 border border-white/25 flex items-center justify-center shrink-0 shadow-inner backdrop-blur-md">
-              <Boxes className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
+              <Boxes className="w-5 h-5 text-slate-700 dark:text-slate-200" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-white">
+                <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
                   {showArchivedView
                     ? 'Removed / Archived Serials'
                     : 'Stock Inventory & Multi-Branch Ledger'}
                 </h2>
-                <span className="text-[11px] font-mono font-extrabold px-2.5 py-0.5 rounded-md bg-white text-zinc-900 shadow-2xs">
+                <span className="text-[11px] font-mono font-extrabold px-2.5 py-0.5 rounded-md bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200/90 dark:border-slate-700 shadow-2xs">
                   {visibleDevices.length.toLocaleString()} Active Units
                 </span>
-                <span className="hidden sm:inline-flex text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-white/14 text-white/95 border border-white/20">
+                <span className="hidden sm:inline-flex text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-200/80 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border border-slate-300/60 dark:border-slate-600">
                   {posCount.toLocaleString()} POS · {sbCount.toLocaleString()} Sound Box
                 </span>
               </div>
-              <p className="text-xs text-white/80 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Select multiple serials (e.g. Select 10) to batch-assign to a Branch Code or return to Admin HQ Stock
               </p>
             </div>
@@ -541,10 +541,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={handleSelectTenUnits}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold tracking-wide bg-white/16 hover:bg-white/24 text-white border border-white/25 transition cursor-pointer backdrop-blur-md"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
                 title="Quick-select 10 serials to assign to a Branch Code"
               >
-                <CheckSquare className="w-3.5 h-3.5 text-white" />
+                <CheckSquare className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
                 <span>Select 10 Units</span>
               </motion.button>
             )}
@@ -578,9 +578,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={onOpenReqModal}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide bg-white hover:bg-slate-100 text-zinc-900 shadow-sm transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-2xs transition cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
                 <span>Request HQ Stock</span>
               </motion.button>
             )}
@@ -604,10 +604,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   if (onOpenBatchModal) onOpenBatchModal();
                   else if (onOpenImportModal) onOpenImportModal();
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
                 title="Upload CSV formatted as the inventory table"
               >
-                <Upload className="w-3.5 h-3.5" />
+                <Upload className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
                 <span>Upload CSV</span>
               </motion.button>
             )}
@@ -1013,7 +1013,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           className={`cell-main font-medium max-w-[190px] truncate ${hasKhmer(dev.installedByStaff || dev.staff) ? 'khmer' : ''}`}
                           title={dev.installedByStaff || dev.staff || '-'}
                         >
-                          {dash(dev.installedByStaff || dev.staff)}
+                          {dash(dev.installedByStaff || dev.staff || dev.customFields?.installedByStaff || (dev as any).custom_fields?.installedByStaff)}
                         </div>
                         <div className="cell-sub max-w-[190px] truncate">
                           Code {dev.branchId} · {resolvedBranchName.replace(' Branch', '')}
@@ -1071,6 +1071,17 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           >
                             Manage
                           </button>
+                          {!showArchivedView && onReturnDevice && (dev.stage === "COMPLETE" || dev.stage === "CONFIGURING") && (dev.mid || dev.merchantName) && (
+                            <button
+                              type="button"
+                              onClick={() => onReturnDevice(dev.serial)}
+                              className="row-btn !border-amber-300 !bg-amber-50 hover:!bg-amber-100 !text-amber-800"
+                              title="Return: remove merchant details and put unit back in stock"
+                              aria-label={`Return ${dev.serial}`}
+                            >
+                              Return
+                            </button>
+                          )}
                           {showArchivedView && isAdminLike && onRestoreToDashboard && (
                             <button
                               type="button"
@@ -1119,7 +1130,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px]">Rows per page:</span>
+              <span className="text-[11px]">Rows:</span>
               <select
                 value={rowsPerPage}
                 onChange={(e) => {

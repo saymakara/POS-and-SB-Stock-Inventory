@@ -596,6 +596,11 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       >
                         {req.reqId}
                       </button>
+                      {req.status === 'REJECTED' && (
+                        <div className="cell-sub max-w-[220px] !text-rose-700 font-medium" title={`${req.rejectReason || ''}${req.rejectedBy ? ` · ${req.rejectedBy}` : ''}`}>
+                          <span>Rejected: {req.rejectReason || 'no reason recorded'}</span>
+                        </div>
+                      )}
                     </td>
                     <td className="whitespace-nowrap">
                       {isReturnReq ? (
