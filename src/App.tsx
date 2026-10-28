@@ -1492,7 +1492,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (!isAuthenticated || isSessionLocked) return;
     const timeoutMinutes = appSettings.sessionTimeoutMinutes || 15;
     const timeoutMs = timeoutMinutes * 60 * 1000;
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
 
     const resetTimer = () => {
       clearTimeout(timer);

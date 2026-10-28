@@ -1,6 +1,5 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useFlip } from '../utils/useFlip';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSort, SortTh } from '../utils/sort';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, MerchantProfile } from '../types';
@@ -455,9 +454,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     const start = (merchantPage - 1) * merchantsPerPage;
     return filteredMerchants.slice(start, start + merchantsPerPage);
   }, [filteredMerchants, merchantPage, merchantsPerPage]);
-
-  const flipRef = useRef<HTMLTableSectionElement>(null);
-  useFlip(flipRef, [pagedMerchants]);
 
   // --- Monthly Hardware Deployment Trends per Merchant MID (Recharts Data Engine) ---
   const MID_SERIES_COLORS = [
@@ -1197,14 +1193,14 @@ return (
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody ref={flipRef}>
+            <tbody>
               {pagedMerchants.map((m, rowIdx) => {
                 const chip = m.crmStatus === 'ONBOARDING' ? 'chip-amber' : m.crmStatus === 'ATTENTION' ? 'chip-red' : 'chip-green';
                 const statusLabel = m.crmStatus === 'ONBOARDING' ? 'Pending install' : m.crmStatus === 'ATTENTION' ? 'Faulty / RMA' : 'Live';
                 const installDate = m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate || '—';
                 const deviceCount = m.devices ? m.devices.length : 0;
                 return (
-                  <tr key={m.mid} data-flip={m.mid}>
+                  <tr key={m.mid}>
                     <td className="col-no">{(merchantPage - 1) * merchantsPerPage + rowIdx + 1}</td>
                     <td className="whitespace-nowrap">
                       <div className={`cell-mono ${isValidMidForType(m.mid, m.devices[0]?.type) ? '' : 'warn-text'}`} title={isValidMidForType(m.mid, m.devices[0]?.type) ? `MID (${m.devices[0]?.type === 'Sound Box' ? 'Starts with 6' : 'Starts with 2'})` : midRuleError(m.mid, m.devices[0]?.type)}>

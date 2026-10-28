@@ -1,6 +1,5 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useFlip } from '../utils/useFlip';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSort, SortTh } from '../utils/sort';
 import {
   Device,
@@ -289,13 +288,19 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
   // Keep only selected serials that are still on screen after a filter / search / view change,
   // so a bulk action never touches units the operator can no longer see.
-  const visibleSnSet = useMemo(() => new Set(visibleDevices.map((d) => d.serial)), [visibleDevices]);
+  // Performance optimization: Compute visibleSnSet only when items are actually selected (zero overhead during normal search/sort)
+  const visibleSnSet = useMemo(() => {
+    if (selectedSns.length === 0) return null;
+    return new Set(visibleDevices.map((d) => d.serial));
+  }, [visibleDevices, selectedSns.length]);
+
   useEffect(() => {
+    if (selectedSns.length === 0 || !visibleSnSet) return;
     setSelectedSns((prev) => {
       const next = prev.filter((sn) => visibleSnSet.has(sn));
       return next.length === prev.length ? prev : next;
     });
-  }, [visibleSnSet]);
+  }, [visibleSnSet, selectedSns.length]);
   const selectedSet = useMemo(() => new Set(selectedSns), [selectedSns]);
 
   const effectiveTotalCount =
@@ -320,9 +325,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     const start = isServerPaginated && serverPageRows !== null ? 0 : (shownPage - 1) * rowsPerPage;
     return visibleDevices.slice(start, start + rowsPerPage);
   }, [visibleDevices, shownPage, rowsPerPage, isServerPaginated, serverPageRows]);
-
-  const flipRef = useRef<HTMLTableSectionElement>(null);
-  useFlip(flipRef, [pagedDevices]);
 
   // Combined single-pass calculation for POS and Sound Box counts
   const { posCount, sbCount } = useMemo(() => {
@@ -909,7 +911,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody ref={flipRef}>
+            <tbody>
               {pagedDevices.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="py-12 text-center">
@@ -933,7 +935,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   return (
                     <tr
                       key={dev.serial}
-                      data-flip={dev.serial}
                       className={`interactive-row ${
                         isSyncingThisDevice ? 'optimistic-sync-active' : ''
                       } ${isChecked ? '!bg-sky-50/70' : ''}`}

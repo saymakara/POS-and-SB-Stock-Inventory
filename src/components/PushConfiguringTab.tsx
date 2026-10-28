@@ -204,13 +204,24 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
   // Synchronize push metadata and pushed serials directly from devices loaded from Supabase
   useEffect(() => {
+    // Fast candidate filter: only scan devices with push metadata or in CONFIGURING stage (avoids 135k loop passes on 45k units)
+    const candidateDevices: Device[] = [];
+    const total = devices.length;
+    for (let i = 0; i < total; i++) {
+      const d = devices[i];
+      if (d.pushTrackingId || d.pushDate || d.stage === 'CONFIGURING') {
+        candidateDevices.push(d);
+      }
+    }
+    if (candidateDevices.length === 0) return;
+
     let trackingChanged = false;
     let serialsChanged = false;
     let timestampsChanged = false;
 
     setPushTrackingMap((prev) => {
       const next = { ...prev };
-      devices.forEach((d) => {
+      candidateDevices.forEach((d) => {
         if (d.pushTrackingId && !next[d.serial]) {
           next[d.serial] = {
             pushId: d.pushTrackingId,
@@ -229,7 +240,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
     setPushTimestamps((prev) => {
       const next = { ...prev };
-      devices.forEach((d) => {
+      candidateDevices.forEach((d) => {
         if (d.pushDate && !next[d.serial]) {
           next[d.serial] = d.pushDate;
           timestampsChanged = true;
@@ -244,7 +255,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
     setPushedSerialsLocal((prev) => {
       const next = new Set(prev);
-      devices.forEach((d) => {
+      candidateDevices.forEach((d) => {
         if (d.stage === 'CONFIGURING' && (d.pushTrackingId || d.pushDate)) {
           if (!next.has(d.serial)) {
             next.add(d.serial);
