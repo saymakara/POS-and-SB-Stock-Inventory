@@ -109,26 +109,29 @@ async function api(route) {
   return json(404, { message: 'not in the stand-in: ' + path });
 }
 
-// ---- (28 Oct 2026) KHQR entries: New Installation / QR Replacement from the phone app
+// ---- (28 Oct 2026) KHQR entries: New Installation / QR Replacement from the phone app (no approval step)
 const now = Date.now();
-state.qr = [];
+state.qr = []; state.qrAtt = [];
+const NAMES = ['Sok Dara', 'Chan Vuthy', 'Kim Sreyneang', 'Heng Rith'];
 for (let i = 1; i <= 120; i++) {
   const failed = i % 10 === 0 ? (i % 20 === 0 ? 2 : 1) : 0;
   state.qr.push({ id: i, record_id: 'QR-20261028-' + String(i).padStart(6, '0'), activity: i % 3 ? 'NEW_INSTALLATION' : 'QR_REPLACEMENT',
-    staff_id: 'STF00' + (i % 4), staff_name: ['Sok Dara', 'Chan Vuthy', 'Kim Sreyneang', 'Heng Rith'][i % 4], branch_text: i % 2 ? 'Toul Kork' : 'Head Office', branch_id: i % 2 ? '105' : '100',
+    staff_id: '2722' + (i % 4), staff_name: NAMES[i % 4], branch_text: i % 2 ? 'Toul Kork' : 'Head Office', branch_id: i % 2 ? '105' : '100',
     merchant_name: 'SHOP ' + i, merchant_name_kh: i === 7 ? 'ហាងលក់ទំនិញ' : null, mid: String(200100000000000 + i), qr_expected: 1 + (i % 3), qr_count: 1 + (i % 3),
     failed_attempts: failed, status: failed ? 'FAILED_ATTEMPT' : 'COMPLETED',
     attempts: failed ? [{ at: new Date(now - i * 60000 - 30000).toISOString(), expected_mid: String(200100000000000 + i), got_mid: '200100000000999', got_name: 'OTHER SHOP' }] : [],
-    latitude: 11.55 + i / 1000, longitude: 104.92, gps_accuracy: 12, remark: i === 10 ? 'Merchant had an old QR' : null, photo_count: 2,
-    telegram_link: 'https://t.me/c/123/' + i, app_version: '3.48.0', captured_at: new Date(now - i * 60000).toISOString(), submitted_at: new Date(now - i * 60000).toISOString(),
-    review_status: 'PENDING', reviewed_by_name: null, reviewed_at: null, review_note: null });
+    location: 'Phnom Penh', khan: 'Tuol Kouk', latitude: 11.55 + i / 1000, longitude: 104.92, gps_accuracy: 12, remark: i === 10 ? 'Merchant had an old QR' : null, photo_count: 2,
+    telegram_link: 'https://t.me/c/123/' + i, app_version: '3.49.0', captured_at: new Date(now - i * 60000).toISOString(), submitted_at: new Date(now - i * 60000).toISOString() });
+  for (let k = 0; k < failed; k++) state.qrAtt.push({ staff_id: '2722' + (i % 4), staff_name: NAMES[i % 4], branch_text: i % 2 ? 'Toul Kork' : 'Head Office', branch_id: i % 2 ? '105' : '100',
+    expected_mid: String(200100000000000 + i), got_mid: '200100000000999', received_at: new Date(now - i * 60000 - 30000).toISOString(), session_id: 's' + i });
 }
+state.qrAtt.push({ staff_id: '27225', staff_name: 'Ouk Sophea', branch_text: 'Toul Kork', branch_id: '105', expected_mid: '200100000000777', got_mid: '200100000000778', received_at: new Date(now - 5000).toISOString(), session_id: 'x' });
 const pv = (url, k) => url.searchParams.getAll(k);
 function qrList(url) {
   let rows = state.qr.slice();
   for (const v of pv(url, 'submitted_at')) { if (v.startsWith('gte.')) rows = rows.filter(r => r.submitted_at >= v.slice(4)); if (v.startsWith('lt.')) rows = rows.filter(r => r.submitted_at < v.slice(3)); }
   for (const v of pv(url, 'failed_attempts')) { if (v === 'gt.0') rows = rows.filter(r => r.failed_attempts > 0); if (v === 'eq.0') rows = rows.filter(r => r.failed_attempts === 0); }
-  for (const k of ['review_status', 'activity', 'branch_id', 'mid']) for (const v of pv(url, k)) {
+  for (const k of ['activity', 'branch_id', 'mid', 'staff_id']) for (const v of pv(url, k)) {
     if (v.startsWith('eq.')) rows = rows.filter(r => String(r[k]) === v.slice(3));
     if (v.startsWith('like.')) { const t = v.slice(5).replace(/%/g, ''); rows = rows.filter(r => String(r[k]).includes(t)); }
   }
@@ -153,20 +156,27 @@ async function api2(route) {
     const part = rows.slice(off, off + lim);
     return json(200, part, { 'content-range': (part.length ? off + '-' + (off + part.length - 1) : '*') + '/' + rows.length });
   }
+  const inP = (t, b) => (!b.p_from || t >= b.p_from) && (!b.p_to || t < b.p_to);
   if (path === '/rest/v1/rpc/qr_summary') {
     state.calls.push('RPC qr_summary ' + JSON.stringify(body));
     if (state.qrMissing) return json(404, { code: 'PGRST202', message: 'Could not find the function public.qr_summary' });
-    let rows = state.qr.filter(r => (!body.p_from || r.submitted_at >= body.p_from) && (!body.p_to || r.submitted_at < body.p_to));
-    if (me && me.profile.role === 'BRANCH') rows = rows.filter(r => r.branch_id === me.profile.branch_id);
+    const rows = state.qr.filter(r => inP(r.submitted_at, body)), att = state.qrAtt.filter(a => inP(a.received_at, body));
     return json(200, { total: rows.length, completed: rows.filter(r => !r.failed_attempts).length, failed: rows.filter(r => r.failed_attempts).length,
-      needs_review: rows.filter(r => r.failed_attempts && r.review_status === 'PENDING').length, install: rows.filter(r => r.activity === 'NEW_INSTALLATION').length,
-      replace: rows.filter(r => r.activity === 'QR_REPLACEMENT').length, qr: rows.reduce((s, r) => s + r.qr_count, 0) });
+      install: rows.filter(r => r.activity === 'NEW_INSTALLATION').length, replace: rows.filter(r => r.activity === 'QR_REPLACEMENT').length,
+      qr: rows.reduce((s, r) => s + r.qr_count, 0), attempts: att.length, staff_failed: new Set(att.map(a => a.staff_id)).size });
   }
-  if (path === '/rest/v1/rpc/qr_review') {
-    state.calls.push('RPC qr_review ' + JSON.stringify(body)); state.reviews = (state.reviews || []).concat([body]);
-    if (me.profile.role === 'BRANCH') return json(403, { code: '42501', message: 'Only HQ admins can review KHQR entries.' });
-    const r = state.qr.find(x => x.id === body.p_id); r.review_status = body.p_status; r.review_note = body.p_note; r.reviewed_by_name = 'SAY Chanmakara (8986)'; r.reviewed_at = new Date().toISOString();
-    return json(200, { id: r.id, review_status: r.review_status });
+  if (path === '/rest/v1/rpc/qr_staff_failures') {
+    state.calls.push('RPC qr_staff_failures ' + JSON.stringify(body));
+    if (state.qrMissing) return json(404, { code: 'PGRST202', message: 'Could not find the function public.qr_staff_failures' });
+    const m = new Map();
+    state.qrAtt.filter(a => inP(a.received_at, body)).forEach(a => {
+      const x = m.get(a.staff_id) || { staff_id: a.staff_id, staff_name: a.staff_name, branch_text: a.branch_text, attempts: 0, last_at: '', last_expected_mid: '', last_got_mid: '' };
+      x.attempts++; if (a.received_at > x.last_at) { x.last_at = a.received_at; x.last_expected_mid = a.expected_mid; x.last_got_mid = a.got_mid; }
+      m.set(a.staff_id, x);
+    });
+    const out = [...m.values()].map(x => { const e = state.qr.filter(r => r.staff_id === x.staff_id && inP(r.submitted_at, body)); return Object.assign(x, { entries: e.length, entries_failed: e.filter(r => r.failed_attempts).length }); })
+      .sort((a, b) => b.attempts - a.attempts || (a.last_at < b.last_at ? 1 : -1));
+    return json(200, out);
   }
   if (path === '/rest/v1/field_events' && method === 'HEAD') {
     state.calls.push(method + ' ' + path + url.search);
@@ -176,7 +186,6 @@ async function api2(route) {
   }
   return api(route);
 }
-// a Sound Box record waiting too
 state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, revision: 1, kind: 'SB_MAINT', device_type: 'Sound Box', serial: 'SB0001', mid: '200123456789012', outlet_name: 'Sokha Mart', branch_text: 'Toul Kork', branch_id: '105', staff_name: 'Sok Dara', recorded_at: '2026-10-21T11:00:00+07:00', payload: {}, issues: [], status: 'PENDING', received_at: '2026-10-21T04:00:00Z' });
 
 (async () => {
@@ -189,60 +198,48 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   ok(!(await p.isVisible('#empId')), 'Super Admin signed in');
   const side = p.locator('aside').first();
   for (const t of ['POS Terminal', 'Sound Box', 'KHQR']) ok(await side.getByRole('button', { name: new RegExp('^' + t) }).isVisible(), `sidebar: "${t}" under Phone App Review`);
-  const sideTxt = await side.textContent();
-  ok(/POS Terminal\s*3/.test(sideTxt) && /Sound Box\s*1/.test(sideTxt) && /KHQR\s*12/.test(sideTxt), 'sub-menu badges: 3 POS waiting, 1 Sound Box waiting, 12 KHQR need review ' + sideTxt.replace(/\s+/g, ' ').slice(0, 400));
-  // POS Terminal
+  const sideTxt = (await side.textContent()).replace(/\s+/g, ' ');
+  ok(/POS Terminal\s*3/.test(sideTxt) && /Sound Box\s*1/.test(sideTxt) && /KHQR Operations/.test(sideTxt.replace(/KHQR\s*OPERATIONS/i, 'KHQR Operations')), 'badges: 3 POS, 1 Sound Box waiting; KHQR has no approval badge');
   await side.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1500);
   let body = await p.textContent('main');
-  ok(/Phone App Review\s*·\s*POS Terminal/.test(body) && /WP0001/.test(body) && !/SB0001/.test(body) && !(await p.isVisible('text=All devices')), 'POS Terminal: POS records only, no device type pills');
-  await p.screenshot({ path: '/tmp/claude-0/t/d_pos.png' });
+  ok(/Phone App Review\s*·\s*POS Terminal/.test(body) && /WP0001/.test(body) && !/SB0001/.test(body), 'POS Terminal: POS records only');
+  ok(await p.isVisible('text=Admin HQ Stock'), 'stock cards still shown on the other pages');
   await side.getByRole('button', { name: /^Sound Box/ }).click(); await sleep(1200);
   body = await p.textContent('main');
   ok(/Phone App Review\s*·\s*Sound Box/.test(body) && /SB0001/.test(body) && !/WP0001/.test(body), 'Sound Box: Sound Box records only');
   // KHQR
-  await side.getByRole('button', { name: /^KHQR/ }).click(); await sleep(2000);
-  body = await p.textContent('main');
-  ok(/Phone App Review\s*·\s*KHQR/.test(body) && /SHOP 1200100000000001/.test(body), 'KHQR: entries shown, newest first');
+  await side.getByRole('button', { name: /^KHQR/ }).click(); await sleep(2200);
+  body = await p.textContent('body');
+  ok(!(await p.isVisible('text=Admin HQ Stock')) && !(await p.isVisible('text=Branch Code 100 Vault')), 'KHQR page: the stock cards are gone');
+  const stats = (await p.textContent('[aria-label="KHQR statistics"]')).replace(/\s+/g, ' ');
+  ok(/KHQR entries\s*120/.test(stats) && /QR materials\s*240/.test(stats) && /Completed\s*108/.test(stats) && /Failed Attempt\s*12/.test(stats) && /Restricted submits\s*19/.test(stats) && /Staff involved\s*3/.test(stats),
+    'KHQR statistics only: entries, QR, completed, failed attempt entries, restricted submits, staff', stats.slice(0, 400));
+  ok(!/Needs review|Mark as checked|Escalate/i.test(body), 'no approval step anywhere');
+  const st = await p.locator('[aria-label="Failed attempts by staff"] .divide-y > button').allTextContents();
+  ok(st.length === 3 && /Ouk Sophea/.test(st.join('|')) && /Sok Dara.*12/.test(st[0].replace(/\s+/g, ' ')), 'failed attempts by staff: 3 staff, most first', st.map(x => x.replace(/\s+/g, ' ').slice(0, 60)));
   const rowsN = await p.locator('[aria-label="KHQR entries"] [data-page-content] > div').count();
-  ok(rowsN === 50 && /Showing 1–50 of 120 entries/.test(body), 'KHQR: 50 per page, server total 120 ' + rowsN);
-  ok(state.calls.some(c => /qr_installations\?select=.*submitted_at=gte\./.test(c) && /offset=0/.test(c) && /limit=50/.test(c)), 'read from the server: this month, offset 0, 50 rows');
-  ok(/Needs review\s*\(12\)/.test(body) && /Failed Attempt\s*\(12\)/.test(body) && /Completed\s*\(108\)/.test(body), 'status tabs show the period counts');
-  await p.screenshot({ path: '/tmp/claude-0/t/d_khqr.png' });
+  ok(rowsN === 50 && /Showing 1–50 of 120 entries/.test(body), 'entries: 50 per page, server total 120');
+  ok(/Phnom Penh · Tuol Kouk/.test(await p.textContent('[aria-label="KHQR entries"]')), 'Location and Khan in the list');
+  await p.screenshot({ path: '/tmp/claude-0/t/d2_khqr.png' });
   await p.getByRole('button', { name: 'Next page' }).click(); await sleep(1200);
-  body = await p.textContent('main');
-  ok(/Showing 51–100 of 120/.test(body) && state.calls.some(c => /qr_installations.*offset=50/.test(c)), 'next page read from the server (offset 50)');
-  // Needs review
-  await p.getByRole('button', { name: /^Needs review/ }).first().click(); await sleep(1200);
-  const nr = await p.locator('[aria-label="KHQR entries"] [data-page-content] > div').count();
-  body = await p.textContent('[aria-label="KHQR entries"]');
-  ok(nr === 12 && /Failed Attempt \(1\)/.test(body) && /Failed Attempt \(2\)/.test(body) && /Needs review/.test(body), 'Needs review: the 12 flagged entries, Failed Attempt (n)');
-  // open the first one and review it
+  ok(/Showing 51–100 of 120/.test(await p.textContent('main')) && state.calls.some(c => /qr_installations.*offset=50/.test(c)), 'next page read from the server (offset 50)');
+  // a staff member → their Failed Attempt entries
+  await p.locator('[aria-label="Failed attempts by staff"] .divide-y > button').first().click(); await sleep(1500);
+  const firstStaff = (await p.locator('[aria-label="Failed attempts by staff"] .divide-y > button').first().textContent());
+  const listTxt = await p.textContent('[aria-label="KHQR entries"]');
+  ok(state.calls.some(c => /staff_id=eq\.2722\d/.test(c) && /failed_attempts=gt\.0/.test(c)) && /Staff: /.test(await p.textContent('main')), 'tap a staff member → their Failed Attempt entries (exact Staff ID)');
   await p.locator('[aria-label="KHQR entries"] [data-page-content] > div > button').first().click(); await sleep(800);
-  body = await p.textContent('[aria-label="KHQR entries"]');
-  ok(/scanned MID 200100000000999 \(OTHER SHOP\) instead of 2001000000000\d\d/.test(body) && /on Telegram/.test(body) && /11\.\d+, 104\.92/.test(body), 'details: the wrong MID scanned, Telegram post, location');
-  await p.screenshot({ path: '/tmp/claude-0/t/d_khqr_open.png' });
-  await p.getByRole('button', { name: 'Escalate' }).click(); await sleep(500);
-  ok(/Please write the reason for escalation/.test(await p.textContent('[aria-label="KHQR entries"]')) && !(state.reviews || []).length, 'escalation needs a note');
-  await p.getByRole('button', { name: /Mark as checked/ }).click(); await sleep(1200);
-  ok((state.reviews || []).length === 1 && state.reviews[0].p_status === 'CHECKED', 'Mark as checked → qr_review(CHECKED) ' + JSON.stringify(state.reviews));
-  body = await p.textContent('main');
-  ok(/Needs review\s*\(11\)/.test(body), 'counts refreshed after review');
-  await sleep(500);
-  ok(/KHQR\s*11/.test(await side.textContent()), 'menu badge refreshed (11)');
-  // search by MID
-  await p.getByRole('button', { name: /^All\s*\(/ }).first().click(); await sleep(600);
-  await p.fill('input[aria-label="Search KHQR entries"]', '200100000000077'); await sleep(1500);
-  const one = await p.locator('[aria-label="KHQR entries"] [data-page-content] > div').count();
-  ok(one === 1 && state.calls.some(c => /mid=eq\.200100000000077/.test(c)), 'search by a full MID → exact match on the server');
+  const det = await p.textContent('[aria-label="KHQR entries"]');
+  ok(/QR with MID 200100000000999 \(OTHER SHOP\) instead of 2001000000000\d\d/.test(det) && /on Telegram/.test(det), 'details: the wrong MID, Telegram post');
+  await p.screenshot({ path: '/tmp/claude-0/t/d2_open.png' });
   await p.getByRole('button', { name: 'Clear filters' }).click(); await sleep(1500);
   ok(/Showing 1–50 of 120/.test(await p.textContent('main')), 'Clear filters → back to all');
+  await p.fill('input[aria-label="Search KHQR entries"]', '200100000000077'); await sleep(1500);
+  ok((await p.locator('[aria-label="KHQR entries"] [data-page-content] > div').count()) === 1 && state.calls.some(c => /mid=eq\.200100000000077/.test(c)), 'search by a full MID');
   ok(!errs.length, 'no page errors ' + errs.join(' | '));
-  // branch staff: no review buttons
-  // missing tables → setup note
   state.qrMissing = true;
   await p.getByRole('button', { name: 'Refresh' }).click(); await sleep(1500);
   ok(/KHQR tables are not set up/.test(await p.textContent('main')), 'database not migrated yet → a clear setup note');
-  state.qrMissing = false;
   await b.close();
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED'); process.exit(fails ? 1 : 0);
 })();

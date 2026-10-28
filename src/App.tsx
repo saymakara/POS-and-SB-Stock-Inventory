@@ -97,8 +97,6 @@ import {
   insertHistoricalMerchantToSupabase,
   deleteAllHistoricalMerchantsOnServer,
   countPendingFieldEventsByType,
-  countQrNeedsReview,
-  subscribeToQrEntries,
   fetchAuditLogs,
   subscribeToFieldEvents,
   dispatchRequisitionOnServer,
@@ -651,9 +649,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [serverReady, setServerReady] = useState<boolean>(false);
   const [serverError, setServerError] = useState<string>('');
   const [pendingFieldCount, setPendingFieldCount] = useState<number>(0);
-  // (28 Oct 2026) Phone App Review sub-menus: waiting POS / Sound Box records and KHQR entries that need review
+  // (28 Oct 2026) Phone App Review sub-menus: waiting POS / Sound Box records (KHQR has no approval step: no count)
   const [pendingByType, setPendingByType] = useState<{ pos: number; sb: number }>({ pos: 0, sb: 0 });
-  const [qrNeedsReview, setQrNeedsReview] = useState<number>(0);
   const applyPendingByType = useCallback((c: { pos: number; sb: number }) => {
     setPendingByType((prev) => (prev.pos === c.pos && prev.sb === c.sb ? prev : c));
     setPendingFieldCount(c.pos + c.sb);
@@ -826,16 +823,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       countPendingFieldEventsByType().then((c) => {
         if (alive && c !== null) applyPendingByType(c);
       });
-    const countQr = () =>
-      countQrNeedsReview().then((n) => {
-        if (alive && n !== null) setQrNeedsReview(n);
-      });
-    let qrTimer: ReturnType<typeof setTimeout> | null = null;
-    const countQrSoon = () => {
-      if (qrTimer) return;
-      qrTimer = setTimeout(() => { qrTimer = null; countQr(); }, 15000);
-    };
-    let unsubscribeQr: () => void = () => {};
+
     // (22 Oct 2026) a burst of phone records is counted once, at most every 15 seconds (fewer server requests)
     let countTimer: ReturnType<typeof setTimeout> | null = null;
     const countPendingSoon = () => {
@@ -927,15 +915,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       scheduleFlush();
       countPending();
       unsubscribeField = subscribeToFieldEvents(() => countPendingSoon());
-      countQr();
-      unsubscribeQr = subscribeToQrEntries(() => countQrSoon());
     })();
 
     return () => {
       alive = false;
       if (countTimer) clearTimeout(countTimer);
-      if (qrTimer) clearTimeout(qrTimer);
-      unsubscribeQr();
       if (flushHandle !== null) { try { cancelAnimationFrame(flushHandle); } catch { /* not a frame */ } }
       unsubscribe();
       unsubscribeField();
@@ -3861,8 +3845,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         totalDevices={activeDeviceCount}
         totalMerchants={uniqueMerchantsCount}
         totalHistoricalMerchants={historicalMerchants.length}
-        webhookCount={isSupabaseConfigured ? pendingFieldCount + qrNeedsReview : outOfSyncWebhooksCount}
-        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb, khqr: qrNeedsReview } : undefined}
+        webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
+        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb } : undefined}
         pendingReqs={pendingReqsCount}
         totalBranches={branches.length}
         totalUsers={users.length}
@@ -4105,8 +4089,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             totalDevices={activeDeviceCount}
             totalMerchants={uniqueMerchantsCount}
             totalHistoricalMerchants={historicalMerchants.length}
-            webhookCount={isSupabaseConfigured ? pendingFieldCount + qrNeedsReview : outOfSyncWebhooksCount}
-        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb, khqr: qrNeedsReview } : undefined}
+            webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
+        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb } : undefined}
             sseConnected={sseConnected}
             pendingReqs={pendingReqsCount}
             totalUsers={users.length}
@@ -4133,7 +4117,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             pingMs={pingMs}
           />
 
-          {/* Classic Pipeline Stage Filter Bar */}
+          {/* Classic Pipeline Stage Filter Bar (not on Phone App Review → KHQR: that page shows KHQR statistics only) */}
+          {shownTab !== 'mobile_sync_khqr' && (
           <PipelineBar
               role={role}
               counts={pipelineCounts}
@@ -4146,9 +4131,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               }}
               theme={theme}
             />
+          )}
 
             <main className="px-4 sm:px-6 py-5">
-              {/* 6 Elevated KPI Cards with Shadows */}
+              {/* 6 Elevated KPI Cards with Shadows (stock: not on the KHQR page) */}
+              {shownTab !== 'mobile_sync_khqr' && (
               <KpiCards
                 devices={scopedDevices}
                 theme={theme}
@@ -4164,6 +4151,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                   }
                 }}
               />
+              )}
 
               {/* Robust Responsive Tab Content with Error Boundary */}
               {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
@@ -4491,7 +4479,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       role={role}
                       branches={branches}
                       triggerToast={triggerToast}
-                      onNeedsReviewChange={setQrNeedsReview}
                     />
                   )}
                   {(shownTab === 'mobile_sync' || shownTab === 'mobile_sync_sb' || shownTab === 'mobile_sync_khqr') && !isSupabaseConfigured && (

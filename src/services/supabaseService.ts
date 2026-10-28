@@ -1563,11 +1563,11 @@ export async function rejectFieldEvent(id: number, note: string): Promise<void> 
 
 /* ---------------------------------------------------------------------------------------------------------------------
  * (28 Oct 2026) KHQR entries from the Merchant Visit phone app: New Installation and QR Replacement.
- * Written only by the phone app's server (qr_submit); the dashboard reads them page by page (50 or 100 rows, newest
- * first) and an HQ admin reviews the Failed Attempt entries (qr_review).
+ * Written only by the phone app's server (qr_submit / qr_log_attempt); the dashboard reads them page by page (50 or
+ * 100 rows, newest first). No review step: a "failed attempt" is a Submit the app restricted because a QR had another
+ * MID; the dashboard tracks who had them.
  * ------------------------------------------------------------------------------------------------------------------- */
 export type QrActivity = 'NEW_INSTALLATION' | 'QR_REPLACEMENT';
-export type QrReviewStatus = 'PENDING' | 'CHECKED' | 'ESCALATED';
 export interface QrMismatch {
   at?: string;
   expectedMid?: string;
@@ -1590,6 +1590,8 @@ export interface QrEntry {
   failedAttempts: number;
   status: 'COMPLETED' | 'FAILED_ATTEMPT';
   attempts: QrMismatch[];
+  location: string;
+  khan: string;
   latitude: number | null;
   longitude: number | null;
   gpsAccuracy: number | null;
@@ -1599,19 +1601,27 @@ export interface QrEntry {
   appVersion: string;
   capturedAt: string | null;
   submittedAt: string;
-  reviewStatus: QrReviewStatus;
-  reviewedByName: string;
-  reviewedAt: string | null;
-  reviewNote: string;
 }
 export interface QrSummary {
   total: number;
   completed: number;
   failed: number;
-  needsReview: number;
   install: number;
   replace: number;
   qr: number;
+  attempts: number;
+  staffFailed: number;
+}
+export interface QrStaffFailure {
+  staffId: string;
+  staffName: string;
+  branchText: string;
+  attempts: number;
+  entriesFailed: number;
+  entries: number;
+  lastAt: string | null;
+  lastExpectedMid: string;
+  lastGotMid: string;
 }
 export const QR_ACTIVITY_LABEL: Record<QrActivity, string> = {
   NEW_INSTALLATION: 'New Installation',
@@ -1620,8 +1630,8 @@ export const QR_ACTIVITY_LABEL: Record<QrActivity, string> = {
 
 const QR_COLUMNS =
   'id,record_id,activity,staff_id,staff_name,branch_text,branch_id,merchant_name,merchant_name_kh,mid,qr_expected,qr_count,' +
-  'failed_attempts,status,attempts,latitude,longitude,gps_accuracy,remark,photo_count,telegram_link,app_version,captured_at,' +
-  'submitted_at,review_status,reviewed_by_name,reviewed_at,review_note';
+  'failed_attempts,status,attempts,location,khan,latitude,longitude,gps_accuracy,remark,photo_count,telegram_link,app_version,' +
+  'captured_at,submitted_at';
 
 const num = (v: any): number | null => (v === null || v === undefined || v === '' || isNaN(Number(v)) ? null : Number(v));
 export function mapQrEntry(r: any): QrEntry {
@@ -1647,6 +1657,8 @@ export function mapQrEntry(r: any): QrEntry {
       gotMid: a?.got_mid || a?.got || undefined,
       gotName: a?.got_name || a?.gotName || undefined,
     })),
+    location: r.location || '',
+    khan: r.khan || '',
     latitude: num(r.latitude),
     longitude: num(r.longitude),
     gpsAccuracy: num(r.gps_accuracy),
@@ -1656,20 +1668,16 @@ export function mapQrEntry(r: any): QrEntry {
     appVersion: r.app_version || '',
     capturedAt: r.captured_at || null,
     submittedAt: r.submitted_at,
-    reviewStatus: (['PENDING', 'CHECKED', 'ESCALATED'].includes(r.review_status) ? r.review_status : 'PENDING') as QrReviewStatus,
-    reviewedByName: r.reviewed_by_name || '',
-    reviewedAt: r.reviewed_at || null,
-    reviewNote: r.review_note || '',
   };
 }
 
 export interface QrQuery {
   from?: string | null;        // ISO, inclusive
   to?: string | null;          // ISO, exclusive
-  status?: 'ALL' | 'COMPLETED' | 'FAILED_ATTEMPT' | 'NEEDS_REVIEW';
+  status?: 'ALL' | 'COMPLETED' | 'FAILED_ATTEMPT';
   activity?: 'ALL' | QrActivity;
   branchId?: string;
-  review?: 'ALL' | QrReviewStatus;
+  staffId?: string;
   search?: string;
 }
 
@@ -1679,10 +1687,9 @@ function applyQrFilters(q: any, p: QrQuery) {
   if (p.to) query = query.lt('submitted_at', p.to);
   if (p.status === 'COMPLETED') query = query.eq('failed_attempts', 0);
   else if (p.status === 'FAILED_ATTEMPT') query = query.gt('failed_attempts', 0);
-  else if (p.status === 'NEEDS_REVIEW') query = query.gt('failed_attempts', 0).eq('review_status', 'PENDING');
   if (p.activity && p.activity !== 'ALL') query = query.eq('activity', p.activity);
   if (p.branchId) query = query.eq('branch_id', p.branchId);
-  if (p.review && p.review !== 'ALL') query = query.eq('review_status', p.review);
+  if (p.staffId) query = query.eq('staff_id', p.staffId);
   const term = (p.search || '').trim().replace(/[,()%*\\]/g, ' ').replace(/\s+/g, ' ').trim();
   if (term) {
     if (/^\d{15}$/.test(term)) query = query.eq('mid', term);                       // a full MID: the index is used
@@ -1711,7 +1718,7 @@ export async function fetchQrEntriesPage(p: QrQuery & { page?: number; pageSize?
   }
 }
 
-/** Totals of a period (one request; the reader's branch rules apply). */
+/** KHQR statistics of a period (one request; the reader's branch rules apply). */
 export async function fetchQrSummary(from: string | null, to: string | null): Promise<QrSummary | null> {
   try {
     const { data, error } = await supabase.rpc('qr_summary', { p_from: from, p_to: to });
@@ -1721,10 +1728,11 @@ export async function fetchQrSummary(from: string | null, to: string | null): Pr
       total: Number(d.total) || 0,
       completed: Number(d.completed) || 0,
       failed: Number(d.failed) || 0,
-      needsReview: Number(d.needs_review) || 0,
       install: Number(d.install) || 0,
       replace: Number(d.replace) || 0,
       qr: Number(d.qr) || 0,
+      attempts: Number(d.attempts) || 0,
+      staffFailed: Number(d.staff_failed) || 0,
     };
   } catch (err) {
     await reportCaughtError('fetchQrSummary', err, { showPopup: false });
@@ -1732,33 +1740,29 @@ export async function fetchQrSummary(from: string | null, to: string | null): Pr
   }
 }
 
-/** Failed Attempt entries not reviewed yet (the menu badge). */
-export async function countQrNeedsReview(): Promise<number | null> {
+/** Who had failed attempts in a period, most first. */
+export async function fetchQrStaffFailures(from: string | null, to: string | null, limit = 200): Promise<QrStaffFailure[] | null> {
   try {
-    const { count, error } = await supabase
-      .from('qr_installations')
-      .select('id', { count: 'exact', head: true })
-      .gt('failed_attempts', 0)
-      .eq('review_status', 'PENDING');
+    const { data, error } = await supabase.rpc('qr_staff_failures', { p_from: from, p_to: to, p_limit: limit });
     if (error) throw error;
-    return count || 0;
+    return (Array.isArray(data) ? data : []).map((r: any) => ({
+      staffId: r.staff_id || '',
+      staffName: r.staff_name || '',
+      branchText: r.branch_text || '',
+      attempts: Number(r.attempts) || 0,
+      entriesFailed: Number(r.entries_failed) || 0,
+      entries: Number(r.entries) || 0,
+      lastAt: r.last_at || null,
+      lastExpectedMid: r.last_expected_mid || '',
+      lastGotMid: r.last_got_mid || '',
+    }));
   } catch (err) {
-    await reportCaughtError('countQrNeedsReview', err, { showPopup: false });
+    await reportCaughtError('fetchQrStaffFailures', err, { showPopup: false });
     return null;
   }
 }
 
-export async function reviewQrEntry(id: number, status: QrReviewStatus, note: string): Promise<void> {
-  try {
-    const { error } = await supabase.rpc('qr_review', { p_id: id, p_status: status, p_note: note || null });
-    if (error) throw error;
-  } catch (err) {
-    await reportCaughtError('reviewQrEntry', err, { target: String(id) });
-    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
-  }
-}
-
-/** New entries and review changes, live. */
+/** New entries, live. */
 export function subscribeToQrEntries(onChange: (e: QrEntry) => void): () => void {
   if (!isSupabaseConfigured) return () => {};
   const channel = supabase
