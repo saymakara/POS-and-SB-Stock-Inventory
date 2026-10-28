@@ -1279,14 +1279,18 @@ function mapFieldEvent(r: any): FieldEvent {
   };
 }
 
+let cachedBranchRegions: Record<string, string> | null = null;
+
 export async function fetchBranchRegions(): Promise<Record<string, string>> {
+  if (cachedBranchRegions) return cachedBranchRegions;
   try {
-    const { data, error } = await supabase.from('branches').select('id,region').limit(100).range(0, 99);
+    const { data, error } = await supabase.from('branches').select('id,region').limit(1000);
     if (error) throw error;
     const m: Record<string, string> = {};
     (data || []).forEach((b: any) => {
       m[String(b.id)] = String(b.region || '');
     });
+    cachedBranchRegions = m;
     return m;
   } catch (err) {
     await reportCaughtError('fetchBranchRegions', err, { showPopup: false });
@@ -1295,8 +1299,8 @@ export async function fetchBranchRegions(): Promise<Record<string, string>> {
 }
 
 /** Waiting records fetched with strict server-side limit() and range(offset, offset + limit - 1). */
-export async function fetchPendingFieldEvents(limit = 100, offset = 0): Promise<FieldEvent[] | null> {
-  const safeLimit = Math.max(1, Math.min(limit, 100));
+export async function fetchPendingFieldEvents(limit = 1000, offset = 0): Promise<FieldEvent[] | null> {
+  const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);
   try {
     const all: any[] = [];
@@ -1312,7 +1316,7 @@ export async function fetchPendingFieldEvents(limit = 100, offset = 0): Promise<
       if (error) throw error;
       const rows = data || [];
       all.push(...rows);
-      if (rows.length < safeLimit || all.length >= 2000) break;
+      if (rows.length < safeLimit || all.length >= 3000) break;
       curOffset += safeLimit;
     }
     return all.map(mapFieldEvent);
@@ -1322,8 +1326,8 @@ export async function fetchPendingFieldEvents(limit = 100, offset = 0): Promise<
   }
 }
 
-export async function fetchReviewedFieldEvents(limit = 100, offset = 0): Promise<FieldEvent[] | null> {
-  const safeLimit = Math.max(1, Math.min(limit, 100));
+export async function fetchReviewedFieldEvents(limit = 1000, offset = 0): Promise<FieldEvent[] | null> {
+  const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);
   try {
     const all: any[] = [];
@@ -1339,7 +1343,7 @@ export async function fetchReviewedFieldEvents(limit = 100, offset = 0): Promise
       if (error) throw error;
       const rows = data || [];
       all.push(...rows);
-      if (rows.length < safeLimit || all.length >= 1000) break;
+      if (rows.length < safeLimit || all.length >= 2000) break;
       curOffset += safeLimit;
     }
     return all.map(mapFieldEvent);
