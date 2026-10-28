@@ -121,11 +121,13 @@ for (let i = 1; i <= 120; i++) {
     failed_attempts: failed, status: failed ? 'FAILED_ATTEMPT' : 'COMPLETED',
     attempts: failed ? [{ at: new Date(now - i * 60000 - 30000).toISOString(), expected_mid: String(200100000000000 + i), got_mid: '200100000000999', got_name: 'OTHER SHOP' }] : [],
     location: 'Phnom Penh', khan: 'Tuol Kouk', latitude: 11.55 + i / 1000, longitude: 104.92, gps_accuracy: 12, remark: i === 10 ? 'Merchant had an old QR' : null, photo_count: 2,
-    telegram_link: 'https://t.me/c/123/' + i, app_version: '3.49.0', captured_at: new Date(now - i * 60000).toISOString(), submitted_at: new Date(now - i * 60000).toISOString() });
+    session_id: 's' + i, telegram_link: 'https://t.me/c/123/' + i, app_version: '3.49.0', captured_at: new Date(now - i * 60000).toISOString(), submitted_at: new Date(now - i * 60000).toISOString() });
   for (let k = 0; k < failed; k++) state.qrAtt.push({ staff_id: '2722' + (i % 4), staff_name: NAMES[i % 4], branch_text: i % 2 ? 'Toul Kork' : 'Head Office', branch_id: i % 2 ? '105' : '100',
-    expected_mid: String(200100000000000 + i), got_mid: '200100000000999', received_at: new Date(now - i * 60000 - 30000).toISOString(), session_id: 's' + i });
+    expected_mid: String(200100000000000 + i), got_mid: '200100000000999', got_name: 'OTHER SHOP', received_at: new Date(now - i * 60000 - 30000 - k * 1000).toISOString(), session_id: 's' + i,
+    activity: i % 3 ? 'NEW_INSTALLATION' : 'QR_REPLACEMENT', scanned_count: 2 });
 }
-state.qrAtt.push({ staff_id: '27225', staff_name: 'Ouk Sophea', branch_text: 'Toul Kork', branch_id: '105', expected_mid: '200100000000777', got_mid: '200100000000778', received_at: new Date(now - 5000).toISOString(), session_id: 'x' });
+state.qrAtt.push({ staff_id: '27225', staff_name: 'Ouk Sophea', branch_text: 'Toul Kork', branch_id: '105', expected_mid: '200100000000777', got_mid: '200100000000778', received_at: new Date(now - 5000).toISOString(), session_id: 'x', activity: 'NEW_INSTALLATION', scanned_count: 3 });
+state.qrAtt.forEach((a, i) => { a.id = i + 1; });
 const pv = (url, k) => url.searchParams.getAll(k);
 function qrList(url) {
   let rows = state.qr.slice();
@@ -147,6 +149,22 @@ async function api2(route) {
   const H = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range' };
   const json = (code, o, h) => route.fulfill({ status: code, contentType: 'application/json', headers: Object.assign({}, H, h || {}), body: JSON.stringify(o) });
   if (method === 'OPTIONS') return api(route);
+  if (path === '/rest/v1/qr_attempts') {
+    state.calls.push(method + ' ' + path + url.search);
+    let rows = state.qrAtt.slice();
+    for (const v of pv(url, 'received_at')) if (v.startsWith('gte.')) rows = rows.filter(r => r.received_at >= v.slice(4));
+    for (const k of ['activity', 'branch_id', 'staff_id']) for (const v of pv(url, k)) if (v.startsWith('eq.')) rows = rows.filter(r => String(r[k]) === v.slice(3));
+    const or = url.searchParams.get('or');
+    if (or) { const t = (or.match(/like\.%([^%]*)%/) || [])[1] || ''; rows = rows.filter(r => [r.expected_mid, r.got_mid, r.staff_name, r.got_name, r.branch_text, r.staff_id].some(x => String(x || '').toLowerCase().includes(t.toLowerCase()))); }
+    rows.sort((a, b) => (a.received_at < b.received_at ? 1 : -1));
+    const off = Number(url.searchParams.get('offset') || 0), lim = Number(url.searchParams.get('limit') || 1000);
+    const part = rows.slice(off, off + lim);
+    return json(200, part, { 'content-range': (part.length ? off + '-' + (off + part.length - 1) : '*') + '/' + rows.length });
+  }
+  if (path === '/rest/v1/qr_installations' && url.searchParams.get('session_id')) {
+    const ids = (url.searchParams.get('session_id').match(/^in\.\((.*)\)$/) || [, ''])[1].split(',').map(x => x.replace(/^"|"$/g, ''));
+    return json(200, state.qr.filter(r => ids.includes(r.session_id)).map(r => ({ session_id: r.session_id, record_id: r.record_id })));
+  }
   if (path === '/rest/v1/qr_installations') {
     state.calls.push(method + ' ' + path + url.search);
     if (state.qrMissing) return json(404, { code: 'PGRST205', message: "Could not find the table 'public.qr_installations' in the schema cache" });
@@ -223,11 +241,19 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   await p.screenshot({ path: '/tmp/claude-0/t/d2_khqr.png' });
   await p.getByRole('button', { name: 'Next page' }).click(); await sleep(1200);
   ok(/Showing 51–100 of 120/.test(await p.textContent('main')) && state.calls.some(c => /qr_installations.*offset=50/.test(c)), 'next page read from the server (offset 50)');
-  // a staff member → their Failed Attempt entries
-  await p.locator('[aria-label="Failed attempts by staff"] .divide-y > button').first().click(); await sleep(1500);
-  const firstStaff = (await p.locator('[aria-label="Failed attempts by staff"] .divide-y > button').first().textContent());
-  const listTxt = await p.textContent('[aria-label="KHQR entries"]');
-  ok(state.calls.some(c => /staff_id=eq\.2722\d/.test(c) && /failed_attempts=gt\.0/.test(c)) && /Staff: /.test(await p.textContent('main')), 'tap a staff member → their Failed Attempt entries (exact Staff ID)');
+  // the failed attempts log
+  await p.getByRole('tab', { name: /Failed attempts log/ }).click(); await sleep(1500);
+  let log = await p.locator('[aria-label="Failed attempts log"] [data-page-content] > div').allTextContents();
+  ok(log.length === 19 && /Ouk Sophea/.test(log[0]) && /Not saved/.test(log[0]) && /QR-20261028-0000\d\d/.test(log[1]) && /200100000000999/.test(log[1]),
+    'Failed attempts log: all 19 blocked submits, newest first; unsaved ones say "Not saved", saved ones show the Record ID', log.slice(0, 2).map(x => x.replace(/\s+/g, ' ')));
+  await p.screenshot({ path: '/tmp/claude-0/t/d4_log.png' });
+  // a staff member → their failed attempts in the log
+  await p.locator('[aria-label="Failed attempts by staff"] .divide-y > button').nth(2).click(); await sleep(1500);
+  log = await p.locator('[aria-label="Failed attempts log"] [data-page-content] > div').allTextContents();
+  ok(log.length === 1 && /Ouk Sophea/.test(log[0]) && state.calls.some(c => /qr_attempts.*staff_id=eq\.27225/.test(c)) && /Staff: Ouk Sophea/.test(await p.textContent('main')), 'tap a staff member → their failed attempts (even with no saved entry)');
+  await p.getByRole('button', { name: 'Clear filters' }).click(); await sleep(800);
+  await p.getByRole('tab', { name: /KHQR entries/ }).click(); await sleep(800);
+  await p.getByRole('button', { name: /^Failed Attempt/ }).last().click(); await sleep(1500);
   await p.locator('[aria-label="KHQR entries"] [data-page-content] > div > button').first().click(); await sleep(800);
   const det = await p.textContent('[aria-label="KHQR entries"]');
   ok(/Wrong MID 200100000000999 \(OTHER SHOP\)/.test(det) && /Submit blocked: MID did not match/.test(det) && /on Telegram/.test(det), 'details: the wrong MID, Telegram post');

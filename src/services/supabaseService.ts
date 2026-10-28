@@ -1762,6 +1762,82 @@ export async function fetchQrStaffFailures(from: string | null, to: string | nul
   }
 }
 
+/** (28 Oct 2026) One blocked Submit (a QR with another MID), as logged by the phone app. */
+export interface QrAttempt {
+  id: number;
+  sessionId: string;
+  activity: QrActivity | '';
+  staffId: string;
+  staffName: string;
+  branchText: string;
+  branchId: string | null;
+  expectedMid: string;
+  gotMid: string;
+  gotName: string;
+  scannedCount: number;
+  clientAt: string | null;
+  receivedAt: string;
+  /** the entry saved later in the same scanning session (empty: never saved) */
+  savedRecordId: string;
+}
+
+/** The failed attempts log: one page, newest first; each row says whether its entry was saved later. */
+export async function fetchQrAttemptsPage(p: {
+  from?: string | null; activity?: 'ALL' | QrActivity; branchId?: string; staffId?: string; search?: string; page?: number; pageSize?: number;
+}): Promise<PaginatedResult<QrAttempt>> {
+  const pageSize = p.pageSize === 100 ? 100 : 50;
+  const page = Math.max(1, p.page || 1);
+  const offset = (page - 1) * pageSize;
+  try {
+    let q: any = supabase
+      .from('qr_attempts')
+      .select('id,session_id,activity,staff_id,staff_name,branch_text,branch_id,expected_mid,got_mid,got_name,scanned_count,client_at,received_at', { count: 'exact' });
+    if (p.from) q = q.gte('received_at', p.from);
+    if (p.activity && p.activity !== 'ALL') q = q.eq('activity', p.activity);
+    if (p.branchId) q = q.eq('branch_id', p.branchId);
+    if (p.staffId) q = q.eq('staff_id', p.staffId);
+    const term = (p.search || '').trim().replace(/[,()%*\\]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (term) {
+      if (/^\d{4,15}$/.test(term)) q = q.or(`expected_mid.like.%${term}%,got_mid.like.%${term}%,staff_id.eq.${term}`);
+      else q = q.or(`staff_name.ilike.%${term}%,got_name.ilike.%${term}%,branch_text.ilike.%${term}%`);
+    }
+    const { data, count, error } = await q.order('received_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    const list = (data || []) as any[];
+    // the entries saved later in these sessions (one request for the page)
+    const sessions = Array.from(new Set(list.map((r) => r.session_id).filter(Boolean)));
+    const saved = new Map<string, string>();
+    if (sessions.length) {
+      const { data: ent, error: e2 } = await supabase.from('qr_installations').select('session_id,record_id').in('session_id', sessions);
+      if (!e2) (ent || []).forEach((r: any) => saved.set(r.session_id, r.record_id || ''));
+    }
+    return {
+      rows: list.map((r) => ({
+        id: Number(r.id),
+        sessionId: r.session_id || '',
+        activity: r.activity === 'QR_REPLACEMENT' || r.activity === 'NEW_INSTALLATION' ? r.activity : '',
+        staffId: r.staff_id || '',
+        staffName: r.staff_name || '',
+        branchText: r.branch_text || '',
+        branchId: r.branch_id ?? null,
+        expectedMid: r.expected_mid || '',
+        gotMid: r.got_mid || '',
+        gotName: r.got_name || '',
+        scannedCount: Number(r.scanned_count) || 0,
+        clientAt: r.client_at || null,
+        receivedAt: r.received_at,
+        savedRecordId: saved.get(r.session_id) || '',
+      })),
+      total: count || 0,
+      page,
+      pageSize,
+    };
+  } catch (err) {
+    await reportCaughtError('fetchQrAttemptsPage', err, { showPopup: false });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
 /** New entries, live. */
 export function subscribeToQrEntries(onChange: (e: QrEntry) => void): () => void {
   if (!isSupabaseConfigured) return () => {};

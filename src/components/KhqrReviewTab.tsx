@@ -7,8 +7,8 @@ import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP, todayPP } from '../utils/time';
 import {
-  QrActivity, QrEntry, QrQuery, QrStaffFailure, QrSummary, QR_ACTIVITY_LABEL,
-  fetchQrEntriesPage, fetchQrSummary, fetchQrStaffFailures, subscribeToQrEntries,
+  QrActivity, QrAttempt, QrEntry, QrQuery, QrStaffFailure, QrSummary, QR_ACTIVITY_LABEL,
+  fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrSummary, fetchQrStaffFailures, subscribeToQrEntries,
 } from '../services/supabaseService';
 
 /**
@@ -32,6 +32,7 @@ const STATUS_TABS: Array<{ v: StatusFilter; label: string }> = [
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
   'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(190px,1.4fr)_56px_minmax(150px,1fr)_minmax(130px,0.8fr)_150px_20px]';
+const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
 const SGRID = 'grid items-center gap-x-3 grid-cols-[44px_minmax(170px,1.2fr)_minmax(130px,1fr)_110px_120px_150px_minmax(220px,1.3fr)]';
 
 /** Start of a period in Phnom Penh time (UTC+7), as ISO. */
@@ -81,6 +82,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const [live, setLive] = useState(false);
   const [newCount, setNewCount] = useState(0);
   const [open, setOpen] = useState<number | null>(null);
+  const [view, setView] = useState<'entries' | 'log'>('entries');      // (28 Oct 2026) saved entries, or every blocked Submit
+  const [logKey, setLogKey] = useState(0);                            // reloads the failed attempts log
 
   const from = useMemo(() => periodFrom(period), [period]);
   const filters = useMemo<QrQuery>(() => ({ from, status, activity, branchId: branchId || undefined, staffId: staffSel?.id || undefined, search }),
@@ -127,7 +130,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
     const unsub = subscribeToQrEntries(() => {
       setLive(true);
       setNewCount((n) => n + 1);
-      if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(); }, 5000);
+      if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(); setLogKey((k) => k + 1); }, 5000);
     });
     const t = setTimeout(() => setLive(true), 2500);
     return () => { unsub(); clearTimeout(t); if (statTimer) clearTimeout(statTimer); };
@@ -143,7 +146,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const entriesRef = useRef<HTMLElement | null>(null);
   const showStaff = (s: QrStaffFailure) => {
     setStaffSel({ id: s.staffId, name: s.staffName || s.staffId });
-    setStatus('FAILED_ATTEMPT');
+    setView('log');
     setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
@@ -173,7 +176,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             </select>
             <button
               type="button"
-              onClick={() => { load(); loadStats(); }}
+              onClick={() => { load(); loadStats(); setLogKey((k) => k + 1); }}
               aria-label="Refresh"
               title="Refresh KHQR statistics and entries"
               className="btn-press p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer transition"
@@ -192,10 +195,10 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             <Kpi label="KHQR entries" value={summary?.total} sub={summary ? `${summary.install.toLocaleString()} new · ${summary.replace.toLocaleString()} replaced` : ''} />
             <Kpi label="QR materials" value={summary?.qr} sub={summary && summary.total ? `${(summary.qr / summary.total).toFixed(1)} per entry` : PERIOD_LABEL[period]} />
             <Kpi label="Completed" value={summary?.completed} sub={summary ? `${pct(summary.completed, summary.total)} of entries` : ''} tone="good"
-              onClick={() => setStatus('COMPLETED')} />
+              onClick={() => { setView('entries'); setStatus('COMPLETED'); }} />
             {/* (3.50) every blocked Submit tap is one failed attempt */}
             <Kpi label="Failed Attempt" value={summary?.attempts} sub={summary ? `${summary.failed.toLocaleString()} entries affected` : ''} tone={summary?.attempts ? 'bad' : undefined}
-              onClick={() => setStatus('FAILED_ATTEMPT')} />
+              onClick={() => { setView('log'); setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }} />
             <Kpi label="Staff involved" value={summary?.staffFailed} sub="with failed attempts" tone={summary?.staffFailed ? 'bad' : undefined} />
           </div>
         )}
@@ -231,7 +234,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
                   key={s.staffId + i}
                   type="button"
                   onClick={() => showStaff(s)}
-                  title="Show this staff member's Failed Attempt entries"
+                  title="Show this staff member's failed attempts"
                   className={`${SGRID} w-full text-left px-3.5 py-2 text-[12.5px] text-slate-700 hover:bg-rose-50/60 cursor-pointer`}
                 >
                   <span className="text-right tabular-nums text-slate-500">{i + 1}</span>
@@ -260,7 +263,37 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
       {/* Entries: filters */}
       <section ref={entriesRef} className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs scroll-mt-4" aria-label="Filters">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-[13px] font-medium text-slate-900 mr-1">KHQR entries</h3>
+          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1" role="tablist" aria-label="View">
+            {([['entries', 'KHQR entries', summary?.total], ['log', 'Failed attempts log', summary?.attempts]] as const).map(([v, label, n]) => {
+              const active = view === v;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setView(v)}
+                  className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
+                    active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {active && (
+                    <motion.div layoutId="qr-view-pill" aria-hidden className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs" transition={SPRING} />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    {v === 'log' && <span className={`w-2 h-2 rounded-full ${active ? 'bg-rose-300' : 'bg-rose-500'}`} aria-hidden />}
+                    <span>{label}</span>
+                    {n !== undefined && (
+                      <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md ${active ? 'bg-white/20 text-white font-bold' : 'bg-slate-200/60 text-slate-500'}`}>
+                        ({n.toLocaleString()})
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {view === 'entries' && (
           <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1">
             {STATUS_TABS.map((t) => {
               const active = status === t.v;
@@ -291,6 +324,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               );
             })}
           </div>
+          )}
           <select
             value={activity}
             onChange={(e) => setActivity(e.target.value as 'ALL' | QrActivity)}
@@ -327,8 +361,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search MID, Merchant, Staff, Record ID…"
-              aria-label="Search KHQR entries"
+              placeholder={view === 'log' ? 'Search MID, Staff, Branch…' : 'Search MID, Merchant, Staff, Record ID…'}
+              aria-label={view === 'log' ? 'Search failed attempts' : 'Search KHQR entries'}
               className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400"
             />
           </div>
@@ -336,6 +370,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
         </div>
       </section>
 
+      {view === 'log' && loadError !== 'SETUP' && (
+        <QrAttemptLog from={from} activity={activity} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey} />
+      )}
+
+      {view === 'entries' && (<>
       <AnimatePresence initial={false}>
         {newCount > 0 && (
           <motion.button
@@ -394,7 +433,97 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
         </div>
         <Pager pg={pg} label="entries" />
       </section>
+      </>)}
     </div>
+  );
+};
+
+/** (28 Oct 2026) Failed attempts log: every blocked Submit (a QR with another MID), newest first, page by page. */
+const QrAttemptLog: React.FC<{ from: string | null; activity: 'ALL' | QrActivity; branchId: string; staffId: string; search: string; reloadKey: number }> = ({
+  from, activity, branchId, staffId, search, reloadKey,
+}) => {
+  const [rows, setRows] = useState<QrAttempt[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const pg = usePager(total, [from, activity, branchId, staffId, search]);
+  const page = pg.page, pageSize = pg.pageSize;
+  const seqRef = useRef(0);
+  const load = useCallback(async () => {
+    const seq = ++seqRef.current;
+    setLoading(true);
+    try {
+      const res = await fetchQrAttemptsPage({ from, activity, branchId: branchId || undefined, staffId: staffId || undefined, search, page, pageSize });
+      if (seq !== seqRef.current) return;
+      setRows(res.rows); setTotal(res.total); setErr('');
+    } catch (e) {
+      if (seq !== seqRef.current) return;
+      setErr(e instanceof Error ? e.message : String(e)); setRows((r) => r || []);
+    } finally {
+      if (seq === seqRef.current) setLoading(false);
+    }
+  }, [from, activity, branchId, staffId, search, page, pageSize]);
+  useEffect(() => { load(); }, [load, reloadKey]);
+  return (
+    <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Failed attempts log">
+      <div className="min-w-[1080px]">
+        <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
+          <span className="text-right">No.</span>
+          <span>Time</span>
+          <span>Staff</span>
+          <span>Branch</span>
+          <span>Activity</span>
+          <span>Expected MID</span>
+          <span>Wrong MID</span>
+          <span className="text-center">QR</span>
+          <span>Entry</span>
+        </div>
+        {err && (
+          <div className="p-6 text-center text-sm text-rose-700 bg-rose-50/60">
+            Could not load the failed attempts: {err}{' '}
+            <button type="button" onClick={load} className="underline cursor-pointer">Try again</button>
+          </div>
+        )}
+        {rows === null && !err && (
+          <div aria-busy="true" aria-label="Loading">
+            {[0, 1, 2, 3].map((i) => <div key={i} className="h-[50px] border-b border-slate-100 px-3.5 flex items-center"><div className="skeleton h-3.5 rounded w-2/3" /></div>)}
+          </div>
+        )}
+        {rows && rows.length === 0 && !err && (
+          <div className="p-10 text-center text-sm font-semibold text-emerald-700">No failed attempt matches the current filters.</div>
+        )}
+        <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
+          {(rows || []).map((a, i) => (
+            <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[12.5px] text-slate-700 hover:bg-rose-50/50`}>
+              <span className="text-right tabular-nums text-slate-500">{pg.start + i + 1}</span>
+              <span className="tabular-nums whitespace-nowrap" title={a.clientAt ? `On the phone: ${stampSecPP(new Date(a.clientAt))}` : undefined}>{stampSecPP(new Date(a.clientAt || a.receivedAt))}</span>
+              <span className="leading-tight min-w-0">
+                <span className="block truncate text-slate-900">{a.staffName || a.staffId}</span>
+                <span className="block text-[11px] text-slate-500 font-mono">{a.staffId}</span>
+              </span>
+              <span className="truncate">{a.branchText || '—'}</span>
+              <span className="truncate">{a.activity ? QR_ACTIVITY_LABEL[a.activity] : '—'}</span>
+              <span className="font-mono tabular-nums">{a.expectedMid || '—'}</span>
+              <span className="leading-tight min-w-0">
+                <span className="block font-mono tabular-nums text-rose-700">{a.gotMid || '—'}</span>
+                {a.gotName && <span className="block text-[11px] text-slate-500 truncate">{a.gotName}</span>}
+              </span>
+              <span className="text-center tabular-nums">{a.scannedCount || '—'}</span>
+              <span>
+                {a.savedRecordId ? (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 font-mono" title="Saved later in the same scan">
+                    <CheckCircle2 className="w-3 h-3" /> {a.savedRecordId}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] px-2 py-0.5 rounded-full border bg-slate-50 text-slate-600 border-slate-200">Not saved</span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Pager pg={pg} label="failed attempts" />
+    </section>
   );
 };
 
