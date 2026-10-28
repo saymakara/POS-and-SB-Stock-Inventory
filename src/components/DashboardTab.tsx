@@ -339,13 +339,57 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     [requisitions]
   );
 
-  const recentDevices = useMemo(
-    () =>
-      [...activeDevices]
-        .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
-        .slice(0, 6),
-    [activeDevices]
-  );
+  const recentDevices = useMemo(() => {
+    // Deterministic key: most recent timestamp (updatedAt -> deployedDate -> pushDate -> stockInDate),
+    // and secondary tie-breaker on serial (descending) so order is 100% stable and never flips.
+    const getSortKey = (d: Device) => {
+      const ts = d.updatedAt || d.deployedDate || d.pushDate || d.stockInDate || '';
+      return `${ts}__${d.serial}`;
+    };
+
+    if (activeDevices.length <= 6) {
+      return [...activeDevices].sort((a, b) => getSortKey(b).localeCompare(getSortKey(a)));
+    }
+
+    // High-performance single-pass O(N) top-6 scan instead of O(N log N) 45,000-item array copy & full sort.
+    const top: Device[] = [];
+    const topKeys: string[] = [];
+
+    for (let i = 0; i < activeDevices.length; i++) {
+      const dev = activeDevices[i];
+      const key = getSortKey(dev);
+
+      if (top.length < 6) {
+        top.push(dev);
+        topKeys.push(key);
+        if (top.length === 6) {
+          for (let m = 0; m < 5; m++) {
+            for (let n = m + 1; n < 6; n++) {
+              if (topKeys[m].localeCompare(topKeys[n]) < 0) {
+                const tempDev = top[m]; top[m] = top[n]; top[n] = tempDev;
+                const tempKey = topKeys[m]; topKeys[m] = topKeys[n]; topKeys[n] = tempKey;
+              }
+            }
+          }
+        }
+      } else {
+        if (key.localeCompare(topKeys[5]) > 0) {
+          top[5] = dev;
+          topKeys[5] = key;
+          for (let m = 5; m > 0; m--) {
+            if (topKeys[m].localeCompare(topKeys[m - 1]) > 0) {
+              const tempDev = top[m]; top[m] = top[m - 1]; top[m - 1] = tempDev;
+              const tempKey = topKeys[m]; topKeys[m] = topKeys[m - 1]; topKeys[m - 1] = tempKey;
+            } else {
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return top;
+  }, [activeDevices]);
 
   // Classic GroupedBarChart series for Branch / Lifecycle distribution
   const topBranchesChart = useMemo(() => {
@@ -864,11 +908,31 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
           <div className="p-4 space-y-2.5 flex-1">
             {activeDevices.length === 0 ? (
-              <div className="py-10 text-center text-slate-500 text-xs">
-                <Package className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                <p className="font-bold text-slate-700">No Hardware Registered Yet</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">Use Batch Upload or New Stock Request to register hardware units.</p>
-              </div>
+              typeof serverTotalDevices === 'number' && serverTotalDevices > 0 ? (
+                <div aria-busy="true" aria-label="Loading recent hardware" className="space-y-2.5">
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <div
+                      key={i}
+                      className="p-3 rounded-xl border border-slate-200/60 bg-slate-50/50 flex items-center justify-between gap-3 animate-pulse"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-8 h-8 rounded-lg bg-slate-200 shrink-0" />
+                        <div className="space-y-1.5 flex-1">
+                          <div className="h-3.5 bg-slate-200 rounded w-1/2" />
+                          <div className="h-2.5 bg-slate-100 rounded w-1/3" />
+                        </div>
+                      </div>
+                      <div className="w-16 h-5 bg-slate-100 rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-10 text-center text-slate-500 text-xs">
+                  <Package className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                  <p className="font-bold text-slate-700">No Hardware Registered Yet</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Use Batch Upload or New Stock Request to register hardware units.</p>
+                </div>
+              )
             ) : (
               recentDevices.map((dev) => {
               const meta = STAGE_META[dev.stage];
