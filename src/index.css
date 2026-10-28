@@ -105,39 +105,38 @@
 
 /* Signature Deep Navy Blue Sidebar (Cloned from Push Configuring Hub) */
 .sb-sidebar-gradient {
-  background-color: #002238;
+  background-color: #13171e;
   background-image: linear-gradient(
     180deg,
-    #002238 0%,
-    #003857 50%,
-    #004e75 100%
+    #13171e 0%,
+    #181e27 50%,
+    #1e2531 100%
   );
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 4px 0 24px -4px rgba(0, 34, 56, 0.65);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 4px 0 24px -4px rgba(0, 0, 0, 0.5);
 }
 
 /* Prestigious Solid Signature Navy Blue Bar & Table Header */
 .navy-header-bar {
-  background-color: #003857 !important;
-  background-image: none !important;
+  background-color: #1e242f !important;
+  background-image: linear-gradient(180deg, #252d3a 0%, #1e242f 100%) !important;
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow:
-    0 8px 24px -6px rgba(0, 56, 87, 0.35),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+    0 4px 16px -4px rgba(15, 23, 42, 0.4),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
 }
 
 /* Table Header (Prestigious Solid Navy Blue Color) */
 table thead,
 .glass-table-thead,
-.glass-table-thead-light,
-.navy-header-bar {
-  background-color: #003857 !important;
-  background-image: none !important;
-  color: #ffffff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+.glass-table-thead-light {
+  background-color: #1e242f !important;
+  background-image: linear-gradient(180deg, #252d3a 0%, #1e242f 100%) !important;
+  color: #f1f5f9;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
 }
 
 table thead tr,
@@ -145,11 +144,10 @@ table thead th,
 .glass-table-thead tr,
 .glass-table-thead th,
 .glass-table-thead-light tr,
-.glass-table-thead-light th,
-.navy-header-bar {
-  background-color: #003857 !important;
+.glass-table-thead-light th {
+  background-color: #1e242f !important;
   background-image: none !important;
-  color: #ffffff !important;
+  color: #f1f5f9 !important;
 }
 
 /* Ensure sticky table headers and cells are 100% solid & opaque to prevent see-through when scrolling */
@@ -170,9 +168,9 @@ th.sticky {
   position: sticky;
   top: 0;
   z-index: 20;
-  background-color: #003857 !important;
+  background-color: #1e242f !important;
   background-image: none !important;
-  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
 }
 
 /* MID-Night Green Toggle Button & Pill Styles */

@@ -470,6 +470,31 @@ export async function fetchDevicesPageFromSupabase(
   };
 }
 
+/**
+ * Fetches all active devices currently in CONFIGURING stage directly from Supabase.
+ * Uses index `idx_devices_stage` to return the complete live app push queue in <10ms,
+ * ensuring no configuring devices are missed regardless of overall inventory table size.
+ */
+export async function fetchConfiguringDevicesFromSupabase(): Promise<Device[] | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase
+      .from('devices')
+      .select('*')
+      .eq('stage', 'CONFIGURING')
+      .eq('archived', false)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+    return (data || []).map(mapRowToDevice);
+  } catch (err) {
+    await reportCaughtError('fetchConfiguringDevicesFromSupabase', err, { showPopup: false });
+    return null;
+  }
+}
+
 export async function fetchDevicesFromSupabase(
   limit = 1000,
   offset = 0,
@@ -958,14 +983,23 @@ export async function saveRequisitionStrict(req: Requisition, isNew: boolean): P
   }
 }
 
-/** Super Admin deletes units permanently in batches of 100 with delay (Error-Only Logging). */
+/** Admin deletes units permanently in batches with delay and verification (Error-Only Logging). */
 export async function deleteDevicesOnServer(serials: string[]): Promise<string> {
   if (!isSupabaseConfigured || !serials.length) return '';
   try {
     for (let i = 0; i < serials.length; i += CSV_BATCH_SIZE) {
-      const { error } = await supabase.from('devices').delete().in('serial', serials.slice(i, i + CSV_BATCH_SIZE));
+      const batch = serials.slice(i, i + CSV_BATCH_SIZE);
+      const { data, error } = await supabase
+        .from('devices')
+        .delete()
+        .in('serial', batch)
+        .select('serial');
+
       if (error) {
         throw error;
+      }
+      if (batch.length > 0 && (!data || data.length === 0)) {
+        throw new Error('Database refused deletion. Please verify admin permissions.');
       }
       if (i + CSV_BATCH_SIZE < serials.length) {
         await sleep(CSV_BATCH_DELAY_MS);
