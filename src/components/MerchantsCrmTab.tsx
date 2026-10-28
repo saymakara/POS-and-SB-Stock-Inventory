@@ -690,8 +690,8 @@ return (
         className={`${cardClass} rounded-xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4`}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/80 text-slate-300 flex items-center justify-center shadow-sm shrink-0">
-            <Store className="w-5 h-5 text-slate-300" />
+          <div className="w-10 h-10 rounded-lg bg-[#003857]/12 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
+            <Store className="w-5 h-5" />
           </div>
           <div>
             <h2

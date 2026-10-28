@@ -896,15 +896,15 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 return (
     <div className="space-y-6 pb-24">
       {/* 1. HERO HEADER WITH LIVE PIPELINE STATS */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-linear-to-br from-[#181d24] via-[#212732] to-[#28313e] text-slate-100 shadow-xl border border-slate-700/70">
+      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-linear-to-br from-[#002238] via-[#003857] to-[#004e75] text-white shadow-xl border border-white/10">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-slate-800/80 text-slate-300 border border-slate-700/80">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-sky-500/15 text-sky-200 border border-sky-400/30">
+              <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
               <span>Dedicated App Push Pipeline</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
-              <SendHorizontal className="w-8 h-8 text-slate-300 shrink-0" />
+              <SendHorizontal className="w-8 h-8 text-[#7cc4ed] shrink-0" />
               <span>Push Configuring Hub</span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-200/90 leading-relaxed">
@@ -919,10 +919,10 @@ return (
                 type="button"
                 onClick={handleManualRefreshQueue}
                 disabled={isRefreshingQueue}
-                className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-[0.98] transition-all duration-150 text-slate-200 font-bold text-xs sm:text-sm border border-slate-700/80 shadow-xs cursor-pointer disabled:opacity-50"
+                className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-[0.98] transition-all duration-150 text-white font-bold text-xs sm:text-sm border border-white/20 shadow-xs cursor-pointer disabled:opacity-50"
                 title="Refresh hardware configuring queue from database"
               >
-                <RotateCw className={`w-3.5 h-3.5 text-slate-300 ${isRefreshingQueue ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'}`} />
+                <RotateCw className={`w-3.5 h-3.5 text-sky-300 ${isRefreshingQueue ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'}`} />
                 <span>Sync Queue</span>
               </button>
             )}
@@ -935,16 +935,16 @@ return (
                   setPusherPasswordError('');
                   setIsPushAllModalOpen(true);
                 }}
-                className="group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs sm:text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border border-white"
+                className="group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-[#003857] font-bold text-xs sm:text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border border-white/90"
                 title="Push alerts to all devices (Requires Pusher Password verification)"
               >
-                <Lock className="w-4 h-4 text-slate-900 shrink-0 group-hover:scale-110 transition-transform duration-150" />
+                <Lock className="w-4 h-4 text-[#003857] shrink-0 group-hover:scale-110 transition-transform duration-150" />
                 <span className="tracking-tight font-bold">
                   {waitingDevices.length === 0 && configuringDevices.length > 0
                     ? 'Re-push All'
                     : 'Notify All Ready'}
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-[#003857]/8 text-[#003857] border border-[#003857]/15">
                   {waitingDevices.length > 0 ? (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -967,23 +967,23 @@ return (
         </div>
 
         {/* KPI Mini-Cards (Clickable to view and filter queue table) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-700/60">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
           <button
             type="button"
             onClick={() => handleCardClick('WAITING')}
             className={`group p-3.5 rounded-2xl border backdrop-blur-xs transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
               pushStatusFilter === 'WAITING'
-                ? 'bg-slate-800/95 border-amber-400/60 ring-2 ring-amber-400/40 shadow-md'
-                : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800/70 hover:border-slate-600/70'
+                ? 'bg-white/20 border-white/40 ring-2 ring-sky-300 shadow-md'
+                : 'bg-white/5 border-white/10 hover:bg-white/15 hover:border-white/25'
             }`}
             title="Click to view table and filter waiting devices"
           >
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
               <span>Total Waiting Push</span>
-              <span className="text-[10px] text-slate-400 group-hover:text-slate-200 transition-colors">View Table ↓</span>
+              <span className="text-[10px] text-sky-200/70 group-hover:text-white transition-colors">View Table ↓</span>
             </div>
             <div className="text-2xl font-black text-white mt-1">{waitingDevices.length}</div>
-            <div className="text-[10px] text-slate-300 font-medium mt-0.5 truncate">
+            <div className="text-[10px] text-sky-300 font-medium mt-0.5 truncate">
               {alreadyPushedDevices.length > 0
                 ? `${alreadyPushedDevices.length} already pushed (${configuringDevices.length} total)`
                 : 'Click to view hardware queue'}
@@ -995,17 +995,17 @@ return (
             onClick={() => handleCardClick('POS')}
             className={`group p-3.5 rounded-2xl border backdrop-blur-xs transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
               typeFilter === 'POS Terminal'
-                ? 'bg-slate-800/95 border-slate-400 ring-2 ring-slate-400/40 shadow-md'
-                : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800/70 hover:border-slate-600/70'
+                ? 'bg-white/20 border-white/40 ring-2 ring-blue-300 shadow-md'
+                : 'bg-white/5 border-white/10 hover:bg-white/15 hover:border-white/25'
             }`}
             title="Click to view and filter POS Terminals in queue"
           >
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-slate-400" />
+                <span className="w-2 h-2 rounded-full bg-blue-400" />
                 POS Terminals
               </span>
-              <span className="text-[10px] text-slate-400 group-hover:text-slate-200 transition-colors">View Table ↓</span>
+              <span className="text-[10px] text-sky-200/70 group-hover:text-white transition-colors">View Table ↓</span>
             </div>
             <div className="text-2xl font-black text-white mt-1">{posCount}</div>
             <div className="text-[10px] text-slate-300 font-medium mt-0.5">Under Configuring</div>
@@ -1016,17 +1016,17 @@ return (
             onClick={() => handleCardClick('SB')}
             className={`group p-3.5 rounded-2xl border backdrop-blur-xs transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
               typeFilter === 'Sound Box'
-                ? 'bg-slate-800/95 border-slate-400 ring-2 ring-slate-400/40 shadow-md'
-                : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800/70 hover:border-slate-600/70'
+                ? 'bg-white/20 border-white/40 ring-2 ring-purple-300 shadow-md'
+                : 'bg-white/5 border-white/10 hover:bg-white/15 hover:border-white/25'
             }`}
             title="Click to view and filter Sound Boxes in queue"
           >
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-slate-400" />
+                <span className="w-2 h-2 rounded-full bg-purple-400" />
                 Sound Boxes
               </span>
-              <span className="text-[10px] text-slate-400 group-hover:text-slate-200 transition-colors">View Table ↓</span>
+              <span className="text-[10px] text-sky-200/70 group-hover:text-white transition-colors">View Table ↓</span>
             </div>
             <div className="text-2xl font-black text-white mt-1">{sbCount}</div>
             <div className="text-[10px] text-slate-300 font-medium mt-0.5">Under Configuring</div>
@@ -1035,18 +1035,18 @@ return (
           <button
             type="button"
             onClick={() => handleCardClick('ALL')}
-            className="group p-3.5 rounded-2xl bg-slate-800/40 border border-slate-700/60 backdrop-blur-xs hover:bg-slate-800/70 hover:border-slate-600/70 transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none"
+            className="group p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs hover:bg-white/15 hover:border-white/25 transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none"
             title="Click to view all active teams in queue"
           >
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+            <div className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-slate-400" />
+                <Users className="w-3.5 h-3.5 text-sky-300" />
                 Active Teams
               </span>
-              <span className="text-[10px] text-slate-400 group-hover:text-slate-200 transition-colors">View Table ↓</span>
+              <span className="text-[10px] text-sky-200/70 group-hover:text-white transition-colors">View Table ↓</span>
             </div>
             <div className="text-2xl font-black text-white mt-1">{teamGroups.length}</div>
-            <div className="text-[10px] text-slate-400 font-medium mt-0.5">Assigned branch teams</div>
+            <div className="text-[10px] text-sky-200 font-medium mt-0.5">Assigned branch teams</div>
           </button>
         </div>
       </div>
@@ -1584,7 +1584,7 @@ return (
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.96 }}
             transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-slate-900/95 dark:bg-[#0c121e]/95 text-white shadow-2xl border border-slate-700/80 backdrop-blur-xl flex items-center gap-2.5 sm:gap-3 max-w-[95vw] overflow-x-auto ring-1 ring-black/20"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[#002238]/95 dark:bg-[#0c121e]/95 text-white shadow-2xl border border-white/15 dark:border-slate-700/80 backdrop-blur-xl flex items-center gap-2.5 sm:gap-3 max-w-[95vw] overflow-x-auto ring-1 ring-black/20"
           >
             {/* Selection Count Pill */}
             <div className="flex items-center gap-2 pr-2.5 border-r border-white/15 shrink-0">

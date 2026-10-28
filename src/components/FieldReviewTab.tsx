@@ -48,7 +48,7 @@ const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as co
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
   'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_128px_minmax(150px,1.1fr)_minmax(130px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
-const CACHE_KEY = 'fe_review_cache_v3';
+const CACHE_KEY = 'fe_review_cache_v5';
 
 /** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */
 const PHNOM_PENH_BRANCH_CODES = new Set([
@@ -212,46 +212,46 @@ export const FieldReviewTab: React.FC<Props> = ({
     fetchBranchRegions().then((g) => startTransition(() => setRegions(g)));
   }, []);
 
-  // keep a small copy of the waiting records so the next visit paints instantly
+  // Cache records so tab switches and page refreshes paint instantly (0ms)
   useEffect(() => {
-    if (!events) return;
+    if (!events || events.length === 0) return;
     const t = window.setTimeout(() => {
       try {
         sessionStorage.setItem(
           CACHE_KEY,
-          JSON.stringify(events.filter((e) => e.status === 'PENDING').slice(0, 300))
+          JSON.stringify(events.slice(0, 1000))
         );
       } catch {
         /* storage full or blocked: fine */
       }
-    }, 800);
+    }, 400);
     return () => window.clearTimeout(t);
   }, [events]);
 
-  const merge = useCallback((pending: FieldEvent[] | null, reviewed: FieldEvent[] | null) => {
-    startTransition(() =>
-      setEvents((prev) => {
-        const keepPending = pending ?? (prev || []).filter((e) => e.status === 'PENDING');
-        const keepReviewed = reviewed ?? (prev || []).filter((e) => e.status !== 'PENDING');
-        return [...keepPending, ...keepReviewed];
-      })
-    );
-  }, []);
-
   const load = useCallback(async () => {
     setLoadError('');
-    const pending = await fetchPendingFieldEvents(100, 0);
-    if (!pending) {
+    try {
+      // Parallel fast fetch with limit 1000 — runs both pending and reviewed simultaneously in ~1s
+      const [pending, reviewed] = await Promise.all([
+        fetchPendingFieldEvents(1000, 0),
+        fetchReviewedFieldEvents(1000, 0),
+      ]);
+      if (!pending && !reviewed) {
+        setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
+        return;
+      }
+      startTransition(() => {
+        setEvents((prev) => {
+          const keepPending = pending ?? (prev || []).filter((e) => e.status === 'PENDING');
+          const keepReviewed = reviewed ?? (prev || []).filter((e) => e.status !== 'PENDING');
+          return [...keepPending, ...keepReviewed];
+        });
+        setReviewedReady(true);
+      });
+    } catch {
       setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
-      return;
     }
-    merge(pending, null);
-    const reviewed = await fetchReviewedFieldEvents(100, 0);
-    if (reviewed) {
-      merge(null, reviewed);
-      startTransition(() => setReviewedReady(true));
-    }
-  }, [merge]);
+  }, []);
 
   useEffect(() => {
     load();
