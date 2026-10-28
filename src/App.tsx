@@ -418,13 +418,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   });
 
   const [requisitions, setRequisitions] = useState<Requisition[]>(() => {
+    if (isSupabaseConfigured) return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_REQS);
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
     }
-    if (isSupabaseConfigured) return [];
     return createInitialRequisitions();
   });
   const [traceQuery, setTraceQuery] = useState('');
@@ -465,13 +465,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   });
 
   const [historicalMerchants, setHistoricalMerchants] = useState<HistoricalMerchantRecord[]>(() => {
+    if (isSupabaseConfigured) return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_HISTORICAL_MERCHANTS);
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
     }
-    if (isSupabaseConfigured) return [];
     return INITIAL_HISTORICAL_MERCHANTS;
   });
   const [appSettings, setAppSettings] = useState<AppSettings>(() => {
@@ -696,7 +696,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           syncedDevices.current = new Map(firstBatch.map((d) => [d.serial, d]));
           firstBatch.forEach((d) => serverCopies.current.add(d));
           setDevices(firstBatch);
-          setServerReady(true);
         }
       }),
       fetchRequisitionsFromSupabase(),
@@ -1337,6 +1336,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       syncedReqs.current.set(r.reqId, r);
       // a status change is made by the database functions (dispatch, receipt, return) – never by saving the row
       if (prior && prior.status !== r.status) return Promise.resolve('');
+      // Postgres requisitions_guard rejects inserts if status is not PENDING_ADMIN
+      if (!prior && r.status !== 'PENDING_ADMIN') return Promise.resolve('');
       return saveRequisitionStrict(r, !prior);
     });
     Promise.all(jobs).then((errs) => {
@@ -2899,13 +2900,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       return;
     }
 
-    if (updated.length > 0) {
+    if (updated.length > 0 && created.length > 0) {
+      const updatedMap = new Map(updated.map((u) => [u.serial, u]));
+      setDevices((prev) => [...created, ...prev.map((d) => updatedMap.get(d.serial) || d)]);
+      triggerOptimisticSync(
+        [...created.map((c) => c.serial), ...updated.map((u) => u.serial)],
+        `Batch processed ${created.length + updated.length} unit(s)`,
+        [...created, ...updated]
+      );
+    } else if (updated.length > 0) {
       const updatedMap = new Map(updated.map((u) => [u.serial, u]));
       setDevices((prev) => prev.map((d) => updatedMap.get(d.serial) || d));
       triggerOptimisticSync(updated.map((u) => u.serial), `Allocated ${updated.length} unit(s) to Branch Reserve`, updated);
-    }
-
-    if (created.length > 0) {
+    } else if (created.length > 0) {
       setDevices((prev) => [...created, ...prev]);
       triggerOptimisticSync(created.map((c) => c.serial), `Registered ${created.length} new serial(s) into inventory`, created);
     }

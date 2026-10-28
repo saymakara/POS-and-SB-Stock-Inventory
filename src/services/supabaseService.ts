@@ -4,8 +4,8 @@ import { normalizeMid } from '../utils/display';
 import { reportCaughtError } from '../utils/errorLogger';
 
 /** Batch size and inter-batch delay for CSV / bulk device inserts (prevents connection pool exhaustion & payload timeouts). */
-export const CSV_BATCH_SIZE = 100;
-export const CSV_BATCH_DELAY_MS = 150;
+export const CSV_BATCH_SIZE = 250;
+export const CSV_BATCH_DELAY_MS = 30;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -389,25 +389,30 @@ export async function checkExistingSerialsOnServer(serials: string[]): Promise<S
   const uniqueSerials = Array.from(
     new Set(serials.map((s) => String(s || '').trim().toUpperCase()).filter(Boolean))
   );
-  const CHUNK_SIZE = 200;
+  const CHUNK_SIZE = 500;
 
   try {
+    const chunks: string[][] = [];
     for (let i = 0; i < uniqueSerials.length; i += CHUNK_SIZE) {
-      const chunk = uniqueSerials.slice(i, i + CHUNK_SIZE);
-      const { data, error } = await supabase
-        .from('devices')
-        .select('serial')
-        .in('serial', chunk);
-
-      if (error) {
-        throw error;
-      }
-      for (const row of data || []) {
-        if (row && row.serial) {
-          existing.add(String(row.serial).trim().toUpperCase());
-        }
-      }
+      chunks.push(uniqueSerials.slice(i, i + CHUNK_SIZE));
     }
+    await Promise.all(
+      chunks.map(async (chunk) => {
+        const { data, error } = await supabase
+          .from('devices')
+          .select('serial')
+          .in('serial', chunk);
+
+        if (error) {
+          throw error;
+        }
+        for (const row of data || []) {
+          if (row && row.serial) {
+            existing.add(String(row.serial).trim().toUpperCase());
+          }
+        }
+      })
+    );
   } catch (err) {
     await reportCaughtError('checkExistingSerialsOnServer', err, { showPopup: false });
   }
@@ -727,7 +732,7 @@ export async function insertHistoricalMerchantToSupabase(rec: HistoricalMerchant
       notes: rec.notes,
     };
 
-    const { error } = await supabase.from('historical_merchants').insert(row);
+    const { error } = await supabase.from('historical_merchants').upsert(row, { onConflict: 'record_id' });
     if (error) {
       throw error;
     }
@@ -831,9 +836,10 @@ export async function saveDevicesStrict(
       const batchSlice = fresh.slice(i, i + CSV_BATCH_SIZE);
       const batchNum = Math.floor(i / CSV_BATCH_SIZE) + 1;
 
+      // Use upsert with ignoreDuplicates: true to safely skip rows that already exist in devices without aborting the batch
       const { data, error } = await supabase
         .from('devices')
-        .insert(batchSlice.map(mapDeviceToRow))
+        .upsert(batchSlice.map(mapDeviceToRow), { onConflict: 'serial', ignoreDuplicates: true })
         .select('serial,row_version');
 
       if (error) {
@@ -848,21 +854,39 @@ export async function saveDevicesStrict(
       }
 
       note(data);
+
+      // If any units already existed on the server, fetch their versions so client state tracks them
+      if (data && data.length < batchSlice.length) {
+        const missingSerials = batchSlice
+          .filter((d) => !data.some((r: any) => r.serial === d.serial))
+          .map((d) => d.serial);
+        if (missingSerials.length > 0) {
+          try {
+            const { data: existingRows } = await supabase
+              .from('devices')
+              .select('serial,row_version')
+              .in('serial', missingSerials);
+            note(existingRows);
+          } catch {}
+        }
+      }
+
       const insertedSoFar = Math.min(fresh.length, i + batchSlice.length);
       if (onBatchProgress) {
         onBatchProgress(insertedSoFar, fresh.length, batchNum, totalBatches);
       }
 
-      // Slight delay between batches of 100 rows so we never exhaust the connection pool
+      // Brief delay between batches of rows so we never exhaust the connection pool
       if (i + CSV_BATCH_SIZE < fresh.length) {
         await sleep(CSV_BATCH_DELAY_MS);
       }
     }
 
     let first: { error: string; stale: boolean } | null = null;
-    for (let i = 0; i < known.length && !first; i += 6) {
+    const CONCURRENT_UPDATES = 15;
+    for (let i = 0; i < known.length && !first; i += CONCURRENT_UPDATES) {
       await Promise.all(
-        known.slice(i, i + 6).map(async (d) => {
+        known.slice(i, i + CONCURRENT_UPDATES).map(async (d) => {
           try {
             const { data, error } = await supabase
               .from('devices')
@@ -911,12 +935,19 @@ export async function saveRequisitionStrict(req: Requisition, isNew: boolean): P
   if (!isSupabaseConfigured) return '';
   try {
     const row = mapRequisitionToRow(req);
-    const { error } = isNew
-      ? await supabase.from('requisitions').insert(row)
-      : await supabase
-          .from('requisitions')
-          .update({ reason: row.reason, staff: row.staff, pos_qty: row.pos_qty, sb_qty: row.sb_qty })
-          .eq('req_id', req.reqId);
+    let error: any = null;
+    // Postgres requisitions_guard trigger enforces that only PENDING_ADMIN requests can be inserted.
+    // Non-pending requests can only be updated, or were already finalized via stored procedures.
+    if (isNew && req.status === 'PENDING_ADMIN') {
+      const res = await supabase.from('requisitions').insert(row);
+      error = res.error;
+    } else {
+      const res = await supabase
+        .from('requisitions')
+        .update({ reason: row.reason, staff: row.staff, pos_qty: row.pos_qty, sb_qty: row.sb_qty })
+        .eq('req_id', req.reqId);
+      error = res.error;
+    }
     if (error) {
       throw error;
     }
