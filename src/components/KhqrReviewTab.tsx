@@ -26,7 +26,7 @@ const PERIOD_LABEL: Record<Period, string> = {
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const SMOOTH_EXPAND = { duration: 0.22, ease: [0.16, 1, 0.3, 1] } as const;
 const GRID =
-  'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
+  'grid items-center gap-x-3 grid-cols-[44px_145px_120px_minmax(170px,1.3fr)_120px_52px_minmax(150px,1fr)_minmax(140px,0.9fr)_20px]';
 const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_145px_minmax(140px,1.1fr)_95px_minmax(110px,0.9fr)_108px_120px_minmax(130px,1fr)_32px_160px]';
 const SGRID = 'grid items-center gap-x-3 grid-cols-[44px_minmax(160px,1.2fr)_100px_minmax(130px,1fr)_120px_160px_minmax(180px,1fr)]';
 
@@ -398,12 +398,13 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
 
             {/* Entries */}
             <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KHQR entries">
-              <div className="min-w-[1080px]">
+              <div className="min-w-[1140px]">
                 <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
                   <span className="text-right">No.</span>
                   <span>Date Sent</span>
                   <span>Activity</span>
-                  <span>Merchant / MID</span>
+                  <span>Merchant Name</span>
+                  <span>MID</span>
                   <span className="text-center">QR</span>
                   <span>Staff / Branch</span>
                   <span>Location</span>
@@ -634,9 +635,14 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
           <span className="block text-[11px] text-slate-500 font-mono truncate">{e.recordId}</span>
         </span>
         <span className="truncate">{QR_ACTIVITY_LABEL[e.activity]}</span>
-        <span className="leading-tight min-w-0">
-          <span className="block truncate text-slate-900" title={e.merchantNameKh ? `${e.merchantName} · ${e.merchantNameKh}` : e.merchantName}>{e.merchantName || e.merchantNameKh}</span>
-          <span className="block text-[11px] text-slate-500 font-mono tabular-nums">{e.mid}</span>
+        <span className="leading-tight min-w-0" title={e.merchantNameKh ? `${e.merchantName} · ${e.merchantNameKh}` : e.merchantName}>
+          <span className="block truncate font-medium text-slate-900">{e.merchantName || e.merchantNameKh || '—'}</span>
+          {e.merchantNameKh && e.merchantName && (
+            <span className="block text-[11px] text-slate-500 truncate">{e.merchantNameKh}</span>
+          )}
+        </span>
+        <span className="font-mono text-[11.5px] text-slate-700 tabular-nums truncate" title={e.mid}>
+          {e.mid || '—'}
         </span>
         <span className="text-center tabular-nums font-medium" title={`${e.qrCount} QR material(s) scanned`}>{e.qrCount}</span>
         <span className="leading-tight min-w-0">
