@@ -82,7 +82,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
     const bMap = new Map<string, BranchAccumulator>();
     for (let i = 0; i < branches.length; i++) {
-      bMap.set(branches[i].code, {
+      const acc: BranchAccumulator = {
         posCount: 0,
         sbCount: 0,
         reserveCount: 0,
@@ -91,7 +91,9 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         faultyCount: 0,
         totalDevices: 0,
         sampleDevices: [],
-      });
+      };
+      if (branches[i].code) bMap.set(String(branches[i].code).trim(), acc);
+      if (branches[i].id) bMap.set(String(branches[i].id).trim(), acc);
     }
 
     let totalDevices = 0;
@@ -103,7 +105,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
     const len = activeDevices.length;
     for (let i = 0; i < len; i++) {
       const d = activeDevices[i];
-      const acc = bMap.get(d.branchId);
+      const acc = bMap.get(String(d.branchId || '').trim());
       if (!acc) continue;
 
       acc.totalDevices++;
@@ -112,7 +114,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
       if (d.type === 'POS Terminal') { acc.posCount++; totalPos++; }
       else if (d.type === 'Sound Box') { acc.sbCount++; totalSb++; }
 
-      if (d.stage === 'BRANCH_RESERVE') { acc.reserveCount++; totalReserve++; }
+      const isHqDeployable = String(d.branchId || '').trim() === '100' && d.stage === 'HQ_STOCK';
+      if (d.stage === 'BRANCH_RESERVE' || isHqDeployable) { acc.reserveCount++; totalReserve++; }
       else if (d.stage === 'COMPLETE') { acc.completeCount++; totalLive++; }
       else if (d.stage === 'CONFIGURING') { acc.inFlightCount++; }
       else if (d.stage === 'FAULTY') { acc.faultyCount++; }
@@ -158,7 +161,9 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
   const matchedBranches = useMemo(() => {
     return branches
       .map((b) => {
-        const acc = branchDataMap.get(b.code) || {
+        const codeKey = String(b.code || '').trim();
+        const idKey = String(b.id || '').trim();
+        const acc = branchDataMap.get(codeKey) || (idKey ? branchDataMap.get(idKey) : undefined) || {
           posCount: 0,
           sbCount: 0,
           reserveCount: 0,

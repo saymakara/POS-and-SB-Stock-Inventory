@@ -510,7 +510,7 @@ export async function fetchDevicesFromSupabase(
     });
     if (!first) return null;
     const all: Device[] = first.rows.map(mapRowToDevice);
-    const totalToFetch = Math.min(first.count, 10000);
+    const totalToFetch = first.count;
     if (onFirstPage) {
       onFirstPage(all.slice(), totalToFetch);
     }
@@ -523,7 +523,7 @@ export async function fetchDevicesFromSupabase(
     for (let nextOff = Math.max(0, offset) + safeLimit; nextOff < totalToFetch; nextOff += safeLimit) {
       offsets.push(nextOff);
     }
-    const CONCURRENCY = 6;
+    const CONCURRENCY = 8;
     for (let i = 0; i < offsets.length; i += CONCURRENCY) {
       const chunk = offsets.slice(i, i + CONCURRENCY);
       const pages = await Promise.all(
