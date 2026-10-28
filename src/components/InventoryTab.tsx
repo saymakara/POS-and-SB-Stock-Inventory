@@ -528,7 +528,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   {posCount.toLocaleString()} POS · {sbCount.toLocaleString()} Sound Box
                 </span>
               </div>
-              <p className="text-xs text-white/80 mt-0.5">
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
                 Select multiple serials (e.g. Select 10) to batch-assign to a Branch Code or return to Admin HQ Stock
               </p>
             </div>
@@ -604,7 +604,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   if (onOpenBatchModal) onOpenBatchModal();
                   else if (onOpenImportModal) onOpenImportModal();
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white/14 hover:bg-white/22 text-white border border-white/20 transition cursor-pointer shadow-sm"
                 title="Upload CSV formatted as the inventory table"
               >
                 <Upload className="w-3.5 h-3.5" />
@@ -947,7 +947,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           aria-pressed={isChecked}
                         >
                           {isChecked ? (
-                            <CheckSquare className="w-4 h-4 text-[#003857]" />
+                            <CheckSquare className="w-4 h-4 text-slate-900" />
                           ) : (
                             <Square className="w-4 h-4 text-slate-400 hover:text-slate-600" />
                           )}
@@ -1189,11 +1189,11 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
             role="region"
             aria-label="Selected units"
-            className="sticky bottom-4 z-40 max-h-[45vh] overflow-y-auto rounded-2xl p-3.5 sm:p-4 border shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65)] flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-gradient-to-r from-[#002238]/95 via-[#003857]/95 to-[#004e75]/95 text-white border-white/20 backdrop-blur-md ring-1 ring-white/10 transform-gpu will-change-transform"
+            className="sticky bottom-4 z-40 max-h-[45vh] overflow-y-auto rounded-2xl p-3.5 sm:p-4 border shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65)] flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-gradient-to-r from-[#181d24]/95 via-[#212732]/95 to-[#28313e]/95 text-white border-slate-700/80 backdrop-blur-md ring-1 ring-white/10 transform-gpu will-change-transform"
           >
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#003857] font-mono text-xs font-bold shadow-xs shrink-0">
-                <CheckSquare className="w-3.5 h-3.5 text-[#003857]" />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-slate-900 font-mono text-xs font-bold shadow-xs shrink-0">
+                <CheckSquare className="w-3.5 h-3.5 text-slate-900" />
                 <span>{selectedSns.length} Serial{selectedSns.length === 1 ? '' : 's'} Selected</span>
               </div>
               {fulfillingRequisition && isAdminLike ? (
@@ -1250,7 +1250,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         aria-label="Target branch for bulk transfer"
                         className="bg-transparent text-white text-xs font-semibold px-2 py-1.5 outline-none cursor-pointer max-w-[210px] truncate"
                       >
-                        <option value="" disabled className="bg-[#003857] text-white">
+                        <option value="" disabled className="bg-slate-900 text-white">
                           Choose target branch…
                         </option>
                         {branches
@@ -1259,7 +1259,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                             <option
                               key={b.code}
                               value={b.code}
-                              className="bg-[#003857] text-white"
+                              className="bg-slate-900 text-white"
                             >
                               Assign to Branch Code {b.code} ({b.name})
                             </option>
@@ -1269,7 +1269,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         type="button"
                         onClick={handleOpenBulkAssign}
                         disabled={!targetBulkBranch}
-                        className="px-3.5 py-1.5 rounded-lg bg-white text-[#003857] hover:bg-slate-100 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+                        className="px-3.5 py-1.5 rounded-lg bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
                       >
                         {targetBulkBranch
                           ? `Assign ${selectedSns.length} to Branch Code ${targetBulkBranch}`
@@ -1311,9 +1311,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 )}
                 <button
                   onClick={handleOpenBulkRestore}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#003857] text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold tracking-wide transition-all active:scale-[0.98] cursor-pointer shadow-xs"
                 >
-                  <ArchiveRestore className="w-3.5 h-3.5 text-[#003857]" />
+                  <ArchiveRestore className="w-3.5 h-3.5 text-slate-900" />
                   <span>Restore {selectedSns.length} to Active Dashboard</span>
                 </button>
                 </>
@@ -1478,7 +1478,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmBulkAction}
-                  className="px-5 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-2"
+                  className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-2"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Confirm &amp; Execute ({pendingBulkAction.serials.length} Units)</span>
