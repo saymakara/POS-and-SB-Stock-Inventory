@@ -186,13 +186,14 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             The KHQR tables are not set up in the database yet. Apply the migration <span className="font-mono text-xs">20261028_02_khqr_installation.sql</span>, then refresh.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
             <BigKpiCard
               label="KHQR Entries"
               value={summary?.total}
               sub={summary ? `${summary.install.toLocaleString()} new · ${summary.replace.toLocaleString()} replaced` : 'Registered KHQR installations'}
               icon={QrCode}
               accentColor="blue"
+              badge={summary ? '100% Synced' : undefined}
             />
             <BigKpiCard
               label="QR Materials"
@@ -200,6 +201,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               sub={summary && summary.total ? `${(summary.qr / summary.total).toFixed(1)} materials / entry` : PERIOD_LABEL[period]}
               icon={Layers}
               accentColor="emerald"
+              badge="Physical items"
             />
             <BigKpiCard
               label="Failed Attempt"
@@ -218,6 +220,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               sub="Recorded failed attempts"
               icon={Users}
               accentColor="amber"
+              badge={staff && staff.length > 0 ? `${staff.length} staff` : undefined}
             />
           </div>
         )}
@@ -531,6 +534,7 @@ interface BigKpiCardProps {
   sub: string;
   icon: React.ComponentType<{ className?: string }>;
   accentColor: 'blue' | 'emerald' | 'rose' | 'amber';
+  badge?: string;
   onClick?: () => void;
 }
 
@@ -540,6 +544,7 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
   sub,
   icon: Icon,
   accentColor,
+  badge,
   onClick,
 }) => {
   const isClickable = !!onClick;
@@ -547,61 +552,65 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
 
   const theme = {
     blue: {
-      iconBg: 'bg-sky-50 text-sky-600 border-sky-200/80',
+      iconBg: 'bg-sky-50 text-sky-600 border-sky-100',
       numColor: 'text-slate-900',
-      hoverStyle: 'hover:border-sky-300 hover:ring-2 hover:ring-sky-100/70',
+      hoverStyle: 'hover:border-sky-300 hover:ring-2 hover:ring-sky-100/80',
     },
     emerald: {
-      iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-200/80',
+      iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-100',
       numColor: 'text-slate-900',
-      hoverStyle: 'hover:border-emerald-300 hover:ring-2 hover:ring-emerald-100/70',
+      hoverStyle: 'hover:border-emerald-300 hover:ring-2 hover:ring-emerald-100/80',
     },
     rose: {
-      iconBg: 'bg-rose-50 text-rose-600 border-rose-200/80',
+      iconBg: 'bg-rose-50 text-rose-600 border-rose-100',
       numColor: value && value > 0 ? 'text-rose-600' : 'text-slate-900',
-      hoverStyle: 'hover:border-rose-300 hover:ring-2 hover:ring-rose-100/70',
+      hoverStyle: 'hover:border-rose-300 hover:ring-2 hover:ring-rose-100/80',
     },
     amber: {
-      iconBg: 'bg-amber-50 text-amber-600 border-amber-200/80',
+      iconBg: 'bg-amber-50 text-amber-600 border-amber-100',
       numColor: value && value > 0 ? 'text-amber-600' : 'text-slate-900',
-      hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/70',
+      hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/80',
     },
   }[accentColor];
 
   return (
     <Tag
       {...(isClickable ? { type: 'button', onClick, title: `Show ${label.toLowerCase()} log below` } : {})}
-      className={`relative flex flex-col justify-between p-4.5 sm:p-5 rounded-xl border border-slate-200/90 bg-white shadow-2xs transition-all duration-200 text-left ${
-        isClickable ? `cursor-pointer ${theme.hoverStyle} hover:shadow-md hover:-translate-y-0.5 group` : 'hover:border-slate-300/90'
+      className={`relative flex flex-col justify-between p-5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all duration-200 text-left ${
+        isClickable ? `cursor-pointer ${theme.hoverStyle} hover:shadow-md hover:-translate-y-0.5 group` : 'hover:border-slate-300 hover:shadow-xs'
       }`}
     >
-      {/* Top row: Label + Icon Badge */}
+      {/* Top row: Category Label + Icon Badge */}
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
           {label}
         </span>
-        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform ${isClickable ? 'group-hover:scale-105' : ''} ${theme.iconBg}`}>
-          <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+        <div className={`w-9.5 h-9.5 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform ${isClickable ? 'group-hover:scale-105' : ''} ${theme.iconBg}`}>
+          <Icon className="w-5 h-5" />
         </div>
       </div>
 
       {/* Main KPI number */}
-      <div className="my-2 sm:my-2.5">
+      <div className="my-2.5">
         <div className={`font-figure text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums leading-none ${theme.numColor}`}>
           {value === undefined ? '—' : value.toLocaleString()}
         </div>
       </div>
 
       {/* Subtitle / Footer info */}
-      <div className="pt-2 sm:pt-2.5 border-t border-slate-100/90 flex items-center justify-between gap-2 text-xs">
-        <span className="text-slate-500 truncate text-[11.5px]" title={sub}>
+      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
+        <span className="truncate" title={sub}>
           {sub || '—'}
         </span>
-        {isClickable && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 group-hover:text-rose-700 shrink-0">
+        {isClickable ? (
+          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-rose-600 group-hover:text-rose-700 shrink-0">
             View log <span className="transition-transform group-hover:translate-x-0.5">→</span>
           </span>
-        )}
+        ) : badge ? (
+          <span className="text-[11px] font-medium text-slate-400 shrink-0">
+            {badge}
+          </span>
+        ) : null}
       </div>
     </Tag>
   );
