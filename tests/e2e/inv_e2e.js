@@ -70,6 +70,13 @@ async function api(route) {
       Object.assign(d, body, { row_version: (d.row_version || 1) + 1 }); return json(200, [{ serial: sn, row_version: d.row_version }]);
     }
     if (method === 'POST') { state.saved.push(body); if (state.refuse) return json(403, { code: '42501', message: 'new row violates row-level security policy for table "devices"' }); return json(201, []); }
+    if (method === 'DELETE') {
+      const snParam = url.searchParams.get('serial') || '';
+      const inMatch = snParam.match(/^in\.\((.*)\)$/);
+      const sns = inMatch ? inMatch[1].split(',').map(s => s.trim().replace(/^["']|["']$/g, '')) : [snParam.replace(/^eq\./, '')];
+      state.devices = state.devices.filter(x => !sns.includes(x.serial));
+      return json(200, sns.map(sn => ({ serial: sn })));
+    }
     const all = me && me.profile.role === 'BRANCH' ? state.devices.filter(d => d.branch_id === me.profile.branch_id) : state.devices;
     return pg(route, req, url, all, 'serial');
   }
