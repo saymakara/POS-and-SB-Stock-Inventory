@@ -6,6 +6,7 @@ import {
   Requisition,
   UserRole,
   ThemeMode,
+  LifecycleStage,
   getBatteryLifecycleStatus,
 } from '../types';
 import { STAGE_META } from '../data/initialData';
@@ -48,6 +49,8 @@ interface DashboardTabProps {
   batteryLifespanMonths?: number;
   /** "Due soon" threshold in months (AppSettings.batteryWarningMonths). Default 21. */
   batteryWarningMonths?: number;
+  serverTotalDevices?: number | null;
+  serverStageCounts?: Record<LifecycleStage, number>;
 }
 
 type PerformanceViewMode =
@@ -97,6 +100,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onNavigateTab,
   batteryLifespanMonths = DEFAULT_BATTERY_LIFESPAN_MONTHS,
   batteryWarningMonths = DEFAULT_BATTERY_WARNING_MONTHS,
+  serverTotalDevices,
+  serverStageCounts,
 }) => {
   const today = todayPP();
   const currentMonthKey = today.slice(0, 7);
@@ -373,7 +378,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   : `Branch Code ${selectedBranch} Stock & Installation Overview`}
               </h2>
               <span className="text-xs font-mono font-bold text-slate-500">
-                · {activeDevices.length} Active Units
+                · {typeof serverTotalDevices === 'number' ? serverTotalDevices.toLocaleString() : activeDevices.length.toLocaleString()} Active Units
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -509,7 +514,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
               </div>
               <div className="text-2xl font-black font-figure tabular-nums text-zinc-900">
-                <Odometer value={selectedMonthStats.total} format={selectedMonthStats.total >= 1000} duration={850} />{' '}
+                <Odometer value={selectedMonthStats.total} format={selectedMonthStats.total >= 1000} duration={340} />{' '}
                 <span className="text-xs font-normal text-slate-500">
                   ({pctOf(selectedMonthStats.total, periodInstallTotal)}% of {periodInstallTotal} in period)
                 </span>
@@ -526,12 +531,35 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <TrendingUp className="w-3.5 h-3.5 text-zinc-700" aria-hidden="true" />
               </div>
               <div className="text-2xl font-black font-figure tabular-nums text-zinc-900">
-                <Odometer value={pipeline.reserve + pipeline.configuring} format={(pipeline.reserve + pipeline.configuring) >= 1000} duration={850} />
+                <Odometer
+                  value={
+                    serverStageCounts
+                      ? (serverStageCounts.BRANCH_RESERVE || 0) + (serverStageCounts.CONFIGURING || 0)
+                      : pipeline.reserve + pipeline.configuring
+                  }
+                  format={
+                    (serverStageCounts
+                      ? (serverStageCounts.BRANCH_RESERVE || 0) + (serverStageCounts.CONFIGURING || 0)
+                      : pipeline.reserve + pipeline.configuring) >= 1000
+                  }
+                  duration={340}
+                />
               </div>
               <div className="text-[11px] text-slate-600 mt-0.5">
                 Installed at branches:{' '}
                 <strong className="text-emerald-700">
-                  {pipeline.complete} / {pipeline.atBranches} ({pctOf(pipeline.complete, pipeline.atBranches)}%)
+                  {serverStageCounts ? serverStageCounts.COMPLETE || 0 : pipeline.complete} /{' '}
+                  {serverStageCounts
+                    ? (serverStageCounts.COMPLETE || 0) + (serverStageCounts.BRANCH_RESERVE || 0) + (serverStageCounts.CONFIGURING || 0)
+                    : pipeline.atBranches}{' '}
+                  (
+                  {pctOf(
+                    serverStageCounts ? serverStageCounts.COMPLETE || 0 : pipeline.complete,
+                    serverStageCounts
+                      ? (serverStageCounts.COMPLETE || 0) + (serverStageCounts.BRANCH_RESERVE || 0) + (serverStageCounts.CONFIGURING || 0)
+                      : pipeline.atBranches
+                  )}
+                  %)
                 </strong>
               </div>
             </div>
@@ -996,7 +1024,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="surface-inset-light p-3.5">
                   <div className="text-2xl font-black font-figure text-emerald-700">
-                    <Odometer value={batterySummary.healthy} format={batterySummary.healthy >= 1000} duration={850} />
+                    <Odometer value={batterySummary.healthy} format={batterySummary.healthy >= 1000} duration={340} />
                   </div>
                   <div className="text-[11px] font-mono text-slate-500">
                     {pctOf(batterySummary.healthy, batterySummary.total)}%
@@ -1007,7 +1035,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 </div>
                 <div className="surface-inset-light p-3.5">
                   <div className="text-2xl font-black font-figure text-amber-700">
-                    <Odometer value={batterySummary.replaceSoon} format={batterySummary.replaceSoon >= 1000} duration={850} />
+                    <Odometer value={batterySummary.replaceSoon} format={batterySummary.replaceSoon >= 1000} duration={340} />
                   </div>
                   <div className="text-[11px] font-mono text-slate-500">
                     {pctOf(batterySummary.replaceSoon, batterySummary.total)}%
@@ -1018,7 +1046,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 </div>
                 <div className="surface-inset-light p-3.5">
                   <div className="text-2xl font-black font-figure text-rose-700">
-                    <Odometer value={batterySummary.critical} format={batterySummary.critical >= 1000} duration={850} />
+                    <Odometer value={batterySummary.critical} format={batterySummary.critical >= 1000} duration={340} />
                   </div>
                   <div className="text-[11px] font-mono text-slate-500">
                     {pctOf(batterySummary.critical, batterySummary.total)}%
