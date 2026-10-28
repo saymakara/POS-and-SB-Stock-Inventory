@@ -1330,6 +1330,23 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         if (!versionAlias.current.has(d.serial)) versionAlias.current.set(d.serial, new Map());
         versionAlias.current.get(d.serial)!.set(d.rowVersion || 0, nv);
       });
+      if (res.versions.size > 0) {
+        setDevices((prev) => {
+          let hasDiff = false;
+          const next = prev.map((d) => {
+            const nv = res.versions.get(d.serial);
+            if (nv !== undefined && d.rowVersion !== nv) {
+              hasDiff = true;
+              const updated = { ...d, rowVersion: nv };
+              serverCopies.current.add(updated);
+              syncedDevices.current.set(d.serial, updated);
+              return updated;
+            }
+            return d;
+          });
+          return hasDiff ? next : prev;
+        });
+      }
       if (res.error) {
         if (!noteSaveFailure('Saving')) {
           triggerToast(res.stale

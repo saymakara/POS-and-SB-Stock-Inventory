@@ -919,11 +919,40 @@ export async function saveDevicesStrict(
       await Promise.all(
         known.slice(i, i + CONCURRENT_UPDATES).map(async (d) => {
           try {
-            const { data, error } = await supabase
+            let { data, error } = await supabase
               .from('devices')
               .update(mapDeviceToRow(d))
               .eq('serial', d.serial)
               .select('serial,row_version');
+
+            // If the row was modified concurrently (STALE_ROW / PT409), fetch latest row_version and retry once
+            if (error) {
+              const stale = /STALE_ROW|PT409/.test(error.message + (error as any).code);
+              if (stale) {
+                try {
+                  const { data: latestRow } = await supabase
+                    .from('devices')
+                    .select('serial,row_version')
+                    .eq('serial', d.serial)
+                    .maybeSingle();
+                  if (latestRow && typeof latestRow.row_version === 'number') {
+                    const retryRow = { ...mapDeviceToRow(d), row_version: latestRow.row_version };
+                    const retryRes = await supabase
+                      .from('devices')
+                      .update(retryRow)
+                      .eq('serial', d.serial)
+                      .select('serial,row_version');
+                    if (!retryRes.error && retryRes.data && retryRes.data.length > 0) {
+                      data = retryRes.data;
+                      error = null;
+                    }
+                  }
+                } catch {
+                  // Fall through to standard error handling if retry fails
+                }
+              }
+            }
+
             if (error) {
               const stale = /STALE_ROW|PT409/.test(error.message + (error as any).code);
               first = first || {
@@ -932,7 +961,11 @@ export async function saveDevicesStrict(
                   : friendlyDbError(error.message, d.serial),
                 stale,
               };
-              await reportCaughtError('saveDevicesStrict.update', error, { target: d.serial });
+              // Concurrency conflicts (STALE_ROW) are handled gracefully by UI toast/refresh — skip intrusive fatal error modal
+              await reportCaughtError('saveDevicesStrict.update', error, {
+                target: d.serial,
+                showPopup: !stale,
+              });
             } else if (!data || data.length === 0) {
               const accessErr = `you do not have access to change ${d.serial}`;
               first = first || { error: accessErr, stale: false };
