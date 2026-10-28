@@ -1401,43 +1401,137 @@ export async function fetchBranchRegions(): Promise<Record<string, string>> {
   }
 }
 
-/** Waiting records fetched with strict server-side limit() and range(offset, offset + limit - 1). */
-export async function fetchPendingFieldEvents(limit = 1000, offset = 0): Promise<FieldEvent[] | null> {
-  const safeLimit = Math.max(1, Math.min(limit, 1000));
-  const safeOffset = Math.max(0, offset);
-  try {
-    const { data, error } = await supabase
-      .from('field_events')
-      .select('*')
-      .eq('status', 'PENDING')
-      .order('received_at', { ascending: false })
-      .limit(safeLimit)
-      .range(safeOffset, safeOffset + safeLimit - 1);
-    if (error) throw error;
-    return (data || []).map(mapFieldEvent);
-  } catch (err) {
-    await reportCaughtError('fetchPendingFieldEvents', err, { showPopup: false });
-    return null;
+// High-performance Field Events in-memory cache and request deduplicator
+let fieldEventsCache: {
+  pending: FieldEvent[] | null;
+  reviewed: FieldEvent[] | null;
+  lastFetchedPending: number;
+  lastFetchedReviewed: number;
+} = {
+  pending: null,
+  reviewed: null,
+  lastFetchedPending: 0,
+  lastFetchedReviewed: 0,
+};
+
+let pendingInFlight: Promise<FieldEvent[] | null> | null = null;
+let reviewedInFlight: Promise<FieldEvent[] | null> | null = null;
+
+export function getFieldEventsCache(): { pending: FieldEvent[] | null; reviewed: FieldEvent[] | null } {
+  return { pending: fieldEventsCache.pending, reviewed: fieldEventsCache.reviewed };
+}
+
+export function updateFieldEventInCache(updated: FieldEvent): void {
+  if (fieldEventsCache.pending) {
+    if (updated.status === 'PENDING') {
+      const idx = fieldEventsCache.pending.findIndex((e) => e.id === updated.id);
+      if (idx >= 0) fieldEventsCache.pending[idx] = updated;
+      else fieldEventsCache.pending = [updated, ...fieldEventsCache.pending];
+    } else {
+      fieldEventsCache.pending = fieldEventsCache.pending.filter((e) => e.id !== updated.id);
+    }
+  }
+  if (fieldEventsCache.reviewed) {
+    if (updated.status !== 'PENDING') {
+      const idx = fieldEventsCache.reviewed.findIndex((e) => e.id === updated.id);
+      if (idx >= 0) fieldEventsCache.reviewed[idx] = updated;
+      else fieldEventsCache.reviewed = [updated, ...fieldEventsCache.reviewed];
+    } else {
+      fieldEventsCache.reviewed = fieldEventsCache.reviewed.filter((e) => e.id !== updated.id);
+    }
   }
 }
 
-export async function fetchReviewedFieldEvents(limit = 1000, offset = 0): Promise<FieldEvent[] | null> {
+/** Pre-warms field events in the background when the app is idle or navigation is hovered. */
+export function prefetchFieldEvents(): void {
+  if (!isSupabaseConfigured) return;
+  fetchPendingFieldEvents(1000, 0).catch(() => {});
+  fetchReviewedFieldEvents(1000, 0).catch(() => {});
+}
+
+/** Waiting records fetched with in-memory caching and request deduplication. */
+export async function fetchPendingFieldEvents(limit = 1000, offset = 0, force = false): Promise<FieldEvent[] | null> {
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);
-  try {
-    const { data, error } = await supabase
-      .from('field_events')
-      .select('*')
-      .neq('status', 'PENDING')
-      .order('received_at', { ascending: false })
-      .limit(safeLimit)
-      .range(safeOffset, safeOffset + safeLimit - 1);
-    if (error) throw error;
-    return (data || []).map(mapFieldEvent);
-  } catch (err) {
-    await reportCaughtError('fetchReviewedFieldEvents', err, { showPopup: false });
-    return null;
+
+  // Return fresh in-memory cache if available (0ms)
+  if (!force && safeOffset === 0 && fieldEventsCache.pending && Date.now() - fieldEventsCache.lastFetchedPending < 45000) {
+    return fieldEventsCache.pending;
   }
+
+  // Deduplicate concurrent in-flight requests
+  if (safeOffset === 0 && pendingInFlight) {
+    return pendingInFlight;
+  }
+
+  const queryPromise = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('field_events')
+        .select('*')
+        .eq('status', 'PENDING')
+        .order('received_at', { ascending: false })
+        .limit(safeLimit)
+        .range(safeOffset, safeOffset + safeLimit - 1);
+      if (error) throw error;
+      const mapped = (data || []).map(mapFieldEvent);
+      if (safeOffset === 0) {
+        fieldEventsCache.pending = mapped;
+        fieldEventsCache.lastFetchedPending = Date.now();
+      }
+      return mapped;
+    } catch (err) {
+      await reportCaughtError('fetchPendingFieldEvents', err, { showPopup: false });
+      return null;
+    } finally {
+      if (safeOffset === 0) pendingInFlight = null;
+    }
+  })();
+
+  if (safeOffset === 0) pendingInFlight = queryPromise;
+  return queryPromise;
+}
+
+export async function fetchReviewedFieldEvents(limit = 1000, offset = 0, force = false): Promise<FieldEvent[] | null> {
+  const safeLimit = Math.max(1, Math.min(limit, 1000));
+  const safeOffset = Math.max(0, offset);
+
+  // Return fresh in-memory cache if available (0ms)
+  if (!force && safeOffset === 0 && fieldEventsCache.reviewed && Date.now() - fieldEventsCache.lastFetchedReviewed < 45000) {
+    return fieldEventsCache.reviewed;
+  }
+
+  // Deduplicate concurrent in-flight requests
+  if (safeOffset === 0 && reviewedInFlight) {
+    return reviewedInFlight;
+  }
+
+  const queryPromise = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('field_events')
+        .select('*')
+        .neq('status', 'PENDING')
+        .order('received_at', { ascending: false })
+        .limit(safeLimit)
+        .range(safeOffset, safeOffset + safeLimit - 1);
+      if (error) throw error;
+      const mapped = (data || []).map(mapFieldEvent);
+      if (safeOffset === 0) {
+        fieldEventsCache.reviewed = mapped;
+        fieldEventsCache.lastFetchedReviewed = Date.now();
+      }
+      return mapped;
+    } catch (err) {
+      await reportCaughtError('fetchReviewedFieldEvents', err, { showPopup: false });
+      return null;
+    } finally {
+      if (safeOffset === 0) reviewedInFlight = null;
+    }
+  })();
+
+  if (safeOffset === 0) reviewedInFlight = queryPromise;
+  return queryPromise;
 }
 
 
@@ -1517,7 +1611,11 @@ export function subscribeToFieldEvents(onChange: (e: FieldEvent) => void): () =>
   const channel = supabase
     .channel(channelName('field_events_feed'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'field_events' }, (payload) => {
-      if (payload.new && (payload.new as any).id) onChange(mapFieldEvent(payload.new));
+      if (payload.new && (payload.new as any).id) {
+        const ev = mapFieldEvent(payload.new);
+        updateFieldEventInCache(ev);
+        onChange(ev);
+      }
     })
     .subscribe();
   return () => {
@@ -1544,6 +1642,10 @@ export async function approveFieldEvent(
   try {
     const { data, error } = await supabase.rpc('field_approve', { p_id: id, p_note: note || null, p_opt: opt });
     if (error) throw error;
+    if (fieldEventsCache.pending) {
+      const match = fieldEventsCache.pending.find((e) => e.id === id);
+      if (match) updateFieldEventInCache({ ...match, status: 'APPROVED' });
+    }
     return data;
   } catch (err) {
     await reportCaughtError('approveFieldEvent', err, { target: String(id) });
@@ -1555,6 +1657,10 @@ export async function rejectFieldEvent(id: number, note: string): Promise<void> 
   try {
     const { error } = await supabase.rpc('field_reject', { p_id: id, p_note: note });
     if (error) throw error;
+    if (fieldEventsCache.pending) {
+      const match = fieldEventsCache.pending.find((e) => e.id === id);
+      if (match) updateFieldEventInCache({ ...match, status: 'REJECTED', reviewNote: note });
+    }
   } catch (err) {
     await reportCaughtError('rejectFieldEvent', err, { target: String(id) });
     throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));

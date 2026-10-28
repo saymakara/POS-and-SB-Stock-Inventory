@@ -9,7 +9,7 @@ import {
   Device,
 } from '../types';
 import { AppBrandLogo } from './AppBrandLogo';
-import { OnlineOperatorPresence } from '../services/supabaseService';
+import { OnlineOperatorPresence, prefetchFieldEvents } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -257,6 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         onSelectTab(item.id);
                         if (isMobileView) onCloseMobile?.();
                       }}
+                      onMouseEnter={item.id === 'mobile_sync' ? prefetchFieldEvents : undefined}
                       title={!isMobileView && collapsed ? item.label : undefined}
                       className={`group relative w-full ${
                         !isMobileView && collapsed
@@ -321,6 +322,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                 onSelectTab(c.id);
                                 if (isMobileView) onCloseMobile?.();
                               }}
+                              onMouseEnter={(c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') ? prefetchFieldEvents : undefined}
                               aria-current={on ? 'page' : undefined}
                               className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[12.5px] cursor-pointer transition-colors duration-150 border ${
                                 on
