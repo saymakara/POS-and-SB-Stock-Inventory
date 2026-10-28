@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */
-export type ReviewCounts = { pos: number; sb: number; khqr: number };
+export type ReviewCounts = { pos: number; sb: number };
 
 interface SidebarProps {
   role?: UserRole;
@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           children: [
             { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, count: reviewCounts?.pos },
             { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, count: reviewCounts?.sb },
-            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode, count: reviewCounts?.khqr },
+            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode },
           ],
         },
       ],
@@ -335,9 +335,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               {c.count !== undefined && c.count > 0 && (
                                 <span
                                   className={`font-figure text-[10px] px-1.5 py-0.5 rounded-full tabular-nums shrink-0 ${
-                                    on ? 'bg-white text-zinc-900 font-bold' : c.id === 'mobile_sync_khqr' ? 'bg-rose-500/85 text-white font-medium' : 'bg-white/15 text-white border border-white/20'
+                                    on ? 'bg-white text-zinc-900 font-bold' : 'bg-white/15 text-white border border-white/20'
                                   }`}
-                                  title={c.id === 'mobile_sync_khqr' ? 'Failed Attempt entries not reviewed yet' : 'Records waiting for review'}
+                                  title="Records waiting for review"
                                 >
                                   {c.count}
                                 </span>
@@ -638,7 +638,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     { id: 'merchant_history', label: 'Merchant History' },
     { id: 'mobile_sync', label: 'Review · POS' },
     { id: 'mobile_sync_sb', label: 'Review · Sound Box' },
-    { id: 'mobile_sync_khqr', label: 'Review · KHQR', redPoint: (reviewCounts?.khqr || 0) > 0 },
+    { id: 'mobile_sync_khqr', label: 'Review · KHQR' },
     { id: 'inventory', label: 'Stock Inventory' },
     { id: 'requisitions', label: 'Stock Requests', redPoint: unreadCount > 0 },
     { id: 'branches', label: 'Branch Codes' },
