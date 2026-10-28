@@ -72,6 +72,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
     interface BranchAccumulator {
       posCount: number;
       sbCount: number;
+      hqCount: number;
       reserveCount: number;
       completeCount: number;
       inFlightCount: number;
@@ -85,6 +86,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
       const acc: BranchAccumulator = {
         posCount: 0,
         sbCount: 0,
+        hqCount: 0,
         reserveCount: 0,
         completeCount: 0,
         inFlightCount: 0,
@@ -101,6 +103,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
     let totalLive = 0;
     let totalPos = 0;
     let totalSb = 0;
+    let totalHq = 0;
 
     const len = activeDevices.length;
     for (let i = 0; i < len; i++) {
@@ -114,11 +117,20 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
       if (d.type === 'POS Terminal') { acc.posCount++; totalPos++; }
       else if (d.type === 'Sound Box') { acc.sbCount++; totalSb++; }
 
-      const isHqDeployable = String(d.branchId || '').trim() === '100' && d.stage === 'HQ_STOCK';
-      if (d.stage === 'BRANCH_RESERVE' || isHqDeployable) { acc.reserveCount++; totalReserve++; }
-      else if (d.stage === 'COMPLETE') { acc.completeCount++; totalLive++; }
-      else if (d.stage === 'CONFIGURING') { acc.inFlightCount++; }
-      else if (d.stage === 'FAULTY') { acc.faultyCount++; }
+      if (d.stage === 'HQ_STOCK') {
+        acc.hqCount++;
+        totalHq++;
+      } else if (d.stage === 'BRANCH_RESERVE') {
+        acc.reserveCount++;
+        totalReserve++;
+      } else if (d.stage === 'COMPLETE') {
+        acc.completeCount++;
+        totalLive++;
+      } else if (d.stage === 'CONFIGURING') {
+        acc.inFlightCount++;
+      } else if (d.stage === 'FAULTY') {
+        acc.faultyCount++;
+      }
 
       // Keep sample devices for drawer preview without bloating memory
       if (acc.sampleDevices.length < 100) {
@@ -153,6 +165,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         totalPos,
         totalSb,
         totalStaff,
+        totalHq,
         lowReserveCount,
       },
     };
@@ -166,6 +179,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         const acc = branchDataMap.get(codeKey) || (idKey ? branchDataMap.get(idKey) : undefined) || {
           posCount: 0,
           sbCount: 0,
+          hqCount: 0,
           reserveCount: 0,
           completeCount: 0,
           inFlightCount: 0,
@@ -187,6 +201,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
           totalDevices: acc.totalDevices,
           posCount: acc.posCount,
           sbCount: acc.sbCount,
+          hqCount: acc.hqCount,
           reserveCount: acc.reserveCount,
           completeCount: acc.completeCount,
           inFlightCount: acc.inFlightCount,
@@ -234,6 +249,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
       'Sound Box',
       'Total Units',
       'Branch Reserve',
+      'HQ Stock',
       'Live Installed',
       'Staff Officers',
       'Reserve Status',
@@ -246,6 +262,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
       String(b.sbCount),
       String(b.totalDevices),
       String(b.reserveCount),
+      String(b.hqCount || 0),
       String(b.completeCount),
       String(b.staffCount),
       b.lowReserve ? 'Low Reserve Alert' : 'Healthy',
@@ -307,7 +324,11 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-lg font-black font-figure text-zinc-900">
               {metrics.totalReserve}
             </div>
-            <div className="text-[10px] text-slate-400">Ready for Merchant</div>
+            <div className="text-[10px] text-slate-400">
+              {metrics.totalHq > 0
+                ? `Ready for Merchant (${metrics.totalHq} HQ)`
+                : 'Ready for Merchant'}
+            </div>
           </div>
         </div>
 
@@ -578,15 +599,38 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
                           {/* Branch Reserve */}
                           <td className="py-3 px-3.5 text-center">
-                            <span
-                              className={`inline-block px-2 py-0.5 rounded-md font-mono text-xs ${
-                                b.reserveCount > 0
-                                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                  : 'bg-red-50 text-red-700 border border-red-200'
-                              }`}
-                            >
-                              {b.reserveCount}
-                            </span>
+                            {b.code === '100' ? (
+                              <div className="inline-flex flex-col items-center">
+                                <span
+                                  className={`inline-block px-2 py-0.5 rounded-md font-mono text-xs ${
+                                    b.reserveCount > 0
+                                      ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                      : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                  }`}
+                                  title={`Branch Reserve: ${b.reserveCount}${b.hqCount > 0 ? ` · HQ Central Stock: ${b.hqCount}` : ''}`}
+                                >
+                                  {b.reserveCount}
+                                </span>
+                                {b.hqCount > 0 && (
+                                  <span
+                                    className="text-[10px] text-sky-700 font-mono font-medium mt-0.5"
+                                    title="Central HQ Stock in Warehouse"
+                                  >
+                                    ({b.hqCount} HQ)
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-md font-mono text-xs ${
+                                  b.reserveCount > 0
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                    : 'bg-red-50 text-red-700 border border-red-200'
+                                }`}
+                              >
+                                {b.reserveCount}
+                              </span>
+                            )}
                           </td>
 
                           {/* Live Installed */}
@@ -837,6 +881,11 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                       <div className="surface-inset-light p-2.5 text-center">
                         <div className="text-base font-black font-figure text-zinc-900">
                           {b.reserveCount}
+                          {b.code === '100' && b.hqCount > 0 && (
+                            <span className="text-[10px] text-sky-700 block font-normal font-sans">
+                              {b.hqCount} HQ
+                            </span>
+                          )}
                         </div>
                         <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                           Reserve
@@ -991,6 +1040,12 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                         <Package className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                         <span>{inspectedBranch.reserveCount} Reserve</span>
                       </span>
+                      {inspectedBranch.hqCount > 0 && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/60 text-sky-800 dark:text-sky-300 font-mono font-bold text-[11px]">
+                          <Building2 className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                          <span>{inspectedBranch.hqCount} HQ Stock</span>
+                        </span>
+                      )}
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 font-mono font-bold text-[11px]">
                         <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                         <span>{inspectedBranch.completeCount} Live</span>
