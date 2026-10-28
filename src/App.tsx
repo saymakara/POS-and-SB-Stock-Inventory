@@ -80,6 +80,7 @@ import { SendHorizontal, Lock, CheckCircle2, AlertCircle, X } from 'lucide-react
 import { isSupabaseConfigured } from './lib/supabase';
 import {
   fetchDevicesFromSupabase,
+  fetchConfiguringDevicesFromSupabase,
   fetchDevicesPageFromSupabase,
   fetchDeviceStageCountsFromSupabase,
   type DeviceStageSummary,
@@ -705,7 +706,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     versionAlias.current = new Map();
     const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
     const effectiveBranch = role === 'BRANCH' ? selectedBranch : (branchFilter !== 'ALL' ? branchFilter : undefined);
-    const [devs, reqs, hist, srvBranches, stageSummary] = await Promise.all([
+    const [devs, reqs, hist, srvBranches, stageSummary, configuringDevs] = await Promise.all([
       fetchDevicesFromSupabase(1000, 0, (firstBatch, total) => {
         setServerDeviceTotal(total);
       }),
@@ -713,6 +714,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       fetchHistoricalMerchantsFromSupabase(),
       fetchBranchesFromSupabase(),
       fetchDeviceStageCountsFromSupabase(effectiveBranch),
+      fetchConfiguringDevicesFromSupabase(),
     ]);
     if (isAdminProfile) {
       fetchStaffAccounts().then((staffList) => {
@@ -762,14 +764,22 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(stageSummary)); } catch {}
       setServerDeviceTotal(stageSummary.all + stageSummary.archived);
     }
-    if (devs) {
-      const devRows = devs;
-      if (!stageSummary) {
-        setServerDeviceTotal(devRows.length);
+    let allDevs = devs || [];
+    if (configuringDevs && configuringDevs.length > 0) {
+      const devMap = new Map(allDevs.map((d) => [d.serial, d]));
+      for (const cd of configuringDevs) {
+        devMap.set(cd.serial, cd);
       }
-      syncedDevices.current = new Map(devRows.map((d) => [d.serial, d]));
-      devRows.forEach((d) => serverCopies.current.add(d));
-      setDevices(devRows);
+      allDevs = Array.from(devMap.values());
+    }
+
+    if (devs || configuringDevs) {
+      if (!stageSummary) {
+        setServerDeviceTotal(allDevs.length);
+      }
+      syncedDevices.current = new Map(allDevs.map((d) => [d.serial, d]));
+      allDevs.forEach((d) => serverCopies.current.add(d));
+      setDevices(allDevs);
     }
     if (reqs) {
       syncedReqs.current = new Map(reqs.map((r) => [r.reqId, r]));
@@ -780,9 +790,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       syncedHist.current = new Set(hist.map((h) => h.recordId));
       setHistoricalMerchants(hist);
     }
-    if (devs || reqs || hist || srvBranches) {
+    if (devs || configuringDevs || reqs || hist || srvBranches) {
       saveFullSnapshotToIdb({
-        devices: devs || undefined,
+        devices: allDevs.length ? allDevs : undefined,
         requisitions: reqs || undefined,
         historicalMerchants: hist || undefined,
         branches: (srvBranches as any) || undefined,
@@ -1585,6 +1595,73 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
   }, [role, selectedBranch, branchFilter]);
 
+  // Synchronize Push Configuring Hub devices when entering tab
+  useEffect(() => {
+    if (!isSupabaseConfigured || shownTab !== 'push_configuring') return;
+    let cancelled = false;
+    fetchConfiguringDevicesFromSupabase().then((cDevs) => {
+      if (!cancelled && cDevs && cDevs.length > 0) {
+        setDevices((prev) => {
+          const map = new Map(prev.map((d) => [d.serial, d]));
+          let modified = false;
+          for (const cd of cDevs) {
+            const existing = map.get(cd.serial);
+            if (
+              !existing ||
+              existing.stage !== cd.stage ||
+              existing.updatedAt !== cd.updatedAt ||
+              existing.pushTrackingId !== cd.pushTrackingId ||
+              existing.pushDate !== cd.pushDate ||
+              existing.pushedBy !== cd.pushedBy ||
+              existing.staff !== cd.staff ||
+              existing.branchId !== cd.branchId
+            ) {
+              map.set(cd.serial, cd);
+              syncedDevices.current.set(cd.serial, cd);
+              serverCopies.current.add(cd);
+              modified = true;
+            }
+          }
+          return modified ? Array.from(map.values()) : prev;
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [shownTab]);
+
+  const handleRefreshConfiguringQueue = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    const cDevs = await fetchConfiguringDevicesFromSupabase();
+    if (cDevs) {
+      setDevices((prev) => {
+        const map = new Map(prev.map((d) => [d.serial, d]));
+        let modified = false;
+        for (const cd of cDevs) {
+          const existing = map.get(cd.serial);
+          if (
+            !existing ||
+            existing.stage !== cd.stage ||
+            existing.updatedAt !== cd.updatedAt ||
+            existing.pushTrackingId !== cd.pushTrackingId ||
+            existing.pushDate !== cd.pushDate ||
+            existing.pushedBy !== cd.pushedBy ||
+            existing.staff !== cd.staff ||
+            existing.branchId !== cd.branchId
+          ) {
+            map.set(cd.serial, cd);
+            syncedDevices.current.set(cd.serial, cd);
+            serverCopies.current.add(cd);
+            modified = true;
+          }
+        }
+        return modified ? Array.from(map.values()) : prev;
+      });
+      triggerToast('Hardware configuring queue synchronized.');
+    }
+  }, []);
+
   // Fetch a specific 50/100-row page from Supabase and merge into syncedDevices + devices (capped at 400 rows in RAM)
   const handleFetchInventoryPage = useCallback(
     async (params: DeviceQueryParams) => {
@@ -1601,7 +1678,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         for (const existing of prev) {
           if (incomingBySn.has(existing.serial)) continue;
           const isUnsavedLocalEdit = !serverCopies.current.has(existing);
-          if (isUnsavedLocalEdit || merged.length < 400) {
+          const isCriticalWorkflow =
+            existing.stage === 'CONFIGURING' ||
+            existing.serial === editingDeviceSerial;
+          if (isUnsavedLocalEdit || isCriticalWorkflow || merged.length < 400) {
             merged.push(existing);
           } else {
             syncedDevices.current.delete(existing.serial);
@@ -1611,7 +1691,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       });
       return { rows: incoming, total: res.total };
     },
-    []
+    [editingDeviceSerial]
   );
 
   // When searching from the global header bar on a >100-row dataset outside InventoryTab, fetch matching page from server
@@ -4150,6 +4230,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                         }
                       }}
                       onReturnToReserve={(sn, bId, reason) => handleReturnToBranchReserve([sn], bId, reason)}
+                      onRefreshQueue={handleRefreshConfiguringQueue}
                       theme={theme}
                     />
                   )}

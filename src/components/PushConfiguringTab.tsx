@@ -59,6 +59,7 @@ interface PushConfiguringTabProps {
   users?: AppUser[];
   pushedSerials?: Set<string>;
   onMarkPushed?: (serials: string[]) => void;
+  onRefreshQueue?: () => Promise<void> | void;
 }
 
 export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(({
@@ -76,14 +77,26 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   users = [],
   pushedSerials,
   onMarkPushed,
+  onRefreshQueue,
 }) => {
   const isLight = theme === 'light';
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const cardClass = isLight ? 'surface-card-light text-[#002f49]' : 'surface-card-dark text-slate-100';
 
+  const [isRefreshingQueue, setIsRefreshingQueue] = useState(false);
+  const handleManualRefreshQueue = async () => {
+    if (!onRefreshQueue || isRefreshingQueue) return;
+    setIsRefreshingQueue(true);
+    try {
+      await onRefreshQueue();
+    } finally {
+      setIsRefreshingQueue(false);
+    }
+  };
+
   // 1. Filter only devices in CONFIGURING stage
   const configuringDevices = useMemo(() => {
-    return devices.filter((d) => d.stage === 'CONFIGURING');
+    return devices.filter((d) => d.stage === 'CONFIGURING' && !d.archived);
   }, [devices]);
 
   // 2. Local filter states
@@ -901,6 +914,18 @@ return (
 
           {/* Quick Action Button for Entire Queue */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {onRefreshQueue && (
+              <button
+                type="button"
+                onClick={handleManualRefreshQueue}
+                disabled={isRefreshingQueue}
+                className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-[0.98] transition-all duration-150 text-white font-bold text-xs sm:text-sm border border-white/20 shadow-xs cursor-pointer disabled:opacity-50"
+                title="Refresh hardware configuring queue from database"
+              >
+                <RotateCw className={`w-3.5 h-3.5 text-sky-300 ${isRefreshingQueue ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'}`} />
+                <span>Sync Queue</span>
+              </button>
+            )}
             {isAdminLike && onNotifyConfigReady && (
               <button
                 type="button"

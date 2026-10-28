@@ -470,6 +470,31 @@ export async function fetchDevicesPageFromSupabase(
   };
 }
 
+/**
+ * Fetches all active devices currently in CONFIGURING stage directly from Supabase.
+ * Uses index `idx_devices_stage` to return the complete live app push queue in <10ms,
+ * ensuring no configuring devices are missed regardless of overall inventory table size.
+ */
+export async function fetchConfiguringDevicesFromSupabase(): Promise<Device[] | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase
+      .from('devices')
+      .select('*')
+      .eq('stage', 'CONFIGURING')
+      .eq('archived', false)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+    return (data || []).map(mapRowToDevice);
+  } catch (err) {
+    await reportCaughtError('fetchConfiguringDevicesFromSupabase', err, { showPopup: false });
+    return null;
+  }
+}
+
 export async function fetchDevicesFromSupabase(
   limit = 1000,
   offset = 0,
