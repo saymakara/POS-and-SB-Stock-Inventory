@@ -26,9 +26,9 @@ const PERIOD_LABEL: Record<Period, string> = {
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const SMOOTH_EXPAND = { duration: 0.22, ease: [0.16, 1, 0.3, 1] } as const;
 const GRID =
-  'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
-const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
-const SGRID = 'grid items-center gap-x-3 grid-cols-[44px_minmax(170px,1.2fr)_minmax(130px,1fr)_120px_160px_minmax(180px,1fr)]';
+  'grid items-center gap-x-3 grid-cols-[44px_140px_120px_minmax(160px,1.2fr)_115px_50px_minmax(140px,1.1fr)_90px_minmax(120px,0.9fr)_minmax(130px,0.9fr)_20px]';
+const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_145px_minmax(140px,1.1fr)_95px_minmax(110px,0.9fr)_108px_120px_minmax(130px,1fr)_32px_160px]';
+const SGRID = 'grid items-center gap-x-3 grid-cols-[44px_minmax(160px,1.2fr)_100px_minmax(130px,1fr)_120px_160px_minmax(180px,1fr)]';
 
 /** Start of a period in Phnom Penh time (UTC+7), as ISO. */
 function periodFrom(p: Period): string | null {
@@ -186,13 +186,14 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             The KHQR tables are not set up in the database yet. Apply the migration <span className="font-mono text-xs">20261028_02_khqr_installation.sql</span>, then refresh.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
             <BigKpiCard
               label="KHQR Entries"
               value={summary?.total}
               sub={summary ? `${summary.install.toLocaleString()} new · ${summary.replace.toLocaleString()} replaced` : 'Registered KHQR installations'}
               icon={QrCode}
               accentColor="blue"
+              badge={summary ? '100% Synced' : undefined}
             />
             <BigKpiCard
               label="QR Materials"
@@ -200,6 +201,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               sub={summary && summary.total ? `${(summary.qr / summary.total).toFixed(1)} materials / entry` : PERIOD_LABEL[period]}
               icon={Layers}
               accentColor="emerald"
+              badge="Physical items"
             />
             <BigKpiCard
               label="Failed Attempt"
@@ -218,6 +220,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               sub="Recorded failed attempts"
               icon={Users}
               accentColor="amber"
+              badge={staff && staff.length > 0 ? `${staff.length} staff` : undefined}
             />
           </div>
         )}
@@ -231,10 +234,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             <h3 className="text-[13px] font-medium text-slate-900">Failed attempts by staff</h3>
             <span className="text-[11.5px] text-slate-500">· {PERIOD_LABEL[period]}</span>
           </div>
-          <div className="min-w-[1000px]">
+          <div className="min-w-[1040px]">
             <div className={`${SGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`} role="row">
               <span className="text-right">No.</span>
-              <span>Staff</span>
+              <span>Staff Name</span>
+              <span>Staff ID</span>
               <span>Branch</span>
               <span className="text-right">Failed attempts</span>
               <span>Last failed attempt</span>
@@ -256,9 +260,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
                   className={`${SGRID} w-full text-left px-3.5 py-2 text-[12.5px] text-slate-700 hover:bg-rose-50/60 cursor-pointer`}
                 >
                   <span className="text-right tabular-nums text-slate-500">{i + 1}</span>
-                  <span className="leading-tight min-w-0">
-                    <span className="block truncate text-slate-900">{s.staffName || s.staffId}</span>
-                    <span className="block text-[11px] text-slate-500 font-mono">{s.staffId}</span>
+                  <span className="truncate font-medium text-slate-900" title={s.staffName || s.staffId}>
+                    {s.staffName || '—'}
+                  </span>
+                  <span className="font-mono text-[11.5px] text-slate-600 tabular-nums">
+                    {s.staffId || '—'}
                   </span>
                   <span className="truncate">{s.branchText || '—'}</span>
                   <span className="text-right tabular-nums font-semibold text-rose-700">{s.attempts.toLocaleString()}</span>
@@ -392,14 +398,17 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
 
             {/* Entries */}
             <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KHQR entries">
-              <div className="min-w-[1080px]">
+              <div className="min-w-[1280px]">
                 <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
                   <span className="text-right">No.</span>
                   <span>Date Sent</span>
                   <span>Activity</span>
-                  <span>Merchant / MID</span>
+                  <span>Merchant Name</span>
+                  <span>MID</span>
                   <span className="text-center">QR</span>
-                  <span>Staff / Branch</span>
+                  <span>Staff Name</span>
+                  <span>Staff ID</span>
+                  <span>Branch</span>
                   <span>Location</span>
                   <span />
                 </div>
@@ -464,11 +473,12 @@ const QrAttemptLog: React.FC<{ from: string | null; activity: 'ALL' | QrActivity
   useEffect(() => { load(); }, [load, reloadKey]);
   return (
     <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Failed attempts log">
-      <div className="min-w-[1080px]">
+      <div className="min-w-[1140px]">
         <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
           <span className="text-right">No.</span>
           <span>Time</span>
-          <span>Staff</span>
+          <span>Staff Name</span>
+          <span>Staff ID</span>
           <span>Branch</span>
           <span>Activity</span>
           <span>Expected MID</span>
@@ -495,9 +505,11 @@ const QrAttemptLog: React.FC<{ from: string | null; activity: 'ALL' | QrActivity
             <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[12.5px] text-slate-700 hover:bg-rose-50/50`}>
               <span className="text-right tabular-nums text-slate-500">{pg.start + i + 1}</span>
               <span className="tabular-nums whitespace-nowrap" title={a.clientAt ? `On the phone: ${stampSecPP(new Date(a.clientAt))}` : undefined}>{stampSecPP(new Date(a.clientAt || a.receivedAt))}</span>
-              <span className="leading-tight min-w-0">
-                <span className="block truncate text-slate-900">{a.staffName || a.staffId}</span>
-                <span className="block text-[11px] text-slate-500 font-mono">{a.staffId}</span>
+              <span className="truncate font-medium text-slate-900" title={a.staffName || a.staffId}>
+                {a.staffName || '—'}
+              </span>
+              <span className="font-mono text-[11.5px] text-slate-600 tabular-nums">
+                {a.staffId || '—'}
               </span>
               <span className="truncate">{a.branchText || '—'}</span>
               <span className="truncate">{a.activity ? QR_ACTIVITY_LABEL[a.activity] : '—'}</span>
@@ -531,6 +543,7 @@ interface BigKpiCardProps {
   sub: string;
   icon: React.ComponentType<{ className?: string }>;
   accentColor: 'blue' | 'emerald' | 'rose' | 'amber';
+  badge?: string;
   onClick?: () => void;
 }
 
@@ -540,6 +553,7 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
   sub,
   icon: Icon,
   accentColor,
+  badge,
   onClick,
 }) => {
   const isClickable = !!onClick;
@@ -547,61 +561,65 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
 
   const theme = {
     blue: {
-      iconBg: 'bg-sky-50 text-sky-600 border-sky-200/80',
+      iconBg: 'bg-sky-50 text-sky-600 border-sky-100',
       numColor: 'text-slate-900',
-      hoverStyle: 'hover:border-sky-300 hover:ring-2 hover:ring-sky-100/70',
+      hoverStyle: 'hover:border-sky-300 hover:ring-2 hover:ring-sky-100/80',
     },
     emerald: {
-      iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-200/80',
+      iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-100',
       numColor: 'text-slate-900',
-      hoverStyle: 'hover:border-emerald-300 hover:ring-2 hover:ring-emerald-100/70',
+      hoverStyle: 'hover:border-emerald-300 hover:ring-2 hover:ring-emerald-100/80',
     },
     rose: {
-      iconBg: 'bg-rose-50 text-rose-600 border-rose-200/80',
+      iconBg: 'bg-rose-50 text-rose-600 border-rose-100',
       numColor: value && value > 0 ? 'text-rose-600' : 'text-slate-900',
-      hoverStyle: 'hover:border-rose-300 hover:ring-2 hover:ring-rose-100/70',
+      hoverStyle: 'hover:border-rose-300 hover:ring-2 hover:ring-rose-100/80',
     },
     amber: {
-      iconBg: 'bg-amber-50 text-amber-600 border-amber-200/80',
+      iconBg: 'bg-amber-50 text-amber-600 border-amber-100',
       numColor: value && value > 0 ? 'text-amber-600' : 'text-slate-900',
-      hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/70',
+      hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/80',
     },
   }[accentColor];
 
   return (
     <Tag
       {...(isClickable ? { type: 'button', onClick, title: `Show ${label.toLowerCase()} log below` } : {})}
-      className={`relative flex flex-col justify-between p-4.5 sm:p-5 rounded-xl border border-slate-200/90 bg-white shadow-2xs transition-all duration-200 text-left ${
-        isClickable ? `cursor-pointer ${theme.hoverStyle} hover:shadow-md hover:-translate-y-0.5 group` : 'hover:border-slate-300/90'
+      className={`relative flex flex-col justify-between p-5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all duration-200 text-left ${
+        isClickable ? `cursor-pointer ${theme.hoverStyle} hover:shadow-md hover:-translate-y-0.5 group` : 'hover:border-slate-300 hover:shadow-xs'
       }`}
     >
-      {/* Top row: Label + Icon Badge */}
+      {/* Top row: Category Label + Icon Badge */}
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
           {label}
         </span>
-        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform ${isClickable ? 'group-hover:scale-105' : ''} ${theme.iconBg}`}>
-          <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+        <div className={`w-9.5 h-9.5 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform ${isClickable ? 'group-hover:scale-105' : ''} ${theme.iconBg}`}>
+          <Icon className="w-5 h-5" />
         </div>
       </div>
 
       {/* Main KPI number */}
-      <div className="my-2 sm:my-2.5">
+      <div className="my-2.5">
         <div className={`font-figure text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums leading-none ${theme.numColor}`}>
           {value === undefined ? '—' : value.toLocaleString()}
         </div>
       </div>
 
       {/* Subtitle / Footer info */}
-      <div className="pt-2 sm:pt-2.5 border-t border-slate-100/90 flex items-center justify-between gap-2 text-xs">
-        <span className="text-slate-500 truncate text-[11.5px]" title={sub}>
+      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
+        <span className="truncate" title={sub}>
           {sub || '—'}
         </span>
-        {isClickable && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 group-hover:text-rose-700 shrink-0">
+        {isClickable ? (
+          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-rose-600 group-hover:text-rose-700 shrink-0">
             View log <span className="transition-transform group-hover:translate-x-0.5">→</span>
           </span>
-        )}
+        ) : badge ? (
+          <span className="text-[11px] font-medium text-slate-400 shrink-0">
+            {badge}
+          </span>
+        ) : null}
       </div>
     </Tag>
   );
@@ -619,14 +637,24 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
           <span className="block text-[11px] text-slate-500 font-mono truncate">{e.recordId}</span>
         </span>
         <span className="truncate">{QR_ACTIVITY_LABEL[e.activity]}</span>
-        <span className="leading-tight min-w-0">
-          <span className="block truncate text-slate-900" title={e.merchantNameKh ? `${e.merchantName} · ${e.merchantNameKh}` : e.merchantName}>{e.merchantName || e.merchantNameKh}</span>
-          <span className="block text-[11px] text-slate-500 font-mono tabular-nums">{e.mid}</span>
+        <span className="leading-tight min-w-0" title={e.merchantNameKh ? `${e.merchantName} · ${e.merchantNameKh}` : e.merchantName}>
+          <span className="block truncate font-medium text-slate-900">{e.merchantName || e.merchantNameKh || '—'}</span>
+          {e.merchantNameKh && e.merchantName && (
+            <span className="block text-[11px] text-slate-500 truncate">{e.merchantNameKh}</span>
+          )}
+        </span>
+        <span className="font-mono text-[11.5px] text-slate-700 tabular-nums truncate" title={e.mid}>
+          {e.mid || '—'}
         </span>
         <span className="text-center tabular-nums font-medium" title={`${e.qrCount} QR material(s) scanned`}>{e.qrCount}</span>
-        <span className="leading-tight min-w-0">
-          <span className="block truncate">{e.staffName || e.staffId}</span>
-          <span className="block text-[11px] text-slate-500 truncate">{e.branchText || e.branchId || '—'}</span>
+        <span className="truncate font-medium text-slate-900" title={e.staffName || e.staffId}>
+          {e.staffName || '—'}
+        </span>
+        <span className="font-mono text-[11.5px] text-slate-600 tabular-nums truncate">
+          {e.staffId || '—'}
+        </span>
+        <span className="truncate text-slate-700" title={e.branchText || e.branchId || undefined}>
+          {e.branchText || e.branchId || '—'}
         </span>
         <span className="truncate" title={place}>{place || '—'}</span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
