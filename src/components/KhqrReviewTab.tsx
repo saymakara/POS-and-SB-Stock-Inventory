@@ -1,6 +1,6 @@
-import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, RefreshCw, ChevronDown, MapPin, CheckCircle2, Loader2, Send, QrCode, Sparkles, UserX } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, MapPin, CheckCircle2, Loader2, Send, QrCode, Sparkles, UserX, Layers, AlertTriangle, Users } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { Pager } from './Pager';
@@ -24,6 +24,7 @@ const PERIOD_LABEL: Record<Period, string> = {
   TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', '3M': 'Last 3 months', ALL: 'All time',
 };
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
+const SMOOTH_EXPAND = { duration: 0.22, ease: [0.16, 1, 0.3, 1] } as const;
 const GRID =
   'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
 const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
@@ -58,12 +59,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const [branchId, setBranchId] = useState('');
   const [staffSel, setStaffSel] = useState<{ id: string; name: string } | null>(null);
   const [query, setQuery] = useState('');
-  const deferredQuery = useDeferredValue(query);
-  const [search, setSearch] = useState('');                           // the search sent to the server (after a short pause)
+  const [search, setSearch] = useState('');                           // the search sent to the server (after a short debounce)
   useEffect(() => {
-    const t = setTimeout(() => setSearch(deferredQuery.trim()), 350);
+    const t = setTimeout(() => setSearch(query.trim()), 250);
     return () => clearTimeout(t);
-  }, [deferredQuery]);
+  }, [query]);
 
   const [rows, setRows] = useState<QrEntry[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -146,24 +146,26 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   return (
     <div className="flex flex-col gap-3.5 apple-tab-panel">
       {/* KHQR statistics (this tab shows KHQR only) */}
-      <section className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs" aria-label="KHQR statistics">
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <h2 className="text-sm font-medium text-slate-900 mr-1">
-            Phone App Review<span className="text-slate-500 font-normal"> · KHQR</span>
-          </h2>
-          <span
-            className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90"
-            title="New KHQR entries from the phone app are announced as they are saved"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
-            {live ? 'Live' : 'Connected'}
-          </span>
-          <div className="ml-auto flex items-center gap-2">
+      <section className="bg-white rounded-2xl border border-slate-200/90 p-4.5 sm:p-5 shadow-2xs" aria-label="KHQR statistics">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-sm font-semibold text-slate-900 tracking-tight">
+              Phone App Review<span className="text-slate-500 font-normal"> · KHQR</span>
+            </h2>
+            <span
+              className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90"
+              title="New KHQR entries from the phone app are announced as they are saved"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
+              {live ? 'Live' : 'Connected'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value as Period)}
               aria-label="Period"
-              className="btn-press px-3 py-1.5 rounded-xl text-xs border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-slate-400 cursor-pointer"
+              className="btn-press px-3 py-1.5 rounded-xl text-xs font-medium border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-slate-400 cursor-pointer shadow-2xs transition"
             >
               {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>
@@ -172,25 +174,51 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               onClick={() => { load(); loadStats(); setLogKey((k) => k + 1); }}
               aria-label="Refresh"
               title="Refresh KHQR statistics and entries"
-              className="btn-press p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer transition"
+              className="btn-press p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer transition shadow-2xs"
             >
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>
         {loadError === 'SETUP' ? (
-          <div className="py-6 text-center text-sm text-slate-600">
-            <QrCode className="w-6 h-6 mx-auto mb-2 text-slate-400" />
+          <div className="py-8 text-center text-sm text-slate-600">
+            <QrCode className="w-8 h-8 mx-auto mb-2 text-slate-400" />
             The KHQR tables are not set up in the database yet. Apply the migration <span className="font-mono text-xs">20261028_02_khqr_installation.sql</span>, then refresh.
           </div>
         ) : (
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
-            <Kpi label="KHQR entries" value={summary?.total} sub={summary ? `${summary.install.toLocaleString()} new · ${summary.replace.toLocaleString()} replaced` : ''} />
-            <Kpi label="QR materials" value={summary?.qr} sub={summary && summary.total ? `${(summary.qr / summary.total).toFixed(1)} per entry` : PERIOD_LABEL[period]} />
-            {/* (3.50) every blocked Submit tap is one failed attempt */}
-            <Kpi label="Failed Attempt" value={summary?.attempts} sub="Submit blocked · MID did not match" tone={summary?.attempts ? 'bad' : undefined}
-              onClick={() => { setView('log'); setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }} />
-            <Kpi label="Staff involved" value={summary?.staffFailed} sub="with failed attempts" tone={summary?.staffFailed ? 'bad' : undefined} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-3.5">
+            <BigKpiCard
+              label="KHQR Entries"
+              value={summary?.total}
+              sub={summary ? `${summary.install.toLocaleString()} new · ${summary.replace.toLocaleString()} replaced` : 'Registered KHQR installations'}
+              icon={QrCode}
+              accentColor="blue"
+            />
+            <BigKpiCard
+              label="QR Materials"
+              value={summary?.qr}
+              sub={summary && summary.total ? `${(summary.qr / summary.total).toFixed(1)} materials / entry` : PERIOD_LABEL[period]}
+              icon={Layers}
+              accentColor="emerald"
+            />
+            <BigKpiCard
+              label="Failed Attempt"
+              value={summary?.attempts}
+              sub="Submit blocked · MID mismatch"
+              icon={AlertTriangle}
+              accentColor="rose"
+              onClick={() => {
+                setView('log');
+                setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+              }}
+            />
+            <BigKpiCard
+              label="Staff Involved"
+              value={summary?.staffFailed}
+              sub="Recorded failed attempts"
+              icon={Users}
+              accentColor="amber"
+            />
           </div>
         )}
       </section>
@@ -311,83 +339,99 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               Staff: {staffSel.name} <span aria-hidden>×</span>
             </button>
           )}
-          <div className="relative ml-auto w-full sm:w-60">
+          <div className="relative ml-auto w-full sm:w-64">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={view === 'log' ? 'Search MID, Staff, Branch…' : 'Search MID, Merchant, Staff, Record ID…'}
               aria-label={view === 'log' ? 'Search failed attempts' : 'Search KHQR entries'}
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400"
+              className="w-full pl-8 pr-7 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400"
             />
+            {query && (
+              <button
+                type="button"
+                onClick={() => { setQuery(''); setSearch(''); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm w-5 h-5 flex items-center justify-center rounded cursor-pointer select-none"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
           </div>
           <ClearFiltersButton className="!py-1.5" active={filtersActive} onClear={clearAll} />
         </div>
       </section>
 
-      {view === 'log' && loadError !== 'SETUP' && (
-        <QrAttemptLog from={from} activity={activity} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey} />
+      {/* Instant view switching: both views preserved in DOM without unmounting/re-fetching */}
+      {loadError !== 'SETUP' && (
+        <>
+          <div className={view === 'log' ? 'block' : 'hidden'}>
+            <QrAttemptLog from={from} activity={activity} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey} />
+          </div>
+
+          <div className={view === 'entries' ? 'flex flex-col gap-3.5' : 'hidden'}>
+            <AnimatePresence initial={false}>
+              {newCount > 0 && (
+                <motion.button
+                  key="new"
+                  type="button"
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={SPRING}
+                  onClick={() => { if (pg.page !== 1) pg.setPage(1); else load(); setNewCount(0); }}
+                  className="self-center inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#003857] text-white text-xs shadow-sm cursor-pointer hover:bg-[#002a42]"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {newCount} new {newCount === 1 ? 'entry' : 'entries'} · Show
+                </motion.button>
+              )}
+            </AnimatePresence>
+
+            {/* Entries */}
+            <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KHQR entries">
+              <div className="min-w-[1080px]">
+                <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
+                  <span className="text-right">No.</span>
+                  <span>Date Sent</span>
+                  <span>Activity</span>
+                  <span>Merchant / MID</span>
+                  <span className="text-center">QR</span>
+                  <span>Staff / Branch</span>
+                  <span>Location</span>
+                  <span />
+                </div>
+
+                {loadError && loadError !== 'SETUP' && (
+                  <div className="p-6 text-center text-sm text-rose-700 bg-rose-50/60">
+                    Could not load the KHQR entries: {loadError}{' '}
+                    <button type="button" onClick={load} className="underline cursor-pointer">Try again</button>
+                  </div>
+                )}
+                {loadingFirst && !loadError && (
+                  <div aria-busy="true" aria-label="Loading">
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="h-[54px] border-b border-slate-100 px-3.5 flex items-center"><div className="skeleton h-3.5 rounded w-2/3" /></div>
+                    ))}
+                  </div>
+                )}
+                {rows && rows.length === 0 && !loadError && (
+                  <div className="p-10 text-center text-sm font-semibold text-slate-500">No KHQR entries match the current filters.</div>
+                )}
+
+                <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
+                  {(rows || []).map((e, i) => (
+                    <QrRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))} />
+                  ))}
+                </div>
+              </div>
+              <Pager pg={pg} label="entries" />
+            </section>
+          </div>
+        </>
       )}
-
-      {view === 'entries' && (<>
-      <AnimatePresence initial={false}>
-        {newCount > 0 && (
-          <motion.button
-            key="new"
-            type="button"
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={SPRING}
-            onClick={() => { if (pg.page !== 1) pg.setPage(1); else load(); setNewCount(0); }}
-            className="self-center inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#003857] text-white text-xs shadow-sm cursor-pointer hover:bg-[#002a42]"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            {newCount} new {newCount === 1 ? 'entry' : 'entries'} · Show
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Entries */}
-      <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KHQR entries">
-        <div className="min-w-[1080px]">
-          <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
-            <span className="text-right">No.</span>
-            <span>Date Sent</span>
-            <span>Activity</span>
-            <span>Merchant / MID</span>
-            <span className="text-center">QR</span>
-            <span>Staff / Branch</span>
-            <span>Location</span>
-            <span />
-          </div>
-
-          {loadError && loadError !== 'SETUP' && (
-            <div className="p-6 text-center text-sm text-rose-700 bg-rose-50/60">
-              Could not load the KHQR entries: {loadError}{' '}
-              <button type="button" onClick={load} className="underline cursor-pointer">Try again</button>
-            </div>
-          )}
-          {loadingFirst && !loadError && (
-            <div aria-busy="true" aria-label="Loading">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-[54px] border-b border-slate-100 px-3.5 flex items-center"><div className="skeleton h-3.5 rounded w-2/3" /></div>
-              ))}
-            </div>
-          )}
-          {rows && rows.length === 0 && !loadError && (
-            <div className="p-10 text-center text-sm font-semibold text-slate-500">No KHQR entries match the current filters.</div>
-          )}
-
-          <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
-            {(rows || []).map((e, i) => (
-              <QrRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))} />
-            ))}
-          </div>
-        </div>
-        <Pager pg={pg} label="entries" />
-      </section>
-      </>)}
     </div>
   );
 };
@@ -481,20 +525,84 @@ const QrAttemptLog: React.FC<{ from: string | null; activity: 'ALL' | QrActivity
   );
 };
 
-const Kpi: React.FC<{ label: string; value: number | undefined; sub: string; tone?: 'good' | 'warn' | 'bad'; onClick?: () => void }> = ({ label, value, sub, tone, onClick }) => {
-  const dot = tone === 'good' ? 'bg-emerald-500' : tone === 'warn' ? 'bg-amber-500' : tone === 'bad' ? 'bg-rose-500' : 'bg-slate-400';
-  const Tag: any = onClick ? 'button' : 'div';
+interface BigKpiCardProps {
+  label: string;
+  value: number | undefined;
+  sub: string;
+  icon: React.ComponentType<{ className?: string }>;
+  accentColor: 'blue' | 'emerald' | 'rose' | 'amber';
+  onClick?: () => void;
+}
+
+const BigKpiCard: React.FC<BigKpiCardProps> = ({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  accentColor,
+  onClick,
+}) => {
+  const isClickable = !!onClick;
+  const Tag: any = isClickable ? 'button' : 'div';
+
+  const theme = {
+    blue: {
+      iconBg: 'bg-sky-50 text-sky-600 border-sky-200/80',
+      numColor: 'text-slate-900',
+      hoverStyle: 'hover:border-sky-300 hover:ring-2 hover:ring-sky-100/70',
+    },
+    emerald: {
+      iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-200/80',
+      numColor: 'text-slate-900',
+      hoverStyle: 'hover:border-emerald-300 hover:ring-2 hover:ring-emerald-100/70',
+    },
+    rose: {
+      iconBg: 'bg-rose-50 text-rose-600 border-rose-200/80',
+      numColor: value && value > 0 ? 'text-rose-600' : 'text-slate-900',
+      hoverStyle: 'hover:border-rose-300 hover:ring-2 hover:ring-rose-100/70',
+    },
+    amber: {
+      iconBg: 'bg-amber-50 text-amber-600 border-amber-200/80',
+      numColor: value && value > 0 ? 'text-amber-600' : 'text-slate-900',
+      hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/70',
+    },
+  }[accentColor];
+
   return (
     <Tag
-      {...(onClick ? { type: 'button', onClick, title: `Show ${label.toLowerCase()} below` } : {})}
-      className={`text-left rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 ${onClick ? 'cursor-pointer hover:border-slate-300 hover:bg-white transition' : ''}`}
+      {...(isClickable ? { type: 'button', onClick, title: `Show ${label.toLowerCase()} log below` } : {})}
+      className={`relative flex flex-col justify-between p-4.5 sm:p-5 rounded-xl border border-slate-200/90 bg-white shadow-2xs transition-all duration-200 text-left ${
+        isClickable ? `cursor-pointer ${theme.hoverStyle} hover:shadow-md hover:-translate-y-0.5 group` : 'hover:border-slate-300/90'
+      }`}
     >
-      <div className="flex items-center gap-1.5 text-[10.5px] text-slate-500 uppercase tracking-wider">
-        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden />
-        <span className="truncate">{label}</span>
+      {/* Top row: Label + Icon Badge */}
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
+          {label}
+        </span>
+        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform ${isClickable ? 'group-hover:scale-105' : ''} ${theme.iconBg}`}>
+          <Icon className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+        </div>
       </div>
-      <div className="font-figure text-xl font-semibold text-slate-900 tabular-nums mt-0.5">{value === undefined ? '—' : value.toLocaleString()}</div>
-      <div className="text-[11px] text-slate-500 truncate" title={sub}>{sub || ' '}</div>
+
+      {/* Main KPI number */}
+      <div className="my-2 sm:my-2.5">
+        <div className={`font-figure text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums leading-none ${theme.numColor}`}>
+          {value === undefined ? '—' : value.toLocaleString()}
+        </div>
+      </div>
+
+      {/* Subtitle / Footer info */}
+      <div className="pt-2 sm:pt-2.5 border-t border-slate-100/90 flex items-center justify-between gap-2 text-xs">
+        <span className="text-slate-500 truncate text-[11.5px]" title={sub}>
+          {sub || '—'}
+        </span>
+        {isClickable && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 group-hover:text-rose-700 shrink-0">
+            View log <span className="transition-transform group-hover:translate-x-0.5">→</span>
+          </span>
+        )}
+      </div>
     </Tag>
   );
 };
@@ -526,7 +634,7 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
 
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div key="d" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={SPRING} className="overflow-hidden">
+          <motion.div key="d" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={SMOOTH_EXPAND} className="overflow-hidden">
             <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[12.5px] text-slate-700">
               <div className="space-y-1.5">
                 <Detail k="Record ID" v={<span className="font-mono">{e.recordId}</span>} />
