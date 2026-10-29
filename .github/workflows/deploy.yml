@@ -33,7 +33,8 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci --legacy-peer-deps
-
+      - name: Type check (a broken change must never be published)
+        run: npm run typecheck
       - name: Build Production
         env:
           SECRET_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
