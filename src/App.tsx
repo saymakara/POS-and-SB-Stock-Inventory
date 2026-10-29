@@ -124,7 +124,6 @@ import {
   sendBatchDeviceConfigTelegramAlert,
   generatePushTrackingId,
 } from './utils/errorLogger';
-import { SetupAlert } from './components/SetupAlert';
 import {
   saveDevicesToIdb,
   clearDevicesFromIdb,
@@ -4247,10 +4246,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       onToast={(msg) => triggerToast(msg)}
                       operatorLabel={operatorLabel}
                     />
-                  )}
-
-                  {(shownTab === 'merchants' || shownTab === 'inventory') && (
-                    <SetupAlert devices={scopedDevices} role={role} onOpen={(sn) => setEditingDeviceSerial(sn)} />
                   )}
 
                   {shownTab === 'requisitions' && (
