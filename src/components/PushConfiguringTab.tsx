@@ -1,5 +1,5 @@
 import { csvFile } from '../utils/csv';
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue } from 'react';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
@@ -99,6 +99,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
   // 2. Local filter states
   const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);                     // typing stays instant; the list follows a moment later
   const [branchFilter, setBranchFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [pushStatusFilter, setPushStatusFilter] = useState<'ALL' | 'WAITING' | 'PUSHED'>('ALL');
@@ -385,7 +386,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
   // 5. Filtered devices in view
   const filteredDevices = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
     return configuringDevices.filter((d) => {
       if (branchFilter !== 'ALL' && d.branchId !== branchFilter) return false;
       if (typeFilter !== 'ALL' && d.type !== typeFilter) return false;
@@ -407,7 +408,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         (d.stockInDate || '').toLowerCase().includes(q)
       );
     });
-  }, [configuringDevices, search, branchFilter, typeFilter, pushStatusFilter, isDevicePushed, getDevicePushId]);
+  }, [configuringDevices, deferredSearch, branchFilter, typeFilter, pushStatusFilter, isDevicePushed, getDevicePushId]);
 
   // Lookup map for staff Telegram handles
   const userTelegramMap = useMemo(() => {

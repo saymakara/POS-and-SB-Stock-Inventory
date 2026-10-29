@@ -5,7 +5,7 @@ import { Pager } from './Pager';
 import { useSort, SortTh } from '../utils/sort';
 import { csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
 import { Branch, Device, User, UserRole, ThemeMode } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
@@ -56,6 +56,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 }) => {
   const isLight = theme === 'light';
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredQuery = useDeferredValue(searchQuery);                 // typing stays instant; the list follows a moment later
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'LOW_RESERVE' | 'HEALTHY'>('ALL');
   const [displayLayout, setDisplayLayout] = useState<'TABLE' | 'GRID'>('TABLE');
   const [expandedBranchCode, setExpandedBranchCode] = useState<string | null>(null);
@@ -217,8 +218,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         if (statusFilter === 'HEALTHY' && b.lowReserve) return false;
 
         // Search query
-        if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
+        if (!deferredQuery.trim()) return true;
+        const q = deferredQuery.toLowerCase();
         return (
           b.code.toLowerCase().includes(q) ||
           b.name.toLowerCase().includes(q) ||
@@ -226,7 +227,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
           b.staffList.some((u) => u.name.toLowerCase().includes(q) || (u.empId && u.empId.toLowerCase().includes(q)))
         );
       });
-  }, [branches, branchDataMap, users, searchQuery, statusFilter]);
+  }, [branches, branchDataMap, users, deferredQuery, statusFilter]);
   const { sorted: enrichedBranches, sort: brSort, toggle: brToggle } = useSort<(typeof matchedBranches)[number]>(matchedBranches, {
     code: (b) => Number(b.code) || b.code, name: (b) => b.name, pos: (b) => b.posCount, sb: (b) => b.sbCount, total: (b) => b.totalDevices,
     reserve: (b) => b.reserveCount, live: (b) => b.completeCount, staff: (b) => b.staffCount, status: (b) => (b.lowReserve ? 1 : 0),

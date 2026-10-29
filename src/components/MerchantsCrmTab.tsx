@@ -1,5 +1,5 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useSort, SortTh } from '../utils/sort';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, MerchantProfile } from '../types';
@@ -149,6 +149,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   const isLight = theme === 'light';
 
   const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);                     // typing stays instant; the big list follows a moment later
   const [branchFilter, setBranchFilter] = useState(role === 'BRANCH' ? activeBranchId : 'ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'ONBOARDING' | 'ATTENTION'>('ALL');
   const [bundleFilter, setBundleFilter] = useState<'ALL' | 'BUNDLE_BOTH' | 'POS_ONLY' | 'SB_ONLY'>('ALL');
@@ -383,8 +384,8 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       if (deviceCountFilter === '1' && m.devices.length !== 1) return false;
       if (deviceCountFilter === '2+' && m.devices.length < 2) return false;
 
-      if (search.trim()) {
-        const q = search.trim().toLowerCase();
+      if (deferredSearch.trim()) {
+        const q = deferredSearch.trim().toLowerCase();
         const serialsText = m.devices.map((d) => `${d.serial} ${d.tid} ${d.model}`).join(' ');
         // Branch staff cannot search by full phone number (it would reveal a masked number).
         const phoneText = canSeeFullContact(role) ? m.merchantPhone : '';
@@ -393,7 +394,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       }
       return true;
     });
-  }, [merchantProfiles, branchFilter, statusFilter, bundleFilter, deviceCountFilter, search, role]);
+  }, [merchantProfiles, branchFilter, statusFilter, bundleFilter, deviceCountFilter, deferredSearch, role]);
   const { sorted: filteredMerchants, sort: crmSort, toggle: crmToggle } = useSort<MerchantProfile>(matchedMerchants, {
     mid: (m) => m.mid, merchant: (m) => m.merchantName, staff: (m) => m.accountOfficer,
     device: (m) => m.devices.length, serial: (m) => m.devices[0]?.serial,

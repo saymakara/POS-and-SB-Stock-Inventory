@@ -1,5 +1,5 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue } from 'react';
 import { getCachedAudit, setCachedAudit } from '../services/auditCache';
 import { useSort, SortTh } from '../utils/sort';
 import { UserRole, ThemeMode } from '../types';
@@ -92,6 +92,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
   const isLight = theme === 'light';
   const serverMode = !!loadServerLogs;
   const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);                     // typing stays instant; the list follows a moment later
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [actionFilter, setActionFilter] = useState<string>('ALL');
   const [pageSize, setPageSize] = useState<number>(50);
@@ -192,7 +193,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
   }, [serverMode, serverLogs, auditLogs]);
 
   const matchedRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
     const words = actionFilter !== 'ALL' ? CATEGORY_WORDS[actionFilter] || [] : [];
     return rows.filter((row) => {
       if (serverMode && roleFilter !== 'ALL' && row.actorRole !== roleFilter) return false;
@@ -200,7 +201,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
       if (q && !row.haystack.includes(q)) return false;
       return true;
     });
-  }, [rows, search, roleFilter, actionFilter, serverMode]);
+  }, [rows, deferredSearch, roleFilter, actionFilter, serverMode]);
   const { sorted: filteredRows, sort: auSort, toggle: auToggle } = useSort<AuditRow>(matchedRows, {
     time: (r) => r.time, actor: (r) => r.actor, role: (r) => r.actorRole, branch: (r) => Number(r.branchCode) || r.branchCode,
     action: (r) => r.title, detail: (r) => r.detail,
