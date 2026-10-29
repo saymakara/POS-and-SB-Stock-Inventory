@@ -1,8 +1,8 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { todayPP } from '../utils/time';
 import {
-  QrEntry, QrMonthTotal, QrQuery, QrSummary,
-  fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary,
+  QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSummary,
+  fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary,
 } from './supabaseService';
 
 /**
@@ -34,10 +34,11 @@ interface EntriesHit { rows: QrEntry[]; total: number }
 const MAX_KEYS = 40;
 const entries = new Map<string, EntriesHit>();
 const summaries = new Map<string, QrSummary>();
+const attempts = new Map<string, { rows: QrAttempt[]; total: number }>();
 let history: QrMonthTotal[] | null = null;
 let owner: string | null | undefined;
 
-export function clearKhqrCache(): void { entries.clear(); summaries.clear(); history = null; }
+export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); history = null; }
 
 if (isSupabaseConfigured) {
   try {
@@ -58,6 +59,13 @@ export function setCachedEntries(key: string, hit: EntriesHit): void {
   entries.delete(key); entries.set(key, hit);
   while (entries.size > MAX_KEYS) entries.delete(entries.keys().next().value as string);
 }
+export const attemptsKey = (f: { from?: string | null; to?: string | null; activity?: string; branchId?: string; staffId?: string; search?: string }, page: number, pageSize: number) =>
+  JSON.stringify([f.from || '', f.to || '', f.activity || 'ALL', f.branchId || '', f.staffId || '', f.search || '', page, pageSize]);
+export const getCachedAttempts = (key: string) => attempts.get(key);
+export function setCachedAttempts(key: string, hit: { rows: QrAttempt[]; total: number }): void {
+  attempts.delete(key); attempts.set(key, hit);
+  while (attempts.size > MAX_KEYS) attempts.delete(attempts.keys().next().value as string);
+}
 export const getCachedSummary = (from: string | null, to: string | null) => summaries.get(periodKey(from, to));
 export const setCachedSummary = (from: string | null, to: string | null, s: QrSummary) => { summaries.set(periodKey(from, to), s); };
 export const getCachedHistory = () => history;
@@ -74,6 +82,7 @@ export function prefetchKhqr(): Promise<void> {
   const f: QrQuery = { from, to, activity: 'ALL', branchId: undefined, staffId: undefined, search: '' };
   inflight = Promise.all([
     fetchQrEntriesPage({ ...f, page: 1, pageSize: 50 }).then((r) => setCachedEntries(entriesKey(f, 1, 50), { rows: r.rows, total: r.total })).catch(() => {}),
+    fetchQrAttemptsPage({ from, to, activity: 'ALL', page: 1, pageSize: 50 }).then((r) => setCachedAttempts(attemptsKey({ from, to, activity: 'ALL' }, 1, 50), { rows: r.rows, total: r.total })).catch(() => {}),
     fetchQrSummary(from, to).then((s) => { if (s) setCachedSummary(from, to, s); }).catch(() => {}),
     fetchQrMonthHistory(1).then((h) => { if (h) setCachedHistory(h.slice(0, 1)); }).catch(() => {}),
   ]).then(() => { lastRun = Date.now(); }).finally(() => { inflight = null; });

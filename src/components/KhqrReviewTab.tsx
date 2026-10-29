@@ -8,10 +8,10 @@ import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP } from '../utils/time';
 import {
   QrActivity, QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSummary, QR_ACTIVITY_LABEL,
-  fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, subscribeToQrEntries,
+  fetchQrAttemptsPage, fetchQrSavedBySessions, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, subscribeToQrEntries,
 } from '../services/supabaseService';
 import {
-  Period, periodRange, entriesKey, getCachedEntries, setCachedEntries, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory,
+  Period, periodRange, attemptsKey, getCachedAttempts, setCachedAttempts, entriesKey, getCachedEntries, setCachedEntries, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory,
 } from '../services/khqrCache';
 
 /**
@@ -417,8 +417,9 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
 const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity: 'ALL' | QrActivity; branchId: string; staffId: string; search: string; reloadKey: number }> = ({
   from, to, activity, branchId, staffId, search, reloadKey,
 }) => {
-  const [rows, setRows] = useState<QrAttempt[] | null>(null);
-  const [total, setTotal] = useState(0);
+  const [first] = useState(() => getCachedAttempts(attemptsKey({ from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search }, 1, 50)));
+  const [rows, setRows] = useState<QrAttempt[] | null>(first ? first.rows : null);
+  const [total, setTotal] = useState(first ? first.total : 0);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const pg = usePager(total, [from, to, activity, branchId, staffId, search]);
@@ -426,11 +427,24 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
   const seqRef = useRef(0);
   const load = useCallback(async () => {
     const seq = ++seqRef.current;
-    setLoading(true);
+    const params = { from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search, page, pageSize };
+    const key = attemptsKey(params, page, pageSize);
+    const hit = getCachedAttempts(key);
+    if (hit) { setRows(hit.rows); setTotal(hit.total); }                // shown at once; the fresh rows replace it quietly
+    setLoading(!hit);
     try {
-      const res = await fetchQrAttemptsPage({ from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search, page, pageSize });
+      // the rows arrive first; "saved later" is looked up right after (one placeholder chip until then)
+      const res = await fetchQrAttemptsPage({ ...params, withSaved: false });
       if (seq !== seqRef.current) return;
-      setRows(res.rows); setTotal(res.total); setErr('');
+      const before = new Map((hit ? hit.rows : []).map((r) => [r.id, r]));
+      const shown = res.rows.map((r) => { const b = before.get(r.id); return b ? { ...r, savedRecordId: b.savedRecordId, savedPending: false } : r; });
+      setRows(shown); setTotal(res.total); setErr('');
+      setLoading(false);
+      const saved = await fetchQrSavedBySessions(Array.from(new Set(res.rows.map((r) => r.sessionId).filter(Boolean))));
+      if (seq !== seqRef.current) return;
+      const merged = res.rows.map((r) => ({ ...r, savedRecordId: saved.get(r.sessionId) || '', savedPending: false }));
+      setCachedAttempts(key, { rows: merged, total: res.total });
+      setRows(merged);
     } catch (e) {
       if (seq !== seqRef.current) return;
       setErr(e instanceof Error ? e.message : String(e)); setRows((r) => r || []);
@@ -485,7 +499,9 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
               </span>
               <span className="text-center tabular-nums">{a.scannedCount || '—'}</span>
               <span>
-                {a.savedRecordId ? (
+                {a.savedPending ? (
+                  <span className="skeleton inline-block h-5 w-20 rounded-full align-middle" aria-label="Checking" />
+                ) : a.savedRecordId ? (
                   <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 font-mono" title="Saved later in the same scan">
                     <CheckCircle2 className="w-3 h-3" /> {a.savedRecordId}
                   </span>

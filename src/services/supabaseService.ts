@@ -1806,11 +1806,22 @@ export interface QrAttempt {
   receivedAt: string;
   /** the entry saved later in the same scanning session (empty: never saved) */
   savedRecordId: string;
+  savedPending?: boolean;     // the 'saved later' lookup is still on its way (shown as a placeholder)
 }
 
 /** The failed attempts log: one page, newest first; each row says whether its entry was saved later. */
+/** The entries saved later in the given scan sessions (session id -> record id). */
+export async function fetchQrSavedBySessions(sessions: string[]): Promise<Map<string, string>> {
+  const saved = new Map<string, string>();
+  if (!sessions.length) return saved;
+  const { data: ent, error } = await supabase.from('qr_installations').select('session_id,record_id').in('session_id', sessions);
+  if (!error) (ent || []).forEach((r: any) => saved.set(r.session_id, r.record_id || ''));
+  return saved;
+}
+
 export async function fetchQrAttemptsPage(p: {
   from?: string | null; to?: string | null; activity?: 'ALL' | QrActivity; branchId?: string; staffId?: string; search?: string; page?: number; pageSize?: number;
+  withSaved?: boolean;       // false: return the rows at once and look up 'saved later' separately (fetchQrSavedBySessions)
 }): Promise<PaginatedResult<QrAttempt>> {
   const pageSize = p.pageSize === 100 ? 100 : 50;
   const page = Math.max(1, p.page || 1);
@@ -1834,11 +1845,7 @@ export async function fetchQrAttemptsPage(p: {
     const list = (data || []) as any[];
     // the entries saved later in these sessions (one request for the page)
     const sessions = Array.from(new Set(list.map((r) => r.session_id).filter(Boolean)));
-    const saved = new Map<string, string>();
-    if (sessions.length) {
-      const { data: ent, error: e2 } = await supabase.from('qr_installations').select('session_id,record_id').in('session_id', sessions);
-      if (!e2) (ent || []).forEach((r: any) => saved.set(r.session_id, r.record_id || ''));
-    }
+    const saved = p.withSaved === false ? new Map<string, string>() : await fetchQrSavedBySessions(sessions);
     return {
       rows: list.map((r) => ({
         id: Number(r.id),
@@ -1855,6 +1862,7 @@ export async function fetchQrAttemptsPage(p: {
         clientAt: r.client_at || null,
         receivedAt: r.received_at,
         savedRecordId: saved.get(r.session_id) || '',
+        savedPending: p.withSaved === false && !!r.session_id,
       })),
       total: count || 0,
       page,
