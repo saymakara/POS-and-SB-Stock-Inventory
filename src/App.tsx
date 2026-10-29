@@ -4116,8 +4116,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             pingMs={pingMs}
           />
 
-          {/* Classic Pipeline Stage Filter Bar (not on Phone App Review → KHQR: that page shows KHQR statistics only) */}
-          {shownTab !== 'mobile_sync_khqr' && (
+          {/* Classic Pipeline Stage Filter Bar (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
+          {!['mobile_sync_khqr', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
           <PipelineBar
               role={role}
               counts={pipelineCounts}
@@ -4133,8 +4133,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           )}
 
             <main className="px-4 sm:px-6 py-5">
-              {/* 6 Elevated KPI Cards with Shadows (stock: not on the KHQR page) */}
-              {shownTab !== 'mobile_sync_khqr' && (
+              {/* 6 Elevated KPI Cards with Shadows (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
+              {!['mobile_sync_khqr', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
               <KpiCards
                 devices={scopedDevices}
                 theme={theme}
