@@ -1,6 +1,6 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
-import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine, FileSpreadsheet } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -8,6 +8,8 @@ import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { STAGE_META } from '../data/initialData';
+import { csvFile } from '../utils/csv';
+import { todayPP } from '../utils/time';
 import {
   FieldEvent,
   FieldEventStatus,
@@ -700,6 +702,76 @@ export const FieldReviewTab: React.FC<Props> = ({
     return m;
   }, [events]);
 
+  const handleExportCsv = useCallback(() => {
+    if (!shown || shown.length === 0) return;
+
+    const headers = [
+      'No.',
+      'Device Type',
+      'Record Type',
+      'Date Sent',
+      'Serial Number',
+      'Serial Input Method',
+      'Old Serial Number',
+      'Old Serial Input Method',
+      'Terminal / Outlet Name',
+      'MID',
+      'MID Input Method',
+      'TID',
+      'Staff Name',
+      'Staff ID',
+      'Branch',
+      'Status',
+      'Reviewer',
+      'Reviewed At',
+      'Review Note / Reason',
+      'Issues / Warnings',
+    ];
+
+    const csvRows = shown.map((e, idx) => {
+      const entry = entryOf(e);
+      const merchant = e.terminalName || e.outletName || '';
+      const issuesText = (e.issues || []).map((i) => `[${i.level.toUpperCase()}] ${i.text}`).join('; ');
+
+      return [
+        String(idx + 1),
+        e.deviceType || devType(e),
+        KIND_LABEL[e.kind] || e.kind,
+        fmtTime(e.receivedAt),
+        e.serial || '',
+        howText(entry.serial),
+        e.oldSerial || '',
+        entry.oldSerial ? howText(entry.oldSerial) : '',
+        merchant,
+        e.mid || '',
+        howText(entry.mid),
+        e.tid || '',
+        e.staffName || '',
+        e.staffId || '',
+        e.branchText || (e.branchId ? `Branch ${e.branchId}` : ''),
+        STATUS_LABEL[e.status] || e.status,
+        e.reviewedByName || '',
+        e.reviewedAt ? fmtTime(e.reviewedAt) : '',
+        e.reviewNote || '',
+        issuesText,
+      ];
+    });
+
+    const prefix = deviceType ? deviceType.replace(/\s+/g, '_') : 'Phone_App_Review';
+    const filename = `${prefix}_${todayPP()}.csv`;
+    const blob = csvFile([headers, ...csvRows]);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    triggerToast(`Exported ${shown.length} ${deviceType || 'review'} record(s) to CSV`);
+  }, [shown, deviceType, triggerToast]);
+
   return (
     <div className="flex flex-col gap-3.5 apple-tab-panel">
       {/* Section 1 — Clean Filter Header */}
@@ -831,6 +903,16 @@ export const FieldReviewTab: React.FC<Props> = ({
               setRecordTypeFilter('ALL');
             }}
           />
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={shown.length === 0}
+            title={`Export ${shown.length} ${deviceType || 'Phone App Review'} records to CSV`}
+            className="btn-press px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium cursor-pointer transition shadow-2xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed select-none"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Export CSV</span>
+          </button>
           <button
             type="button"
             onClick={() => load(true)}

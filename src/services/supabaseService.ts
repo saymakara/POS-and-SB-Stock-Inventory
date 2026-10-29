@@ -1824,6 +1824,22 @@ export async function fetchQrEntriesPage(p: QrQuery & { page?: number; pageSize?
   }
 }
 
+/** Fetches matching KHQR entries for CSV export up to a safe limit. */
+export async function fetchAllQrEntriesForExport(p: QrQuery, limit = 5000): Promise<QrEntry[]> {
+  try {
+    const q = applyQrFilters(supabase.from('qr_installations').select(QR_COLUMNS), p)
+      .order('submitted_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limit);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []).map(mapQrEntry);
+  } catch (err) {
+    await reportCaughtError('fetchAllQrEntriesForExport', err, { showPopup: false });
+    return [];
+  }
+}
+
 /** KHQR statistics of a period (one request; the reader's branch rules apply). */
 export async function fetchQrSummary(from: string | null, to: string | null): Promise<QrSummary | null> {
   try {
