@@ -1079,3 +1079,8 @@ img { height: auto; }
 
 /* the thin, quiet scroll bar of tables and lists */
 .overflow-x-auto, .overflow-y-auto, .overflow-auto { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+/* (29 Oct 2026) the menu was tapped and the next screen is being prepared: the current one softens at once so the tap is
+   felt, then the new screen rises in */
+.tab-view { transition: opacity 140ms var(--ease-standard); }
+.tab-view.tab-pending { opacity: 0.55; pointer-events: none; }

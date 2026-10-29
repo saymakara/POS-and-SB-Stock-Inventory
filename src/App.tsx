@@ -4188,7 +4188,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
               {/* Robust Responsive Tab Content with Error Boundary */}
               {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
-              <div key={shownTab} className="tab-view">
+              <div key={shownTab} className={`tab-view${activeTab !== shownTab ? ' tab-pending' : ''}`} aria-busy={activeTab !== shownTab}>
                   <ErrorBoundary>
                   <Suspense fallback={<TabLoading />}>
                   {shownTab === 'dashboard' && (

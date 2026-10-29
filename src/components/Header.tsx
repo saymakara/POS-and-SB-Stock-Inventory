@@ -11,6 +11,8 @@ import { AppBrandLogo } from './AppBrandLogo';
 import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
+
+const NAV_SPRING = { type: 'spring', stiffness: 520, damping: 42, mass: 0.7 } as const;
 import {
   Building2,
   SendHorizontal,
@@ -253,13 +255,23 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                           : 'px-3 justify-between py-2'
                       } rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-all duration-150 ease-out z-10 ${
                         isActive
-                          ? 'font-medium text-white bg-white/12 border border-white/15 shadow-xs'
-                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
+                          ? 'font-medium text-white border border-transparent'
+                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent active:scale-[0.985]'
                       }`}
                     >
-                      {/* Left vertical white indicator line */}
+                      {/* (29 Oct 2026) the highlight and the left line glide to the tapped item instead of jumping */}
                       {isActive && (
-                        <span
+                        <motion.span
+                          layoutId={isMobileView ? 'nav-pill-m' : 'nav-pill-d'}
+                          transition={NAV_SPRING}
+                          aria-hidden
+                          className="absolute inset-0 -z-10 rounded-xl bg-white/12 border border-white/15 shadow-xs pointer-events-none"
+                        />
+                      )}
+                      {isActive && (
+                        <motion.span
+                          layoutId={isMobileView ? 'nav-bar-m' : 'nav-bar-d'}
+                          transition={NAV_SPRING}
                           aria-hidden
                           className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90 shadow-2xs pointer-events-none"
                         />
@@ -313,10 +325,18 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               aria-current={on ? 'page' : undefined}
                               className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[12.5px] cursor-pointer transition-colors duration-150 border ${
                                 on
-                                  ? 'text-white font-medium bg-white/12 border-white/15'
-                                  : 'text-zinc-400 hover:text-white hover:bg-white/[0.06] border-transparent'
+                                  ? 'relative z-10 text-white font-medium border-transparent'
+                                  : 'text-zinc-400 hover:text-white hover:bg-white/[0.06] border-transparent active:scale-[0.985]'
                               }`}
                             >
+                              {on && (
+                                <motion.span
+                                  layoutId={isMobileView ? 'nav-pill-m' : 'nav-pill-d'}
+                                  transition={NAV_SPRING}
+                                  aria-hidden
+                                  className="absolute inset-0 -z-10 rounded-lg bg-white/12 border border-white/15 pointer-events-none"
+                                />
+                              )}
                               <span className="flex items-center gap-2 min-w-0">
                                 <CI className={`w-3.5 h-3.5 shrink-0 ${on ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-200'}`} />
                                 <span className="truncate">{c.label}</span>
