@@ -5,11 +5,14 @@ import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
-import { stampPP, stampSecPP, todayPP } from '../utils/time';
+import { stampPP, stampSecPP } from '../utils/time';
 import {
   QrActivity, QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSummary, QR_ACTIVITY_LABEL,
   fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, subscribeToQrEntries,
 } from '../services/supabaseService';
+import {
+  Period, periodRange, entriesKey, getCachedEntries, setCachedEntries, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory,
+} from '../services/khqrCache';
 
 /**
  * Phone App Review → KHQR (28 Oct 2026).
@@ -20,7 +23,6 @@ import {
  */
 
 // (29 Oct 2026) KHQR details are kept for this month and last month only (older months: monthly totals below)
-type Period = 'TODAY' | '7D' | 'MONTH' | 'LAST' | 'BOTH';
 const PERIOD_LABEL: Record<Period, string> = {
   TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months',
 };
@@ -30,22 +32,6 @@ const GRID =
 const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
 const HGRID = 'grid items-center gap-x-3 grid-cols-[minmax(150px,1.2fr)_90px_120px_120px_110px_110px_110px]';
 
-/** A period in Phnom Penh time (UTC+7) as ISO: from (inclusive) and to (exclusive, null = now). */
-function periodRange(p: Period): { from: string; to: string | null } {
-  const today = todayPP();
-  const startOf = (ymd: string) => new Date(`${ymd}T00:00:00+07:00`);
-  if (p === 'TODAY') return { from: startOf(today).toISOString(), to: null };
-  if (p === '7D') return { from: new Date(startOf(today).getTime() - 6 * 86400000).toISOString(), to: null };
-  const [y, m] = today.split('-').map(Number);
-  const first = (back: number) => {
-    let yy = y, mm = m - back;
-    while (mm < 1) { mm += 12; yy -= 1; }
-    return startOf(`${yy}-${String(mm).padStart(2, '0')}-01`).toISOString();
-  };
-  if (p === 'MONTH') return { from: first(0), to: null };
-  if (p === 'LAST') return { from: first(1), to: first(0) };
-  return { from: first(1), to: null };                                  // BOTH: last month + this month
-}
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const monthLabel = (ymd: string) => { const [y, m] = ymd.split('-').map(Number); return `${MONTH_NAMES[m - 1]} ${y}`; };
 
@@ -72,10 +58,15 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
     return () => clearTimeout(t);
   }, [deferredQuery]);
 
-  const [rows, setRows] = useState<QrEntry[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [summary, setSummary] = useState<QrSummary | null>(null);
-  const [history, setHistory] = useState<QrMonthTotal[] | null>(null);
+  // the last answers (kept in memory) are shown at once; fresh ones replace them quietly
+  const [first] = useState(() => {
+    const r = periodRange('MONTH');
+    return { entries: getCachedEntries(entriesKey({ from: r.from, to: r.to, activity: 'ALL', search: '' }, 1, 50)), summary: getCachedSummary(r.from, r.to) };
+  });
+  const [rows, setRows] = useState<QrEntry[] | null>(first.entries ? first.entries.rows : null);
+  const [total, setTotal] = useState(first.entries ? first.entries.total : 0);
+  const [summary, setSummary] = useState<QrSummary | null>(first.summary || null);
+  const [history, setHistory] = useState<QrMonthTotal[] | null>(getCachedHistory());
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [live, setLive] = useState(false);
@@ -96,25 +87,31 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const statSeq = useRef(0);
   const loadStats = useCallback(async () => {
     const seq = ++statSeq.current;
+    const hit = getCachedSummary(from, to);
+    if (hit) setSummary(hit);
     const sum = await fetchQrSummary(from, to);
     if (seq !== statSeq.current) return;
-    if (sum) setSummary(sum);
+    if (sum) { setCachedSummary(from, to, sum); setSummary(sum); }
   }, [from, to]);
   useEffect(() => { loadStats(); }, [loadStats]);
 
   const loadMonthHistory = useCallback(async () => {
     const hist = await fetchQrMonthHistory(1);
-    if (hist) setHistory(hist.slice(0, 1));
+    if (hist) { setCachedHistory(hist.slice(0, 1)); setHistory(hist.slice(0, 1)); }
   }, []);
   useEffect(() => { loadMonthHistory(); }, [loadMonthHistory]);
 
   const reqSeq = useRef(0);
   const load = useCallback(async () => {
     const seq = ++reqSeq.current;
-    setLoading(true);
+    const key = entriesKey(filters, page, pageSize);
+    const hit = getCachedEntries(key);
+    if (hit) { setRows(hit.rows); setTotal(hit.total); }               // shown at once; the fresh answer replaces it quietly
+    setLoading(!hit);
     try {
       const res = await fetchQrEntriesPage({ ...filters, page, pageSize });
       if (seq !== reqSeq.current) return;                             // an older request: a newer one is on its way
+      setCachedEntries(key, { rows: res.rows, total: res.total });
       setRows(res.rows);
       setTotal(res.total);
       setLoadError('');

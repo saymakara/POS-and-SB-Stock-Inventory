@@ -50,6 +50,7 @@ import { SessionLockModal } from './components/SessionLockModal';
 import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { prefetchKhqr } from './services/khqrCache';
 import { motion, AnimatePresence } from 'motion/react';
 
 // (22 Oct 2026, review) Screens other than the Dashboard and Stock Inventory are loaded when first opened, and fetched
@@ -62,6 +63,7 @@ function lazyTab<C extends React.ComponentType<any>>(load: () => Promise<{ defau
 }
 export function prefetchTabs(): void {
   tabLoaders.forEach((load) => { load().catch(() => { /* loaded again when opened */ }); });
+  prefetchKhqr();                                                   // (29 Oct 2026) the KHQR screen opens with its data already here
 }
 const BranchesTab = lazyTab(() => import('./components/BranchesTab').then((m) => ({ default: m.BranchesTab })));
 const IamUsersTab = lazyTab(() => import('./components/IamUsersTab').then((m) => ({ default: m.IamUsersTab })));
