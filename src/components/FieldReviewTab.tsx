@@ -98,6 +98,8 @@ interface Props {
   onPendingCountChange?: (counts: { pos: number; sb: number }) => void;
   /** (28 Oct 2026) Phone App Review sub-menu: show one device type only (POS Terminal or Sound Box) */
   deviceType?: 'POS Terminal' | 'Sound Box';
+  /** Pre-indexed hardware lookup map for instant 0ms serial resolution */
+  deviceBySerialMap?: Map<string, Device>;
 }
 
 interface RowOpt {
@@ -186,6 +188,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   scope = 'PHNOM_PENH',
   onPendingCountChange,
   deviceType,
+  deviceBySerialMap,
 }) => {
   const [activeScope, setActiveScope] = useState<'ALL' | 'PHNOM_PENH'>(scope === 'ALL' ? 'ALL' : 'PHNOM_PENH');
   useEffect(() => {
@@ -320,10 +323,11 @@ export const FieldReviewTab: React.FC<Props> = ({
   }, [load]);
 
   const deviceBySerial = useMemo(() => {
+    if (deviceBySerialMap) return deviceBySerialMap;
     const m = new Map<string, Device>();
     devices.forEach((d) => m.set(d.serial.toUpperCase(), d));
     return m;
-  }, [devices]);
+  }, [devices, deviceBySerialMap]);
 
   // Build lookup set of known Phnom Penh branch codes and staff IDs from the 33 Phnom Penh branches
   const { ppBranchCodes, ppStaffEmpIds } = useMemo(() => {
@@ -471,32 +475,35 @@ export const FieldReviewTab: React.FC<Props> = ({
   const shownBase = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     const effectiveType = deviceType || typeFilter;
-    return scoped
-      .filter((e) => filter === 'ALL' || e.status === filter)
-      .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
-      .filter((e) => effectiveType === 'ALL' || devType(e) === effectiveType)
-      .filter(
-        (e) =>
-          !q ||
-          [
-            e.serial,
-            e.oldSerial,
-            e.sourceRecordId,
-            e.mid,
-            e.tid,
-            e.outletName,
-            e.terminalName,
-            e.staffName,
-            e.staffId,
-            e.branchText,
-          ].some((v) => String(v || '').toLowerCase().includes(q))
-      )
-      .sort(
-        (a, b) =>
-          b.receivedAt.localeCompare(a.receivedAt) ||
-          b.sourceRecordId.localeCompare(a.sourceRecordId) ||
-          a.unitNo - b.unitNo
-      );
+    const result: FieldEvent[] = [];
+    for (let i = 0; i < scoped.length; i++) {
+      const e = scoped[i];
+      if (filter !== 'ALL' && e.status !== filter) continue;
+      if (recordTypeFilter !== 'ALL' && e.kind !== recordTypeFilter) continue;
+      if (effectiveType !== 'ALL' && devType(e) !== effectiveType) continue;
+      if (q) {
+        const matches = (
+          (e.serial && e.serial.toLowerCase().includes(q)) ||
+          (e.oldSerial && e.oldSerial.toLowerCase().includes(q)) ||
+          (e.sourceRecordId && e.sourceRecordId.toLowerCase().includes(q)) ||
+          (e.mid && e.mid.toLowerCase().includes(q)) ||
+          (e.tid && e.tid.toLowerCase().includes(q)) ||
+          (e.outletName && e.outletName.toLowerCase().includes(q)) ||
+          (e.terminalName && e.terminalName.toLowerCase().includes(q)) ||
+          (e.staffName && e.staffName.toLowerCase().includes(q)) ||
+          (e.staffId && e.staffId.toLowerCase().includes(q)) ||
+          (e.branchText && e.branchText.toLowerCase().includes(q))
+        );
+        if (!matches) continue;
+      }
+      result.push(e);
+    }
+    return result.sort(
+      (a, b) =>
+        b.receivedAt.localeCompare(a.receivedAt) ||
+        b.sourceRecordId.localeCompare(a.sourceRecordId) ||
+        a.unitNo - b.unitNo
+    );
   }, [scoped, filter, typeFilter, recordTypeFilter, deferredQuery, deviceType]);
 
   const { sorted: shown, sort, toggle: toggleSort } = useSort(shownBase, {
@@ -692,7 +699,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   };
 
   const loadingFirst = !events && !loadError;
-  const visibleRows = shown.slice(pg.start, pg.end);
+  const visibleRows = useMemo(() => shown.slice(pg.start, pg.end), [shown, pg.start, pg.end]);
   const unitCount = useMemo(() => {
     const m = new Map<string, number>();
     (events || []).forEach((x) => {

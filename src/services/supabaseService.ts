@@ -1184,10 +1184,20 @@ export async function confirmReceiptOnServer(reqId: string): Promise<{ moved: st
   }
 }
 
+export function deriveActionCategory(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes('requisition') || t.includes('request') || t.includes('dispatch') || t.includes('receive')) return 'REQUEST';
+  if (t.includes('session') || t.includes('user') || t.includes('account') || t.includes('password') || t.includes('role') || t.includes('security') || t.includes('access') || t.includes('login') || t.includes('logout') || t.includes('unlock')) return 'USER';
+  if (t.includes('field') || t.includes('phone') || t.includes('sync') || t.includes('qr') || t.includes('review')) return 'SYNC';
+  if (t.includes('branch code')) return 'BRANCH';
+  if (t.includes('setting') || t.includes('brand') || t.includes('policy')) return 'SETTINGS';
+  return 'STOCK';
+}
+
 /**
- * Error-Only Audit Logging (25 Oct 2026).
- * To protect the Supabase log ingestion quota, routine 'Success' or 'Info' operations DO NOT write to the database.
- * Only actual errors (where action === 'ERROR' or title/detail indicates a failure) are written to Supabase.
+ * System Integrity Audit Logging.
+ * Records every state change made by all users (Super Admin, Admin HQ, Branch staff)
+ * to the tamper-evident server audit_logs table for governance and accountability.
  */
 export async function writeAuditLog(
   title: string,
@@ -1196,22 +1206,22 @@ export async function writeAuditLog(
   target?: string
 ): Promise<void> {
   if (!isSupabaseConfigured) return;
-  const isError =
-    action === 'ERROR' || /\b(error|failed|failure|exception|refused|halted)\b/i.test(`${title} ${action || ''}`);
-  if (!isError) {
-    // Error-Only logging model: do not ping the database on successful or informational operations
-    return;
-  }
   try {
+    const isError =
+      action === 'ERROR' || /\b(error|failed|failure|exception|refused|halted)\b/i.test(`${title} ${action || ''}`);
+    const resolvedAction = action || deriveActionCategory(title);
     const { error } = await supabase.from('audit_logs').insert({
       title: title.slice(0, 160),
-      detail,
-      action: action || 'ERROR',
+      detail: (detail || '').slice(0, 2000),
+      action: resolvedAction,
       target: target || null,
+      status: isError ? 'Error' : 'SUCCESS',
     });
-    if (error) throw error;
+    if (error) {
+      console.warn('writeAuditLog warning:', error.message);
+    }
   } catch (err) {
-    await reportCaughtError('writeErrorAuditLog', err, { skipDbLog: true, showPopup: false });
+    console.warn('writeAuditLog caught:', err);
   }
 }
 
@@ -1236,6 +1246,7 @@ export async function fetchAuditLogs(limit = 50, offset = 0): Promise<ServerAudi
     const { data, error } = await supabase
       .from('audit_logs')
       .select('*')
+      .neq('action', 'ERROR')
       .order('created_at', { ascending: false })
       .limit(safeLimit)
       .range(safeOffset, safeOffset + safeLimit - 1);
@@ -1274,7 +1285,7 @@ export async function fetchAuditLogsPageFromSupabase(params: {
     offset,
     ascending: false,
     filters: (q) => {
-      let query = q;
+      let query = q.neq('action', 'ERROR');
       if (params.role && params.role !== 'ALL') {
         query = query.eq('role', params.role);
       }

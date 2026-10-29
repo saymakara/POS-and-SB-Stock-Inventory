@@ -322,22 +322,35 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                 onSelectTab(c.id);
                                 if (isMobileView) onCloseMobile?.();
                               }}
-                              onMouseEnter={(c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') ? prefetchFieldEvents : undefined}
+                              onMouseEnter={() => {
+                                if (c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') {
+                                  prefetchFieldEvents();
+                                } else if (c.id === 'mobile_sync_khqr') {
+                                  void import('./KhqrReviewTab');
+                                }
+                              }}
                               aria-current={on ? 'page' : undefined}
-                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[12.5px] cursor-pointer transition-colors duration-150 border ${
+                              className={`group relative w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[12.5px] cursor-pointer active:scale-[0.98] transition-transform duration-100 ease-out border ${
                                 on
-                                  ? 'text-white font-medium bg-white/12 border-white/15'
+                                  ? 'text-white font-medium border-white/15 shadow-xs'
                                   : 'text-zinc-400 hover:text-white hover:bg-white/[0.06] border-transparent'
                               }`}
                             >
-                              <span className="flex items-center gap-2 min-w-0">
-                                <CI className={`w-3.5 h-3.5 shrink-0 ${on ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-200'}`} />
+                              {on && (
+                                <motion.div
+                                  layoutId="phoneReviewActiveSubPill"
+                                  transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.55 }}
+                                  className="absolute inset-0 rounded-lg bg-white/12 border border-white/15 pointer-events-none"
+                                />
+                              )}
+                              <span className="relative z-10 flex items-center gap-2 min-w-0">
+                                <CI className={`w-3.5 h-3.5 shrink-0 transition-colors duration-150 ${on ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-200'}`} />
                                 <span className="truncate">{c.label}</span>
                               </span>
                               {c.count !== undefined && c.count > 0 && (
                                 <span
-                                  className={`font-figure text-[10px] px-1.5 py-0.5 rounded-full tabular-nums shrink-0 ${
-                                    on ? 'bg-white text-zinc-900 font-bold' : 'bg-white/15 text-white border border-white/20'
+                                  className={`relative z-10 font-figure text-[10px] px-1.5 py-0.5 rounded-full tabular-nums shrink-0 transition-all duration-150 ${
+                                    on ? 'bg-white text-zinc-900 font-bold shadow-2xs' : 'bg-white/15 text-white border border-white/20'
                                   }`}
                                   title="Records waiting for review"
                                 >
