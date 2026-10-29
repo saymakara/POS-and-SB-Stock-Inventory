@@ -1024,7 +1024,8 @@ button, [role="button"], a, select, summary, label, input[type="checkbox"], inpu
 /* sharper, steadier text while animating, and no font-size jump when a phone rotates */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 /* pictures never push the page around while loading */
-img, svg, video, canvas { max-width: 100%; }
+/* (svg is left out on purpose: max-width on icons inside shrink-to-fit buttons collapsed the row checkboxes to nothing) */
+img, video { max-width: 100%; }
 img { height: auto; }
 /* skeleton placeholders keep the same size as the content, then the content fades in instead of snapping */
 .skeleton { border-radius: 8px; contain: paint; }
@@ -1084,3 +1085,7 @@ img { height: auto; }
    felt, then the new screen rises in */
 .tab-view { transition: opacity 140ms var(--ease-standard); }
 .tab-view.tab-pending { opacity: 0.55; pointer-events: none; }
+
+/* (29 Oct 2026) sidebar: the highlight fades in place and the left line grows from the middle; nothing slides */
+@keyframes navBarIn { from { transform: scaleY(0.3); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+.nav-bar-in { animation: navBarIn 200ms var(--ease-premium) backwards; transform-origin: center; }

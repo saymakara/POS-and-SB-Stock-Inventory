@@ -6,6 +6,7 @@ import { Pager } from './Pager';
 import { UserCog, Plus, Search, Loader2, KeyRound, ShieldCheck, RefreshCw, MapPin, CheckCircle2, Ban } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { StaffAccount, fetchStaffAccounts, saveStaffAccount, OnlineOperatorPresence } from '../services/supabaseService';
+import { getCachedStaff, setCachedStaff } from '../services/staffCache';
 import { saveStaffAlias } from '../utils/staffUtils';
 
 /**
@@ -36,7 +37,6 @@ function makePassword(): string {
   return s.slice(0, 5) + '-' + s.slice(5) + (/\d/.test(s) ? '' : '7');
 }
 
-const STAFF_CACHE_KEY = 'staff_accounts_cache_v2';
 const STAFF_LOCATION_KEY = 'staff_locations_map_v1';
 
 function loadLocationMap(): Record<string, string> {
@@ -56,14 +56,7 @@ export const StaffAccountsTab: React.FC<{
   onStaffUpdated?: () => void;
 }> = ({ role, branches, triggerToast, onlineOperators = [], onStaffUpdated }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-  const [list, setList] = useState<StaffAccount[] | null>(() => {
-    try {
-      const c = sessionStorage.getItem(STAFF_CACHE_KEY);
-      return c ? JSON.parse(c) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [list, setList] = useState<StaffAccount[] | null>(() => getCachedStaff());   // shown at once; the fresh list replaces it quietly
   const [locationMap, setLocationMap] = useState<Record<string, string>>(loadLocationMap);
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
@@ -89,12 +82,8 @@ export const StaffAccountsTab: React.FC<{
       return;
     }
     setErr('');
+    setCachedStaff(x);
     setList(x);
-    try {
-      sessionStorage.setItem(STAFF_CACHE_KEY, JSON.stringify(x));
-    } catch {
-      /* storage blocked: fine */
-    }
   }, []);
   useEffect(() => {
     load();

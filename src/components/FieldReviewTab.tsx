@@ -18,6 +18,7 @@ import {
   approveFieldEvent,
   rejectFieldEvent,
 } from '../services/supabaseService';
+import { getCachedFieldEvents, setCachedFieldEvents } from '../services/fieldCache';
 
 /**
  * Phone App Review.
@@ -188,6 +189,8 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [events, setEvents] = useState<FieldEvent[] | null>(() => {
+    const mem = getCachedFieldEvents();                              // fetched in the background after sign-in: no parsing, no waiting
+    if (mem) return mem;
     try {
       const c = sessionStorage.getItem(CACHE_KEY);
       return c ? (JSON.parse(c) as FieldEvent[]) : null;
@@ -224,6 +227,8 @@ export const FieldReviewTab: React.FC<Props> = ({
   useEffect(() => {
     fetchBranchRegions().then((g) => startTransition(() => setRegions(g)));
   }, []);
+
+  useEffect(() => { if (events) setCachedFieldEvents(events); }, [events]);   // the next opening starts from the latest list
 
   // Cache records so tab switches and page refreshes paint instantly (0ms)
   useEffect(() => {
