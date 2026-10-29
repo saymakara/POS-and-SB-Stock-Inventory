@@ -246,8 +246,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const childActive = !!item.children?.some((c) => c.id === activeTab);
-                  const isActive = activeTab === item.id || childActive;
                   const showChildren = !!item.children && (isMobileView || !collapsed);
+                  const isActive = showChildren ? false : (activeTab === item.id || childActive);
 
                   return (
                     <React.Fragment key={item.id}>
