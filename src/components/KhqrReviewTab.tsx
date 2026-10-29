@@ -1,14 +1,14 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, RefreshCw, ChevronDown, MapPin, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, MapPin, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users, UserX } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP, todayPP } from '../utils/time';
 import {
-  QrActivity, QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSummary, QR_ACTIVITY_LABEL,
-  fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, subscribeToQrEntries,
+  QrActivity, QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrStaffFailure, QrSummary, QR_ACTIVITY_LABEL,
+  fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, fetchQrStaffFailures, subscribeToQrEntries,
 } from '../services/supabaseService';
 
 /**
@@ -28,6 +28,7 @@ const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as co
 const GRID =
   'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
 const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
+const SGRID = 'grid items-center gap-x-3 grid-cols-[44px_minmax(170px,1.2fr)_minmax(130px,1fr)_120px_160px_minmax(180px,1fr)]';
 const HGRID = 'grid items-center gap-x-3 grid-cols-[minmax(150px,1.2fr)_90px_120px_120px_110px_110px_110px]';
 
 /** A period in Phnom Penh time (UTC+7) as ISO: from (inclusive) and to (exclusive, null = now). */
@@ -76,6 +77,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<QrSummary | null>(null);
   const [history, setHistory] = useState<QrMonthTotal[] | null>(null);
+  const [staff, setStaff] = useState<QrStaffFailure[] | null>(null);   // failed attempts by staff (restored 29 Oct 2026)
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [live, setLive] = useState(false);
@@ -96,9 +98,10 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const statSeq = useRef(0);
   const loadStats = useCallback(async () => {
     const seq = ++statSeq.current;
-    const sum = await fetchQrSummary(from, to);
+    const [sum, st] = await Promise.all([fetchQrSummary(from, to), fetchQrStaffFailures(from, to)]);
     if (seq !== statSeq.current) return;
     if (sum) setSummary(sum);
+    if (st) setStaff(st);
   }, [from, to]);
   useEffect(() => { loadStats(); }, [loadStats]);
 
@@ -150,6 +153,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   );
   const loadingFirst = rows === null;
   const entriesRef = useRef<HTMLElement | null>(null);
+  const showStaff = (s: QrStaffFailure) => {
+    setStaffSel({ id: s.staffId, name: s.staffName || s.staffId });
+    setView('log');
+    setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
 
   return (
     <div className="flex flex-col gap-3.5 apple-tab-panel">
@@ -231,6 +239,58 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
           </div>
         )}
       </section>
+
+      {/* Who had failed attempts (tracking, no approval) */}
+      {loadError !== 'SETUP' && (
+        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Failed attempts by staff">
+          <div className="px-4 py-2.5 flex items-center gap-2 border-b border-slate-200">
+            <UserX className="w-4 h-4 text-rose-600" />
+            <h3 className="text-[13px] font-medium text-slate-900">Failed attempts by staff</h3>
+            <span className="text-[11.5px] text-slate-500">· {PERIOD_LABEL[period]}</span>
+          </div>
+          <div className="min-w-[1000px]">
+            <div className={`${SGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`} role="row">
+              <span className="text-right">No.</span>
+              <span>Staff</span>
+              <span>Branch</span>
+              <span className="text-right">Failed attempts</span>
+              <span>Last failed attempt</span>
+              <span>Last wrong MID</span>
+            </div>
+            {staff === null && <div className="h-[46px] px-3.5 flex items-center"><div className="skeleton h-3.5 rounded w-1/2" /></div>}
+            {staff && staff.length === 0 && (
+              <div className="p-6 text-center text-sm text-emerald-700 inline-flex w-full justify-center items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4" /> No failed attempt in this period.
+              </div>
+            )}
+            <div className="divide-y divide-slate-200/90">
+              {(staff || []).map((s, i) => (
+                <button
+                  key={s.staffId + i}
+                  type="button"
+                  onClick={() => showStaff(s)}
+                  title="Show this staff member's failed attempts"
+                  className={`${SGRID} w-full text-left px-3.5 py-2 text-[12.5px] text-slate-700 hover:bg-rose-50/60 cursor-pointer`}
+                >
+                  <span className="text-right tabular-nums text-slate-500">{i + 1}</span>
+                  <span className="leading-tight min-w-0">
+                    <span className="block truncate text-slate-900">{s.staffName || s.staffId}</span>
+                    <span className="block text-[11px] text-slate-500 font-mono">{s.staffId}</span>
+                  </span>
+                  <span className="truncate">{s.branchText || '—'}</span>
+                  <span className="text-right tabular-nums font-semibold text-rose-700">{s.attempts.toLocaleString()}</span>
+                  <span className="tabular-nums">{fmt(s.lastAt)}</span>
+                  <span className="text-[11.5px] leading-tight">
+                    {s.lastGotMid ? (
+                      <span className="font-mono" title={s.lastExpectedMid ? `Expected ${s.lastExpectedMid}` : undefined}>{s.lastGotMid}</span>
+                    ) : '—'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* (29 Oct 2026) Monthly history: details are kept for this month and last month; older months stay as totals */}
       {loadError !== 'SETUP' && history && history.length > 0 && (
