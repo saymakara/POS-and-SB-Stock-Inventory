@@ -48,19 +48,13 @@ export function deduplicateStaffList(list: (string | null | undefined)[]): strin
  * Returns stored staff name aliases (e.g. when an admin updates a staff name in the directory).
  */
 export function getStaffAliases(): Record<string, string> {
+  // (29 Oct 2026) no built-in aliases: a staff member's name does not belong in the public code (and no unit uses the old one)
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(STAFF_ALIASES_KEY) : null;
     const parsed = raw ? JSON.parse(raw) : {};
-    return {
-      babe: 'Um Sovann Sokheng',
-      'babe (11122)': 'Um Sovann Sokheng',
-      ...parsed,
-    };
+    return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {
-    return {
-      babe: 'Um Sovann Sokheng',
-      'babe (11122)': 'Um Sovann Sokheng',
-    };
+    return {};
   }
 }
 
@@ -83,8 +77,8 @@ export function saveStaffAlias(oldName: string, newName: string): void {
 /**
  * Dynamically resolves any legacy or raw staff string to the current name in the Staff Directory.
  * Follows:
- * 1. Known staff aliases (e.g. "babe" -> "Um Sovann Sokheng")
- * 2. Embedded employee ID (e.g. "Babe (11122)" -> finds user 11122 -> "Um Sovann Sokheng")
+ * 1. Known staff aliases (old name -> current name)
+ * 2. Embedded employee ID (e.g. "Old Name (11122)" -> finds user 11122 -> current name)
  * 3. Exact empId or name match against active users directory
  */
 export function resolveStaffFromDirectory(
@@ -97,16 +91,21 @@ export function resolveStaffFromDirectory(
   const normalized = normalizeStaffName(trimmed);
   const normalizedLower = normalized.toLowerCase();
 
-  // 1. Check known aliases (e.g. "babe" -> "Um Sovann Sokheng")
+  // 1. Check known aliases (old name -> new name, saved in this browser when a name is changed).
+  // (29 Oct 2026) with a directory, an alias is used only when its new name is a real directory name: an alias left
+  // over from a mistyped rename (e.g. "Name" -> "Namett") no longer turns a correct name into the typo
   const aliases = getStaffAliases();
-  if (aliases[normalizedLower]) {
+  const hasDirectory = Boolean(users && users.length > 0);
+  const aliasOk = (target?: string) =>
+    Boolean(target) && (!hasDirectory || users!.some((u) => normalizeStaffName(u.name).toLowerCase() === target!.trim().toLowerCase()));
+  if (aliasOk(aliases[normalizedLower])) {
     return aliases[normalizedLower];
   }
-  if (aliases[trimmed.toLowerCase()]) {
+  if (aliasOk(aliases[trimmed.toLowerCase()])) {
     return aliases[trimmed.toLowerCase()];
   }
 
-  // 2. Extract embedded empId if present (e.g. "Babe (11122)" -> "11122")
+  // 2. Extract embedded empId if present (e.g. "Old Name (11122)" -> "11122")
   const empId = extractEmpIdFromName(trimmed);
   if (empId && users && users.length > 0) {
     const match = users.find((u) => u.empId?.trim().toLowerCase() === empId.toLowerCase());
@@ -153,7 +152,7 @@ export interface StaffDirectoryLookupResult {
  * Checks:
  * 1. Embedded EmpId in parenthesis (e.g. "KY Vibol (27267)" -> "27267")
  * 2. Exact match against user EmpId (e.g. "27267")
- * 3. Known aliases (e.g. "babe" -> "Um Sovann Sokheng")
+ * 3. Known aliases (old name -> current name)
  * 4. Exact match against user name (case-insensitive normalized)
  * 5. Username / contact / label
  * 6. Branch staff lists from Branch definitions

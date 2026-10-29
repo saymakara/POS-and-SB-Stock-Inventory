@@ -173,7 +173,9 @@ async function api(route) {
   await p.getByText('Phone App Review', { exact: true }).first().click(); await sleep(1500);
   const pr = await p.textContent('body');
   const m = pr.match(/Waiting \((\d+)\)/);
-  ok(m && Number(m[1]) === 980, 'Phone App Review counts the Phnom Penh waiting records only (1000 minus 20 regional): ' + (m && m[1]));
+  // (29 Oct 2026) "Phone App Review" opens its POS sub-menu (since 28 Oct): the count is the Phnom Penh waiting POS records
+  const expectPos = state.events.filter((e) => e.status === 'PENDING' && e.device_type !== 'Sound Box' && e.branch_id !== '401').length;
+  ok(m && Number(m[1]) === expectPos, `Phone App Review (POS) counts the Phnom Penh waiting POS records only (${expectPos}): ` + (m && m[1]));
   const sb = p.locator('button[aria-sort]').filter({ hasText: 'Serial Number' }).first();
   await timed('sort 980 phone records by serial', async () => { await sb.click(); await sleep(300); }, 1500);
   await timed('select all 980 waiting records', async () => { await p.locator('button[aria-label="Select all waiting"]').click(); await sleep(300); }, 1500);
