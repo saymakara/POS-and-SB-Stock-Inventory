@@ -7,8 +7,8 @@ import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP, todayPP } from '../utils/time';
 import {
-  QrActivity, QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrStaffFailure, QrSummary, QR_ACTIVITY_LABEL,
-  fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, fetchQrStaffFailures, subscribeToQrEntries,
+  QrActivity, QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSummary, QR_ACTIVITY_LABEL,
+  fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, subscribeToQrEntries,
 } from '../services/supabaseService';
 
 /**
@@ -75,7 +75,6 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const [rows, setRows] = useState<QrEntry[] | null>(null);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<QrSummary | null>(null);
-  const [staff, setStaff] = useState<QrStaffFailure[] | null>(null);
   const [history, setHistory] = useState<QrMonthTotal[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -93,17 +92,21 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const pg = usePager(total, [from, to, activity, branchId, staffSel, search]);
   const page = pg.page, pageSize = pg.pageSize;
 
-  // the statistics and the staff table follow the period only (one request each)
+  // Single fast RPC for summary; monthly history is fetched once and updated on live events
   const statSeq = useRef(0);
   const loadStats = useCallback(async () => {
     const seq = ++statSeq.current;
-    const [sum, st, hist] = await Promise.all([fetchQrSummary(from, to), fetchQrStaffFailures(from, to), fetchQrMonthHistory(12)]);
+    const sum = await fetchQrSummary(from, to);
     if (seq !== statSeq.current) return;
     if (sum) setSummary(sum);
-    if (st) setStaff(st);
-    if (hist) setHistory(hist);
   }, [from, to]);
   useEffect(() => { loadStats(); }, [loadStats]);
+
+  const loadMonthHistory = useCallback(async () => {
+    const hist = await fetchQrMonthHistory(12);
+    if (hist) setHistory(hist);
+  }, []);
+  useEffect(() => { loadMonthHistory(); }, [loadMonthHistory]);
 
   const reqSeq = useRef(0);
   const load = useCallback(async () => {
@@ -133,11 +136,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
     const unsub = subscribeToQrEntries(() => {
       setLive(true);
       setNewCount((n) => n + 1);
-      if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(); setLogKey((k) => k + 1); }, 5000);
+      if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(); loadMonthHistory(); setLogKey((k) => k + 1); }, 5000);
     });
     const t = setTimeout(() => setLive(true), 2500);
     return () => { unsub(); clearTimeout(t); if (statTimer) clearTimeout(statTimer); };
-  }, [loadStats]);
+  }, [loadStats, loadMonthHistory]);
 
   const filtersActive = !!query || activity !== 'ALL' || !!branchId || !!staffSel || period !== 'MONTH';
   const clearAll = () => { setQuery(''); setSearch(''); setActivity('ALL'); setBranchId(''); setStaffSel(null); setPeriod('MONTH'); };
@@ -223,7 +226,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               sub="Recorded failed attempts"
               icon={Users}
               accentColor="amber"
-              badge={staff && staff.length > 0 ? `${staff.length} staff` : undefined}
+              badge={summary?.staffFailed && summary.staffFailed > 0 ? `${summary.staffFailed} staff` : undefined}
             />
           </div>
         )}
