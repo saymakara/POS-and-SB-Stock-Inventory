@@ -245,8 +245,7 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   const hist = (await p.textContent('[aria-label="Monthly history"]')).replace(/\s+/g, ' ');
   ok(/Oct 2026\s*Details\s*120/.test(hist) && /Aug 2026\s*Totals only\s*91,000/.test(hist), 'monthly history: kept months with details, older months as totals', hist.slice(0, 260));
   await p.screenshot({ path: '/tmp/claude-0/t/d6_hist.png', fullPage: true });
-  const st = await p.locator('[aria-label="Failed attempts by staff"] .divide-y > button').allTextContents();
-  ok(st.length === 3 && /Ouk Sophea/.test(st.join('|')) && /Sok Dara.*12/.test(st[0].replace(/\s+/g, ' ')), 'failed attempts by staff: 3 staff, most first', st.map(x => x.replace(/\s+/g, ' ').slice(0, 60)));
+  ok(!(await p.isVisible('[aria-label="Failed attempts by staff"]')), 'Failed attempts by staff table removed');
   const rowsN = await p.locator('[aria-label="KHQR entries"] [data-page-content] > div').count();
   ok(rowsN === 50 && /Showing 1–50 of 120 entries/.test(body), 'entries: 50 per page, server total 120');
   ok(/Phnom Penh · Tuol Kouk/.test(await p.textContent('[aria-label="KHQR entries"]')), 'Location and Khan in the list');
@@ -263,10 +262,9 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   ok(log.length === 19 && /Ouk Sophea/.test(log[0]) && /Not saved/.test(log[0]) && /QR-20261028-0000\d\d/.test(log[1]) && /200100000000999/.test(log[1]),
     'Failed attempts log: all 19 blocked submits, newest first; unsaved ones say "Not saved", saved ones show the Record ID', log.slice(0, 2).map(x => x.replace(/\s+/g, ' ')));
   await p.screenshot({ path: '/tmp/claude-0/t/d4_log.png' });
-  // a staff member → their failed attempts in the log
-  await p.locator('[aria-label="Failed attempts by staff"] .divide-y > button').nth(2).click(); await sleep(1500);
+  await p.fill('input[aria-label="Search failed attempts"]', 'Ouk Sophea'); await sleep(1500);
   log = await p.locator('[aria-label="Failed attempts log"] [data-page-content] > div').allTextContents();
-  ok(log.length === 1 && /Ouk Sophea/.test(log[0]) && state.calls.some(c => /qr_attempts.*staff_id=eq\.27225/.test(c)) && /Staff: Ouk Sophea/.test(await p.textContent('main')), 'tap a staff member → their failed attempts (even with no saved entry)');
+  ok(log.length === 1 && /Ouk Sophea/.test(log[0]), 'search staff member in failed attempts log');
   await p.getByRole('button', { name: 'Clear filters' }).click(); await sleep(800);
   await p.getByRole('tab', { name: /KHQR entries/ }).click(); await sleep(800);
   const et = await p.textContent('main');
