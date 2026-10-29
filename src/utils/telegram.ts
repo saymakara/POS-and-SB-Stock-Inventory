@@ -112,7 +112,8 @@ export function getTelegramWebhookConfig(): TelegramConfig {
   const cfgChatId = (readStorage(STORAGE_KEY_TG_CONFIG_CHAT_ID) || env.VITE_TELEGRAM_CONFIG_CHAT_ID || primaryChatId).trim();
   return {
     webhookUrl: (readStorage(STORAGE_KEY_TG_WEBHOOK) || env.VITE_TELEGRAM_WEBHOOK_URL || '').trim(),
-    botToken: (readStorage(STORAGE_KEY_TG_BOT_TOKEN) || env.VITE_TELEGRAM_BOT_TOKEN || '').trim(),
+    // (29 Oct 2026, security) the bot token is never read from a build-time VITE_ value: those are copied into the public JavaScript
+    botToken: (readStorage(STORAGE_KEY_TG_BOT_TOKEN) || '').trim(),
     chatId: primaryChatId || cfgChatId || DEFAULT_TELEGRAM_CHAT_ID,
     configChatId: cfgChatId || primaryChatId || DEFAULT_TELEGRAM_CHAT_ID,
     regionalGroups: getTelegramRegionalGroups(),
