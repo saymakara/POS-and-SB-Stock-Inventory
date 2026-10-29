@@ -9,6 +9,15 @@ export const CSV_BATCH_DELAY_MS = 30;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/**
+ * A search box text made safe for the database filter (29 Oct 2026). Used by every list search instead of eight copies.
+ * Commas and brackets would split the filter, a trailing backslash makes the LIKE pattern invalid (the search then
+ * fails with an error), and % * act as wildcards: all become a space, and repeated spaces are collapsed.
+ */
+export function cleanSearchTerm(raw: string | null | undefined): string {
+  return String(raw ?? '').replace(/[,()%*\\"]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export interface PaginatedResult<T> {
   rows: T[];
   total: number;
@@ -456,7 +465,7 @@ export async function fetchDevicesPageFromSupabase(
       if (params.branchId && params.branchId !== 'ALL') {
         query = query.eq('branch_id', params.branchId);
       }
-      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      const term = cleanSearchTerm(params.search);
       if (term) {
         query = query.or(
           `serial.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,merchant_name.ilike.%${term}%,model.ilike.%${term}%,battery_serial.ilike.%${term}%,branch_id.ilike.%${term}%,staff.ilike.%${term}%`
@@ -587,7 +596,7 @@ export async function fetchRequisitionsPageFromSupabase(
       if (params.status && params.status !== 'ALL') query = query.eq('status', params.status);
       if (params.type && params.type !== 'ALL') query = query.eq('type', params.type);
       if (params.branchId && params.branchId !== 'ALL') query = query.eq('branch_id', params.branchId);
-      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      const term = cleanSearchTerm(params.search);
       if (term) {
         query = query.or(`req_id.ilike.%${term}%,branch_name.ilike.%${term}%,staff.ilike.%${term}%,reason.ilike.%${term}%`);
       }
@@ -693,7 +702,7 @@ export async function fetchHistoricalMerchantsPageFromSupabase(
       if (params.branchId && params.branchId !== 'ALL') query = query.eq('branch_id', params.branchId);
       if (params.deviceType && params.deviceType !== 'ALL') query = query.eq('device_type', params.deviceType);
       if (params.reason && params.reason !== 'ALL') query = query.ilike('return_reason', `%${params.reason.slice(0, 15)}%`);
-      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      const term = cleanSearchTerm(params.search);
       if (term) {
         query = query.or(
           `merchant_name.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,serial.ilike.%${term}%,battery_serial.ilike.%${term}%,return_reason.ilike.%${term}%`
@@ -919,39 +928,15 @@ export async function saveDevicesStrict(
       await Promise.all(
         known.slice(i, i + CONCURRENT_UPDATES).map(async (d) => {
           try {
-            let { data, error } = await supabase
+            const { data, error } = await supabase
               .from('devices')
               .update(mapDeviceToRow(d))
               .eq('serial', d.serial)
               .select('serial,row_version');
 
-            // If the row was modified concurrently (STALE_ROW / PT409), fetch latest row_version and retry once
-            if (error) {
-              const stale = /STALE_ROW|PT409/.test(error.message + (error as any).code);
-              if (stale) {
-                try {
-                  const { data: latestRow } = await supabase
-                    .from('devices')
-                    .select('serial,row_version')
-                    .eq('serial', d.serial)
-                    .maybeSingle();
-                  if (latestRow && typeof latestRow.row_version === 'number') {
-                    const retryRow = { ...mapDeviceToRow(d), row_version: latestRow.row_version };
-                    const retryRes = await supabase
-                      .from('devices')
-                      .update(retryRow)
-                      .eq('serial', d.serial)
-                      .select('serial,row_version');
-                    if (!retryRes.error && retryRes.data && retryRes.data.length > 0) {
-                      data = retryRes.data;
-                      error = null;
-                    }
-                  }
-                } catch {
-                  // Fall through to standard error handling if retry fails
-                }
-              }
-            }
+            // (29 Oct 2026, review) A refused save (STALE_ROW / PT409: someone else changed this unit first) is NOT retried
+            // with the server's newer version. That retry sent this older copy over the other person's change and made
+            // the version check useless. The caller shows "Not saved ... the latest data was loaded" and reloads instead.
 
             if (error) {
               const stale = /STALE_ROW|PT409/.test(error.message + (error as any).code);
@@ -1278,7 +1263,7 @@ export async function fetchAuditLogsPageFromSupabase(params: {
       if (params.role && params.role !== 'ALL') {
         query = query.eq('role', params.role);
       }
-      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      const term = cleanSearchTerm(params.search);
       if (term) {
         query = query.or(
           `title.ilike.%${term}%,detail.ilike.%${term}%,actor_name.ilike.%${term}%,actor_emp.ilike.%${term}%,branch_id.ilike.%${term}%,target.ilike.%${term}%`
@@ -1462,7 +1447,7 @@ export async function fetchFieldEventsPageFromSupabase(params: {
       let query = q;
       if (params.status && params.status !== 'ALL') query = query.eq('status', params.status);
       if (params.deviceType && params.deviceType !== 'ALL') query = query.eq('device_type', params.deviceType);
-      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      const term = cleanSearchTerm(params.search);
       if (term) {
         query = query.or(
           `serial.ilike.%${term}%,old_serial.ilike.%${term}%,source_record_id.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,outlet_name.ilike.%${term}%,terminal_name.ilike.%${term}%,staff_name.ilike.%${term}%,staff_id.ilike.%${term}%`
@@ -1690,7 +1675,7 @@ function applyQrFilters(q: any, p: QrQuery) {
   if (p.activity && p.activity !== 'ALL') query = query.eq('activity', p.activity);
   if (p.branchId) query = query.eq('branch_id', p.branchId);
   if (p.staffId) query = query.eq('staff_id', p.staffId);
-  const term = (p.search || '').trim().replace(/[,()%*\\]/g, ' ').replace(/\s+/g, ' ').trim();
+  const term = cleanSearchTerm(p.search);
   if (term) {
     if (/^\d{15}$/.test(term)) query = query.eq('mid', term);                       // a full MID: the index is used
     else if (/^\d{4,14}$/.test(term)) query = query.like('mid', `%${term}%`);
@@ -1828,7 +1813,7 @@ export async function fetchQrAttemptsPage(p: {
     if (p.activity && p.activity !== 'ALL') q = q.eq('activity', p.activity);
     if (p.branchId) q = q.eq('branch_id', p.branchId);
     if (p.staffId) q = q.eq('staff_id', p.staffId);
-    const term = (p.search || '').trim().replace(/[,()%*\\]/g, ' ').replace(/\s+/g, ' ').trim();
+    const term = cleanSearchTerm(p.search);
     if (term) {
       if (/^\d{4,15}$/.test(term)) q = q.or(`expected_mid.like.%${term}%,got_mid.like.%${term}%,staff_id.eq.${term}`);
       else q = q.or(`staff_name.ilike.%${term}%,got_name.ilike.%${term}%,branch_text.ilike.%${term}%`);
@@ -1957,7 +1942,7 @@ export async function fetchStaffAccountsPageFromSupabase(params: {
     ascending: true,
     filters: (q) => {
       let query = q;
-      const term = (params.search || '').trim().replace(/[,()]/g, '');
+      const term = cleanSearchTerm(params.search);
       if (term) {
         query = query.or(`emp_id.ilike.%${term}%,name.ilike.%${term}%,branch_id.ilike.%${term}%,role.ilike.%${term}%`);
       }
@@ -2145,26 +2130,6 @@ export async function renameDeviceSerialOnServer(
   } catch (err) {
     await reportCaughtError('renameDeviceSerialOnServer', err, { target: `${cleanOld} -> ${cleanNew}` });
     return err instanceof Error ? err.message : String((err as any)?.message || 'Failed to rename serial');
-  }
-}
-
-/**
- * Policy #25: Measures live round-trip connection ping (ms) with Supabase PostgREST using a lightweight head query,
- * warming the HTTP/2 / TLS connection pool for faster subsequent table queries.
- */
-export async function measureSupabasePingMs(): Promise<number | null> {
-  if (!isSupabaseConfigured) return null;
-  const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  try {
-    const { error } = await supabase
-      .from('branches')
-      .select('id', { head: true, count: 'estimated' })
-      .limit(1);
-    if (error) return null;
-    const end = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    return Math.max(1, Math.round(end - start));
-  } catch {
-    return null;
   }
 }
 

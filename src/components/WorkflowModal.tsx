@@ -52,7 +52,6 @@ import {
 
 interface WorkflowModalProps {
   device: Device | null;
-  devices?: Device[];
   branches: Branch[];
   users?: AppUser[];
   role: UserRole;
@@ -98,7 +97,6 @@ interface WorkflowModalProps {
 
 export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   device,
-  devices = [],
   branches,
   users = [],
   role,

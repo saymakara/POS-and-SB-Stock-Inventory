@@ -8,7 +8,6 @@ import {
   ThemeMode,
   STAGE_ORDER,
   getBatteryLifecycleStatus,
-  CustomFieldDefinition,
   Requisition,
   LifecycleStage,
 } from '../types';
@@ -79,9 +78,7 @@ interface InventoryTabProps {
   onRestoreToDashboard?: (serials: string[]) => void;
   onDeletePermanently?: (serials: string[]) => void;
   onChangeBattery?: (serial: string) => void;
-  onNotifyConfigReady?: (serialOrSerials: string | string[]) => void;
   theme?: ThemeMode;
-  customFields?: CustomFieldDefinition[];
   syncingSerials?: Set<string>;
   fulfillingRequisition?: Requisition | null;
   onConfirmFulfillment?: (selectedSerials: string[]) => void;
@@ -127,9 +124,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   onRestoreToDashboard,
   onDeletePermanently,
   onChangeBattery,
-  onNotifyConfigReady,
   theme,
-  customFields,
   syncingSerials,
   fulfillingRequisition,
   onConfirmFulfillment,

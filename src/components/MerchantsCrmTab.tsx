@@ -127,7 +127,6 @@ interface MerchantsCrmTabProps {
     replacedByStaff: string,
     reason: string
   ) => void;
-  onNotifyConfigReady?: (serialOrSerials: string | string[]) => void;
   theme?: ThemeMode;
 }
 
@@ -142,7 +141,6 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   activeBranchId,
   activeStaff,
   onReplaceMerchantDevice,
-  onNotifyConfigReady,
   onOpenWorkflow,
   onBindDeviceToMerchant,
   onTerminateMerchant,

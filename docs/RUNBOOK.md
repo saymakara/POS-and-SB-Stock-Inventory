@@ -23,6 +23,8 @@ Owner: Makara, Merchant Support (ABA Bank). Internal use. Last reviewed 29 Oct 2
 | Date | File | Note |
 |---|---|---|
 | 29 Oct 2026 | 20261029_03_rls_initplan_and_fk_indexes | Access checks evaluated once per query; 2 new indexes. Applied. |
+| 29 Oct 2026 | 20261029_05_branch_on_hq_return_and_return_guard | Units returned to HQ stock from the phone app now move to Head Office; a stock return where no unit moved is no longer marked Received. Applied. |
+| 29 Oct 2026 | 20261029_06_drop_redundant_indexes_and_anon_grant | Four duplicate indexes dropped. File ready; run it in the SQL editor (not yet applied). |
 | 29 Oct 2026 | 20261029_04_revoke_anon_on_backup_table | Anonymous role no longer has any access to historical_merchants_backup_20261022. Applied. |
 
 ## 5. Secrets
