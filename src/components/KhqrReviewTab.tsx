@@ -10,6 +10,7 @@ import { csvFile } from '../utils/csv';
 import {
   QrActivity, QrAttempt, QrEntry, QrQuery, QrStaffFailure, QrSummary, QR_ACTIVITY_LABEL,
   fetchQrAttemptsPage, fetchQrEntriesPage, fetchAllQrEntriesForExport, fetchQrSummary, fetchQrStaffFailures, subscribeToQrEntries,
+  fetchPendingFieldEvents,
 } from '../services/supabaseService';
 
 /**
@@ -58,8 +59,27 @@ let memorySummaryCache: QrSummary | null = null;
 let memoryStaffCache: QrStaffFailure[] | null = null;
 let memoryQrRowsCache: { rows: QrEntry[]; total: number } | null = null;
 
+export function prefetchKhqr(): void {
+  if (memorySummaryCache && memoryQrRowsCache) return;
+  const from = periodFrom('MONTH');
+  Promise.all([
+    fetchQrSummary(from, null),
+    fetchQrStaffFailures(from, null),
+    fetchQrEntriesPage({ from, activity: 'ALL', page: 1, pageSize: 50 }),
+  ]).then(([sum, st, res]) => {
+    if (sum) memorySummaryCache = sum;
+    if (st) memoryStaffCache = st;
+    if (res) memoryQrRowsCache = { rows: res.rows, total: res.total };
+  }).catch(() => { /* silent background prefetch */ });
+}
+
 export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+
+  // Warm up POS & Sound Box field review cache while viewing KHQR
+  useEffect(() => {
+    fetchPendingFieldEvents(1000, 0, false).catch(() => {});
+  }, []);
   const [period, setPeriod] = useState<Period>('MONTH');
   const [activity, setActivity] = useState<'ALL' | QrActivity>('ALL');
   const [branchId, setBranchId] = useState('');

@@ -124,7 +124,6 @@ import {
   sendBatchDeviceConfigTelegramAlert,
   generatePushTrackingId,
 } from './utils/errorLogger';
-import { SetupAlert } from './components/SetupAlert';
 import {
   saveDevicesToIdb,
   clearDevicesFromIdb,
@@ -1123,7 +1122,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const setActiveTab = useCallback((tab: string) => setActiveTabRaw(tab), []);
   // (23 Oct 2026) the menu highlight moves at once; the new page is prepared in the background (React keeps drawing
   // frames meanwhile, so nothing freezes) and glides in when ready
-  const shownTab = useDeferredValue(activeTab);
+  const deferredTab = useDeferredValue(activeTab);
+  // Phone App Review subtabs switch instantly in the same frame without lag or hitch
+  const shownTab = activeTab.startsWith('mobile_sync') && deferredTab.startsWith('mobile_sync')
+    ? activeTab
+    : deferredTab;
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>(() => {
     if (typeof localStorage !== 'undefined') {
       try {
@@ -4127,8 +4130,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             pingMs={pingMs}
           />
 
-          {/* Classic Pipeline Stage Filter Bar (not on Phone App Review → KHQR: that page shows KHQR statistics only) */}
-          {shownTab !== 'mobile_sync_khqr' && (
+          {/* Classic Pipeline Stage Filter Bar (stock: not on Phone App Review tabs which have their own review header/metrics) */}
+          {!shownTab.startsWith('mobile_sync') && (
           <PipelineBar
               role={role}
               counts={pipelineCounts}
@@ -4144,8 +4147,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           )}
 
             <main className="px-4 sm:px-6 py-5">
-              {/* 6 Elevated KPI Cards with Shadows (stock: not on the KHQR page) */}
-              {shownTab !== 'mobile_sync_khqr' && (
+              {/* 6 Elevated KPI Cards with Shadows (stock: not on Phone App Review tabs) */}
+              {!shownTab.startsWith('mobile_sync') && (
               <KpiCards
                 devices={scopedDevices}
                 theme={theme}
@@ -4165,7 +4168,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
               {/* Robust Responsive Tab Content with Error Boundary */}
               {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
-              <div key={shownTab} className="tab-view">
+              <div
+                key={(shownTab === 'mobile_sync' || shownTab === 'mobile_sync_sb') ? 'field_review' : shownTab}
+                className="tab-view"
+              >
                   <ErrorBoundary>
                   <Suspense fallback={<TabLoading />}>
                   {shownTab === 'dashboard' && (
@@ -4240,10 +4246,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       onToast={(msg) => triggerToast(msg)}
                       operatorLabel={operatorLabel}
                     />
-                  )}
-
-                  {(shownTab === 'merchants' || shownTab === 'inventory') && (
-                    <SetupAlert devices={scopedDevices} role={role} onOpen={(sn) => setEditingDeviceSerial(sn)} />
                   )}
 
                   {shownTab === 'requisitions' && (
