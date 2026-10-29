@@ -1,14 +1,15 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, RefreshCw, ChevronDown, MapPin, CheckCircle2, Loader2, Send, QrCode, Sparkles, UserX, Layers, AlertTriangle, Users } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, MapPin, CheckCircle2, Loader2, Send, QrCode, Sparkles, UserX, Layers, AlertTriangle, Users, FileSpreadsheet } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP, todayPP } from '../utils/time';
+import { csvFile } from '../utils/csv';
 import {
   QrActivity, QrAttempt, QrEntry, QrQuery, QrStaffFailure, QrSummary, QR_ACTIVITY_LABEL,
-  fetchQrAttemptsPage, fetchQrEntriesPage, fetchQrSummary, fetchQrStaffFailures, subscribeToQrEntries,
+  fetchQrAttemptsPage, fetchQrEntriesPage, fetchAllQrEntriesForExport, fetchQrSummary, fetchQrStaffFailures, subscribeToQrEntries,
 } from '../services/supabaseService';
 
 /**
@@ -52,7 +53,7 @@ interface Props {
   triggerToast: (msg: string) => void;
 }
 
-export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
+export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [period, setPeriod] = useState<Period>('MONTH');
   const [activity, setActivity] = useState<'ALL' | QrActivity>('ALL');
@@ -142,6 +143,134 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
     setView('log');
     setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = useCallback(async () => {
+    if (view === 'entries') {
+      if (!rows || rows.length === 0) return;
+      setExporting(true);
+      try {
+        let exportData = rows;
+        // If there are more entries matching on the server than what's on the current page, fetch all matching (up to 5000)
+        if (total > rows.length) {
+          const allEntries = await fetchAllQrEntriesForExport(filters, 5000);
+          if (allEntries && allEntries.length > 0) {
+            exportData = allEntries;
+          }
+        }
+
+        const headers = [
+          'No.',
+          'Date Sent',
+          'Activity',
+          'Record ID',
+          'Merchant Name',
+          'Merchant Name (KH)',
+          'MID',
+          'QR Count',
+          'Staff Name',
+          'Staff ID',
+          'Branch',
+          'Location',
+          'Khan / District',
+          'GPS Latitude',
+          'GPS Longitude',
+          'Failed Attempts Count',
+          'Status',
+          'Remarks',
+        ];
+
+        const csvRows = exportData.map((e, idx) => [
+          String(idx + 1),
+          fmt(e.submittedAt),
+          (e.activity && QR_ACTIVITY_LABEL[e.activity]) || e.activity || '',
+          e.recordId || '',
+          e.merchantName || '',
+          e.merchantNameKh || '',
+          e.mid || '',
+          String(e.qrCount ?? 1),
+          e.staffName || '',
+          e.staffId || '',
+          e.branchText || (e.branchId ? `Branch ${e.branchId}` : ''),
+          e.location || '',
+          e.khan || '',
+          e.latitude != null ? String(e.latitude) : '',
+          e.longitude != null ? String(e.longitude) : '',
+          String(e.failedAttempts || 0),
+          e.status === 'COMPLETED' ? 'Completed' : 'Failed attempt',
+          e.remark || '',
+        ]);
+
+        const filename = `KHQR_Review_Entries_${todayPP()}.csv`;
+        const blob = csvFile([headers, ...csvRows]);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        triggerToast(`Exported ${exportData.length} KHQR entries to CSV`);
+      } catch {
+        triggerToast('Failed to export KHQR entries to CSV');
+      } finally {
+        setExporting(false);
+      }
+    } else {
+      // Failed attempts view
+      setExporting(true);
+      try {
+        const res = await fetchQrAttemptsPage({ from, activity, branchId: branchId || undefined, staffId: staffSel?.id || undefined, search, page: 1, pageSize: 100 });
+        if (!res.rows || res.rows.length === 0) {
+          triggerToast('No failed attempts to export');
+          return;
+        }
+        const headers = [
+          'No.',
+          'Date & Time',
+          'Activity',
+          'Staff Name',
+          'Staff ID',
+          'Branch',
+          'Expected MID',
+          'Scanned / Got MID',
+          'Got Name',
+          'Scanned Count',
+        ];
+        const csvRows = res.rows.map((a, idx) => [
+          String(idx + 1),
+          fmt(a.receivedAt || a.clientAt),
+          (a.activity && QR_ACTIVITY_LABEL[a.activity]) || a.activity || '',
+          a.staffName || '',
+          a.staffId || '',
+          a.branchText || '',
+          a.expectedMid || '',
+          a.gotMid || '',
+          a.gotName || '',
+          String(a.scannedCount || 1),
+        ]);
+        const filename = `KHQR_Failed_Attempts_Log_${todayPP()}.csv`;
+        const blob = csvFile([headers, ...csvRows]);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        triggerToast(`Exported ${res.rows.length} failed attempt records to CSV`);
+      } catch {
+        triggerToast('Failed to export attempts log');
+      } finally {
+        setExporting(false);
+      }
+    }
+  }, [view, rows, total, filters, from, activity, branchId, staffSel, search, triggerToast]);
 
   return (
     <div className="flex flex-col gap-3.5 apple-tab-panel">
@@ -367,6 +496,20 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             )}
           </div>
           <ClearFiltersButton className="!py-1.5" active={filtersActive} onClear={clearAll} />
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={exporting || (view === 'entries' ? !rows || rows.length === 0 : false)}
+            title={view === 'entries' ? `Export ${total || (rows?.length || 0)} KHQR entries to CSV` : 'Export failed attempts log to CSV'}
+            className="btn-press px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium cursor-pointer transition shadow-2xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed select-none"
+          >
+            {exporting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+            ) : (
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            )}
+            <span>Export CSV</span>
+          </button>
         </div>
       </section>
 
