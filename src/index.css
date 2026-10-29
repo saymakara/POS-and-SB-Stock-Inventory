@@ -2,6 +2,48 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* (29 Oct 2026) The main font now ships with the app (no Google call, no flash of a different font on first visit) */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/plus-jakarta-sans-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/plus-jakarta-sans-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./assets/fonts/plus-jakarta-sans-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/plus-jakarta-sans-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('./assets/fonts/plus-jakarta-sans-latin-800-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* (22 Oct 2026) Khmer font shipped with the app. It is used for Khmer letters only (unicode-range), so Latin text
    always keeps the normal font, and Khmer shows even where Google Fonts is blocked. */
 @font-face {
@@ -120,8 +162,6 @@
 .navy-header-bar {
   background-color: #003857 !important;
   background-image: none !important;
-  backdrop-filter: blur(20px) saturate(170%);
-  -webkit-backdrop-filter: blur(20px) saturate(170%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow:
     0 8px 24px -6px rgba(0, 56, 87, 0.35),
@@ -950,10 +990,9 @@ html { scroll-behavior: smooth; }
 
 /* Silk-smooth tab switching: immediate, 140ms duration, 4px subtle entry, GPU composited */
 .tab-view {
-  animation: tabViewEnter var(--duration-fast) var(--ease-standard) both;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  will-change: opacity, transform;
+  /* (29 Oct 2026) 'backwards' (not 'both'): once the entrance ends nothing stays on the page area, so no permanent
+     GPU layer, no blurry text and no pop-ups trapped inside a transformed box */
+  animation: tabViewEnter var(--duration-fast) var(--ease-standard) backwards;
 }
 
 @keyframes tabViewEnter {
@@ -975,3 +1014,68 @@ button, [role="button"], a {
 .data-table tbody tr {
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
+
+/* ==========================================================================
+   8. (29 Oct 2026) Smoothness layer: no jump, no stutter, no flicker
+   Only opacity and transform are animated; nothing here changes data or layout.
+   ========================================================================== */
+/* taps respond at once on phones (no 300 ms wait, no double-tap zoom on buttons) */
+button, [role="button"], a, select, summary, label, input[type="checkbox"], input[type="radio"] { touch-action: manipulation; }
+/* sharper, steadier text while animating, and no font-size jump when a phone rotates */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+/* pictures never push the page around while loading */
+img, svg, video, canvas { max-width: 100%; }
+img { height: auto; }
+/* skeleton placeholders keep the same size as the content, then the content fades in instead of snapping */
+.skeleton { border-radius: 8px; contain: paint; }
+/* a list that is refreshed keeps its place: fade, never collapse */
+.data-table tbody { min-height: 1px; }
+/* scrolling lists and the sidebar scroll on their own layer and do not chain into the page behind */
+.overflow-y-auto, .overflow-auto { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* phones: blur is the most expensive effect, so it is lighter on touch screens (looks the same on a solid background) */
+@media (hover: none) and (pointer: coarse) {
+  [class*="backdrop-blur"], .glass-table-thead { backdrop-filter: blur(6px) !important; -webkit-backdrop-filter: blur(6px) !important; }
+}
+/* live updates: a changed number or status fades its colour instead of flashing */
+.data-table td, .font-figure, [data-live] { transition: color var(--duration-normal) var(--ease-standard), background-color var(--duration-normal) var(--ease-standard); }
+/* focus ring appears smoothly instead of popping */
+:focus-visible { transition: outline-offset 0.12s var(--ease-standard), box-shadow 0.12s var(--ease-standard); }
+
+/* ==========================================================================
+   9. (29 Oct 2026) Premium motion: one calm easing, staggered entrance, soft pop-ups
+   Opacity and transform only. Plays once when a screen or pop-up appears, never on a data refresh.
+   ========================================================================== */
+:root { --ease-premium: cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* a screen's sections rise in one after another (first six; the rest arrive together) */
+@keyframes riseIn { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: none; } }
+.apple-tab-panel > * { animation: riseIn 420ms var(--ease-premium) backwards; }
+.apple-tab-panel > *:nth-child(2) { animation-delay: 45ms; }
+.apple-tab-panel > *:nth-child(3) { animation-delay: 90ms; }
+.apple-tab-panel > *:nth-child(4) { animation-delay: 135ms; }
+.apple-tab-panel > *:nth-child(5) { animation-delay: 180ms; }
+.apple-tab-panel > *:nth-child(n+6) { animation-delay: 225ms; }
+
+/* pop-ups: the dimmed background fades in while the box glides up */
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+.fixed.inset-0 { animation: backdropIn 200ms var(--ease-premium) backwards; }
+.modal-glide { animation-duration: 320ms; animation-timing-function: var(--ease-premium); }
+
+/* menus, drop-downs and tooltips open from their anchor */
+[role="menu"], [role="listbox"], [role="tooltip"] { animation: popIn 170ms var(--ease-premium) backwards; transform-origin: top center; }
+
+/* buttons: a soft lift under the pointer, a firm press, a gentle return */
+@media (hover: hover) {
+  .row-btn:hover, .serial-btn:hover { transform: translate3d(0, -1px, 0); }
+}
+.row-btn:active, .serial-btn:active { transform: translate3d(0, 0, 0) scale(0.97); }
+.row-btn, .serial-btn { transition: background-color 160ms var(--ease-premium), color 160ms var(--ease-premium), border-color 160ms var(--ease-premium), transform 200ms var(--ease-premium); }
+
+/* cards: a barely-there shadow lift on hover (pointer devices only) */
+@media (hover: hover) {
+  .fr-table-frame, .surface-card { transition: box-shadow 260ms var(--ease-premium), border-color 260ms var(--ease-premium); }
+  .fr-table-frame:hover { box-shadow: 0 6px 22px -10px rgba(0, 56, 87, 0.22); }
+}
+
+/* the thin, quiet scroll bar of tables and lists */
+.overflow-x-auto, .overflow-y-auto, .overflow-auto { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }

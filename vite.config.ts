@@ -4,10 +4,10 @@ import path from 'path';
 import {defineConfig, type Plugin} from 'vite';
 
 // (22 Oct 2026, security review) Content Security Policy for the published site only (the dev server needs inline
-// scripts for hot reload): only this site, the Supabase server and Google Fonts can be reached; no inline/foreign scripts.
+// scripts for hot reload): only this site and the Supabase server can be reached (fonts now ship with the app); no inline/foreign scripts.
 const CSP = [
-  "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com", "img-src 'self' data: blob: https:",
+  "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'",
+  "font-src 'self' data:", "img-src 'self' data: blob: https:",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.telegram.org", "worker-src 'self' blob:", "object-src 'none'",
   "base-uri 'self'", "form-action 'self'",
 ].join('; ');
