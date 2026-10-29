@@ -4243,7 +4243,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {(shownTab === 'dashboard' || shownTab === 'merchants' || shownTab === 'inventory') && (
+                  {(shownTab === 'merchants' || shownTab === 'inventory') && (
                     <SetupAlert devices={scopedDevices} role={role} onOpen={(sn) => setEditingDeviceSerial(sn)} />
                   )}
 
