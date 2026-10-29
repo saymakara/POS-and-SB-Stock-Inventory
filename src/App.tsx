@@ -4165,7 +4165,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
               {/* Robust Responsive Tab Content with Error Boundary */}
               {/* (22 Oct 2026) the new page shows at once (no waiting for the old one to fade out) and glides in */}
-              <div key={shownTab === 'mobile_sync_sb' ? 'mobile_sync' : shownTab} className="tab-view">
+              <div key={shownTab} className="tab-view">
                   <ErrorBoundary>
                   <Suspense fallback={<TabLoading />}>
                   {shownTab === 'dashboard' && (
@@ -4473,6 +4473,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       role={role}
                       branches={branches}
                       devices={devices}
+                      deviceBySerialMap={deviceBySerialMap}
                       triggerToast={triggerToast}
                       onApplied={() => {
                         // the live feed brings the changed units and history; only the waiting count is asked for

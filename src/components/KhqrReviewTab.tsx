@@ -53,6 +53,11 @@ interface Props {
   triggerToast: (msg: string) => void;
 }
 
+// Module-level shared cache so switching tabs paints instantly in 0ms without re-fetching flicker
+let memorySummaryCache: QrSummary | null = null;
+let memoryStaffCache: QrStaffFailure[] | null = null;
+let memoryQrRowsCache: { rows: QrEntry[]; total: number } | null = null;
+
 export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [period, setPeriod] = useState<Period>('MONTH');
@@ -66,10 +71,10 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     return () => clearTimeout(t);
   }, [query]);
 
-  const [rows, setRows] = useState<QrEntry[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [summary, setSummary] = useState<QrSummary | null>(null);
-  const [staff, setStaff] = useState<QrStaffFailure[] | null>(null);
+  const [rows, setRows] = useState<QrEntry[] | null>(() => memoryQrRowsCache?.rows || null);
+  const [total, setTotal] = useState(() => memoryQrRowsCache?.total || 0);
+  const [summary, setSummary] = useState<QrSummary | null>(() => memorySummaryCache);
+  const [staff, setStaff] = useState<QrStaffFailure[] | null>(() => memoryStaffCache);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [live, setLive] = useState(false);
@@ -91,8 +96,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     const seq = ++statSeq.current;
     const [sum, st] = await Promise.all([fetchQrSummary(from, null), fetchQrStaffFailures(from, null)]);
     if (seq !== statSeq.current) return;
-    if (sum) setSummary(sum);
-    if (st) setStaff(st);
+    if (sum) { setSummary(sum); memorySummaryCache = sum; }
+    if (st) { setStaff(st); memoryStaffCache = st; }
   }, [from]);
   useEffect(() => { loadStats(); }, [loadStats]);
 
@@ -105,6 +110,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       if (seq !== reqSeq.current) return;                             // an older request: a newer one is on its way
       setRows(res.rows);
       setTotal(res.total);
+      memoryQrRowsCache = { rows: res.rows, total: res.total };
       setLoadError('');
       if (page === 1) setNewCount(0);
     } catch (e) {
@@ -589,9 +595,9 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
 };
 
 /** (28 Oct 2026) Failed attempts log: every blocked Submit (a QR with another MID), newest first, page by page. */
-const QrAttemptLog: React.FC<{ from: string | null; activity: 'ALL' | QrActivity; branchId: string; staffId: string; search: string; reloadKey: number }> = ({
+const QrAttemptLog = memo(function QrAttemptLog({
   from, activity, branchId, staffId, search, reloadKey,
-}) => {
+}: { from: string | null; activity: 'ALL' | QrActivity; branchId: string; staffId: string; search: string; reloadKey: number }) {
   const [rows, setRows] = useState<QrAttempt[] | null>(null);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -678,7 +684,7 @@ const QrAttemptLog: React.FC<{ from: string | null; activity: 'ALL' | QrActivity
       <Pager pg={pg} label="failed attempts" />
     </section>
   );
-};
+});
 
 interface BigKpiCardProps {
   label: string;
@@ -690,7 +696,7 @@ interface BigKpiCardProps {
   onClick?: () => void;
 }
 
-const BigKpiCard: React.FC<BigKpiCardProps> = ({
+const BigKpiCard = memo(function BigKpiCard({
   label,
   value,
   sub,
@@ -698,7 +704,7 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
   accentColor,
   badge,
   onClick,
-}) => {
+}: BigKpiCardProps) {
   const isClickable = !!onClick;
   const Tag: any = isClickable ? 'button' : 'div';
 
@@ -766,7 +772,7 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
       </div>
     </Tag>
   );
-};
+});
 
 const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: number; open: boolean; onToggle: () => void }) {
   const mapUrl = e.latitude !== null && e.longitude !== null ? `https://www.google.com/maps?q=${e.latitude},${e.longitude}` : '';
