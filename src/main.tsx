@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import { MotionConfig } from 'motion/react';
 import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthGate } from './components/AuthGate';
@@ -31,8 +32,12 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta
 }
 
 // (21 Oct 2026) the app opens only after sign-in with the shared database; it restarts for each person signed in
+// (29 Oct 2026) MotionConfig reducedMotion="user": with "reduce motion" on in the phone/PC settings, Motion skips
+// movement (opacity fades stay), like the CSS animations already do
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
-    <AuthGate>{(profile) => <App profile={profile} />}</AuthGate>
+    <MotionConfig reducedMotion="user">
+      <AuthGate>{(profile) => <App profile={profile} />}</AuthGate>
+    </MotionConfig>
   </ErrorBoundary>
 );
