@@ -237,18 +237,24 @@ export const FieldReviewTab: React.FC<Props> = ({
       } catch {
         /* storage full or blocked: fine */
       }
-    }, 400);
+    }, 1200);
     return () => window.clearTimeout(t);
   }, [events]);
 
   const load = useCallback(async () => {
     setLoadError('');
     try {
-      // Parallel fast fetch with limit 1000 — runs both pending and reviewed simultaneously in ~1s
-      const [pending, reviewed] = await Promise.all([
-        fetchPendingFieldEvents(1000, 0),
-        fetchReviewedFieldEvents(1000, 0),
-      ]);
+      // (29 Oct 2026, speed review) both lists are requested at the same time, but the Waiting list (what is opened first)
+      // is shown as soon as IT arrives; before, the screen waited for the slower of the two.
+      const pendingReq = fetchPendingFieldEvents(1000, 0);
+      const reviewedReq = fetchReviewedFieldEvents(1000, 0);
+      const pending = await pendingReq;
+      if (pending) {
+        startTransition(() => {
+          setEvents((prev) => [...pending, ...(prev || []).filter((e) => e.status !== 'PENDING')]);
+        });
+      }
+      const reviewed = await reviewedReq;
       if (!pending && !reviewed) {
         setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
         return;
@@ -268,18 +274,39 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   useEffect(() => {
     load();
+    // (29 Oct 2026, speed review) live changes are collected and applied together once per frame: a burst of phone records
+    // (or a bulk approval) is one screen update, not one per record
+    const queued = new Map<number, FieldEvent>();
+    let frame: number | null = null;
+    const flushQueued = () => {
+      frame = null;
+      if (!queued.size) return;
+      const batch = new Map(queued);
+      queued.clear();
+      setEvents((prev) => {
+        if (!prev) return Array.from(batch.values());
+        const seen = new Set<number>();
+        const next = prev.map((x) => {
+          const inc = batch.get(x.id);
+          if (!inc) return x;
+          seen.add(x.id);
+          return inc;
+        });
+        const added: FieldEvent[] = [];
+        batch.forEach((ev, id) => { if (!seen.has(id)) added.push(ev); });
+        return added.length ? [...added.reverse(), ...next] : next;
+      });
+    };
     const unsub = subscribeToFieldEvents((e) => {
       setLive(true);
-      setEvents((prev) => {
-        if (!prev) return [e];
-        const i = prev.findIndex((x) => x.id === e.id);
-        if (i < 0) return [e, ...prev];
-        const next = prev.slice();
-        next[i] = e;
-        return next;
-      });
+      queued.set(e.id, e);
+      if (frame === null) frame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(flushQueued) : (window.setTimeout(flushQueued, 16) as unknown as number);
     });
-    return unsub;
+    return () => {
+      unsub();
+      if (frame !== null) { try { cancelAnimationFrame(frame); } catch { /* not a frame */ } }
+      queued.clear();
+    };
   }, [load]);
 
   const deviceBySerial = useMemo(() => {

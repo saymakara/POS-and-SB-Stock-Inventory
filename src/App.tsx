@@ -81,6 +81,8 @@ import { SendHorizontal, Lock, CheckCircle2, AlertCircle, X } from 'lucide-react
 import { isSupabaseConfigured } from './lib/supabase';
 import {
   fetchDevicesFromSupabase,
+  fetchDevicesChangedSince,
+  countDevicesOnServer,
   fetchConfiguringDevicesFromSupabase,
   fetchDevicesPageFromSupabase,
   fetchDeviceStageCountsFromSupabase,
@@ -121,6 +123,7 @@ import {
 } from './utils/errorLogger';
 import {
   saveDevicesToIdb,
+  persistDevicesIncremental,
   clearDevicesFromIdb,
   loadFullCacheFromIdb,
   saveRequisitionsToIdb,
@@ -128,6 +131,19 @@ import {
   saveBranchesToIdb,
   saveFullSnapshotToIdb,
 } from './utils/idbStorage';
+
+// (29 Oct 2026, speed review) "reload only what changed": after the first full load the browser keeps its copy of the stock
+// (IndexedDB) and asks the server only for units changed since. A full reload still happens when there is no usable copy, when the
+// unit count does not match the server, after a refused save, or every 12 hours. Set to false to always reload everything.
+const DELTA_SYNC_ENABLED = true;
+const KEY_DEVICES_FULL_AT = 'crm_pos_devices_full_at_v1';
+const DELTA_FULL_RELOAD_AFTER_MS = 12 * 60 * 60 * 1000;
+const DELTA_OVERLAP_MS = 10 * 60 * 1000;     // a change committed late still carries its (older) start time: look back 10 minutes
+const DELTA_MAX_ROWS = 3000;
+// resolved when the saved copy has been read, so the first reload can start from it
+let markCacheHydrated: () => void = () => {};
+const cacheHydrated: Promise<void> = new Promise<void>((resolve) => { markCacheHydrated = resolve; });
+type DeviceLoad = { list: Device[] | null; delta?: boolean; unchanged?: boolean };
 
 const STORAGE_KEY_DEVICES = 'crm_pos_devices_v20';
 const STORAGE_KEY_REQS = 'crm_pos_reqs_v20';
@@ -700,20 +716,82 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // versions this browser's own saves produced (serial → sent version → new version): a later edit of the same unit
   // made from the older copy is sent with the right version, while a change by someone else is still refused
   const versionAlias = React.useRef<Map<string, Map<number, number>>>(new Map());
-  const reloadFromServerOnce = useCallback(async (): Promise<boolean> => {
-    versionAlias.current = new Map();
-    const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
-    const effectiveBranch = role === 'BRANCH' ? selectedBranch : (branchFilter !== 'ALL' ? branchFilter : undefined);
-    const [devs, reqs, hist, srvBranches, stageSummary, configuringDevs] = await Promise.all([
+  /**
+   * The units, as cheaply as is safe. With a usable saved copy: only the units changed on the server since that copy, merged into it;
+   * the result is accepted only when the merged unit count equals the server's count. Anything else (no copy, copy older than 12 h,
+   * a failed read, too many changes, a count that does not match, `full` asked for) falls back to the full read below.
+   */
+  const tryDeltaDevices = useCallback(async (): Promise<DeviceLoad | null> => {
+    const base = syncedDevices.current;
+    if (!DELTA_SYNC_ENABLED || base.size === 0) return null;
+    let fullAt = 0;
+    try { fullAt = Number(localStorage.getItem(KEY_DEVICES_FULL_AT) || 0); } catch { /* storage blocked: full reload */ }
+    const now = Date.now();
+    if (!fullAt || now - fullAt > DELTA_FULL_RELOAD_AFTER_MS || fullAt > now + 60000) return null;
+    // the starting point comes only from timestamps the SERVER wrote (full ISO time, on a copy that came from the server); a unit
+    // edited on this screen carries a plain date and must never move it
+    let maxMs = 0;
+    base.forEach((d) => {
+      if (serverCopies.current.has(d) && /^\d{4}-\d{2}-\d{2}T/.test(d.updatedAt || '')) {
+        const t = Date.parse(d.updatedAt);
+        if (t > maxMs) maxMs = t;
+      }
+    });
+    if (!maxMs) return null;
+    const [rows, total] = await Promise.all([
+      fetchDevicesChangedSince(new Date(maxMs - DELTA_OVERLAP_MS).toISOString(), DELTA_MAX_ROWS),
+      countDevicesOnServer(),
+    ]);
+    if (!rows || rows === 'TOO_MANY' || total === null) return null;
+    const merged = new Map(base);
+    let changed = 0;
+    for (const r of rows) {
+      const cur = merged.get(r.serial);
+      if (cur && (cur.rowVersion || 0) > (r.rowVersion || 0)) continue;                     // this screen already has a newer copy
+      if (cur && serverCopies.current.has(cur) && cur.rowVersion === r.rowVersion && cur.updatedAt === r.updatedAt) continue; // same copy
+      merged.set(r.serial, r);
+      changed++;
+    }
+    if (merged.size !== total) return null;                                                   // a unit was added or removed that we missed
+    setServerDeviceTotal(total);
+    return { list: Array.from(merged.values()), delta: true, unchanged: changed === 0 };
+  }, []);
+  const loadDevicesSmart = useCallback(async (full: boolean): Promise<DeviceLoad> => {
+    if (DELTA_SYNC_ENABLED && !full) {
+      await Promise.race([cacheHydrated, new Promise<void>((r) => setTimeout(r, 2500))]);   // start from the saved copy when there is one
+      const d = await tryDeltaDevices();
+      if (d) return d;
+    }
+    // the units being configured are read again on a full reload so that the push queue is always complete
+    const [devs, configuringDevs] = await Promise.all([
       fetchDevicesFromSupabase(1000, 0, (_firstBatch, total) => {
         setServerDeviceTotal(total);
       }),
+      fetchConfiguringDevicesFromSupabase(),
+    ]);
+    if (!devs) return { list: null };                                    // the read failed: the list on the screen is kept
+    let list = devs;
+    if (configuringDevs && configuringDevs.length > 0) {
+      const devMap = new Map(devs.map((d) => [d.serial, d]));
+      for (const cd of configuringDevs) devMap.set(cd.serial, cd);
+      list = Array.from(devMap.values());
+    }
+    try { localStorage.setItem(KEY_DEVICES_FULL_AT, String(Date.now())); } catch { /* storage blocked */ }
+    return { list };
+  }, [tryDeltaDevices]);
+  const reloadFromServerOnce = useCallback(async (opts?: { full?: boolean }): Promise<boolean> => {
+    versionAlias.current = new Map();
+    const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
+    const effectiveBranch = role === 'BRANCH' ? selectedBranch : (branchFilter !== 'ALL' ? branchFilter : undefined);
+    const [devLoad, reqs, hist, srvBranches, stageSummary] = await Promise.all([
+      loadDevicesSmart(Boolean(opts?.full)),
       fetchRequisitionsFromSupabase(),
       fetchHistoricalMerchantsFromSupabase(),
       fetchBranchesFromSupabase(),
       fetchDeviceStageCountsFromSupabase(effectiveBranch),
-      fetchConfiguringDevicesFromSupabase(),
     ]);
+    const devs = devLoad.list;
+    const devsUnchanged = Boolean(devLoad.unchanged);
     if (isAdminProfile) {
       fetchStaffAccounts().then((staffList) => {
         if (staffList) {
@@ -764,16 +842,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         }
       }
     }
-    let allDevs = devs || [];
-    if (configuringDevs && configuringDevs.length > 0) {
-      const devMap = new Map(allDevs.map((d) => [d.serial, d]));
-      for (const cd of configuringDevs) {
-        devMap.set(cd.serial, cd);
-      }
-      allDevs = Array.from(devMap.values());
-    }
-
-    if (devs || configuringDevs) {
+    const allDevs = devs || [];
+    // (29 Oct 2026) a failed read of the units never replaces the list on the screen (before, an empty answer for the units
+    // being configured could clear it)
+    if (!devsUnchanged && devs) {
       if (!stageSummary) {
         setServerDeviceTotal(allDevs.length);
       }
@@ -790,24 +862,30 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       syncedHist.current = new Set(hist.map((h) => h.recordId));
       setHistoricalMerchants(hist);
     }
-    if (devs || configuringDevs || reqs || hist || srvBranches) {
+    if (devs || reqs || hist || srvBranches) {
+      // (the units are saved by the effect that watches `devices`: only the changed ones are written)
       saveFullSnapshotToIdb({
-        devices: allDevs.length ? allDevs : undefined,
         requisitions: reqs || undefined,
         historicalMerchants: hist || undefined,
         branches: (srvBranches as any) || undefined,
       }).catch(() => {});
     }
     return Boolean(devs && reqs && hist);
-  }, [profile?.role]);
-  // (29 Oct 2026) one full reload at a time: the live feed reconnecting, the tab coming back and the network
-  // returning often fire together; they now share the reload already running instead of each downloading all units
-  const reloadInFlight = React.useRef<Promise<boolean> | null>(null);
-  const reloadFromServer = useCallback((): Promise<boolean> => {
-    if (reloadInFlight.current) return reloadInFlight.current;
-    const run = reloadFromServerOnce().finally(() => { reloadInFlight.current = null; });
-    reloadInFlight.current = run;
-    return run;
+  }, [profile?.role, loadDevicesSmart]);
+  // (29 Oct 2026) one reload at a time: the live feed reconnecting, the tab coming back and the network
+  // returning often fire together; they now share the reload already running instead of each starting their own.
+  // A reload that must be complete (`full`, after a refused save) never shares a changed-only reload: it runs after it.
+  const reloadInFlight = React.useRef<{ p: Promise<boolean>; full: boolean } | null>(null);
+  const reloadFromServer = useCallback((opts?: { full?: boolean }): Promise<boolean> => {
+    const wantFull = Boolean(opts?.full);
+    const cur = reloadInFlight.current;
+    if (cur && (cur.full || !wantFull)) return cur.p;
+    const start = () => reloadFromServerOnce(opts);
+    const p: Promise<boolean> = (cur ? cur.p.catch(() => false).then(start) : start()).finally(() => {
+      if (reloadInFlight.current?.p === p) reloadInFlight.current = null;
+    });
+    reloadInFlight.current = { p, full: wantFull };
+    return p;
   }, [reloadFromServerOnce]);
 
   useEffect(() => {
@@ -986,26 +1064,32 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       })
       .catch((err) => {
         console.warn('[IndexedDB Cache Hydration Warning]', err);
-      });
+      })
+      .finally(() => markCacheHydrated());
     return () => {
       isMounted = false;
     };
   }, []);
 
+  // (29 Oct 2026, speed review) the saved copy of the stock is brought up to date 1.5 s after the last change, and only the
+  // units that changed are written (before: ALL ~27,600 units were cleared and written again after every single change)
   useEffect(() => {
     if (devices.length > 0) {
-      saveDevicesToIdb(devices).catch((err) =>
-        console.warn('[IndexedDB Save Devices Warning]', err)
-      );
-      try {
-        if (devices.length <= 5000) {
-          localStorage.setItem(STORAGE_KEY_DEVICES, JSON.stringify(devices));
-        } else {
-          localStorage.removeItem(STORAGE_KEY_DEVICES);
+      const t = window.setTimeout(() => {
+        persistDevicesIncremental(devices).catch((err) =>
+          console.warn('[IndexedDB Save Devices Warning]', err)
+        );
+        try {
+          if (devices.length <= 5000) {
+            localStorage.setItem(STORAGE_KEY_DEVICES, JSON.stringify(devices));
+          } else {
+            localStorage.removeItem(STORAGE_KEY_DEVICES);
+          }
+        } catch (e) {
+          // LocalStorage Quota Exceeded (Gracefully handled; IndexedDB stores up to 500K)
         }
-      } catch (e) {
-        // LocalStorage Quota Exceeded (Gracefully handled; IndexedDB stores up to 500K)
-      }
+      }, 1500);
+      return () => window.clearTimeout(t);
     } else if (!isSupabaseConfigured) {
       clearDevicesFromIdb().catch(() => {});
     }
@@ -1306,7 +1390,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [savePaused, setSavePaused] = useState(false);
   const [newVersion, setNewVersion] = useState(false);
   useEffect(() => watchNewVersion(() => setNewVersion(true)), []);
-  const reloadAfterFailure = React.useMemo(() => throttled(() => reloadFromServer(), () => guard.current.backoffMs()), [reloadFromServer]);
+  const reloadAfterFailure = React.useMemo(() => throttled(() => reloadFromServer({ full: true }), () => guard.current.backoffMs()), [reloadFromServer]);
   /** Counts a failed save; when too many fail in a row, saving is paused and the user is asked to reload. */
   const noteSaveFailure = useCallback((what: string) => {
     const opened = guard.current.fail();
@@ -2392,9 +2476,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const names = serials.slice(0, 20).join(', ') + (serials.length > 20 ? '…' : '');
     const finish = () => {
       setDevices((prev) => {
-        const next = prev.filter((d) => !gone.has(d.serial));
-        saveFullSnapshotToIdb({ devices: next }).catch(() => {});
-        return next;
+        return prev.filter((d) => !gone.has(d.serial));          // (the saved copy follows through the effect on `devices`)
       });
       serials.forEach((sn) => {
         syncedDevices.current.delete(sn);

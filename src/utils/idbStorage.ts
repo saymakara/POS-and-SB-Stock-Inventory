@@ -89,7 +89,12 @@ export async function loadFullCacheFromIdb(): Promise<CachedInventorySnapshot> {
 
       const devReq = tx.objectStore(STORE_DEVICES).getAll();
       devReq.onsuccess = () => {
-        if (devReq.result && devReq.result.length > 0) devices = devReq.result;
+        if (devReq.result && devReq.result.length > 0) {
+          devices = devReq.result;
+          // the store now holds exactly these copies: later saves only write what differs from them
+          persistedDevices.clear();
+          for (const d of devReq.result as Device[]) persistedDevices.set(d.serial, d);
+        }
       };
 
       if (stores.includes(STORE_REQUISITIONS)) {
@@ -186,6 +191,63 @@ export async function saveDevicesToIdb(
     console.warn('[IndexedDB] Error saving devices to IDB:', err);
     return false;
   }
+}
+
+/**
+ * (29 Oct 2026, speed review) What the IndexedDB device store holds, by reference. Before, EVERY change of the device list
+ * (a live update, an edit, a reload) cleared the store and wrote all ~27,600 units again (~22 MB copied on the main thread).
+ * Now only the units that differ from this map are written, and removed units are deleted.
+ */
+const persistedDevices = new Map<string, Device>();
+let persistChain: Promise<unknown> = Promise.resolve();
+const FULL_REWRITE_ABOVE = 8000;
+
+export function persistDevicesIncremental(devices: Device[]): Promise<boolean> {
+  const run = async (): Promise<boolean> => {
+    try {
+      if (!devices.length) return true;
+      const changed: Device[] = [];
+      const live = new Set<string>();
+      for (const d of devices) {
+        live.add(d.serial);
+        if (persistedDevices.get(d.serial) !== d) changed.push(d);
+      }
+      const removed: string[] = [];
+      persistedDevices.forEach((_d, serial) => {
+        if (!live.has(serial)) removed.push(serial);
+      });
+      if (!changed.length && !removed.length) return true;
+      if (persistedDevices.size === 0 || changed.length > FULL_REWRITE_ABOVE || removed.length > FULL_REWRITE_ABOVE) {
+        const ok = await saveDevicesToIdb(devices);
+        if (ok) {
+          persistedDevices.clear();
+          for (const d of devices) persistedDevices.set(d.serial, d);
+        }
+        return ok;
+      }
+      const db = await getDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction([STORE_DEVICES, STORE_META], 'readwrite');
+        const store = tx.objectStore(STORE_DEVICES);
+        for (const d of changed) store.put(d);
+        for (const sn of removed) store.delete(sn);
+        tx.objectStore(STORE_META).put({ key: 'last_device_save', count: devices.length, timestamp: new Date().toISOString() });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
+      });
+      for (const d of changed) persistedDevices.set(d.serial, d);
+      for (const sn of removed) persistedDevices.delete(sn);
+      return true;
+    } catch (err) {
+      console.warn('[IndexedDB] Error saving changed devices to IDB:', err);
+      return false;
+    }
+  };
+  // one write at a time: a later call sees what the earlier one stored
+  const next = persistChain.then(run, run);
+  persistChain = next.catch(() => undefined);
+  return next;
 }
 
 /**
@@ -395,6 +457,7 @@ export async function clearDevicesFromIdb(): Promise<boolean> {
       const tx = db.transaction([STORE_DEVICES, STORE_META], 'readwrite');
       tx.objectStore(STORE_DEVICES).clear();
       tx.objectStore(STORE_META).clear();
+      persistedDevices.clear();
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => reject(tx.error);
     });
@@ -417,6 +480,7 @@ export async function clearAllIdb(): Promise<boolean> {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(stores, 'readwrite');
       stores.forEach((s) => tx.objectStore(s).clear());
+      persistedDevices.clear();
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => reject(tx.error);
     });

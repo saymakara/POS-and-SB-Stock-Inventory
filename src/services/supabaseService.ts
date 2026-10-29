@@ -564,6 +564,50 @@ export async function fetchDevicesFromSupabase(
   }
 }
 
+/**
+ * (29 Oct 2026, speed review) Units changed on the server since a point in time: the "reload only what changed" read.
+ * The caller merges them into the copy it already holds. Returns null when the read failed and 'TOO_MANY' when more than
+ * `maxRows` units changed (a full reload is then cheaper and simpler) - both mean "do the full reload instead".
+ */
+export async function fetchDevicesChangedSince(sinceIso: string, maxRows = 3000): Promise<Device[] | null | 'TOO_MANY'> {
+  if (!isSupabaseConfigured) return null;
+  const PAGE = 1000;
+  try {
+    const out: Device[] = [];
+    for (let off = 0; off <= maxRows; off += PAGE) {
+      const { data, error } = await supabase
+        .from('devices')
+        .select('*')
+        .gte('updated_at', sinceIso)
+        .order('updated_at', { ascending: true })
+        .order('serial', { ascending: true })
+        .range(off, off + PAGE - 1);
+      if (error) throw error;
+      const rows = data || [];
+      for (const r of rows) out.push(mapRowToDevice(r));
+      if (rows.length < PAGE) return out;
+      if (out.length > maxRows) return 'TOO_MANY';
+    }
+    return 'TOO_MANY';
+  } catch (err) {
+    await reportCaughtError('fetchDevicesChangedSince', err, { showPopup: false });
+    return null;
+  }
+}
+
+/** How many units this account can see on the server (head request, no rows): checks that a changed-only reload is complete. */
+export async function countDevicesOnServer(): Promise<number | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { count, error } = await supabase.from('devices').select('serial', { count: 'exact', head: true });
+    if (error) throw error;
+    return typeof count === 'number' ? count : null;
+  } catch (err) {
+    await reportCaughtError('countDevicesOnServer', err, { showPopup: false });
+    return null;
+  }
+}
+
 
 
 // -----------------------------------------------------------------------------

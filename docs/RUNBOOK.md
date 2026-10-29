@@ -24,10 +24,17 @@ Owner: Makara, Merchant Support (ABA Bank). Internal use. Last reviewed 29 Oct 2
 |---|---|---|
 | 29 Oct 2026 | 20261029_03_rls_initplan_and_fk_indexes | Access checks evaluated once per query; 2 new indexes. Applied. |
 | 29 Oct 2026 | 20261029_05_branch_on_hq_return_and_return_guard | Units returned to HQ stock from the phone app now move to Head Office; a stock return where no unit moved is no longer marked Received. Applied. |
-| 29 Oct 2026 | 20261029_06_drop_redundant_indexes_and_anon_grant | Four duplicate indexes dropped. File ready; run it in the SQL editor (not yet applied). |
+| 29 Oct 2026 | 20261029_06_drop_redundant_indexes_and_anon_grant | Four duplicate indexes dropped; anonymous role can no longer run get_device_stage_counts. Applied. |
 | 29 Oct 2026 | 20261029_04_revoke_anon_on_backup_table | Anonymous role no longer has any access to historical_merchants_backup_20261022. Applied. |
 
 ## 5. Secrets
 - Only the public (anon/publishable) Supabase key is used in the website. Never put a secret key or the Telegram bot token in any `VITE_` variable: those are copied into the public JavaScript.
 - Never upload a `dist` folder built on a PC. The website is built only by GitHub Actions.
 - If a bot token or key is ever exposed, regenerate it at once (BotFather / Supabase settings).
+
+## 6. How the stock is loaded (speed)
+- First visit on a browser: the whole stock (~27,600 units) is read in pages and saved in the browser (IndexedDB).
+- Every later reload (page reload, live feed reconnecting, back to the tab after 5 minutes, network back): only the units changed on the server since the saved copy are read and merged. The merged unit count must equal the server's count, otherwise the whole stock is read again.
+- A full read is also done: after a refused save, when the saved copy is older than 12 hours, when more than 3,000 units changed, and after a sign-in by another person on the same browser.
+- To switch the changed-only reload off (always read everything): set `DELTA_SYNC_ENABLED = false` at the top of `src/App.tsx` (below the imports) and push.
+- The saved copy is updated 1.5 seconds after the last change and only the changed units are written.

@@ -245,7 +245,8 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   const hist = (await p.textContent('[aria-label="Monthly history"]')).replace(/\s+/g, ' ');
   ok(/Oct 2026\s*Details\s*120/.test(hist) && /Aug 2026\s*Totals only\s*91,000/.test(hist), 'monthly history: kept months with details, older months as totals', hist.slice(0, 260));
   await p.screenshot({ path: '/tmp/claude-0/t/d6_hist.png', fullPage: true });
-  ok(!(await p.isVisible('[aria-label="Failed attempts by staff"]')), 'Failed attempts by staff table removed');
+  // (29 Oct 2026) the "Failed attempts by staff" panel was put back on this screen (it had been removed in the earlier layout)
+  ok(await p.isVisible('[aria-label="Failed attempts by staff"]'), 'Failed attempts by staff panel is shown');
   const rowsN = await p.locator('[aria-label="KHQR entries"] [data-page-content] > div').count();
   ok(rowsN === 50 && /Showing 1–50 of 120 entries/.test(body), 'entries: 50 per page, server total 120');
   ok(/Phnom Penh · Tuol Kouk/.test(await p.textContent('[aria-label="KHQR entries"]')), 'Location and Khan in the list');
