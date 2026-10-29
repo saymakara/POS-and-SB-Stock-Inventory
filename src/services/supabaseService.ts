@@ -1641,17 +1641,6 @@ export interface QrSummary {
   attempts: number;
   staffFailed: number;
 }
-export interface QrStaffFailure {
-  staffId: string;
-  staffName: string;
-  branchText: string;
-  attempts: number;
-  entriesFailed: number;
-  entries: number;
-  lastAt: string | null;
-  lastExpectedMid: string;
-  lastGotMid: string;
-}
 export const QR_ACTIVITY_LABEL: Record<QrActivity, string> = {
   NEW_INSTALLATION: 'New Installation',
   QR_REPLACEMENT: 'QR Replacement',
@@ -1796,28 +1785,6 @@ export async function fetchQrMonthHistory(months = 12): Promise<QrMonthTotal[] |
     }));
   } catch (err) {
     await reportCaughtError('fetchQrMonthHistory', err, { showPopup: false });
-    return null;
-  }
-}
-
-/** Who had failed attempts in a period, most first. */
-export async function fetchQrStaffFailures(from: string | null, to: string | null, limit = 200): Promise<QrStaffFailure[] | null> {
-  try {
-    const { data, error } = await supabase.rpc('qr_staff_failures', { p_from: from, p_to: to, p_limit: limit });
-    if (error) throw error;
-    return (Array.isArray(data) ? data : []).map((r: any) => ({
-      staffId: r.staff_id || '',
-      staffName: r.staff_name || '',
-      branchText: r.branch_text || '',
-      attempts: Number(r.attempts) || 0,
-      entriesFailed: Number(r.entries_failed) || 0,
-      entries: Number(r.entries) || 0,
-      lastAt: r.last_at || null,
-      lastExpectedMid: r.last_expected_mid || '',
-      lastGotMid: r.last_got_mid || '',
-    }));
-  } catch (err) {
-    await reportCaughtError('fetchQrStaffFailures', err, { showPopup: false });
     return null;
   }
 }

@@ -243,10 +243,10 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   const periods = await p.$$eval('select[aria-label="Period"] option', (o) => o.map(x => x.textContent));
   ok(JSON.stringify(periods) === JSON.stringify(['Today', 'Last 7 days', 'This month', 'Last month', 'Last 2 months']), 'periods: up to the last 2 months (details kept)', periods);
   const hist = (await p.textContent('[aria-label="Monthly history"]')).replace(/\s+/g, ' ');
-  ok(/Oct 2026\s*Details\s*120/.test(hist) && /Aug 2026\s*Totals only\s*91,000/.test(hist), 'monthly history: kept months with details, older months as totals', hist.slice(0, 260));
+  ok(/Oct 2026\s*Details\s*120/.test(hist) && !/Aug 2026|Sep 2026/.test(hist), 'monthly history: only the latest month', hist.slice(0, 260));
   await p.screenshot({ path: '/tmp/claude-0/t/d6_hist.png', fullPage: true });
   // (29 Oct 2026) the "Failed attempts by staff" panel was put back on this screen (it had been removed in the earlier layout)
-  ok(await p.isVisible('[aria-label="Failed attempts by staff"]'), 'Failed attempts by staff panel is shown');
+  ok(!(await p.isVisible('[aria-label="Failed attempts by staff"]')), 'Failed attempts by staff panel is removed');
   const rowsN = await p.locator('[aria-label="KHQR entries"] [data-page-content] > div').count();
   ok(rowsN === 50 && /Showing 1–50 of 120 entries/.test(body), 'entries: 50 per page, server total 120');
   ok(/Phnom Penh · Tuol Kouk/.test(await p.textContent('[aria-label="KHQR entries"]')), 'Location and Khan in the list');
