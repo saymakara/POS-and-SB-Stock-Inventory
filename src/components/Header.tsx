@@ -325,8 +325,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               onMouseEnter={() => {
                                 if (c.id === 'mobile_sync' || c.id === 'mobile_sync_sb') {
                                   prefetchFieldEvents();
+                                  void import('./KhqrReviewTab').then((m) => m.prefetchKhqr?.()).catch(() => {});
                                 } else if (c.id === 'mobile_sync_khqr') {
-                                  void import('./KhqrReviewTab');
+                                  void import('./KhqrReviewTab').then((m) => m.prefetchKhqr?.()).catch(() => {});
                                 }
                               }}
                               aria-current={on ? 'page' : undefined}

@@ -242,6 +242,14 @@ export const FieldReviewTab: React.FC<Props> = ({
     fetchBranchRegions().then((g) => startTransition(() => setRegions(g)));
   }, []);
 
+  // Warm up KHQR cache in background so switching to KHQR subtab paints in 0ms
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      import('./KhqrReviewTab').then((m) => m.prefetchKhqr?.()).catch(() => {});
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, []);
+
   // Cache records so tab switches and page refreshes paint instantly (0ms)
   useEffect(() => {
     if (!events || events.length === 0) return;
