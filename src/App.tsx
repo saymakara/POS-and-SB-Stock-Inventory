@@ -51,6 +51,7 @@ import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { prefetchKhqr } from './services/khqrCache';
+import { prefetchAudit } from './services/auditCache';
 import { motion, AnimatePresence } from 'motion/react';
 
 // (22 Oct 2026, review) Screens other than the Dashboard and Stock Inventory are loaded when first opened, and fetched
@@ -303,7 +304,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   useEffect(() => {                                                  // the other screens arrive while the first one is in use
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
-    const t = w.requestIdleCallback ? w.requestIdleCallback(prefetchTabs, { timeout: 2500 }) : window.setTimeout(prefetchTabs, 1200);
+    const warm = () => { prefetchTabs(); if (profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN') prefetchAudit(); };   // (29 Oct 2026) Audit Trail opens with its first page already here
+    const t = w.requestIdleCallback ? w.requestIdleCallback(warm, { timeout: 2500 }) : window.setTimeout(warm, 1200);
     return () => { if (!w.requestIdleCallback) window.clearTimeout(t); };
   }, []);
 

@@ -1,5 +1,6 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { getCachedAudit, setCachedAudit } from '../services/auditCache';
 import { useSort, SortTh } from '../utils/sort';
 import { UserRole, ThemeMode } from '../types';
 import type { ServerAuditEntry } from '../services/supabaseService';
@@ -98,7 +99,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
   const [hasNextServerPage, setHasNextServerPage] = useState<boolean>(false);
 
   // Server audit trail state
-  const [serverLogs, setServerLogs] = useState<ServerAuditEntry[]>([]);
+  const [serverLogs, setServerLogs] = useState<ServerAuditEntry[]>(() => getCachedAudit(50, 0) || []);   // the last page is shown at once
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
@@ -115,15 +116,18 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
   const refreshServerLogs = useCallback(async () => {
     if (!loadServerLogs) return;
     const seq = ++requestSeq.current;
-    setLoading(true);
+    const offset = (currentPage - 1) * pageSize;
+    const hit = getCachedAudit(pageSize, offset);
+    if (hit) { setServerLogs(hit); setHasNextServerPage(hit.length >= pageSize); }   // fresh answer replaces it quietly
+    setLoading(!hit);
     setLoadError(null);
     try {
-      const offset = (currentPage - 1) * pageSize;
       const rows = await loadServerLogs(pageSize, offset);
       if (!mounted.current || seq !== requestSeq.current) return;
       if (rows === null) {
         setLoadError('The audit log could not be loaded from the server. Check the connection and try again.');
       } else {
+        setCachedAudit(pageSize, offset, rows);
         setServerLogs(rows);
         setHasNextServerPage(rows.length >= pageSize);
         setLoadedAt(stampSecPP());
