@@ -69,8 +69,6 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   operatorLabel = 'System Admin',
   onNotifyConfigReady,
   onSelectDevice,
-  onCompleteDeployment,
-  onReturnToReserve,
   onAssignStaff,
   regionalGroups,
   theme = 'light',
@@ -630,7 +628,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     });
   };
 
-  const handleBatchPushClick = (forceCsv = true) => {
+  const handleBatchPushClick = () => {
     if (getBatchCooldownSecs() > 0 || selectedSns.length === 0) return;
 
     // Record push timestamp and mark pushed for all selected units
@@ -743,7 +741,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     }
   };
 
-  const executePushAll = (forceCsv = true) => {
+  const executePushAll = () => {
     setIsPushAllModalOpen(false);
     setPusherPassword('');
     setPusherPasswordError('');
@@ -1717,7 +1715,7 @@ return (
                 return (
                   <button
                     type="button"
-                    onClick={() => handleBatchPushClick(pushMode === 'total_csv' || pushMode === 'total_csv_all')}
+                    onClick={handleBatchPushClick}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer flex items-center gap-1.5 active:scale-[0.98] shadow-md shrink-0 ${
                       isBatchAllPushed
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white'

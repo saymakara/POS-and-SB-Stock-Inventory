@@ -3,8 +3,6 @@ import {
   AppSettings,
   UserRole,
   ThemeMode,
-  Device,
-  User,
   Branch,
   CustomFieldDefinition,
   CustomFieldType,
@@ -85,12 +83,6 @@ interface SettingsTabProps {
   initialSubTab?: SettingsSubTab;
   onSubTabChange?: (tab: SettingsSubTab) => void;
   branches?: Branch[];
-  devices?: Device[];
-  users?: User[];
-  onSelectBranchFilter?: (branchCode: string) => void;
-  onOpenNewBranchModal?: () => void;
-  onOpenEditBranchModal?: (branch: Branch) => void;
-  onSelectDevice?: (serial: string) => void;
   addAuditLog?: (actionTitle: string, detailText: string) => void;
   onUpdateAppSettings?: (updater: (prev: AppSettings) => AppSettings) => void;
   /** (22 Oct 2026) true when the stock lives in the shared database: no file restore; reset clears this browser only */
@@ -110,12 +102,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   initialSubTab = 'policy',
   onSubTabChange,
   branches = [],
-  devices = [],
-  users = [],
-  onSelectBranchFilter,
-  onOpenNewBranchModal,
-  onOpenEditBranchModal,
-  onSelectDevice,
   addAuditLog,
   onUpdateAppSettings,
 }) => {

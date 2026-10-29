@@ -108,7 +108,6 @@ import {
   StaffAccount,
   renameDeviceSerialOnServer,
   subscribeToOnlinePresence,
-  measureSupabasePingMs,
   OnlineOperatorPresence,
 } from './services/supabaseService';
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
@@ -655,17 +654,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     setPendingFieldCount(c.pos + c.sb);
   }, []);
   const [onlineOperators, setOnlineOperators] = useState<OnlineOperatorPresence[]>([]);
-  const [pingMs, setPingMs] = useState<number | null>(null);
+  // (29 Oct 2026) the connection-speed reading (a request every 45 s per open screen) was removed: nothing displays it any more
   useEffect(() => {
     let alive = true;
-    measureSupabasePingMs().then((ms) => {
-      if (alive && ms !== null) setPingMs(ms);
-    });
-    const pingTimer = window.setInterval(() => {
-      measureSupabasePingMs().then((ms) => {
-        if (alive && ms !== null) setPingMs(ms);
-      });
-    }, 45000);
     const presenceSub = subscribeToOnlinePresence(
       {
         id: profile?.emp_id || authUsername || 'OP-100',
@@ -685,7 +676,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     );
     return () => {
       alive = false;
-      window.clearInterval(pingTimer);
       presenceSub.unsubscribe();
     };
   }, [profile?.emp_id, profile?.name, profile?.role, profile?.branch_id, authUsername]);
@@ -715,7 +705,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
     const effectiveBranch = role === 'BRANCH' ? selectedBranch : (branchFilter !== 'ALL' ? branchFilter : undefined);
     const [devs, reqs, hist, srvBranches, stageSummary, configuringDevs] = await Promise.all([
-      fetchDevicesFromSupabase(1000, 0, (firstBatch, total) => {
+      fetchDevicesFromSupabase(1000, 0, (_firstBatch, total) => {
         setServerDeviceTotal(total);
       }),
       fetchRequisitionsFromSupabase(),
@@ -1532,19 +1522,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       activityEvents.forEach((evt) => window.removeEventListener(evt, resetTimer));
     };
   }, [isAuthenticated, isSessionLocked, appSettings.sessionTimeoutMinutes, addAuditLog]);
-
-  // Role authority handler
-  const handleRoleChange = (newRole: UserRole) => {
-    if (newRole === role) return;
-    // (22 Oct 2026) with the shared database the role is the server's (no switching in the browser)
-    if (isSupabaseConfigured) { triggerToast('Your role is set by your account. Ask an admin to change it.'); return; }
-    setRole(newRole);
-    if (newRole === 'BRANCH') {
-      setBranchFilter(selectedBranch);
-    } else {
-      setBranchFilter('ALL');
-    }
-  };
 
   const handleBranchChange = (bCode: string) => {
     // a branch account always works in its own branch
@@ -3794,24 +3771,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     );
   };
 
-  // Memoized lists computed unconditionally across all renders
-  const adminUsersList = useMemo(
-    () => users.filter((u) => u.accessRole === 'SUPER_ADMIN' || u.accessRole === 'ADMIN'),
-    [users]
-  );
-
-  // (22 Oct 2026) merchants = distinct MIDs of installed, active units in the user's scope
-  const uniqueMerchantsCount = useMemo(() => {
-    const set = new Set<string>();
-    for (const d of scopedDevices) {
-      if (d.stage === 'COMPLETE' && !d.archived && d.mid?.trim()) set.add(d.mid.trim());
-    }
-    return set.size;
-  }, [scopedDevices, serverStageSummary]);
-  const activeDeviceCount = useMemo(
-    () => (serverStageSummary ? serverStageSummary.all : scopedDevices.reduce((n, d) => n + (d.archived ? 0 : 1), 0)),
-    [scopedDevices, serverStageSummary]
-  );
+  // (29 Oct 2026) removed: adminUsersList, uniqueMerchantsCount, activeDeviceCount - the header and sidebar no longer show them,
+  // and the two counts walked the whole device list (up to ~27,000 units) on every change for nothing
 
   const pendingReqsCount = useMemo(
     () => scopedRequisitions.filter((r) => r.status === 'PENDING_ADMIN').length,
@@ -3844,14 +3805,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         role={role}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
-        totalDevices={activeDeviceCount}
-        totalMerchants={uniqueMerchantsCount}
-        totalHistoricalMerchants={historicalMerchants.length}
         webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
         reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb } : undefined}
         pendingReqs={pendingReqsCount}
-        totalBranches={branches.length}
-        totalUsers={users.length}
         configuringCount={unpushedConfiguringCount}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
@@ -4047,16 +4003,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           <Header
             appSettings={appSettings}
             role={role}
-            onSetRole={handleRoleChange}
             branches={branches}
-            adminUsers={adminUsersList}
             activeAdminStaff={activeAdminStaff}
-            onChangeAdminStaff={setActiveAdminStaff}
             activeBranchId={selectedBranch}
             onChangeBranchId={handleBranchChange}
             activeStaff={selectedStaffUser}
-            onChangeStaff={setSelectedStaffUser}
-            onOpenBatchModal={() => setIsBatchModalOpen(true)}
             onOpenRequestModal={() => setIsReqModalOpen(true)}
             onOpenExportModal={() => setIsExportModalOpen(true)}
             onLockSession={() => {
@@ -4088,14 +4039,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             }}
             activeTab={activeTab}
             onSelectTab={handleSelectTab}
-            totalDevices={activeDeviceCount}
-            totalMerchants={uniqueMerchantsCount}
-            totalHistoricalMerchants={historicalMerchants.length}
             webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
-        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb } : undefined}
             sseConnected={sseConnected}
             pendingReqs={pendingReqsCount}
-            totalUsers={users.length}
             notifications={notifications}
             onMarkAllNotificationsRead={() =>
               setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
@@ -4116,7 +4062,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             onSearchChange={setSearchQuery}
             onTrace={setTraceQuery}
             onlineOperators={onlineOperators}
-            pingMs={pingMs}
           />
 
           {/* Classic Pipeline Stage Filter Bar (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
@@ -4205,7 +4150,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       }
                       onTerminateMerchant={handleTerminateMerchant}
                       onReplaceMerchantDevice={handleReplaceMerchantDevice}
-                      onNotifyConfigReady={handleNotifyConfigReady}
                       theme={theme}
                     />
                   )}
@@ -4268,23 +4212,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       users={users}
                       pushedSerials={pushedConfiguringSerials}
                       onMarkPushed={markConfiguringSerialsPushed}
-                      onCompleteDeployment={(sn) => {
-                        const dev = devices.find((d) => d.serial === sn);
-                        if (dev) {
-                          handleSaveWorkflow(sn, {
-                            stage: 'COMPLETE',
-                            branchId: dev.branchId,
-                            staff: dev.staff || operatorLabel || 'Staff',
-                            merchantName: dev.merchantName || '',
-                            mid: dev.mid || '',
-                            tid: dev.tid || '',
-                            note: 'Marked as Live Installed (Complete) from Push Configuring Hub',
-                            deployedDate: dev.deployedDate || todayPP(),
-                          });
-                          triggerToast(`Device ${sn} marked as Live Installed (Complete).`);
-                        }
-                      }}
-                      onReturnToReserve={(sn, bId, reason) => handleReturnToBranchReserve([sn], bId, reason)}
                       onRefreshQueue={handleRefreshConfiguringQueue}
                       theme={theme}
                     />
@@ -4321,7 +4248,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                         const target = deviceBySerialMap.get(sn);
                         if (target) setBatteryModalDevice(target);
                       }}
-                      customFields={appSettings.customFields}
                       syncingSerials={syncingSerials}
                       fulfillingRequisition={fulfillingRequisition}
                       onConfirmFulfillment={handleConfirmFulfillment}
@@ -4341,7 +4267,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                           : undefined
                       }
                       onFetchServerPage={handleFetchInventoryPage}
-                      onNotifyConfigReady={handleNotifyConfigReady}
                     />
                   )}
 
@@ -4532,27 +4457,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       initialSubTab={settingsSubTab}
                       onSubTabChange={(st) => setSettingsSubTab(st)}
                       branches={branches}
-                      devices={devices}
-                      users={users}
-                      onSelectBranchFilter={(bCode) => {
-                        setBranchFilter(bCode);
-                        setActiveTab('inventory');
-                      }}
-                      onOpenNewBranchModal={() => {
-                        setEditingBranch(null);
-                        setBranchCodeInput('');
-                        setBranchNameInput('');
-                        setBranchStaffInput('');
-                        setIsNewBranchModalOpen(true);
-                      }}
-                      onOpenEditBranchModal={(b) => {
-                        setEditingBranch(b);
-                        setBranchCodeInput(b.code);
-                        setBranchNameInput(b.name);
-                        setBranchStaffInput(b.staff.join(', '));
-                        setIsNewBranchModalOpen(true);
-                      }}
-                      onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
                       addAuditLog={addAuditLog}
                       onUpdateAppSettings={setAppSettings}
                     />
@@ -4661,7 +4565,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         {editingDevice && (
         <WorkflowModal
           device={editingDevice}
-          devices={devices}
           branches={branches}
           users={users}
           role={role}

@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   UserRole,
   Branch,
-  User,
   ThemeMode,
   SystemNotification,
   AppSettings,
@@ -49,14 +48,9 @@ interface SidebarProps {
   role?: UserRole;
   activeTab: string;
   onSelectTab: (tab: string, subTab?: string) => void;
-  totalDevices: number;
-  totalMerchants: number;
-  totalHistoricalMerchants?: number;
   webhookCount: number;
   reviewCounts?: ReviewCounts;
   pendingReqs: number;
-  totalBranches?: number;
-  totalUsers: number;
   configuringCount?: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -70,14 +64,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   role = 'SUPER_ADMIN',
   activeTab,
   onSelectTab,
-  totalDevices,
-  totalMerchants,
-  totalHistoricalMerchants,
   webhookCount,
   reviewCounts,
   pendingReqs,
-  totalBranches,
-  totalUsers,
   configuringCount = 0,
   collapsed,
   onToggleCollapse,
@@ -427,30 +416,20 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 interface HeaderProps {
   appSettings?: AppSettings;
   role: UserRole;
-  onSetRole?: (role: UserRole) => void;
   branches: Branch[];
-  adminUsers: User[];
   activeAdminStaff: string;
-  onChangeAdminStaff: (staff: string) => void;
   activeBranchId: string;
   onChangeBranchId: (id: string) => void;
   activeStaff: string;
-  onChangeStaff: (staff: string) => void;
-  onOpenBatchModal: () => void;
   onOpenRequestModal: () => void;
   onOpenExportModal: () => void;
   onLockSession: () => void;
   onSignOut: () => void;
   activeTab: string;
   onSelectTab: (tab: string, subTab?: string) => void;
-  totalDevices: number;
-  totalMerchants: number;
-  totalHistoricalMerchants?: number;
   webhookCount: number;
-  reviewCounts?: ReviewCounts;
   sseConnected: boolean;
   pendingReqs: number;
-  totalUsers: number;
   notifications: SystemNotification[];
   onMarkAllNotificationsRead: () => void;
   onSelectNotification: (notif: SystemNotification) => void;
@@ -462,22 +441,15 @@ interface HeaderProps {
   onSearchChange?: (q: string) => void;
   onTrace?: (q: string) => void;
   onlineOperators?: OnlineOperatorPresence[];
-  pingMs?: number | null;
 }
 
 export const Header: React.FC<HeaderProps> = React.memo(({
   role,
-  reviewCounts,
-  onSetRole,
   branches,
-  adminUsers,
   activeAdminStaff,
-  onChangeAdminStaff,
   activeBranchId,
   onChangeBranchId,
   activeStaff,
-  onChangeStaff,
-  onOpenBatchModal,
   onOpenRequestModal,
   onOpenExportModal,
   onLockSession,
@@ -494,7 +466,6 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   onSearchChange,
   onTrace,
   onlineOperators = [],
-  pingMs = null,
 }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [onlineOpen, setOnlineOpen] = useState(false);
