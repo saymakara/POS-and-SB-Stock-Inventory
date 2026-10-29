@@ -30,7 +30,7 @@ import { todayPP, stampPP, stampSecPP } from './utils/time';
 import { newRecordId } from './utils/ids';
 import { canMove, moveError, statusOf, onMove } from './utils/stages';
 import { csvFile } from './utils/csv';
-import { deduplicateStaffList, normalizeStaffName, resolveStaffFromDirectory, getStaffAliases } from './utils/staffUtils';
+import { deduplicateStaffList, normalizeStaffName, getStaffAliases } from './utils/staffUtils';
 import { tidFromMid } from './utils/tid';
 import { TraceModal } from './components/TraceModal';
 import { SaveGuard, throttled, watchNewVersion } from './utils/saveGuard';
@@ -710,7 +710,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // versions this browser's own saves produced (serial → sent version → new version): a later edit of the same unit
   // made from the older copy is sent with the right version, while a change by someone else is still refused
   const versionAlias = React.useRef<Map<string, Map<number, number>>>(new Map());
-  const reloadFromServer = useCallback(async (): Promise<boolean> => {
+  const reloadFromServerOnce = useCallback(async (): Promise<boolean> => {
     versionAlias.current = new Map();
     const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
     const effectiveBranch = role === 'BRANCH' ? selectedBranch : (branchFilter !== 'ALL' ? branchFilter : undefined);
@@ -749,13 +749,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               };
             });
           });
-          // Synchronize devices staff dynamically with Staff Directory
-          setDevices((prevDevs) =>
-            prevDevs.map((d) => {
-              const resolved = resolveStaffFromDirectory(d.staff, d.branchId, nextUsers);
-              return resolved && resolved !== d.staff ? { ...d, staff: resolved } : d;
-            })
-          );
+          // (29 Oct 2026) devices are NOT rewritten here any more. Rewriting d.staff to the directory spelling made the
+          // change watcher save every such unit to the database on every reload; two spellings that resolve to each
+          // other (local name aliases) flipped back and forth, and 338 units were saved 224–600 times each. A staff
+          // rename is applied to devices by the database itself (admin_save_staff) and arrives through the live feed;
+          // screens that need the directory spelling resolve it when they display it.
         }
       });
     }
@@ -812,6 +810,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }
     return Boolean(devs && reqs && hist);
   }, [profile?.role]);
+  // (29 Oct 2026) one full reload at a time: the live feed reconnecting, the tab coming back and the network
+  // returning often fire together; they now share the reload already running instead of each downloading all units
+  const reloadInFlight = React.useRef<Promise<boolean> | null>(null);
+  const reloadFromServer = useCallback((): Promise<boolean> => {
+    if (reloadInFlight.current) return reloadInFlight.current;
+    const run = reloadFromServerOnce().finally(() => { reloadInFlight.current = null; });
+    reloadInFlight.current = run;
+    return run;
+  }, [reloadFromServerOnce]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -933,8 +940,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         const elapsed = Date.now() - lastActive;
-        // If device was in background or asleep for more than 4 seconds, refresh state from server
-        if (elapsed > 4000) {
+        // (29 Oct 2026) refresh from the server only after 5 minutes away. Before: after 4 seconds, so every switch
+        // back to the tab downloaded all ~27,600 units again. Shorter gaps are covered by the live feed, and a feed
+        // that dropped (sleep, network) reloads by itself when it reconnects (onReconnect).
+        if (elapsed > 5 * 60 * 1000) {
           reloadFromServer().catch(() => {});
         }
         lastActive = Date.now();
@@ -2494,13 +2503,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             if (!list.includes(displayName)) list.push(displayName);
           }
 
-          // Synchronize devices staff dynamically with Staff Directory
-          setDevices((prevDevs) =>
-            prevDevs.map((d) => {
-              const resolved = resolveStaffFromDirectory(d.staff, d.branchId, nextUsers);
-              return resolved && resolved !== d.staff ? { ...d, staff: resolved } : d;
-            })
-          );
+          // (29 Oct 2026) devices are not rewritten to the directory spelling here (it saved them in a loop): see reloadFromServerOnce
 
           return prev.map((b) => {
             const sList = byBranch.get(String(b.code).trim()) || byBranch.get(String(b.id).trim()) || [];
