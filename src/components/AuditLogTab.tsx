@@ -563,7 +563,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                       : serverMode && loadError && rows.length === 0
                       ? 'No audit records could be loaded.'
                       : rows.length === 0
-                      ? 'No error logs recorded yet.'
+                      ? 'No audit trail events recorded yet.'
                       : 'No audit records match the selected filter criteria.'}
                   </td>
                 </tr>

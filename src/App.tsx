@@ -95,6 +95,7 @@ import {
   deleteDevicesOnServer,
   confirmReceiptOnServer,
   writeAuditLog,
+  deriveActionCategory,
   fetchHistoricalMerchantsFromSupabase,
   insertHistoricalMerchantToSupabase,
   deleteAllHistoricalMerchantsOnServer,
@@ -1301,11 +1302,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         `${now} | ${actionTitle} | ${actorDesc} — ${detailText}`,
         ...prev.slice(0, 199),
       ]);
-      // (21 Oct 2026) also in the server's audit log, where the database stamps who and when (nobody can edit it)
-      // Error-Only Server Logging: only write to Supabase audit_logs when an actual error occurs
-      if (/error|fail/i.test(actionTitle)) {
-        void writeAuditLog(actionTitle, detailText, undefined, 'Error');
-      }
+      // Persist every change made by all users to the tamper-evident server audit log for governance and system integrity
+      const actionCategory = deriveActionCategory(actionTitle);
+      void writeAuditLog(actionTitle, detailText, actionCategory);
     },
     [role, authUsername, activeAdminStaff, selectedBranch, selectedStaffUser]
   );
