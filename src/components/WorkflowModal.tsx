@@ -276,7 +276,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       setBatteryInstalledDate(device.batteryInstalledDate || device.stockInDate || '');
     }
   }, [device?.batterySerial, device?.batteryInstalledDate]);
-  const canReturn = Boolean(device && (device.stage === 'COMPLETE' || device.stage === 'CONFIGURING') && (device.mid || device.merchantName));
+  const canReturn = false;
 
   /** Stages this unit may move to from where it is now (plus staying put). Branch users never move a unit into HQ stock. */
   const stageOptions = useMemo(() => {

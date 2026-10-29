@@ -418,7 +418,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             {activeSubTab === 'brand_logo' ? (
               <Sparkles className="w-5 h-5 text-amber-300" />
             ) : (
-              <Settings className="w-5 h-5 text-gray-300" />
+              <Settings className="w-5 h-5 text-sky-300" />
             )}
           </div>
           <div>

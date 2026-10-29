@@ -1184,20 +1184,10 @@ export async function confirmReceiptOnServer(reqId: string): Promise<{ moved: st
   }
 }
 
-export function deriveActionCategory(title: string): string {
-  const t = title.toLowerCase();
-  if (t.includes('requisition') || t.includes('request') || t.includes('dispatch') || t.includes('receive')) return 'REQUEST';
-  if (t.includes('session') || t.includes('user') || t.includes('account') || t.includes('password') || t.includes('role') || t.includes('security') || t.includes('access') || t.includes('login') || t.includes('logout') || t.includes('unlock')) return 'USER';
-  if (t.includes('field') || t.includes('phone') || t.includes('sync') || t.includes('qr') || t.includes('review')) return 'SYNC';
-  if (t.includes('branch code')) return 'BRANCH';
-  if (t.includes('setting') || t.includes('brand') || t.includes('policy')) return 'SETTINGS';
-  return 'STOCK';
-}
-
 /**
- * System Integrity Audit Logging.
- * Records every state change made by all users (Super Admin, Admin HQ, Branch staff)
- * to the tamper-evident server audit_logs table for governance and accountability.
+ * Error-Only Audit Logging (25 Oct 2026).
+ * To protect the Supabase log ingestion quota, routine 'Success' or 'Info' operations DO NOT write to the database.
+ * Only actual errors (where action === 'ERROR' or title/detail indicates a failure) are written to Supabase.
  */
 export async function writeAuditLog(
   title: string,
@@ -1206,22 +1196,22 @@ export async function writeAuditLog(
   target?: string
 ): Promise<void> {
   if (!isSupabaseConfigured) return;
+  const isError =
+    action === 'ERROR' || /\b(error|failed|failure|exception|refused|halted)\b/i.test(`${title} ${action || ''}`);
+  if (!isError) {
+    // Error-Only logging model: do not ping the database on successful or informational operations
+    return;
+  }
   try {
-    const isError =
-      action === 'ERROR' || /\b(error|failed|failure|exception|refused|halted)\b/i.test(`${title} ${action || ''}`);
-    const resolvedAction = action || deriveActionCategory(title);
     const { error } = await supabase.from('audit_logs').insert({
       title: title.slice(0, 160),
-      detail: (detail || '').slice(0, 2000),
-      action: resolvedAction,
+      detail,
+      action: action || 'ERROR',
       target: target || null,
-      status: isError ? 'Error' : 'SUCCESS',
     });
-    if (error) {
-      console.warn('writeAuditLog warning:', error.message);
-    }
+    if (error) throw error;
   } catch (err) {
-    console.warn('writeAuditLog caught:', err);
+    await reportCaughtError('writeErrorAuditLog', err, { skipDbLog: true, showPopup: false });
   }
 }
 
@@ -1246,7 +1236,6 @@ export async function fetchAuditLogs(limit = 50, offset = 0): Promise<ServerAudi
     const { data, error } = await supabase
       .from('audit_logs')
       .select('*')
-      .neq('action', 'ERROR')
       .order('created_at', { ascending: false })
       .limit(safeLimit)
       .range(safeOffset, safeOffset + safeLimit - 1);
@@ -1285,7 +1274,7 @@ export async function fetchAuditLogsPageFromSupabase(params: {
     offset,
     ascending: false,
     filters: (q) => {
-      let query = q.neq('action', 'ERROR');
+      let query = q;
       if (params.role && params.role !== 'ALL') {
         query = query.eq('role', params.role);
       }
@@ -1412,137 +1401,43 @@ export async function fetchBranchRegions(): Promise<Record<string, string>> {
   }
 }
 
-// High-performance Field Events in-memory cache and request deduplicator
-let fieldEventsCache: {
-  pending: FieldEvent[] | null;
-  reviewed: FieldEvent[] | null;
-  lastFetchedPending: number;
-  lastFetchedReviewed: number;
-} = {
-  pending: null,
-  reviewed: null,
-  lastFetchedPending: 0,
-  lastFetchedReviewed: 0,
-};
-
-let pendingInFlight: Promise<FieldEvent[] | null> | null = null;
-let reviewedInFlight: Promise<FieldEvent[] | null> | null = null;
-
-export function getFieldEventsCache(): { pending: FieldEvent[] | null; reviewed: FieldEvent[] | null } {
-  return { pending: fieldEventsCache.pending, reviewed: fieldEventsCache.reviewed };
-}
-
-export function updateFieldEventInCache(updated: FieldEvent): void {
-  if (fieldEventsCache.pending) {
-    if (updated.status === 'PENDING') {
-      const idx = fieldEventsCache.pending.findIndex((e) => e.id === updated.id);
-      if (idx >= 0) fieldEventsCache.pending[idx] = updated;
-      else fieldEventsCache.pending = [updated, ...fieldEventsCache.pending];
-    } else {
-      fieldEventsCache.pending = fieldEventsCache.pending.filter((e) => e.id !== updated.id);
-    }
-  }
-  if (fieldEventsCache.reviewed) {
-    if (updated.status !== 'PENDING') {
-      const idx = fieldEventsCache.reviewed.findIndex((e) => e.id === updated.id);
-      if (idx >= 0) fieldEventsCache.reviewed[idx] = updated;
-      else fieldEventsCache.reviewed = [updated, ...fieldEventsCache.reviewed];
-    } else {
-      fieldEventsCache.reviewed = fieldEventsCache.reviewed.filter((e) => e.id !== updated.id);
-    }
-  }
-}
-
-/** Pre-warms field events in the background when the app is idle or navigation is hovered. */
-export function prefetchFieldEvents(): void {
-  if (!isSupabaseConfigured) return;
-  fetchPendingFieldEvents(1000, 0).catch(() => {});
-  fetchReviewedFieldEvents(1000, 0).catch(() => {});
-}
-
-/** Waiting records fetched with in-memory caching and request deduplication. */
-export async function fetchPendingFieldEvents(limit = 1000, offset = 0, force = false): Promise<FieldEvent[] | null> {
+/** Waiting records fetched with strict server-side limit() and range(offset, offset + limit - 1). */
+export async function fetchPendingFieldEvents(limit = 1000, offset = 0): Promise<FieldEvent[] | null> {
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);
-
-  // Return fresh in-memory cache if available (0ms)
-  if (!force && safeOffset === 0 && fieldEventsCache.pending && Date.now() - fieldEventsCache.lastFetchedPending < 45000) {
-    return fieldEventsCache.pending;
+  try {
+    const { data, error } = await supabase
+      .from('field_events')
+      .select('*')
+      .eq('status', 'PENDING')
+      .order('received_at', { ascending: false })
+      .limit(safeLimit)
+      .range(safeOffset, safeOffset + safeLimit - 1);
+    if (error) throw error;
+    return (data || []).map(mapFieldEvent);
+  } catch (err) {
+    await reportCaughtError('fetchPendingFieldEvents', err, { showPopup: false });
+    return null;
   }
-
-  // Deduplicate concurrent in-flight requests
-  if (safeOffset === 0 && pendingInFlight) {
-    return pendingInFlight;
-  }
-
-  const queryPromise = (async () => {
-    try {
-      const { data, error } = await supabase
-        .from('field_events')
-        .select('*')
-        .eq('status', 'PENDING')
-        .order('received_at', { ascending: false })
-        .limit(safeLimit)
-        .range(safeOffset, safeOffset + safeLimit - 1);
-      if (error) throw error;
-      const mapped = (data || []).map(mapFieldEvent);
-      if (safeOffset === 0) {
-        fieldEventsCache.pending = mapped;
-        fieldEventsCache.lastFetchedPending = Date.now();
-      }
-      return mapped;
-    } catch (err) {
-      await reportCaughtError('fetchPendingFieldEvents', err, { showPopup: false });
-      return null;
-    } finally {
-      if (safeOffset === 0) pendingInFlight = null;
-    }
-  })();
-
-  if (safeOffset === 0) pendingInFlight = queryPromise;
-  return queryPromise;
 }
 
-export async function fetchReviewedFieldEvents(limit = 1000, offset = 0, force = false): Promise<FieldEvent[] | null> {
+export async function fetchReviewedFieldEvents(limit = 1000, offset = 0): Promise<FieldEvent[] | null> {
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);
-
-  // Return fresh in-memory cache if available (0ms)
-  if (!force && safeOffset === 0 && fieldEventsCache.reviewed && Date.now() - fieldEventsCache.lastFetchedReviewed < 45000) {
-    return fieldEventsCache.reviewed;
+  try {
+    const { data, error } = await supabase
+      .from('field_events')
+      .select('*')
+      .neq('status', 'PENDING')
+      .order('received_at', { ascending: false })
+      .limit(safeLimit)
+      .range(safeOffset, safeOffset + safeLimit - 1);
+    if (error) throw error;
+    return (data || []).map(mapFieldEvent);
+  } catch (err) {
+    await reportCaughtError('fetchReviewedFieldEvents', err, { showPopup: false });
+    return null;
   }
-
-  // Deduplicate concurrent in-flight requests
-  if (safeOffset === 0 && reviewedInFlight) {
-    return reviewedInFlight;
-  }
-
-  const queryPromise = (async () => {
-    try {
-      const { data, error } = await supabase
-        .from('field_events')
-        .select('*')
-        .neq('status', 'PENDING')
-        .order('received_at', { ascending: false })
-        .limit(safeLimit)
-        .range(safeOffset, safeOffset + safeLimit - 1);
-      if (error) throw error;
-      const mapped = (data || []).map(mapFieldEvent);
-      if (safeOffset === 0) {
-        fieldEventsCache.reviewed = mapped;
-        fieldEventsCache.lastFetchedReviewed = Date.now();
-      }
-      return mapped;
-    } catch (err) {
-      await reportCaughtError('fetchReviewedFieldEvents', err, { showPopup: false });
-      return null;
-    } finally {
-      if (safeOffset === 0) reviewedInFlight = null;
-    }
-  })();
-
-  if (safeOffset === 0) reviewedInFlight = queryPromise;
-  return queryPromise;
 }
 
 
@@ -1622,11 +1517,7 @@ export function subscribeToFieldEvents(onChange: (e: FieldEvent) => void): () =>
   const channel = supabase
     .channel(channelName('field_events_feed'))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'field_events' }, (payload) => {
-      if (payload.new && (payload.new as any).id) {
-        const ev = mapFieldEvent(payload.new);
-        updateFieldEventInCache(ev);
-        onChange(ev);
-      }
+      if (payload.new && (payload.new as any).id) onChange(mapFieldEvent(payload.new));
     })
     .subscribe();
   return () => {
@@ -1653,10 +1544,6 @@ export async function approveFieldEvent(
   try {
     const { data, error } = await supabase.rpc('field_approve', { p_id: id, p_note: note || null, p_opt: opt });
     if (error) throw error;
-    if (fieldEventsCache.pending) {
-      const match = fieldEventsCache.pending.find((e) => e.id === id);
-      if (match) updateFieldEventInCache({ ...match, status: 'APPROVED' });
-    }
     return data;
   } catch (err) {
     await reportCaughtError('approveFieldEvent', err, { target: String(id) });
@@ -1668,10 +1555,6 @@ export async function rejectFieldEvent(id: number, note: string): Promise<void> 
   try {
     const { error } = await supabase.rpc('field_reject', { p_id: id, p_note: note });
     if (error) throw error;
-    if (fieldEventsCache.pending) {
-      const match = fieldEventsCache.pending.find((e) => e.id === id);
-      if (match) updateFieldEventInCache({ ...match, status: 'REJECTED', reviewNote: note });
-    }
   } catch (err) {
     await reportCaughtError('rejectFieldEvent', err, { target: String(id) });
     throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
@@ -1835,22 +1718,6 @@ export async function fetchQrEntriesPage(p: QrQuery & { page?: number; pageSize?
   }
 }
 
-/** Fetches matching KHQR entries for CSV export up to a safe limit. */
-export async function fetchAllQrEntriesForExport(p: QrQuery, limit = 5000): Promise<QrEntry[]> {
-  try {
-    const q = applyQrFilters(supabase.from('qr_installations').select(QR_COLUMNS), p)
-      .order('submitted_at', { ascending: false })
-      .order('id', { ascending: false })
-      .limit(limit);
-    const { data, error } = await q;
-    if (error) throw error;
-    return (data || []).map(mapQrEntry);
-  } catch (err) {
-    await reportCaughtError('fetchAllQrEntriesForExport', err, { showPopup: false });
-    return [];
-  }
-}
-
 /** KHQR statistics of a period (one request; the reader's branch rules apply). */
 export async function fetchQrSummary(from: string | null, to: string | null): Promise<QrSummary | null> {
   try {
@@ -1869,6 +1736,37 @@ export async function fetchQrSummary(from: string | null, to: string | null): Pr
     };
   } catch (err) {
     await reportCaughtError('fetchQrSummary', err, { showPopup: false });
+    return null;
+  }
+}
+
+/** (29 Oct 2026) Monthly KHQR totals (newest first): months still kept in detail + older months from the summary. */
+export interface QrMonthTotal {
+  month: string;          // yyyy-mm-dd (first day)
+  entries: number;
+  install: number;
+  replace: number;
+  qr: number;
+  attempts: number;
+  staffFailed: number;
+  detailed: boolean;
+}
+export async function fetchQrMonthHistory(months = 12): Promise<QrMonthTotal[] | null> {
+  try {
+    const { data, error } = await supabase.rpc('qr_month_history', { p_months: months });
+    if (error) throw error;
+    return (Array.isArray(data) ? data : []).map((r: any) => ({
+      month: String(r.month || '').slice(0, 10),
+      entries: Number(r.entries) || 0,
+      install: Number(r.install) || 0,
+      replace: Number(r.replace) || 0,
+      qr: Number(r.qr) || 0,
+      attempts: Number(r.attempts) || 0,
+      staffFailed: Number(r.staff_failed) || 0,
+      detailed: !!r.detailed,
+    }));
+  } catch (err) {
+    await reportCaughtError('fetchQrMonthHistory', err, { showPopup: false });
     return null;
   }
 }
@@ -1916,7 +1814,7 @@ export interface QrAttempt {
 
 /** The failed attempts log: one page, newest first; each row says whether its entry was saved later. */
 export async function fetchQrAttemptsPage(p: {
-  from?: string | null; activity?: 'ALL' | QrActivity; branchId?: string; staffId?: string; search?: string; page?: number; pageSize?: number;
+  from?: string | null; to?: string | null; activity?: 'ALL' | QrActivity; branchId?: string; staffId?: string; search?: string; page?: number; pageSize?: number;
 }): Promise<PaginatedResult<QrAttempt>> {
   const pageSize = p.pageSize === 100 ? 100 : 50;
   const page = Math.max(1, p.page || 1);
@@ -1926,6 +1824,7 @@ export async function fetchQrAttemptsPage(p: {
       .from('qr_attempts')
       .select('id,session_id,activity,staff_id,staff_name,branch_text,branch_id,expected_mid,got_mid,got_name,scanned_count,client_at,received_at', { count: 'exact' });
     if (p.from) q = q.gte('received_at', p.from);
+    if (p.to) q = q.lt('received_at', p.to);
     if (p.activity && p.activity !== 'ALL') q = q.eq('activity', p.activity);
     if (p.branchId) q = q.eq('branch_id', p.branchId);
     if (p.staffId) q = q.eq('staff_id', p.staffId);

@@ -174,8 +174,7 @@ async function api(route) {
   }
   // (23 Oct 2026) Return: merchant details removed, unit back to stock, merchant kept in Merchant History
   await p.getByText('Stock Inventory', { exact: true }).first().click(); await sleep(900);
-  await p.locator('tr', { hasText: 'WP0002' }).first().getByRole('button', { name: 'Manage' }).click(); await sleep(900);
-  await p.locator('select[aria-label="Lifecycle stage"]').selectOption('__RETURN__'); await sleep(500);
+  await p.getByRole('button', { name: 'Return WP0002' }).click(); await sleep(900);
   ok(/Return to Stock/.test(await p.textContent('body')) && /Merchant History/.test(await p.textContent('body')), 'Return opens straight on "Return to Stock" with the merchant-removal note');
   await p.getByRole('button', { name: /Review Changes/ }).click(); await sleep(600);
   await p.getByRole('button', { name: /Confirm & Commit Changes/ }).click(); await sleep(1800);

@@ -1,3 +1,4 @@
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { stampSecPP } from './time';
 
 // Re-export Telegram configuration and alert dispatchers for unified access
@@ -144,6 +145,20 @@ export async function reportCaughtError(
   // 1. Trigger UI technical error popup immediately so mobile/field staff can screenshot it
   if (options?.showPopup !== false) {
     triggerTechnicalErrorPopup(payload);
+  }
+
+  // 2. Error-Only Database Audit Log (only write to Supabase on actual failure, with circuit guard against recursion)
+  if (isSupabaseConfigured && !options?.skipDbLog && operation !== 'writeErrorAuditLog') {
+    try {
+      await supabase.from('audit_logs').insert({
+        title: `[ERROR] ${operation}`.slice(0, 160),
+        detail: `[${code}] Staff ${staffId}: ${message}`.slice(0, 1000),
+        action: 'ERROR',
+        target: options?.target || code,
+      });
+    } catch {
+      // Do not re-throw if the database log quota or connection is down; Telegram & UI popup already captured it
+    }
   }
 
   return payload;

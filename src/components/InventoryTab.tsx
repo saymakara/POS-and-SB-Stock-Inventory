@@ -1072,6 +1072,17 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           >
                             Manage
                           </button>
+                          {!showArchivedView && onReturnDevice && (dev.stage === "COMPLETE" || dev.stage === "CONFIGURING") && (dev.mid || dev.merchantName) && (
+                            <button
+                              type="button"
+                              onClick={() => onReturnDevice(dev.serial)}
+                              className="row-btn !border-amber-300 !bg-amber-50 hover:!bg-amber-100 !text-amber-800"
+                              title="Return: remove merchant details and put unit back in stock"
+                              aria-label={`Return ${dev.serial}`}
+                            >
+                              Return
+                            </button>
+                          )}
                           {showArchivedView && isAdminLike && onRestoreToDashboard && (
                             <button
                               type="button"

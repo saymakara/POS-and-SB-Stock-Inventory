@@ -1,6 +1,6 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
-import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine, FileSpreadsheet } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -8,8 +8,6 @@ import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { STAGE_META } from '../data/initialData';
-import { csvFile } from '../utils/csv';
-import { todayPP } from '../utils/time';
 import {
   FieldEvent,
   FieldEventStatus,
@@ -98,8 +96,6 @@ interface Props {
   onPendingCountChange?: (counts: { pos: number; sb: number }) => void;
   /** (28 Oct 2026) Phone App Review sub-menu: show one device type only (POS Terminal or Sound Box) */
   deviceType?: 'POS Terminal' | 'Sound Box';
-  /** Pre-indexed hardware lookup map for instant 0ms serial resolution */
-  deviceBySerialMap?: Map<string, Device>;
 }
 
 interface RowOpt {
@@ -174,10 +170,6 @@ const InputMethodBadge: React.FC<{
   return null;
 };
 
-// Module-level shared cache so switching tabs or sub-menus paints in 0ms without re-fetching
-let memoryEventsCache: FieldEvent[] | null = null;
-let memoryReviewedReady = false;
-
 export const FieldReviewTab: React.FC<Props> = ({
   role,
   branches,
@@ -188,7 +180,6 @@ export const FieldReviewTab: React.FC<Props> = ({
   scope = 'PHNOM_PENH',
   onPendingCountChange,
   deviceType,
-  deviceBySerialMap,
 }) => {
   const [activeScope, setActiveScope] = useState<'ALL' | 'PHNOM_PENH'>(scope === 'ALL' ? 'ALL' : 'PHNOM_PENH');
   useEffect(() => {
@@ -197,22 +188,14 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [events, setEvents] = useState<FieldEvent[] | null>(() => {
-    if (memoryEventsCache && memoryEventsCache.length > 0) {
-      return memoryEventsCache;
-    }
     try {
       const c = sessionStorage.getItem(CACHE_KEY);
-      if (c) {
-        const parsed = JSON.parse(c) as FieldEvent[];
-        memoryEventsCache = parsed;
-        return parsed;
-      }
+      return c ? (JSON.parse(c) as FieldEvent[]) : null;
     } catch {
-      /* ignore */
+      return null;
     }
-    return null;
   });
-  const [reviewedReady, setReviewedReady] = useState(() => memoryReviewedReady);
+  const [reviewedReady, setReviewedReady] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [live, setLive] = useState(false);
   const [filter, setFilter] = useState<Filter>('PENDING');
@@ -242,14 +225,6 @@ export const FieldReviewTab: React.FC<Props> = ({
     fetchBranchRegions().then((g) => startTransition(() => setRegions(g)));
   }, []);
 
-  // Warm up KHQR cache in background so switching to KHQR subtab paints in 0ms
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      import('./KhqrReviewTab').then((m) => m.prefetchKhqr?.()).catch(() => {});
-    }, 250);
-    return () => window.clearTimeout(t);
-  }, []);
-
   // Cache records so tab switches and page refreshes paint instantly (0ms)
   useEffect(() => {
     if (!events || events.length === 0) return;
@@ -266,49 +241,28 @@ export const FieldReviewTab: React.FC<Props> = ({
     return () => window.clearTimeout(t);
   }, [events]);
 
-  const load = useCallback(async (force = false) => {
+  const load = useCallback(async () => {
     setLoadError('');
     try {
-      // High-performance 2-stage progressive load:
-      // Initiate both requests concurrently
-      const pendingPromise = fetchPendingFieldEvents(1000, 0, force);
-      const reviewedPromise = fetchReviewedFieldEvents(1000, 0, force);
-
-      // 1. Process waiting records first: display to user in ~100-200ms
-      const pending = await pendingPromise;
-      if (pending) {
-        startTransition(() => {
-          setEvents((prev) => {
-            const keepReviewed = (prev || []).filter((e) => e.status !== 'PENDING');
-            const merged = [...pending, ...keepReviewed];
-            memoryEventsCache = merged;
-            return merged;
-          });
-        });
-      }
-
-      // 2. Stream historical reviewed records in the background without UI blocking
-      const reviewed = await reviewedPromise;
-      if (reviewed) {
-        startTransition(() => {
-          setEvents((prev) => {
-            const keepPending = pending ?? (prev || []).filter((e) => e.status === 'PENDING');
-            const merged = [...keepPending, ...reviewed];
-            memoryEventsCache = merged;
-            return merged;
-          });
-          setReviewedReady(true);
-          memoryReviewedReady = true;
-        });
-      }
-
-      if (!pending && !reviewed && !memoryEventsCache) {
+      // Parallel fast fetch with limit 1000 — runs both pending and reviewed simultaneously in ~1s
+      const [pending, reviewed] = await Promise.all([
+        fetchPendingFieldEvents(1000, 0),
+        fetchReviewedFieldEvents(1000, 0),
+      ]);
+      if (!pending && !reviewed) {
         setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
+        return;
       }
+      startTransition(() => {
+        setEvents((prev) => {
+          const keepPending = pending ?? (prev || []).filter((e) => e.status === 'PENDING');
+          const keepReviewed = reviewed ?? (prev || []).filter((e) => e.status !== 'PENDING');
+          return [...keepPending, ...keepReviewed];
+        });
+        setReviewedReady(true);
+      });
     } catch {
-      if (!memoryEventsCache) {
-        setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
-      }
+      setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
     }
   }, []);
 
@@ -317,13 +271,11 @@ export const FieldReviewTab: React.FC<Props> = ({
     const unsub = subscribeToFieldEvents((e) => {
       setLive(true);
       setEvents((prev) => {
-        if (!prev) {
-          memoryEventsCache = [e];
-          return [e];
-        }
+        if (!prev) return [e];
         const i = prev.findIndex((x) => x.id === e.id);
-        const next = i < 0 ? [e, ...prev] : prev.map((item, idx) => (idx === i ? e : item));
-        memoryEventsCache = next;
+        if (i < 0) return [e, ...prev];
+        const next = prev.slice();
+        next[i] = e;
         return next;
       });
     });
@@ -331,11 +283,10 @@ export const FieldReviewTab: React.FC<Props> = ({
   }, [load]);
 
   const deviceBySerial = useMemo(() => {
-    if (deviceBySerialMap) return deviceBySerialMap;
     const m = new Map<string, Device>();
     devices.forEach((d) => m.set(d.serial.toUpperCase(), d));
     return m;
-  }, [devices, deviceBySerialMap]);
+  }, [devices]);
 
   // Build lookup set of known Phnom Penh branch codes and staff IDs from the 33 Phnom Penh branches
   const { ppBranchCodes, ppStaffEmpIds } = useMemo(() => {
@@ -455,17 +406,16 @@ export const FieldReviewTab: React.FC<Props> = ({
       SB_MAINT: 0,
       SB_RETURN: 0,
     };
-    const effectiveType = deviceType || typeFilter;
     scoped
       .filter((e) => filter === 'ALL' || e.status === filter)
-      .filter((e) => effectiveType === 'ALL' || devType(e) === effectiveType)
+      .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
       .forEach((e) => {
         c.ALL++;
         if (c[e.kind] !== undefined) c[e.kind]++;
         else c[e.kind] = 1;
       });
     return c;
-  }, [scoped, filter, typeFilter, deviceType]);
+  }, [scoped, filter, typeFilter]);
 
   const typeCounts = useMemo(() => {
     const c = { pos: 0, sb: 0 };
@@ -482,37 +432,33 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const shownBase = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
-    const effectiveType = deviceType || typeFilter;
-    const result: FieldEvent[] = [];
-    for (let i = 0; i < scoped.length; i++) {
-      const e = scoped[i];
-      if (filter !== 'ALL' && e.status !== filter) continue;
-      if (recordTypeFilter !== 'ALL' && e.kind !== recordTypeFilter) continue;
-      if (effectiveType !== 'ALL' && devType(e) !== effectiveType) continue;
-      if (q) {
-        const matches = (
-          (e.serial && e.serial.toLowerCase().includes(q)) ||
-          (e.oldSerial && e.oldSerial.toLowerCase().includes(q)) ||
-          (e.sourceRecordId && e.sourceRecordId.toLowerCase().includes(q)) ||
-          (e.mid && e.mid.toLowerCase().includes(q)) ||
-          (e.tid && e.tid.toLowerCase().includes(q)) ||
-          (e.outletName && e.outletName.toLowerCase().includes(q)) ||
-          (e.terminalName && e.terminalName.toLowerCase().includes(q)) ||
-          (e.staffName && e.staffName.toLowerCase().includes(q)) ||
-          (e.staffId && e.staffId.toLowerCase().includes(q)) ||
-          (e.branchText && e.branchText.toLowerCase().includes(q))
-        );
-        if (!matches) continue;
-      }
-      result.push(e);
-    }
-    return result.sort(
-      (a, b) =>
-        b.receivedAt.localeCompare(a.receivedAt) ||
-        b.sourceRecordId.localeCompare(a.sourceRecordId) ||
-        a.unitNo - b.unitNo
-    );
-  }, [scoped, filter, typeFilter, recordTypeFilter, deferredQuery, deviceType]);
+    return scoped
+      .filter((e) => filter === 'ALL' || e.status === filter)
+      .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
+      .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
+      .filter(
+        (e) =>
+          !q ||
+          [
+            e.serial,
+            e.oldSerial,
+            e.sourceRecordId,
+            e.mid,
+            e.tid,
+            e.outletName,
+            e.terminalName,
+            e.staffName,
+            e.staffId,
+            e.branchText,
+          ].some((v) => String(v || '').toLowerCase().includes(q))
+      )
+      .sort(
+        (a, b) =>
+          b.receivedAt.localeCompare(a.receivedAt) ||
+          b.sourceRecordId.localeCompare(a.sourceRecordId) ||
+          a.unitNo - b.unitNo
+      );
+  }, [scoped, filter, typeFilter, recordTypeFilter, deferredQuery]);
 
   const { sorted: shown, sort, toggle: toggleSort } = useSort(shownBase, {
     type: (e) => e.deviceType,
@@ -555,12 +501,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       return n;
     });
   const markDone = (id: number, st: FieldEventStatus) => {
-    setEvents((prev) => {
-      if (!prev) return prev;
-      const next = prev.map((x) => (x.id === id ? { ...x, status: st } : x));
-      memoryEventsCache = next;
-      return next;
-    });
+    setEvents((prev) => prev && prev.map((x) => (x.id === id ? { ...x, status: st } : x)));
     setSelected((p) => {
       if (!p.has(id)) return p;
       const n = new Set(p);
@@ -707,7 +648,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   };
 
   const loadingFirst = !events && !loadError;
-  const visibleRows = useMemo(() => shown.slice(pg.start, pg.end), [shown, pg.start, pg.end]);
+  const visibleRows = shown.slice(pg.start, pg.end);
   const unitCount = useMemo(() => {
     const m = new Map<string, number>();
     (events || []).forEach((x) => {
@@ -716,76 +657,6 @@ export const FieldReviewTab: React.FC<Props> = ({
     });
     return m;
   }, [events]);
-
-  const handleExportCsv = useCallback(() => {
-    if (!shown || shown.length === 0) return;
-
-    const headers = [
-      'No.',
-      'Device Type',
-      'Record Type',
-      'Date Sent',
-      'Serial Number',
-      'Serial Input Method',
-      'Old Serial Number',
-      'Old Serial Input Method',
-      'Terminal / Outlet Name',
-      'MID',
-      'MID Input Method',
-      'TID',
-      'Staff Name',
-      'Staff ID',
-      'Branch',
-      'Status',
-      'Reviewer',
-      'Reviewed At',
-      'Review Note / Reason',
-      'Issues / Warnings',
-    ];
-
-    const csvRows = shown.map((e, idx) => {
-      const entry = entryOf(e);
-      const merchant = e.terminalName || e.outletName || '';
-      const issuesText = (e.issues || []).map((i) => `[${i.level.toUpperCase()}] ${i.text}`).join('; ');
-
-      return [
-        String(idx + 1),
-        e.deviceType || devType(e),
-        KIND_LABEL[e.kind] || e.kind,
-        fmtTime(e.receivedAt),
-        e.serial || '',
-        howText(entry.serial),
-        e.oldSerial || '',
-        entry.oldSerial ? howText(entry.oldSerial) : '',
-        merchant,
-        e.mid || '',
-        howText(entry.mid),
-        e.tid || '',
-        e.staffName || '',
-        e.staffId || '',
-        e.branchText || (e.branchId ? `Branch ${e.branchId}` : ''),
-        STATUS_LABEL[e.status] || e.status,
-        e.reviewedByName || '',
-        e.reviewedAt ? fmtTime(e.reviewedAt) : '',
-        e.reviewNote || '',
-        issuesText,
-      ];
-    });
-
-    const prefix = deviceType ? deviceType.replace(/\s+/g, '_') : 'Phone_App_Review';
-    const filename = `${prefix}_${todayPP()}.csv`;
-    const blob = csvFile([headers, ...csvRows]);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-    triggerToast(`Exported ${shown.length} ${deviceType || 'review'} record(s) to CSV`);
-  }, [shown, deviceType, triggerToast]);
 
   return (
     <div className="flex flex-col gap-3.5 apple-tab-panel">
@@ -920,17 +791,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           />
           <button
             type="button"
-            onClick={handleExportCsv}
-            disabled={shown.length === 0}
-            title={`Export ${shown.length} ${deviceType || 'Phone App Review'} records to CSV`}
-            className="btn-press px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium cursor-pointer transition shadow-2xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed select-none"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Export CSV</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => load(true)}
+            onClick={load}
             aria-label="Refresh"
             title="Refresh Phone App Review records"
             className="btn-press p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer transition"
@@ -1092,7 +953,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
           <div
             data-page-content
-            key={`${filter}-${deviceType || typeFilter}-${activeScope}`}
+            key={`${filter}-${typeFilter}-${activeScope}`}
             className="divide-y divide-slate-200/90 page-glide-in"
           >
             {visibleRows.map((e, idx) => (
