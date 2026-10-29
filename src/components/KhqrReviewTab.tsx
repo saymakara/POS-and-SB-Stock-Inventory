@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, RefreshCw, ChevronDown, MapPin, CheckCircle2, Loader2, Send, QrCode, Sparkles, UserX } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, MapPin, CheckCircle2, Loader2, Send, QrCode, Sparkles, UserX, Layers, AlertTriangle, Users } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { Pager } from './Pager';
@@ -195,13 +195,42 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             The KHQR tables are not set up in the database yet. Apply the migration <span className="font-mono text-xs">20261028_02_khqr_installation.sql</span>, then refresh.
           </div>
         ) : (
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
-            <Kpi label="KHQR entries" value={summary?.total} sub={summary ? `${summary.install.toLocaleString()} new · ${summary.replace.toLocaleString()} replaced` : ''} />
-            <Kpi label="QR materials" value={summary?.qr} sub={summary && summary.total ? `${(summary.qr / summary.total).toFixed(1)} per entry` : PERIOD_LABEL[period]} />
-            {/* (3.50) every blocked Submit tap is one failed attempt */}
-            <Kpi label="Failed Attempt" value={summary?.attempts} sub="Submit blocked · MID did not match" tone={summary?.attempts ? 'bad' : undefined}
-              onClick={() => { setView('log'); setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }} />
-            <Kpi label="Staff involved" value={summary?.staffFailed} sub="with failed attempts" tone={summary?.staffFailed ? 'bad' : undefined} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+            <BigKpiCard
+              label="KHQR entries"
+              value={summary?.total}
+              sub={summary ? `${summary.install.toLocaleString()} new · ${summary.replace.toLocaleString()} replaced` : 'Registered KHQR installations'}
+              icon={QrCode}
+              accentColor="blue"
+              badge={summary ? '100% Synced' : undefined}
+            />
+            <BigKpiCard
+              label="QR materials"
+              value={summary?.qr}
+              sub={summary && summary.total ? `${(summary.qr / summary.total).toFixed(1)} materials / entry` : PERIOD_LABEL[period]}
+              icon={Layers}
+              accentColor="emerald"
+              badge="Physical items"
+            />
+            <BigKpiCard
+              label="Failed Attempt"
+              value={summary?.attempts}
+              sub="Submit blocked · MID did not match"
+              icon={AlertTriangle}
+              accentColor="rose"
+              onClick={() => {
+                setView('log');
+                setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+              }}
+            />
+            <BigKpiCard
+              label="Staff involved"
+              value={summary?.staffFailed}
+              sub="Recorded failed attempts"
+              icon={Users}
+              accentColor="amber"
+              badge={staff && staff.length > 0 ? `${staff.length} staff` : undefined}
+            />
           </div>
         )}
       </section>
@@ -531,20 +560,90 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
   );
 };
 
-const Kpi: React.FC<{ label: string; value: number | undefined; sub: string; tone?: 'good' | 'warn' | 'bad'; onClick?: () => void }> = ({ label, value, sub, tone, onClick }) => {
-  const dot = tone === 'good' ? 'bg-emerald-500' : tone === 'warn' ? 'bg-amber-500' : tone === 'bad' ? 'bg-rose-500' : 'bg-slate-400';
-  const Tag: any = onClick ? 'button' : 'div';
+interface BigKpiCardProps {
+  label: string;
+  value: number | undefined;
+  sub: string;
+  icon: React.ComponentType<{ className?: string }>;
+  accentColor: 'blue' | 'emerald' | 'rose' | 'amber';
+  badge?: string;
+  onClick?: () => void;
+}
+
+const BigKpiCard: React.FC<BigKpiCardProps> = ({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  accentColor,
+  badge,
+  onClick,
+}) => {
+  const isClickable = !!onClick;
+  const Tag: any = isClickable ? 'button' : 'div';
+
+  const theme = {
+    blue: {
+      iconBg: 'bg-sky-50 text-sky-600 border-sky-100',
+      numColor: 'text-slate-900',
+      hoverStyle: 'hover:border-sky-300 hover:ring-2 hover:ring-sky-100/80',
+    },
+    emerald: {
+      iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+      numColor: 'text-slate-900',
+      hoverStyle: 'hover:border-emerald-300 hover:ring-2 hover:ring-emerald-100/80',
+    },
+    rose: {
+      iconBg: 'bg-rose-50 text-rose-600 border-rose-100',
+      numColor: value && value > 0 ? 'text-rose-600' : 'text-slate-900',
+      hoverStyle: 'hover:border-rose-300 hover:ring-2 hover:ring-rose-100/80',
+    },
+    amber: {
+      iconBg: 'bg-amber-50 text-amber-600 border-amber-100',
+      numColor: value && value > 0 ? 'text-amber-600' : 'text-slate-900',
+      hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/80',
+    },
+  }[accentColor];
+
   return (
     <Tag
-      {...(onClick ? { type: 'button', onClick, title: `Show ${label.toLowerCase()} below` } : {})}
-      className={`text-left rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 ${onClick ? 'cursor-pointer hover:border-slate-300 hover:bg-white transition' : ''}`}
+      {...(isClickable ? { type: 'button', onClick, title: `Show ${label.toLowerCase()} log below` } : {})}
+      className={`relative flex flex-col justify-between p-5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all duration-200 text-left ${
+        isClickable ? `cursor-pointer ${theme.hoverStyle} hover:shadow-md hover:-translate-y-0.5 group` : 'hover:border-slate-300 hover:shadow-xs'
+      }`}
     >
-      <div className="flex items-center gap-1.5 text-[10.5px] text-slate-500 uppercase tracking-wider">
-        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} aria-hidden />
-        <span className="truncate">{label}</span>
+      {/* Top row: Category Label + Icon Badge */}
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
+          {label}
+        </span>
+        <div className={`w-9.5 h-9.5 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform ${isClickable ? 'group-hover:scale-105' : ''} ${theme.iconBg}`}>
+          <Icon className="w-5 h-5" />
+        </div>
       </div>
-      <div className="font-figure text-xl font-semibold text-slate-900 tabular-nums mt-0.5">{value === undefined ? '—' : value.toLocaleString()}</div>
-      <div className="text-[11px] text-slate-500 truncate" title={sub}>{sub || ' '}</div>
+
+      {/* Main KPI number */}
+      <div className="my-2.5">
+        <div className={`font-figure text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums leading-none ${theme.numColor}`}>
+          {value === undefined ? '—' : value.toLocaleString()}
+        </div>
+      </div>
+
+      {/* Subtitle / Footer info */}
+      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
+        <span className="truncate" title={sub}>
+          {sub || '—'}
+        </span>
+        {isClickable ? (
+          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-rose-600 group-hover:text-rose-700 shrink-0">
+            View log <span className="transition-transform group-hover:translate-x-0.5">→</span>
+          </span>
+        ) : badge ? (
+          <span className="text-[11px] font-medium text-slate-400 shrink-0">
+            {badge}
+          </span>
+        ) : null}
+      </div>
     </Tag>
   );
 };
