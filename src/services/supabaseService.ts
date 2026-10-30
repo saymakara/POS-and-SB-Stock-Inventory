@@ -1642,6 +1642,8 @@ export interface QrSummary {
   staffFailed: number;
   wrongScans: number;         // (30 Oct 2026) wrong MID scanned, recorded at scan time (0 until migration 08 is run)
   wrongScanStaff: number;
+  sharedMids: number;         // (30 Oct 2026) MID-days entered by 2+ different staff
+  sharedMidStaff: number;
 }
 export const QR_ACTIVITY_LABEL: Record<QrActivity, string> = {
   NEW_INSTALLATION: 'New Installation',
@@ -1755,6 +1757,8 @@ export async function fetchQrSummary(from: string | null, to: string | null): Pr
       staffFailed: Number(d.staff_failed) || 0,
       wrongScans: Number(d.wrong_scans) || 0,
       wrongScanStaff: Number(d.wrong_scan_staff) || 0,
+      sharedMids: Number(d.shared_mids) || 0,
+      sharedMidStaff: Number(d.shared_mid_staff) || 0,
     };
   } catch (err) {
     await reportCaughtError('fetchQrSummary', err, { showPopup: false });
@@ -1819,6 +1823,37 @@ export interface QrAttempt {
 export type QrAttemptKind = 'SUBMIT_BLOCKED' | 'WRONG_SCAN';
 
 /** The failed attempts log: one page, newest first; each row says whether its entry was saved later. */
+/** (30 Oct 2026) One MID entered by two or more staff on the same day (Phnom Penh time), newest day first. */
+export interface QrSharedMidItem { recordId: string; staffId: string; staffName: string; branch: string; activity: QrActivity | ''; qr: number; at: string }
+export interface QrSharedMid {
+  day: string; mid: string; merchantName: string; staffCount: number; entries: number; branches: string;
+  firstAt: string; lastAt: string; items: QrSharedMidItem[];
+}
+export async function fetchQrSharedMids(from: string | null, to: string | null, limit = 200): Promise<QrSharedMid[] | null> {
+  try {
+    const { data, error } = await supabase.rpc('qr_shared_mids', { p_from: from, p_to: to, p_limit: limit });
+    if (error) throw error;
+    return (Array.isArray(data) ? data : []).map((r: any) => ({
+      day: String(r.day || '').slice(0, 10),
+      mid: r.mid || '',
+      merchantName: r.merchant_name || '',
+      staffCount: Number(r.staff_count) || 0,
+      entries: Number(r.entries) || 0,
+      branches: r.branches || '',
+      firstAt: r.first_at,
+      lastAt: r.last_at,
+      items: (Array.isArray(r.items) ? r.items : []).map((x: any) => ({
+        recordId: x.record_id || '', staffId: x.staff_id || '', staffName: x.staff_name || '', branch: x.branch || '',
+        activity: x.activity === 'NEW_INSTALLATION' || x.activity === 'QR_REPLACEMENT' ? x.activity : '',
+        qr: Number(x.qr) || 0, at: x.at,
+      })),
+    }));
+  } catch (err) {
+    await reportCaughtError('fetchQrSharedMids', err, { showPopup: false });   // before migration 09: the section stays hidden
+    return null;
+  }
+}
+
 /** The entries saved later in the given scan sessions (session id -> record id). */
 export async function fetchQrSavedBySessions(sessions: string[]): Promise<Map<string, string>> {
   const saved = new Map<string, string>();

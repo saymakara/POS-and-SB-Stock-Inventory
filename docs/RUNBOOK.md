@@ -27,7 +27,8 @@ Owner: Makara, Merchant Support (ABA Bank). Internal use. Last reviewed 29 Oct 2
 | 29 Oct 2026 | 20261029_06_drop_redundant_indexes_and_anon_grant | Four duplicate indexes dropped; anonymous role can no longer run get_device_stage_counts. Applied. |
 | 29 Oct 2026 | 20261029_04_revoke_anon_on_backup_table | Anonymous role no longer has any access to historical_merchants_backup_20261022. Applied. |
 | 29 Oct 2026 | 07_speed_indexes_counts_realtime (run in SQL Editor) | Faster dashboard stage counts; two unused devices indexes dropped; audit_logs no longer streamed through Realtime. Applied. |
-| 30 Oct 2026 | 20261030_08_qr_wrong_scan_kind | KHQR failed attempts get a kind: SUBMIT_BLOCKED (as before) or WRONG_SCAN (recorded at scan time). Existing numbers unchanged; wrong scans counted separately. Run in SQL Editor. |
+| 30 Oct 2026 | 20261030_08_qr_wrong_scan_kind | KHQR failed attempts get a kind: SUBMIT_BLOCKED (as before) or WRONG_SCAN (recorded at scan time). Existing numbers unchanged; wrong scans counted separately. Applied. |
+| 30 Oct 2026 | 20261030_09_qr_shared_mids | New list qr_shared_mids (one MID entered by 2+ staff on the same day) and 'shared_mids' in qr_summary; index on (mid, submitted_at). Applied. |
 
 ## 5. Secrets
 - Only the public (anon/publishable) Supabase key is used in the website. Never put a secret key or the Telegram bot token in any `VITE_` variable: those are copied into the public JavaScript.
