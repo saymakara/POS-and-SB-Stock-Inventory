@@ -40,8 +40,8 @@ jobs:
           SECRET_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SECRET_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
-          export VITE_SUPABASE_URL="${SECRET_SUPABASE_URL:-https://mrrzfmtaqjdwhwznznie.supabase.co}"
-          export VITE_SUPABASE_ANON_KEY="${SECRET_SUPABASE_KEY:-sb_publishable_XloNkOBo9MnkYUJzowb1vg_YRrjG7GB}"
+          export VITE_SUPABASE_URL="${SECRET_SUPABASE_URL:-https://lfuqypmtcmrzwpuwyhye.supabase.co}"
+          export VITE_SUPABASE_ANON_KEY="${SECRET_SUPABASE_KEY:-sb_publishable_BKxgtGCy7tnss6dbW31HzA_3k-DkCwN}"
           export VITE_SUPABASE_PUBLISHABLE_KEY="$VITE_SUPABASE_ANON_KEY"
           npm run build
 
