@@ -29,7 +29,7 @@ const PERIOD_LABEL: Record<Period, string> = {
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
   'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
-const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_112px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
+const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
 const SMGRID = 'grid items-center gap-x-3 grid-cols-[36px_96px_150px_minmax(160px,1fr)_70px_minmax(220px,1.6fr)_70px_minmax(140px,1fr)_120px_20px]';
 const HGRID = 'grid items-center gap-x-3 grid-cols-[minmax(150px,1.2fr)_90px_120px_120px_110px_110px_110px_110px]';
 
@@ -69,14 +69,17 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
   const [summary, setSummary] = useState<QrSummary | null>(first.summary || null);
   const [history, setHistory] = useState<QrMonthTotal[] | null>(getCachedHistory());
   const [shared, setShared] = useState<QrSharedMid[] | null>(null);   // (30 Oct 2026) one MID, 2+ staff, same day
-  const sharedRef = useRef<HTMLElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [live, setLive] = useState(false);
   const [newCount, setNewCount] = useState(0);
   const [open, setOpen] = useState<number | null>(null);
-  const [view, setView] = useState<'entries' | 'log'>('entries');      // (28 Oct 2026) saved entries, or every blocked Submit
-  const [logKind, setLogKind] = useState<'ALL' | QrAttemptKind>('SUBMIT_BLOCKED');   // (30 Oct 2026) which records the log shows
+  // (30 Oct 2026) four views side by side: saved entries, failed attempts, wrong scans, same MID by 2+ staff
+  const [view, setView] = useState<'entries' | 'failed' | 'wrong' | 'shared'>('entries');
+  const showView = (v: 'failed' | 'wrong' | 'shared') => {
+    setView(v);
+    setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
   const [logKey, setLogKey] = useState(0);                            // reloads the failed attempts log
 
   const range = useMemo(() => periodRange(period), [period]);
@@ -218,18 +221,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               icon={AlertTriangle}
               accentColor="rose"
               onClick={() => {
-                setLogKind('SUBMIT_BLOCKED');
-                setView('log');
-                setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+                showView('failed');
               }}
-            />
-            <BigKpiCard
-              label="Staff involved"
-              value={summary?.staffFailed}
-              sub="Staff with failed attempts"
-              icon={Users}
-              accentColor="amber"
-              badge={summary?.staffFailed && summary.staffFailed > 0 ? `${summary.staffFailed} staff` : undefined}
             />
             <BigKpiCard
               label="Wrong Scan"
@@ -238,9 +231,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               icon={ScanLine}
               accentColor="orange"
               onClick={() => {
-                setLogKind('WRONG_SCAN');
-                setView('log');
-                setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+                showView('wrong');
               }}
             />
             <BigKpiCard
@@ -249,7 +240,15 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               sub={summary && summary.sharedMids > 0 ? `${summary.sharedMidStaff.toLocaleString()} staff · same day` : 'One MID entered by different staff on the same day'}
               icon={Copy}
               accentColor="violet"
-              onClick={() => setTimeout(() => sharedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30)}
+              onClick={() => showView('shared')}
+            />
+            <BigKpiCard
+              label="Staff involved"
+              value={summary?.staffFailed}
+              sub="Staff with failed attempts"
+              icon={Users}
+              accentColor="amber"
+              badge={summary?.staffFailed && summary.staffFailed > 0 ? `${summary.staffFailed} staff` : undefined}
             />
           </div>
         )}
@@ -296,16 +295,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
         </section>
       )}
 
-      {/* (30 Oct 2026) one MID entered by two or more staff on the same day */}
-      {loadError !== 'SETUP' && shared && (
-        <SharedMidTable rows={shared} periodLabel={PERIOD_LABEL[period]} innerRef={sharedRef} />
-      )}
-
       {/* Entries: filters */}
       <section ref={entriesRef} className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs scroll-mt-4" aria-label="Filters">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1" role="tablist" aria-label="View">
-            {([['entries', 'KHQR entries', summary?.total], ['log', 'Failed attempts & wrong scans', summary ? summary.attempts + summary.wrongScans : undefined]] as const).map(([v, label, n]) => {
+            {([['entries', 'KHQR entries', summary?.total], ['failed', 'Failed attempts', summary?.attempts], ['wrong', 'Wrong scans', summary?.wrongScans], ['shared', 'Same MID, 2+ staff', summary?.sharedMids]] as const).map(([v, label, n]) => {
               const active = view === v;
               return (
                 <button
@@ -322,7 +316,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
                     <motion.div layoutId="qr-view-pill" aria-hidden className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs" transition={SPRING} />
                   )}
                   <span className="relative z-10 flex items-center gap-1.5">
-                    {v === 'log' && <span className={`w-2 h-2 rounded-full ${active ? 'bg-rose-300' : 'bg-rose-500'}`} aria-hidden />}
+                    {v !== 'entries' && <span className={`w-2 h-2 rounded-full ${v === 'failed' ? (active ? 'bg-rose-300' : 'bg-rose-500') : v === 'wrong' ? (active ? 'bg-orange-300' : 'bg-orange-500') : (active ? 'bg-violet-300' : 'bg-violet-500')}`} aria-hidden />}
                     <span>{label}</span>
                     {n !== undefined && (
                       <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md ${active ? 'bg-white/20 text-white font-bold' : 'bg-slate-200/60 text-slate-500'}`}>
@@ -370,8 +364,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={view === 'log' ? 'Search MID, Staff, Branch…' : 'Search MID, Merchant, Staff, Record ID…'}
-              aria-label={view === 'log' ? 'Search failed attempts and wrong scans' : 'Search KHQR entries'}
+              placeholder={view === 'failed' || view === 'wrong' ? 'Search MID, Staff, Branch…' : view === 'shared' ? 'Search MID, Merchant, Staff, Branch…' : 'Search MID, Merchant, Staff, Record ID…'}
+              aria-label={view === 'failed' ? 'Search failed attempts' : view === 'wrong' ? 'Search wrong scans' : view === 'shared' ? 'Search same MID by 2+ staff' : 'Search KHQR entries'}
               className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400"
             />
           </div>
@@ -379,8 +373,13 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
         </div>
       </section>
 
-      {view === 'log' && loadError !== 'SETUP' && (
-        <QrAttemptLog from={from} to={to} activity={activity} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey} blockedCount={summary?.attempts} wrongCount={summary?.wrongScans} kind={logKind} setKind={setLogKind} />
+      {(view === 'failed' || view === 'wrong') && loadError !== 'SETUP' && (
+        <QrAttemptLog key={view} from={from} to={to} activity={activity} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey}
+          kind={view === 'wrong' ? 'WRONG_SCAN' : 'SUBMIT_BLOCKED'} />
+      )}
+
+      {view === 'shared' && loadError !== 'SETUP' && (
+        <SharedMidTable rows={shared} periodLabel={PERIOD_LABEL[period]} search={search} />
       )}
 
       {view === 'entries' && (<>
@@ -447,10 +446,9 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
 };
 
 /** (28 Oct 2026) Failed attempts log: every blocked Submit (a QR with another MID), newest first, page by page. */
-const KIND_LABEL: Record<QrAttemptKind, string> = { SUBMIT_BLOCKED: 'Failed attempt', WRONG_SCAN: 'Wrong scan' };
-const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity: 'ALL' | QrActivity; branchId: string; staffId: string; search: string; reloadKey: number; blockedCount?: number; wrongCount?: number;
-  kind: 'ALL' | QrAttemptKind; setKind: (k: 'ALL' | QrAttemptKind) => void }> = ({
-  from, to, activity, branchId, staffId, search, reloadKey, blockedCount, wrongCount, kind, setKind,
+const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity: 'ALL' | QrActivity; branchId: string; staffId: string; search: string; reloadKey: number;
+  kind: QrAttemptKind }> = ({
+  from, to, activity, branchId, staffId, search, reloadKey, kind,
 }) => {
   // (30 Oct 2026) two kinds, kept apart: Submit blocked (as before, the default) and Wrong scan (recorded at scan time)
   const [first] = useState(() => getCachedAttempts(attemptsKey({ from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search, kind }, 1, 50)));
@@ -490,32 +488,18 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
   }, [from, to, activity, branchId, staffId, search, kind, page, pageSize]);
   useEffect(() => { load(); }, [load, reloadKey]);
   return (
-    <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Failed attempts and wrong scans">
-      <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200" role="tablist" aria-label="Failed attempts or wrong scans">
-        {([
-          ['SUBMIT_BLOCKED', 'Failed attempts', blockedCount, 'Submit was tapped while a QR had another MID: the app blocked it'],
-          ['WRONG_SCAN', 'Wrong scans', wrongCount, 'A QR with another MID was scanned: recorded at once, whether or not Submit was tapped'],
-          ['ALL', 'All', undefined, 'Both kinds'],
-        ] as const).map(([k, label, n, tip]) => {
-          const on = kind === k;
-          return (
-            <button key={k} type="button" role="tab" aria-selected={on} title={tip} onClick={() => setKind(k)}
-              className={`px-3 py-1 rounded-full text-xs border cursor-pointer transition-colors ${on
-                ? (k === 'WRONG_SCAN' ? 'bg-orange-600 text-white border-orange-600' : k === 'SUBMIT_BLOCKED' ? 'bg-rose-600 text-white border-rose-600' : 'bg-[#003857] text-white border-[#003857]')
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'}`}>
-              {label}{n !== undefined && <span className="ml-1 tabular-nums opacity-80">({n.toLocaleString()})</span>}
-            </button>
-          );
-        })}
-        <span className="text-[11.5px] text-slate-500 ml-1">
-          {kind === 'WRONG_SCAN' ? '· Wrong scan: a QR with another MID was scanned (recorded at once, submitted or not)' : kind === 'SUBMIT_BLOCKED' ? '· Failed attempt: Submit was tapped while a QR had another MID (blocked)' : '· failed attempts and wrong scans'}
+    <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label={kind === 'WRONG_SCAN' ? 'Wrong scans' : 'Failed attempts'}>
+      <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200">
+        <span className={`w-2 h-2 rounded-full ${kind === 'WRONG_SCAN' ? 'bg-orange-500' : 'bg-rose-500'}`} aria-hidden />
+        <h3 className="text-[13px] font-medium text-slate-900">{kind === 'WRONG_SCAN' ? 'Wrong scans' : 'Failed attempts'}</h3>
+        <span className="text-[11.5px] text-slate-500">
+          {kind === 'WRONG_SCAN' ? '· a QR with another MID was scanned (recorded at once, submitted or not)' : '· Submit was tapped while a QR had another MID (blocked)'}
         </span>
       </div>
-      <div className="min-w-[1190px]">
+      <div className="min-w-[1080px]">
         <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
           <span className="text-right">No.</span>
           <span>Time</span>
-          <span>Type</span>
           <span>Staff</span>
           <span>Branch</span>
           <span>Activity</span>
@@ -543,11 +527,6 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
             <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[12.5px] text-slate-700 hover:bg-rose-50/50`}>
               <span className="text-right tabular-nums text-slate-500">{pg.start + i + 1}</span>
               <span className="tabular-nums whitespace-nowrap" title={a.clientAt ? `On the phone: ${stampSecPP(new Date(a.clientAt))}` : undefined}>{stampSecPP(new Date(a.clientAt || a.receivedAt))}</span>
-              <span>
-                <span className={`inline-flex whitespace-nowrap text-[11px] px-2 py-0.5 rounded-full border ${a.kind === 'WRONG_SCAN' ? 'bg-orange-50 text-orange-800 border-orange-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
-                  {KIND_LABEL[a.kind]}
-                </span>
-              </span>
               <span className="leading-tight min-w-0">
                 <span className="block truncate text-slate-900">{a.staffName || a.staffId}</span>
                 <span className="block text-[11px] text-slate-500 font-mono">{a.staffId}</span>
@@ -575,16 +554,21 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
           ))}
         </div>
       </div>
-      <Pager pg={pg} label={kind === 'WRONG_SCAN' ? 'wrong scans' : kind === 'SUBMIT_BLOCKED' ? 'failed attempts' : 'records'} />
+      <Pager pg={pg} label={kind === 'WRONG_SCAN' ? 'wrong scans' : 'failed attempts'} />
     </section>
   );
 };
 
 /** (30 Oct 2026) MIDs entered by two or more different staff on the same day (Phnom Penh time), newest day first. */
-const SharedMidTable: React.FC<{ rows: QrSharedMid[]; periodLabel: string; innerRef: React.MutableRefObject<HTMLElement | null> }> = ({ rows, periodLabel, innerRef }) => {
+const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string; search: string }> = ({ rows: all, periodLabel, search }) => {
   const [open, setOpen] = useState<string | null>(null);
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!all || !q) return all;
+    return all.filter((r) => `${r.mid} ${r.merchantName} ${r.branches} ${r.items.map((x) => `${x.staffId} ${x.staffName} ${x.recordId}`).join(' ')}`.toLowerCase().includes(q));
+  }, [all, search]);
   return (
-    <section ref={innerRef} className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto scroll-mt-4" aria-label="Same MID by two or more staff">
+    <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Same MID by two or more staff">
       <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200">
         <Copy className="w-4 h-4 text-violet-600" />
         <h3 className="text-[13px] font-medium text-slate-900">Same MID by 2+ staff</h3>
@@ -603,13 +587,18 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[]; periodLabel: string; inner
           <span>First – last</span>
           <span />
         </div>
-        {rows.length === 0 && (
+        {rows === null && (
+          <div aria-busy="true" aria-label="Loading">
+            {[0, 1, 2].map((i) => <div key={i} className="h-[46px] border-b border-slate-100 px-3.5 flex items-center"><div className="skeleton h-3.5 rounded w-2/3" /></div>)}
+          </div>
+        )}
+        {rows && rows.length === 0 && (
           <div className="p-8 text-center text-sm text-emerald-700 inline-flex w-full justify-center items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4" /> No MID was entered by more than one staff member on the same day.
           </div>
         )}
         <div className="divide-y divide-slate-200/90">
-          {rows.map((r, i) => {
+          {(rows || []).map((r, i) => {
             const key = r.day + r.mid;
             const isOpen = open === key;
             const names = Array.from(new Map(r.items.map((x) => [x.staffId, x.staffName || x.staffId])).values());
