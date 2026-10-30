@@ -7,7 +7,7 @@ import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP } from '../utils/time';
 import {
-  QrActivity, QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSummary, QR_ACTIVITY_LABEL,
+  QrActivity, QrAttempt, QrAttemptKind, QrEntry, QrMonthTotal, QrQuery, QrSummary, QR_ACTIVITY_LABEL,
   fetchQrAttemptsPage, fetchQrSavedBySessions, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, subscribeToQrEntries,
 } from '../services/supabaseService';
 import {
@@ -29,8 +29,8 @@ const PERIOD_LABEL: Record<Period, string> = {
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
   'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
-const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
-const HGRID = 'grid items-center gap-x-3 grid-cols-[minmax(150px,1.2fr)_90px_120px_120px_110px_110px_110px]';
+const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_112px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
+const HGRID = 'grid items-center gap-x-3 grid-cols-[minmax(150px,1.2fr)_90px_120px_120px_110px_110px_110px_110px]';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const monthLabel = (ymd: string) => { const [y, m] = ymd.split('-').map(Number); return `${MONTH_NAMES[m - 1]} ${y}`; };
@@ -209,7 +209,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             <BigKpiCard
               label="Failed Attempt"
               value={summary?.attempts}
-              sub="Submit blocked · MID did not match"
+              sub={summary && summary.wrongScans > 0 ? `Submit blocked · ${summary.wrongScans.toLocaleString()} wrong scan${summary.wrongScans === 1 ? '' : 's'}` : 'Submit blocked · MID did not match'}
               icon={AlertTriangle}
               accentColor="rose"
               onClick={() => {
@@ -236,7 +236,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             <h3 className="text-[13px] font-medium text-slate-900">Monthly history</h3>
             <span className="text-[11.5px] text-slate-500">· latest month only</span>
           </div>
-          <div className="min-w-[760px]">
+          <div className="min-w-[880px]">
             <div className={`${HGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`} role="row">
               <span>Month</span>
               <span className="text-right">Entries</span>
@@ -245,6 +245,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
               <span className="text-right">QR materials</span>
               <span className="text-right">Failed attempts</span>
               <span className="text-right">Staff involved</span>
+              <span className="text-right" title="Wrong MID scanned, recorded at scan time (submitted or not)">Wrong scans</span>
             </div>
             <div className="divide-y divide-slate-200/90">
               {history.map((h) => (
@@ -261,6 +262,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
                   <span className="text-right tabular-nums">{h.qr.toLocaleString()}</span>
                   <span className={`text-right tabular-nums ${h.attempts ? 'text-rose-700 font-semibold' : ''}`}>{h.attempts.toLocaleString()}</span>
                   <span className="text-right tabular-nums">{h.staffFailed.toLocaleString()}</span>
+                  <span className={`text-right tabular-nums ${h.wrongScans ? 'text-amber-700 font-semibold' : ''}`}>{h.wrongScans.toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -347,7 +349,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
       </section>
 
       {view === 'log' && loadError !== 'SETUP' && (
-        <QrAttemptLog from={from} to={to} activity={activity} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey} />
+        <QrAttemptLog from={from} to={to} activity={activity} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey} blockedCount={summary?.attempts} wrongCount={summary?.wrongScans} />
       )}
 
       {view === 'entries' && (<>
@@ -414,20 +416,23 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
 };
 
 /** (28 Oct 2026) Failed attempts log: every blocked Submit (a QR with another MID), newest first, page by page. */
-const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity: 'ALL' | QrActivity; branchId: string; staffId: string; search: string; reloadKey: number }> = ({
-  from, to, activity, branchId, staffId, search, reloadKey,
+const KIND_LABEL: Record<QrAttemptKind, string> = { SUBMIT_BLOCKED: 'Submit blocked', WRONG_SCAN: 'Wrong scan' };
+const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity: 'ALL' | QrActivity; branchId: string; staffId: string; search: string; reloadKey: number; blockedCount?: number; wrongCount?: number }> = ({
+  from, to, activity, branchId, staffId, search, reloadKey, blockedCount, wrongCount,
 }) => {
-  const [first] = useState(() => getCachedAttempts(attemptsKey({ from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search }, 1, 50)));
+  // (30 Oct 2026) two kinds, kept apart: Submit blocked (as before, the default) and Wrong scan (recorded at scan time)
+  const [kind, setKind] = useState<'ALL' | QrAttemptKind>('SUBMIT_BLOCKED');
+  const [first] = useState(() => getCachedAttempts(attemptsKey({ from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search, kind: 'SUBMIT_BLOCKED' }, 1, 50)));
   const [rows, setRows] = useState<QrAttempt[] | null>(first ? first.rows : null);
   const [total, setTotal] = useState(first ? first.total : 0);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const pg = usePager(total, [from, to, activity, branchId, staffId, search]);
+  const pg = usePager(total, [from, to, activity, branchId, staffId, search, kind]);
   const page = pg.page, pageSize = pg.pageSize;
   const seqRef = useRef(0);
   const load = useCallback(async () => {
     const seq = ++seqRef.current;
-    const params = { from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search, page, pageSize };
+    const params = { from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search, kind, page, pageSize };
     const key = attemptsKey(params, page, pageSize);
     const hit = getCachedAttempts(key);
     if (hit) { setRows(hit.rows); setTotal(hit.total); }                // shown at once; the fresh rows replace it quietly
@@ -451,14 +456,35 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
     } finally {
       if (seq === seqRef.current) setLoading(false);
     }
-  }, [from, to, activity, branchId, staffId, search, page, pageSize]);
+  }, [from, to, activity, branchId, staffId, search, kind, page, pageSize]);
   useEffect(() => { load(); }, [load, reloadKey]);
   return (
     <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Failed attempts log">
-      <div className="min-w-[1080px]">
+      <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200" role="tablist" aria-label="Kind of failed attempt">
+        {([
+          ['SUBMIT_BLOCKED', 'Submit blocked', blockedCount, 'Submit was tapped and blocked: a QR had another MID'],
+          ['WRONG_SCAN', 'Wrong scans', wrongCount, 'A QR with another MID was scanned (recorded at scan time, submitted or not)'],
+          ['ALL', 'All', undefined, 'Both kinds'],
+        ] as const).map(([k, label, n, tip]) => {
+          const on = kind === k;
+          return (
+            <button key={k} type="button" role="tab" aria-selected={on} title={tip} onClick={() => setKind(k)}
+              className={`px-3 py-1 rounded-full text-xs border cursor-pointer transition-colors ${on
+                ? (k === 'WRONG_SCAN' ? 'bg-amber-600 text-white border-amber-600' : k === 'SUBMIT_BLOCKED' ? 'bg-rose-600 text-white border-rose-600' : 'bg-[#003857] text-white border-[#003857]')
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'}`}>
+              {label}{n !== undefined && <span className="ml-1 tabular-nums opacity-80">({n.toLocaleString()})</span>}
+            </button>
+          );
+        })}
+        <span className="text-[11.5px] text-slate-500 ml-1">
+          {kind === 'WRONG_SCAN' ? '· recorded when the wrong QR was scanned, whether or not Submit was tapped' : kind === 'SUBMIT_BLOCKED' ? '· Submit tapped and blocked' : '· both kinds'}
+        </span>
+      </div>
+      <div className="min-w-[1190px]">
         <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
           <span className="text-right">No.</span>
           <span>Time</span>
+          <span>Type</span>
           <span>Staff</span>
           <span>Branch</span>
           <span>Activity</span>
@@ -479,13 +505,18 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
           </div>
         )}
         {rows && rows.length === 0 && !err && (
-          <div className="p-10 text-center text-sm font-semibold text-emerald-700">No failed attempt matches the current filters.</div>
+          <div className="p-10 text-center text-sm font-semibold text-emerald-700">{kind === 'WRONG_SCAN' ? 'No wrong scan matches the current filters.' : 'No failed attempt matches the current filters.'}</div>
         )}
         <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
           {(rows || []).map((a, i) => (
             <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[12.5px] text-slate-700 hover:bg-rose-50/50`}>
               <span className="text-right tabular-nums text-slate-500">{pg.start + i + 1}</span>
               <span className="tabular-nums whitespace-nowrap" title={a.clientAt ? `On the phone: ${stampSecPP(new Date(a.clientAt))}` : undefined}>{stampSecPP(new Date(a.clientAt || a.receivedAt))}</span>
+              <span>
+                <span className={`inline-flex whitespace-nowrap text-[11px] px-2 py-0.5 rounded-full border ${a.kind === 'WRONG_SCAN' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                  {KIND_LABEL[a.kind]}
+                </span>
+              </span>
               <span className="leading-tight min-w-0">
                 <span className="block truncate text-slate-900">{a.staffName || a.staffId}</span>
                 <span className="block text-[11px] text-slate-500 font-mono">{a.staffId}</span>
@@ -502,7 +533,7 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
                 {a.savedPending ? (
                   <span className="skeleton inline-block h-5 w-20 rounded-full align-middle" aria-label="Checking" />
                 ) : a.savedRecordId ? (
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 font-mono" title="Saved later in the same scan">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 font-mono" title={a.kind === 'WRONG_SCAN' ? 'Corrected: the entry was saved later in the same scan' : 'Saved later in the same scan'}>
                     <CheckCircle2 className="w-3 h-3" /> {a.savedRecordId}
                   </span>
                 ) : (

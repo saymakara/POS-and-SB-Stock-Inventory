@@ -59,8 +59,8 @@ export function setCachedEntries(key: string, hit: EntriesHit): void {
   entries.delete(key); entries.set(key, hit);
   while (entries.size > MAX_KEYS) entries.delete(entries.keys().next().value as string);
 }
-export const attemptsKey = (f: { from?: string | null; to?: string | null; activity?: string; branchId?: string; staffId?: string; search?: string }, page: number, pageSize: number) =>
-  JSON.stringify([f.from || '', f.to || '', f.activity || 'ALL', f.branchId || '', f.staffId || '', f.search || '', page, pageSize]);
+export const attemptsKey = (f: { from?: string | null; to?: string | null; activity?: string; branchId?: string; staffId?: string; search?: string; kind?: string }, page: number, pageSize: number) =>
+  JSON.stringify([f.from || '', f.to || '', f.activity || 'ALL', f.branchId || '', f.staffId || '', f.search || '', f.kind || 'SUBMIT_BLOCKED', page, pageSize]);
 export const getCachedAttempts = (key: string) => attempts.get(key);
 export function setCachedAttempts(key: string, hit: { rows: QrAttempt[]; total: number }): void {
   attempts.delete(key); attempts.set(key, hit);
@@ -82,7 +82,7 @@ export function prefetchKhqr(): Promise<void> {
   const f: QrQuery = { from, to, activity: 'ALL', branchId: undefined, staffId: undefined, search: '' };
   inflight = Promise.all([
     fetchQrEntriesPage({ ...f, page: 1, pageSize: 50 }).then((r) => setCachedEntries(entriesKey(f, 1, 50), { rows: r.rows, total: r.total })).catch(() => {}),
-    fetchQrAttemptsPage({ from, to, activity: 'ALL', page: 1, pageSize: 50 }).then((r) => setCachedAttempts(attemptsKey({ from, to, activity: 'ALL' }, 1, 50), { rows: r.rows, total: r.total })).catch(() => {}),
+    fetchQrAttemptsPage({ from, to, activity: 'ALL', kind: 'SUBMIT_BLOCKED', page: 1, pageSize: 50 }).then((r) => setCachedAttempts(attemptsKey({ from, to, activity: 'ALL', kind: 'SUBMIT_BLOCKED' }, 1, 50), { rows: r.rows, total: r.total })).catch(() => {}),
     fetchQrSummary(from, to).then((s) => { if (s) setCachedSummary(from, to, s); }).catch(() => {}),
     fetchQrMonthHistory(1).then((h) => { if (h) setCachedHistory(h.slice(0, 1)); }).catch(() => {}),
   ]).then(() => { lastRun = Date.now(); }).finally(() => { inflight = null; });

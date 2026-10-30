@@ -1640,6 +1640,8 @@ export interface QrSummary {
   qr: number;
   attempts: number;
   staffFailed: number;
+  wrongScans: number;         // (30 Oct 2026) wrong MID scanned, recorded at scan time (0 until migration 08 is run)
+  wrongScanStaff: number;
 }
 export const QR_ACTIVITY_LABEL: Record<QrActivity, string> = {
   NEW_INSTALLATION: 'New Installation',
@@ -1751,6 +1753,8 @@ export async function fetchQrSummary(from: string | null, to: string | null): Pr
       qr: Number(d.qr) || 0,
       attempts: Number(d.attempts) || 0,
       staffFailed: Number(d.staff_failed) || 0,
+      wrongScans: Number(d.wrong_scans) || 0,
+      wrongScanStaff: Number(d.wrong_scan_staff) || 0,
     };
   } catch (err) {
     await reportCaughtError('fetchQrSummary', err, { showPopup: false });
@@ -1768,6 +1772,7 @@ export interface QrMonthTotal {
   attempts: number;
   staffFailed: number;
   detailed: boolean;
+  wrongScans: number;
 }
 export async function fetchQrMonthHistory(months = 12): Promise<QrMonthTotal[] | null> {
   try {
@@ -1782,6 +1787,7 @@ export async function fetchQrMonthHistory(months = 12): Promise<QrMonthTotal[] |
       attempts: Number(r.attempts) || 0,
       staffFailed: Number(r.staff_failed) || 0,
       detailed: !!r.detailed,
+      wrongScans: Number(r.wrong_scans) || 0,
     }));
   } catch (err) {
     await reportCaughtError('fetchQrMonthHistory', err, { showPopup: false });
@@ -1807,7 +1813,10 @@ export interface QrAttempt {
   /** the entry saved later in the same scanning session (empty: never saved) */
   savedRecordId: string;
   savedPending?: boolean;     // the 'saved later' lookup is still on its way (shown as a placeholder)
+  /** (30 Oct 2026) SUBMIT_BLOCKED: Submit tapped and blocked; WRONG_SCAN: wrong MID scanned (recorded at scan time) */
+  kind: QrAttemptKind;
 }
+export type QrAttemptKind = 'SUBMIT_BLOCKED' | 'WRONG_SCAN';
 
 /** The failed attempts log: one page, newest first; each row says whether its entry was saved later. */
 /** The entries saved later in the given scan sessions (session id -> record id). */
@@ -1822,14 +1831,19 @@ export async function fetchQrSavedBySessions(sessions: string[]): Promise<Map<st
 export async function fetchQrAttemptsPage(p: {
   from?: string | null; to?: string | null; activity?: 'ALL' | QrActivity; branchId?: string; staffId?: string; search?: string; page?: number; pageSize?: number;
   withSaved?: boolean;       // false: return the rows at once and look up 'saved later' separately (fetchQrSavedBySessions)
+  kind?: 'ALL' | QrAttemptKind;
 }): Promise<PaginatedResult<QrAttempt>> {
   const pageSize = p.pageSize === 100 ? 100 : 50;
   const page = Math.max(1, p.page || 1);
   const offset = (page - 1) * pageSize;
+  const COLS = 'id,session_id,activity,staff_id,staff_name,branch_text,branch_id,expected_mid,got_mid,got_name,scanned_count,client_at,received_at';
+  const kind = p.kind || 'ALL';
   try {
+    const run = (withKind: boolean) => {
     let q: any = supabase
       .from('qr_attempts')
-      .select('id,session_id,activity,staff_id,staff_name,branch_text,branch_id,expected_mid,got_mid,got_name,scanned_count,client_at,received_at', { count: 'exact' });
+      .select(withKind ? `${COLS},kind` : COLS, { count: 'exact' });
+    if (withKind && kind !== 'ALL') q = q.eq('kind', kind);
     if (p.from) q = q.gte('received_at', p.from);
     if (p.to) q = q.lt('received_at', p.to);
     if (p.activity && p.activity !== 'ALL') q = q.eq('activity', p.activity);
@@ -1840,7 +1854,14 @@ export async function fetchQrAttemptsPage(p: {
       if (/^\d{4,15}$/.test(term)) q = q.or(`expected_mid.like.%${term}%,got_mid.like.%${term}%,staff_id.eq.${term}`);
       else q = q.or(`staff_name.ilike.%${term}%,got_name.ilike.%${term}%,branch_text.ilike.%${term}%`);
     }
-    const { data, count, error } = await q.order('received_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + pageSize - 1);
+    return q.order('received_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + pageSize - 1);
+    };
+    let { data, count, error } = await run(true);
+    // before migration 08 there is no 'kind' column: every record is then a blocked Submit
+    if (error && (error.code === '42703' || /kind/i.test(String(error.message || '')))) {
+      if (kind === 'WRONG_SCAN') return { rows: [], total: 0, page, pageSize };
+      ({ data, count, error } = await run(false));
+    }
     if (error) throw error;
     const list = (data || []) as any[];
     // the entries saved later in these sessions (one request for the page)
@@ -1863,6 +1884,7 @@ export async function fetchQrAttemptsPage(p: {
         receivedAt: r.received_at,
         savedRecordId: saved.get(r.session_id) || '',
         savedPending: p.withSaved === false && !!r.session_id,
+        kind: (r.kind === 'WRONG_SCAN' ? 'WRONG_SCAN' : 'SUBMIT_BLOCKED') as QrAttemptKind,
       })),
       total: count || 0,
       page,
