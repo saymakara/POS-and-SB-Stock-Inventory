@@ -29,6 +29,7 @@ Owner: Makara, Merchant Support (ABA Bank). Internal use. Last reviewed 29 Oct 2
 | 29 Oct 2026 | 07_speed_indexes_counts_realtime (run in SQL Editor) | Faster dashboard stage counts; two unused devices indexes dropped; audit_logs no longer streamed through Realtime. Applied. |
 | 30 Oct 2026 | 20261030_08_qr_wrong_scan_kind | KHQR failed attempts get a kind: SUBMIT_BLOCKED (as before) or WRONG_SCAN (recorded at scan time). Existing numbers unchanged; wrong scans counted separately. Applied. |
 | 30 Oct 2026 | 20261030_09_qr_shared_mids | New list qr_shared_mids (one MID entered by 2+ staff on the same day) and 'shared_mids' in qr_summary; index on (mid, submitted_at). Applied. |
+| 30 Oct 2026 | Move to Singapore (supabase-move\move.bat + 01/02 after-restore migrations) | Database moved from Sydney (mrrzfmtaqjdwhwznznie) to Singapore (lfuqypmtcmrzwpuwyhye). All rows, staff sign-ins, functions, rules, Realtime, KHQR schedule copied and checked equal; table and function rights set exactly as Sydney (new projects open them to the anonymous role by default). Sydney kept, unchanged, as fallback. |
 
 ## 5. Secrets
 - Only the public (anon/publishable) Supabase key is used in the website. Never put a secret key or the Telegram bot token in any `VITE_` variable: those are copied into the public JavaScript.
@@ -41,3 +42,10 @@ Owner: Makara, Merchant Support (ABA Bank). Internal use. Last reviewed 29 Oct 2
 - A full read is also done: after a refused save, when the saved copy is older than 12 hours, when more than 3,000 units changed, and after a sign-in by another person on the same browser.
 - To switch the changed-only reload off (always read everything): set `DELTA_SYNC_ENABLED = false` at the top of `src/App.tsx` (below the imports) and push.
 - The saved copy is updated 1.5 seconds after the last change and only the changed units are written.
+
+## Database location (30 Oct 2026)
+- Live: Singapore, project lfuqypmtcmrzwpuwyhye, https://lfuqypmtcmrzwpuwyhye.supabase.co (ap-southeast-1).
+- Dashboard: address and publishable key in .github/workflows/deploy.yml (no GitHub secrets are used).
+- Phone app: Script Properties INV_SUPABASE_URL / INV_SUPABASE_KEY (secret key 'apps_script'). The property list is read-only in the editor (more than 50 properties): change them with a one-off function, then delete it.
+- Rollback: put the Sydney address/key back in both places. Sydney (mrrzfmtaqjdwhwznznie) has the data up to the move only.
+- Plan: pause Sydney after one week without problems; delete it one month later.
