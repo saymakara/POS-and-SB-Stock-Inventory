@@ -71,7 +71,7 @@ const REGIONAL_KEYWORD_REGEX =
 
 /** Positive Phnom Penh branch name patterns when no numeric code is present. */
 const PHNOM_PENH_NAME_REGEX =
-  /phnom\s*penh|head\s*office|\bhq\b|borei\s*keyla|mao\s*tse\s*toung|stade\s*chas|tuek\s*thla|tek\s*thla|toul\s*kork|tuol\s*kork|central\s*branch|central\s*market|stung\s*mean\s*chey|stueng\s*mean\s*chey|independent\s*monument|independence\s*monument|chbar\s*ampov|chaom\s*chau|choam\s*chao|samdach\s*sothearos|sothearos|ou\s*baek\s*k|obek\s*kaom|saensokh|sen\s*sok|russey\s*keo|russei\s*keo|phsar\s*derm\s*thkov|psar\s*ដើមថ្កូវ|santhor\s*mok|chamkar\s*doung|chraoy\s*changvar|chroy\s*changvar|samdach\s*monireth|monireth|mittapheap|boeng\s*trabaek|boeng\s*trabek|samraong\s*kraom|grand\s*phnom\s*penh|praek\s*pnov|prek\s*pnov|kamboul|kambol|chamkar\s*mon|nirouth|niroth|bkk|daun\s*penh|7\s*makara|prampir\s*makara|dangkao|mean\s*chey|por\s*senchey|pur\s*senchey|chbar\s*ampov/i;
+  /phnom\s*penh|head\s*office|\bhq\b|borei\s*keyla|mao\s*tse\s*toung|stade\s*chas|tuek\s*thla|tek\s*thla|toul\s*kork|tuol\s*kork|central\s*branch|central\s*market|stung\s*mean\s*chey|stueng\s*mean\s*chey|independent\s*monument|independence\s*monument|chbar\s*ampov|chaom\s*chau|choam\s*chao|samdach\s*sothearos|sothearos|ou\s*baek\s*k|obek\s*kaom|saensokh|sen\s*sok|russey\s*keo|russei\s*keo|phsar\s*derm\s*thkov|ph?sar\s*d(a|e)?e?u?r?m\s*th?kov|special\s*shift|psar\s*ដើមថ្កូវ|santhor\s*mok|chamkar\s*doung|chraoy\s*changvar|chroy\s*changvar|samdach\s*monireth|monireth|mittapheap|boeng\s*trabaek|boeng\s*trabek|samraong\s*kraom|grand\s*phnom\s*penh|praek\s*pnov|prek\s*pnov|kamboul|kambol|chamkar\s*mon|nirouth|niroth|bkk|daun\s*penh|7\s*makara|prampir\s*makara|dangkao|mean\s*chey|por\s*senchey|pur\s*senchey|chbar\s*ampov/i;
 
 const fmtTime = (iso: string | null) => {
   if (!iso) return '';
@@ -376,8 +376,10 @@ export const FieldReviewTab: React.FC<Props> = ({
       }
 
       // 3. If branchText is provided without a 3-digit code, verify it matches a Phnom Penh branch name
+      // (31 Oct 2026) … or that the staff member is a Phnom Penh staff member. Before, "Special Shift" (59 records) and
+      // "Phsar Daeum Thkov Branch" (17) were hidden from the Phnom Penh list although they were in the system.
       if (rawText) {
-        return PHNOM_PENH_NAME_REGEX.test(rawText);
+        return PHNOM_PENH_NAME_REGEX.test(rawText) || (!!e.staffId && ppStaffEmpIds.has(String(e.staffId).trim()));
       }
 
       // 4. If neither branchId nor branchText is present, check if the staffId belongs to Phnom Penh staff
