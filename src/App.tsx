@@ -1684,8 +1684,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
   // Refresh server stage counts when branch scope changes
+  // (31 Oct 2026) not on start-up: the first full load already reads them (it was read twice)
+  const stageScopeSeen = React.useRef(false);
   useEffect(() => {
     if (!isSupabaseConfigured) return;
+    if (!stageScopeSeen.current) { stageScopeSeen.current = true; return; }
     let cancelled = false;
     const effectiveBranch = role === 'BRANCH' ? selectedBranch : (branchFilter !== 'ALL' ? branchFilter : undefined);
     fetchDeviceStageCountsFromSupabase(effectiveBranch).then((summary) => {
@@ -4168,7 +4171,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             />
           )}
 
-            <main className="px-4 sm:px-6 py-5">
+            {/* (31 Oct 2026) at least one screen high: switching to a shorter screen no longer makes the footer jump up and down */}
+            <main className="px-4 sm:px-6 py-5 min-h-[calc(100vh-4rem)]">
               {/* 6 Elevated KPI Cards with Shadows (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
               {!['mobile_sync_khqr', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
               <KpiCards

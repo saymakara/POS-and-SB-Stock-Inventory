@@ -26,60 +26,61 @@ const SIZE_MAP = {
  * 4 Clean Equalizer Audio Frequency Bars in dark obsidian squircle, identical to the browser favicon,
  * enhanced with smooth 2D audio equalizer pulse micro-animations.
  */
+// (30 Oct 2026) The 4 bars: same positions, sizes and colours as before (viewBox units out of 48).
+const EQ_BARS = [
+  { x: 13, y: 20, h: 8, anim: 'eq_bounce_1 1.6s ease-in-out infinite' },
+  { x: 19, y: 14, h: 20, anim: 'eq_bounce_2 1.4s ease-in-out infinite 0.15s' },
+  { x: 25, y: 11, h: 26, anim: 'eq_bounce_3 1.8s ease-in-out infinite 0.3s' },
+  { x: 31, y: 17, h: 14, anim: 'eq_bounce_4 1.5s ease-in-out infinite 0.1s' },
+];
+const pct = (v: number) => `${(v / 48) * 100}%`;
+
 export const SvgQuantumSound: React.FC<{ className?: string; animated?: boolean }> = ({
   className = 'w-full h-full',
   animated = true,
 }) => (
-  <svg
-    viewBox="0 0 48 48"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-    aria-hidden="true"
-  >
-    <defs>
-      <linearGradient id="soundSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#0d1117" />
-        <stop offset="100%" stopColor="#161b22" />
-      </linearGradient>
-      <linearGradient id="soundWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#38bdf8" />
-        <stop offset="100%" stopColor="#34d399" />
-      </linearGradient>
-    </defs>
-
-    <style>{`
-      @keyframes eq_bounce_1 {
-        0%, 100% { height: 8px; y: 20px; }
-        50% { height: 16px; y: 16px; }
-      }
-      @keyframes eq_bounce_2 {
-        0%, 100% { height: 20px; y: 14px; }
-        50% { height: 10px; y: 19px; }
-      }
-      @keyframes eq_bounce_3 {
-        0%, 100% { height: 26px; y: 11px; }
-        50% { height: 18px; y: 15px; }
-      }
-      @keyframes eq_bounce_4 {
-        0%, 100% { height: 14px; y: 17px; }
-        50% { height: 24px; y: 12px; }
-      }
-      .eq-bar-1 { ${animated ? 'animation: eq_bounce_1 1.6s ease-in-out infinite;' : ''} }
-      .eq-bar-2 { ${animated ? 'animation: eq_bounce_2 1.4s ease-in-out infinite 0.15s;' : ''} }
-      .eq-bar-3 { ${animated ? 'animation: eq_bounce_3 1.8s ease-in-out infinite 0.3s;' : ''} }
-      .eq-bar-4 { ${animated ? 'animation: eq_bounce_4 1.5s ease-in-out infinite 0.1s;' : ''} }
-    `}</style>
-
-    <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#soundSimpleBg)" />
-    <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" strokeOpacity="0.12" strokeWidth="1" />
-
-    {/* 4 Clean Equalizer Audio Frequency Bars */}
-    <rect className="eq-bar-1" x="13" y="20" width="4" height="8" rx="2" fill="url(#soundWaveGrad)" />
-    <rect className="eq-bar-2" x="19" y="14" width="4" height="20" rx="2" fill="url(#soundWaveGrad)" />
-    <rect className="eq-bar-3" x="25" y="11" width="4" height="26" rx="2" fill="url(#soundWaveGrad)" />
-    <rect className="eq-bar-4" x="31" y="17" width="4" height="14" rx="2" fill="url(#soundWaveGrad)" />
-  </svg>
+  // (30 Oct 2026) The moving bars are drawn as plain page elements that move with transform only, so the graphics card
+  // animates them. Before, the SVG bars changed height and position, which made the browser redo the whole screen about
+  // 20 times a second on every tab (most on Stock Requests). Same look, same timing.
+  <span className={`relative block ${className}`} aria-hidden="true">
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full">
+      <defs>
+        <linearGradient id="soundSimpleBg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#0d1117" />
+          <stop offset="100%" stopColor="#161b22" />
+        </linearGradient>
+        <linearGradient id="soundWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="100%" stopColor="#34d399" />
+        </linearGradient>
+      </defs>
+      <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#soundSimpleBg)" />
+      <rect x="2" y="2" width="44" height="44" rx="12" stroke="white" strokeOpacity="0.12" strokeWidth="1" />
+      {!animated && EQ_BARS.map((b) => <rect key={b.x} x={b.x} y={b.y} width="4" height={b.h} rx="2" fill="url(#soundWaveGrad)" />)}
+    </svg>
+    {animated && (
+      <>
+        <style>{`
+          @keyframes eq_bounce_1 { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(2); } }
+          @keyframes eq_bounce_2 { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.5); } }
+          @keyframes eq_bounce_3 { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.6923); } }
+          @keyframes eq_bounce_4 { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.7143); } }
+          @media (prefers-reduced-motion: reduce) { .eq-bar { animation: none !important; } }
+        `}</style>
+        {EQ_BARS.map((b) => (
+          <span
+            key={b.x}
+            className="eq-bar absolute rounded-full"
+            style={{
+              left: pct(b.x), top: pct(b.y), width: pct(4), height: pct(b.h),
+              background: 'linear-gradient(to bottom right, #38bdf8, #34d399)',
+              animation: b.anim, transformOrigin: 'center', willChange: 'transform',
+            }}
+          />
+        ))}
+      </>
+    )}
+  </span>
 );
 
 /**

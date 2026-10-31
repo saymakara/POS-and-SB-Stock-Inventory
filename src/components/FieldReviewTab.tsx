@@ -1,5 +1,6 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
+import { useKeptMemo } from '../utils/useKeptMemo';
 import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
@@ -314,7 +315,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     };
   }, [load]);
 
-  const deviceBySerial = useMemo(() => {
+  const deviceBySerial = useKeptMemo('field.bySerial', () => {
     const m = new Map<string, Device>();
     devices.forEach((d) => m.set(d.serial.toUpperCase(), d));
     return m;

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Lock, Eye, EyeOff, ArrowRight, KeyRound, AlertTriangle, Loader2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AppBrandLogo } from './AppBrandLogo';
+import { clearKeptMemos } from '../utils/useKeptMemo';
 
 /**
  * Sign-in with the shared database (21 Oct 2026).
@@ -45,6 +46,7 @@ export function clearLocalCaches(): void {
   } catch {
     /* not available */
   }
+  clearKeptMemos();                                                     // (31 Oct 2026) results kept in memory between screens
 }
 
 export async function signOutEverywhere(): Promise<void> {

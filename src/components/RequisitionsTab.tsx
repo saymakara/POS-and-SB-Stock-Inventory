@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
 import { useSort, SortTh } from '../utils/sort';
+import { useKeptMemo } from '../utils/useKeptMemo';
 import { createPortal } from 'react-dom';
 import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '../types';
 import { csvFile } from '../utils/csv';
@@ -114,14 +115,14 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
     }
   }, [externalArrangingReq, externalStagedItems, onClearExternalArranging, isAdmin]);
 
-  const deviceBySerial = useMemo(() => {
+  const deviceBySerial = useKeptMemo('req.bySerial', () => {
     const m = new Map<string, Device>();
     hqDevices.forEach((d) => m.set(norm(d.serial), d));
     return m;
   }, [hqDevices]);
 
   /** Serials already arranged on another requisition that is dispatched but not yet received. */
-  const allocatedElsewhere = useMemo(() => {
+  const allocatedElsewhere = useKeptMemo('req.allocated', () => {
     const m = new Map<string, string>();
     requisitions.forEach((r) => {
       if (r.status !== 'DISPATCHED' || r.reqId === arrangingReq?.reqId) return;
@@ -137,15 +138,16 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
     return m;
   }, [requisitions, hqDevices, arrangingReq?.reqId]);
 
-  const availableHq = useMemo(
+  const availableHq = useKeptMemo(
+    'req.availableHq',
     () =>
       hqDevices
         .filter((d) => d.stage === 'HQ_STOCK' && !d.archived && !allocatedElsewhere.has(norm(d.serial)))
         .sort(fifo),
     [hqDevices, allocatedElsewhere]
   );
-  const availableHqPos = useMemo(() => availableHq.filter((d) => d.type === 'POS Terminal'), [availableHq]);
-  const availableHqSb = useMemo(() => availableHq.filter((d) => d.type === 'Sound Box'), [availableHq]);
+  const availableHqPos = useKeptMemo('req.pos', () => availableHq.filter((d) => d.type === 'POS Terminal'), [availableHq]);
+  const availableHqSb = useKeptMemo('req.sb', () => availableHq.filter((d) => d.type === 'Sound Box'), [availableHq]);
 
   /**
    * Auto-match: for each requested row take the oldest HQ_STOCK unit (FIFO) of the same type (and the same model when

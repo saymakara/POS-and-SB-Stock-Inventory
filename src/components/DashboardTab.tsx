@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useKeptMemo } from '../utils/useKeptMemo';
 import { useSort, SortTh } from '../utils/sort';
 import {
   Device,
@@ -112,12 +113,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [selectedMonthKey, setSelectedMonthKey] = useState<string>(currentMonthKey);
 
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
-  const activeDevices = useMemo(
-    () => devices.filter((d) => !d.archived),
-    [devices]
-  );
+  const activeDevices = useKeptMemo('dash.active', () => devices.filter((d) => !d.archived), [devices]);
 
-  const monthlyData: MonthlyBucket[] = useMemo(() => {
+  const monthlyData: MonthlyBucket[] = useKeptMemo('dash.monthly', () => {
     // Months in Phnom Penh time, oldest first.
     const months = lastMonthsPP(12);
     const bucketMap = new Map<string, MonthlyBucket>();
@@ -160,7 +158,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     if (timeHorizon === '6M') return buckets.slice(-6);
     if (timeHorizon === '3M') return buckets.slice(-3);
     return buckets;
-  }, [activeDevices, timeHorizon]);
+  }, [activeDevices, timeHorizon, currentMonthKey]);
 
   const selectedMonthStats: MonthlyBucket = useMemo(() => {
     return (
@@ -194,7 +192,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   );
 
   // Current pipeline snapshot (not per month): units with a branch that are not yet installed vs installed.
-  const pipeline = useMemo(() => {
+  const pipeline = useKeptMemo('dash.pipeline', () => {
     let reserve = 0;
     let configuring = 0;
     let complete = 0;
@@ -208,7 +206,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   }, [activeDevices]);
 
   // Stage ageing computed from each unit's stored hours-in-stage, plus stock-in → install days.
-  const stageAgeing = useMemo(() => {
+  const stageAgeing = useKeptMemo('dash.ageing', () => {
     const stages: { stage: 'HQ_STOCK' | 'BRANCH_RESERVE' | 'CONFIGURING'; title: string }[] = [
       { stage: 'HQ_STOCK', title: 'Waiting in HQ Stock' },
       { stage: 'BRANCH_RESERVE', title: 'Waiting in Branch Reserve' },
@@ -250,7 +248,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   // Branch matrix: HQ sees every branch; a branch user only sees its own scoped devices.
   const matrixSource = isAdminLike ? allDevices : devices;
-  const branchVelocity = useMemo(() => {
+  const branchVelocity = useKeptMemo('dash.branches', () => {
     const stats = new Map<
       string,
       { complete: number; reserve: number; inFlight: number; posCount: number; sbCount: number; total: number }
@@ -315,7 +313,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   // Battery figures: POS Terminals only (Sound Boxes have no replaceable 24M battery). Units without any date are
   // reported separately instead of being given an invented install date.
-  const batterySummary = useMemo(() => {
+  const batterySummary = useKeptMemo('dash.battery', () => {
     let healthy = 0;
     let replaceSoon = 0;
     let critical = 0;
@@ -339,7 +337,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     [requisitions]
   );
 
-  const recentDevices = useMemo(() => {
+  const recentDevices = useKeptMemo('dash.recent', () => {
     // Deterministic key: most recent timestamp (updatedAt -> deployedDate -> pushDate -> stockInDate),
     // and secondary tie-breaker on serial (descending) so order is 100% stable and never flips.
     const getSortKey = (d: Device) => {

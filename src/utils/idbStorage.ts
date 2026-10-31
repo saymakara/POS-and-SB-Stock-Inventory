@@ -152,7 +152,8 @@ export async function saveDevicesToIdb(
     const total = devices.length;
 
     // Use transaction in chunks of 5,000 to keep UI responsive on massive datasets
-    const CHUNK_SIZE = 5000;
+    // (30 Oct 2026) 1,000 per step (was 5,000): each step is a short task, so taps and scrolling stay smooth during the save
+    const CHUNK_SIZE = 1000;
     for (let i = 0; i < total; i += CHUNK_SIZE) {
       const chunk = devices.slice(i, i + CHUNK_SIZE);
       await new Promise<void>((resolve, reject) => {
@@ -199,6 +200,10 @@ export async function saveDevicesToIdb(
  * Now only the units that differ from this map are written, and removed units are deleted.
  */
 const persistedDevices = new Map<string, Device>();
+const sameStoredDevice = (a: Device, b: Device): boolean =>
+  !!a.rowVersion && a.rowVersion === b.rowVersion && a.updatedAt === b.updatedAt && a.stage === b.stage &&
+  a.branchId === b.branchId && !!a.archived === !!b.archived && a.mid === b.mid && a.tid === b.tid &&
+  a.merchantName === b.merchantName && a.note === b.note && (a.history?.length || 0) === (b.history?.length || 0);
 let persistChain: Promise<unknown> = Promise.resolve();
 const FULL_REWRITE_ABOVE = 8000;
 
@@ -210,7 +215,12 @@ export function persistDevicesIncremental(devices: Device[]): Promise<boolean> {
       const live = new Set<string>();
       for (const d of devices) {
         live.add(d.serial);
-        if (persistedDevices.get(d.serial) !== d) changed.push(d);
+        const prev = persistedDevices.get(d.serial);
+        if (prev === d) continue;
+        // (30 Oct 2026) A fresh copy from the server with the same row version is the same record: the server raises
+        // row_version on every update. Remember the new object, but do not write it again (saves ~20,000 writes per reload).
+        if (prev && sameStoredDevice(prev, d)) { persistedDevices.set(d.serial, d); continue; }
+        changed.push(d);
       }
       const removed: string[] = [];
       persistedDevices.forEach((_d, serial) => {

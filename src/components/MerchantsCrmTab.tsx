@@ -1,5 +1,6 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
+import { useKeptMemo } from '../utils/useKeptMemo';
 import { useSort, SortTh } from '../utils/sort';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, MerchantProfile } from '../types';
@@ -201,7 +202,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   const [trendHorizon, setTrendHorizon] = useState<'6M' | '12M'>('6M');
 
   // Aggregate Merchant 360 Profiles from device registry
-  const merchantProfiles = useMemo<MerchantProfile[]>(() => {
+  const merchantProfiles = useKeptMemo<MerchantProfile[]>('crm.profiles', () => {
     const map = new Map<string, MerchantProfile>();
     const len = devices.length;
 
@@ -261,7 +262,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   }, [devices]);
 
   // Existing system maps for fast duplicate & conflict lookup
-  const existingTidMap = useMemo(() => {
+  const existingTidMap = useKeptMemo('crm.tidMap', () => {
     const map = new Map<string, Device[]>();
     allDevices.forEach((d) => {
       const t = (d.tid || '').trim().toUpperCase();
@@ -272,7 +273,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     return map;
   }, [allDevices]);
 
-  const existingMidMap = useMemo(() => {
+  const existingMidMap = useKeptMemo('crm.midMap', () => {
     const map = new Map<string, { merchantName: string; branchId: string; count: number }>();
     allDevices.forEach((d) => {
       const m = (d.mid || '').trim().toUpperCase();
@@ -407,7 +408,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
   );
 
   // CRM KPI Metrics (Single pass, zero intermediate array allocations)
-  const { totalMerchants, activeMerchants, bundleMerchants, onboardingMerchants, attentionMerchants } = useMemo(() => {
+  const { totalMerchants, activeMerchants, bundleMerchants, onboardingMerchants, attentionMerchants } = useKeptMemo('crm.kpis', () => {
     let active = 0, bundle = 0, onboarding = 0, attention = 0;
     const len = merchantProfiles.length;
     for (let i = 0; i < len; i++) {
@@ -671,7 +672,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
 return (
     <div className="flex flex-col gap-4">
-      {/* One shared list of bindable serials for every serial input on this tab */}
+      {/* One shared list of bindable serials for the serial inputs on this tab. (30 Oct 2026) Drawn only while a form
+          that uses it is open: thousands of options were built on every visit to this tab. */}
+      {(replaceModalDevice || newMerchantModalOpen) && (
       <datalist id="crm-bindable-serials">
         {availableReserveDevices.map((d) => (
           <option key={d.serial} value={d.serial}>
@@ -679,6 +682,7 @@ return (
           </option>
         ))}
       </datalist>
+      )}
 
       {/* Top CRM Banner */}
       <div
