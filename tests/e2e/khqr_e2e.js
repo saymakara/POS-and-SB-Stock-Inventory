@@ -224,7 +224,7 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   const side = p.locator('aside').first();
   for (const t of ['POS Terminal', 'Sound Box', 'KHQR']) ok(await side.getByRole('button', { name: new RegExp('^' + t) }).isVisible(), `sidebar: "${t}" under Phone App Review`);
   const sideTxt = (await side.textContent()).replace(/\s+/g, ' ');
-  ok(/POS Terminal\s*3/.test(sideTxt) && /Sound Box\s*1/.test(sideTxt) && /KHQR Operations/.test(sideTxt.replace(/KHQR\s*OPERATIONS/i, 'KHQR Operations')), 'badges: 3 POS, 1 Sound Box waiting; KHQR has no approval badge');
+  ok(/POS Terminal\s*3/.test(sideTxt) && /Sound Box\s*1/.test(sideTxt) && /KHQR\s*Credit Card/.test(sideTxt), 'badges: 3 POS, 1 Sound Box waiting; KHQR has no approval badge');
   await side.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1500);
   let body = await p.textContent('main');
   ok(/Phone App Review\s*·\s*POS Terminal/.test(body) && /WP0001/.test(body) && !/SB0001/.test(body), 'POS Terminal: POS records only');

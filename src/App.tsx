@@ -85,6 +85,7 @@ const AuditLogTab = lazyTab(() => import('./components/AuditLogTab').then((m) =>
 const SettingsTab = lazyTab(() => import('./components/SettingsTab').then((m) => ({ default: m.SettingsTab })));
 const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
 const KhqrReviewTab = lazyTab(() => import('./components/KhqrReviewTab').then((m) => ({ default: m.KhqrReviewTab })));
+const CreditCardReviewTab = lazyTab(() => import('./components/CreditCardReviewTab').then((m) => ({ default: m.CreditCardReviewTab })));
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
 const PushConfiguringTab = lazyTab(() => import('./components/PushConfiguringTab').then((m) => ({ default: m.PushConfiguringTab })));
 
@@ -179,6 +180,7 @@ const VALID_TABS = new Set([
   'mobile_sync',
   'mobile_sync_sb',
   'mobile_sync_khqr',
+  'mobile_sync_cc',
   'inventory',
   'push_configuring',
   'requisitions',
@@ -678,6 +680,17 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [pendingFieldCount, setPendingFieldCount] = useState<number>(0);
   // (28 Oct 2026) Phone App Review sub-menus: waiting POS / Sound Box records (KHQR has no approval step: no count)
   const [pendingByType, setPendingByType] = useState<{ pos: number; sb: number }>({ pos: 0, sb: 0 });
+  // (31 Oct 2026) Credit Card entries waiting for Head Office review (sidebar number)
+  const [ccPending, setCcPending] = useState(0);
+  useEffect(() => {
+    if (!isSupabaseConfigured || !serverReady) return;
+    let alive = true;
+    const ask = () => import('./services/ccService').then((m) => m.fetchCcCounts(null, null)).then((c) => { if (alive && c) setCcPending(c.pendingAll); }).catch(() => {});
+    ask();
+    const onVis = () => { if (document.visibilityState === 'visible') ask(); };   // back to the tab: the number is fresh again
+    document.addEventListener('visibilitychange', onVis);
+    return () => { alive = false; document.removeEventListener('visibilitychange', onVis); };
+  }, [serverReady]);
   const applyPendingByType = useCallback((c: { pos: number; sb: number }) => {
     setPendingByType((prev) => (prev.pos === c.pos && prev.sb === c.sb ? prev : c));
     setPendingFieldCount(c.pos + c.sb);
@@ -3912,8 +3925,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         role={role}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
-        webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
-        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb } : undefined}
+        webhookCount={isSupabaseConfigured ? pendingFieldCount + ccPending : outOfSyncWebhooksCount}
+        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb, cc: ccPending } : undefined}
         pendingReqs={pendingReqsCount}
         configuringCount={unpushedConfiguringCount}
         collapsed={sidebarCollapsed}
@@ -4146,7 +4159,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             }}
             activeTab={activeTab}
             onSelectTab={handleSelectTab}
-            webhookCount={isSupabaseConfigured ? pendingFieldCount : outOfSyncWebhooksCount}
+            webhookCount={isSupabaseConfigured ? pendingFieldCount + ccPending : outOfSyncWebhooksCount}
             sseConnected={sseConnected}
             pendingReqs={pendingReqsCount}
             notifications={notifications}
@@ -4172,7 +4185,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           />
 
           {/* Classic Pipeline Stage Filter Bar (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
-          {!['mobile_sync_khqr', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
+          {!['mobile_sync_khqr', 'mobile_sync_cc', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
           <PipelineBar
               role={role}
               counts={pipelineCounts}
@@ -4191,7 +4204,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             <main className="px-4 sm:px-6 py-5 min-h-[calc(100vh-4rem)]">
               {isSupabaseConfigured && <ConnectionNotice />}
               {/* 6 Elevated KPI Cards with Shadows (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
-              {!['mobile_sync_khqr', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
+              {!['mobile_sync_khqr', 'mobile_sync_cc', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
               <KpiCards
                 devices={scopedDevices}
                 theme={theme}
@@ -4513,7 +4526,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       triggerToast={triggerToast}
                     />
                   )}
-                  {(shownTab === 'mobile_sync' || shownTab === 'mobile_sync_sb' || shownTab === 'mobile_sync_khqr') && !isSupabaseConfigured && (
+                  {shownTab === 'mobile_sync_cc' && isSupabaseConfigured && (
+                    <CreditCardReviewTab
+                      role={role}
+                      branches={branches}
+                      triggerToast={triggerToast}
+                      onPendingChange={setCcPending}
+                    />
+                  )}
+                  {(shownTab === 'mobile_sync' || shownTab === 'mobile_sync_sb' || shownTab === 'mobile_sync_khqr' || shownTab === 'mobile_sync_cc') && !isSupabaseConfigured && (
                     <MobileSyncTab
                       devices={devices}
                       branches={branches}

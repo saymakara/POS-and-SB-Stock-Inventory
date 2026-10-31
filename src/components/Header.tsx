@@ -40,10 +40,11 @@ import {
   Cpu,
   Volume2,
   QrCode,
+  CreditCard,
 } from 'lucide-react';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */
-export type ReviewCounts = { pos: number; sb: number };
+export type ReviewCounts = { pos: number; sb: number; cc?: number };
 
 interface SidebarProps {
   role?: UserRole;
@@ -114,6 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, count: reviewCounts?.pos },
             { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, count: reviewCounts?.sb },
             { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode },
+            { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, count: reviewCounts?.cc || undefined },
           ],
         },
       ],
@@ -611,6 +613,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     { id: 'mobile_sync', label: 'Review · POS' },
     { id: 'mobile_sync_sb', label: 'Review · Sound Box' },
     { id: 'mobile_sync_khqr', label: 'Review · KHQR' },
+    { id: 'mobile_sync_cc', label: 'Review · Credit Card' },
     { id: 'inventory', label: 'Stock Inventory' },
     { id: 'requisitions', label: 'Stock Requests', redPoint: unreadCount > 0 },
     { id: 'branches', label: 'Branch Codes' },
