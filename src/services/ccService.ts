@@ -82,3 +82,14 @@ export async function reviewCc(recordId: string, action: 'CONFIRM' | 'REJECT', r
   const d: any = data || {};
   return { reviewedBy: d.reviewed_by || '', reviewedAt: d.reviewed_at || '' };
 }
+
+/** (31 Oct 2026, speed) The last answers, kept in memory only (cleared on sign-out): the page opens with them at once and
+ *  the fresh answer replaces them quietly. */
+const listCache = new Map<string, { rows: CcEntry[]; total: number; masked: boolean }>();
+const countsCache = new Map<string, CcCounts>();
+export const ccListKey = (q: CcQuery) => JSON.stringify([q.from, q.to, q.review || '', q.branchId || '', q.search || '', q.page, q.pageSize]);
+export const getCachedCcList = (k: string) => listCache.get(k);
+export const setCachedCcList = (k: string, v: { rows: CcEntry[]; total: number; masked: boolean }) => { if (listCache.size > 40) listCache.clear(); listCache.set(k, v); };
+export const getCachedCcCounts = (k: string) => countsCache.get(k);
+export const setCachedCcCounts = (k: string, v: CcCounts) => { countsCache.set(k, v); };
+export function clearCcCache(): void { listCache.clear(); countsCache.clear(); }

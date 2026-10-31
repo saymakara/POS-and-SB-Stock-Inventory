@@ -509,6 +509,50 @@ export async function fetchConfiguringDevicesFromSupabase(): Promise<Device[] | 
   }
 }
 
+/** The whole stock list by serial ranges (see fetchDevicesFromSupabase). null: not available (older database) or a read failed. */
+async function fetchDevicesByRanges(size: number, onFirstPage?: (rows: Device[], total: number) => void): Promise<Device[] | null> {
+  try {
+    const { data, error } = await supabase.rpc('device_page_bounds', { p_size: size });
+    if (error || !data || !Array.isArray((data as any).bounds)) return null;
+    const total = Number((data as any).total) || 0;
+    const bounds: string[] = (data as any).bounds;
+    if (!bounds.length) { onFirstPage?.([], 0); return []; }
+    const CAP = size * 2;                                                // units added meanwhile: a page may hold a few more
+    const readRange = async (from: string, to: string | null): Promise<any[]> => {
+      let q: any = supabase.from('devices').select('*').gte('serial', from);
+      if (to !== null) q = q.lt('serial', to);
+      const { data: rows, error: e } = await q.order('serial', { ascending: true }).limit(CAP);
+      if (e) throw e;
+      let out = rows || [];
+      // very rare: more than CAP units in one range (many added at once): read on from the last serial
+      while (out.length && out.length % CAP === 0) {
+        let q2: any = supabase.from('devices').select('*').gt('serial', out[out.length - 1].serial);
+        if (to !== null) q2 = q2.lt('serial', to);
+        const { data: more, error: e2 } = await q2.order('serial', { ascending: true }).limit(CAP);
+        if (e2) throw e2;
+        if (!more || !more.length) break;
+        out = out.concat(more);
+      }
+      return out;
+    };
+    const pages: any[][] = new Array(bounds.length);
+    pages[0] = await readRange('', bounds[1] ?? null);                    // from the start (also units sorted before the first bound)
+    onFirstPage?.(pages[0].map(mapRowToDevice), total);
+    const CONCURRENCY = 6;
+    for (let i = 1; i < bounds.length; i += CONCURRENCY) {
+      const idx = Array.from({ length: Math.min(CONCURRENCY, bounds.length - i) }, (_, k) => i + k);
+      const got = await Promise.all(idx.map((j) => readRange(bounds[j], bounds[j + 1] ?? null)));
+      idx.forEach((j, k) => { pages[j] = got[k]; });
+    }
+    const all: Device[] = [];
+    for (const pg of pages) for (const r of pg) all.push(mapRowToDevice(r));
+    return all;
+  } catch (err) {
+    await reportCaughtError('fetchDevicesByRanges', err, { showPopup: false });
+    return null;
+  }
+}
+
 export async function fetchDevicesFromSupabase(
   limit = 1000,
   offset = 0,
@@ -516,6 +560,12 @@ export async function fetchDevicesFromSupabase(
 ): Promise<Device[] | null> {
   if (!isSupabaseConfigured) return null;
   const safeLimit = Math.max(100, Math.min(limit, 1000));
+  // (31 Oct 2026, speed) read by serial ranges: the database returns where each page of 1,000 starts, then every page is a
+  // direct index read (~3 ms) instead of OFFSET (up to 0.6 s for the last pages). Before migration 14: the OFFSET way below.
+  if (offset === 0) {
+    const ranged = await fetchDevicesByRanges(safeLimit, onFirstPage);
+    if (ranged) return ranged;
+  }
   try {
     const first = await fetchPaginatedRows('devices', 'serial', {
       limit: safeLimit,

@@ -3,6 +3,7 @@ import { Lock, Eye, EyeOff, ArrowRight, KeyRound, AlertTriangle, Loader2 } from 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AppBrandLogo } from './AppBrandLogo';
 import { clearKeptMemos } from '../utils/useKeptMemo';
+import { clearCcCache } from '../services/ccService';
 
 /**
  * Sign-in with the shared database (21 Oct 2026).
@@ -46,7 +47,8 @@ export function clearLocalCaches(): void {
   } catch {
     /* not available */
   }
-  clearKeptMemos();                                                     // (31 Oct 2026) results kept in memory between screens
+  clearKeptMemos();
+  clearCcCache();                                                     // (31 Oct 2026) results kept in memory between screens
 }
 
 export async function signOutEverywhere(): Promise<void> {

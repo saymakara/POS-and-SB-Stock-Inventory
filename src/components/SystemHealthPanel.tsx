@@ -70,11 +70,13 @@ export const SystemHealthPanel: React.FC = () => {
       .sort((a, b) => b.p95 - a.p95);
   }, [apiAll]);
 
+  // (31 Oct 2026) one or two requests say little (one slow network moment would look like "very slow"): judge from 10 or more
+  const fewApi = apiAll.length < 10;
   const report = () => [
     `System Health · ${new Date().toLocaleString('en-GB')} · since ${time(snap.startedAt)}`,
     `LCP ${ms(snap.lcp)} · INP worst ${ms(snap.inpWorst)} (typical ${ms(snap.inpP75)}, ${snap.interactions} interactions) · CLS ${snap.cls}`,
     `First server reply ${ms(snap.ttfb)} · first content ${ms(snap.fcp)} · busy moments ${snap.longTasks} (${snap.longTaskMs} ms)`,
-    `Database requests ${apiAll.length} · median ${ms(apiMedian)} · 95% within ${ms(apiP95)} · failed ${failed}`,
+    `Database requests ${apiAll.length} · median ${ms(apiMedian)} · 95% within ${ms(apiP95)} · failed ${failed}${fewApi ? ' (too few requests to judge: use the system a few minutes first)' : ''}`,
     ...byPath.slice(0, 15).map((r) => `  ${r.name}: ${r.calls}× median ${r.median} ms, 95% ${r.p95} ms, max ${r.max} ms${r.fails ? `, failed ${r.fails}` : ''}`),
     `Errors ${snap.errors.length}`,
     ...snap.errors.slice(-10).map((e) => `  ${time(e.at)} [${e.source}] ${e.message}`),
@@ -111,8 +113,8 @@ export const SystemHealthPanel: React.FC = () => {
         <Kpi title="Page shown (LCP)" value={ms(snap.lcp)} lv={level(snap.lcp, 2500, 4000)} hint="Main content visible after opening. Target ≤ 2.5 s" />
         <Kpi title="Reaction (INP)" value={ms(snap.inpWorst)} lv={level(snap.inpWorst, 200, 500)} hint={`Slowest tap/click of ${snap.interactions}; typical ${ms(snap.inpP75)}. Target ≤ 200 ms`} />
         <Kpi title="Layout jumps (CLS)" value={snap.cls.toFixed(3)} lv={level(snap.cls, 0.1, 0.25)} hint="How much the page moved by itself. Target ≤ 0.1" />
-        <Kpi title="Database, typical" value={ms(apiMedian)} lv={level(apiMedian, 300, 1000)} hint={`Median of ${apiAll.length} requests. Target ≤ 300 ms`} />
-        <Kpi title="Database, slow end" value={ms(apiP95)} lv={level(apiP95, 800, 2000)} hint="95% of requests finish within this. Target ≤ 800 ms" />
+        <Kpi title="Database, typical" value={ms(apiMedian)} lv={fewApi ? 'none' : level(apiMedian, 300, 1000)} hint={fewApi ? `Only ${apiAll.length} request(s) so far: too few to judge` : `Median of ${apiAll.length} requests. Target ≤ 300 ms`} />
+        <Kpi title="Database, slow end" value={ms(apiP95)} lv={fewApi ? 'none' : level(apiP95, 800, 2000)} hint={fewApi ? 'Needs at least 10 requests' : '95% of requests finish within this. Target ≤ 800 ms'} />
         <Kpi title="Errors" value={String(snap.errors.length)} lv={snap.errors.length === 0 ? 'good' : snap.errors.length <= 3 ? 'fair' : 'poor'} hint={`${failed} failed request(s) · ${snap.longTasks} busy moment(s)`} />
       </div>
 

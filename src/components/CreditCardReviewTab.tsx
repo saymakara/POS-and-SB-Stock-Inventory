@@ -7,7 +7,7 @@ import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { usePager } from '../utils/usePager';
 import { stampPP } from '../utils/time';
 import { Period, periodRange } from '../services/khqrCache';
-import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc } from '../services/ccService';
+import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccListKey, getCachedCcList, setCachedCcList, getCachedCcCounts, setCachedCcCounts } from '../services/ccService';
 
 /**
  * Phone App Review → Credit Card (31 Oct 2026).
@@ -61,9 +61,13 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const cSeq = useRef(0);
   const loadCounts = useCallback(async () => {
     const seq = ++cSeq.current;
+    const ck = `${range.from}|${range.to}`;
+    const hitC = getCachedCcCounts(ck);
+    if (hitC) setCounts(hitC);                                         // shown at once; the fresh numbers replace them
     try {
       const c = await fetchCcCounts(range.from, range.to);
       if (seq !== cSeq.current || !c) return;
+      setCachedCcCounts(ck, c);
       setCounts(c);
       onPendingChange?.(c.pendingAll);
     } catch { /* the list shows the error */ }
@@ -73,10 +77,14 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const seqRef = useRef(0);
   const load = useCallback(async () => {
     const seq = ++seqRef.current;
-    setLoading(true);
+    const q = { from: range.from, to: range.to, review, branchId, search, page: pg.page, pageSize: pg.pageSize };
+    const key = ccListKey(q), hit = getCachedCcList(key);
+    if (hit) { setRows(hit.rows); setTotal(hit.total); setMasked(hit.masked); }   // the last answer at once (no waiting)
+    setLoading(!hit);
     try {
-      const res = await fetchCcList({ from: range.from, to: range.to, review, branchId, search, page: pg.page, pageSize: pg.pageSize });
+      const res = await fetchCcList(q);
       if (seq !== seqRef.current) return;
+      setCachedCcList(key, res);
       setRows(res.rows); setTotal(res.total); setMasked(res.masked); setLoadError('');
     } catch (e) {
       if (seq !== seqRef.current) return;
