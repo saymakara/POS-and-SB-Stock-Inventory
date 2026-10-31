@@ -58,7 +58,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
       title: STAGE_META.HQ_STOCK.short,
       count: counts.hq,
       icon: Warehouse,
-      accentColor: isLight ? 'text-indigo-700' : 'text-indigo-300',
+      accentColor: isLight ? 'text-slate-600' : 'text-slate-300',
       hidden: role === 'BRANCH',
     },
     {
@@ -66,28 +66,28 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
       title: STAGE_META.BRANCH_RESERVE.short,
       count: counts.reserve,
       icon: Store,
-      accentColor: isLight ? 'text-sky-700' : 'text-sky-300',
+      accentColor: isLight ? 'text-[#1e5b88]' : 'text-sky-300',
     },
     {
       id: 'CONFIGURING',
       title: STAGE_META.CONFIGURING.short,
       count: counts.config,
       icon: Wrench,
-      accentColor: 'text-indigo-600 dark:text-indigo-400',
+      accentColor: 'text-amber-600 dark:text-amber-400',
     },
     {
       id: 'COMPLETE',
       title: STAGE_META.COMPLETE.short,
       count: counts.complete,
       icon: CheckCircle2,
-      accentColor: 'text-[#1cc88a]',
+      accentColor: 'text-emerald-600',
     },
     {
       id: 'LOST',
       title: STAGE_META.LOST.short,
       count: counts.lost ?? 0,
       icon: SearchX,
-      accentColor: 'text-amber-600 dark:text-amber-400',
+      accentColor: 'text-rose-600 dark:text-rose-400',
     },
   ];
 

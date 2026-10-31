@@ -255,8 +255,8 @@ const StatusChip: React.FC<{ s: CcReview }> = ({ s }) => {
 
 const Field: React.FC<{ k: string; v: React.ReactNode; mono?: boolean }> = ({ k, v, mono }) => (
   <div className="min-w-0">
-    <div className="text-[10.5px] uppercase tracking-wider text-slate-500">{k}</div>
-    <div className={`text-[12.5px] text-slate-900 break-words ${mono ? 'font-mono' : ''}`}>{v === null || v === undefined || v === '' ? '—' : v}</div>
+    <div className="text-[11px] uppercase tracking-wider text-slate-500">{k}</div>
+    <div className={`text-[13px] text-slate-900 break-words ${mono ? 'font-mono' : ''}`}>{v === null || v === undefined || v === '' ? '—' : v}</div>
   </div>
 );
 
@@ -292,7 +292,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
 
   return (
     <div className="hover:bg-slate-50/70">
-      <button type="button" onClick={onToggle} aria-expanded={open} className={`${GRID} w-full text-left px-3.5 py-2.5 text-[12.5px] text-slate-700 cursor-pointer`}>
+      <button type="button" onClick={onToggle} aria-expanded={open} className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer`}>
         <span className="text-right tabular-nums text-slate-500">{no}</span>
         <span className="leading-tight">
           <span className="block tabular-nums">{fmt(e.submittedAt)}</span>
@@ -309,7 +309,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
           <span className="block truncate">{e.staffName || '—'} <span className="text-slate-500">({e.staffId})</span></span>
           <span className="block text-[11px] text-slate-500 truncate">{e.branchId ? `Code ${e.branchId} · ` : ''}{e.branchText || ''}</span>
         </span>
-        <span className="leading-tight"><StatusChip s={e.reviewStatus} />{e.editedAt && <span className="block text-[10.5px] text-slate-500 mt-0.5">edited {fmt(e.editedAt)}</span>}</span>
+        <span className="leading-tight"><StatusChip s={e.reviewStatus} />{e.editedAt && <span className="block text-[11px] text-slate-500 mt-0.5">edited {fmt(e.editedAt)}</span>}</span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
       </button>
 
@@ -343,10 +343,10 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
               </table>
             </div>
           )}
-          {e.remarks && <div className="text-[12.5px] text-slate-700 mb-3"><span className="text-[10.5px] uppercase tracking-wider text-slate-500 block">Remarks</span>{e.remarks}</div>}
+          {e.remarks && <div className="text-[13px] text-slate-700 mb-3"><span className="text-[11px] uppercase tracking-wider text-slate-500 block">Remarks</span>{e.remarks}</div>}
 
           {e.reviewStatus !== 'PENDING' && e.reviewStatus !== 'NO_REVIEW' && (
-            <div className={`rounded-xl border px-3 py-2 text-[12.5px] mb-3 ${e.reviewStatus === 'CONFIRMED' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'}`}>
+            <div className={`rounded-xl border px-3 py-2 text-[13px] mb-3 ${e.reviewStatus === 'CONFIRMED' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'}`}>
               <strong>{e.reviewStatus === 'CONFIRMED' ? 'Confirmed' : 'Rejected'}</strong> by {e.reviewedBy || '—'} · {fmt(e.reviewedAt)}
               {e.reviewReason && <> · Reason: {e.reviewReason}</>}{e.reviewNote && <> · Note: {e.reviewNote}</>}
               <span className="block text-[11px] opacity-80 mt-0.5">
@@ -355,7 +355,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
             </div>
           )}
           {e.reviewHistory.length > 1 && (
-            <div className="text-[11.5px] text-slate-600 mb-3">
+            <div className="text-[12px] text-slate-600 mb-3">
               History: {e.reviewHistory.map((h) => `${h.action === 'RESUBMITTED' ? 'corrected by staff' : h.action.toLowerCase()}${h.reason ? ` (${h.reason})` : ''}${h.by && h.action !== 'RESUBMITTED' ? ` by ${h.by}` : ''} ${fmt(h.at)}`).join(' → ')}
             </div>
           )}
@@ -395,11 +395,11 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
                   {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}Change to Confirmed
                 </button>
               )}
-              <div className="text-[11.5px] text-slate-600 mb-1.5">{e.reviewStatus === 'REJECTED' ? 'Or keep it rejected with another reason / note:' : 'Reject instead – reason (shown in the staff group):'}</div>
+              <div className="text-[12px] text-slate-600 mb-1.5">{e.reviewStatus === 'REJECTED' ? 'Or keep it rejected with another reason / note:' : 'Reject instead – reason (shown in the staff group):'}</div>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {CC_REJECT_REASONS.map((r) => (
                   <button key={r} type="button" onClick={() => setReason(r)} aria-pressed={reason === r} data-allow-repeat
-                    className={`px-2.5 py-1 rounded-lg border text-[11.5px] cursor-pointer ${reason === r ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>{r}</button>
+                    className={`px-2.5 py-1 rounded-lg border text-[12px] cursor-pointer ${reason === r ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>{r}</button>
                 ))}
               </div>
               {reason === 'Other' && (
@@ -424,7 +424,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {CC_REJECT_REASONS.map((r) => (
                   <button key={r} type="button" onClick={() => setReason(r)} aria-pressed={reason === r} data-allow-repeat
-                    className={`px-2.5 py-1 rounded-lg border text-[11.5px] cursor-pointer ${reason === r ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>{r}</button>
+                    className={`px-2.5 py-1 rounded-lg border text-[12px] cursor-pointer ${reason === r ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>{r}</button>
                 ))}
               </div>
               {reason === 'Other' && (

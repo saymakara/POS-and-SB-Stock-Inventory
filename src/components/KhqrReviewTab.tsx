@@ -298,7 +298,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Monthly history">
           <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200">
             <h3 className="text-[13px] font-medium text-slate-900">Monthly history</h3>
-            <span className="text-[11.5px] text-slate-500">· latest month only</span>
+            <span className="text-[12px] text-slate-500">· latest month only</span>
           </div>
           <div className="min-w-[880px]">
             <div className={`${HGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`} role="row">
@@ -313,10 +313,10 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             </div>
             <div className="divide-y divide-slate-200/90">
               {history.map((h) => (
-                <div key={h.month} className={`${HGRID} px-3.5 py-2 text-[12.5px] text-slate-700`}>
+                <div key={h.month} className={`${HGRID} px-3.5 py-2 text-[13px] text-slate-700`}>
                   <span className="flex items-center gap-2">
                     <span className="text-slate-900">{monthLabel(h.month)}</span>
-                    <span className={`text-[10.5px] px-1.5 py-0.5 rounded-md border ${h.detailed ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                    <span className={`text-[11px] px-1.5 py-0.5 rounded-md border ${h.detailed ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
                       {h.detailed ? 'Details' : 'Totals only'}
                     </span>
                   </span>
@@ -531,7 +531,7 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
       <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200">
         <span className={`w-2 h-2 rounded-full ${kind === 'WRONG_SCAN' ? 'bg-orange-500' : 'bg-rose-500'}`} aria-hidden />
         <h3 className="text-[13px] font-medium text-slate-900">{kind === 'WRONG_SCAN' ? 'Wrong scans' : 'Failed attempts'}</h3>
-        <span className="text-[11.5px] text-slate-500">
+        <span className="text-[12px] text-slate-500">
           {kind === 'WRONG_SCAN' ? '· a QR with another MID was scanned (recorded at once, submitted or not)' : '· Submit was tapped while a QR had another MID (blocked)'}
         </span>
       </div>
@@ -563,7 +563,7 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
         )}
         <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
           {(rows || []).map((a, i) => (
-            <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[12.5px] text-slate-700 hover:bg-rose-50/50`}>
+            <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-rose-50/50`}>
               <span className="text-right tabular-nums text-slate-500">{pg.start + i + 1}</span>
               <span className="tabular-nums whitespace-nowrap" title={a.clientAt ? `On the phone: ${stampSecPP(new Date(a.clientAt))}` : undefined}>{stampSecPP(new Date(a.clientAt || a.receivedAt))}</span>
               <span className="leading-tight min-w-0">
@@ -611,7 +611,7 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
       <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200">
         <Copy className="w-4 h-4 text-violet-600" />
         <h3 className="text-[13px] font-medium text-slate-900">Same MID by 2+ staff</h3>
-        <span className="text-[11.5px] text-slate-500">· same day (Phnom Penh time) · {periodLabel}</span>
+        <span className="text-[12px] text-slate-500">· same day (Phnom Penh time) · {periodLabel}</span>
       </div>
       <div className="min-w-[1160px]">
         <div className={`${SMGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`} role="row">
@@ -645,7 +645,7 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
             return (
               <div key={key}>
                 <button type="button" onClick={() => setOpen(isOpen ? null : key)} aria-expanded={isOpen}
-                  className={`${SMGRID} w-full text-left px-3.5 py-2.5 text-[12.5px] text-slate-700 hover:bg-violet-50/50 cursor-pointer`}>
+                  className={`${SMGRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-violet-50/50 cursor-pointer`}>
                   <span className="text-right tabular-nums text-slate-500">{i + 1}</span>
                   <span className="tabular-nums">{r.day}</span>
                   <span className="font-mono tabular-nums text-slate-900">{r.mid}</span>
@@ -791,7 +791,7 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
   const place = [e.location, e.khan].filter(Boolean).join(' · ');
   return (
     <div className="hover:bg-slate-50">
-      <button type="button" onClick={onToggle} aria-expanded={open} className={`${GRID} w-full text-left px-3.5 py-2.5 text-[12.5px] text-slate-700 cursor-pointer relative`}>
+      <button type="button" onClick={onToggle} aria-expanded={open} className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer relative`}>
         <span className="text-right tabular-nums text-slate-500">{no}</span>
         <span className="leading-tight">
           <span className="block tabular-nums">{fmt(e.submittedAt)}</span>
@@ -814,7 +814,7 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
       <AnimatePresence initial={false}>
         {open && (
           <motion.div key="d" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={SPRING} className="overflow-hidden">
-            <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[12.5px] text-slate-700">
+            <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[13px] text-slate-700">
               <div className="space-y-1.5">
                 <Detail k="Record ID" v={<span className="font-mono">{e.recordId}</span>} />
                 <Detail k="Merchant" v={<>{e.merchantName}{e.merchantNameKh && <span className="block text-slate-500">{e.merchantNameKh}</span>}</>} />

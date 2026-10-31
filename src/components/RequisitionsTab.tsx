@@ -30,6 +30,7 @@ import {
   Calendar,
   User,
 } from 'lucide-react';
+import { fmtNum } from '../utils/format';
 
 interface RequisitionsTabProps {
   role: UserRole;
@@ -437,7 +438,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               <span>Branch Stock Requests &amp; Dispatch</span>
             </h2>
             <span className={`text-xs font-semibold ${subtextClass}`}>
-              ({requisitions.length} Record(s) · HQ Stock: {availableHqPos.length} POS, {availableHqSb.length} SB)
+              ({fmtNum(requisitions.length)} Record(s) · HQ Stock: {fmtNum(availableHqPos.length)} POS, {fmtNum(availableHqSb.length)} SB)
             </span>
           </div>
 
@@ -627,7 +628,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                           <div className="cell-main flex items-center gap-1.5">
                             <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />
                             <span>POS Terminal</span>
-                            <span className="chip chip-slate font-mono text-[10.5px] px-1.5 py-0">
+                            <span className="chip chip-slate font-mono text-[11px] px-1.5 py-0">
                               ×{req.posQty}
                             </span>
                           </div>
@@ -636,7 +637,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                           <div className="cell-main flex items-center gap-1.5">
                             <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" aria-hidden />
                             <span>Sound Box</span>
-                            <span className="chip chip-slate font-mono text-[10.5px] px-1.5 py-0">
+                            <span className="chip chip-slate font-mono text-[11px] px-1.5 py-0">
                               ×{req.sbQty}
                             </span>
                           </div>

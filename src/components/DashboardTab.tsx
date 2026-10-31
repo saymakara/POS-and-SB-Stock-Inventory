@@ -30,6 +30,7 @@ import {
   ScrollText,
   Package,
 } from 'lucide-react';
+import { fmtNum } from '../utils/format';
 
 /** Battery policy defaults (same values as AppSettings defaults). App can pass the live settings values as props. */
 export const DEFAULT_BATTERY_LIFESPAN_MONTHS = 24;
@@ -558,12 +559,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div className="text-2xl font-black font-figure tabular-nums text-zinc-900">
                 <Odometer value={selectedMonthStats.total} format={selectedMonthStats.total >= 1000} duration={340} />{' '}
                 <span className="text-xs font-normal text-slate-500">
-                  ({pctOf(selectedMonthStats.total, periodInstallTotal)}% of {periodInstallTotal} in period)
+                  ({pctOf(selectedMonthStats.total, periodInstallTotal)}% of {fmtNum(periodInstallTotal)} in period)
                 </span>
               </div>
               <div className="text-[11px] text-slate-600 mt-0.5">
-                POS: <strong className="text-[#003857]">{selectedMonthStats.posInstalled}</strong> · Sound Box:{' '}
-                <strong className="text-emerald-600">{selectedMonthStats.sbInstalled}</strong>
+                POS: <strong className="text-slate-900">{fmtNum(selectedMonthStats.posInstalled)}</strong> · Sound Box:{' '}
+                <strong className="text-slate-900">{fmtNum(selectedMonthStats.sbInstalled)}</strong>
               </div>
             </div>
 
@@ -589,11 +590,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </div>
               <div className="text-[11px] text-slate-600 mt-0.5">
                 Installed at branches:{' '}
-                <strong className="text-emerald-700">
-                  {serverStageCounts ? serverStageCounts.COMPLETE || 0 : pipeline.complete} /{' '}
-                  {serverStageCounts
+                <strong className="text-slate-900">
+                  {fmtNum(serverStageCounts ? serverStageCounts.COMPLETE || 0 : pipeline.complete)} /{' '}
+                  {fmtNum(serverStageCounts
                     ? (serverStageCounts.COMPLETE || 0) + (serverStageCounts.BRANCH_RESERVE || 0) + (serverStageCounts.CONFIGURING || 0)
-                    : pipeline.atBranches}{' '}
+                    : pipeline.atBranches)}{' '}
                   (
                   {pctOf(
                     serverStageCounts ? serverStageCounts.COMPLETE || 0 : pipeline.complete,
@@ -642,7 +643,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       series1Color="#003857"
                       series2Label="Sound Box Installed"
                       series2Data={monthlyChart.sb}
-                      series2Color="#10b981"
+                      series2Color="#3b8fc4"
                       height={240}
                       theme="light"
                     />
@@ -663,7 +664,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                             aria-label={`${m.label}: ${m.total} installed`}
                             className={`p-2.5 rounded-lg border text-left transition cursor-pointer ${
                               isSel
-                                ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                                ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
                                 : 'bg-slate-50 hover:bg-slate-100 text-zinc-900 border-slate-200'
                             }`}
                           >
@@ -673,7 +674,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                                 isSel ? 'text-slate-200' : 'text-slate-500'
                               }`}
                             >
-                              {m.total} installed
+                              {fmtNum(m.total)} installed
                             </div>
                           </button>
                         );
@@ -717,10 +718,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         <span className="text-[#002f49]">{m.label}</span>
                         <div className="flex items-center gap-4 font-mono text-[11px] text-slate-600">
                           <span>
-                            POS Terminal: <strong className="text-[#003857]">{m.posInstalled}</strong> ({posPct}%)
+                            POS Terminal: <strong className="text-slate-900">{fmtNum(m.posInstalled)}</strong> ({posPct}%)
                           </span>
                           <span>
-                            Sound Box: <strong className="text-emerald-600">{m.sbInstalled}</strong> ({sbPct}%)
+                            Sound Box: <strong className="text-slate-900">{fmtNum(m.sbInstalled)}</strong> ({sbPct}%)
                           </span>
                           <span className="text-[#002f49] font-extrabold">
                             Total: {m.total}
@@ -734,7 +735,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         />
                         <div
                           style={{ width: `${sbPct}%` }}
-                          className="h-full bg-[#10b981]"
+                          className="h-full bg-[#3b8fc4]"
                         />
                       </div>
                     </button>
@@ -758,7 +759,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   series1Color="#003857"
                   series2Label="Sound Box Units"
                   series2Data={topBranchesChart.sbSeries}
-                  series2Color="#10b981"
+                  series2Color="#3b8fc4"
                   height={240}
                   theme="light"
                 />
@@ -1002,7 +1003,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 </h3>
                 <p className="text-xs text-slate-500">
                   {requisitions.length > 0
-                    ? `Showing ${Math.min(4, requisitions.length)} of ${requisitions.length} stock requests`
+                    ? `Showing ${Math.min(4, requisitions.length)} of ${fmtNum(requisitions.length)} stock requests`
                     : 'Stock requests from branches'}
                 </p>
               </div>
@@ -1073,7 +1074,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </h3>
             </div>
             <span className="text-[11px] font-mono text-slate-500">
-              POS Terminals only · {batterySummary.total} units
+              POS Terminals only · {fmtNum(batterySummary.total)} units
             </span>
           </div>
 

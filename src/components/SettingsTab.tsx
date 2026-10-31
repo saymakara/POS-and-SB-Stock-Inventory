@@ -1369,18 +1369,18 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                 <span className="font-mono text-[10px] text-slate-400">
                                   ({field.id})
                                 </span>
-                                <span className="font-mono text-[9.5px] uppercase font-bold px-1.5 py-0.2 rounded bg-sky-50 text-sky-800 border border-sky-200">
+                                <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-sky-50 text-sky-800 border border-sky-200">
                                   Tab: {field.targetTab || 'all'}
                                 </span>
-                                <span className="font-mono text-[9.5px] uppercase font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
                                   {field.type}
                                 </span>
                                 {field.required ? (
-                                  <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200">
                                     Required
                                   </span>
                                 ) : (
-                                  <span className="text-[9.5px] font-medium px-1.5 py-0.2 rounded bg-slate-100 text-slate-500">
+                                  <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-slate-100 text-slate-500">
                                     Optional
                                   </span>
                                 )}
@@ -1425,7 +1425,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                             <button
                               type="button"
                               onClick={() => handleToggleRequired(field.id)}
-                              className={`px-2 py-1 rounded-lg text-[10.5px] font-semibold border transition cursor-pointer ${
+                              className={`px-2 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
                                 field.required
                                   ? 'bg-rose-50 text-rose-700 border-rose-200'
                                   : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -2051,7 +2051,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <option value="ALL">Phnom Penh and Regional staff</option>
                     <option value="PHNOM_PENH">Phnom Penh staff only</option>
                   </select>
-                  <p className="mt-1 text-[10.5px] text-slate-500">Only affects which staff appear in mobile review list.</p>
+                  <p className="mt-1 text-[11px] text-slate-500">Only affects which staff appear in mobile review list.</p>
                 </div>
               </div>
             </div>
@@ -2125,7 +2125,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                             Click <strong className="text-zinc-900">API Token</strong> to copy the token string.
                           </li>
                         </ol>
-                        <div className="pt-1.5 border-t border-sky-200/80 text-[10.5px] text-slate-600">
+                        <div className="pt-1.5 border-t border-sky-200/80 text-[11px] text-slate-600">
                           <em>Need a new bot?</em> Send <code className="px-1 py-0.5 bg-white rounded border font-mono font-bold">/newbot</code> to @BotFather.
                         </div>
                       </div>
@@ -2325,7 +2325,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           <button
                             type="button"
                             onClick={handleClearDefaultGroup}
-                            className="text-[10.5px] font-medium text-red-600 hover:text-red-700 hover:underline cursor-pointer inline-flex items-center gap-0.5 transition"
+                            className="text-[11px] font-medium text-red-600 hover:text-red-700 hover:underline cursor-pointer inline-flex items-center gap-0.5 transition"
                             title="Remove default connected group"
                           >
                             <X className="w-3 h-3" />
@@ -2534,7 +2534,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               <div className="min-w-0 space-y-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-xs font-black text-[#003857]">{rg.name}</span>
-                                  <span className="px-2 py-0.5 rounded-md font-mono text-[10.5px] font-bold bg-white border border-slate-200 text-slate-700">
+                                  <span className="px-2 py-0.5 rounded-md font-mono text-[11px] font-bold bg-white border border-slate-200 text-slate-700">
                                     {rg.chatId}
                                   </span>
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
@@ -2623,13 +2623,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                 assignedBranchNames.map((bName, i) => (
                                   <span
                                     key={i}
-                                    className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10.5px] text-slate-700 font-medium"
+                                    className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px] text-slate-700 font-medium"
                                   >
                                     {bName}
                                   </span>
                                 ))
                               ) : (
-                                <span className="italic text-slate-400 text-[10.5px]">No branches mapped yet (uses default chat)</span>
+                                <span className="italic text-slate-400 text-[11px]">No branches mapped yet (uses default chat)</span>
                               )}
                             </div>
                           </div>
@@ -2687,7 +2687,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <button
                       type="button"
                       onClick={() => setRgChatId(tgConfigChatId)}
-                      className="text-[10.5px] text-[#003857] hover:underline cursor-pointer"
+                      className="text-[11px] text-[#003857] hover:underline cursor-pointer"
                     >
                       Use default ID ({tgConfigChatId})
                     </button>
@@ -2721,7 +2721,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
                   Assign Branches to this Regional Group
                 </label>
-                <p className="text-[10.5px] text-slate-500 mb-2">
+                <p className="text-[11px] text-slate-500 mb-2">
                   Devices configured for these branches will automatically send their push notification to this Telegram group.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 rounded-xl bg-slate-50 border border-slate-200">

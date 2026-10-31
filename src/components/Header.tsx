@@ -43,6 +43,7 @@ import {
   QrCode,
   CreditCard,
 } from 'lucide-react';
+import { fmtNum } from '../utils/format';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */
 export type ReviewCounts = { pos: number; sb: number; cc?: number };
@@ -208,7 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                 <div className="text-[13px] font-bold tracking-tight text-white truncate">
                   {appSettings?.customLogoTitle || 'POS & Sound Box Stock'}
                 </div>
-                <div className="text-[10.5px] font-normal text-zinc-400 tracking-tight mt-0.5 truncate">
+                <div className="text-[11px] font-normal text-zinc-400 tracking-tight mt-0.5 truncate">
                   {appSettings?.customLogoSubtitle || 'Branch Operations Portal'}
                 </div>
               </div>
@@ -299,7 +300,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white'
                           }`}
                         >
-                          {item.count}
+                          {fmtNum(item.count)}
                         </span>
                       )}
                     </button>
@@ -317,7 +318,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                 if (isMobileView) onCloseMobile?.();
                               }}
                               aria-current={on ? 'page' : undefined}
-                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[12.5px] cursor-pointer transition-colors duration-150 border ${
+                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 border ${
                                 on
                                   ? 'text-white font-medium bg-white/12 border-white/15'
                                   : 'text-zinc-400 hover:text-white hover:bg-white/[0.06] border-transparent'
@@ -334,7 +335,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                   }`}
                                   title="Records waiting for review"
                                 >
-                                  {c.count}
+                                  {fmtNum(c.count)}
                                 </span>
                               )}
                             </button>

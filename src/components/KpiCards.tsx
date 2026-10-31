@@ -32,6 +32,8 @@ const STAGE_ICONS: Record<LifecycleStage, React.ReactNode> = {
   LOST: <SearchX className="w-4 h-4" />,
 };
 
+// (31 Oct 2026, UI standard) colour = meaning: neutral stock stages grey / brand blue, in progress amber, installed
+// green, lost rose (red only for a problem). Returned & swapped devices are history, not a fault, so they stay grey.
 const STAGE_STYLES: Record<
   LifecycleStage,
   {
@@ -48,15 +50,15 @@ const STAGE_STYLES: Record<
     subtitle: 'Branch Code 100 Vault',
   },
   BRANCH_RESERVE: {
-    accentBar: 'bg-sky-600',
-    iconBox: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/20 dark:text-sky-300',
-    ringActive: 'ring-2 ring-sky-600 border-sky-600',
+    accentBar: 'bg-[#1e5b88]',
+    iconBox: 'bg-[#eef5f9] text-[#1e5b88] border-[#cfe0ea] dark:bg-sky-500/20 dark:text-sky-300',
+    ringActive: 'ring-2 ring-[#1e5b88] border-[#1e5b88]',
     subtitle: 'Branch Code Buffer',
   },
   CONFIGURING: {
-    accentBar: 'bg-indigo-600',
-    iconBox: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    ringActive: 'ring-2 ring-indigo-600 border-indigo-600',
+    accentBar: 'bg-amber-500',
+    iconBox: 'bg-amber-50 text-amber-800 border-amber-200',
+    ringActive: 'ring-2 ring-amber-500 border-amber-500',
     subtitle: 'Under Configuring · App Push',
   },
   COMPLETE: {
@@ -66,15 +68,15 @@ const STAGE_STYLES: Record<
     subtitle: 'Installed at Merchant',
   },
   FAULTY: {
-    accentBar: 'bg-rose-700',
-    iconBox: 'bg-rose-50 text-rose-800 border-rose-200',
-    ringActive: 'ring-2 ring-rose-700 border-rose-700',
+    accentBar: 'bg-slate-400',
+    iconBox: 'bg-slate-100 text-slate-700 border-slate-200',
+    ringActive: 'ring-2 ring-slate-500 border-slate-500',
     subtitle: 'Merchant History & Swaps',
   },
   LOST: {
-    accentBar: 'bg-amber-600',
-    iconBox: 'bg-amber-50 text-amber-800 border-amber-200',
-    ringActive: 'ring-2 ring-amber-600 border-amber-600',
+    accentBar: 'bg-rose-600',
+    iconBox: 'bg-rose-50 text-rose-800 border-rose-200',
+    ringActive: 'ring-2 ring-rose-600 border-rose-600',
     subtitle: 'Lost / Unrecoverable',
   },
 };
@@ -217,7 +219,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
 
               {stage === 'FAULTY' ? (
                 <span
-                  className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md font-figure tabular-nums inline-flex items-center gap-1"
+                  className="text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-md font-figure tabular-nums inline-flex items-center gap-1"
                   title="Includes Merchant History records and Device Replacements"
                 >
                   <span>Swaps:</span>

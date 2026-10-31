@@ -1182,7 +1182,7 @@ const ReviewRow = memo(function ReviewRow({
         <span className="truncate leading-snug font-normal text-slate-700" title={KIND_LABEL[e.kind]}>
           {KIND_LABEL[e.kind]}
           {units > 1 && (
-            <span className="block text-[10.5px] font-normal text-slate-500">
+            <span className="block text-[11px] font-normal text-slate-500">
               Device {e.unitNo} of {units}
             </span>
           )}
@@ -1244,7 +1244,7 @@ const ReviewRow = memo(function ReviewRow({
         </span>
         <span className="leading-snug">
           <span
-            className={`inline-block px-2 py-0.5 rounded-md text-[10.5px] font-normal border ${
+            className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-normal border ${
               e.status === 'PENDING'
                 ? 'bg-slate-100 text-slate-700 border-slate-200'
                 : e.status === 'APPROVED'

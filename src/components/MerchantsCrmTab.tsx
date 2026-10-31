@@ -33,7 +33,6 @@ import {
   ComposedChart,
   BarChart,
   Bar,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -45,6 +44,7 @@ import { hasKhmer, isValidMidForType, midRuleError, normalizeMid } from '../util
 import { lastMonthsPP, todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';
 import { canMove, moveError, statusOf } from '../utils/stages';
+import { fmtNum } from '../utils/format';
 
 /**
  * What the CRM sends with a bind (22 Oct 2026). The stage fields are what the move to "Installed Live" must set
@@ -457,12 +457,13 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
 
   // --- Monthly Hardware Deployment Trends per Merchant MID (Recharts Data Engine) ---
   const MID_SERIES_COLORS = [
-    '#003857', // ABA Navy Blue
-    '#10b981', // Emerald
-    '#005a8c', // ABA Interactive Navy
-    '#004469', // ABA Medium Navy
-    '#f59e0b', // Amber
-    '#e41e26', // ABA Red Accent
+    // (31 Oct 2026, UI standard) six clearly different colours (three navies looked the same; green and red read as status)
+    '#003857', // ABA navy
+    '#3b8fc4', // light brand blue
+    '#d9822b', // orange
+    '#8b5cf6', // violet
+    '#64748b', // slate
+    '#0f9fa8', // teal
   ];
 
   const topMerchantsForTrend = useMemo(() => {
@@ -736,11 +737,11 @@ return (
           <div
             className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
           >
-            {totalMerchants}
+            {fmtNum(totalMerchants)}
           </div>
           <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
             <span>Registered MIDs</span>
-            <span className="text-emerald-400 font-semibold font-figure">{activeMerchants} Live</span>
+            <span className="text-emerald-400 font-semibold font-figure">{fmtNum(activeMerchants)} Live</span>
           </div>
         </div>
 
@@ -962,6 +963,13 @@ return (
             </p>
           </div>
         ) : (
+        <>
+          {trendChartMode === 'POS_VS_SB' && monthlyDeploymentTrendData.length > 0 && (
+            <p className={`text-[11px] mb-1 ${subtextClass}`}>
+              Running total deployed by {trendMonths[trendMonths.length - 1]?.label}:{' '}
+              <strong className={headingClass}>{fmtNum(Number((monthlyDeploymentTrendData[monthlyDeploymentTrendData.length - 1] as any)?.cumulativeFleet) || 0)}</strong> units
+            </p>
+          )}
         <div className="h-72 w-full pt-1">
           <ResponsiveContainer width="100%" height="100%">
             {trendChartMode === 'POS_VS_SB' ? (
@@ -969,12 +977,6 @@ return (
                 data={monthlyDeploymentTrendData}
                 margin={{ top: 10, right: 16, left: -12, bottom: 0 }}
               >
-                <defs>
-                  <linearGradient id="cumFleetGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#005a8c" stopOpacity={0.32} />
-                    <stop offset="95%" stopColor="#003857" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke={isLight ? '#e2e8f0' : 'rgba(255,255,255,0.07)'}
@@ -993,14 +995,6 @@ return (
                   axisLine={false}
                   tickLine={false}
                 />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  allowDecimals={false}
-                  tick={{ fill: '#005a8c', fontSize: 11, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: isLight ? '#ffffff' : '#001d2e',
@@ -1013,15 +1007,7 @@ return (
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif', paddingTop: '8px' }} />
-                <Area
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="cumulativeFleet"
-                  name="Cumulative Deployed Units"
-                  stroke="#005a8c"
-                  strokeWidth={2}
-                  fill="url(#cumFleetGrad)"
-                />
+                {/* (31 Oct 2026, UI standard) one axis only: the running total moved to the line above the chart */}
                 <Bar
                   yAxisId="left"
                   dataKey="posDeployed"
@@ -1034,7 +1020,7 @@ return (
                   yAxisId="left"
                   dataKey="sbDeployed"
                   name="Sound Box Deployed"
-                  fill="#10b981"
+                  fill="#3b8fc4"
                   radius={[5, 5, 0, 0]}
                   barSize={22}
                 />
@@ -1088,6 +1074,7 @@ return (
             )}
           </ResponsiveContainer>
         </div>
+        </>
         )}
       </div>
       )}
@@ -1167,7 +1154,7 @@ return (
               Merchant 360 Registry
             </span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
-              {filteredMerchants.length} Merchant{filteredMerchants.length === 1 ? '' : 's'}
+              {fmtNum(filteredMerchants.length)} Merchant{filteredMerchants.length === 1 ? '' : 's'}
             </span>
           </div>
           <button
@@ -1698,12 +1685,12 @@ return (
                                       </strong>
                                     </span>
                                     {dev.replacedPrevSerial && (
-                                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono font-bold bg-sky-50 text-sky-800 border border-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30">
+                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-sky-50 text-sky-800 border border-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30">
                                         Replaced Old SN: {dev.replacedPrevSerial}{dev.replacedDate ? ` (${dev.replacedDate})` : ''}
                                       </span>
                                     )}
                                     {dev.replacedByStaff !== (dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer) && (
-                                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30">
+                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30">
                                         Different Person
                                       </span>
                                     )}
@@ -1725,7 +1712,7 @@ return (
                                       </strong>
                                     </span>
                                     {dev.returnedByStaff !== (dev.installedByStaff || dev.staff || selectedMerchantProfile.accountOfficer) && (
-                                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30">
+                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30">
                                         Different Person
                                       </span>
                                     )}
@@ -2055,7 +2042,7 @@ return (
                           );
                         })}
                     </select>
-                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
                       Devices will be checked into{' '}
                       <strong className="text-slate-800 dark:text-slate-200">
                         Branch Code {returnBranchId}
@@ -2086,7 +2073,7 @@ return (
                       ))}
                     </datalist>
                   </div>
-                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                     This staff officer will be recorded on the returned device and in Merchant History.
                   </p>
                 </div>

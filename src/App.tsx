@@ -4055,7 +4055,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                 <div className="flex-1 min-w-0 pt-0.5 leading-relaxed">
                   {match ? (
                     <>
-                      <span className="inline-block font-mono text-[10.5px] font-bold text-sky-200 bg-white/10 border border-white/20 px-2 py-0.5 rounded-md mr-1.5 align-baseline shadow-2xs">
+                      <span className="inline-block font-mono text-[11px] font-bold text-sky-200 bg-white/10 border border-white/20 px-2 py-0.5 rounded-md mr-1.5 align-baseline shadow-2xs">
                         {match[1].replace(/[\[\]]/g, '')}
                       </span>
                       <span className="text-white/95">{match[2]}</span>

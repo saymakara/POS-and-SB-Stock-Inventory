@@ -781,7 +781,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               </button>
             </div>
 
-            <div className="hidden sm:flex items-center gap-1 text-[10.5px] font-medium text-slate-500 dark:text-slate-400">
+            <div className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
               <ShieldCheck className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
               <span>Double-Step Safeguard Active</span>
             </div>
@@ -798,7 +798,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       : 'bg-[#181c26] border-slate-700/80 text-slate-300'
                   }`}
                 >
-                  <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                     Lifecycle Actions
                   </span>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -935,7 +935,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
                         Hardware Serial Correction
                       </h4>
-                      <span className="text-[10.5px] text-slate-400 hidden sm:inline">
+                      <span className="text-[11px] text-slate-400 hidden sm:inline">
                         (Super Admin / Admin typo correction)
                       </span>
                     </div>
@@ -1097,7 +1097,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           <RotateCcw className="w-3 h-3" /><span>Admin HQ stock (Code 100)</span>
                         </button>
                       ) : (
-                        <span className="px-2.5 py-1.5 rounded-lg text-[10.5px] border border-dashed border-slate-300 text-slate-500 flex items-center justify-center text-center">To send to HQ, submit request</span>
+                        <span className="px-2.5 py-1.5 rounded-lg text-[11px] border border-dashed border-slate-300 text-slate-500 flex items-center justify-center text-center">To send to HQ, submit request</span>
                       )}
                     </div>
                     <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -1194,7 +1194,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setStaff('')}
-                        className="text-[10.5px] text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
+                        className="text-[11px] text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
                       >
                         Clear
                       </button>
@@ -1304,7 +1304,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       3. Merchant &amp; Terminal Setup
                     </h4>
                   </div>
-                  <span className="text-[10.5px] text-slate-400 hidden sm:inline">
+                  <span className="text-[11px] text-slate-400 hidden sm:inline">
                     Merchant business name, 15-digit banking MID, and 8-digit Terminal ID
                   </span>
                 </div>
@@ -1535,7 +1535,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       </h4>
                     </div>
                     <span
-                      className={`text-[9.5px] font-mono font-medium px-2 py-0.2 rounded-full border ${
+                      className={`text-[10px] font-mono font-medium px-2 py-0.2 rounded-full border ${
                         previewBatteryInfo.state === 'EXPIRED'
                           ? 'bg-rose-100/90 text-rose-800 border-rose-300'
                           : previewBatteryInfo.state === 'DUE_SOON'
@@ -1633,7 +1633,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   <span>Audit Note &amp; Update Reason</span>
                   <span className="text-rose-500 font-bold">*</span>
                 </label>
-                <span className="text-[10.5px] text-slate-400 hidden sm:inline">
+                <span className="text-[11px] text-slate-400 hidden sm:inline">
                   Required note documenting reason for stage change, merchant deployment, or branch transfer
                 </span>
               </div>
@@ -1785,7 +1785,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             {device.replacedByStaff}
                           </strong>
                           {device.replacedByStaff !== (device.installedByStaff || device.staff) && (
-                            <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30">
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30">
                               Different Person
                             </span>
                           )}
@@ -1804,7 +1804,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             {device.returnedByStaff}
                           </strong>
                           {device.returnedByStaff !== (device.installedByStaff || device.staff) && (
-                            <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30">
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30">
                               Different Person
                             </span>
                           )}

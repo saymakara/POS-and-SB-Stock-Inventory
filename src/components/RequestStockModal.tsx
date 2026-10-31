@@ -243,7 +243,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     <Building2 className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
                     <span>Requesting Branch *</span>
                   </span>
-                  <span className="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-300 border border-[#1e5b88]/20">
+                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-300 border border-[#1e5b88]/20">
                     Code 101–801
                   </span>
                 </label>
@@ -303,7 +303,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     <User className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
                     <span>Branch Staff Officer *</span>
                   </span>
-                  <span className="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-300 border border-[#1e5b88]/20">
+                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-300 border border-[#1e5b88]/20">
                     {isAdmin
                       ? `${staffList.length} staff officer${staffList.length === 1 ? '' : 's'} assigned`
                       : 'Signed-in officer'}
@@ -550,7 +550,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 <div className="flex flex-col gap-0.5 text-[11px] font-mono font-bold text-[#1e5b88] dark:text-sky-300">
                   <span>Staging {posQty} POS &amp; {sbQty} Sound Box</span>
                   {formError && (
-                    <span role="alert" className="font-sans text-[10.5px] text-rose-600 dark:text-rose-400">
+                    <span role="alert" className="font-sans text-[11px] text-rose-600 dark:text-rose-400">
                       {formError}
                     </span>
                   )}
@@ -640,7 +640,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 </div>
                 <div className="p-3">
                   <div className="text-slate-500 font-medium mb-1">Purpose / Note:</div>
-                  <div className="italic text-[11.5px] bg-white dark:bg-black/30 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/70 text-slate-700 dark:text-slate-300">
+                  <div className="italic text-[12px] bg-white dark:bg-black/30 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/70 text-slate-700 dark:text-slate-300">
                     {reason}
                   </div>
                 </div>

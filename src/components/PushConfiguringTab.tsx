@@ -34,6 +34,7 @@ import {
   CheckSquare,
   Square,
 } from 'lucide-react';
+import { fmtNum } from '../utils/format';
 
 interface PushConfiguringTabProps {
   devices: Device[];
@@ -1030,10 +1031,10 @@ return (
               <span>Total Waiting Push</span>
               <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
             </div>
-            <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{waitingDevices.length}</div>
+            <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(waitingDevices.length)}</div>
             <div className={`text-[10px] font-medium mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-sky-300'}`}>
               {alreadyPushedDevices.length > 0
-                ? `${alreadyPushedDevices.length} already pushed (${configuringDevices.length} total)`
+                ? `${fmtNum(alreadyPushedDevices.length)} already pushed (${fmtNum(configuringDevices.length)} total)`
                 : 'Click to view hardware queue'}
             </div>
           </button>
@@ -1059,7 +1060,7 @@ return (
               </span>
               <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
             </div>
-            <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{posCount}</div>
+            <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(posCount)}</div>
             <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
           </button>
 
@@ -1084,7 +1085,7 @@ return (
               </span>
               <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
             </div>
-            <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{sbCount}</div>
+            <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(sbCount)}</div>
             <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
           </button>
 
@@ -1867,7 +1868,7 @@ return (
                               <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
                                 1. Broadcast Safeguard &amp; Queue Targets
                               </h4>
-                              <p className="text-[10.5px] text-amber-800/80 dark:text-amber-300/80">
+                              <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
                                 High-impact deployment alert sent to branch Telegram groups
                               </p>
                             </div>
@@ -1932,7 +1933,7 @@ return (
                               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                                 2. Operator Security Authorization
                               </h4>
-                              <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                                 Verify employee PIN or password to authorize queue broadcast
                               </p>
                             </div>

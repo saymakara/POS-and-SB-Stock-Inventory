@@ -30,6 +30,7 @@ import {
   FileSpreadsheet,
   Package,
 } from 'lucide-react';
+import { fmtNum } from '../utils/format';
 
 interface BranchesTabProps {
   branches: Branch[];
@@ -306,10 +307,10 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               Total Hardware Units
             </div>
             <div className="text-lg font-black font-figure text-zinc-900">
-              {metrics.totalDevices}
+              {fmtNum(metrics.totalDevices)}
             </div>
             <div className="text-[10px] text-slate-400">
-              {metrics.totalPos} POS · {metrics.totalSb} SB
+              {fmtNum(metrics.totalPos)} POS · {fmtNum(metrics.totalSb)} SB
             </div>
           </div>
         </div>
@@ -323,11 +324,11 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               Branch Reserves
             </div>
             <div className="text-lg font-black font-figure text-zinc-900">
-              {metrics.totalReserve}
+              {fmtNum(metrics.totalReserve)}
             </div>
             <div className="text-[10px] text-slate-400">
               {metrics.totalHq > 0
-                ? `Ready for Merchant (${metrics.totalHq} HQ)`
+                ? `Ready for Merchant (${fmtNum(metrics.totalHq)} HQ)`
                 : 'Ready for Merchant'}
             </div>
           </div>
@@ -342,7 +343,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               Live Installed
             </div>
             <div className="text-lg font-black font-figure text-emerald-700">
-              {metrics.totalLive}
+              {fmtNum(metrics.totalLive)}
             </div>
             <div className="text-[10px] text-slate-400">
               {metrics.totalDevices > 0
@@ -361,7 +362,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               Assigned Staff
             </div>
             <div className="text-lg font-black font-figure text-slate-800">
-              {metrics.totalStaff}
+              {fmtNum(metrics.totalStaff)}
             </div>
             <div className="text-[10px] text-slate-400">Branch Field Officers</div>
           </div>
@@ -1075,7 +1076,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                                 1. Assigned Branch Staff ({inspectedBranch.staffList.length})
                               </h4>
-                              <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                                 Active custodian officers deployed at this branch
                               </p>
                             </div>
@@ -1121,7 +1122,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                                 2. Hardware Units ({inspectedBranch.devices.length})
                               </h4>
-                              <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                                 Physical stock in reserve or live at merchant
                               </p>
                             </div>

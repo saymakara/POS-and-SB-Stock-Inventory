@@ -1096,13 +1096,13 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100 dark:border-white/5">
                         <div className="flex flex-col">
-                          <span className="text-[9.5px] text-slate-400 uppercase font-semibold">Active Since</span>
+                          <span className="text-[10px] text-slate-400 uppercase font-semibold">Active Since</span>
                           <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
                             {dash(selectedRecord.installedDate)}
                           </span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[9.5px] text-slate-400 uppercase font-semibold">Returned Date</span>
+                          <span className="text-[10px] text-slate-400 uppercase font-semibold">Returned Date</span>
                           <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
                             {dash(selectedRecord.returnedDate)}
                           </span>

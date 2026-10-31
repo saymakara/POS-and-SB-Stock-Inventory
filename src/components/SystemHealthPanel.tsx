@@ -119,7 +119,7 @@ export const SystemHealthPanel: React.FC = () => {
       </div>
 
       <div className="surface-card rounded-2xl border border-slate-200 overflow-x-auto">
-        <div className="px-4 py-2.5 border-b border-slate-200 text-[13px] font-medium text-slate-900">Database requests by table / function <span className="text-slate-500 text-[11.5px]">· slowest first</span></div>
+        <div className="px-4 py-2.5 border-b border-slate-200 text-[13px] font-medium text-slate-900">Database requests by table / function <span className="text-slate-500 text-[12px]">· slowest first</span></div>
         <table className="data-table w-full text-xs">
           <thead className="glass-table-thead">
             <tr><th>Table / function</th><th className="text-right">Requests</th><th className="text-right">Typical</th><th className="text-right">95% within</th><th className="text-right">Slowest</th><th className="text-right">Failed</th></tr>
@@ -141,7 +141,7 @@ export const SystemHealthPanel: React.FC = () => {
       </div>
 
       <div className="surface-card rounded-2xl border border-slate-200 overflow-x-auto">
-        <div className="px-4 py-2.5 border-b border-slate-200 text-[13px] font-medium text-slate-900">Recent errors <span className="text-slate-500 text-[11.5px]">· newest first, up to 60</span></div>
+        <div className="px-4 py-2.5 border-b border-slate-200 text-[13px] font-medium text-slate-900">Recent errors <span className="text-slate-500 text-[12px]">· newest first, up to 60</span></div>
         {snap.errors.length === 0 ? (
           <p className="px-4 py-5 text-xs text-slate-500">No errors in this measurement.</p>
         ) : (

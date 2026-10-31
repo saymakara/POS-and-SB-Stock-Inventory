@@ -1176,7 +1176,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                           POS &amp; Sound Box Install
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="px-1.5 py-0.2 rounded-full text-[9.5px] font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
                             Br. {branchId}
                           </span>
                           <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
@@ -1243,7 +1243,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
 
                   {/* 2x3 Tactile Action Grid */}
                   <div>
-                    <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 px-1 mb-1.5">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 mb-1.5">
                       Update Device Status
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -1274,7 +1274,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                                 {btn.label}
                               </div>
                               <div
-                                className={`text-[9.5px] truncate ${
+                                className={`text-[10px] truncate ${
                                   active ? 'opacity-90' : 'text-slate-400'
                                 }`}
                               >
@@ -1475,7 +1475,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     <div className="px-3 py-2 flex items-center gap-2.5">
                       <Store className="w-4 h-4 text-sky-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[9.5px] uppercase tracking-wider text-slate-400 font-bold">
+                        <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
                           Merchant Name
                         </div>
                         <input
@@ -1493,7 +1493,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                       <div className="px-3 py-2 flex items-center gap-2">
                         <Hash className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <div className="text-[9.5px] uppercase tracking-wider text-slate-400 font-bold">
+                          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
                             MID
                           </div>
                           <input
@@ -1509,7 +1509,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                       <div className="px-3 py-2 flex items-center gap-2">
                         <KeyRound className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <div className="text-[9.5px] uppercase tracking-wider text-slate-400 font-bold">
+                          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
                             Terminal ID
                           </div>
                           <input
@@ -1528,7 +1528,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                       <div className="px-3 py-2 flex items-center gap-2">
                         <Phone className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <div className="text-[9.5px] uppercase tracking-wider text-slate-400 font-bold">
+                          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
                             Contact
                           </div>
                           <input
@@ -1543,7 +1543,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                       <div className="px-3 py-2 flex items-center gap-2">
                         <UserCheck className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <div className="text-[9.5px] uppercase tracking-wider text-slate-400 font-bold">
+                          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
                             Installer
                           </div>
                           <input
@@ -1560,7 +1560,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     <div className="px-3 py-2 flex items-center gap-2.5">
                       <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[9.5px] uppercase tracking-wider text-slate-400 font-bold">
+                        <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
                           GPS Coordinates &amp; Address
                         </div>
                         <input
@@ -1576,7 +1576,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     <div className="px-3 py-2 flex items-center gap-2.5">
                       <FileText className="w-4 h-4 text-amber-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[9.5px] uppercase tracking-wider text-slate-400 font-bold">
+                        <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
                           Field Remark
                         </div>
                         <input
@@ -1637,7 +1637,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     <div className="font-mono text-xs font-black text-amber-300 bg-black/40 px-2.5 py-1.5 rounded-lg border border-rose-500/40">
                       CODE: {mobileTechError.code}
                     </div>
-                    <div className="text-[10.5px] font-mono text-rose-100 space-y-0.5">
+                    <div className="text-[11px] font-mono text-rose-100 space-y-0.5">
                       <div>Op: {mobileTechError.operation}</div>
                       <div>Staff ID: {mobileTechError.staffId} · Br.{mobileTechError.branchId}</div>
                       <div>Time: {mobileTechError.timestamp}</div>
@@ -1822,7 +1822,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                                 {evt.merchantName}
                               </span>
                               {isOutOfSync && (
-                                <span className="px-1.5 py-0.2 rounded-full text-[9.5px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                                   Out-of-Sync
                                 </span>
                               )}
@@ -1834,7 +1834,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                                       evt.mid.trim().toUpperCase()
                                 ).length;
                                 return count >= 2 ? (
-                                  <span className="px-1.5 py-0.2 rounded-full text-[9.5px] font-medium bg-blue-500/15 text-blue-400 border border-blue-500/25">
+                                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-medium bg-blue-500/15 text-blue-400 border border-blue-500/25">
                                     {count} Devices
                                   </span>
                                 ) : null;
@@ -1858,11 +1858,11 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
 
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-200/60 dark:border-white/5">
                         <div className="flex items-center gap-2 text-xs">
-                          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-black/5 dark:bg-white/5 text-slate-400 border border-white/5">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-black/5 dark:bg-white/5 text-slate-400 border border-white/5">
                             {prevMeta?.short || evt.previousStage || 'Branch Config'}
                           </span>
                           <ArrowRight className={`w-3.5 h-3.5 ${navyTitleClass}`} />
-                          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                             {newMeta?.short || evt.newStage || 'Installed Live'}
                           </span>
                           <span className="text-slate-400">·</span>
@@ -1987,7 +1987,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
               <div className="p-3 rounded-2xl bg-white/80 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 backdrop-blur-md shadow-2xs flex flex-col justify-between gap-2 group">
                 <div>
                   <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="px-1.5 py-0.2 rounded-md text-[9.5px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
                       POST
                     </span>
                     <button
@@ -2007,7 +2007,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     /api/v1/installations/sync
                   </div>
                 </div>
-                <div className={`text-[10.5px] ${subtextClass} font-sans leading-tight`}>
+                <div className={`text-[11px] ${subtextClass} font-sans leading-tight`}>
                   Push stage, Branch, MID, TID &amp; installer telemetry
                 </div>
               </div>
@@ -2016,7 +2016,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
               <div className="p-3 rounded-2xl bg-white/80 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 backdrop-blur-md shadow-2xs flex flex-col justify-between gap-2 group">
                 <div>
                   <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="px-1.5 py-0.2 rounded-md text-[9.5px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       SSE
                     </span>
@@ -2037,7 +2037,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     /api/v1/stream
                   </div>
                 </div>
-                <div className={`text-[10.5px] ${subtextClass} font-sans leading-tight`}>
+                <div className={`text-[11px] ${subtextClass} font-sans leading-tight`}>
                   Real-time Server-Sent Events stream for instant two-way sync
                 </div>
               </div>
@@ -2046,7 +2046,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
               <div className="p-3 rounded-2xl bg-white/80 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 backdrop-blur-md shadow-2xs flex flex-col justify-between gap-2 group">
                 <div>
                   <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="px-1.5 py-0.2 rounded-md text-[9.5px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                    <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">
                       GET
                     </span>
                     <button
@@ -2066,7 +2066,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     /api/v1/webhooks/logs
                   </div>
                 </div>
-                <div className={`text-[10.5px] ${subtextClass} font-sans leading-tight`}>
+                <div className={`text-[11px] ${subtextClass} font-sans leading-tight`}>
                   Retrieve authoritative webhook audit logs &amp; reconciliation
                 </div>
               </div>
