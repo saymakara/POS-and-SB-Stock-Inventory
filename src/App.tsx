@@ -50,6 +50,7 @@ import { SessionLockModal } from './components/SessionLockModal';
 import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ConnectionNotice } from './components/ConnectionNotice';
 import { prefetchKhqr } from './services/khqrCache';
 import { prefetchAudit } from './services/auditCache';
 import { prefetchFieldEvents } from './services/fieldCache';
@@ -192,6 +193,7 @@ const VALID_SETTINGS_SUB_TABS = new Set<SettingsSubTab>([
   'customFields',
   'data',
   'security',
+  'health',
 ]);
 
 interface StoredAuthSession {
@@ -4173,6 +4175,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
             {/* (31 Oct 2026) at least one screen high: switching to a shorter screen no longer makes the footer jump up and down */}
             <main className="px-4 sm:px-6 py-5 min-h-[calc(100vh-4rem)]">
+              {isSupabaseConfigured && <ConnectionNotice />}
               {/* 6 Elevated KPI Cards with Shadows (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
               {!['mobile_sync_khqr', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
               <KpiCards

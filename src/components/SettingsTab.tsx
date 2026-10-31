@@ -10,6 +10,8 @@ import {
   TelegramRegionalGroup,
 } from '../types';
 import { LogoPageTab } from './LogoPageTab';
+// (31 Oct 2026) System Health: loaded only when that section is opened
+const SystemHealthPanel = React.lazy(() => import('./SystemHealthPanel'));
 import {
   getTelegramWebhookConfig,
   saveTelegramWebhookConfig,
@@ -60,6 +62,7 @@ import {
   Users,
   Send,
   Edit2,
+  Activity,
 } from 'lucide-react';
 
 export type SettingsSubTab =
@@ -69,7 +72,8 @@ export type SettingsSubTab =
   | 'sla'
   | 'customFields'
   | 'data'
-  | 'security';
+  | 'security'
+  | 'health';
 
 interface SettingsTabProps {
   settings: AppSettings;
@@ -428,7 +432,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </div>
         </div>
 
-        {activeSubTab !== 'brand_logo' && (
+        {activeSubTab !== 'brand_logo' && activeSubTab !== 'health' && (
           <div className="flex items-center gap-2.5">
             {savedSuccess && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold animate-in fade-in">
@@ -550,10 +554,29 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <Lock className="w-4 h-4" />
           <span>Security, Branding &amp; Telegram</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => handleSubTabSelect('health')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            activeSubTab === 'health'
+              ? 'tab-active-blue text-white shadow-xs'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>System Health</span>
+        </button>
       </div>
 
       {/* Main Settings Sections */}
       <div className="space-y-6">
+        {/* SUBTAB: System Health (31 Oct 2026) */}
+        {activeSubTab === 'health' && (
+          <React.Suspense fallback={<div className="text-xs text-slate-500 p-4">Loading System Health…</div>}>
+            <SystemHealthPanel />
+          </React.Suspense>
+        )}
         {/* SUBTAB: Brand & Logo Studio */}
         {activeSubTab === 'brand_logo' && (
           <div className="space-y-6">

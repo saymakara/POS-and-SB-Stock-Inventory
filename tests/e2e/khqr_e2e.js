@@ -237,8 +237,8 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   body = await p.textContent('body');
   ok(!(await p.isVisible('text=Admin HQ Stock')) && !(await p.isVisible('text=Branch Code 100 Vault')), 'KHQR page: the stock cards are gone');
   const stats = (await p.textContent('[aria-label="KHQR statistics"]')).replace(/\s+/g, ' ');
-  ok(/KHQR entries\s*120/.test(stats) && /QR materials\s*240/.test(stats) && !/Completed/.test(stats) && /Failed Attempt\s*19\s*Submit blocked/.test(stats) && !/Restricted/.test(stats) && /Staff involved\s*3/.test(stats),
-    'KHQR statistics only: entries, QR, completed, failed attempt entries, restricted submits, staff', stats.slice(0, 400));
+  ok(/KHQR entries\s*120/.test(stats) && /QR materials\s*240/.test(stats) && !/Completed/.test(stats) && /Failed Attempt\s*19\s*Submit tapped with a wrong-MID QR/.test(stats) && /Wrong Scan\s*\d+/.test(stats) && /Same MID, 2\+ staff\s*\d+/.test(stats) && !/Restricted/.test(stats) && /Staff involved\s*3/.test(stats),
+    'KHQR statistics: entries, QR, Failed Attempt, Wrong Scan, Same MID 2+ staff, staff (no Completed / Restricted)', stats.slice(0, 400));
   ok(!/Needs review|Mark as checked|Escalate/i.test(body), 'no approval step anywhere');
   const periods = await p.$$eval('select[aria-label="Period"] option', (o) => o.map(x => x.textContent));
   ok(JSON.stringify(periods) === JSON.stringify(['Today', 'Last 7 days', 'This month', 'Last month', 'Last 2 months']), 'periods: up to the last 2 months (details kept)', periods);
@@ -258,13 +258,13 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   ok(state.calls.some(c => /qr_installations\?select=.*submitted_at=gte\..*submitted_at=lt\./.test(c)) && state.calls.some(c => /qr_summary .*"p_to":"20/.test(c)), 'Last month: from the 1st of last month to the 1st of this month');
   await p.selectOption('select[aria-label="Period"]', 'MONTH'); await sleep(1500);
   // the failed attempts log
-  await p.getByRole('tab', { name: /Failed attempts log/ }).click(); await sleep(1500);
-  let log = await p.locator('[aria-label="Failed attempts log"] [data-page-content] > div').allTextContents();
+  await p.getByRole('tab', { name: /^Failed attempts/ }).click(); await sleep(1500);
+  let log = await p.locator('[aria-label="Failed attempts"] [data-page-content] > div').allTextContents();
   ok(log.length === 19 && /Ouk Sophea/.test(log[0]) && /Not saved/.test(log[0]) && /QR-20261028-0000\d\d/.test(log[1]) && /200100000000999/.test(log[1]),
     'Failed attempts log: all 19 blocked submits, newest first; unsaved ones say "Not saved", saved ones show the Record ID', log.slice(0, 2).map(x => x.replace(/\s+/g, ' ')));
   await p.screenshot({ path: '/tmp/claude-0/t/d4_log.png' });
   await p.fill('input[aria-label="Search failed attempts"]', 'Ouk Sophea'); await sleep(1500);
-  log = await p.locator('[aria-label="Failed attempts log"] [data-page-content] > div').allTextContents();
+  log = await p.locator('[aria-label="Failed attempts"] [data-page-content] > div').allTextContents();
   ok(log.length === 1 && /Ouk Sophea/.test(log[0]), 'search staff member in failed attempts log');
   await p.getByRole('button', { name: 'Clear filters' }).click(); await sleep(800);
   await p.getByRole('tab', { name: /KHQR entries/ }).click(); await sleep(800);

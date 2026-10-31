@@ -1031,6 +1031,10 @@ img { height: auto; }
 .skeleton { border-radius: 8px; contain: paint; }
 /* a list that is refreshed keeps its place: fade, never collapse */
 .data-table tbody { min-height: 1px; }
+/* (31 Oct 2026, speed) every scrolling table keeps its own drawing order. Without this, the sticky Actions column and
+   the rows after it were split into dozens of extra graphics layers on long pages (Stock Requests: ~30 ms of extra work
+   on every frame). Looks the same: the box already clips its contents. */
+.overflow-x-auto, .overflow-auto { isolation: isolate; }
 /* scrolling lists and the sidebar scroll on their own layer and do not chain into the page behind */
 .overflow-y-auto, .overflow-auto { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 /* phones: blur is the most expensive effect, so it is lighter on touch screens (looks the same on a solid background) */

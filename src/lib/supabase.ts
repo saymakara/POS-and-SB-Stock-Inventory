@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { monitoredFetch } from '../utils/perfMonitor';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey =
@@ -28,6 +29,8 @@ export const supabase: SupabaseClient = createClient(clientUrl, clientKey, {
     },
   },
   global: {
+    // (31 Oct 2026) times each request for Settings → System Health (nothing is sent anywhere)
+    fetch: monitoredFetch,
     headers: {
       'x-client-info': 'pos-sb-inventory-fast/2.0',
     },
