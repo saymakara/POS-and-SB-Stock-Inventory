@@ -1,7 +1,9 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users } from 'lucide-react';
+import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { Pager } from './Pager';
+import { ExportCsvButton } from './ExportCsvButton';
+import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { usePager } from '../utils/usePager';
 import { stampPP } from '../utils/time';
 import { Period, periodRange } from '../services/khqrCache';
@@ -10,8 +12,8 @@ import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc } fro
 /**
  * Phone App Review → Credit Card (31 Oct 2026).
  * Credit Card entries sent by staff from the Merchant Visit phone app. Head Office reviews every successful onboarding:
- * Confirm, or Reject with a reason (e.g. adverse CBC record). The bot then replies in the staff group under the entry's
- * own post. A failed onboarding needs no review. Admins see full account numbers; branch staff see their own branch only,
+ * Confirm, or Reject with a reason (e.g. adverse CBC record); Admin HQ can change a decision later. The bot replies in the staff
+ * group under the entry's own post. "Cards onboarded" counts confirmed entries only. A failed onboarding needs no review. Admins see full account numbers; branch staff see their own branch only,
  * with account numbers masked (****1234), and cannot review.
  */
 const PERIOD_LABEL: Record<Period, string> = { TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months' };
@@ -88,6 +90,23 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   useEffect(() => { load(); }, [load]);
 
   const refresh = () => { load(); loadCounts(); };
+  // (31 Oct 2026) Export CSV: every entry that matches the filters (all pages). Branch staff get masked account numbers.
+  const exportCsv = async () => {
+    const rows = await collectAll((page) => fetchCcList({ from: range.from, to: range.to, review, branchId, search, page, pageSize: 200 }).then((r) => ({ rows: r.rows, total: r.total })), 200);
+    if (!rows.length) return 0;
+    const label: Record<CcReview, string> = { PENDING: 'Waiting review', CONFIRMED: 'Confirmed', REJECTED: 'Rejected', NO_REVIEW: 'Not onboarded' };
+    downloadCsv(`Credit_Card_${review ? label[review].replace(/\s+/g, '_') : 'All'}_${PERIOD_LABEL[period].replace(/\s+/g, '_')}`,
+      ['Record ID', 'Date Sent', 'Edited At', 'Request Type', 'Card Status', 'Failure Reason', 'Full Name', 'Contact Number', 'Status of Marriage',
+        'Account Number', 'MID or Acc Number', 'Limit (USD)', 'Repayment', 'Email', 'Supplementary Cards', 'Supplementary Details', 'Cards',
+        'Remarks', 'Photos', 'Staff ID', 'Staff Name', 'Branch Code', 'Branch', 'Review', 'Reject Reason', 'Review Note', 'Reviewed By', 'Reviewed At', 'Telegram Reply'],
+      rows.map((e) => [e.recordId, csvTime(e.submittedAt), csvTime(e.editedAt), e.requestType, e.cardStatus, e.failReason, e.fullName, e.contact, e.marital,
+        e.primaryAcc, e.midOrAcc, e.limitUsd, e.repayment, e.email, e.supplementary.length,
+        e.supplementary.map((x, i) => `${i + 1}. ${x.full_name || ''} · ${x.marital || ''} · ${x.account || ''}${x.email ? ' · ' + x.email : ''}`).join(' | '),
+        (e.requestType === 'Add Supplementary Only' ? 0 : e.cardStatus === 'Onboarded Successfully' ? 1 : 0) + e.supplementary.length,
+        e.remarks, e.photoCount, e.staffId, e.staffName, e.branchId, e.branchText, label[e.reviewStatus], e.reviewReason, e.reviewNote, e.reviewedBy,
+        csvTime(e.reviewedAt), e.notifyState === 'SENT' ? 'Posted' : e.notifyState === 'FAILED' ? 'Not posted' : e.notifyState ? 'Posting' : '']));
+    return rows.length;
+  };
   const onReviewed = (recordId: string, next: Partial<CcEntry>) => {
     setRows((rs) => (rs || []).map((r) => (r.recordId === recordId ? { ...r, ...next } : r)));
     loadCounts();
@@ -113,6 +132,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
               className="text-xs rounded-xl border border-slate-200 bg-white px-2.5 py-2 cursor-pointer">
               {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>
+            <ExportCsvButton onExport={exportCsv} toast={triggerToast} />
             <button type="button" onClick={refresh} aria-label="Refresh" title="Refresh"
               className="btn-press p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer transition" data-allow-repeat>
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
@@ -130,7 +150,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
             <Kpi label="Confirmed" value={counts?.confirmed} sub="Checked by Head Office" tone="emerald" Icon={CheckCircle2} onClick={() => setReview('CONFIRMED')} active={review === 'CONFIRMED'} />
             <Kpi label="Rejected" value={counts?.rejected} sub="Returned with a reason" tone="rose" Icon={XCircle} onClick={() => setReview('REJECTED')} active={review === 'REJECTED'} />
             <Kpi label="Not onboarded" value={counts?.noReview} sub="Onboarding failed · no review" tone="slate" Icon={MinusCircle} onClick={() => setReview('NO_REVIEW')} active={review === 'NO_REVIEW'} />
-            <Kpi label="Cards onboarded" value={counts?.cards} sub={`${counts ? counts.total.toLocaleString() : '—'} entries · primary + supplementary`} tone="blue" Icon={Users} onClick={() => setReview('')} active={review === ''} />
+            <Kpi label="Cards onboarded" value={counts?.cards} sub="Confirmed by Head Office · primary + supplementary" tone="blue" Icon={Users} onClick={() => setReview('')} active={review === ''} />
           </div>
         )}
       </section>
@@ -238,21 +258,24 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
 }) {
   const supp = e.requestType === 'Add Supplementary Only';
   const cards = (supp ? 0 : e.cardStatus === 'Onboarded Successfully' ? 1 : 0) + e.supplementary.length;
-  const [mode, setMode] = useState<'none' | 'reject'>('none');
+  const [mode, setMode] = useState<'none' | 'reject' | 'change'>('none');
   const [reason, setReason] = useState('');
   const [other, setOther] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const act = async (action: 'CONFIRM' | 'REJECT') => {
+  const act = async (action: 'CONFIRM' | 'REJECT', noteText: string = note) => {
     const finalReason = action === 'REJECT' ? (reason === 'Other' ? other.trim() : reason) : '';
     if (action === 'REJECT' && !finalReason) { toast('Choose or write the reason for rejecting.'); return; }
     setBusy(true);
     try {
-      const r = await reviewCc(e.recordId, action, finalReason, note.trim());
-      onReviewed(e.recordId, { reviewStatus: action === 'CONFIRM' ? 'CONFIRMED' : 'REJECTED', reviewReason: finalReason || null, reviewNote: note.trim() || null,
-        reviewedBy: r.reviewedBy, reviewedAt: r.reviewedAt, notifyState: 'PENDING' });
-      toast(`${e.recordId} ${action === 'CONFIRM' ? 'confirmed' : 'rejected'} · the reply is being posted in the staff group.`);
+      const r = await reviewCc(e.recordId, action, finalReason, noteText.trim());
+      const was = e.reviewStatus === 'CONFIRMED' || e.reviewStatus === 'REJECTED' ? e.reviewStatus : null;
+      const now = action === 'CONFIRM' ? 'CONFIRMED' : 'REJECTED';
+      onReviewed(e.recordId, { reviewStatus: now, reviewReason: finalReason || null, reviewNote: noteText.trim() || null,
+        reviewedBy: r.reviewedBy, reviewedAt: r.reviewedAt, notifyState: 'PENDING',
+        reviewHistory: [...e.reviewHistory, { at: r.reviewedAt, action: now, by: r.reviewedBy, reason: finalReason || undefined, note: noteText.trim() || undefined, was: was || undefined }] });
+      toast(`${e.recordId} ${was ? `changed to ${now.toLowerCase()} (was ${was.toLowerCase()})` : now.toLowerCase()} · the reply is being posted in the staff group.`);
       setMode('none');
     } catch (err) {
       toast(`Not saved: ${err instanceof Error ? err.message : String(err)}`);
@@ -323,9 +346,9 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
               </span>
             </div>
           )}
-          {e.reviewHistory.some((h) => h.action === 'RESUBMITTED') && (
+          {e.reviewHistory.length > 1 && (
             <div className="text-[11.5px] text-slate-600 mb-3">
-              History: {e.reviewHistory.map((h) => `${h.action === 'RESUBMITTED' ? 'corrected by staff' : h.action.toLowerCase()}${h.reason ? ` (${h.reason})` : ''} ${fmt(h.at)}`).join(' → ')}
+              History: {e.reviewHistory.map((h) => `${h.action === 'RESUBMITTED' ? 'corrected by staff' : h.action.toLowerCase()}${h.reason ? ` (${h.reason})` : ''}${h.by && h.action !== 'RESUBMITTED' ? ` by ${h.by}` : ''} ${fmt(h.at)}`).join(' → ')}
             </div>
           )}
 
@@ -345,7 +368,47 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
                 <XCircle className="w-3.5 h-3.5" />Reject…
               </button>
             </>)}
+            {canReview && (e.reviewStatus === 'CONFIRMED' || e.reviewStatus === 'REJECTED') && mode === 'none' && (
+              <button type="button" onClick={() => { setMode('change'); setReason(e.reviewReason && CC_REJECT_REASONS.includes(e.reviewReason) ? e.reviewReason : e.reviewReason ? 'Other' : ''); setOther(e.reviewReason && !CC_REJECT_REASONS.includes(e.reviewReason) ? e.reviewReason : ''); setNote(e.reviewNote || ''); }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">
+                <Pencil className="w-3.5 h-3.5" />Change decision
+              </button>
+            )}
           </div>
+
+          {canReview && mode === 'change' && (
+            <div className="mt-3 rounded-xl border border-slate-300 bg-white p-3" aria-label="Change decision">
+              <div className="text-[12px] font-semibold text-slate-800 mb-2">
+                Change the decision (now {e.reviewStatus === 'CONFIRMED' ? 'Confirmed' : 'Rejected'}). The new decision is posted under the entry in the staff group.
+              </div>
+              {e.reviewStatus === 'REJECTED' && (
+                <button type="button" disabled={busy} onClick={() => act('CONFIRM', '')}
+                  className="mb-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer disabled:opacity-60">
+                  {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}Change to Confirmed
+                </button>
+              )}
+              <div className="text-[11.5px] text-slate-600 mb-1.5">{e.reviewStatus === 'REJECTED' ? 'Or keep it rejected with another reason / note:' : 'Reject instead – reason (shown in the staff group):'}</div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {CC_REJECT_REASONS.map((r) => (
+                  <button key={r} type="button" onClick={() => setReason(r)} aria-pressed={reason === r} data-allow-repeat
+                    className={`px-2.5 py-1 rounded-lg border text-[11.5px] cursor-pointer ${reason === r ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>{r}</button>
+                ))}
+              </div>
+              {reason === 'Other' && (
+                <input aria-label="Other reason" value={other} onChange={(ev) => setOther(ev.target.value)} maxLength={200} placeholder="Write the reason"
+                  className="w-full mb-2 px-3 py-2 text-xs rounded-lg border border-slate-200" />
+              )}
+              <textarea aria-label="Note to staff" value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={500} rows={2}
+                placeholder="Optional note to the staff member" className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200" />
+              <div className="flex items-center gap-2 mt-2">
+                <button type="button" disabled={busy || !(reason === 'Other' ? other.trim() : reason)} onClick={() => act('REJECT')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold cursor-pointer disabled:opacity-50">
+                  {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}{e.reviewStatus === 'REJECTED' ? 'Update rejection & reply in group' : 'Change to Rejected & reply in group'}
+                </button>
+                <button type="button" onClick={() => setMode('none')} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs cursor-pointer">Cancel</button>
+              </div>
+            </div>
+          )}
 
           {canReview && e.reviewStatus === 'PENDING' && mode === 'reject' && (
             <div className="mt-3 rounded-xl border border-rose-200 bg-white p-3" aria-label="Reject entry">

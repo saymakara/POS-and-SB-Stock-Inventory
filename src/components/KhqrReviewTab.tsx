@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Search, RefreshCw, ChevronDown, MapPin, ScanLine, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users, Copy } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
+import { ExportCsvButton } from './ExportCsvButton';
+import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP } from '../utils/time';
@@ -45,7 +47,7 @@ interface Props {
   triggerToast: (msg: string) => void;
 }
 
-export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
+export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [period, setPeriod] = useState<Period>('MONTH');
   const [activity, setActivity] = useState<'ALL' | QrActivity>('ALL');
@@ -89,6 +91,41 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
     [from, to, activity, branchId, staffSel, search]);
   const pg = usePager(total, [from, to, activity, branchId, staffSel, search]);
   const page = pg.page, pageSize = pg.pageSize;
+
+  // (31 Oct 2026) Export CSV of the view below, with the same filters (all pages; KHQR details are kept for the last 2 months)
+  const exportCsv = useCallback(async () => {
+    const tag = PERIOD_LABEL[period].replace(/\s+/g, '_');
+    if (view === 'entries') {
+      const rows = await collectAll((pg1) => fetchQrEntriesPage({ ...filters, page: pg1, pageSize: 1000 }));
+      if (!rows.length) return 0;
+      downloadCsv(`KHQR_Entries_${tag}`, ['Record ID', 'Date Sent', 'Activity', 'Merchant Name', 'Merchant Name (Khmer)', 'MID', 'QR Expected', 'QR Scanned',
+        'Failed Attempts', 'Staff ID', 'Staff Name', 'Branch Code', 'Branch', 'Location', 'Khan', 'Latitude', 'Longitude', 'Photos', 'Remark', 'Telegram'],
+        rows.map((e) => [e.recordId, csvTime(e.submittedAt), QR_ACTIVITY_LABEL[e.activity] || e.activity, e.merchantName, e.merchantNameKh, e.mid, e.qrExpected,
+          e.qrCount, e.failedAttempts, e.staffId, e.staffName, e.branchId, e.branchText, e.location, e.khan, e.latitude, e.longitude, e.photoCount, e.remark, e.telegramLink]));
+      return rows.length;
+    }
+    if (view === 'failed' || view === 'wrong') {
+      const kind: QrAttemptKind = view === 'wrong' ? 'WRONG_SCAN' : 'SUBMIT_BLOCKED';
+      const rows = await collectAll((pg1) => fetchQrAttemptsPage({ from, to, activity, branchId: branchId || undefined, staffId: staffSel?.id || undefined,
+        search, kind, page: pg1, pageSize: 1000, withSaved: false }));
+      if (!rows.length) return 0;
+      const saved = new Map<string, string>();
+      const sessions = Array.from(new Set(rows.map((r) => r.sessionId).filter(Boolean)));
+      for (let i = 0; i < sessions.length; i += 100) (await fetchQrSavedBySessions(sessions.slice(i, i + 100))).forEach((v, k) => saved.set(k, v));
+      downloadCsv(view === 'wrong' ? `KHQR_Wrong_Scans_${tag}` : `KHQR_Failed_Attempts_${tag}`,
+        ['Date', 'Kind', 'Activity', 'Staff ID', 'Staff Name', 'Branch Code', 'Branch', 'Expected MID', 'Scanned MID', 'Scanned Merchant', 'QR Scanned Before', 'Saved Later As'],
+        rows.map((r) => [csvTime(r.clientAt || r.receivedAt), r.kind === 'WRONG_SCAN' ? 'Wrong scan' : 'Submit blocked', r.activity ? QR_ACTIVITY_LABEL[r.activity] : '',
+          r.staffId, r.staffName, r.branchId, r.branchText, r.expectedMid, r.gotMid, r.gotName, r.scannedCount, saved.get(r.sessionId) || 'Not saved']));
+      return rows.length;
+    }
+    const sq = search.toLowerCase();
+    const list = ((await fetchQrSharedMids(from, to, 1000)) || []).filter((m) => !sq || JSON.stringify(m).toLowerCase().includes(sq));
+    const rows = list.flatMap((m) => m.items.map((it) => [m.day, m.mid, m.merchantName, m.staffCount, m.entries, it.recordId, csvTime(it.at), it.staffId, it.staffName,
+      it.branch, it.activity ? QR_ACTIVITY_LABEL[it.activity] : '', it.qr]));
+    if (!rows.length) return 0;
+    downloadCsv(`KHQR_Same_MID_2plus_Staff_${tag}`, ['Day', 'MID', 'Merchant Name', 'Staff Count', 'Entries', 'Record ID', 'Time', 'Staff ID', 'Staff Name', 'Branch', 'Activity', 'QR'], rows);
+    return rows.length;
+  }, [view, filters, from, to, activity, branchId, staffSel, search, period]);
 
   // Single fast RPC for summary; monthly history is fetched once and updated on live events
   const statSeq = useRef(0);
@@ -180,6 +217,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches }) => {
             >
               {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>
+            <ExportCsvButton onExport={exportCsv} toast={triggerToast}
+              title="Save the records of the view below (KHQR entries, failed attempts, wrong scans or same MID) that match the filters as a CSV file" />
             <button
               type="button"
               onClick={() => { load(); loadStats(); setLogKey((k) => k + 1); }}

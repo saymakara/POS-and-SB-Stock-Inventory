@@ -15,11 +15,14 @@ import {
   fetchBranchRegions,
   fetchPendingFieldEvents,
   fetchReviewedFieldEvents,
+  fetchAllFieldEvents,
   subscribeToFieldEvents,
   approveFieldEvent,
   rejectFieldEvent,
 } from '../services/supabaseService';
 import { getCachedFieldEvents, setCachedFieldEvents } from '../services/fieldCache';
+import { ExportCsvButton } from './ExportCsvButton';
+import { downloadCsv, csvTime } from '../utils/exportCsv';
 
 /**
  * Phone App Review.
@@ -506,6 +509,28 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const pg = usePager(shown.length, [filter, typeFilter, recordTypeFilter, deferredQuery, activeScope, sort]);
 
+  // (31 Oct 2026) Export CSV: every record on the server that matches the filters (the screen keeps the latest 1,000)
+  const exportCsv = useCallback(async () => {
+    const all = await fetchAllFieldEvents(filter === 'ALL' ? 'ALL' : filter);
+    const q = query.trim().toLowerCase();
+    const list = all
+      .filter(inScope)
+      .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
+      .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
+      .filter((e) => !q || [e.serial, e.oldSerial, e.sourceRecordId, e.mid, e.tid, e.outletName, e.terminalName, e.staffName, e.staffId, e.branchText]
+        .some((v) => String(v || '').toLowerCase().includes(q)));
+    if (!list.length) return 0;
+    downloadCsv(`Phone_App_Review_${typeFilter === 'Sound Box' ? 'Sound_Box' : typeFilter === 'POS Terminal' ? 'POS_Terminal' : 'All'}`,
+      ['Record ID', 'Device No', 'Revision', 'Date Sent', 'Recorded At', 'Device Type', 'Record Type', 'Serial', 'Old Serial', 'Old Battery', 'New Battery',
+        'MID', 'TID', 'Terminal Name', 'Outlet Name', 'Staff ID', 'Staff Name', 'Branch Code', 'Branch', 'Latitude', 'Longitude', 'Warnings',
+        'Status', 'Reviewed By', 'Reviewed At', 'Review Note', 'Remarks'],
+      list.map((e) => [e.sourceRecordId, e.unitNo, e.revision, csvTime(e.receivedAt), csvTime(e.recordedAt), devType(e), KIND_LABEL[e.kind] || e.kind,
+        e.serial, e.oldSerial, e.oldBattery, e.newBattery, e.mid, e.tid, e.terminalName, e.outletName, e.staffId, e.staffName, e.branchId, e.branchText,
+        e.latitude, e.longitude, (e.issues || []).map((i) => i.text).join(' | '), STATUS_LABEL[e.status] || e.status, e.reviewedByName,
+        csvTime(e.reviewedAt), e.reviewNote, e.remarks]));
+    return list.length;
+  }, [filter, query, inScope, recordTypeFilter, typeFilter]);
+
   const shownPending = useMemo(() => shown.filter((e) => e.status === 'PENDING'), [shown]);
   const selectedShown = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
   const allSelected = shownPending.length > 0 && selectedShown.length === shownPending.length;
@@ -822,6 +847,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               setRecordTypeFilter('ALL');
             }}
           />
+          <ExportCsvButton onExport={exportCsv} toast={triggerToast} />
           <button
             type="button"
             onClick={load}

@@ -1450,6 +1450,20 @@ export async function fetchPendingFieldEvents(limit = 1000, offset = 0): Promise
   }
 }
 
+/** (31 Oct 2026) CSV export: every phone app record (all statuses, kept without time limit), newest first, 1,000 per request. */
+export async function fetchAllFieldEvents(status: 'ALL' | FieldEventStatus = 'ALL'): Promise<FieldEvent[]> {
+  const out: FieldEvent[] = [];
+  for (let offset = 0; offset < 500000; offset += 1000) {
+    let q: any = supabase.from('field_events').select('*');
+    if (status !== 'ALL') q = q.eq('status', status);
+    const { data, error } = await q.order('received_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + 999);
+    if (error) throw new Error(error.message);
+    out.push(...(data || []).map(mapFieldEvent));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
 export async function fetchReviewedFieldEvents(limit = 1000, offset = 0): Promise<FieldEvent[] | null> {
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);
@@ -1723,7 +1737,7 @@ function applyQrFilters(q: any, p: QrQuery) {
 
 /** One page of KHQR entries, newest first. The total counts the same filters. */
 export async function fetchQrEntriesPage(p: QrQuery & { page?: number; pageSize?: number }): Promise<PaginatedResult<QrEntry>> {
-  const pageSize = p.pageSize === 100 ? 100 : 50;
+  const pageSize = p.pageSize === 1000 ? 1000 : p.pageSize === 100 ? 100 : 50;   // (1,000: CSV export)
   const page = Math.max(1, p.page || 1);
   const offset = (page - 1) * pageSize;
   try {
@@ -1868,7 +1882,7 @@ export async function fetchQrAttemptsPage(p: {
   withSaved?: boolean;       // false: return the rows at once and look up 'saved later' separately (fetchQrSavedBySessions)
   kind?: 'ALL' | QrAttemptKind;
 }): Promise<PaginatedResult<QrAttempt>> {
-  const pageSize = p.pageSize === 100 ? 100 : 50;
+  const pageSize = p.pageSize === 1000 ? 1000 : p.pageSize === 100 ? 100 : 50;   // (1,000: CSV export)
   const page = Math.max(1, p.page || 1);
   const offset = (page - 1) * pageSize;
   const COLS = 'id,session_id,activity,staff_id,staff_name,branch_text,branch_id,expected_mid,got_mid,got_name,scanned_count,client_at,received_at';
