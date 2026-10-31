@@ -1,4 +1,5 @@
 import React, { Suspense, useState, useMemo, useEffect, useCallback, useDeferredValue } from 'react';
+import { setDrawerOpen, getDrawerOpen, closeDrawer } from './utils/drawerStore';
 import {
   Device,
   Branch,
@@ -336,7 +337,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return getBootSession()?.operatorLabel || '';
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
+  // (31 Oct 2026, native-like) phone menu state lives in utils/drawerStore: toggling it does not redraw this whole page
+  const setMobileDrawerOpen = setDrawerOpen;
 
   const handleToggleSidebar = useCallback(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -1246,8 +1248,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (tabId === 'settings' && subTab) {
       setSettingsSubTab(subTab as any);
     }
+    // (31 Oct 2026, native-like) On a phone the drawer closes on this tap at once; the new page is drawn from the next
+    // frames on (the page itself is a background render, see shownTab), so the tap answers immediately instead of waiting for the whole page to render.
+    if (getDrawerOpen()) {
+      setMobileDrawerOpen(false);
+      requestAnimationFrame(() => requestAnimationFrame(() => setActiveTab(tabId)));
+      return;
+    }
     setActiveTab(tabId);
-    setMobileDrawerOpen(false);
   };
 
   useEffect(() => {
@@ -3931,8 +3939,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         configuringCount={unpushedConfiguringCount}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
-        mobileOpen={mobileDrawerOpen}
-        onCloseMobile={() => setMobileDrawerOpen(false)}
+        onCloseMobile={closeDrawer}
         theme={theme}
         appSettings={appSettings}
       />

@@ -743,7 +743,7 @@ export const FieldReviewTab: React.FC<Props> = ({
           </div>
 
           {/* Segmented status tabs */}
-          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1">
+          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0">
             {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as Filter[]).map((f) => {
               const isActive = filter === f;
               const label =
@@ -787,7 +787,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
           {/* Segmented device type tabs (not shown when a sub-menu has chosen the device type) */}
           {!deviceType && (
-            <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1">
+            <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0">
               {typePill('ALL', 'All devices', typeCounts.pos + typeCounts.sb)}
               {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
               {typePill('Sound Box', 'Sound Box', typeCounts.sb)}

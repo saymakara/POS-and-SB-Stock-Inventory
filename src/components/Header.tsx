@@ -8,6 +8,7 @@ import {
   Device,
 } from '../types';
 import { AppBrandLogo } from './AppBrandLogo';
+import { useDrawerOpen } from '../utils/drawerStore';
 import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
@@ -72,10 +73,12 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   configuringCount = 0,
   collapsed,
   onToggleCollapse,
-  mobileOpen = false,
+  mobileOpen: mobileOpenProp,
   onCloseMobile,
   appSettings,
 }) => {
+  const storeOpen = useDrawerOpen();
+  const mobileOpen = mobileOpenProp ?? storeOpen;
   const navGroups: Array<{
     heading: string;
     items: Array<{
@@ -405,7 +408,15 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', stiffness: 480, damping: 34, mass: 0.6 }}
-              className="sb-sidebar-gradient relative w-72 max-w-[85vw] h-full text-white flex flex-col justify-between select-none overflow-y-auto no-scrollbar z-10 shadow-2xl transform-gpu will-change-transform"
+              // (31 Oct 2026) swipe the drawer to the left to close it, like a phone's own side menu
+              drag="x"
+              dragDirectionLock
+              dragConstraints={{ left: -320, right: 0 }}
+              dragElastic={{ left: 0.12, right: 0 }}
+              dragMomentum={false}
+              onDragEnd={(_e, info) => { if (info.offset.x < -70 || info.velocity.x < -450) onCloseMobile?.(); }}
+              className="mobile-drawer sb-sidebar-gradient relative w-72 max-w-[85vw] h-full text-white flex flex-col justify-between select-none overflow-y-auto no-scrollbar z-10 shadow-2xl transform-gpu will-change-transform"
+              style={{ touchAction: 'pan-y' }}
             >
               {renderNavContent(true)}
             </motion.aside>
@@ -626,9 +637,9 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   // Translucent Crystal-White Glass Header with Stock-Request Table-Header Blue (slightly darker: #0f334d / #133e5e)
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md text-zinc-900 border-b border-zinc-200/90 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all duration-200">
-      <div className="h-[4.5rem] px-4 sm:px-6 flex items-center justify-between gap-3">
+      <div className="h-[4.5rem] px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-3">
         {/* Left: Sidebar Toggle & Global Quick Search Bar */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 max-w-xl">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1 max-w-xl">
           {onToggleSidebar && (
             <motion.button
               whileTap={{ scale: 0.92 }}
@@ -642,7 +653,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           )}
 
           {/* Global Quick Search Bar */}
-          <div ref={searchContainerRef} className="relative flex-1 min-w-[180px] max-w-[340px] sm:max-w-[420px]">
+          <div ref={searchContainerRef} className="relative flex-1 min-w-0 sm:min-w-[180px] max-w-[340px] sm:max-w-[420px]">
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all duration-150 ${
                 isSearchFocused
@@ -857,7 +868,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Branch Assignment Display (Branch Role Only) */}
           {role === 'BRANCH' && (
             <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-white/80 border-zinc-200 text-zinc-900 backdrop-blur-md shrink-0">
@@ -941,10 +952,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             whileTap={{ scale: 0.96 }}
             type="button"
             onClick={onOpenRequestModal}
-            className="px-3 py-1.5 rounded-xl text-xs font-extrabold shadow-xs flex items-center gap-1.5 whitespace-nowrap cursor-pointer shrink-0 bg-[#003857] hover:bg-[#002a42] text-white transition"
+            aria-label="Request Stock"
+            title="Request Stock"
+            className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer shrink-0 bg-[#003857] hover:bg-[#002a42] text-white transition"
           >
             <SendHorizontal className="w-3.5 h-3.5" />
-            <span>Request Stock</span>
+            {/* (31 Oct 2026) phones: icon only, so the header fits on one line without overlapping the search */}
+            <span className="hidden sm:inline">Request Stock</span>
           </motion.button>
 
           {/* Live Alert Notification Bell */}

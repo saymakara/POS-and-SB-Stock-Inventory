@@ -337,7 +337,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       {/* Entries: filters */}
       <section ref={entriesRef} className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs scroll-mt-4" aria-label="Filters">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1" role="tablist" aria-label="View">
+          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0" role="tablist" aria-label="View">
             {([['entries', 'KHQR entries', summary?.total], ['failed', 'Failed attempts', summary?.attempts], ['wrong', 'Wrong scans', summary?.wrongScans], ['shared', 'Same MID, 2+ staff', summary?.sharedMids]] as const).map(([v, label, n]) => {
               const active = view === v;
               return (

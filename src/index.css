@@ -1093,3 +1093,46 @@ img { height: auto; }
 /* (29 Oct 2026) sidebar: the highlight fades in place and the left line grows from the middle; nothing slides */
 @keyframes navBarIn { from { transform: scaleY(0.3); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
 .nav-bar-in { animation: navBarIn 200ms var(--ease-premium) backwards; transform-origin: center; }
+
+/* ==========================================================================
+   10. (31 Oct 2026) Native-like phone & tablet layer
+   ========================================================================== */
+/* Notch / home bar: the installed app (iPhone "Add to Home Screen" uses a see-through status bar) keeps its header,
+   drawer and floating notes clear of the status bar and the home indicator. 0 on screens without them. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+header[class*="sticky"] { padding-top: var(--safe-top); padding-left: var(--safe-left); padding-right: var(--safe-right); }
+.mobile-drawer { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); padding-left: var(--safe-left); }
+main { padding-bottom: calc(1.25rem + var(--safe-bottom)); }
+@media (max-width: 767px) { main { padding-left: max(1rem, var(--safe-left)); padding-right: max(1rem, var(--safe-right)); } }
+.fixed[class*="bottom-"]:not(.inset-0) { margin-bottom: var(--safe-bottom); }
+
+/* Taps: no text selection or iOS callout on controls, no 300 ms wait for a possible double-tap zoom */
+button, [role="button"], [role="tab"], [role="menuitem"], summary, label[for], .chip, .row-btn {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Touch screens: fingers need bigger targets (desktop sizes unchanged) and form fields at 16 px so iPhone does not zoom the
+   page when a field is tapped */
+@media (pointer: coarse) {
+  header button, header [role="button"] { min-height: 40px; flex-shrink: 0; }
+  header button:not(:has(span)), header [role="button"]:not(:has(span)) { min-width: 40px; }   /* icon buttons (labelled ones keep their text width) */
+  .mobile-drawer button { min-height: 44px; }
+  [role="tab"] { min-height: 36px; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
+}
+
+/* Scrolling: momentum, no pull-to-refresh bounce from inner lists, the page itself never scrolls sideways */
+html, body { overscroll-behavior-y: none; }
+body { overflow-x: clip; }
+.overflow-x-auto { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+/* the drawer is one screen high even when the phone's address bar shows / hides */
+.mobile-drawer { height: 100dvh; max-height: 100dvh; }

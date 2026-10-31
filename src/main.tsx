@@ -1,6 +1,11 @@
+import { lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MotionConfig } from 'motion/react';
-import App from './App.tsx';
+// (31 Oct 2026, speed) the app itself loads separately: the sign-in page no longer waits for the whole dashboard code
+// (on a phone it was busy ~1 s before the fields could be used). It starts downloading at once in the background, so it
+// is ready by the time the password is typed.
+const loadApp = () => import('./App.tsx');
+const App = lazy(loadApp);
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthGate } from './components/AuthGate';
 import './index.css';
@@ -13,6 +18,8 @@ startPerfMonitor();
 // (31 Oct 2026) a double-click on a save-type button sends it once
 startClickGuard();
 startFilterMarks();
+const warmApp = () => { loadApp().catch(() => {}); };
+if ('requestIdleCallback' in window) (window as any).requestIdleCallback(warmApp, { timeout: 1500 }); else setTimeout(warmApp, 600);
 
 // Register Browser Cache Service Worker for lightning-fast loading
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
@@ -43,7 +50,20 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
     <MotionConfig reducedMotion="user">
-      <AuthGate>{(profile) => <App profile={profile} />}</AuthGate>
+      <AuthGate>{(profile) => (
+        <Suspense fallback={<AppLoading />}>
+          <App profile={profile} />
+        </Suspense>
+      )}</AuthGate>
     </MotionConfig>
   </ErrorBoundary>
 );
+
+/** Shown only if the dashboard code is still downloading right after sign-in (usually it is already there). */
+function AppLoading() {
+  return (
+    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50" role="status" aria-label="Loading">
+      <div className="w-9 h-9 rounded-full border-[3px] border-slate-200 border-t-[#003857] animate-spin" />
+    </div>
+  );
+}
