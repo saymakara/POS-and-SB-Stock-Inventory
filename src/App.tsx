@@ -51,6 +51,11 @@ import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ConnectionNotice } from './components/ConnectionNotice';
+
+/** (31 Oct 2026) True when a save failed because there is no connection (not because the server refused it). */
+const isNetworkFailure = (err?: string): boolean =>
+  (typeof navigator !== 'undefined' && navigator.onLine === false) ||
+  /failed to fetch|networkerror|network request failed|load failed|fetch failed|offline/i.test(err || '');
 import { prefetchKhqr } from './services/khqrCache';
 import { prefetchAudit } from './services/auditCache';
 import { prefetchFieldEvents } from './services/fieldCache';
@@ -1400,7 +1405,16 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   useEffect(() => watchNewVersion(() => setNewVersion(true)), []);
   const reloadAfterFailure = React.useMemo(() => throttled(() => reloadFromServer({ full: true }), () => guard.current.backoffMs()), [reloadFromServer]);
   /** Counts a failed save; when too many fail in a row, saving is paused and the user is asked to reload. */
-  const noteSaveFailure = useCallback((what: string) => {
+  const noteSaveFailure = useCallback((what: string, err?: string) => {
+    // (31 Oct 2026) no internet: say so plainly. Not counted as a refusal (the server never saw it); when the connection
+    // returns, the app reloads the server's data by itself ('online' handler), which removes the unsaved change.
+    if (isNetworkFailure(err)) {
+      triggerToast(`No internet connection: ${what.toLowerCase()} did NOT reach the server. The change will be undone when the connection is back; please make it again then.`);
+      // a short network drop does not always fire the browser's 'online' event: show the server's data again in 15 s
+      // (a failed read never replaces the list, so trying while still offline is harmless)
+      window.setTimeout(() => { void reloadFromServer({ full: true }).catch(() => false); }, 15_000);
+      return true;
+    }
     const opened = guard.current.fail();
     if (opened) {
       setSavePaused(true);
@@ -1408,7 +1422,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       triggerToast(`${what} failed several times, so saving is paused for 2 minutes. Please reload the page.`);
     }
     return opened;
-  }, [triggerToast]);
+  }, [triggerToast, reloadFromServer]);
   const pushDevices = useCallback((changed: Device[]) => {
     // (22 Oct 2026) optimistic UI: the screen already shows the change; these rows pulse until the server confirms it
     const syncSerials = changed.map((d) => d.serial);
@@ -1448,7 +1462,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         });
       }
       if (res.error) {
-        if (!noteSaveFailure('Saving')) {
+        if (!noteSaveFailure('Saving', res.error)) {
           triggerToast(res.stale
             ? `Not saved: ${res.error}. The latest data was loaded – please check it and make your change again.`
             : `Not saved to the server: ${/row-level security|permission|42501/i.test(res.error) ? 'you do not have access to change this device' : res.error}. The list was reloaded.`);
@@ -1481,7 +1495,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     Promise.all(jobs).then((errs) => {
       const err = errs.find(Boolean);
       if (err) {
-        if (!noteSaveFailure('Saving requests')) {
+        if (!noteSaveFailure('Saving requests', err)) {
           triggerToast(`Request not saved to the server: ${/row-level security|permission|42501/i.test(err) ? 'you do not have access to this request' : err}. The list was reloaded.`);
           void reloadAfterFailure();
         }
@@ -1495,7 +1509,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     fresh.forEach((h) => syncedHist.current.add(h.recordId));
     Promise.all(fresh.map((h) => insertHistoricalMerchantToSupabase(h))).then((oks) => {
       if (oks.some((x) => !x)) {
-        if (!noteSaveFailure('Saving merchant history')) {
+        if (!noteSaveFailure('Saving merchant history', navigator.onLine ? undefined : 'offline')) {
           triggerToast('A merchant history record was not saved to the server. The list was reloaded.');
           void reloadAfterFailure();                                   // the screen never keeps a record the server does not have
         }

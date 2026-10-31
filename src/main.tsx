@@ -6,9 +6,12 @@ import { AuthGate } from './components/AuthGate';
 import './index.css';
 import { startFilterMarks } from './utils/filterMarks';
 import { startPerfMonitor } from './utils/perfMonitor';
+import { startClickGuard } from './utils/clickGuard';
 
 // (31 Oct 2026) speed and error figures for Settings → System Health (kept in this tab's memory only)
 startPerfMonitor();
+// (31 Oct 2026) a double-click on a save-type button sends it once
+startClickGuard();
 startFilterMarks();
 
 // Register Browser Cache Service Worker for lightning-fast loading
