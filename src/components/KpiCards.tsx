@@ -150,7 +150,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
   }, [devices, historicalMerchants, serverStatsByStage, serverTotal]);
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-5">
+    <div className="kpi-strip grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-5">
       {CARD_ORDER.map((stage, idx) => {
         const meta = STAGE_META[stage];
         const style = STAGE_STYLES[stage];

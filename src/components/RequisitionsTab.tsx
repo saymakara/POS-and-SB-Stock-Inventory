@@ -30,7 +30,7 @@ import {
   Calendar,
   User,
 } from 'lucide-react';
-import { fmtNum } from '../utils/format';
+import { fmtNum, showDateTime } from '../utils/format';
 
 interface RequisitionsTabProps {
   role: UserRole;
@@ -432,7 +432,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
         >
           <div className="flex items-center gap-2">
             <h2
-              className={`text-base font-extrabold ${navyTitleClass} flex items-center gap-2`}
+              className={`text-base sm:text-lg font-extrabold tracking-tight ${navyTitleClass} flex items-center gap-2`}
             >
               <ScrollText className="w-4.5 h-4.5" />
               <span>Branch Stock Requests &amp; Dispatch</span>
@@ -448,7 +448,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               type="button"
               onClick={handleExportCsv}
               disabled={shownReqs.length === 0}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-2xs transition disabled:opacity-50"
+              className="btn btn-secondary"
               title="Export Stock Requests Table to CSV (matching table columns)"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -458,7 +458,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               whileTap={{ scale: 0.95 }}
               type="button"
               onClick={onOpenRequestModal}
-              className="px-3 py-1.5 rounded-md text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-xs transition"
+              className="btn btn-primary"
             >
               <SendHorizontal className="w-3.5 h-3.5" />
               <span>New Stock Request</span>
@@ -587,7 +587,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     <td className="whitespace-nowrap">
                       <div className="cell-mono flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{req.date}</span>
+                        <span>{showDateTime(req.date)}</span>
                       </div>
                     </td>
                     <td className="whitespace-nowrap">

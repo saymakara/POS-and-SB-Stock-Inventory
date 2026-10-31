@@ -198,8 +198,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       {/* KHQR statistics (this tab shows KHQR only) */}
       <section className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs" aria-label="KHQR statistics">
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <h2 className="text-sm font-medium text-slate-900 mr-1">
-            Phone App Review<span className="text-slate-500 font-normal"> · KHQR</span>
+          <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 mr-1">
+            Phone App Review<span className="text-slate-500 font-semibold"> · KHQR</span>
           </h2>
           <span
             className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90"

@@ -465,7 +465,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             <button
               type="button"
               onClick={openLogReturn}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs flex items-center gap-1.5 transition cursor-pointer"
+              className="btn btn-primary"
             >
               <Plus className="w-4 h-4" />
               <span>Log Return</span>
@@ -483,7 +483,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           <button
             type="button"
             onClick={handleExportCsv}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
+            className="btn btn-secondary"
             title="Export Merchant Decommission History Table to CSV (matching table columns)"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />

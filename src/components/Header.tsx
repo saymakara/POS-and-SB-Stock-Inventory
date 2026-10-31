@@ -8,7 +8,7 @@ import {
   Device,
 } from '../types';
 import { AppBrandLogo } from './AppBrandLogo';
-import { useDrawerOpen } from '../utils/drawerStore';
+import { useDrawerOpen, setDrawerOpen } from '../utils/drawerStore';
 import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
@@ -618,25 +618,21 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     return { devices: matchedDevices, branches: matchedBranches };
   }, [devices, branches, localSearch]);
 
-  const mobileTabs = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'merchants', label: 'Merchant Deployment' },
-    { id: 'merchant_history', label: 'Merchant History' },
-    { id: 'mobile_sync', label: 'Review · POS' },
-    { id: 'mobile_sync_sb', label: 'Review · Sound Box' },
-    { id: 'mobile_sync_khqr', label: 'Review · KHQR' },
-    { id: 'mobile_sync_cc', label: 'Review · Credit Card' },
-    { id: 'inventory', label: 'Stock Inventory' },
-    { id: 'requisitions', label: 'Stock Requests', redPoint: unreadCount > 0 },
-    { id: 'branches', label: 'Branch Codes' },
-    { id: 'users', label: 'Staff Directory' },
-    { id: 'audit_log', label: 'Audit Trail' },
-    ...(role === 'SUPER_ADMIN' ? [{ id: 'settings', label: 'Settings' }] : []),
-  ];
 
   // Style #2 Locked In as the #1 Permanent Header Style:
   // Translucent Crystal-White Glass Header with Stock-Request Table-Header Blue (slightly darker: #0f334d / #133e5e)
+  // (31 Oct 2026, native-like) phone bottom tab bar: the four most used pages + "More" (the full menu), like a banking app
+  const reviewActive = activeTab.startsWith('mobile_sync');
+  const bottomTabs: { id: string; label: string; icon: React.ElementType; active: boolean; dot?: boolean; onTap: () => void }[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, active: activeTab === 'dashboard', onTap: () => onSelectTab('dashboard') },
+    { id: 'inventory', label: 'Stock', icon: Boxes, active: activeTab === 'inventory', onTap: () => onSelectTab('inventory') },
+    { id: 'requisitions', label: 'Requests', icon: ScrollText, active: activeTab === 'requisitions', dot: unreadCount > 0, onTap: () => onSelectTab('requisitions') },
+    { id: 'mobile_sync', label: 'Review', icon: Smartphone, active: reviewActive, onTap: () => onSelectTab(reviewActive ? activeTab : 'mobile_sync') },
+    { id: 'more', label: 'More', icon: Menu, active: !['dashboard', 'inventory', 'requisitions'].includes(activeTab) && !reviewActive, onTap: () => setDrawerOpen(true) },
+  ];
+
   return (
+    <>
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md text-zinc-900 border-b border-zinc-200/90 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all duration-200">
       <div className="h-[4.5rem] px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-3">
         {/* Left: Sidebar Toggle & Global Quick Search Bar */}
@@ -1183,26 +1179,26 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         </div>
       </div>
 
-      {/* Mobile Glass Navigation Bar */}
-      <div className="md:hidden bg-[#141519]/95 backdrop-blur-xl border-t border-white/10 px-3 py-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar text-white">
-        {mobileTabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => onSelectTab(t.id)}
-            className={`relative px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-              activeTab === t.id
-                ? 'bg-white text-zinc-900 font-extrabold'
-                : 'text-white/85 hover:text-white'
-            }`}
-          >
-            <span>{t.label}</span>
-            {t.redPoint && (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            )}
-          </button>
-        ))}
-      </div>
     </header>
+    {/* (31 Oct 2026, native-like) bottom tab bar on phones (replaces the dark sliding tab strip under the header) */}
+    <nav className="mobile-tabbar md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-5" aria-label="Main pages">
+      {bottomTabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          onClick={t.onTap}
+          aria-current={t.active ? 'page' : undefined}
+          className={`relative flex flex-col items-center justify-center gap-0.5 h-14 text-[11px] font-semibold cursor-pointer ${t.active ? 'text-[#003857]' : 'text-slate-500'}`}
+        >
+          {t.active && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-[#003857]" aria-hidden />}
+          <span className="relative">
+            <t.icon className="w-5 h-5" aria-hidden />
+            {t.dot && <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" aria-label="new" />}
+          </span>
+          <span>{t.label}</span>
+        </button>
+      ))}
+    </nav>
+    </>
   );
 });

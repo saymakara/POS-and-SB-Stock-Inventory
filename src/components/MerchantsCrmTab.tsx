@@ -44,7 +44,7 @@ import { hasKhmer, isValidMidForType, midRuleError, normalizeMid } from '../util
 import { lastMonthsPP, todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';
 import { canMove, moveError, statusOf } from '../utils/stages';
-import { fmtNum } from '../utils/format';
+import { fmtNum, showDateTime } from '../utils/format';
 
 /**
  * What the CRM sends with a bind (22 Oct 2026). The stage fields are what the move to "Installed Live" must set
@@ -1161,7 +1161,7 @@ return (
             type="button"
             onClick={handleExportCsv}
             disabled={filteredMerchants.length === 0}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs disabled:opacity-50"
+            className="btn btn-secondary"
             title="Export Merchant 360 Registry Table to CSV (matching table columns)"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -1247,7 +1247,7 @@ return (
                       )}
                     </td>
                     <td className="whitespace-nowrap">
-                      <div className="cell-mono">{installDate}</div>
+                      <div className="cell-mono">{installDate && installDate !== '—' ? showDateTime(installDate) : installDate}</div>
                     </td>
                     <td className="whitespace-nowrap">
                       <span className={`chip ${chip}`}>{statusLabel}</span>

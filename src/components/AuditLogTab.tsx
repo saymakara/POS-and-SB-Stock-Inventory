@@ -6,6 +6,7 @@ import { UserRole, ThemeMode } from '../types';
 import type { ServerAuditEntry } from '../services/supabaseService';
 import { csvFile } from '../utils/csv';
 import { todayPP, stampSecPP } from '../utils/time';
+import { showDateTime } from '../utils/format';
 import { motion } from 'motion/react';
 import {
   FileSpreadsheet,
@@ -296,7 +297,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
           </div>
           <div>
             <div className="flex items-center flex-wrap gap-2">
-              <h2 className={`text-sm sm:text-base font-extrabold ${headingClass}`}>
+              <h2 className={`text-base sm:text-lg font-extrabold tracking-tight ${headingClass}`}>
                 Staff, Admin &amp; Super Admin Audit Log
               </h2>
               <span className={`text-xs font-mono font-bold ${subtextClass}`}>
@@ -308,7 +309,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 <>
                   Error-Only server logging is active to protect database log ingestion quota; only catch-block failures are written to Supabase.{' '}
                   <strong>Server-side pagination ({pageSize} rows/page) is active.</strong>
-                  {loadedAt && <> Last loaded {loadedAt}.</>}
+                  {loadedAt && <> Last loaded {showDateTime(loadedAt, true)}.</>}
                 </>
               ) : (
                 <>
@@ -323,7 +324,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
         <div className="flex items-center flex-wrap gap-2 shrink-0">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-extrabold">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>System Integrity Verified ({integrityVerifiedAt})</span>
+            <span>System Integrity Verified ({showDateTime(integrityVerifiedAt, true)})</span>
           </span>
           <button
             type="button"
@@ -332,7 +333,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
               setIntegrityVerifiedAt(ts);
               onToast(`Audit Trail System Integrity Verified (${filteredRows.length} tamper-evident records checked at ${ts})`);
             }}
-            className="px-3.5 py-2 rounded-lg text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 cursor-pointer shadow-xs"
+            className="btn btn-primary"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
             <span>Verify Integrity</span>
@@ -354,7 +355,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
             type="button"
             onClick={handleExportCsv}
             disabled={filteredRows.length === 0}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-secondary"
             title="Export Audit Log Table to CSV (matching table columns)"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
@@ -512,7 +513,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 >
                   <td className={`py-2.5 px-3.5 text-right tabular-nums ${subtextClass}`}>{(currentPage - 1) * pageSize + rowIdx + 1}</td>
                   <td className={`py-2.5 px-3.5 font-mono whitespace-nowrap ${subtextClass}`}>
-                    {row.time}
+                    {showDateTime(row.time, true)}
                   </td>
                   {serverMode && (
                     <td className={`py-2.5 px-3.5 whitespace-nowrap ${headingClass}`}>
@@ -596,7 +597,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 {(currentPage - 1) * pageSize + paginatedRows.length}
               </strong>{' '}
               {serverMode ? (
-                <>(Server Page {currentPage} · Limit {pageSize} / Offset {(currentPage - 1) * pageSize})</>
+                <>· {pageSize} per page · page {currentPage}</>
               ) : (
                 <>of <strong className={isLight ? 'text-zinc-900' : 'text-white'}>{filteredRows.length}</strong> Audit Events</>
               )}

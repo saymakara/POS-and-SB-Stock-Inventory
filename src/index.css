@@ -1168,3 +1168,44 @@ b, strong { font-weight: 700; }
 .font-normal strong, .font-normal b { font-weight: 600; }
 /* plain "rounded" = the small corner (4px), not 3.6px */
 .rounded { border-radius: var(--radius-sm); }
+
+/* ==========================================================================
+   12. (31 Oct 2026) UI standard: one button set
+   .btn = small (32px, tables and toolbars) · .btn-md = page actions (36px)
+   .btn-primary navy · .btn-secondary white · .btn-danger rose outline
+   ========================================================================== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 32px; padding: 0 12px; border-radius: var(--radius-lg);
+  font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; flex-shrink: 0;
+  border: 1px solid transparent; cursor: pointer;
+  transition: background-color 0.14s, border-color 0.14s, color 0.14s;
+}
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-md { height: 36px; padding: 0 14px; border-radius: var(--radius-xl); }
+.btn-primary { background: #003857; color: #ffffff; }
+.btn-primary:not(:disabled):hover { background: #1e5b88; }
+.btn-secondary { background: #ffffff; color: #334155; border-color: #e2e8f0; }
+.btn-secondary:not(:disabled):hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn-danger { background: #ffffff; color: #be123c; border-color: #fecdd3; }
+.btn-danger:not(:disabled):hover { background: #fff1f2; border-color: #fda4af; }
+@media (pointer: coarse) { .btn { height: 40px; } .btn-md { height: 44px; } }
+.data-table .row-btn { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; }
+
+/* ==========================================================================
+   13. (31 Oct 2026) Phone layout: bottom tab bar, KPI cards in one sideways row
+   ========================================================================== */
+.mobile-tabbar { padding-bottom: var(--safe-bottom); margin-bottom: 0 !important; }
+.mobile-tabbar button { min-height: 56px; }
+@media (max-width: 767px) {
+  main { padding-bottom: calc(5rem + var(--safe-bottom)) !important; }
+  /* toasts and floating notes sit above the tab bar */
+  .fixed[class*="bottom-"]:not(.inset-0):not(.mobile-tabbar) { margin-bottom: calc(64px + var(--safe-bottom)); }
+}
+@media (max-width: 639px) {
+  .kpi-strip { display: flex !important; overflow-x: auto; gap: 10px; scroll-snap-type: x mandatory; padding-bottom: 4px;
+    margin-left: -1rem; margin-right: -1rem; padding-left: 1rem; padding-right: 1rem; scroll-padding-left: 1rem;
+    overscroll-behavior-x: contain; scrollbar-width: none; }
+  .kpi-strip::-webkit-scrollbar { display: none; }
+  .kpi-strip > * { flex: 0 0 44%; scroll-snap-align: start; }
+}

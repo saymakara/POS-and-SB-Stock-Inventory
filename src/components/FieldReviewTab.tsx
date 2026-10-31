@@ -727,8 +727,8 @@ export const FieldReviewTab: React.FC<Props> = ({
       >
         <div className="flex flex-wrap items-center gap-2">
           <div className="mr-2 flex items-center gap-2">
-            <h2 className="text-sm font-medium text-slate-900">
-              Phone App Review{deviceType ? <span className="text-slate-500 font-normal"> · {deviceType}</span> : null}
+            <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">
+              Phone App Review{deviceType ? <span className="text-slate-500 font-semibold"> · {deviceType}</span> : null}
             </h2>
             <span
               className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90"
@@ -908,7 +908,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               type="button"
               onClick={() => runBulk('approve')}
               disabled={!!bulkBusy}
-              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-normal bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+              className="btn-press btn btn-primary"
             >
               {bulkBusy === 'approve' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1264,7 +1264,7 @@ const ReviewRow = memo(function ReviewRow({
                 type="button"
                 onClick={() => onReject(e)}
                 disabled={busy}
-                className="btn-press px-2.5 py-1 rounded-lg text-xs font-normal border border-slate-300 text-slate-700 bg-slate-100 hover:bg-slate-200 dark:border-slate-700 dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-60 cursor-pointer"
+                className="btn-press btn btn-danger"
               >
                 Reject
               </button>
@@ -1279,7 +1279,7 @@ const ReviewRow = memo(function ReviewRow({
                     ? 'Open the line and choose the branch'
                     : undefined
                 }
-                className="btn-press px-2.5 py-1 rounded-lg text-xs font-normal bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-45 cursor-pointer inline-flex items-center gap-1"
+                className="btn-press btn btn-primary"
               >
                 {busy && <Loader2 className="w-3 h-3 animate-spin" />}Approve
               </button>

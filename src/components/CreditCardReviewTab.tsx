@@ -129,7 +129,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#003857] text-white flex items-center justify-center"><CreditCard className="w-5 h-5" aria-hidden /></div>
             <div>
-              <h2 className="text-[15px] font-semibold text-slate-900">Phone App Review · Credit Card</h2>
+              <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">Phone App Review<span className="text-slate-500 font-semibold"> · Credit Card</span></h2>
               <p className="text-xs text-slate-500">
                 {isAdmin ? 'Check each successful onboarding, then Confirm or Reject. The bot replies in the staff group under the entry.' : 'Credit Card entries of your branch and their review result.'}
               </p>
@@ -362,23 +362,23 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
 
           <div className="flex flex-wrap items-center gap-2">
             {e.telegramLink && (
-              <a href={e.telegramLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs hover:bg-slate-100">
+              <a href={e.telegramLink} target="_blank" rel="noreferrer" className="btn btn-secondary">
                 <ExternalLink className="w-3.5 h-3.5" aria-hidden />Open group post
               </a>
             )}
             {canReview && e.reviewStatus === 'PENDING' && mode === 'none' && (<>
               <button type="button" disabled={busy} onClick={() => act('CONFIRM')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer disabled:opacity-60">
+                className="btn btn-primary">
                 {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}Confirm
               </button>
               <button type="button" disabled={busy} onClick={() => setMode('reject')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-rose-300 bg-white hover:bg-rose-50 text-rose-700 text-xs font-semibold cursor-pointer">
+                className="btn btn-danger">
                 <XCircle className="w-3.5 h-3.5" />Reject…
               </button>
             </>)}
             {canReview && (e.reviewStatus === 'CONFIRMED' || e.reviewStatus === 'REJECTED') && mode === 'none' && (
               <button type="button" onClick={() => { setMode('change'); setReason(e.reviewReason && CC_REJECT_REASONS.includes(e.reviewReason) ? e.reviewReason : e.reviewReason ? 'Other' : ''); setOther(e.reviewReason && !CC_REJECT_REASONS.includes(e.reviewReason) ? e.reviewReason : ''); setNote(e.reviewNote || ''); }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer">
+                className="btn btn-secondary">
                 <Pencil className="w-3.5 h-3.5" />Change decision
               </button>
             )}

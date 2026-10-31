@@ -926,8 +926,8 @@ return (
               <span className={`w-2 h-2 rounded-full animate-pulse ${isLight ? 'bg-slate-500' : 'bg-sky-400'}`} />
               <span>Dedicated App Push Pipeline</span>
             </div>
-            <h1 className={`text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-3 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              <SendHorizontal className={`w-8 h-8 shrink-0 ${isLight ? 'text-slate-700' : 'text-sky-300'}`} />
+            <h1 className={`text-base sm:text-lg font-extrabold tracking-tight flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <SendHorizontal className={`w-5 h-5 shrink-0 ${isLight ? 'text-slate-700' : 'text-sky-300'}`} />
               <span>Push Configuring Hub</span>
             </h1>
             <p className={`text-xs sm:text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
@@ -1392,7 +1392,7 @@ return (
               type="button"
               onClick={handleExportCsv}
               disabled={filteredDevices.length === 0}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs disabled:opacity-50"
+              className="btn btn-secondary"
               title="Export Push Queue Table to CSV (matching table columns)"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />

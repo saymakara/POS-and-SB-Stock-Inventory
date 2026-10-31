@@ -482,7 +482,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <button
               type="button"
               onClick={handleExportCsv}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs shrink-0"
+              className="btn btn-secondary"
               title="Export Branch Codes Table to CSV"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />

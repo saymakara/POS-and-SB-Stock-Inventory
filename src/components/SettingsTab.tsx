@@ -444,7 +444,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               type="button"
               onClick={handleSave}
               disabled={!isAdminLike}
-              className="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide bg-[#003857] hover:bg-[#002a42] text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+              className="btn btn-primary"
             >
               <Save className="w-4 h-4" />
               <span>Save Configuration</span>

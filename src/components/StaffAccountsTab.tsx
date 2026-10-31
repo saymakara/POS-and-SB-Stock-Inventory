@@ -273,7 +273,7 @@ export const StaffAccountsTab: React.FC<{
                 setForm({ ...blank, password: makePassword() });
                 setFormErr('');
               }}
-              className="px-3 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white flex items-center gap-1.5 cursor-pointer"
+              className="btn btn-primary"
             >
               <Plus className="w-3.5 h-3.5" /> New account
             </button>

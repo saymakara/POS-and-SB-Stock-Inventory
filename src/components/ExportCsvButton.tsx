@@ -19,7 +19,7 @@ export const ExportCsvButton: React.FC<{ onExport: () => Promise<number>; toast?
         } finally { setBusy(false); }
       }}
       title={title || 'Save every record that matches the filters as a CSV file (opens in Excel)'}
-      className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shadow-2xs shrink-0 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait"
+      className="btn btn-secondary disabled:cursor-wait"
     >
       {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" aria-hidden="true" /> : <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />}
       <span>{busy ? 'Preparing…' : 'Export CSV'}</span>

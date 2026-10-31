@@ -415,7 +415,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
               type="button"
               onClick={handleExportDevicesCsv}
               disabled={downloadingId === 'devices-csv'}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shrink-0 cursor-pointer shadow-2xs transition disabled:opacity-50"
+              className="btn btn-secondary"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
               <span>{downloadingId === 'devices-csv' ? 'Exporting...' : 'Export CSV'}</span>
@@ -442,7 +442,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
               type="button"
               onClick={handleExportMerchantsCsv}
               disabled={downloadingId === 'merchants-csv'}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shrink-0 cursor-pointer shadow-2xs transition disabled:opacity-50"
+              className="btn btn-secondary"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
               <span>{downloadingId === 'merchants-csv' ? 'Exporting...' : 'Export CSV'}</span>
@@ -468,7 +468,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
               type="button"
               onClick={handleExportRequisitionsCsv}
               disabled={downloadingId === 'reqs-csv'}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shrink-0 cursor-pointer shadow-2xs transition disabled:opacity-50"
+              className="btn btn-secondary"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
               <span>{downloadingId === 'reqs-csv' ? 'Exporting...' : 'Export CSV'}</span>
@@ -494,7 +494,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
               type="button"
               onClick={handleExportUsersCsv}
               disabled={downloadingId === 'users-csv'}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shrink-0 cursor-pointer shadow-2xs transition disabled:opacity-50"
+              className="btn btn-secondary"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
               <span>{downloadingId === 'users-csv' ? 'Exporting...' : 'Export CSV'}</span>
