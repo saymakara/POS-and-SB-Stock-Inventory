@@ -62,6 +62,7 @@ import { prefetchAudit } from './services/auditCache';
 import { prefetchFieldEvents } from './services/fieldCache';
 import { prefetchStaff } from './services/staffCache';
 import { prefetchCc } from './services/ccService';
+import { prefetchKpi } from './services/kpiService';
 import { motion, AnimatePresence } from 'motion/react';
 
 // (22 Oct 2026, review) Screens other than the Dashboard and Stock Inventory are loaded when first opened, and fetched
@@ -76,6 +77,7 @@ export function prefetchTabs(): void {
   tabLoaders.forEach((load) => { load().catch(() => { /* loaded again when opened */ }); });
   prefetchKhqr();                                                   // (29 Oct 2026) the KHQR screen opens with its data already here
   prefetchCc();                                                     // (1 Nov 2026) the Credit Card screen opens with its data already here
+  prefetchKpi();                                                    // (1 Nov 2026) the KPI Performance screen opens with its data already here
 }
 const BranchesTab = lazyTab(() => import('./components/BranchesTab').then((m) => ({ default: m.BranchesTab })));
 const IamUsersTab = lazyTab(() => import('./components/IamUsersTab').then((m) => ({ default: m.IamUsersTab })));
@@ -89,6 +91,7 @@ const SettingsTab = lazyTab(() => import('./components/SettingsTab').then((m) =>
 const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
 const KhqrReviewTab = lazyTab(() => import('./components/KhqrReviewTab').then((m) => ({ default: m.KhqrReviewTab })));
 const CreditCardReviewTab = lazyTab(() => import('./components/CreditCardReviewTab').then((m) => ({ default: m.CreditCardReviewTab })));
+const KpiPerformanceTab = lazyTab(() => import('./components/KpiPerformanceTab').then((m) => ({ default: m.KpiPerformanceTab })));
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
 const PushConfiguringTab = lazyTab(() => import('./components/PushConfiguringTab').then((m) => ({ default: m.PushConfiguringTab })));
 
@@ -184,6 +187,7 @@ const VALID_TABS = new Set([
   'mobile_sync_sb',
   'mobile_sync_khqr',
   'mobile_sync_cc',
+  'kpi_performance',
   'inventory',
   'push_configuring',
   'requisitions',
@@ -4531,6 +4535,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                   {shownTab === 'mobile_sync_khqr' && isSupabaseConfigured && (
                     <KhqrReviewTab
                       role={role}
+                      branches={branches}
+                      triggerToast={triggerToast}
+                    />
+                  )}
+                  {shownTab === 'kpi_performance' && (
+                    <KpiPerformanceTab
+                      role={role}
+                      userBranchId={selectedBranch}
                       branches={branches}
                       triggerToast={triggerToast}
                     />

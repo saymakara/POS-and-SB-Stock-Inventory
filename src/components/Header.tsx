@@ -42,8 +42,10 @@ import {
   Volume2,
   QrCode,
   CreditCard,
+  Trophy,
 } from 'lucide-react';
 import { fmtNum } from '../utils/format';
+import { prefetchKpi } from '../services/kpiService';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */
 export type ReviewCounts = { pos: number; sb: number; cc?: number };
@@ -98,6 +100,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'dashboard',
           label: 'Dashboard',
           icon: LayoutDashboard,
+        },
+        {
+          id: 'kpi_performance',
+          label: 'KPI Performance',
+          icon: Trophy,
         },
         {
           id: 'merchants',
@@ -253,6 +260,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         onSelectTab(item.id);
                         if (isMobileView) onCloseMobile?.();
                       }}
+                      onMouseEnter={() => { if (item.id === 'kpi_performance') prefetchKpi(); }}
                       title={!isMobileView && collapsed ? item.label : undefined}
                       className={`group relative w-full ${
                         !isMobileView && collapsed
