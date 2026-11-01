@@ -100,7 +100,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [openStaff, setOpenStaff] = useState<string | null>(null);
   const [showSubCategories, setShowSubCategories] = useState(false);
   const [rightDonutMode, setRightDonutMode] = useState<'branchRating' | 'categoryMix'>('branchRating');
-  const [tableMode, setTableMode] = useState<'branches' | 'staff'>('branches');
 
   const range = useMemo(() => kpiPeriodRange(period), [period]);
   const [data, setData] = useState<KpiDashboardData | null>(() => getCachedKpiSummary(range.from, range.to) || getCachedKpiSummary(null, null) || null);
@@ -617,21 +616,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     <div className="flex flex-col gap-3.5 apple-tab-panel" aria-label="KPI Performance">
       {/* ───────────── 1. HERO HEADER & 6 BIG KPI CARDS (Push Configuring Hub Backdrop Style) ───────────── */}
       <section
-        className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border shadow-md bg-slate-100 border-slate-200/90 text-slate-900"
+        className="relative overflow-hidden rounded-2xl p-4 sm:p-5 border shadow-2xs bg-slate-100 border-slate-200/90 text-slate-900"
         aria-label="KPI Performance statistics"
       >
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
-            <h1 className="text-xl sm:text-2xl lg:text-[26px] font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900 leading-tight">
-              <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 text-[#1e5b88]" aria-hidden />
-              <span>
-                KPI Performance{' '}
-                <span className="text-slate-500 font-normal text-base sm:text-lg">
-                  · Branch &amp; Staff Analytics
-                </span>
-              </span>
-            </h1>
-            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="space-y-1 max-w-2xl">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2 text-slate-900">
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-[#003857]" aria-hidden />
+              <span>KPI Performance<span className="text-slate-500 font-normal"> · Branch &amp; Staff Analytics</span></span>
+            </h2>
+            <p className="text-xs leading-relaxed text-slate-600">
               Live institutional performance tracking across field installations, KHQR merchant onboarding, and credit card acquisitions.
             </p>
           </div>
@@ -690,10 +684,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             icon={Building2}
             accentColor="amber"
             badge={`${totals.branchesOnTarget} on target`}
-            onClick={() => {
-              setView('branches');
-              setTableMode('branches');
-            }}
+            onClick={() => setView('branches')}
             active={view === 'branches'}
           />
           <BigKpiCard
@@ -703,10 +694,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             icon={Users}
             accentColor="violet"
             badge={`${totals.staffOnTarget} on target`}
-            onClick={() => {
-              setView('staff');
-              setTableMode('staff');
-            }}
+            onClick={() => setView('staff')}
             active={view === 'staff'}
           />
           <BigKpiCard
@@ -716,10 +704,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             icon={Award}
             accentColor="emerald"
             badge={totals.topBranch ? `${totals.topBranch.staffCount} staff` : undefined}
-            onClick={() => {
-              setView('branches');
-              setTableMode('branches');
-            }}
+            onClick={() => setView('branches')}
             active={false}
           />
           <BigKpiCard
@@ -758,11 +743,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   type="button"
                   role="tab"
                   aria-selected={active}
-                  onClick={() => {
-                    setView(t.id);
-                    if (t.id === 'branches') setTableMode('branches');
-                    if (t.id === 'staff') setTableMode('staff');
-                  }}
+                  onClick={() => setView(t.id)}
                   className={`relative px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
                     active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900 font-medium'
                   }`}
@@ -838,7 +819,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       {/* ───────────── Executive Graphs & Charts (Push Configuring Hub Backdrop Style) ───────────── */}
       {showSection('all') && (
         <section
-          className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border shadow-md bg-slate-100 border-slate-200/90 text-slate-900"
+          className="relative overflow-hidden rounded-2xl p-4 border shadow-2xs bg-slate-100 border-slate-200/90 text-slate-900"
           aria-label="Executive KPI Charts"
         >
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
@@ -1143,7 +1124,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       {/* ───────────── Most KPI Types Consumed (Push Configuring Hub Backdrop Style) ───────────── */}
       {showSection('all') && (
         <section
-          className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border shadow-md bg-slate-100 border-slate-200/90 text-slate-900"
+          className="relative overflow-hidden rounded-2xl p-4 border shadow-2xs bg-slate-100 border-slate-200/90 text-slate-900"
           aria-label="Most KPI Types Consumed"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1268,7 +1249,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       {/* ───────────── Top 10 Branch and Staff Leaderboard Each Month (Push Configuring Hub Backdrop Style) ───────────── */}
       {(showSection('all') || showSection('top10')) && (
         <section
-          className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border shadow-md bg-slate-100 border-slate-200/90 text-slate-900"
+          className="relative overflow-hidden rounded-2xl p-4 border shadow-2xs bg-slate-100 border-slate-200/90 text-slate-900"
           aria-label="Top 10 Branch and Staff by Month"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1468,277 +1449,227 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         </section>
       )}
 
-      {/* ───────────── KPI Performance Table (Switchable between Branch & Staff) ───────────── */}
-      {(showSection('all') || showSection('branches') || showSection('staff')) && (
-        <section
-          className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto"
-          aria-label="KPI Performance Table"
-        >
-          <div className="px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Overlapping Table Switcher */}
-              <div className="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200/90 text-[11px] gap-0.5 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setTableMode('branches')}
-                  aria-pressed={tableMode === 'branches'}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer transition ${
-                    tableMode === 'branches'
-                      ? 'bg-[#1e5b88] text-white font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900 font-medium'
-                  }`}
-                >
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>KPI by Branch</span>
-                  <span
-                    className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
-                      tableMode === 'branches' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
-                    }`}
-                  >
-                    {filteredBranches.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTableMode('staff')}
-                  aria-pressed={tableMode === 'staff'}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer transition ${
-                    tableMode === 'staff'
-                      ? 'bg-[#1e5b88] text-white font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900 font-medium'
-                  }`}
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  <span>KPI by Staff</span>
-                  <span
-                    className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
-                      tableMode === 'staff' ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
-                    }`}
-                  >
-                    {filteredStaff.length}
-                  </span>
-                </button>
-              </div>
-
-              <span className="text-[12px] text-slate-500 hidden sm:inline">
-                · {tableMode === 'branches'
-                  ? `${filteredBranches.length} branches · ${activeTargets.label}: ${fmtPts(activeTargets.branch)} pts`
-                  : `${filteredStaff.length} staff · ${activeTargets.label}: ${fmtPts(activeTargets.staff)} pts`}
+      {/* ───────────── KPI Performance by Branch & Statistics ───────────── */}
+      {(showSection('all') || showSection('branches')) && (
+        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KPI Performance by Branch">
+          <div className="px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Building2 className="w-4 h-4 text-[#1e5b88] shrink-0" aria-hidden />
+              <h3 className="text-[13px] font-semibold text-slate-900">KPI Performance by Branch</h3>
+              <span className="text-[12px] text-slate-500">
+                · {filteredBranches.length} branches · {activeTargets.label}: {fmtPts(activeTargets.branch)} pts
               </span>
             </div>
+            <ExportCsvButton
+              onExport={exportBranchCsv}
+              toast={triggerToast}
+              title="Export KPI Performance by Branch to CSV (opens in Excel)"
+            />
+          </div>
 
-            <div className="flex items-center gap-2">
-              {tableMode === 'branches' ? (
-                <ExportCsvButton
-                  onExport={exportBranchCsv}
-                  toast={triggerToast}
-                  title="Export KPI Performance by Branch to CSV (opens in Excel)"
-                />
+          <div className="min-w-[1040px] w-full">
+            <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(210px,1.8fr)_minmax(60px,0.65fr)_minmax(108px,1.05fr)_minmax(108px,1.05fr)_minmax(118px,1.15fr)_minmax(108px,1.05fr)_minmax(78px,0.8fr)_minmax(105px,1fr)_minmax(125px,1.2fr)_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5">
+              <span className="text-right">No.</span>
+              <span className="inline-flex items-center gap-1.5"><Building2 className="w-3 h-3 opacity-80" aria-hidden />Branch</span>
+              <span className="text-right">Staff</span>
+              <span className="inline-flex items-center justify-end gap-1"><Cpu className="w-3 h-3 opacity-80" aria-hidden />POS (Tasks/Pts)</span>
+              <span className="inline-flex items-center justify-end gap-1"><Volume2 className="w-3 h-3 opacity-80" aria-hidden />SB (Tasks/Pts)</span>
+              <span className="inline-flex items-center justify-end gap-1"><QrCode className="w-3 h-3 opacity-80" aria-hidden />KHQR (Tasks/Pts)</span>
+              <span className="inline-flex items-center justify-end gap-1"><CreditCard className="w-3 h-3 opacity-80" aria-hidden />CC (Cards/Pts)</span>
+              <span className="text-right" title="Average KPI points per active staff member in the branch">Pts/Staff</span>
+              <span className="text-right">Total Points</span>
+              <span>{activeTargets.label}</span>
+              <span />
+            </div>
+
+            <div className="divide-y divide-slate-200/90">
+              {filteredBranches.length === 0 ? (
+                <div className="p-10 text-center text-sm text-slate-500">No branches match the current filters.</div>
               ) : (
-                <ExportCsvButton
-                  onExport={exportStaffCsv}
-                  toast={triggerToast}
-                  title="Export KPI Performance by Individual Staff to CSV (opens in Excel)"
-                />
+                filteredBranches.slice(branchPg.start, branchPg.end).map((b, i) => {
+                  const rank = branchPg.start + i + 1;
+                  const isOpen = openBranch === b.branchId;
+                  return (
+                    <div key={b.branchId} className="hover:bg-slate-50/70">
+                      <button
+                        type="button"
+                        onClick={() => setOpenBranch((o) => (o === b.branchId ? null : b.branchId))}
+                        aria-expanded={isOpen}
+                        className="grid items-center gap-x-4 grid-cols-[40px_minmax(210px,1.8fr)_minmax(60px,0.65fr)_minmax(108px,1.05fr)_minmax(108px,1.05fr)_minmax(118px,1.15fr)_minmax(108px,1.05fr)_minmax(78px,0.8fr)_minmax(105px,1fr)_minmax(125px,1.2fr)_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
+                      >
+                        <span className="text-right tabular-nums text-slate-500">{rank}</span>
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-7 h-7 rounded-lg bg-slate-100 text-[#1e5b88] border border-slate-200/80 flex items-center justify-center shrink-0">
+                            <Building2 className="w-3.5 h-3.5" aria-hidden />
+                          </span>
+                          <span className="min-w-0 leading-snug">
+                            <span className="block font-medium text-slate-900 truncate">
+                              {fmtBranchLabel(b.branchId, b.branchName)}
+                            </span>
+                            <span className="block text-[11px] text-slate-500">
+                              {b.isPP ? 'Phnom Penh' : 'Province'} · {fmtInt(b.totalTasks)} tasks · {b.qualityPct}% quality
+                            </span>
+                          </span>
+                        </span>
+                        <span className="text-right tabular-nums">{b.staffCount}</span>
+                        <span className="text-right tabular-nums"><TaskPtsCell tasks={b.posTasks} pts={b.posPoints} /></span>
+                        <span className="text-right tabular-nums"><TaskPtsCell tasks={b.sbTasks} pts={b.sbPoints} /></span>
+                        <span className="text-right tabular-nums"><TaskPtsCell tasks={b.khqrTasks} pts={b.khqrPoints} /></span>
+                        <span className="text-right tabular-nums"><TaskPtsCell tasks={b.ccTasks} pts={b.ccPoints} /></span>
+                        <span className="text-right tabular-nums text-slate-600">{fmtPts(b.ptsPerStaff)}</span>
+                        <span className="text-right tabular-nums font-figure font-semibold text-[#1e5b88]">{fmtPts(b.totalPoints)} pts</span>
+                        <span><TargetBar pct={b.targetPct} /></span>
+                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6, transition: { duration: 0.14 } }}
+                            transition={SPRING}
+                            className="px-4 pb-4 pt-2 bg-slate-50/60 border-t border-slate-100"
+                          >
+                            <SubCategoryMiniGrid raw={b.raw} ruleMap={ruleMap} />
+                            <div className="mt-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
+                              <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-200 text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                                Staff contributors in {b.branchName} ({b.staffList.length})
+                              </div>
+                              <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto text-[13px] text-slate-700">
+                                {b.staffList.map((s, idx) => (
+                                  <div key={s.staffId} className="px-3.5 py-2 flex items-center justify-between">
+                                    <div>
+                                      <span className="text-slate-400 font-mono mr-2">{idx + 1}.</span>
+                                      <span className="text-slate-900">{s.staffName}</span>{' '}
+                                      <span className="text-slate-500">({s.staffId})</span>
+                                    </div>
+                                    <div className="flex items-center gap-4 tabular-nums text-xs">
+                                      <span className="text-slate-500">POS: {fmtPts(s.posPoints)}</span>
+                                      <span className="text-slate-500">SB: {fmtPts(s.sbPoints)}</span>
+                                      <span className="text-slate-500">KHQR: {fmtPts(s.khqrPoints)}</span>
+                                      <span className="text-slate-500">CC: {fmtPts(s.ccPoints)}</span>
+                                      <span className="font-medium text-slate-900">{fmtPts(s.totalPoints)} pts</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
+          <Pager pg={branchPg} label="branches" />
+        </section>
+      )}
 
-          {tableMode === 'branches' ? (
-            /* Branch view */
-            <div>
-              <div className="min-w-[1080px] w-full">
-                <div className="grid items-center gap-x-3.5 grid-cols-[38px_minmax(195px,1.5fr)_56px_minmax(96px,0.85fr)_minmax(96px,0.85fr)_minmax(105px,0.95fr)_minmax(96px,0.85fr)_72px_92px_76px_140px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5">
-                  <span className="text-right">No.</span>
-                  <span className="inline-flex items-center gap-1.5"><Building2 className="w-3 h-3 opacity-80" aria-hidden />Branch</span>
-                  <span className="text-right">Staff</span>
-                  <span className="inline-flex items-center justify-end gap-1"><Cpu className="w-3 h-3 opacity-80" aria-hidden />POS</span>
-                  <span className="inline-flex items-center justify-end gap-1"><Volume2 className="w-3 h-3 opacity-80" aria-hidden />SB</span>
-                  <span className="inline-flex items-center justify-end gap-1"><QrCode className="w-3 h-3 opacity-80" aria-hidden />KHQR</span>
-                  <span className="inline-flex items-center justify-end gap-1"><CreditCard className="w-3 h-3 opacity-80" aria-hidden />CC</span>
-                  <span className="text-right" title="Average KPI points per active staff member in the branch">Pts/Staff</span>
-                  <span className="text-right">Total Pts</span>
-                  <span className="text-center">Achieve</span>
-                  <span className="text-left pl-2">Rating</span>
-                  <span />
-                </div>
-
-                <div className="divide-y divide-slate-200/90">
-                  {filteredBranches.length === 0 ? (
-                    <div className="p-10 text-center text-sm text-slate-500">No branches match the current filters.</div>
-                  ) : (
-                    filteredBranches.slice(branchPg.start, branchPg.end).map((b, i) => {
-                      const rank = branchPg.start + i + 1;
-                      const isOpen = openBranch === b.branchId;
-                      return (
-                        <div key={b.branchId} className="hover:bg-slate-50/70">
-                          <button
-                            type="button"
-                            onClick={() => setOpenBranch((o) => (o === b.branchId ? null : b.branchId))}
-                            aria-expanded={isOpen}
-                            className="grid items-center gap-x-3.5 grid-cols-[38px_minmax(195px,1.5fr)_56px_minmax(96px,0.85fr)_minmax(96px,0.85fr)_minmax(105px,0.95fr)_minmax(96px,0.85fr)_72px_92px_76px_140px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
-                          >
-                            <span className="text-right tabular-nums text-slate-500">{rank}</span>
-                            <span className="flex items-center gap-2.5 min-w-0">
-                              <span className="w-7 h-7 rounded-lg bg-slate-100 text-[#1e5b88] border border-slate-200/80 flex items-center justify-center shrink-0">
-                                <Building2 className="w-3.5 h-3.5" aria-hidden />
-                              </span>
-                              <span className="min-w-0 leading-snug">
-                                <span className="block font-medium text-slate-900 truncate">
-                                  {fmtBranchLabel(b.branchId, b.branchName)}
-                                </span>
-                                <span className="block text-[11px] text-slate-500">
-                                  {b.isPP ? 'Phnom Penh' : 'Province'} · {fmtInt(b.totalTasks)} tasks · {b.qualityPct}% quality
-                                </span>
-                              </span>
-                            </span>
-                            <span className="text-right tabular-nums">{b.staffCount}</span>
-                            <span className="text-right tabular-nums"><TaskPtsCell tasks={b.posTasks} pts={b.posPoints} /></span>
-                            <span className="text-right tabular-nums"><TaskPtsCell tasks={b.sbTasks} pts={b.sbPoints} /></span>
-                            <span className="text-right tabular-nums"><TaskPtsCell tasks={b.khqrTasks} pts={b.khqrPoints} /></span>
-                            <span className="text-right tabular-nums"><TaskPtsCell tasks={b.ccTasks} pts={b.ccPoints} /></span>
-                            <span className="text-right tabular-nums text-slate-600">{fmtPts(b.ptsPerStaff)}</span>
-                            <span className="text-right tabular-nums font-figure font-semibold text-[#1e5b88]">{fmtPts(b.totalPoints)} pts</span>
-                            <span className="text-center"><AchievementCell pct={b.targetPct} /></span>
-                            <span className="text-left pl-2"><KpiRatingBadge rating={b.rating} /></span>
-                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                          </button>
-
-                          <AnimatePresence initial={false}>
-                            {isOpen && (
-                              <motion.div
-                                initial={{ opacity: 0, y: -6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -6, transition: { duration: 0.14 } }}
-                                transition={SPRING}
-                                className="px-4 pb-4 pt-2 bg-slate-50/60 border-t border-slate-100"
-                              >
-                                <SubCategoryMiniGrid raw={b.raw} ruleMap={ruleMap} />
-                                <div className="mt-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
-                                  <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-200 text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                                    Staff contributors in {b.branchName} ({b.staffList.length})
-                                  </div>
-                                  <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto text-[13px] text-slate-700">
-                                    {b.staffList.map((s, idx) => (
-                                      <div key={s.staffId} className="px-3.5 py-2 flex items-center justify-between">
-                                        <div>
-                                          <span className="text-slate-400 font-mono mr-2">{idx + 1}.</span>
-                                          <span className="text-slate-900">{s.staffName}</span>{' '}
-                                          <span className="text-slate-500">({s.staffId})</span>
-                                        </div>
-                                        <div className="flex items-center gap-4 tabular-nums text-xs">
-                                          <span className="text-slate-500">POS: {fmtPts(s.posPoints)}</span>
-                                          <span className="text-slate-500">SB: {fmtPts(s.sbPoints)}</span>
-                                          <span className="text-slate-500">KHQR: {fmtPts(s.khqrPoints)}</span>
-                                          <span className="text-slate-500">CC: {fmtPts(s.ccPoints)}</span>
-                                          <span className="font-medium text-slate-900">{fmtPts(s.totalPoints)} pts</span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-              <Pager pg={branchPg} label="branches" />
+      {/* ───────────── KPI Performance by Individual Staff & Statistics ───────────── */}
+      {(showSection('all') || showSection('staff')) && (
+        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KPI Performance by Individual">
+          <div className="px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Users className="w-4 h-4 text-[#1e5b88] shrink-0" aria-hidden />
+              <h3 className="text-[13px] font-semibold text-slate-900">KPI Performance by Individual Staff</h3>
+              <span className="text-[12px] text-slate-500">
+                · {filteredStaff.length} staff · {activeTargets.label}: {fmtPts(activeTargets.staff)} pts
+              </span>
             </div>
-          ) : (
-            /* Staff view */
-            <div>
-              <div className="min-w-[1080px] w-full">
-                <div className="grid items-center gap-x-3.5 grid-cols-[38px_minmax(180px,1.4fr)_minmax(140px,1.1fr)_minmax(96px,0.85fr)_minmax(96px,0.85fr)_minmax(105px,0.95fr)_minmax(96px,0.85fr)_65px_92px_76px_140px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5">
-                  <span className="text-right">No.</span>
-                  <span className="inline-flex items-center gap-1.5"><Users className="w-3 h-3 opacity-80" aria-hidden />Staff</span>
-                  <span className="inline-flex items-center gap-1.5"><Building2 className="w-3 h-3 opacity-80" aria-hidden />Branch</span>
-                  <span className="inline-flex items-center justify-end gap-1"><Cpu className="w-3 h-3 opacity-80" aria-hidden />POS</span>
-                  <span className="inline-flex items-center justify-end gap-1"><Volume2 className="w-3 h-3 opacity-80" aria-hidden />SB</span>
-                  <span className="inline-flex items-center justify-end gap-1"><QrCode className="w-3 h-3 opacity-80" aria-hidden />KHQR</span>
-                  <span className="inline-flex items-center justify-end gap-1"><CreditCard className="w-3 h-3 opacity-80" aria-hidden />CC</span>
-                  <span className="text-right">Quality</span>
-                  <span className="text-right">Total Pts</span>
-                  <span className="text-center">Achieve</span>
-                  <span className="text-left pl-2">Rating</span>
-                  <span />
-                </div>
+            <ExportCsvButton
+              onExport={exportStaffCsv}
+              toast={triggerToast}
+              title="Export KPI Performance by Individual Staff to CSV (opens in Excel)"
+            />
+          </div>
 
-                <div className="divide-y divide-slate-200/90">
-                  {filteredStaff.length === 0 ? (
-                    <div className="p-10 text-center text-sm text-slate-500">No staff records match the current filters.</div>
-                  ) : (
-                    filteredStaff.slice(staffPg.start, staffPg.end).map((s, i) => {
-                      const rank = staffPg.start + i + 1;
-                      const isOpen = openStaff === s.staffId;
-                      return (
-                        <div key={s.staffId} className="hover:bg-slate-50/70">
-                          <button
-                            type="button"
-                            onClick={() => setOpenStaff((o) => (o === s.staffId ? null : s.staffId))}
-                            aria-expanded={isOpen}
-                            className="grid items-center gap-x-3.5 grid-cols-[38px_minmax(180px,1.4fr)_minmax(140px,1.1fr)_minmax(96px,0.85fr)_minmax(96px,0.85fr)_minmax(105px,0.95fr)_minmax(96px,0.85fr)_65px_92px_76px_140px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
-                          >
-                            <span className="text-right tabular-nums text-slate-500">{rank}</span>
-                            <span className="flex items-center gap-2.5 min-w-0">
-                              <span className="w-7 h-7 rounded-lg bg-slate-100 text-[#1e5b88] border border-slate-200/80 flex items-center justify-center shrink-0">
-                                <Users className="w-3.5 h-3.5" aria-hidden />
-                              </span>
-                              <span className="min-w-0 leading-snug">
-                                <span className="block font-medium text-slate-900 truncate">{s.staffName}</span>
-                                <span className="block text-[11px] text-slate-500">ID: {s.staffId} · {fmtInt(s.totalTasks)} tasks</span>
-                              </span>
-                            </span>
-                            <span className="min-w-0 leading-snug">
-                              <span className="block truncate text-slate-800">{fmtBranchLabel(s.branchId, s.branchName)}</span>
-                              <span className="block text-[11px] text-slate-500">{s.isPP ? 'Phnom Penh' : 'Province'}</span>
-                            </span>
-                            <span className="text-right tabular-nums"><TaskPtsCell tasks={s.posTasks} pts={s.posPoints} /></span>
-                            <span className="text-right tabular-nums"><TaskPtsCell tasks={s.sbTasks} pts={s.sbPoints} /></span>
-                            <span className="text-right tabular-nums"><TaskPtsCell tasks={s.khqrTasks} pts={s.khqrPoints} /></span>
-                            <span className="text-right tabular-nums"><TaskPtsCell tasks={s.ccTasks} pts={s.ccPoints} /></span>
-                            <span className="text-right tabular-nums">
-                              <span className={`px-1.5 py-0.5 rounded font-medium text-[11px] ${s.qualityPct >= 95 ? 'bg-emerald-50 text-emerald-700' : s.qualityPct >= 80 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
-                                {s.qualityPct}%
-                              </span>
-                            </span>
-                            <span className="text-right tabular-nums font-figure font-semibold text-[#1e5b88]">{fmtPts(s.totalPoints)} pts</span>
-                            <span className="text-center"><AchievementCell pct={s.targetPct} /></span>
-                            <span className="text-left pl-2"><KpiRatingBadge rating={s.rating} /></span>
-                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                          </button>
-
-                          <AnimatePresence initial={false}>
-                            {isOpen && (
-                              <motion.div
-                                initial={{ opacity: 0, y: -6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -6, transition: { duration: 0.14 } }}
-                                transition={SPRING}
-                                className="px-4 pb-4 pt-2 bg-slate-50/60 border-t border-slate-100"
-                              >
-                                <SubCategoryMiniGrid raw={s} ruleMap={ruleMap} />
-                                <div className="mt-2.5 flex flex-wrap items-center gap-4 text-xs text-slate-500">
-                                  <span>POS rejected: <span className="text-slate-800">{s.posRejected}</span> / {s.posSubmitted}</span>
-                                  <span>Sound Box rejected: <span className="text-slate-800">{s.sbRejected}</span> / {s.sbSubmitted}</span>
-                                  <span>KHQR blocked submits: <span className="text-slate-800">{s.khqrFailed}</span></span>
-                                  <span>Credit Card rejected: <span className="text-slate-800">{s.ccRejected}</span> / {s.ccSubmitted}</span>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-              <Pager pg={staffPg} label="staff members" />
+          <div className="min-w-[1040px] w-full">
+            <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(195px,1.55fr)_minmax(175px,1.4fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(72px,0.75fr)_minmax(100px,0.95fr)_minmax(120px,1.15fr)_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5">
+              <span className="text-right">No.</span>
+              <span className="inline-flex items-center gap-1.5"><Users className="w-3 h-3 opacity-80" aria-hidden />Staff</span>
+              <span className="inline-flex items-center gap-1.5"><Building2 className="w-3 h-3 opacity-80" aria-hidden />Branch</span>
+              <span className="inline-flex items-center justify-end gap-1"><Cpu className="w-3 h-3 opacity-80" aria-hidden />POS (Tasks/Pts)</span>
+              <span className="inline-flex items-center justify-end gap-1"><Volume2 className="w-3 h-3 opacity-80" aria-hidden />SB (Tasks/Pts)</span>
+              <span className="inline-flex items-center justify-end gap-1"><QrCode className="w-3 h-3 opacity-80" aria-hidden />KHQR (Tasks/Pts)</span>
+              <span className="inline-flex items-center justify-end gap-1"><CreditCard className="w-3 h-3 opacity-80" aria-hidden />CC (Cards/Pts)</span>
+              <span className="text-right">Quality</span>
+              <span className="text-right">Total Points</span>
+              <span>{activeTargets.label}</span>
+              <span />
             </div>
-          )}
+
+            <div className="divide-y divide-slate-200/90">
+              {filteredStaff.length === 0 ? (
+                <div className="p-10 text-center text-sm text-slate-500">No staff records match the current filters.</div>
+              ) : (
+                filteredStaff.slice(staffPg.start, staffPg.end).map((s, i) => {
+                  const rank = staffPg.start + i + 1;
+                  const isOpen = openStaff === s.staffId;
+                  return (
+                    <div key={s.staffId} className="hover:bg-slate-50/70">
+                      <button
+                        type="button"
+                        onClick={() => setOpenStaff((o) => (o === s.staffId ? null : s.staffId))}
+                        aria-expanded={isOpen}
+                        className="grid items-center gap-x-4 grid-cols-[40px_minmax(195px,1.55fr)_minmax(175px,1.4fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(72px,0.75fr)_minmax(100px,0.95fr)_minmax(120px,1.15fr)_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
+                      >
+                        <span className="text-right tabular-nums text-slate-500">{rank}</span>
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-7 h-7 rounded-lg bg-slate-100 text-[#1e5b88] border border-slate-200/80 flex items-center justify-center shrink-0">
+                            <Users className="w-3.5 h-3.5" aria-hidden />
+                          </span>
+                          <span className="min-w-0 leading-snug">
+                            <span className="block font-medium text-slate-900 truncate">{s.staffName}</span>
+                            <span className="block text-[11px] text-slate-500">ID: {s.staffId} · {fmtInt(s.totalTasks)} tasks</span>
+                          </span>
+                        </span>
+                        <span className="min-w-0 leading-snug">
+                          <span className="block truncate text-slate-800">{fmtBranchLabel(s.branchId, s.branchName)}</span>
+                          <span className="block text-[11px] text-slate-500">{s.isPP ? 'Phnom Penh' : 'Province'}</span>
+                        </span>
+                        <span className="text-right tabular-nums"><TaskPtsCell tasks={s.posTasks} pts={s.posPoints} /></span>
+                        <span className="text-right tabular-nums"><TaskPtsCell tasks={s.sbTasks} pts={s.sbPoints} /></span>
+                        <span className="text-right tabular-nums"><TaskPtsCell tasks={s.khqrTasks} pts={s.khqrPoints} /></span>
+                        <span className="text-right tabular-nums"><TaskPtsCell tasks={s.ccTasks} pts={s.ccPoints} /></span>
+                        <span className="text-right tabular-nums">
+                          <span className={`px-1.5 py-0.5 rounded font-medium text-[11px] ${s.qualityPct >= 95 ? 'bg-emerald-50 text-emerald-700' : s.qualityPct >= 80 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
+                            {s.qualityPct}%
+                          </span>
+                        </span>
+                        <span className="text-right tabular-nums font-figure font-semibold text-[#1e5b88]">{fmtPts(s.totalPoints)} pts</span>
+                        <span><TargetBar pct={s.targetPct} /></span>
+                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6, transition: { duration: 0.14 } }}
+                            transition={SPRING}
+                            className="px-4 pb-4 pt-2 bg-slate-50/60 border-t border-slate-100"
+                          >
+                            <SubCategoryMiniGrid raw={s} ruleMap={ruleMap} />
+                            <div className="mt-2.5 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                              <span>POS rejected: <span className="text-slate-800">{s.posRejected}</span> / {s.posSubmitted}</span>
+                              <span>Sound Box rejected: <span className="text-slate-800">{s.sbRejected}</span> / {s.sbSubmitted}</span>
+                              <span>KHQR blocked submits: <span className="text-slate-800">{s.khqrFailed}</span></span>
+                              <span>Credit Card rejected: <span className="text-slate-800">{s.ccRejected}</span> / {s.ccSubmitted}</span>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+          <Pager pg={staffPg} label="staff members" />
         </section>
       )}
 
@@ -1804,60 +1735,6 @@ const TaskPtsCell: React.FC<{ tasks: number; pts: number }> = ({ tasks, pts }) =
       <span className="text-slate-500">{fmtInt(tasks)}</span>
       <span className="text-slate-300 mx-1">·</span>
       <span className="font-medium text-slate-900">{fmtPts(pts)}</span>
-    </span>
-  );
-};
-
-const AchievementCell: React.FC<{ pct: number }> = ({ pct }) => {
-  let colorClass = 'bg-[#15803d] text-white';
-  if (pct >= 120) {
-    colorClass = 'bg-[#15803d] text-white font-bold';
-  } else if (pct >= 100) {
-    colorClass = 'bg-[#16a34a] text-white font-bold';
-  } else if (pct >= 70) {
-    colorClass = 'bg-[#ea580c] text-white font-bold';
-  } else {
-    colorClass = 'bg-[#dc2626] text-white font-bold';
-  }
-
-  return (
-    <span
-      className={`inline-flex items-center justify-center min-w-[56px] px-1.5 py-0.5 rounded text-xs font-mono tabular-nums shadow-2xs ${colorClass}`}
-    >
-      {pct.toFixed(1)}%
-    </span>
-  );
-};
-
-const KpiRatingBadge: React.FC<{ rating: KpiRating }> = ({ rating }) => {
-  if (rating === 'Outstanding') {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#b45309] shrink-0">
-        <Sun className="w-3.5 h-3.5 text-[#d97706] fill-[#fef3c7] shrink-0" />
-        <span>Outstanding</span>
-      </span>
-    );
-  }
-  if (rating === 'Meet Target') {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#15803d] shrink-0">
-        <CheckSquare className="w-3.5 h-3.5 text-[#16a34a] shrink-0" />
-        <span>Meet Target</span>
-      </span>
-    );
-  }
-  if (rating === 'Near/Below Target') {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#c2410c] shrink-0">
-        <Diamond className="w-3.5 h-3.5 text-[#ea580c] shrink-0" />
-        <span>Near/Below Target</span>
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#b91c1c] shrink-0">
-      <X className="w-3.5 h-3.5 text-[#dc2626] stroke-[3] shrink-0" />
-      <span>Needs Improvement</span>
     </span>
   );
 };
@@ -2160,6 +2037,17 @@ const MiniMixBar: React.FC<{ pos: number; sb: number; khqr: number; cc: number; 
       {pSb > 0 && <div className="bg-[#1e5b88] h-full" style={{ width: `${pSb}%` }} />}
       {pKhqr > 0 && <div className="bg-teal-600 h-full" style={{ width: `${pKhqr}%` }} />}
       {pCc > 0 && <div className="bg-amber-500 h-full" style={{ width: `${pCc}%` }} />}
+    </div>
+  );
+};
+
+const TargetBar: React.FC<{ pct: number }> = ({ pct }) => {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <div className="h-full rounded-full bg-[#1e5b88]" style={{ width: `${Math.min(100, Math.max(4, pct))}%` }} />
+      </div>
+      <span className="text-[11px] font-mono tabular-nums text-slate-500 w-9 text-right">{pct}%</span>
     </div>
   );
 };
