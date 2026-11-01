@@ -520,9 +520,20 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       const saved = localStorage.getItem(STORAGE_KEY_SETTINGS);
       if (saved) {
         const parsed = JSON.parse(saved);
+        const legacyTitles = new Set([
+          'POS & SB Stock Inventory',
+          'POS & Sound Box Stock',
+          'POS & Sound Box Stock Inventory',
+          'POS & Sound Box Management',
+        ]);
+        const normalizedTitle =
+          !parsed.customLogoTitle || legacyTitles.has(String(parsed.customLogoTitle).trim())
+            ? 'In-Store Management Portal'
+            : parsed.customLogoTitle;
         return {
           ...DEFAULT_APP_SETTINGS,
           ...parsed,
+          customLogoTitle: normalizedTitle,
           logoPresetId:
             !parsed.logoPresetId || parsed.logoPresetId === 'fintech-pulse'
               ? 'quantum-sound'

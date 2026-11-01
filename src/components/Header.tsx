@@ -214,7 +214,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             {(isMobileView || !collapsed) && (
               <div className="leading-tight truncate flex-1">
                 <div className="text-[13px] font-bold tracking-tight text-white truncate">
-                  {appSettings?.customLogoTitle || 'POS & Sound Box Stock'}
+                  {appSettings?.customLogoTitle || 'In-Store Management Portal'}
                 </div>
                 <div className="text-[11px] font-normal text-zinc-400 tracking-tight mt-0.5 truncate">
                   {appSettings?.customLogoSubtitle || 'Branch Operations Portal'}

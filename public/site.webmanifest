@@ -1,6 +1,6 @@
 {
-  "name": "POS & Sound Box Stock Inventory",
-  "short_name": "POS Stock",
+  "name": "In-Store Management Portal",
+  "short_name": "In-Store Portal",
   "description": "Enterprise Hardware Stock Control, Multi-Branch Lifecycle & Inventory Management",
   "start_url": "./",
   "display": "standalone",

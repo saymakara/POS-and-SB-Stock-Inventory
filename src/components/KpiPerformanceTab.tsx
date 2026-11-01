@@ -25,10 +25,10 @@ type KpiView = 'all' | 'branches' | 'staff' | 'timeline' | 'top10' | 'rules';
 type Granularity = 'daily' | 'weekly' | 'monthly' | 'quarterly';
 
 const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
-  'POS Terminal': { hex: '#003857', badge: 'bg-sky-50 text-sky-700 border-sky-200/90', bar: 'bg-[#003857]', dot: 'bg-[#003857]', Icon: Cpu },
-  'Sound Box': { hex: '#2563eb', badge: 'bg-blue-50 text-blue-700 border-blue-200/90', bar: 'bg-blue-600', dot: 'bg-blue-600', Icon: Volume2 },
-  KHQR: { hex: '#059669', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200/90', bar: 'bg-emerald-600', dot: 'bg-emerald-600', Icon: QrCode },
-  'Credit Card': { hex: '#d97706', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-amber-500', dot: 'bg-amber-500', Icon: CreditCard },
+  'POS Terminal': { hex: '#003857', badge: 'bg-slate-100 text-[#003857] border-slate-200/90', bar: 'bg-[#003857]', dot: 'bg-[#003857]', Icon: Cpu },
+  'Sound Box': { hex: '#0284c7', badge: 'bg-sky-50 text-sky-700 border-sky-200/90', bar: 'bg-sky-600', dot: 'bg-sky-600', Icon: Volume2 },
+  KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', bar: 'bg-teal-600', dot: 'bg-teal-600', Icon: QrCode },
+  'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-amber-500', dot: 'bg-amber-500', Icon: CreditCard },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },
 };
 
@@ -56,6 +56,18 @@ function fmtShortDate(ymd: string): string {
 
 const fmtPts = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
 const fmtInt = (n: number) => n.toLocaleString('en-US');
+
+function cleanBranchName(name: string, stripSuffix = true): string {
+  const base = (name || '').replace(/^Code\s+\d+\s*[·-]\s*/i, '').trim();
+  const out = stripSuffix ? base.replace(/\s*Branch$/i, '').trim() : base;
+  return out || 'Unassigned';
+}
+
+function fmtBranchLabel(branchId: string, branchName: string, short = false): string {
+  const clean = cleanBranchName(branchName, short);
+  if (!branchId || branchId === 'UNASSIGNED') return clean;
+  return `${clean} (${branchId})`;
+}
 
 interface Props {
   role: UserRole;
@@ -501,8 +513,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const topBranchChartData = useMemo(
     () =>
       filteredBranches.slice(0, 10).map((b) => ({
-        name: b.branchId === 'UNASSIGNED' ? 'Unassigned' : `Code ${b.branchId} · ${b.branchName.replace(/\s*Branch$/i, '').trim().slice(0, 14)}`,
-        fullBranchName: b.branchId === 'UNASSIGNED' ? 'Unassigned' : `Code ${b.branchId} · ${b.branchName}`,
+        name: fmtBranchLabel(b.branchId, b.branchName, true),
+        fullBranchName: fmtBranchLabel(b.branchId, b.branchName),
         posPoints: b.posPoints,
         sbPoints: b.sbPoints,
         khqrPoints: b.khqrPoints,
@@ -585,7 +597,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           <BigKpiCard
             label="Active Branches"
             value={fmtInt(totals.activeBranchCount)}
-            sub={totals.topBranch ? `Top: Code ${totals.topBranch.branchId} (${fmtPts(totals.topBranch.totalPoints)} pts)` : 'Branches with activity'}
+            sub={totals.topBranch ? `Top: ${fmtBranchLabel(totals.topBranch.branchId, totals.topBranch.branchName, true)} (${fmtPts(totals.topBranch.totalPoints)} pts)` : 'Branches with activity'}
             icon={Building2}
             accentColor="amber"
             badge={`${totals.branchesOnTarget} on target`}
@@ -608,7 +620,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             sub={totals.topStaff ? `${totals.topStaff.staffName} (${totals.topStaff.staffId})` : 'No staff activity'}
             icon={Award}
             accentColor="blue"
-            badge={totals.topStaff ? `Code ${totals.topStaff.branchId}` : undefined}
+            badge={totals.topStaff ? cleanBranchName(totals.topStaff.branchName) : undefined}
             onClick={() => setView('top10')}
             active={view === 'top10'}
           />
@@ -676,9 +688,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 className="text-xs rounded-xl border border-slate-200 bg-white px-2.5 py-2 cursor-pointer max-w-[200px] text-slate-700"
               >
                 <option value="">All branches</option>
-                <option value="100">Code 100 · Head Office</option>
+                <option value="100">Head Office (100)</option>
                 {sortedBranches.filter((b) => String(b.id) !== '100').map((b) => (
-                  <option key={b.id} value={b.id}>Code {b.id} · {b.name}</option>
+                  <option key={b.id} value={b.id}>{fmtBranchLabel(String(b.id), b.name)}</option>
                 ))}
               </select>
 
@@ -701,7 +713,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   aria-label="Search branch or staff"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search branch code, staff name or ID…"
+                  placeholder="Search branch, staff name or ID…"
                   className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white"
                 />
               </div>
@@ -716,13 +728,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-3.5" aria-label="Executive KPI Charts">
           {/* Chart 1 (7 cols): Interactive Daily / Weekly / Monthly / Quarterly Stacked Point Trend */}
           <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between">
-            <div className="px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <div className="sb-card-header-light px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-[13px] font-medium text-slate-900">KPI Point Velocity &amp; Active Staff</h3>
                 <span className="text-[12px] text-slate-500">· weighted points &amp; participation</span>
               </div>
 
-              <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5">
+              <div className="inline-flex p-0.5 rounded-xl bg-slate-200/70 border border-slate-200/90 gap-0.5">
                 {([
                   ['daily', 'Daily'],
                   ['weekly', 'Weekly'],
@@ -744,7 +756,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <motion.div
                           layoutId="kpi-chart-granularity-pill"
                           transition={SPRING}
-                          className="absolute inset-0 rounded-lg bg-[#003857] shadow-2xs"
+                          className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                         />
                       )}
                       <span className="relative z-10">{label}</span>
@@ -760,20 +772,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <span className="w-2.5 h-2.5 rounded-xs bg-[#003857]" /> POS Terminal
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-xs bg-blue-600" /> Sound Box
+                  <span className="w-2.5 h-2.5 rounded-xs bg-sky-600" /> Sound Box
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-xs bg-emerald-600" /> KHQR
+                  <span className="w-2.5 h-2.5 rounded-xs bg-teal-600" /> KHQR
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-xs bg-amber-500" /> Credit Card
                 </span>
                 <span className="inline-flex items-center gap-1.5 ml-auto text-slate-500">
-                  <span className="w-3.5 h-0.5 bg-slate-800 rounded-full inline-block" /> Active staff (right axis)
+                  <span className="w-3.5 h-0.5 bg-[#003857] rounded-full inline-block" /> Active staff (right axis)
                 </span>
               </div>
 
-              <div className="h-[256px] w-full">
+              <div className="h-[264px] w-full">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={granularity}
@@ -790,6 +802,24 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={reversedTimeSeries} margin={{ top: 8, right: 6, left: -14, bottom: 0 }} barGap={4}>
+                          <defs>
+                            <linearGradient id="kpiPosGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#004e75" />
+                              <stop offset="100%" stopColor="#003857" />
+                            </linearGradient>
+                            <linearGradient id="kpiSbGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#0ea5e9" />
+                              <stop offset="100%" stopColor="#0284c7" />
+                            </linearGradient>
+                            <linearGradient id="kpiKhqrGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#14b8a6" />
+                              <stop offset="100%" stopColor="#0d9488" />
+                            </linearGradient>
+                            <linearGradient id="kpiCcGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#fbbf24" />
+                              <stop offset="100%" stopColor="#f59e0b" />
+                            </linearGradient>
+                          </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                           <XAxis
                             dataKey="label"
@@ -813,20 +843,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             tick={{ fontSize: 11, fill: '#475569' }}
                             width={32}
                           />
-                          <Tooltip content={<CustomTrendTooltip />} cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }} />
-                          <Bar yAxisId="left" dataKey="posPoints" name="POS Terminal" stackId="pts" fill="#003857" maxBarSize={34} animationDuration={360} animationEasing="ease-out" />
-                          <Bar yAxisId="left" dataKey="sbPoints" name="Sound Box" stackId="pts" fill="#2563eb" maxBarSize={34} animationDuration={360} animationEasing="ease-out" />
-                          <Bar yAxisId="left" dataKey="khqrPoints" name="KHQR" stackId="pts" fill="#059669" maxBarSize={34} animationDuration={360} animationEasing="ease-out" />
-                          <Bar yAxisId="left" dataKey="ccPoints" name="Credit Card" stackId="pts" fill="#d97706" radius={[4, 4, 0, 0]} maxBarSize={34} animationDuration={360} animationEasing="ease-out" />
+                          <Tooltip content={<CustomTrendTooltip />} cursor={{ fill: 'rgba(0, 56, 87, 0.04)' }} />
+                          <Bar yAxisId="left" dataKey="posPoints" name="POS Terminal" stackId="pts" fill="url(#kpiPosGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={32} animationDuration={360} animationEasing="ease-out" />
+                          <Bar yAxisId="left" dataKey="sbPoints" name="Sound Box" stackId="pts" fill="url(#kpiSbGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={32} animationDuration={360} animationEasing="ease-out" />
+                          <Bar yAxisId="left" dataKey="khqrPoints" name="KHQR" stackId="pts" fill="url(#kpiKhqrGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={32} animationDuration={360} animationEasing="ease-out" />
+                          <Bar yAxisId="left" dataKey="ccPoints" name="Credit Card" stackId="pts" fill="url(#kpiCcGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={32} animationDuration={360} animationEasing="ease-out" />
                           <Line
                             yAxisId="right"
                             type="monotone"
                             dataKey="activeStaff"
                             name="Active Staff"
-                            stroke="#1e293b"
+                            stroke="#003857"
                             strokeWidth={1.75}
-                            dot={{ r: 3, fill: '#ffffff', stroke: '#1e293b', strokeWidth: 1.75 }}
-                            activeDot={{ r: 4.5, fill: '#003857', stroke: '#ffffff', strokeWidth: 2 }}
+                            dot={{ r: 3, fill: '#ffffff', stroke: '#003857', strokeWidth: 1.75 }}
+                            activeDot={{ r: 4.5, fill: '#0284c7', stroke: '#ffffff', strokeWidth: 2 }}
                             animationDuration={400}
                           />
                         </ComposedChart>
@@ -840,7 +870,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
           {/* Chart 2 (5 cols): Top 10 Branches by KPI Point Mix */}
           <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between">
-            <div className="px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <div className="sb-card-header-light px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-[13px] font-medium text-slate-900">Leading Branches by KPI Mix</h3>
                 <span className="text-[12px] text-slate-500">· {KPI_PERIOD_LABEL[period]}</span>
@@ -860,17 +890,17 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <span className="w-2.5 h-2.5 rounded-xs bg-[#003857]" /> POS
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-xs bg-blue-600" /> Sound Box
+                  <span className="w-2.5 h-2.5 rounded-xs bg-sky-600" /> Sound Box
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-xs bg-emerald-600" /> KHQR
+                  <span className="w-2.5 h-2.5 rounded-xs bg-teal-600" /> KHQR
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-xs bg-amber-500" /> Credit Card
                 </span>
               </div>
 
-              <div className="h-[256px] w-full">
+              <div className="h-[264px] w-full">
                 {topBranchChartData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-xs text-slate-400">
                     No branch activity matching current filters.
@@ -880,9 +910,27 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <BarChart
                       layout="vertical"
                       data={topBranchChartData}
-                      margin={{ top: 4, right: 14, left: 2, bottom: 0 }}
-                      barCategoryGap="24%"
+                      margin={{ top: 4, right: 14, left: 4, bottom: 0 }}
+                      barCategoryGap="26%"
                     >
+                      <defs>
+                        <linearGradient id="kpiBranchPosGrad" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#003857" />
+                          <stop offset="100%" stopColor="#004e75" />
+                        </linearGradient>
+                        <linearGradient id="kpiBranchSbGrad" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#0284c7" />
+                          <stop offset="100%" stopColor="#0ea5e9" />
+                        </linearGradient>
+                        <linearGradient id="kpiBranchKhqrGrad" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#0d9488" />
+                          <stop offset="100%" stopColor="#14b8a6" />
+                        </linearGradient>
+                        <linearGradient id="kpiBranchCcGrad" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#f59e0b" />
+                          <stop offset="100%" stopColor="#fbbf24" />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                       <XAxis
                         type="number"
@@ -894,16 +942,17 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       <YAxis
                         type="category"
                         dataKey="name"
-                        width={134}
+                        width={142}
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: '#334155' }}
+                        interval={0}
+                        tick={<BranchYAxisTick />}
                       />
-                      <Tooltip content={<CustomBranchTooltip />} cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }} />
-                      <Bar dataKey="posPoints" name="POS Terminal" stackId="b" fill="#003857" maxBarSize={16} animationDuration={360} />
-                      <Bar dataKey="sbPoints" name="Sound Box" stackId="b" fill="#2563eb" maxBarSize={16} animationDuration={360} />
-                      <Bar dataKey="khqrPoints" name="KHQR" stackId="b" fill="#059669" maxBarSize={16} animationDuration={360} />
-                      <Bar dataKey="ccPoints" name="Credit Card" stackId="b" fill="#d97706" radius={[0, 4, 4, 0]} maxBarSize={16} animationDuration={360} />
+                      <Tooltip content={<CustomBranchTooltip />} cursor={{ fill: 'rgba(0, 56, 87, 0.04)' }} />
+                      <Bar dataKey="posPoints" name="POS Terminal" stackId="b" fill="url(#kpiBranchPosGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} animationDuration={360} />
+                      <Bar dataKey="sbPoints" name="Sound Box" stackId="b" fill="url(#kpiBranchSbGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} animationDuration={360} />
+                      <Bar dataKey="khqrPoints" name="KHQR" stackId="b" fill="url(#kpiBranchKhqrGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} animationDuration={360} />
+                      <Bar dataKey="ccPoints" name="Credit Card" stackId="b" fill="url(#kpiBranchCcGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} animationDuration={360} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1084,10 +1133,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <RankBadge rank={i + 1} />
                         <div className="min-w-0 leading-tight">
                           <div className="text-slate-900 truncate">
-                            {b.branchId !== 'UNASSIGNED' ? `Code ${b.branchId} · ` : ''}{b.branchName}
+                            {fmtBranchLabel(b.branchId, b.branchName)}
                           </div>
                           <div className="text-[11px] text-slate-500">
-                            {b.staffCount} active staff · {fmtInt(b.totalTasks)} tasks · {fmtPts(b.ptsPerStaff)} pts/staff
+                            {b.staffCount} active staff · {fmtPts(b.ptsPerStaff)} pts/staff
                           </div>
                         </div>
                       </div>
@@ -1123,7 +1172,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             {s.staffName} <span className="text-slate-500">({s.staffId})</span>
                           </div>
                           <div className="text-[11px] text-slate-500 truncate">
-                            {s.branchId !== 'UNASSIGNED' ? `Code ${s.branchId} · ` : ''}{s.branchName} · {fmtInt(s.totalTasks)} tasks
+                            {fmtBranchLabel(s.branchId, s.branchName)}
                           </div>
                         </div>
                       </div>
@@ -1270,7 +1319,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <span className="text-right tabular-nums text-slate-500">{rank}</span>
                         <span className="min-w-0 leading-tight">
                           <span className="block text-slate-900 truncate">
-                            {b.branchId !== 'UNASSIGNED' ? `Code ${b.branchId} · ` : ''}{b.branchName}
+                            {fmtBranchLabel(b.branchId, b.branchName)}
                           </span>
                           <span className="block text-[11px] text-slate-500">
                             {b.isPP ? 'Phnom Penh' : 'Province'} · {fmtInt(b.totalTasks)} tasks · {b.qualityPct}% quality
@@ -1381,8 +1430,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           <span className="block text-[11px] text-slate-500">ID: {s.staffId} · {fmtInt(s.totalTasks)} tasks</span>
                         </span>
                         <span className="min-w-0 leading-tight">
-                          <span className="block truncate text-slate-800">{s.branchName}</span>
-                          <span className="block text-[11px] text-slate-500">{s.branchId !== 'UNASSIGNED' ? `Code ${s.branchId}` : 'Unassigned'}</span>
+                          <span className="block truncate text-slate-800">{fmtBranchLabel(s.branchId, s.branchName)}</span>
+                          <span className="block text-[11px] text-slate-500">{s.isPP ? 'Phnom Penh' : 'Province'}</span>
                         </span>
                         <span className="text-right tabular-nums">{fmtInt(s.posTasks)} <span className="text-slate-400">·</span> {fmtPts(s.posPoints)}</span>
                         <span className="text-right tabular-nums">{fmtInt(s.sbTasks)} <span className="text-slate-400">·</span> {fmtPts(s.sbPoints)}</span>
@@ -1453,7 +1502,32 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   );
 };
 
-/* ───────────── Custom High-Readability Institutional Chart Tooltips ───────────── */
+/* ───────────── Custom High-Readability Institutional Chart Tooltips & Axis Ticks ───────────── */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const BranchYAxisTick: React.FC<any> = ({ x, y, payload }) => {
+  const raw = String(payload?.value || '');
+  const match = raw.match(/^(.*)\s+\(([^)]+)\)$/);
+  const name = match ? match[1] : raw;
+  const code = match ? match[2] : '';
+  const displayName = name.length > 16 ? `${name.slice(0, 15)}…` : name;
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={-6}
+        y={0}
+        dy={3.5}
+        textAnchor="end"
+        fontSize={11}
+        fill="#334155"
+      >
+        <tspan fill="#1e293b">{displayName}</tspan>
+        {code && <tspan fill="#64748b"> ({code})</tspan>}
+      </text>
+    </g>
+  );
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTrendTooltip: React.FC<any> = ({ active, payload, label }) => {
@@ -1461,32 +1535,32 @@ const CustomTrendTooltip: React.FC<any> = ({ active, payload, label }) => {
   const row = payload[0]?.payload;
   if (!row) return null;
   return (
-    <div className="rounded-xl border border-slate-200 bg-white/98 backdrop-blur-md p-3 shadow-lg text-xs min-w-[210px]">
-      <div className="flex items-center justify-between gap-3 pb-1.5 mb-2 border-b border-slate-100">
+    <div className="rounded-xl border border-slate-200 bg-white/98 backdrop-blur-md p-3 shadow-lg text-xs min-w-[238px]">
+      <div className="flex items-center justify-between gap-4 pb-1.5 mb-2 border-b border-slate-100">
         <span className="font-medium text-slate-900">{label}</span>
         <span className="font-figure font-semibold text-[#003857] tabular-nums">{fmtPts(row.totalPoints)} pts</span>
       </div>
       <div className="space-y-1">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-4">
           <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#003857]" />POS Terminal</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.posPoints)} pts <span className="text-slate-400">({row.posTasks})</span></span>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-blue-600" />Sound Box</span>
+        <div className="flex items-center justify-between gap-4">
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-sky-600" />Sound Box</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.sbPoints)} pts <span className="text-slate-400">({row.sbTasks})</span></span>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-emerald-600" />KHQR</span>
+        <div className="flex items-center justify-between gap-4">
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-teal-600" />KHQR</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.khqrPoints)} pts <span className="text-slate-400">({row.khqrTasks})</span></span>
         </div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-4">
           <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-amber-500" />Credit Card</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.ccPoints)} pts <span className="text-slate-400">({row.ccTasks})</span></span>
         </div>
       </div>
-      <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+      <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between gap-4 text-[11px] text-slate-500">
         <span>{row.activeStaff} active staff · {row.activeBranches} branches</span>
-        <span className="text-slate-700">{fmtPts(row.ptsPerStaff)} pts/staff</span>
+        <span className="text-slate-700 shrink-0">{fmtPts(row.ptsPerStaff)} pts/staff</span>
       </div>
     </div>
   );
@@ -1498,32 +1572,32 @@ const CustomBranchTooltip: React.FC<any> = ({ active, payload }) => {
   const row = payload[0]?.payload;
   if (!row) return null;
   return (
-    <div className="rounded-xl border border-slate-200 bg-white/98 backdrop-blur-md p-3 shadow-lg text-xs min-w-[215px]">
-      <div className="flex items-center justify-between gap-3 pb-1.5 mb-2 border-b border-slate-100">
-        <span className="font-medium text-slate-900 truncate max-w-[140px]">{row.fullBranchName}</span>
+    <div className="rounded-xl border border-slate-200 bg-white/98 backdrop-blur-md p-3 shadow-lg text-xs min-w-[238px]">
+      <div className="flex items-center justify-between gap-4 pb-1.5 mb-2 border-b border-slate-100">
+        <span className="font-medium text-slate-900 truncate max-w-[155px]">{row.fullBranchName}</span>
         <span className="font-figure font-semibold text-[#003857] tabular-nums">{fmtPts(row.totalPoints)} pts</span>
       </div>
       <div className="space-y-1">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-4">
           <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#003857]" />POS Terminal</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.posPoints)} pts</span>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-blue-600" />Sound Box</span>
+        <div className="flex items-center justify-between gap-4">
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-sky-600" />Sound Box</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.sbPoints)} pts</span>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-emerald-600" />KHQR</span>
+        <div className="flex items-center justify-between gap-4">
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-teal-600" />KHQR</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.khqrPoints)} pts</span>
         </div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-4">
           <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-amber-500" />Credit Card</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.ccPoints)} pts</span>
         </div>
       </div>
-      <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+      <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between gap-4 text-[11px] text-slate-500">
         <span>{row.staffCount} active staff</span>
-        <span>{fmtInt(row.totalTasks)} total tasks</span>
+        <span className="shrink-0">{fmtInt(row.totalTasks)} total tasks</span>
       </div>
     </div>
   );
@@ -1613,19 +1687,19 @@ const MiniMixBar: React.FC<{ pos: number; sb: number; khqr: number; cc: number; 
   const pCc = (cc / total) * 100;
   return (
     <div
-      className="w-20 h-1.5 rounded-full bg-slate-100 overflow-hidden flex"
+      className="w-20 h-1.5 rounded-full bg-slate-100 overflow-hidden flex gap-[1px]"
       title={`POS: ${fmtPts(pos)} pts · Sound Box: ${fmtPts(sb)} pts · KHQR: ${fmtPts(khqr)} pts · Credit Card: ${fmtPts(cc)} pts`}
     >
       {pPos > 0 && <div className="bg-[#003857] h-full" style={{ width: `${pPos}%` }} />}
-      {pSb > 0 && <div className="bg-blue-600 h-full" style={{ width: `${pSb}%` }} />}
-      {pKhqr > 0 && <div className="bg-emerald-600 h-full" style={{ width: `${pKhqr}%` }} />}
+      {pSb > 0 && <div className="bg-sky-600 h-full" style={{ width: `${pSb}%` }} />}
+      {pKhqr > 0 && <div className="bg-teal-600 h-full" style={{ width: `${pKhqr}%` }} />}
       {pCc > 0 && <div className="bg-amber-500 h-full" style={{ width: `${pCc}%` }} />}
     </div>
   );
 };
 
 const TargetBar: React.FC<{ pct: number }> = ({ pct }) => {
-  const color = pct >= 100 ? 'bg-emerald-500' : pct >= 60 ? 'bg-sky-500' : 'bg-amber-500';
+  const color = pct >= 100 ? 'bg-teal-600' : pct >= 60 ? 'bg-sky-600' : 'bg-[#003857]';
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">

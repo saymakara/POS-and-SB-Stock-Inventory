@@ -197,7 +197,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
           />
           <div>
             <div className="text-sm font-extrabold tracking-tight text-zinc-900">
-              {appSettings?.customLogoTitle || 'POS & Sound Box Management'}
+              {appSettings?.customLogoTitle || 'In-Store Management Portal'}
             </div>
             <div className="text-[11px] text-slate-500 font-medium">
               {appSettings?.customLogoSubtitle || 'Enterprise Stock Inventory & Branch Support'}

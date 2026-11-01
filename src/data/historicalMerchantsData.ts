@@ -21,7 +21,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   slaEnforceStrictBreachAlerts: true,
   customFields: DEFAULT_CUSTOM_FIELDS,
   customLogoUrl: '',
-  customLogoTitle: 'POS & Sound Box Stock',
+  customLogoTitle: 'In-Store Management Portal',
   customLogoSubtitle: 'Branch Operations Portal',
   phoneReviewScope: 'PHNOM_PENH',
   logoPresetId: 'quantum-sound',

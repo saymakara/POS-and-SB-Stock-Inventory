@@ -45,7 +45,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
   );
   const [customUrl, setCustomUrl] = useState<string>(appSettings.customLogoUrl || '');
   const [titleInput, setTitleInput] = useState<string>(
-    appSettings.customLogoTitle || 'POS & Sound Box Stock'
+    appSettings.customLogoTitle || 'In-Store Management Portal'
   );
   const [subtitleInput, setSubtitleInput] = useState<string>(
     appSettings.customLogoSubtitle || 'Branch Operations Portal'
@@ -83,7 +83,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
     onUpdateAppSettings((prev) => ({
       ...prev,
       customLogoUrl: customUrl.trim(),
-      customLogoTitle: titleInput.trim() || 'POS & Sound Box Stock',
+      customLogoTitle: titleInput.trim() || 'In-Store Management Portal',
       customLogoSubtitle: subtitleInput.trim() || 'Branch Operations Portal',
       logoPresetId: selectedPreset,
     }));
@@ -99,13 +99,13 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
   const handleResetBrand = () => {
     setSelectedPreset('quantum-sound');
     setCustomUrl('');
-    setTitleInput('POS & Sound Box Stock');
+    setTitleInput('In-Store Management Portal');
     setSubtitleInput('Branch Operations Portal');
 
     onUpdateAppSettings((prev) => ({
       ...prev,
       customLogoUrl: '',
-      customLogoTitle: 'POS & Sound Box Stock',
+      customLogoTitle: 'In-Store Management Portal',
       customLogoSubtitle: 'Branch Operations Portal',
       logoPresetId: 'quantum-sound',
     }));
@@ -377,7 +377,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
                     type="text"
                     value={titleInput}
                     onChange={(e) => setTitleInput(e.target.value)}
-                    placeholder="POS & Sound Box Stock"
+                    placeholder="In-Store Management Portal"
                     className={`px-3.5 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-[#004953] ${
                       isDark
                         ? 'bg-slate-800 border-slate-700 text-white'
@@ -470,7 +470,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
               />
               <div className="mt-4">
                 <h4 className="text-base font-extrabold tracking-tight">
-                  {titleInput || 'POS & Sound Box Stock'}
+                  {titleInput || 'In-Store Management Portal'}
                 </h4>
                 <p className="text-xs text-slate-400 font-mono mt-0.5">
                   {subtitleInput || 'Branch Operations Portal'}
