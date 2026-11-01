@@ -22,6 +22,7 @@ import {
   KpiDailyBranchRaw, KpiDailyStaffRaw,
 } from '../services/kpiService';
 import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHolidays';
+import { todayPP } from '../utils/time';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const CHART_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
@@ -279,6 +280,84 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     return { branch: t.branchMonthlyTarget, staff: t.staffMonthlyTarget, label: 'Monthly target' };
   }, [data?.targets, range.targetKind]);
 
+  const monthWorkDaysSummary = useMemo(() => {
+    const [yStr, mStr] = (dailyMatrixMonth || '').split('-');
+    const year = parseInt(yStr, 10) || new Date().getFullYear();
+    const month = parseInt(mStr, 10) || (new Date().getMonth() + 1);
+    return getMonthWorkDaysSummary(year, month);
+  }, [dailyMatrixMonth]);
+
+  const matrixDays = useMemo(() => {
+    const [yStr, mStr] = (dailyMatrixMonth || '').split('-');
+    const year = parseInt(yStr, 10) || new Date().getFullYear();
+    const month = parseInt(mStr, 10) || (new Date().getMonth() + 1);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const today = new Date();
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const dayNum = i + 1;
+      const dateObj = new Date(year, month - 1, dayNum);
+      const isoDay = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+      const isSunday = dateObj.getDay() === 0;
+      const isSaturday = dateObj.getDay() === 6;
+      // Saturdays and Sundays are excluded from KPI
+      const isWeekend = isSunday || (data?.targets?.workingDaysMode === 'mon_sat' ? false : isSaturday);
+      const holidayName = getCambodiaHoliday(isoDay);
+      const isHoliday = Boolean(holidayName);
+      // Day counts towards KPI only if it's not a weekend and not a Cambodian holiday (when excludeHolidays is true, default true)
+      const excludeHolidays = data?.targets?.excludeHolidays !== false;
+      const isWorkDay = !isWeekend && (!excludeHolidays || !isHoliday);
+      const isToday = isoDay === todayIso;
+      return {
+        dayNum,
+        isoDay,
+        dayOfWeek,
+        isSunday,
+        isSaturday,
+        isWeekend,
+        isHoliday,
+        holidayName,
+        isWorkDay,
+        isToday,
+      };
+    });
+  }, [dailyMatrixMonth, data?.targets?.workingDaysMode, data?.targets?.excludeHolidays]);
+
+  // Dynamic Pacing calculation: ratings count pacing so far (e.g. Day 1: 25 pts = 100% Meet Target)
+  const pacingInfo = useMemo(() => {
+    const totalWorkDays = monthWorkDaysSummary.workDays > 0 ? monthWorkDaysSummary.workDays : (data?.targets?.workDaysInMonth ?? 21);
+    const [yStr, mStr] = (dailyMatrixMonth || '').split('-');
+    const viewYear = parseInt(yStr, 10) || new Date().getFullYear();
+    const viewMonth = parseInt(mStr, 10) || (new Date().getMonth() + 1);
+    const today = todayPP();
+    const [curYear, curMonth] = today.split('-').map(Number);
+
+    const viewYm = `${viewYear}-${String(viewMonth).padStart(2, '0')}`;
+    const curYm = `${curYear}-${String(curMonth).padStart(2, '0')}`;
+
+    let elapsedWorkDays = 1;
+    if (viewYm < curYm) {
+      // Past month completed: all work days have passed
+      elapsedWorkDays = totalWorkDays;
+    } else if (viewYm > curYm) {
+      // Future month: baseline 1 day
+      elapsedWorkDays = 1;
+    } else {
+      // Current month: count work days up to today (at least 1)
+      const workDaysSoFar = matrixDays.filter((d) => d.isWorkDay && d.isoDay <= today).length;
+      elapsedWorkDays = Math.max(1, Math.min(totalWorkDays, workDaysSoFar));
+    }
+
+    const pacingRatio = Math.min(1, Math.max(0.01, elapsedWorkDays / totalWorkDays));
+    return {
+      totalWorkDays,
+      elapsedWorkDays,
+      pacingRatio,
+    };
+  }, [monthWorkDaysSummary.workDays, data?.targets?.workDaysInMonth, dailyMatrixMonth, matrixDays]);
+
   const enrichedStaff = useMemo(() => {
     if (!data) return [];
 
@@ -358,10 +437,18 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         const targetPct = s.isManagement
           ? (s.totalPoints > 0 && effectiveStaffTarget > 0 ? Math.min(999, Math.round((s.totalPoints / effectiveStaffTarget) * 1000) / 10) : 0)
           : (effectiveStaffTarget > 0 ? Math.min(999, Math.round((s.totalPoints / effectiveStaffTarget) * 1000) / 10) : 100);
-        const rating = getKpiRating(targetPct, s.isManagement);
+
+        // Pacing target based on elapsed work days (e.g. Day 1: target = daily target)
+        const pacingStaffTarget = Math.max(1, Math.round(effectiveStaffTarget * pacingInfo.pacingRatio));
+        const pacingPct = s.isManagement
+          ? (s.totalPoints > 0 && pacingStaffTarget > 0 ? Math.min(999, Math.round((s.totalPoints / pacingStaffTarget) * 1000) / 10) : 0)
+          : (pacingStaffTarget > 0 ? Math.min(999, Math.round((s.totalPoints / pacingStaffTarget) * 1000) / 10) : 100);
+        const rating = getKpiRating(pacingPct, s.isManagement);
         return {
           ...s,
           targetPct,
+          pacingPct,
+          pacingTarget: pacingStaffTarget,
           rating,
           effectiveTarget: s.isManagement ? 0 : effectiveStaffTarget,
         };
@@ -372,7 +459,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         if (a.isManagement !== b.isManagement) return a.isManagement ? 1 : -1;
         return a.staffName.localeCompare(b.staffName);
       });
-  }, [data, ruleMap, branchNameMap, activeTargets.staff, branches, staffMetaMap, exemptSet]);
+  }, [data, ruleMap, branchNameMap, activeTargets.staff, branches, staffMetaMap, exemptSet, pacingInfo]);
 
   const branchRows = useMemo(() => {
     const map = new Map<string, {
@@ -453,16 +540,22 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         const targetStaffCount = Math.max(1, b.kpiStaffCount > 0 ? b.kpiStaffCount : b.staffCount);
         const dynamicBranchTarget = targetStaffCount * activeTargets.staff;
         const targetPct = dynamicBranchTarget > 0 ? Math.min(999, Math.round((b.totalPoints / dynamicBranchTarget) * 1000) / 10) : 100;
-        const rating = getKpiRating(targetPct, false);
+
+        // Pacing target based on elapsed work days (e.g. Day 1: 25 pts = 100% Meet Target)
+        const pacingBranchTarget = Math.max(1, Math.round(dynamicBranchTarget * pacingInfo.pacingRatio));
+        const pacingPct = pacingBranchTarget > 0 ? Math.min(999, Math.round((b.totalPoints / pacingBranchTarget) * 1000) / 10) : 100;
+        const rating = getKpiRating(pacingPct, false);
         return {
           ...b,
           targetPct,
+          pacingPct,
+          pacingTarget: pacingBranchTarget,
           rating,
           effectiveTarget: dynamicBranchTarget,
         };
       })
       .sort((a, b) => b.totalPoints - a.totalPoints || b.totalTasks - a.totalTasks);
-  }, [enrichedStaff, branchNameMap, ruleMap, activeTargets.staff]);
+  }, [enrichedStaff, branchNameMap, ruleMap, activeTargets.staff, pacingInfo]);
 
   const filteredBranches = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
@@ -652,8 +745,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const avgBranchPts = activeBranchCount > 0 ? Math.round((pts.totalPoints / activeBranchCount) * 10) / 10 : 0;
     const avgStaffPts = activeStaffCount > 0 ? Math.round((pts.totalPoints / activeStaffCount) * 10) / 10 : 0;
     const qualityPct = submitted > 0 ? Math.max(0, Math.round(((submitted - issues) / submitted) * 100)) : 100;
-    const branchesOnTarget = filteredBranches.filter((b) => b.targetPct >= 100).length;
-    const staffOnTarget = kpiStaffOnly.filter((s) => s.targetPct >= 100).length;
+    const branchesOnTarget = filteredBranches.filter((b) => (b.pacingPct ?? b.targetPct) >= 100).length;
+    const staffOnTarget = kpiStaffOnly.filter((s) => (s.pacingPct ?? s.targetPct) >= 100).length;
     const totalBranchTargetPoints = filteredBranches.reduce((acc, b) => acc + (b.effectiveTarget || (Math.max(1, b.staffCount) * activeTargets.staff)), 0);
     const targetAchievementPct = totalBranchTargetPoints > 0
       ? Math.min(999, Math.round((pts.totalPoints / totalBranchTargetPoints) * 100))
@@ -812,51 +905,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     return map;
   }, [data?.dailyBranch]);
 
-  const monthWorkDaysSummary = useMemo(() => {
-    const [yStr, mStr] = (dailyMatrixMonth || '').split('-');
-    const year = parseInt(yStr, 10) || new Date().getFullYear();
-    const month = parseInt(mStr, 10) || (new Date().getMonth() + 1);
-    return getMonthWorkDaysSummary(year, month);
-  }, [dailyMatrixMonth]);
-
-  const matrixDays = useMemo(() => {
-    const [yStr, mStr] = (dailyMatrixMonth || '').split('-');
-    const year = parseInt(yStr, 10) || new Date().getFullYear();
-    const month = parseInt(mStr, 10) || (new Date().getMonth() + 1);
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const today = new Date();
-    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-    return Array.from({ length: daysInMonth }, (_, i) => {
-      const dayNum = i + 1;
-      const dateObj = new Date(year, month - 1, dayNum);
-      const isoDay = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-      const isSunday = dateObj.getDay() === 0;
-      const isSaturday = dateObj.getDay() === 6;
-      // Saturdays and Sundays are excluded from KPI
-      const isWeekend = isSunday || (data?.targets?.workingDaysMode === 'mon_sat' ? false : isSaturday);
-      const holidayName = getCambodiaHoliday(isoDay);
-      const isHoliday = Boolean(holidayName);
-      // Day counts towards KPI only if it's not a weekend and not a Cambodian holiday (when excludeHolidays is true, default true)
-      const excludeHolidays = data?.targets?.excludeHolidays !== false;
-      const isWorkDay = !isWeekend && (!excludeHolidays || !isHoliday);
-      const isToday = isoDay === todayIso;
-      return {
-        dayNum,
-        isoDay,
-        dayOfWeek,
-        isSunday,
-        isSaturday,
-        isWeekend,
-        isHoliday,
-        holidayName,
-        isWorkDay,
-        isToday,
-      };
-    });
-  }, [dailyMatrixMonth, data?.targets?.workingDaysMode, data?.targets?.excludeHolidays]);
-
   const matrixDaysMap = useMemo(() => {
     const map = new Map<number, (typeof matrixDays)[number]>();
     for (const d of matrixDays) {
@@ -904,7 +952,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
       const dailyAvg = workDays > 0 ? Math.round((monthTotal / workDays) * 10) / 10 : 0;
       const targetPct = bMonthlyTarget > 0 ? Math.round((monthTotal / bMonthlyTarget) * 100) : 0;
-      const rating = getKpiRating(targetPct);
+
+      // Pacing target: elapsed work days × daily target (e.g. yesterday got 25 = 100% pacing -> Meet Target)
+      const pacingTarget = Math.max(1, bDailyTarget * pacingInfo.elapsedWorkDays);
+      const pacingPct = pacingTarget > 0 ? Math.round((monthTotal / pacingTarget) * 100) : 0;
+      const rating = getKpiRating(pacingPct);
 
       return {
         branchId: b.branchId,
@@ -917,11 +969,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         dailyAvg,
         target: bMonthlyTarget,
         dailyTarget: bDailyTarget,
+        pacingTarget,
         targetPct,
+        pacingPct,
         rating,
       };
     });
-  }, [filteredBranches, matrixDays, dailyBranchMap, data?.targets, monthWorkDaysSummary]);
+  }, [filteredBranches, matrixDays, dailyBranchMap, data?.targets, monthWorkDaysSummary, pacingInfo]);
 
   const matrixDayTotals = useMemo(() => {
     const totalsByDay: { [dayNum: number]: number } = {};
@@ -1071,7 +1125,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const isManagement = s.isManagement;
       const dailyAvg = workDays > 0 ? Math.round((monthTotal / workDays) * 10) / 10 : 0;
       const targetPct = isManagement ? 0 : (monthlyTarget > 0 ? Math.round((monthTotal / monthlyTarget) * 100) : 0);
-      const rating = getKpiRating(targetPct, isManagement);
+
+      // Pacing target: elapsed work days × daily target
+      const pacingStaffTarget = Math.max(1, staffDailyTarget * pacingInfo.elapsedWorkDays);
+      const pacingPct = isManagement ? 0 : (pacingStaffTarget > 0 ? Math.round((monthTotal / pacingStaffTarget) * 100) : 0);
+      const rating = getKpiRating(pacingPct, isManagement);
 
       return {
         staffId: s.staffId,
@@ -1086,11 +1144,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         weekendHolidayTasks,
         dailyAvg,
         target: isManagement ? 0 : monthlyTarget,
+        dailyTarget: staffDailyTarget,
+        pacingTarget: pacingStaffTarget,
         targetPct,
+        pacingPct,
         rating,
       };
     });
-  }, [filteredStaff, matrixDays, dailyStaffMap, data?.targets, monthWorkDaysSummary]);
+  }, [filteredStaff, matrixDays, dailyStaffMap, data?.targets, monthWorkDaysSummary, pacingInfo]);
 
   const matrixStaffDayTotals = useMemo(() => {
     const totalsByDay: { [dayNum: number]: number } = {};
@@ -2049,21 +2110,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                             {/* Branch Name Column */}
                             <div className="min-w-0 pr-1">
-                              <span className="font-medium text-slate-900 truncate text-[13px] block" title={cleanBranchName(b.branchName)}>
+                              <span className="font-normal text-slate-800 truncate text-[13px] block" title={cleanBranchName(b.branchName)}>
                                 {cleanBranchName(b.branchName)}
                               </span>
                             </div>
 
                             {/* Active Staff Count Column */}
                             <div className="text-center whitespace-nowrap flex items-center justify-center">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/80 tabular-nums whitespace-nowrap">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-normal bg-slate-100 text-slate-600 border border-slate-200/80 tabular-nums whitespace-nowrap">
                                 {b.staffCount} staff
                               </span>
                             </div>
 
                             {/* Points Per Staff Column */}
                             <div className="text-right tabular-nums whitespace-nowrap leading-none flex flex-col justify-center items-end">
-                              <span className="font-semibold text-[#1e5b88] text-[12.5px] leading-tight">
+                              <span className="font-normal text-slate-700 text-[12.5px] leading-tight">
                                 {fmtPts(b.ptsPerStaff)}
                               </span>
                               <span className="text-[10px] text-slate-400 leading-tight mt-0.5">pts/staff</span>
@@ -2076,7 +2137,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                             {/* Total Points Column */}
                             <div className="text-right tabular-nums whitespace-nowrap">
-                              <span className="font-figure font-bold text-[#003857] text-[13px]">{fmtPts(b.totalPoints)} pts</span>
+                              <span className="font-figure font-normal text-slate-700 text-[13px]">{fmtPts(b.totalPoints)} pts</span>
                             </div>
                           </div>
                         ))
@@ -2131,7 +2192,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                             {/* Staff Name */}
                             <div className="min-w-0 pr-1">
-                              <span className="font-medium text-slate-900 truncate text-[13px] block" title={s.staffName}>
+                              <span className="font-normal text-slate-800 truncate text-[13px] block" title={s.staffName}>
                                 {s.staffName}
                               </span>
                             </div>
@@ -2160,7 +2221,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                             {/* Points Column */}
                             <div className="text-right tabular-nums whitespace-nowrap">
-                              <span className="font-figure font-bold text-[#003857] text-[13px]">{fmtPts(s.totalPoints)} pts</span>
+                              <span className="font-figure font-normal text-slate-700 text-[13px]">{fmtPts(s.totalPoints)} pts</span>
                             </div>
                           </div>
                         ))
@@ -2310,26 +2371,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </button>
                 <button
                   type="button"
-                  onClick={() => { handleTableModeChange('staff'); setStaffSubView('daily'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
-                  }`}
-                >
-                  {tableMode === 'staff' && staffSubView === 'daily' && (
-                    <motion.div
-                      layoutId="kpi-table-mode-pill"
-                      transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
-                    />
-                  )}
-                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
-                  <span className="relative z-10">Staff Daily Tasks</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
-                    1–{matrixDays.length}d
-                  </span>
-                </button>
-                <button
-                  type="button"
                   onClick={() => { handleTableModeChange('branch'); setBranchSubView('summary'); }}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
                     tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
@@ -2346,6 +2387,26 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <span className="relative z-10">KPI by Branch</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
                     {filteredBranches.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleTableModeChange('staff'); setStaffSubView('daily'); }}
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
+                    tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  }`}
+                >
+                  {tableMode === 'staff' && staffSubView === 'daily' && (
+                    <motion.div
+                      layoutId="kpi-table-mode-pill"
+                      transition={SPRING}
+                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
+                    />
+                  )}
+                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <span className="relative z-10">Staff Daily Tasks</span>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                    1–{matrixDays.length}d
                   </span>
                 </button>
                 <button
@@ -2726,11 +2787,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     <td className="px-2 py-2 text-right tabular-nums font-normal text-slate-500" title={`${row.staffCount} staff × ${Math.round((data?.targets?.staffDailyTarget ?? 5) * (monthWorkDaysSummary.workDays > 0 ? monthWorkDaysSummary.workDays : (data?.targets?.workDaysInMonth ?? 21)))} pts (${row.dailyTarget} pts/day)`}>
                                       {fmtInt(row.target)}
                                     </td>
-                                    <td className="px-2 py-2 text-right tabular-nums font-normal text-slate-900">
+                                    <td className="px-2 py-2 text-right tabular-nums font-normal text-slate-900" title={`Pacing target so far: ${row.pacingTarget} tasks (${row.pacingPct}% pacing for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`}>
                                       {row.targetPct}%
                                     </td>
                                     <td className="px-3 py-2 text-center whitespace-nowrap">
-                                      <RatingBadge rating={row.rating} />
+                                      <RatingBadge rating={row.rating} pacingPct={row.pacingPct} title={`Pacing: ${row.pacingPct}% (${row.monthTotalTasks} / ${row.pacingTarget} tasks pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} />
                                     </td>
                                   </tr>
                                 );
@@ -2763,10 +2824,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   );
                                 })}
 
-                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-[#003857] border-l border-slate-300 text-xs" title="Total KPI-eligible tasks on official working days">
+                                <td className="px-3 py-2.5 text-right tabular-nums font-normal text-slate-800 border-l border-slate-300 text-xs" title="Total KPI-eligible tasks on official working days">
                                   {fmtInt(matrixDayTotals.allGrandTotal)}
                                 </td>
-                                <td className="px-2 py-2.5 text-right tabular-nums font-semibold text-slate-800 text-xs" title="Average tasks per official working day">
+                                <td className="px-2 py-2.5 text-right tabular-nums font-normal text-slate-700 text-xs" title="Average tasks per official working day">
                                   {matrixDayTotals.avgDailyTotal}
                                 </td>
                                 <td className="px-2 py-2.5 text-right tabular-nums text-slate-500 text-xs" title="Sum of all dynamic branch targets (Individual Target × Staff Count)">
@@ -2844,8 +2905,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-right tabular-nums text-slate-800">{fmtPts(b.ptsPerStaff)}</span>
                             <span className="text-right tabular-nums text-slate-800">{fmtInt(b.totalTasks)}</span>
                             <span className="text-right tabular-nums font-figure text-[#003857]">{fmtPts(b.totalPoints)} pts</span>
-                            <span><TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} /></span>
-                            <span><RatingBadge rating={b.rating} /></span>
+                            <span><TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} pacingPct={b.pacingPct} pacingTarget={b.pacingTarget} /></span>
+                            <span><RatingBadge rating={b.rating} pacingPct={b.pacingPct} title={`Pacing: ${b.pacingPct}% (${fmtPts(b.totalPoints)} / ${fmtPts(b.pacingTarget)} pts pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} /></span>
                             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                           </button>
 
@@ -3155,11 +3216,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 <span>Exempt</span>
                               </span>
                             ) : (
-                              `${row.targetPct}%`
+                              <span title={`Pacing target so far: ${row.pacingTarget} tasks (${row.pacingPct}% pacing for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`}>
+                                {row.targetPct}%
+                              </span>
                             )}
                           </td>
                           <td className="px-3 py-2 text-center whitespace-nowrap">
-                            <RatingBadge rating={row.rating} />
+                            <RatingBadge rating={row.rating} pacingPct={row.pacingPct} title={row.isManagement ? 'Management level staff are exempt from individual field KPIs' : `Pacing: ${row.pacingPct}% (${row.monthTotalTasks} / ${row.pacingTarget} tasks pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} />
                           </td>
                         </tr>
                       );
@@ -3192,10 +3255,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         );
                       })}
 
-                      <td className="px-3 py-2.5 text-right tabular-nums font-bold text-[#003857] border-l border-slate-300 text-xs" title="Total KPI-eligible tasks on official working days">
+                      <td className="px-3 py-2.5 text-right tabular-nums font-normal text-slate-800 border-l border-slate-300 text-xs" title="Total KPI-eligible tasks on official working days">
                         {fmtInt(matrixStaffDayTotals.allGrandTotal)}
                       </td>
-                      <td className="px-2 py-2.5 text-right tabular-nums font-semibold text-slate-800 text-xs" title="Average tasks per official working day">
+                      <td className="px-2 py-2.5 text-right tabular-nums font-normal text-slate-700 text-xs" title="Average tasks per official working day">
                         {matrixStaffDayTotals.avgDailyTotal}
                       </td>
                       {(() => {
@@ -3295,8 +3358,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             </span>
                             <span className="text-right tabular-nums text-slate-800">{fmtInt(s.totalTasks)}</span>
                             <span className="text-right tabular-nums font-figure font-normal text-[#003857]">{fmtPts(s.totalPoints)} pts</span>
-                            <span><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} isManagement={s.isManagement} /></span>
-                            <span><RatingBadge rating={s.rating} /></span>
+                            <span><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} pacingPct={s.pacingPct} pacingTarget={s.pacingTarget} isManagement={s.isManagement} /></span>
+                            <span><RatingBadge rating={s.rating} pacingPct={s.pacingPct} title={`Pacing: ${s.pacingPct}% (${fmtPts(s.totalPoints)} / ${fmtPts(s.pacingTarget)} pts pacing target for Day ${pacingInfo.elapsedWorkDays}/${pacingInfo.totalWorkDays})`} /></span>
                             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                           </button>
 
@@ -3678,9 +3741,11 @@ const TargetBar: React.FC<{
   pct: number;
   points?: number;
   target?: number;
+  pacingPct?: number;
+  pacingTarget?: number;
   isManagement?: boolean;
   title?: string;
-}> = ({ pct, points, target, isManagement, title }) => {
+}> = ({ pct, points, target, pacingPct, pacingTarget, isManagement, title }) => {
   if (isManagement) {
     const mgtTooltip =
       title ||
@@ -3698,7 +3763,7 @@ const TargetBar: React.FC<{
   const tooltip =
     title ||
     (points !== undefined && target !== undefined
-      ? `${pct}% · ${fmtPts(points)} / ${fmtPts(target)} pts target`
+      ? `${pct}% of target (${fmtPts(points)} / ${fmtPts(target)} pts)${pacingPct !== undefined && pacingTarget !== undefined ? ` · Pacing: ${pacingPct}% (${fmtPts(points)} / ${fmtPts(pacingTarget)} pts)` : ''}`
       : `${pct}% of target`);
   return (
     <div className="flex items-center gap-1.5" title={tooltip}>
@@ -3710,12 +3775,13 @@ const TargetBar: React.FC<{
   );
 };
 
-const RatingBadge: React.FC<{ rating: KpiRating }> = ({ rating }) => {
+const RatingBadge: React.FC<{ rating: KpiRating; pacingPct?: number; title?: string }> = ({ rating, pacingPct, title }) => {
+  const hoverTitle = title || (pacingPct !== undefined ? `Pacing: ${pacingPct}% against elapsed days` : undefined);
   if (rating === 'Management (Exempt)') {
     return (
       <span
         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-200/90"
-        title="Management level (Branch Manager, Supervisor, Team Lead, Head, Admin) — exempt from frontline field KPIs"
+        title={title || "Management level (Branch Manager, Supervisor, Team Lead, Head, Admin) — exempt from frontline field KPIs"}
       >
         <ShieldCheck className="w-3 h-3 text-indigo-600 shrink-0" aria-hidden />
         <span>Management (Exempt)</span>
@@ -3724,7 +3790,7 @@ const RatingBadge: React.FC<{ rating: KpiRating }> = ({ rating }) => {
   }
   if (rating === 'Outstanding') {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200/90">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200/90" title={hoverTitle}>
         <Sun className="w-3 h-3 text-emerald-600 shrink-0" aria-hidden />
         <span>Outstanding</span>
       </span>
@@ -3732,7 +3798,7 @@ const RatingBadge: React.FC<{ rating: KpiRating }> = ({ rating }) => {
   }
   if (rating === 'Meet Target') {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-teal-50 text-teal-700 border border-teal-200/90">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-teal-50 text-teal-700 border border-teal-200/90" title={hoverTitle}>
         <CheckSquare className="w-3 h-3 text-teal-600 shrink-0" aria-hidden />
         <span>Meet Target</span>
       </span>
@@ -3740,14 +3806,14 @@ const RatingBadge: React.FC<{ rating: KpiRating }> = ({ rating }) => {
   }
   if (rating === 'Near/Below Target') {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-700 border border-amber-200/90">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-700 border border-amber-200/90" title={hoverTitle}>
         <Diamond className="w-3 h-3 text-amber-600 shrink-0" aria-hidden />
         <span>Near/Below Target</span>
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-rose-50 text-rose-700 border border-rose-200/90">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-rose-50 text-rose-700 border border-rose-200/90" title={hoverTitle}>
       <X className="w-3 h-3 text-rose-600 shrink-0" aria-hidden />
       <span>Needs Improvement</span>
     </span>

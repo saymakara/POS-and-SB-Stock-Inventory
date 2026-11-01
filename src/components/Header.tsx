@@ -328,20 +328,22 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               }}
                               aria-current={on ? 'page' : undefined}
                               onMouseEnter={() => { if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc()); }}
-                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 border ${
+                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-all duration-150 ease-out border ${
                                 on
-                                  ? 'text-white font-semibold bg-white/15 border-white/20 shadow-2xs'
-                                  : 'text-white font-medium hover:bg-white/[0.08] hover:border-white/10 border-transparent'
+                                  ? 'font-medium text-white bg-white/12 border-white/15 shadow-xs'
+                                  : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border-transparent'
                               }`}
                             >
                               <span className="flex items-center gap-2 min-w-0">
-                                <CI className={`w-3.5 h-3.5 shrink-0 ${c.iconColor || 'text-white'}`} />
-                                <span className="truncate text-white font-medium">{c.label}</span>
+                                <CI className={`w-3.5 h-3.5 shrink-0 transition-colors ${c.iconColor || (on ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-100')}`} />
+                                <span className={`truncate ${on ? 'text-white font-medium' : 'text-zinc-300 group-hover:text-white font-normal'}`}>{c.label}</span>
                               </span>
                               {c.count !== undefined && c.count > 0 && (
                                 <span
-                                  className={`font-figure text-[10px] px-1.5 py-0.5 rounded-full tabular-nums shrink-0 ${
-                                    on ? 'bg-white text-zinc-900 font-bold' : 'bg-white/15 text-white border border-white/20'
+                                  className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-all duration-150 ${
+                                    on
+                                      ? 'bg-white text-zinc-900 font-bold shadow-2xs'
+                                      : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white font-normal'
                                   }`}
                                   title="Records waiting for review"
                                 >

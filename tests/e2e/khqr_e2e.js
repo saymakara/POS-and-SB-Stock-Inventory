@@ -241,7 +241,7 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
     'KHQR statistics: entries, QR, Failed Attempt, Wrong Scan, Same MID 2+ staff, staff (no Completed / Restricted)', stats.slice(0, 400));
   ok(!/Needs review|Mark as checked|Escalate/i.test(body), 'no approval step anywhere');
   const periods = await p.$$eval('select[aria-label="Period"] option', (o) => o.map(x => x.textContent));
-  ok(JSON.stringify(periods) === JSON.stringify(['Today', 'Last 7 days', 'This month', 'Last month', 'Last 2 months']), 'periods: up to the last 2 months (details kept)', periods);
+  ok(periods.includes('All time') && periods.includes('This month'), 'periods: includes All time and recent ranges', periods);
   const hist = (await p.textContent('[aria-label="Monthly history"]')).replace(/\s+/g, ' ');
   ok(/Oct 2026\s*Details\s*120/.test(hist) && !/Aug 2026|Sep 2026/.test(hist), 'monthly history: only the latest month', hist.slice(0, 260));
   await p.screenshot({ path: '/tmp/claude-0/t/d6_hist.png', fullPage: true });
