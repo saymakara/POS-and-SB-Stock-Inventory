@@ -2,6 +2,7 @@ import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef,
 import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { Pager } from './Pager';
+import { ClearFiltersButton } from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { usePager } from '../utils/usePager';
@@ -11,15 +12,17 @@ import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccLi
 
 /**
  * Phone App Review → Credit Card (31 Oct 2026).
- * Credit Card entries sent by staff from the Merchant Visit phone app. Head Office reviews every successful onboarding:
- * Confirm, or Reject with a reason (e.g. adverse CBC record); Admin HQ can change a decision later. The bot replies in the staff
- * group under the entry's own post. "Cards onboarded" counts confirmed entries only. A failed onboarding needs no review. Admins see full account numbers; branch staff see their own branch only,
- * with account numbers masked (****1234), and cannot review.
+ * Credit Card entries sent by staff from the Merchant Visit phone app. Kept forever (never deleted like KHQR) and shown in full when opened.
+ * Head Office reviews every successful onboarding: Confirm, or Reject with a reason (e.g. adverse CBC record); Admin HQ can change a decision later.
+ * The bot replies in the staff group under the entry's own post. "Cards onboarded" counts confirmed entries only. A failed onboarding needs no review.
+ * Admins see full account numbers; branch staff see their own branch only, with account numbers masked (****1234), and cannot review.
  */
-const PERIOD_LABEL: Record<Period, string> = { TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months' };
+type CcPeriod = 'ALL' | Period;
+const PERIOD_LABEL: Record<CcPeriod, string> = { ALL: 'All time', TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months' };
+const ccPeriodRange = (p: CcPeriod): { from: string | null; to: string | null } => (p === 'ALL' ? { from: null, to: null } : periodRange(p));
 const REVIEW_TABS: { v: CcReview | ''; label: string }[] = [
-  { v: 'PENDING', label: 'Waiting review' }, { v: 'CONFIRMED', label: 'Confirmed' }, { v: 'REJECTED', label: 'Rejected' },
-  { v: 'NO_REVIEW', label: 'Not onboarded' }, { v: '', label: 'All' },
+  { v: '', label: 'All' }, { v: 'PENDING', label: 'Waiting review' }, { v: 'CONFIRMED', label: 'Confirmed' },
+  { v: 'REJECTED', label: 'Rejected' }, { v: 'NO_REVIEW', label: 'Not onboarded' },
 ];
 export const CC_REJECT_REASONS = ['Adverse CBC record', 'Incorrect account number', 'Customer details do not match ID',
   'Missing or unclear documents', 'Credit limit not approved', 'Other'];
@@ -39,29 +42,30 @@ interface Props { role: UserRole; branches: Branch[]; triggerToast: (msg: string
 
 export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerToast, onPendingChange }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-  const [period, setPeriod] = useState<Period>('MONTH');
-  const [review, setReview] = useState<CcReview | ''>(isAdmin ? 'PENDING' : '');
+  const [period, setPeriod] = useState<CcPeriod>('ALL');
+  const [review, setReview] = useState<CcReview | ''>('');
   const [branchId, setBranchId] = useState('');
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [search, setSearch] = useState('');
   useEffect(() => { const t = setTimeout(() => setSearch(deferredQuery.trim()), 350); return () => clearTimeout(t); }, [deferredQuery]);
 
-  const [rows, setRows] = useState<CcEntry[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [masked, setMasked] = useState(!isAdmin);
-  const [counts, setCounts] = useState<CcCounts | null>(null);
+  const [first] = useState(() => getCachedCcList(ccListKey({ from: null, to: null, review: '', branchId: '', search: '', page: 1, pageSize: 50 })));
+  const [rows, setRows] = useState<CcEntry[] | null>(first ? first.rows : null);
+  const [total, setTotal] = useState(first ? first.total : 0);
+  const [masked, setMasked] = useState(first ? first.masked : !isAdmin);
+  const [counts, setCounts] = useState<CcCounts | null>(() => getCachedCcCounts('|') || null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [open, setOpen] = useState<number | null>(null);
 
-  const range = useMemo(() => periodRange(period), [period]);
+  const range = useMemo(() => ccPeriodRange(period), [period]);
   const pg = usePager(total, [range.from, range.to, review, branchId, search]);
 
   const cSeq = useRef(0);
   const loadCounts = useCallback(async () => {
     const seq = ++cSeq.current;
-    const ck = `${range.from}|${range.to}`;
+    const ck = `${range.from || ''}|${range.to || ''}`;
     const hitC = getCachedCcCounts(ck);
     if (hitC) setCounts(hitC);                                         // shown at once; the fresh numbers replace them
     try {
@@ -98,6 +102,8 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   useEffect(() => { load(); }, [load]);
 
   const refresh = () => { load(); loadCounts(); };
+  const filtersActive = period !== 'ALL' || review !== '' || !!branchId || !!query;
+  const clearAll = () => { setPeriod('ALL'); setReview(''); setBranchId(''); setQuery(''); setSearch(''); };
   // (31 Oct 2026) Export CSV: every entry that matches the filters (all pages). Branch staff get masked account numbers.
   const exportCsv = async () => {
     const rows = await collectAll((page) => fetchCcList({ from: range.from, to: range.to, review, branchId, search, page, pageSize: 200 }).then((r) => ({ rows: r.rows, total: r.total })), 200);
@@ -136,9 +142,9 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <select aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value as Period)}
+            <select aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value as CcPeriod)}
               className="text-xs rounded-xl border border-slate-200 bg-white px-2.5 py-2 cursor-pointer">
-              {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
+              {(Object.keys(PERIOD_LABEL) as CcPeriod[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>
             <ExportCsvButton onExport={exportCsv} toast={triggerToast} />
             <button type="button" onClick={refresh} aria-label="Refresh" title="Refresh"
@@ -187,6 +193,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                 placeholder={isAdmin ? 'Search Record ID, customer, staff, phone or account' : 'Search Record ID, customer, staff or phone'}
                 className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white" />
             </div>
+            <ClearFiltersButton active={filtersActive} onClear={clearAll} />
           </div>
           {masked && <p className="mt-2 text-[11px] text-slate-500">Account numbers are shown masked (last 4 digits). Head Office sees the full numbers.</p>}
         </section>

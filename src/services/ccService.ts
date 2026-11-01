@@ -71,8 +71,10 @@ export async function fetchCcCounts(from: string | null, to: string | null): Pro
   const { data, error } = await supabase.rpc('cc_counts', { p_from: from, p_to: to });
   if (error) throw new Error(error.message);
   const d: any = data || {};
-  return { total: Number(d.total) || 0, pending: Number(d.pending) || 0, confirmed: Number(d.confirmed) || 0, rejected: Number(d.rejected) || 0,
+  const res: CcCounts = { total: Number(d.total) || 0, pending: Number(d.pending) || 0, confirmed: Number(d.confirmed) || 0, rejected: Number(d.rejected) || 0,
     noReview: Number(d.no_review) || 0, cards: Number(d.cards) || 0, pendingAll: Number(d.pending_all) || 0 };
+  setCachedCcCounts(`${from || ''}|${to || ''}`, res);
+  return res;
 }
 
 /** Confirm, or Reject with a reason (Admin HQ). The bot replies in the staff group under the entry's post. */
