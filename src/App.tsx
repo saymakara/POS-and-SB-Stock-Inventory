@@ -200,6 +200,20 @@ const VALID_TABS = new Set([
   'brand_logo',
 ]);
 
+const HIDE_STAGE_HEADER_TABS = new Set([
+  'kpi_performance',
+  'merchants',
+  'merchant_history',
+  'push_configuring',
+  'requisitions',
+  'mobile_sync_khqr',
+  'mobile_sync_cc',
+  'users',
+  'iam',
+  'audit_log',
+  'settings',
+]);
+
 const VALID_SETTINGS_SUB_TABS = new Set<SettingsSubTab>([
   'policy',
   'brand_logo',
@@ -4209,8 +4223,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             onlineOperators={onlineOperators}
           />
 
-          {/* Classic Pipeline Stage Filter Bar (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
-          {!['kpi_performance', 'mobile_sync_khqr', 'mobile_sync_cc', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
+          {/* Classic Pipeline Stage Filter Bar (hidden on non-inventory/CRM/History/Push/Request tabs) */}
+          {!HIDE_STAGE_HEADER_TABS.has(shownTab) && (
           <PipelineBar
               role={role}
               counts={pipelineCounts}
@@ -4228,8 +4242,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             {/* (31 Oct 2026) at least one screen high: switching to a shorter screen no longer makes the footer jump up and down */}
             <main className="px-4 sm:px-6 py-5 min-h-[calc(100vh-4rem)]">
               {isSupabaseConfigured && <ConnectionNotice />}
-              {/* 6 Elevated KPI Cards with Shadows (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
-              {!['kpi_performance', 'mobile_sync_khqr', 'mobile_sync_cc', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
+              {/* 6 Elevated KPI Cards with Shadows (hidden on non-inventory/CRM/History/Push/Request tabs) */}
+              {!HIDE_STAGE_HEADER_TABS.has(shownTab) && (
               <KpiCards
                 devices={scopedDevices}
                 theme={theme}
@@ -4457,7 +4471,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                   )}
 
                   {(shownTab === 'users' || shownTab === 'iam') && isSupabaseConfigured && (
-                    <StaffAccountsTab role={role} branches={branches} triggerToast={triggerToast} onStaffUpdated={reloadStaffAccounts} />
+                    <StaffAccountsTab
+                      role={role}
+                      branches={branches}
+                      triggerToast={triggerToast}
+                      onStaffUpdated={reloadStaffAccounts}
+                      onlineOperators={onlineOperators}
+                    />
                   )}
                   {(shownTab === 'users' || shownTab === 'iam') && !isSupabaseConfigured && (
                     <IamUsersTab
@@ -4465,6 +4485,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       branches={branches}
                       role={role}
                       theme={theme}
+                      onlineOperators={onlineOperators}
                       onOpenUserModal={(u) => {
                         if (u) {
                           setEditingUser(u);

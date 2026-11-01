@@ -2280,8 +2280,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                             #{item.csvRowNumber || idx + 1}
                           </td>
                           <td
-                            className={`py-1.5 px-3 font-mono font-bold whitespace-nowrap ${
-                              isLight ? 'text-slate-900' : 'text-white'
+                            className={`py-1.5 px-3 font-mono font-normal whitespace-nowrap ${
+                              isLight ? 'text-slate-700' : 'text-slate-200'
                             }`}
                           >
                             <div className="flex items-center gap-1.5">
@@ -2647,7 +2647,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <td className="py-1.5 px-3 font-mono font-bold text-slate-400">
                             {idx + 1}
                           </td>
-                          <td className="py-1.5 px-3 font-mono font-bold text-[#1e5b88] dark:text-sky-300">
+                          <td className="py-1.5 px-3 font-mono font-normal text-slate-700 dark:text-slate-300">
                             {item.serial}
                           </td>
                           <td className="py-1.5 px-3 font-semibold">{item.type}</td>

@@ -1138,7 +1138,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                             <td className="py-2 px-3.5 font-mono font-bold text-center text-slate-500">{idx + 1}</td>
                             <td className="py-2 px-4 font-semibold text-slate-800">{item.type}</td>
                             <td className="py-2 px-4 text-slate-600">{item.model}</td>
-                            <td className="py-2 px-4 font-mono font-bold text-[#1e5b88]">{item.serial}</td>
+                            <td className="py-2 px-4 font-mono font-normal text-slate-700 dark:text-slate-300">{item.serial}</td>
                             <td className="py-2 px-4 font-mono text-slate-700">{item.batterySerial}</td>
                           </tr>
                         ))}
@@ -1291,7 +1291,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                                   <td className="py-2 px-3 text-center font-mono text-slate-400">{idx + 1}</td>
                                   <td className="py-2 px-3 font-medium">{dev.type}</td>
                                   <td className="py-2 px-3 text-slate-500">{dev.model || '-'}</td>
-                                  <td className="py-2 px-3 font-mono font-semibold text-[#003857] dark:text-sky-300">{dev.serial}</td>
+                                  <td className="py-2 px-3 font-mono font-normal text-slate-700 dark:text-slate-300">{dev.serial}</td>
                                   <td className="py-2 px-3 font-mono text-slate-500">{dev.batterySerial || '-'}</td>
                                 </tr>
                               ))
@@ -1301,7 +1301,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                                   <td className="py-2 px-3 text-center font-mono text-slate-400">{idx + 1}</td>
                                   <td className="py-2 px-3 font-medium">Returned Unit</td>
                                   <td className="py-2 px-3 text-slate-500">-</td>
-                                  <td className="py-2 px-3 font-mono font-semibold text-[#003857] dark:text-sky-300">{sn}</td>
+                                  <td className="py-2 px-3 font-mono font-normal text-slate-700 dark:text-slate-300">{sn}</td>
                                   <td className="py-2 px-3 font-mono text-slate-500">-</td>
                                 </tr>
                               ))

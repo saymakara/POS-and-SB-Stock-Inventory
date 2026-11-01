@@ -14,6 +14,9 @@ import {
   QrCode,
   CreditCard,
   Layers,
+  Trash2,
+  Search,
+  Users,
 } from 'lucide-react';
 import {
   KpiPointRule,
@@ -22,6 +25,15 @@ import {
   saveKpiRuleOnServer,
   saveKpiTargetsOnServer,
 } from '../services/kpiService';
+import { Branch } from '../types';
+import {
+  ManagementExemptStaff,
+  getManagementExemptStaff,
+  addManagementExemptStaff,
+  removeManagementExemptStaff,
+} from '../utils/kpiManagementUtils';
+import { getCachedStaff } from '../services/staffCache';
+import { RAW_BRANCHES } from '../data/initialData';
 
 export const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
   'POS Terminal': { hex: '#38bdf8', badge: 'bg-sky-50 text-sky-700 border-sky-200/90', bar: 'bg-sky-400', dot: 'bg-sky-400', Icon: Cpu },
@@ -40,6 +52,7 @@ export interface KpiRulesAdminSectionProps {
   onRuleSaved: (r: KpiPointRule) => void;
   onTargetsSaved: (t: KpiTargets) => void;
   toast: (m: string) => void;
+  branches?: Branch[];
 }
 
 export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
@@ -49,6 +62,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   onRuleSaved,
   onTargetsSaved,
   toast,
+  branches = [],
 }: KpiRulesAdminSectionProps) {
   const [catFilter, setCatFilter] = useState<'ALL' | KpiCategory>('ALL');
   const [draftPts, setDraftPts] = useState<Record<string, string>>({});
@@ -64,6 +78,135 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   const [tForm, setTForm] = useState(targets);
   const [savingTargets, setSavingTargets] = useState(false);
   useEffect(() => { setTForm(targets); }, [targets]);
+
+  // ───────────── Management KPI Exemption State ─────────────
+  const [exemptStaff, setExemptStaff] = useState<ManagementExemptStaff[]>(() => getManagementExemptStaff());
+  const [selectedStaffKey, setSelectedStaffKey] = useState<string>('');
+  const [exemptFilter, setExemptFilter] = useState<string>('');
+  const [showCustomAdd, setShowCustomAdd] = useState(false);
+  const [customStaffName, setCustomStaffName] = useState('');
+  const [customStaffId, setCustomStaffId] = useState('');
+  const [customStaffPos, setCustomStaffPos] = useState('Management');
+  const [customStaffBranch, setCustomStaffBranch] = useState('100');
+
+  // Compile full staff directory from branches, cached staff and initial data
+  const allAvailableStaff = useMemo(() => {
+    const list: Array<{ staffId: string; staffName: string; position: string; branchId: string; branchName: string }> = [];
+    const seen = new Set<string>();
+
+    const addStaff = (id: string, name: string, pos: string, bId: string, bName: string) => {
+      const cleanId = (id || '').trim();
+      const cleanName = (name || '').trim();
+      const key = (cleanId || cleanName).toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      list.push({
+        staffId: cleanId,
+        staffName: cleanName,
+        position: pos || 'MS Officer',
+        branchId: bId || '100',
+        branchName: bName || 'Head Office',
+      });
+    };
+
+    // 1. From branches prop
+    (branches || []).forEach((b) => {
+      (b.staffDetails || []).forEach((u) => {
+        addStaff(u.empId || '', u.name, u.position || '', b.id, b.name);
+      });
+    });
+
+    // 2. From getCachedStaff()
+    const cached = getCachedStaff();
+    if (cached) {
+      cached.forEach((a) => {
+        addStaff(a.empId || '', a.name, a.position || '', a.branchId || '100', `Branch ${a.branchId || '100'}`);
+      });
+    }
+
+    // 3. Fallback from RAW_BRANCHES
+    RAW_BRANCHES.forEach((b: { id: string; name: string; st: [string, string, string, string, string][] }) => {
+      (b.st || []).forEach((row: [string, string, string, string, string]) => {
+        const [id, name, pos] = row;
+        addStaff(id, name, pos, b.id, b.name);
+      });
+    });
+
+    return list.sort((a, b) => a.staffName.localeCompare(b.staffName));
+  }, [branches]);
+
+  // Exclude staff that are already in the exempt roster
+  const availableSelectableStaff = useMemo(() => {
+    const exemptSet = new Set(
+      exemptStaff.map((s) => (s.staffId || s.staffName).toLowerCase())
+    );
+    return allAvailableStaff.filter(
+      (s) => !exemptSet.has((s.staffId || s.staffName).toLowerCase())
+    );
+  }, [allAvailableStaff, exemptStaff]);
+
+  const filteredExemptStaff = useMemo(() => {
+    if (!exemptFilter.trim()) return exemptStaff;
+    const q = exemptFilter.toLowerCase();
+    return exemptStaff.filter(
+      (s) =>
+        s.staffName.toLowerCase().includes(q) ||
+        s.staffId.toLowerCase().includes(q) ||
+        (s.position && s.position.toLowerCase().includes(q)) ||
+        (s.branchId && s.branchId.toLowerCase().includes(q)) ||
+        (s.branchName && s.branchName.toLowerCase().includes(q))
+    );
+  }, [exemptStaff, exemptFilter]);
+
+  const handleAddSelectedStaff = () => {
+    if (!selectedStaffKey) return;
+    const target = allAvailableStaff.find(
+      (s) => (s.staffId || s.staffName).toLowerCase() === selectedStaffKey.toLowerCase()
+    );
+    if (!target) return;
+    const newEntry: ManagementExemptStaff = {
+      staffId: target.staffId,
+      staffName: target.staffName,
+      position: target.position,
+      branchId: target.branchId,
+      branchName: target.branchName,
+      addedAt: new Date().toISOString(),
+      addedBy: 'Admin',
+    };
+    addManagementExemptStaff(newEntry);
+    setExemptStaff(getManagementExemptStaff());
+    setSelectedStaffKey('');
+    toast(`Added ${target.staffName} (${target.staffId || target.position}) to Management (Exempt from KPI).`);
+  };
+
+  const handleAddCustomStaff = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customStaffName.trim()) {
+      toast('Please enter a staff name.');
+      return;
+    }
+    const newEntry: ManagementExemptStaff = {
+      staffId: customStaffId.trim(),
+      staffName: customStaffName.trim(),
+      position: customStaffPos.trim() || 'Management',
+      branchId: customStaffBranch.trim() || '100',
+      branchName: customStaffBranch.trim() === '100' ? 'Head Office' : `Branch ${customStaffBranch.trim()}`,
+      addedAt: new Date().toISOString(),
+      addedBy: 'Admin',
+    };
+    addManagementExemptStaff(newEntry);
+    setExemptStaff(getManagementExemptStaff());
+    setCustomStaffName('');
+    setCustomStaffId('');
+    setShowCustomAdd(false);
+    toast(`Added ${newEntry.staffName} to Management (Exempt from KPI).`);
+  };
+
+  const handleRemoveExemptStaff = (staffIdOrName: string, name: string) => {
+    removeManagementExemptStaff(staffIdOrName);
+    setExemptStaff(getManagementExemptStaff());
+    toast(`Removed ${name} from Management exemption. Staff will now be tracked for KPI.`);
+  };
 
   const filteredRules = useMemo(
     () => rules.filter((r) => catFilter === 'ALL' || r.category === catFilter),
@@ -519,6 +662,227 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
             <span>
               Branch Target: Dynamically multiplies Individual Target by the number of staff in each branch (Benchmark 5 staff: <strong className="text-slate-800">{Math.round(tForm.staffDailyTarget * effectiveWorkDays * 5)} pts/mo</strong>)
             </span>
+          </div>
+        </div>
+
+        {/* ───────────── 3. Management Level KPI Exemption (User-Defined) ───────────── */}
+        <div className="rounded-xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/50 via-white to-slate-50/70 p-4 space-y-3.5 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-4 h-4" aria-hidden />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">Management Level KPI Exemption (0 Target · Non-Mandatory)</h4>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200/80 tabular-nums">
+                    {exemptStaff.length} defined
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Define staff members who are management level. Personnel added here do not count towards mandatory frontline KPI targets (assigned 0 target with &quot;Management (Exempt)&quot; rating).
+                </p>
+              </div>
+            </div>
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowCustomAdd((v) => !v)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50 cursor-pointer shadow-2xs transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{showCustomAdd ? 'Close Custom Entry' : 'Add Custom / Unlisted Staff'}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Quick Staff Selector (Add from Directory) */}
+          {isAdmin && (
+            <div className="bg-white rounded-xl border border-slate-200/90 p-3 shadow-2xs">
+              <div className="text-[11px] font-semibold text-slate-700 mb-2 flex items-center justify-between">
+                <span>Select staff from bank directory to add to Management Exemption:</span>
+                <span className="text-[10px] text-slate-400 font-normal">Only defined staff will be exempt from KPI</span>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="relative flex-1">
+                  <select
+                    value={selectedStaffKey}
+                    onChange={(e) => setSelectedStaffKey(e.target.value)}
+                    className="w-full text-xs rounded-lg border border-slate-200/90 bg-slate-50/60 focus:bg-white px-3 py-2 cursor-pointer text-slate-800 font-medium outline-none focus:border-indigo-400 transition"
+                  >
+                    <option value="">— Select a staff member to exempt ({availableSelectableStaff.length} available) —</option>
+                    {availableSelectableStaff.map((s) => (
+                      <option key={(s.staffId || s.staffName).toLowerCase()} value={(s.staffId || s.staffName).toLowerCase()}>
+                        {s.staffName} (ID: {s.staffId || '—'}) — {s.position} · Branch {s.branchId} ({s.branchName})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  disabled={!selectedStaffKey}
+                  onClick={handleAddSelectedStaff}
+                  className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition shadow-2xs ${
+                    selectedStaffKey
+                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                  }`}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add to Management (Exempt)</span>
+                </button>
+              </div>
+
+              {/* Custom / Unlisted Staff Form */}
+              {showCustomAdd && (
+                <form onSubmit={handleAddCustomStaff} className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Staff Name *</label>
+                    <input
+                      required
+                      value={customStaffName}
+                      onChange={(e) => setCustomStaffName(e.target.value)}
+                      placeholder="e.g. NGET Monioudom"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Staff ID (Optional)</label>
+                    <input
+                      value={customStaffId}
+                      onChange={(e) => setCustomStaffId(e.target.value)}
+                      placeholder="e.g. 10764"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Position / Title</label>
+                    <input
+                      value={customStaffPos}
+                      onChange={(e) => setCustomStaffPos(e.target.value)}
+                      placeholder="e.g. MS Team Leader"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Branch Code</label>
+                    <input
+                      value={customStaffBranch}
+                      onChange={(e) => setCustomStaffBranch(e.target.value)}
+                      placeholder="e.g. 100"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-mono"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="submit"
+                      className="btn btn-primary text-xs py-1.5 px-3 flex-1 justify-center bg-indigo-600 hover:bg-indigo-700 border-indigo-600"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Save Exempt Staff
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomAdd(false)}
+                      className="btn btn-secondary text-xs py-1.5 px-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* List of Defined Management Exempt Personnel */}
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+            <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                <Users className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Defined Management Roster ({exemptStaff.length})</span>
+              </div>
+              {exemptStaff.length > 3 && (
+                <div className="relative min-w-[180px]">
+                  <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={exemptFilter}
+                    onChange={(e) => setExemptFilter(e.target.value)}
+                    placeholder="Filter exempt staff…"
+                    className="w-full pl-7 pr-2.5 py-1 text-xs rounded-lg border border-slate-200 bg-white outline-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {exemptStaff.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-500">
+                <ShieldCheck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="font-medium text-slate-700">No management staff defined yet.</p>
+                <p className="text-slate-500 text-[11px] mt-0.5">
+                  All staff members are currently tracked for mandatory KPI targets. Select a staff member above to designate them as Management (Exempt from KPI).
+                </p>
+              </div>
+            ) : filteredExemptStaff.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400">
+                No exempt staff matching &quot;{exemptFilter}&quot;.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 text-[11px] font-semibold uppercase tracking-wider">
+                      <th className="py-2 px-3 w-10 text-center">#</th>
+                      <th className="py-2 px-3 w-24">Staff ID</th>
+                      <th className="py-2 px-3">Staff Name</th>
+                      <th className="py-2 px-3">Position</th>
+                      <th className="py-2 px-3">Branch</th>
+                      <th className="py-2 px-3 text-center">KPI Status</th>
+                      {isAdmin && <th className="py-2 px-3 text-right w-24">Action</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {filteredExemptStaff.map((s, idx) => (
+                      <tr key={s.staffId || s.staffName} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                        <td className="py-2 px-3 font-mono font-medium text-slate-700">
+                          <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-[11px]">
+                            {s.staffId || '—'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 font-medium text-slate-900">
+                          <span className="inline-flex items-center gap-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            <span>{s.staffName}</span>
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-slate-600">{s.position || 'Management'}</td>
+                        <td className="py-2 px-3 text-slate-600">
+                          {s.branchId ? `${s.branchId} · ${s.branchName || 'Branch'}` : '—'}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <ShieldCheck className="w-3 h-3" /> Exempt (0 Target)
+                          </span>
+                        </td>
+                        {isAdmin && (
+                          <td className="py-2 px-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExemptStaff(s.staffId || s.staffName, s.staffName)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-[11px] font-medium cursor-pointer transition"
+                              title="Remove from Management exemption (will count for KPI)"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Remove</span>
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 

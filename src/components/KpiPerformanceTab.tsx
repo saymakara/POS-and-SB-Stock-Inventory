@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
   ChevronDown, ChevronLeft, ChevronRight, Cpu, Volume2, QrCode, CreditCard, TrendingUp, TrendingDown, Target,
-  Sun, CheckSquare, Diamond, X, ArrowUpDown, ArrowUp, ArrowDown, ShieldCheck, CheckCircle2, XCircle,
+  Sun, CheckSquare, Diamond, X, ArrowUpDown, ArrowUp, ArrowDown, ShieldCheck, Settings,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
@@ -14,7 +14,7 @@ import { usePager } from '../utils/usePager';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv } from '../utils/exportCsv';
-import { isManagementRole } from '../utils/format';
+import { getManagementExemptSet, isStaffManagementExempt, KPI_MANAGEMENT_EXEMPT_EVENT } from '../utils/kpiManagementUtils';
 import { getCachedStaff } from '../services/staffCache';
 import {
   KpiCategory, KpiPeriod, KPI_PERIOD_LABEL, kpiPeriodRange, KpiPointRule, KpiDashboardData,
@@ -26,7 +26,7 @@ import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHo
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const CHART_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
 
-type KpiView = 'all' | 'branches' | 'staff' | 'staff_branch' | 'by_task' | 'timeline' | 'top10';
+type KpiView = 'all' | 'branches' | 'staff' | 'timeline' | 'top10';
 type Granularity = 'daily' | 'weekly' | 'monthly' | 'quarterly';
 type KpiRating = 'Outstanding' | 'Meet Target' | 'Near/Below Target' | 'Needs Improvement' | 'Management (Exempt)';
 
@@ -91,29 +91,6 @@ function fmtBranchCode(id?: string | null): string {
   return id;
 }
 
-export interface KpiTaskDef {
-  key: keyof KpiRawCounts;
-  ruleCode: string;
-  name: string;
-  category: KpiCategory;
-  unit: string;
-}
-
-export const KPI_TASK_DEFS: KpiTaskDef[] = [
-  { key: 'posInstall', ruleCode: 'POS_INSTALL', name: 'POS Terminal Installation', category: 'POS Terminal', unit: 'terminal' },
-  { key: 'posReplace', ruleCode: 'POS_REPLACE', name: 'POS Terminal Replacement', category: 'POS Terminal', unit: 'terminal' },
-  { key: 'posBattery', ruleCode: 'POS_BATTERY', name: 'POS Battery Swap', category: 'POS Terminal', unit: 'battery' },
-  { key: 'sbInstall', ruleCode: 'SB_INSTALL', name: 'Sound Box Installation', category: 'Sound Box', unit: 'device' },
-  { key: 'sbReplace', ruleCode: 'SB_REPLACE', name: 'Sound Box Replacement', category: 'Sound Box', unit: 'device' },
-  { key: 'sbMaint', ruleCode: 'SB_MAINT', name: 'Sound Box Maintenance', category: 'Sound Box', unit: 'visit' },
-  { key: 'sbReturn', ruleCode: 'SB_RETURN', name: 'Sound Box Retrieval', category: 'Sound Box', unit: 'unit' },
-  { key: 'khqrInstall', ruleCode: 'KHQR_INSTALL', name: 'KHQR Standee / Sticker Installation', category: 'KHQR', unit: 'merchant' },
-  { key: 'khqrReplace', ruleCode: 'KHQR_REPLACE', name: 'KHQR Replacement', category: 'KHQR', unit: 'standee' },
-  { key: 'khqrMaterials', ruleCode: 'KHQR_MATERIAL', name: 'QR Material Scanned', category: 'KHQR', unit: 'item' },
-  { key: 'ccPrimary', ruleCode: 'CC_PRIMARY', name: 'Credit Card Primary Acquisition', category: 'Credit Card', unit: 'card' },
-  { key: 'ccSupp', ruleCode: 'CC_SUPP', name: 'Credit Card Supplementary', category: 'Credit Card', unit: 'card' },
-];
-
 interface Props {
   role: UserRole;
   userBranchId?: string;
@@ -136,15 +113,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [openBranch, setOpenBranch] = useState<string | null>(null);
   const [openStaff, setOpenStaff] = useState<string | null>(null);
   const [showSubCategories, setShowSubCategories] = useState(false);
-  const [tableMode, setTableMode] = useState<'branch' | 'staff' | 'staff_branch' | 'by_task'>('branch');
-  const [selectedTaskCode, setSelectedTaskCode] = useState<string>('POS_INSTALL');
-  const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'performed' | 'not_performed' | 'management'>('all');
-  const [taskSortKey, setTaskSortKey] = useState<'count' | 'points' | 'staffName' | 'staffId' | 'branchId' | 'branchName' | 'share' | 'totalPoints' | 'status'>('count');
-  const [taskSortDir, setTaskSortDir] = useState<'asc' | 'desc'>('desc');
+  const [tableMode, setTableMode] = useState<'branch' | 'staff'>('staff');
   const [branchSubView, setBranchSubView] = useState<'summary' | 'daily'>('summary');
   const [staffSubView, setStaffSubView] = useState<'summary' | 'daily'>('summary');
-  const [staffBranchSubView, setStaffBranchSubView] = useState<'grouped' | 'flat'>('grouped');
-  const [collapsedBranchGroups, setCollapsedBranchGroups] = useState<Set<string>>(() => new Set());
+  
   const [staffLevelFilter, setStaffLevelFilter] = useState<'all' | 'field' | 'management'>('all');
   const [dailyMatrixMonth, setDailyMatrixMonth] = useState<string>(() => {
     const now = new Date();
@@ -156,6 +128,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [dailyStaffSortDir, setDailyStaffSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  // Management KPI Exemption reactive synchronization
+  const [exemptVersion, setExemptVersion] = useState(0);
+  useEffect(() => {
+    const handler = () => setExemptVersion((v) => v + 1);
+    window.addEventListener(KPI_MANAGEMENT_EXEMPT_EVENT, handler);
+    return () => window.removeEventListener(KPI_MANAGEMENT_EXEMPT_EVENT, handler);
+  }, []);
+  const exemptSet = useMemo(() => getManagementExemptSet(), [exemptVersion]);
 
   const handleViewChange = useCallback((newView: KpiView) => {
     startTransition(() => {
@@ -169,16 +150,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         setTableMode('staff');
         setStaffSubView('summary');
       }
-      if (newView === 'staff_branch') {
-        setTableMode('staff_branch');
-      }
-      if (newView === 'by_task') {
-        setTableMode('by_task');
-      }
+      
     });
   }, [startTransition]);
 
-  const handleTableModeChange = useCallback((mode: 'branch' | 'staff' | 'staff_branch' | 'by_task' | 'branch_daily' | 'staff_daily') => {
+  const handleTableModeChange = useCallback((mode: 'branch' | 'staff' | 'branch_daily' | 'staff_daily') => {
     startTransition(() => {
       if (mode === 'branch_daily') {
         setTableMode('branch');
@@ -192,10 +168,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       } else if (mode === 'staff') {
         setTableMode('staff');
         setStaffSubView('summary');
-      } else if (mode === 'staff_branch') {
-        setTableMode('staff_branch');
-      } else if (mode === 'by_task') {
-        setTableMode('by_task');
       }
     });
   }, [startTransition]);
@@ -261,7 +233,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     // 1. Populate from branches.staffDetails
     branches.forEach((b) => {
       (b.staffDetails || []).forEach((u) => {
-        const isMgt = isManagementRole(u.position, u.accessRole);
+        const isMgt = isStaffManagementExempt(u.empId, u.name, exemptSet);
         const entry = {
           position: u.position || (isMgt ? 'Management' : 'MS Officer'),
           role: u.accessRole || 'BRANCH',
@@ -277,7 +249,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const cached = getCachedStaff();
     if (cached) {
       cached.forEach((a) => {
-        const isMgt = isManagementRole(a.position, a.role);
+        const isMgt = isStaffManagementExempt(a.empId, a.name, exemptSet);
         const entry = {
           position: a.position || (isMgt ? 'Management' : 'MS Officer'),
           role: a.role,
@@ -290,7 +262,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     }
 
     return map;
-  }, [branches]);
+  }, [branches, exemptSet]);
 
   const ruleMap = useMemo(() => {
     const m = new Map<string, KpiPointRule>();
@@ -318,7 +290,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const managementRosterExtras: typeof data.staff = [];
     branches.forEach((b) => {
       (b.staffDetails || []).forEach((u) => {
-        const isMgt = isManagementRole(u.position, u.accessRole);
+        const isMgt = isStaffManagementExempt(u.empId, u.name, exemptSet);
         if (isMgt) {
           const empId = u.empId || '';
           const nameLower = (u.name || '').toLowerCase();
@@ -349,8 +321,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const base = combinedList
       .map((s) => {
         const meta = staffMetaMap.get(s.staffId) || staffMetaMap.get(s.staffName.toLowerCase());
-        const position = meta?.position || (isManagementRole(null, meta?.role) ? 'Management' : 'MS Officer');
-        const isManagement = meta?.isManagement ?? isManagementRole(position, meta?.role);
+        const isManagement = meta?.isManagement ?? isStaffManagementExempt(s.staffId, s.staffName, exemptSet);
+        const position = meta?.position || (isManagement ? 'Management' : 'MS Officer');
 
         const pts = computeKpiPoints(s, ruleMap);
         const canonicalBranchName = branchNameMap.get(s.branchId) || s.branchName || s.branchId;
@@ -400,7 +372,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         if (a.isManagement !== b.isManagement) return a.isManagement ? 1 : -1;
         return a.staffName.localeCompare(b.staffName);
       });
-  }, [data, ruleMap, branchNameMap, activeTargets.staff, branches, staffMetaMap]);
+  }, [data, ruleMap, branchNameMap, activeTargets.staff, branches, staffMetaMap, exemptSet]);
 
   const branchRows = useMemo(() => {
     const map = new Map<string, {
@@ -1301,7 +1273,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
   const branchPg = usePager(filteredBranches.length, [period, regionFilter, branchFilter, categoryFilter, deferredQuery]);
   const staffPg = usePager(filteredStaff.length, [period, regionFilter, branchFilter, categoryFilter, deferredQuery]);
-  const staffBranchGroupPg = usePager(filteredBranches.length, [period, regionFilter, branchFilter, categoryFilter, deferredQuery]);
 
   const filtersActive = period !== 'ALL' || regionFilter !== 'ALL' || !!branchFilter || categoryFilter !== 'ALL' || !!query;
   const clearAll = () => {
@@ -1343,236 +1314,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     );
     return filteredStaff.length;
   };
-
-  const exportStaffAndBranchCsv = async () => {
-    if (!filteredStaff.length) return 0;
-    const pTag = KPI_PERIOD_LABEL[period].replace(/[^A-Za-z0-9]+/g, '_');
-    downloadCsv(
-      `KPI_Staff_and_Branch_${pTag}`,
-      ['No', 'Branch Code', 'Branch Name', 'Staff ID', 'Staff Name', 'Position', 'Role / Level', 'POS Tasks', 'POS Points', 'Sound Box Tasks', 'Sound Box Points', 'KHQR Tasks', 'KHQR Points', 'Credit Card Tasks', 'Credit Card Points', 'Quality %', 'Total Tasks', 'Total KPI Points', 'Achievement %', 'Rating'],
-      filteredStaff.map((s, i) => [
-        i + 1, fmtBranchCode(s.branchId), cleanBranchName(s.branchName), s.staffId, s.staffName, s.position || (s.isManagement ? 'Management' : 'MS Officer'), s.isManagement ? 'Management (Exempt)' : 'Field Officer', s.posTasks, s.posPoints, s.sbTasks, s.sbPoints, s.khqrTasks, s.khqrPoints, s.ccTasks, s.ccPoints, `${s.qualityPct}%`, s.totalTasks, s.totalPoints, s.isManagement ? 'Exempt' : `${s.targetPct}%`, s.rating,
-      ])
-    );
-    return filteredStaff.length;
-  };
-
-  const selectedTaskDef = useMemo(() => {
-    const def = KPI_TASK_DEFS.find((t) => t.ruleCode === selectedTaskCode) || KPI_TASK_DEFS[0];
-    const unitPts = rulePts(ruleMap, def.ruleCode);
-    return { ...def, unitPts };
-  }, [selectedTaskCode, ruleMap]);
-
-  const {
-    taskStaffRows,
-    taskStaffRowsAll,
-    totalTaskCompletions,
-    totalTaskPoints,
-    performedCount,
-    notPerformedCount,
-    mgtExemptCount,
-    totalFieldStaff,
-    fieldPerformedCount,
-    participationPct,
-  } = useMemo(() => {
-    const q = deferredQuery.trim().toLowerCase();
-    const base = enrichedStaff.filter((s) => {
-      if (!isAdmin && userBranchId && s.branchId !== userBranchId) return false;
-      if (staffLevelFilter === 'field' && s.isManagement) return false;
-      if (staffLevelFilter === 'management' && !s.isManagement) return false;
-      if (regionFilter === 'PP' && !s.isPP) return false;
-      if (regionFilter === 'PROV' && s.isPP) return false;
-      if (branchFilter && s.branchId !== branchFilter) return false;
-      if (categoryFilter === 'POS Terminal' && s.posTasks === 0 && selectedTaskDef.category !== 'POS Terminal') return false;
-      if (categoryFilter === 'Sound Box' && s.sbTasks === 0 && selectedTaskDef.category !== 'Sound Box') return false;
-      if (categoryFilter === 'KHQR' && s.khqrTasks === 0 && selectedTaskDef.category !== 'KHQR') return false;
-      if (categoryFilter === 'Credit Card' && s.ccTasks === 0 && selectedTaskDef.category !== 'Credit Card') return false;
-      if (q && !`${s.staffId} ${s.staffName} ${s.branchId} ${s.branchName} ${s.position || ''}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
-
-    const unitPts = selectedTaskDef.unitPts;
-    const key = selectedTaskDef.key;
-
-    const totalCompletions = base.reduce((sum, s) => sum + (Number(s[key]) || 0), 0);
-    const totalPts = totalCompletions * unitPts;
-
-    let performed = 0;
-    let notPerf = 0;
-    let mgtExempt = 0;
-    let fieldStaffTotal = 0;
-    let fieldPerf = 0;
-
-    const allMapped = base.map((s) => {
-      const taskCount = Number(s[key]) || 0;
-      const taskPoints = taskCount * unitPts;
-      let taskStatus: 'Performed' | 'Not Performed' | 'Management (Exempt)' = 'Not Performed';
-      if (taskCount > 0) {
-        taskStatus = 'Performed';
-        performed++;
-        if (!s.isManagement) {
-          fieldStaffTotal++;
-          fieldPerf++;
-        }
-      } else if (s.isManagement) {
-        taskStatus = 'Management (Exempt)';
-        mgtExempt++;
-      } else {
-        taskStatus = 'Not Performed';
-        notPerf++;
-        fieldStaffTotal++;
-      }
-
-      const sharePct = totalCompletions > 0 ? Math.round(((taskCount / totalCompletions) * 100) * 10) / 10 : 0;
-
-      return {
-        ...s,
-        taskCount,
-        unitPts,
-        taskPoints,
-        taskStatus,
-        sharePct,
-      };
-    });
-
-    const partPct = fieldStaffTotal > 0 ? Math.round((fieldPerf / fieldStaffTotal) * 100) : 0;
-
-    const filtered = allMapped.filter((r) => {
-      if (taskStatusFilter === 'performed') return r.taskStatus === 'Performed';
-      if (taskStatusFilter === 'not_performed') return r.taskStatus === 'Not Performed';
-      if (taskStatusFilter === 'management') return r.isManagement;
-      return true;
-    });
-
-    filtered.sort((a, b) => {
-      let av: string | number = 0;
-      let bv: string | number = 0;
-      switch (taskSortKey) {
-        case 'staffId':
-          av = a.staffId;
-          bv = b.staffId;
-          break;
-        case 'staffName':
-          av = a.staffName;
-          bv = b.staffName;
-          break;
-        case 'branchId':
-          av = a.branchId;
-          bv = b.branchId;
-          break;
-        case 'branchName':
-          av = cleanBranchName(a.branchName);
-          bv = cleanBranchName(b.branchName);
-          break;
-        case 'status': {
-          const statusOrder = (st: string) => (st === 'Performed' ? 1 : st === 'Not Performed' ? 2 : 3);
-          av = statusOrder(a.taskStatus);
-          bv = statusOrder(b.taskStatus);
-          break;
-        }
-        case 'points':
-          av = a.taskPoints;
-          bv = b.taskPoints;
-          break;
-        case 'share':
-          av = a.sharePct;
-          bv = b.sharePct;
-          break;
-        case 'totalPoints':
-          av = a.totalPoints;
-          bv = b.totalPoints;
-          break;
-        case 'count':
-        default:
-          av = a.taskCount;
-          bv = b.taskCount;
-          break;
-      }
-
-      if (typeof av === 'string') {
-        const cmp = String(av).localeCompare(String(bv), 'en', { numeric: true });
-        return taskSortDir === 'asc' ? cmp : -cmp;
-      }
-      const numA = Number(av) || 0;
-      const numB = Number(bv) || 0;
-      if (numA !== numB) {
-        return taskSortDir === 'asc' ? numA - numB : numB - numA;
-      }
-      if (b.taskCount !== a.taskCount) return b.taskCount - a.taskCount;
-      return b.totalPoints - a.totalPoints;
-    });
-
-    return {
-      taskStaffRows: filtered,
-      taskStaffRowsAll: allMapped,
-      totalTaskCompletions: totalCompletions,
-      totalTaskPoints: totalPts,
-      performedCount: performed,
-      notPerformedCount: notPerf,
-      mgtExemptCount: mgtExempt,
-      totalFieldStaff: fieldStaffTotal,
-      fieldPerformedCount: fieldPerf,
-      participationPct: partPct,
-    };
-  }, [enrichedStaff, isAdmin, userBranchId, staffLevelFilter, regionFilter, branchFilter, categoryFilter, deferredQuery, selectedTaskDef, taskStatusFilter, taskSortKey, taskSortDir]);
-
-  const taskStaffPg = usePager(taskStaffRows.length, [
-    period,
-    regionFilter,
-    branchFilter,
-    categoryFilter,
-    deferredQuery,
-    staffLevelFilter,
-    selectedTaskCode,
-    taskStatusFilter,
-  ]);
-
-  const exportStaffByTaskCsv = async () => {
-    if (!taskStaffRows.length) return 0;
-    const pTag = KPI_PERIOD_LABEL[period].replace(/[^A-Za-z0-9]+/g, '_');
-    downloadCsv(
-      `Staff_by_KPI_Task_${selectedTaskDef.ruleCode}_${pTag}`,
-      [
-        'No',
-        'Staff ID',
-        'Staff Name',
-        'Position',
-        'Role / Level',
-        'Branch Code',
-        'Branch Name',
-        'KPI Category',
-        'KPI Task Code',
-        'KPI Task Name',
-        'Task Status',
-        `Task Count (${selectedTaskDef.unit})`,
-        'Unit Points',
-        'Task Points',
-        'Share of Task (%)',
-        'Overall Total Points',
-        'Rating',
-      ],
-      taskStaffRows.map((r, i) => [
-        i + 1,
-        r.staffId || '—',
-        r.staffName,
-        r.position || (r.isManagement ? 'Management' : 'MS Officer'),
-        r.isManagement ? 'Management (Exempt)' : 'Field Officer',
-        fmtBranchCode(r.branchId),
-        cleanBranchName(r.branchName),
-        selectedTaskDef.category,
-        selectedTaskDef.ruleCode,
-        selectedTaskDef.name,
-        r.taskStatus,
-        r.taskCount,
-        r.unitPts,
-        r.taskPoints,
-        `${r.sharePct}%`,
-        r.totalPoints,
-        r.rating,
-      ])
-    );
-    return taskStaffRows.length;
-  };
+  
 
   const sortedBranches = useMemo(
     () => [...branches].sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true })),
@@ -1581,10 +1323,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
   const navTabs: { id: KpiView; label: string; Icon: React.ElementType; count?: number }[] = [
     { id: 'all', label: 'Overview', Icon: BarChart3 },
-    { id: 'branches', label: 'Branch KPI', Icon: Building2, count: filteredBranches.length },
     { id: 'staff', label: 'Staff KPI', Icon: Users, count: filteredStaff.length },
-    { id: 'staff_branch', label: 'Staff & Branch', Icon: Layers, count: filteredStaff.length },
-    { id: 'by_task', label: 'Staff by KPI Task', Icon: CheckSquare, count: taskStaffRows.length },
+    { id: 'branches', label: 'Branch KPI', Icon: Building2, count: filteredBranches.length },
     { id: 'timeline', label: 'Performance Trend', Icon: Calendar },
     { id: 'top10', label: 'Top 10 Leaderboard', Icon: Trophy },
   ];
@@ -1652,6 +1392,18 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               )}
               <span>Sync KPI</span>
             </button>
+            {_onNavigateToSettings && (
+              <button
+                type="button"
+                onClick={() => _onNavigateToSettings('kpi')}
+                aria-label="Open KPI Settings"
+                title="Manage KPI targets, rules & management exemptions"
+                className="group relative inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all duration-150 font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90"
+              >
+                <Settings className="w-4 h-4 text-[#003857]" aria-hidden />
+                <span>KPI Settings</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1904,7 +1656,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   </span>
                 </div>
 
-                <div className="h-[264px] w-full">
+                <div className="h-[280px] w-full">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={granularity}
@@ -2025,7 +1777,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   </span>
                 </div>
 
-                <div className="h-[264px] w-full">
+                <div className="h-[280px] w-full">
                   {topBranchChartData.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-xs text-slate-400">
                       No branch activity matching current filters.
@@ -2068,7 +1820,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <YAxis
                           type="category"
                           dataKey="name"
-                          width={148}
+                          width={184}
                           axisLine={false}
                           tickLine={false}
                           interval={0}
@@ -2252,11 +2004,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 items-start">
             {/* Top 10 Branches */}
-            <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden flex flex-col justify-between">
+            <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden flex flex-col">
               <div>
-                <div className="bg-slate-50/90 border-b border-slate-200/90 text-slate-800 px-4 py-2.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider">
+                <div className="bg-slate-50/90 border-b border-slate-200/90 text-slate-800 px-4 h-[42px] flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider">
                   <span className="inline-flex items-center gap-1.5 text-slate-900">
                     <Building2 className="w-3.5 h-3.5 text-[#1e5b88]" />
                     <span>Top 10 Branches · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
@@ -2265,7 +2017,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
                 <div className="overflow-x-auto">
                   <div className="min-w-[660px]">
-                    <div className="grid grid-cols-[28px_85px_minmax(130px,1fr)_100px_80px_70px_80px] items-center gap-2.5 px-4 py-2 bg-slate-100/70 border-b border-slate-200/80 text-xs font-semibold normal-case tracking-normal text-slate-600">
+                    <div className="grid grid-cols-[28px_80px_minmax(130px,1.2fr)_95px_85px_95px_80px] items-center gap-2.5 px-4 h-[38px] bg-slate-100/70 border-b border-slate-200/80 text-xs font-semibold normal-case tracking-normal text-slate-600">
                       <span className="whitespace-nowrap">No.</span>
                       <span className="text-center whitespace-nowrap">Branch Code</span>
                       <span className="whitespace-nowrap">Branch Name</span>
@@ -2279,7 +2031,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <div className="p-8 text-center text-xs text-slate-400">No branch records in this period.</div>
                       ) : (
                         top10Data.branches.map((b, i) => (
-                          <div key={b.branchId} className="grid grid-cols-[28px_85px_minmax(130px,1fr)_100px_80px_70px_80px] items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50/80 transition-colors">
+                          <div key={b.branchId} className="grid grid-cols-[28px_80px_minmax(130px,1.2fr)_95px_85px_95px_80px] items-center gap-2.5 px-4 h-[48px] hover:bg-slate-50/80 transition-colors">
                             {/* Rank */}
                             <div>
                               <RankBadge rank={i + 1} />
@@ -2310,15 +2062,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             </div>
 
                             {/* Points Per Staff Column */}
-                            <div className="text-right tabular-nums whitespace-nowrap">
-                              <span className="font-semibold text-[#1e5b88] text-[12px]">
+                            <div className="text-right tabular-nums whitespace-nowrap leading-none flex flex-col justify-center items-end">
+                              <span className="font-semibold text-[#1e5b88] text-[12.5px] leading-tight">
                                 {fmtPts(b.ptsPerStaff)}
                               </span>
-                              <span className="text-[10px] text-slate-400 block leading-tight">pts/staff</span>
+                              <span className="text-[10px] text-slate-400 leading-tight mt-0.5">pts/staff</span>
                             </div>
 
                             {/* Mix Column */}
-                            <div className="flex justify-center">
+                            <div className="flex justify-center items-center">
                               <MiniMixBar pos={b.posPoints} sb={b.sbPoints} khqr={b.khqrPoints} cc={b.ccPoints} total={b.totalPoints} />
                             </div>
 
@@ -2336,9 +2088,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             </div>
 
             {/* Top 10 Individual Staff */}
-            <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden flex flex-col justify-between">
+            <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden flex flex-col">
               <div>
-                <div className="bg-slate-50/90 border-b border-slate-200/90 text-slate-800 px-4 py-2.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider">
+                <div className="bg-slate-50/90 border-b border-slate-200/90 text-slate-800 px-4 h-[42px] flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider">
                   <span className="inline-flex items-center gap-1.5 text-slate-900">
                     <Users className="w-3.5 h-3.5 text-[#1e5b88]" />
                     <span>Top 10 Staff · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
@@ -2347,7 +2099,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
                 <div className="overflow-x-auto">
                   <div className="min-w-[680px]">
-                    <div className="grid grid-cols-[28px_75px_minmax(130px,1.1fr)_85px_minmax(120px,1fr)_72px_80px] items-center gap-2.5 px-4 py-2 bg-slate-100/70 border-b border-slate-200/80 text-xs font-semibold normal-case tracking-normal text-slate-600">
+                    <div className="grid grid-cols-[28px_75px_minmax(130px,1.2fr)_80px_minmax(130px,1.2fr)_95px_80px] items-center gap-2.5 px-4 h-[38px] bg-slate-100/70 border-b border-slate-200/80 text-xs font-semibold normal-case tracking-normal text-slate-600">
                       <span className="whitespace-nowrap">No.</span>
                       <span className="text-center whitespace-nowrap">Staff ID</span>
                       <span className="whitespace-nowrap">Staff Name</span>
@@ -2361,7 +2113,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <div className="p-8 text-center text-xs text-slate-400">No staff records in this period.</div>
                       ) : (
                         top10Data.staff.map((s, i) => (
-                          <div key={s.staffId} className="grid grid-cols-[28px_75px_minmax(130px,1.1fr)_85px_minmax(120px,1fr)_72px_80px] items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50/80 transition-colors">
+                          <div key={s.staffId} className="grid grid-cols-[28px_75px_minmax(130px,1.2fr)_80px_minmax(130px,1.2fr)_95px_80px] items-center gap-2.5 px-4 h-[48px] hover:bg-slate-50/80 transition-colors">
                             {/* Rank */}
                             <div>
                               <RankBadge rank={i + 1} />
@@ -2396,13 +2148,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                             {/* Branch Name Column */}
                             <div className="min-w-0 pr-1">
-                              <span className="text-[12.5px] text-slate-700 truncate block" title={cleanBranchName(s.branchName)}>
+                              <span className="text-[13px] text-slate-700 truncate block" title={cleanBranchName(s.branchName)}>
                                 {cleanBranchName(s.branchName)}
                               </span>
                             </div>
 
                             {/* Mix Column */}
-                            <div className="flex justify-center">
+                            <div className="flex justify-center items-center">
                               <MiniMixBar pos={s.posPoints} sb={s.sbPoints} khqr={s.khqrPoints} cc={s.ccPoints} total={s.totalPoints} />
                             </div>
 
@@ -2515,7 +2267,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       )}
 
       {/* ───────────── KPI Performance by Branch & Staff (Switchable Combined Table) ───────────── */}
-      {(showSection('all') || showSection('branches') || showSection('staff') || showSection('staff_branch') || showSection('by_task')) && (
+      {(showSection('all') || showSection('branches') || showSection('staff')) && (
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden relative" aria-label="KPI Performance Table">
           {loading && (
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-sky-400 via-[#1e5b88] to-teal-400 animate-pulse z-20" />
@@ -2536,46 +2288,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             <div className="flex flex-wrap items-center gap-2.5">
               <div className="overflow-x-auto no-scrollbar max-w-full py-0.5">
                 <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap">
-                <button
-                  type="button"
-                  onClick={() => { handleTableModeChange('branch'); setBranchSubView('summary'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
-                  }`}
-                >
-                  {tableMode === 'branch' && branchSubView === 'summary' && (
-                    <motion.div
-                      layoutId="kpi-table-mode-pill"
-                      transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
-                    />
-                  )}
-                  <Building2 className="w-3.5 h-3.5 relative z-10" aria-hidden />
-                  <span className="relative z-10">KPI by Branch</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
-                    {filteredBranches.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { handleTableModeChange('branch'); setBranchSubView('daily'); }}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
-                  }`}
-                >
-                  {tableMode === 'branch' && branchSubView === 'daily' && (
-                    <motion.div
-                      layoutId="kpi-table-mode-pill"
-                      transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
-                    />
-                  )}
-                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
-                  <span className="relative z-10">Branch Daily Tasks</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
-                    1–{matrixDays.length}d
-                  </span>
-                </button>
                 <button
                   type="button"
                   onClick={() => { handleTableModeChange('staff'); setStaffSubView('summary'); }}
@@ -2618,54 +2330,51 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </button>
                 <button
                   type="button"
-                  onClick={() => { handleTableModeChange('staff_branch'); }}
+                  onClick={() => { handleTableModeChange('branch'); setBranchSubView('summary'); }}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'staff_branch' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
                   }`}
                 >
-                  {tableMode === 'staff_branch' && (
+                  {tableMode === 'branch' && branchSubView === 'summary' && (
                     <motion.div
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
                       className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
                     />
                   )}
-                  <Layers className="w-3.5 h-3.5 relative z-10" aria-hidden />
-                  <span className="relative z-10">KPI by Staff &amp; Branch</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff_branch' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
-                    {filteredStaff.length}
+                  <Building2 className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <span className="relative z-10">KPI by Branch</span>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                    {filteredBranches.length}
                   </span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => { handleTableModeChange('by_task'); }}
+                  onClick={() => { handleTableModeChange('branch'); setBranchSubView('daily'); }}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'by_task' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
                   }`}
                 >
-                  {tableMode === 'by_task' && (
+                  {tableMode === 'branch' && branchSubView === 'daily' && (
                     <motion.div
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
                       className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
                     />
                   )}
-                  <CheckSquare className="w-3.5 h-3.5 relative z-10" aria-hidden />
-                  <span className="relative z-10">Staff by KPI Task</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'by_task' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
-                    {taskStaffRows.length}
+                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <span className="relative z-10">Branch Daily Tasks</span>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                    1–{matrixDays.length}d
                   </span>
                 </button>
+                
                 </div>
               </div>
 
               <ExportCsvButton
                 onExport={
-                  tableMode === 'by_task'
-                    ? exportStaffByTaskCsv
-                    : tableMode === 'staff_branch'
-                    ? exportStaffAndBranchCsv
-                    : tableMode === 'staff'
+                  tableMode === 'staff'
                     ? (staffSubView === 'daily' ? exportDailyStaffCsv : exportStaffCsv)
                     : branchSubView === 'daily'
                     ? exportDailyBranchCsv
@@ -2673,11 +2382,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 }
                 toast={triggerToast}
                 title={`Export ${
-                  tableMode === 'by_task'
-                    ? `Staff by KPI Task (${selectedTaskDef.name})`
-                    : tableMode === 'staff_branch'
-                    ? 'KPI Performance by Staff & Branch'
-                    : tableMode === 'staff'
+                  tableMode === 'staff'
                     ? (staffSubView === 'daily'
                         ? `Daily Tasks Matrix (${fmtMonth(dailyMatrixMonth)}) by Staff`
                         : 'KPI Performance by Staff')
@@ -2729,176 +2434,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <span>Month Tasks: <strong className="text-slate-800 font-semibold">{fmtInt(tableMode === 'staff' ? matrixStaffDayTotals.allGrandTotal : matrixDayTotals.allGrandTotal)} tasks</strong></span>
                   <span className="text-slate-300">·</span>
                   <span>Daily Avg: <strong className="text-slate-800 font-semibold">{tableMode === 'staff' ? matrixStaffDayTotals.avgDailyTotal : matrixDayTotals.avgDailyTotal} tasks/day</strong></span>
-                </div>
-              </div>
-            ) : tableMode === 'by_task' ? (
-              <div className="flex flex-wrap items-center justify-between w-full text-xs font-medium text-slate-600 gap-3">
-                {/* Left: Task Selector Dropdown + Points weight pill */}
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="text-[11.5px] font-bold text-slate-700 flex items-center gap-1.5">
-                    <Target className="w-3.5 h-3.5 text-[#1e5b88]" />
-                    Select KPI Task:
-                  </span>
-                  <select
-                    value={selectedTaskCode}
-                    onChange={(e) => setSelectedTaskCode(e.target.value)}
-                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-800 font-semibold text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#1e5b88] cursor-pointer"
-                  >
-                    <optgroup label="POS Terminal">
-                      <option value="POS_INSTALL">POS Terminal Installation (POS_INSTALL)</option>
-                      <option value="POS_REPLACE">POS Terminal Replacement (POS_REPLACE)</option>
-                      <option value="POS_BATTERY">POS Battery Swap (POS_BATTERY)</option>
-                    </optgroup>
-                    <optgroup label="Sound Box">
-                      <option value="SB_INSTALL">Sound Box Installation (SB_INSTALL)</option>
-                      <option value="SB_REPLACE">Sound Box Replacement (SB_REPLACE)</option>
-                      <option value="SB_MAINT">Sound Box Maintenance (SB_MAINT)</option>
-                      <option value="SB_RETURN">Sound Box Retrieval (SB_RETURN)</option>
-                    </optgroup>
-                    <optgroup label="KHQR">
-                      <option value="KHQR_INSTALL">KHQR Standee / Sticker Installation (KHQR_INSTALL)</option>
-                      <option value="KHQR_REPLACE">KHQR Replacement (KHQR_REPLACE)</option>
-                      <option value="KHQR_MATERIAL">QR Material Scanned (KHQR_MATERIAL)</option>
-                    </optgroup>
-                    <optgroup label="Credit Card">
-                      <option value="CC_PRIMARY">Credit Card Primary Acquisition (CC_PRIMARY)</option>
-                      <option value="CC_SUPP">Credit Card Supplementary (CC_SUPP)</option>
-                    </optgroup>
-                  </select>
-
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-800 border border-sky-200">
-                    <span>{selectedTaskDef.unitPts} pts / {selectedTaskDef.unit}</span>
-                  </span>
-
-                  <span className="text-slate-300 text-xs hidden lg:inline">|</span>
-
-                  <span className="text-slate-500 text-xs hidden lg:inline">
-                    Total Volume: <strong className="text-slate-800 font-semibold">{fmtInt(totalTaskCompletions)} {selectedTaskDef.unit}s</strong> ({fmtPts(totalTaskPoints)} pts)
-                  </span>
-                </div>
-
-                {/* Right: Performed vs Not Performed vs Exempt Filter Pills */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-slate-500 font-medium">Filter:</span>
-                  <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setTaskStatusFilter('all')}
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                        taskStatusFilter === 'all' ? 'bg-[#1e5b88] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      All Staff ({taskStaffRowsAll.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTaskStatusFilter('performed')}
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer flex items-center gap-1 ${
-                        taskStatusFilter === 'performed' ? 'bg-emerald-700 text-white shadow-2xs' : 'text-emerald-700 hover:text-emerald-800'
-                      }`}
-                    >
-                      <CheckCircle2 className="w-3 h-3" />
-                      Performed ({performedCount})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTaskStatusFilter('not_performed')}
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer flex items-center gap-1 ${
-                        taskStatusFilter === 'not_performed' ? 'bg-rose-700 text-white shadow-2xs' : 'text-rose-700 hover:text-rose-800'
-                      }`}
-                    >
-                      <XCircle className="w-3 h-3" />
-                      Not Performed ({notPerformedCount})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTaskStatusFilter('management')}
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer flex items-center gap-1 ${
-                        taskStatusFilter === 'management' ? 'bg-indigo-700 text-white shadow-2xs' : 'text-indigo-700 hover:text-indigo-800'
-                      }`}
-                      title="Management level staff who oversee operations and are exempt from field task quotas"
-                    >
-                      <ShieldCheck className="w-3 h-3" />
-                      Management (Exempt) ({mgtExemptCount})
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : tableMode === 'staff_branch' ? (
-              <div className="flex flex-wrap items-center justify-between w-full text-xs font-medium text-slate-600 gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span>
-                    Showing {filteredBranches.length} branches · {filteredStaff.length} staff records · Individual Target: {fmtPts(activeTargets.staff)} pts/staff ({monthWorkDaysSummary.workDays} work days)
-                  </span>
-                  {staffBranchSubView === 'flat' && (
-                    <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs ml-1">
-                      <button
-                        type="button"
-                        onClick={() => setStaffLevelFilter('all')}
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                          staffLevelFilter === 'all' ? 'bg-[#1e5b88] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        All
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStaffLevelFilter('field')}
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                          staffLevelFilter === 'field' ? 'bg-[#1e5b88] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        Field
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStaffLevelFilter('management')}
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                          staffLevelFilter === 'management' ? 'bg-[#1e5b88] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                        title="Management level staff (Branch Managers, Supervisors, Team Leads, Admins) who oversee operations and are exempt from field KPIs"
-                      >
-                        Management
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setStaffBranchSubView('grouped')}
-                      className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition ${
-                        staffBranchSubView === 'grouped' ? 'bg-[#1e5b88] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Grouped by Branch
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStaffBranchSubView('flat')}
-                      className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition ${
-                        staffBranchSubView === 'flat' ? 'bg-[#1e5b88] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Flat Table
-                    </button>
-                  </div>
-                  {staffBranchSubView === 'grouped' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (collapsedBranchGroups.size === 0) {
-                          setCollapsedBranchGroups(new Set(filteredBranches.map((b) => b.branchId)));
-                        } else {
-                          setCollapsedBranchGroups(new Set());
-                        }
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-medium cursor-pointer shadow-2xs transition"
-                    >
-                      {collapsedBranchGroups.size === 0 ? 'Collapse All' : 'Expand All'}
-                    </button>
-                  )}
                 </div>
               </div>
             ) : (
@@ -2957,453 +2492,24 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           ) : (
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
-                key={`${tableMode}-${tableMode === 'branch' ? branchSubView : tableMode === 'staff' ? staffSubView : tableMode === 'by_task' ? selectedTaskCode : staffBranchSubView}`}
+                key={`${tableMode}-${tableMode === 'branch' ? branchSubView : staffSubView}`}
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -3 }}
                 transition={{ duration: 0.12, ease: 'easeOut' }}
               >
-                {tableMode === 'by_task' ? (
-                  <div className="space-y-4 p-4 sm:p-5">
-                    {/* 4 Task Metric Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
-                      {/* Card 1: Task Volume & Points */}
-                      <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Volume &amp; Points</span>
-                          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${CAT_COLORS[selectedTaskDef.category]?.badge || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                            {selectedTaskDef.category}
-                          </span>
-                        </div>
-                        <div className="text-2xl font-bold text-slate-900 tabular-nums">
-                          {fmtInt(totalTaskCompletions)} <span className="text-sm font-normal text-slate-500">{selectedTaskDef.unit}s</span>
-                        </div>
-                        <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
-                          <span>Rule: <strong className="font-semibold text-slate-700">{selectedTaskDef.ruleCode}</strong></span>
-                          <span className="font-semibold text-[#003857]">+{fmtPts(totalTaskPoints)} pts</span>
-                        </div>
-                      </div>
-
-                      {/* Card 2: Staff Who Performed */}
-                      <div className="rounded-2xl border border-emerald-200/90 bg-emerald-50/30 p-4 shadow-2xs">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Staff Performed</span>
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active
-                          </span>
-                        </div>
-                        <div className="text-2xl font-bold text-emerald-900 tabular-nums">
-                          {performedCount} <span className="text-sm font-normal text-emerald-700">staff</span>
-                        </div>
-                        <div className="text-xs text-emerald-700 mt-1 flex items-center justify-between">
-                          <span>Field Participation:</span>
-                          <strong className="font-semibold text-emerald-900">{participationPct}% ({fieldPerformedCount}/{totalFieldStaff})</strong>
-                        </div>
-                      </div>
-
-                      {/* Card 3: Staff Not Performed */}
-                      <div className="rounded-2xl border border-rose-200/90 bg-rose-50/30 p-4 shadow-2xs">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-xs font-semibold text-rose-800 uppercase tracking-wider">Not Performed</span>
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
-                            <XCircle className="w-3 h-3 text-rose-600" /> Zero Tasks
-                          </span>
-                        </div>
-                        <div className="text-2xl font-bold text-rose-900 tabular-nums">
-                          {notPerformedCount} <span className="text-sm font-normal text-rose-700">officers</span>
-                        </div>
-                        <div className="text-xs text-rose-700 mt-1 flex items-center justify-between">
-                          <span>Unreached field staff:</span>
-                          <strong className="font-semibold text-rose-900">{totalFieldStaff > 0 ? Math.round((notPerformedCount / totalFieldStaff) * 100) : 0}% of field</strong>
-                        </div>
-                      </div>
-
-                      {/* Card 4: Management Level (Exempt) */}
-                      <div className="rounded-2xl border border-indigo-200/90 bg-indigo-50/30 p-4 shadow-2xs">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-xs font-semibold text-indigo-800 uppercase tracking-wider">Management Level</span>
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
-                            <ShieldCheck className="w-3 h-3 text-indigo-600" /> Exempt
-                          </span>
-                        </div>
-                        <div className="text-2xl font-bold text-indigo-900 tabular-nums">
-                          {mgtExemptCount} <span className="text-sm font-normal text-indigo-700">leaders</span>
-                        </div>
-                        <div className="text-xs text-indigo-700 mt-1 flex items-center justify-between">
-                          <span>Branch Managers / Leads:</span>
-                          <strong className="font-semibold text-indigo-900">Exempt from field quota</strong>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Table Container */}
-                    <div className="rounded-xl border border-slate-200/90 overflow-hidden bg-white shadow-2xs">
-                      <div className="overflow-x-auto w-full overscroll-x-contain">
-                        <div className="min-w-[1140px] w-full">
-                          {/* Deep Navy Header */}
-                          <div className="grid items-center gap-x-4 grid-cols-[44px_75px_minmax(180px,1.3fr)_85px_minmax(150px,1.1fr)_150px_110px_110px_120px_110px_130px] bg-[#003857] text-white text-xs font-semibold px-4 py-3 select-none">
-                            <span className="text-right">No.</span>
-                            <SortableHeader label="Staff ID" sortKey="staffId" activeKey={taskSortKey} dir={taskSortDir} onSort={(k) => { setTaskSortKey(k as any); setTaskSortDir((d) => (taskSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                            <SortableHeader label="Staff Name" sortKey="staffName" activeKey={taskSortKey} dir={taskSortDir} onSort={(k) => { setTaskSortKey(k as any); setTaskSortDir((d) => (taskSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                            <SortableHeader label="Branch Code" sortKey="branchId" activeKey={taskSortKey} dir={taskSortDir} onSort={(k) => { setTaskSortKey(k as any); setTaskSortDir((d) => (taskSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                            <SortableHeader label="Branch Name" sortKey="branchName" activeKey={taskSortKey} dir={taskSortDir} onSort={(k) => { setTaskSortKey(k as any); setTaskSortDir((d) => (taskSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                            <SortableHeader label="Task Status" sortKey="status" activeKey={taskSortKey} dir={taskSortDir} onSort={(k) => { setTaskSortKey(k as any); setTaskSortDir((d) => (taskSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                            <SortableHeader label={`Task Count (${selectedTaskDef.unit})`} sortKey="count" activeKey={taskSortKey} dir={taskSortDir} onSort={(k) => { setTaskSortKey(k as any); setTaskSortDir((d) => (taskSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                            <SortableHeader label="Task Points" sortKey="points" activeKey={taskSortKey} dir={taskSortDir} onSort={(k) => { setTaskSortKey(k as any); setTaskSortDir((d) => (taskSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                            <SortableHeader label="Share of Task" sortKey="share" activeKey={taskSortKey} dir={taskSortDir} onSort={(k) => { setTaskSortKey(k as any); setTaskSortDir((d) => (taskSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                            <SortableHeader label="Overall Points" sortKey="totalPoints" activeKey={taskSortKey} dir={taskSortDir} onSort={(k) => { setTaskSortKey(k as any); setTaskSortDir((d) => (taskSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                            <span>Rating</span>
-                          </div>
-
-                          {/* Data Rows */}
-                          <div className="divide-y divide-slate-200/90">
-                            {taskStaffRows.length === 0 ? (
-                              <div className="p-10 text-center text-sm text-slate-500">
-                                No staff records match the current filters for {selectedTaskDef.name}.
-                              </div>
-                            ) : (
-                              taskStaffRows.slice(taskStaffPg.start, taskStaffPg.end).map((r, i) => {
-                                const rank = taskStaffPg.start + i + 1;
-                                return (
-                                  <div
-                                    key={`${r.staffId}-${r.staffName}`}
-                                    className={`grid items-center gap-x-4 grid-cols-[44px_75px_minmax(180px,1.3fr)_85px_minmax(150px,1.1fr)_150px_110px_110px_120px_110px_130px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors ${
-                                      r.taskStatus === 'Performed' ? 'bg-emerald-50/15' : ''
-                                    }`}
-                                  >
-                                    <span className="text-right tabular-nums text-slate-500 font-mono text-xs">{rank}</span>
-
-                                    <span className="font-mono text-xs text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/80 tabular-nums inline-block text-center w-fit truncate max-w-full" title={r.staffId}>
-                                      {r.staffId || '—'}
-                                    </span>
-
-                                    <span className="flex items-center gap-2 min-w-0">
-                                      <span className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 border ${r.isManagement ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-[#1e5b88] border-slate-200/80'}`}>
-                                        {r.isManagement ? <ShieldCheck className="w-3.5 h-3.5" aria-hidden /> : <Users className="w-3.5 h-3.5" aria-hidden />}
-                                      </span>
-                                      <span className="min-w-0">
-                                        <span className="text-slate-900 font-medium truncate block">{r.staffName}</span>
-                                        {r.position && (
-                                          <span className={`text-[10px] truncate block ${r.isManagement ? 'text-indigo-600 font-semibold' : 'text-slate-400'}`}>
-                                            {r.position}
-                                          </span>
-                                        )}
-                                      </span>
-                                    </span>
-
-                                    <span className="font-mono text-xs text-slate-700 tabular-nums truncate block" title={r.branchId === 'UNASSIGNED' ? 'Unassigned' : r.branchId}>
-                                      {fmtBranchCode(r.branchId)}
-                                    </span>
-
-                                    <span className="block truncate text-slate-800" title={cleanBranchName(r.branchName)}>
-                                      {cleanBranchName(r.branchName)}
-                                    </span>
-
-                                    <span>
-                                      {r.taskStatus === 'Performed' ? (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Performed
-                                        </span>
-                                      ) : r.taskStatus === 'Management (Exempt)' ? (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200">
-                                          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" /> Exempt
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-800 border border-rose-200">
-                                          <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" /> Not Performed
-                                        </span>
-                                      )}
-                                    </span>
-
-                                    <span className="text-right tabular-nums">
-                                      {r.taskCount > 0 ? (
-                                        <span className="font-bold text-slate-900">
-                                          {fmtInt(r.taskCount)}{' '}
-                                          <span className="text-[10.5px] font-normal text-slate-500">{selectedTaskDef.unit}</span>
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-400 font-normal">0</span>
-                                      )}
-                                    </span>
-
-                                    <span className="text-right tabular-nums">
-                                      {r.taskPoints > 0 ? (
-                                        <span className="font-bold text-[#003857] font-figure">+{fmtPts(r.taskPoints)} pts</span>
-                                      ) : (
-                                        <span className="text-slate-400">0 pts</span>
-                                      )}
-                                    </span>
-
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                        <div
-                                          className="bg-[#1e5b88] h-full rounded-full transition-all"
-                                          style={{ width: `${Math.min(100, r.sharePct)}%` }}
-                                        />
-                                      </div>
-                                      <span className="text-xs text-slate-600 font-medium tabular-nums w-10 text-right">
-                                        {r.sharePct}%
-                                      </span>
-                                    </div>
-
-                                    <span className="text-right tabular-nums font-figure text-[#003857] font-medium">
-                                      {fmtPts(r.totalPoints)} pts
-                                    </span>
-
-                                    <span>
-                                      <RatingBadge rating={r.rating} />
-                                    </span>
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
-
-                          {/* Table Summary Footer */}
-                          {taskStaffRows.length > 0 && (
-                            <div className="grid items-center gap-x-4 grid-cols-[44px_75px_minmax(180px,1.3fr)_85px_minmax(150px,1.1fr)_150px_110px_110px_120px_110px_130px] bg-slate-50 border-t border-slate-200/90 text-xs font-semibold px-4 py-2.5 text-slate-700 select-none">
-                              <span />
-                              <span className="text-center text-slate-500 font-medium">{taskStaffRows.length} staff</span>
-                              <span className="text-slate-600 font-medium">Summary Total</span>
-                              <span />
-                              <span />
-                              <span className="text-emerald-700 font-semibold">{performedCount} performed</span>
-                              <span className="text-right tabular-nums font-bold text-slate-900">
-                                {fmtInt(totalTaskCompletions)} {selectedTaskDef.unit}s
-                              </span>
-                              <span className="text-right tabular-nums font-bold text-[#003857]">
-                                +{fmtPts(totalTaskPoints)} pts
-                              </span>
-                              <span className="text-center text-slate-500 font-medium">100% volume</span>
-                              <span />
-                              <span />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <Pager pg={taskStaffPg} label="staff records" />
-                  </div>
-                ) : tableMode === 'staff_branch' ? (
-                  staffBranchSubView === 'grouped' ? (
-                    <div className="divide-y divide-slate-200/90">
-                      {filteredBranches.length === 0 ? (
-                        <div className="p-10 text-center text-sm text-slate-500">No branches or staff match the current filters.</div>
-                      ) : (
-                        filteredBranches.slice(staffBranchGroupPg.start, staffBranchGroupPg.end).map((b, i) => {
-                          const isCollapsed = collapsedBranchGroups.has(b.branchId);
-                          const branchRank = staffBranchGroupPg.start + i + 1;
-                          return (
-                            <div key={b.branchId} className="bg-white">
-                              {/* Branch Header Bar */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCollapsedBranchGroups((prev) => {
-                                    const next = new Set(prev);
-                                    if (next.has(b.branchId)) next.delete(b.branchId);
-                                    else next.add(b.branchId);
-                                    return next;
-                                  });
-                                }}
-                                className="w-full px-4 py-3 bg-slate-50/80 hover:bg-slate-100/80 flex flex-wrap items-center justify-between gap-3 text-left border-b border-slate-200/80 cursor-pointer transition-colors"
-                              >
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
-                                  <span className="font-mono text-xs text-slate-500 tabular-nums">#{branchRank}</span>
-                                  <span className="font-mono text-xs text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs font-semibold tabular-nums shrink-0">
-                                    {fmtBranchCode(b.branchId)}
-                                  </span>
-                                  <span className="font-bold text-slate-900 text-sm truncate" title={cleanBranchName(b.branchName)}>
-                                    {cleanBranchName(b.branchName)}
-                                  </span>
-                                  <span className="text-[11px] font-medium text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-full shrink-0 tabular-nums">
-                                    {b.kpiStaffCount} Field Officers{b.mgtStaffCount > 0 ? ` + ${b.mgtStaffCount} Mgt (Exempt)` : ''}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-4 text-xs tabular-nums shrink-0">
-                                  <span className="text-slate-500 hidden sm:inline">
-                                    POS: <strong className="text-slate-700">{fmtPts(b.posPoints)}</strong> · SB: <strong className="text-slate-700">{fmtPts(b.sbPoints)}</strong> · KHQR: <strong className="text-slate-700">{fmtPts(b.khqrPoints)}</strong> · CC: <strong className="text-slate-700">{fmtPts(b.ccPoints)}</strong>
-                                  </span>
-                                  <span className="w-24 hidden md:block">
-                                    <TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} />
-                                  </span>
-                                  <RatingBadge rating={b.rating} />
-                                  <span className="font-figure font-bold text-[#003857] text-[13px]">
-                                    {fmtPts(b.totalPoints)} pts
-                                  </span>
-                                </div>
-                              </button>
-
-                              {/* Branch Staff Table (when not collapsed) */}
-                              {!isCollapsed && (
-                                <div className="overflow-x-auto w-full overscroll-x-contain">
-                                  <div className="min-w-[1100px] w-full">
-                                    <div className="grid items-center gap-x-4 grid-cols-[36px_72px_minmax(150px,1.2fr)_minmax(96px,0.9fr)_minmax(96px,0.9fr)_minmax(104px,1fr)_minmax(96px,0.9fr)_64px_68px_92px_100px_130px] bg-slate-100/90 border-b border-slate-200/90 text-slate-700 text-xs font-semibold px-4 py-2 select-none">
-                                      <span className="text-right">No.</span>
-                                      <span className="text-center">Staff ID</span>
-                                      <span>Staff Name</span>
-                                      <span className="text-right">POS Points</span>
-                                      <span className="text-right">SB Points</span>
-                                      <span className="text-right">KHQR Points</span>
-                                      <span className="text-right">CC Points</span>
-                                      <span className="text-right">Quality</span>
-                                      <span className="text-right">Tasks</span>
-                                      <span className="text-right">Points</span>
-                                      <span>% Target</span>
-                                      <span>Rating</span>
-                                    </div>
-                                    <div className="divide-y divide-slate-100 bg-white text-[13px] text-slate-700">
-                                      {b.staffList.length === 0 ? (
-                                        <div className="p-4 text-center text-xs text-slate-400">No active staff records in this branch.</div>
-                                      ) : (
-                                        b.staffList.map((s, sIdx) => (
-                                          <div key={s.staffId} className="grid items-center gap-x-4 grid-cols-[36px_72px_minmax(150px,1.2fr)_minmax(96px,0.9fr)_minmax(96px,0.9fr)_minmax(104px,1fr)_minmax(96px,0.9fr)_64px_68px_92px_100px_130px] px-4 py-2 hover:bg-slate-50/70 transition-colors">
-                                            <span className="text-right tabular-nums text-slate-400 text-xs">{sIdx + 1}</span>
-                                            <span className="font-mono text-xs text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/80 tabular-nums text-center w-fit">
-                                              {s.staffId}
-                                            </span>
-                                            <span className="flex items-center gap-2 min-w-0">
-                                              <span className={`w-5.5 h-5.5 rounded flex items-center justify-center shrink-0 border ${s.isManagement ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-[#1e5b88] border-slate-200/80'}`}>
-                                                {s.isManagement ? <ShieldCheck className="w-3 h-3" /> : <Users className="w-3 h-3" />}
-                                              </span>
-                                              <span className="min-w-0">
-                                                <span className="text-slate-900 font-medium truncate block">{s.staffName}</span>
-                                                {s.position && (
-                                                  <span className={`text-[10px] truncate block ${s.isManagement ? 'text-indigo-600 font-semibold' : 'text-slate-400'}`}>
-                                                    {s.position}
-                                                  </span>
-                                                )}
-                                              </span>
-                                            </span>
-                                            <span className="text-right tabular-nums"><TaskPtsCell tasks={s.posTasks} pts={s.posPoints} /></span>
-                                            <span className="text-right tabular-nums"><TaskPtsCell tasks={s.sbTasks} pts={s.sbPoints} /></span>
-                                            <span className="text-right tabular-nums"><TaskPtsCell tasks={s.khqrTasks} pts={s.khqrPoints} /></span>
-                                            <span className="text-right tabular-nums"><TaskPtsCell tasks={s.ccTasks} pts={s.ccPoints} /></span>
-                                            <span className="text-right tabular-nums">
-                                              <span className={`px-1.5 py-0.5 rounded text-[11px] border ${s.qualityPct >= 95 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : s.qualityPct >= 80 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
-                                                {s.qualityPct}%
-                                              </span>
-                                            </span>
-                                            <span className="text-right tabular-nums text-slate-800">{fmtInt(s.totalTasks)}</span>
-                                            <span className="text-right tabular-nums font-figure text-[#003857] font-semibold">{fmtPts(s.totalPoints)} pts</span>
-                                            <span><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} isManagement={s.isManagement} /></span>
-                                            <span><RatingBadge rating={s.rating} /></span>
-                                          </div>
-                                        ))
-                                      )}
-                                      {/* Branch Sub-Total */}
-                                      <div className="grid items-center gap-x-4 grid-cols-[36px_72px_minmax(150px,1.2fr)_minmax(96px,0.9fr)_minmax(96px,0.9fr)_minmax(104px,1fr)_minmax(96px,0.9fr)_64px_68px_92px_100px_130px] px-4 py-2.5 bg-slate-100/90 font-semibold text-xs text-slate-800 border-t-2 border-slate-300">
-                                        <span />
-                                        <span className="text-center font-mono text-[11px] text-slate-500">Subtotal</span>
-                                        <span className="text-slate-900 font-bold truncate">Total for {cleanBranchName(b.branchName)} ({b.kpiStaffCount} field officers{b.mgtStaffCount > 0 ? ` + ${b.mgtStaffCount} management` : ''})</span>
-                                        <span className="text-right tabular-nums"><TaskPtsCell tasks={b.posTasks} pts={b.posPoints} /></span>
-                                        <span className="text-right tabular-nums"><TaskPtsCell tasks={b.sbTasks} pts={b.sbPoints} /></span>
-                                        <span className="text-right tabular-nums"><TaskPtsCell tasks={b.khqrTasks} pts={b.khqrPoints} /></span>
-                                        <span className="text-right tabular-nums"><TaskPtsCell tasks={b.ccTasks} pts={b.ccPoints} /></span>
-                                        <span className="text-right tabular-nums text-slate-600">{b.qualityPct}%</span>
-                                        <span className="text-right tabular-nums">{fmtInt(b.totalTasks)}</span>
-                                        <span className="text-right tabular-nums text-[#003857] font-bold">{fmtPts(b.totalPoints)} pts</span>
-                                        <span><TargetBar pct={b.targetPct} points={b.totalPoints} target={b.effectiveTarget} /></span>
-                                        <span><RatingBadge rating={b.rating} /></span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-                      <Pager pg={staffBranchGroupPg} label="branches" />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="overflow-x-auto w-full overscroll-x-contain">
-                        <div className="min-w-[1320px] w-full">
-                          <div className="grid items-center gap-x-4 grid-cols-[36px_85px_minmax(140px,1.2fr)_72px_minmax(140px,1.2fr)_minmax(96px,0.9fr)_minmax(96px,0.9fr)_minmax(104px,1fr)_minmax(96px,0.9fr)_64px_68px_92px_100px_130px] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
-                            <span className="text-right">No.</span>
-                            <SortableHeader label="Branch Code" sortKey="branchId" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                            <SortableHeader label="Branch Name" sortKey="branchName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                            <SortableHeader label="Staff ID" sortKey="staffId" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                            <SortableHeader label="Staff Name" sortKey="staffName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                            <SortableHeader icon={<Cpu className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="POS Points" sortKey="posPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                            <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-sky-200 shrink-0" aria-hidden />} label="SB Points" sortKey="sbPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                            <SortableHeader icon={<QrCode className="w-3.5 h-3.5 text-teal-300 shrink-0" aria-hidden />} label="KHQR Points" sortKey="khqrPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                            <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC Points" sortKey="ccPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                            <SortableHeader label="Quality" sortKey="qualityPct" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                            <SortableHeader label="Total Tasks" sortKey="totalTasks" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                            <SortableHeader label="Total Points" sortKey="totalPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                            <SortableHeader label={activeTargets.label} sortKey="targetPct" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
-                            <span>Rating</span>
-                          </div>
-                          <div className="divide-y divide-slate-200/90">
-                            {filteredStaff.length === 0 ? (
-                              <div className="p-10 text-center text-sm text-slate-500">No staff records match the current filters.</div>
-                            ) : (
-                              filteredStaff.slice(staffPg.start, staffPg.end).map((s, idx) => {
-                                const rank = staffPg.start + idx + 1;
-                                return (
-                                  <div key={`${s.branchId}_${s.staffId}`} className="grid items-center gap-x-4 grid-cols-[36px_85px_minmax(140px,1.2fr)_72px_minmax(140px,1.2fr)_minmax(96px,0.9fr)_minmax(96px,0.9fr)_minmax(104px,1fr)_minmax(96px,0.9fr)_64px_68px_92px_100px_130px] px-4 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/70 transition-colors">
-                                    <span className="text-right tabular-nums text-slate-500">{rank}</span>
-                                    <span className="font-mono text-xs text-slate-700 tabular-nums truncate block" title={s.branchId === 'UNASSIGNED' ? 'Unassigned' : s.branchId}>
-                                      {fmtBranchCode(s.branchId)}
-                                    </span>
-                                    <span className="block truncate text-slate-800" title={cleanBranchName(s.branchName)}>
-                                      {cleanBranchName(s.branchName)}
-                                    </span>
-                                    <span className="font-mono text-xs text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/80 tabular-nums inline-block text-center w-fit truncate max-w-full" title={s.staffId}>
-                                      {s.staffId || '—'}
-                                    </span>
-                                    <span className="flex items-center gap-2 min-w-0">
-                                      <span className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 border ${s.isManagement ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-[#1e5b88] border-slate-200/80'}`}>
-                                        {s.isManagement ? <ShieldCheck className="w-3.5 h-3.5" aria-hidden /> : <Users className="w-3.5 h-3.5" aria-hidden />}
-                                      </span>
-                                      <span className="min-w-0">
-                                        <span className="text-slate-900 font-medium truncate block">{s.staffName}</span>
-                                        {s.position && (
-                                          <span className={`text-[10px] truncate block ${s.isManagement ? 'text-indigo-600 font-semibold' : 'text-slate-400'}`}>
-                                            {s.position}
-                                          </span>
-                                        )}
-                                      </span>
-                                    </span>
-                                    <span className="text-right tabular-nums"><TaskPtsCell tasks={s.posTasks} pts={s.posPoints} /></span>
-                                    <span className="text-right tabular-nums"><TaskPtsCell tasks={s.sbTasks} pts={s.sbPoints} /></span>
-                                    <span className="text-right tabular-nums"><TaskPtsCell tasks={s.khqrTasks} pts={s.khqrPoints} /></span>
-                                    <span className="text-right tabular-nums"><TaskPtsCell tasks={s.ccTasks} pts={s.ccPoints} /></span>
-                                    <span className="text-right tabular-nums">
-                                      <span className={`px-1.5 py-0.5 rounded text-[11px] border ${s.qualityPct >= 95 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : s.qualityPct >= 80 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
-                                        {s.qualityPct}%
-                                      </span>
-                                    </span>
-                                    <span className="text-right tabular-nums text-slate-800">{fmtInt(s.totalTasks)}</span>
-                                    <span className="text-right tabular-nums font-figure text-[#003857]">{fmtPts(s.totalPoints)} pts</span>
-                                    <span><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} isManagement={s.isManagement} /></span>
-                                    <span><RatingBadge rating={s.rating} /></span>
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <Pager pg={staffPg} label="staff members" />
-                    </>
-                  )
-                ) : tableMode === 'branch' ? (
+                {tableMode === 'branch' ? (
                   branchSubView === 'daily' ? (
                     <>
                       <div className="overflow-x-auto w-full overscroll-x-contain">
                         <table className="w-full text-left border-collapse text-[13px]">
                           <thead>
                             <tr className="navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal select-none">
-                              <th className="sticky left-0 bg-[#003857] z-30 px-2 py-2.5 text-center w-[44px] min-w-[44px] border-r border-white/10 font-semibold text-xs text-white">
+                              <th className="sticky left-0 bg-[#003857] z-30 px-2 py-2.5 text-center w-[44px] min-w-[44px] font-semibold text-xs text-white">
                                 No.
                               </th>
                               <th
-                                className="sticky left-[44px] bg-[#003857] z-30 px-2.5 py-2.5 text-left w-[105px] min-w-[105px] border-r border-white/10 cursor-pointer select-none hover:bg-white/10 transition-colors"
+                                className="sticky left-[44px] bg-[#003857] z-30 px-2.5 py-2.5 text-left w-[105px] min-w-[105px] cursor-pointer select-none hover:bg-white/10 transition-colors"
                                 onClick={() => {
                                   setDailySortKey('branchId');
                                   setDailySortDir((d) => (dailySortKey === 'branchId' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -3415,7 +2521,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 </div>
                               </th>
                               <th
-                                className="sticky left-[149px] bg-[#003857] z-30 px-3 py-2.5 text-left w-[180px] min-w-[180px] shadow-[2px_0_5px_rgba(0,0,0,0.18)] border-r border-white/15 cursor-pointer select-none hover:bg-white/10 transition-colors"
+                                className="sticky left-[149px] bg-[#003857] z-30 px-3 py-2.5 text-left w-[180px] min-w-[180px] cursor-pointer select-none hover:bg-white/10 transition-colors"
                                 onClick={() => {
                                   setDailySortKey('branchName');
                                   setDailySortDir((d) => (dailySortKey === 'branchName' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -3446,7 +2552,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       setDailySortDir((dir) => (dailySortKey === key ? (dir === 'asc' ? 'desc' : 'asc') : 'desc'));
                                     }}
                                     title={titleText}
-                                    className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] border-r border-white/10 cursor-pointer select-none transition-colors ${
+                                    className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] cursor-pointer select-none transition-colors ${
                                       d.isToday
                                         ? 'bg-sky-500/35 text-white ring-1 ring-inset ring-sky-400/50 hover:bg-sky-500/45'
                                         : isHol
@@ -3480,7 +2586,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                               {/* Summary Headers */}
                               <th
-                                className="px-3 py-2.5 text-right w-[100px] min-w-[100px] border-l border-white/15 cursor-pointer select-none hover:bg-white/10 transition-colors"
+                                className="px-3 py-2.5 text-right w-[100px] min-w-[100px] cursor-pointer select-none hover:bg-white/10 transition-colors"
                                 onClick={() => {
                                   setDailySortKey('monthTotalTasks');
                                   setDailySortDir((d) => (dailySortKey === 'monthTotalTasks' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -3795,11 +2901,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <table className="w-full text-left border-collapse text-[13px]">
                 <thead>
                   <tr className="navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal select-none">
-                    <th className="sticky left-0 bg-[#003857] z-30 px-2 py-2.5 text-center w-[44px] min-w-[44px] border-r border-white/10 font-semibold text-xs text-white">
+                    <th className="sticky left-0 bg-[#003857] z-30 px-2 py-2.5 text-center w-[44px] min-w-[44px] font-semibold text-xs text-white">
                       No.
                     </th>
                     <th
-                      className="sticky left-[44px] bg-[#003857] z-30 px-2.5 py-2.5 text-left w-[68px] min-w-[68px] border-r border-white/10 cursor-pointer select-none hover:bg-white/10 transition-colors"
+                      className="sticky left-[44px] bg-[#003857] z-30 px-2.5 py-2.5 text-left w-[68px] min-w-[68px] cursor-pointer select-none hover:bg-white/10 transition-colors"
                       onClick={() => {
                         setDailyStaffSortKey('staffId');
                         setDailyStaffSortDir((d) => (dailyStaffSortKey === 'staffId' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -3811,7 +2917,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       </div>
                     </th>
                     <th
-                      className="sticky left-[112px] bg-[#003857] z-30 px-3 py-2.5 text-left w-[170px] min-w-[170px] border-r border-white/10 cursor-pointer select-none hover:bg-white/10 transition-colors"
+                      className="sticky left-[112px] bg-[#003857] z-30 px-3 py-2.5 text-left w-[170px] min-w-[170px] cursor-pointer select-none hover:bg-white/10 transition-colors"
                       onClick={() => {
                         setDailyStaffSortKey('staffName');
                         setDailyStaffSortDir((d) => (dailyStaffSortKey === 'staffName' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -3823,7 +2929,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       </div>
                     </th>
                     <th
-                      className="sticky left-[282px] bg-[#003857] z-30 px-2.5 py-2.5 text-left w-[105px] min-w-[105px] shadow-[2px_0_5px_rgba(0,0,0,0.18)] border-r border-white/15 cursor-pointer select-none hover:bg-white/10 transition-colors"
+                      className="sticky left-[282px] bg-[#003857] z-30 px-2.5 py-2.5 text-left w-[105px] min-w-[105px] cursor-pointer select-none hover:bg-white/10 transition-colors"
                       onClick={() => {
                         setDailyStaffSortKey('branchId');
                         setDailyStaffSortDir((d) => (dailyStaffSortKey === 'branchId' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -3854,7 +2960,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             setDailyStaffSortDir((dir) => (dailyStaffSortKey === key ? (dir === 'asc' ? 'desc' : 'asc') : 'desc'));
                           }}
                           title={titleText}
-                          className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] border-r border-white/10 cursor-pointer select-none transition-colors ${
+                          className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] cursor-pointer select-none transition-colors ${
                             d.isToday
                               ? 'bg-sky-500/35 text-white ring-1 ring-inset ring-sky-400/50 hover:bg-sky-500/45'
                               : isHol
@@ -3888,7 +2994,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                     {/* Summary Headers */}
                     <th
-                      className="px-3 py-2.5 text-right w-[100px] min-w-[100px] border-l border-white/15 cursor-pointer select-none hover:bg-white/10 transition-colors"
+                      className="px-3 py-2.5 text-right w-[100px] min-w-[100px] cursor-pointer select-none hover:bg-white/10 transition-colors"
                       onClick={() => {
                         setDailyStaffSortKey('monthTotalTasks');
                         setDailyStaffSortDir((d) => (dailyStaffSortKey === 'monthTotalTasks' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -4242,7 +3348,7 @@ const BranchYAxisTick: React.FC<any> = ({ y, payload }) => {
   const match = raw.match(/^(.*)\s+\(([^)]+)\)$/);
   const name = match ? match[1] : raw;
   const code = match ? match[2] : '';
-  const displayName = name.length > 18 ? `${name.slice(0, 17)}…` : name;
+  const displayName = name.length > 25 ? `${name.slice(0, 24)}…` : name;
 
   return (
     <g transform={`translate(0,${y})`}>
@@ -4255,7 +3361,7 @@ const BranchYAxisTick: React.FC<any> = ({ y, payload }) => {
         fill="#334155"
       >
         <tspan fill="#0f172a" fontWeight={500}>{displayName}</tspan>
-        {code && <tspan fill="#64748b"> ({code})</tspan>}
+        {code && <tspan fill="#64748b" fontWeight={400}> ({code})</tspan>}
       </text>
     </g>
   );
@@ -4510,7 +3616,7 @@ const MiniMixBar: React.FC<{ pos: number; sb: number; khqr: number; cc: number; 
   const pCc = (cc / total) * 100;
   return (
     <div
-      className="w-24 h-2 rounded-full bg-slate-100 overflow-hidden flex gap-[1px]"
+      className="w-20 h-2 rounded-full bg-slate-100 overflow-hidden flex gap-[1px]"
       title={`POS: ${fmtPts(pos)} pts · Sound Box: ${fmtPts(sb)} pts · KHQR: ${fmtPts(khqr)} pts · Credit Card: ${fmtPts(cc)} pts`}
     >
       {pPos > 0 && <div className="bg-sky-400 h-full" style={{ width: `${pPos}%` }} />}

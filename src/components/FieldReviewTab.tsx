@@ -150,6 +150,7 @@ const InputMethodBadge: React.FC<{
         aria-label={`${titlePrefix} scanned`}
       >
         <ScanLine className={iconCls} aria-hidden="true" />
+        <span className="sr-only">Scanned</span>
       </span>
     );
   }
@@ -1191,10 +1192,10 @@ const ReviewRow = memo(function ReviewRow({
                 aria-hidden
               />
               <span
-                className={`font-semibold tabular-nums tracking-tight ${
+                className={`font-normal tabular-nums tracking-tight ${
                   entry.serial === 'SCAN'
                     ? 'text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300'
-                    : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200'
+                    : 'text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100'
                 }`}
               >
                 {e.serial}

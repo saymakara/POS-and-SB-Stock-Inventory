@@ -1516,7 +1516,7 @@ return (
                             }`}
                             title={dev.type}
                           />
-                          <span className="cell-mono font-medium">{dev.serial}</span>
+                          <span className="cell-mono font-normal text-slate-700 dark:text-slate-300">{dev.serial}</span>
                         </div>
                         <div className="cell-sub pl-3.5">
                           {dev.type} {dev.model ? `· ${dev.model}` : ''}

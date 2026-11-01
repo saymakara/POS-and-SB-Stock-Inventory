@@ -25,8 +25,9 @@ import {
  */
 
 // (29 Oct 2026) KHQR details are kept for this month and last month only (older months: monthly totals below)
-const PERIOD_LABEL: Record<Period, string> = {
-  ALL: 'All time', TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months',
+type KhqrPeriod = Exclude<Period, 'ALL'>;
+const PERIOD_LABEL: Record<KhqrPeriod, string> = {
+  TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months',
 };
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
@@ -49,7 +50,7 @@ interface Props {
 
 export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-  const [period, setPeriod] = useState<Period>('ALL');
+  const [period, setPeriod] = useState<KhqrPeriod>('MONTH');
   const [activity, setActivity] = useState<'ALL' | QrActivity>('ALL');
   const [branchId, setBranchId] = useState('');
   const [staffSel, setStaffSel] = useState<{ id: string; name: string } | null>(null);
@@ -181,8 +182,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     return () => { unsub(); if (statTimer) clearTimeout(statTimer); };
   }, [loadStats, loadMonthHistory]);
 
-  const filtersActive = !!query || activity !== 'ALL' || !!branchId || !!staffSel || period !== 'ALL';
-  const clearAll = () => { setQuery(''); setSearch(''); setActivity('ALL'); setBranchId(''); setStaffSel(null); setPeriod('ALL'); };
+  const filtersActive = !!query || activity !== 'ALL' || !!branchId || !!staffSel || period !== 'MONTH';
+  const clearAll = () => { setQuery(''); setSearch(''); setActivity('ALL'); setBranchId(''); setStaffSel(null); setPeriod('MONTH'); };
   const branchOptions = useMemo(
     () => [...branches].sort((a, b) => String(a.code || a.id).localeCompare(String(b.code || b.id), undefined, { numeric: true })),
     [branches]
@@ -207,11 +208,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <select
               value={period}
-              onChange={(e) => setPeriod(e.target.value as Period)}
+              onChange={(e) => setPeriod(e.target.value as KhqrPeriod)}
               aria-label="Period"
               className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs outline-none cursor-pointer"
             >
-              {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
+              {(Object.keys(PERIOD_LABEL) as KhqrPeriod[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>
             <ExportCsvButton onExport={exportCsv} toast={triggerToast}
               title="Save the records of the view below (KHQR entries, failed attempts, wrong scans or same MID) that match the filters as a CSV file" />

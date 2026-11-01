@@ -469,7 +469,7 @@ export const LogoPageTab: React.FC<LogoPageTabProps> = ({
                 showGlow={true}
               />
               <div className="mt-4">
-                <h4 className="text-base font-extrabold tracking-tight">
+                <h4 className="text-base font-medium tracking-tight">
                   {titleInput || 'In-Store Management Portal'}
                 </h4>
                 <p className="text-xs text-slate-400 font-mono mt-0.5">

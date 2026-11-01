@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       icon: React.ElementType;
       count?: number;
       highlight?: boolean;
-      children?: Array<{ id: string; label: string; icon: React.ElementType; count?: number }>;
+      children?: Array<{ id: string; label: string; icon: React.ElementType; iconColor?: string; count?: number }>;
     }>;
   }> = [
     {
@@ -124,10 +124,10 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           count: webhookCount > 0 ? webhookCount : undefined,
           highlight: webhookCount > 0,
           children: [
-            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, count: reviewCounts?.pos },
-            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, count: reviewCounts?.sb },
-            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode },
-            { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, count: reviewCounts?.cc || undefined },
+            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, iconColor: 'text-sky-400', count: reviewCounts?.pos },
+            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-blue-400', count: reviewCounts?.sb },
+            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode, iconColor: 'text-teal-400' },
+            { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, iconColor: 'text-amber-400', count: reviewCounts?.cc || undefined },
           ],
         },
       ],
@@ -214,7 +214,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
             {(isMobileView || !collapsed) && (
               <div className="leading-tight truncate flex-1">
-                <div className="text-[13px] font-bold tracking-tight text-white truncate">
+                <div className="text-[13px] font-medium tracking-tight text-white/95 truncate">
                   {appSettings?.customLogoTitle || 'In-Store Management Portal'}
                 </div>
                 <div className="text-[11px] font-normal text-zinc-400 tracking-tight mt-0.5 truncate">
@@ -330,13 +330,13 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               onMouseEnter={() => { if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc()); }}
                               className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 border ${
                                 on
-                                  ? 'text-white font-medium bg-white/12 border-white/15'
-                                  : 'text-zinc-400 hover:text-white hover:bg-white/[0.06] border-transparent'
+                                  ? 'text-white font-semibold bg-white/15 border-white/20 shadow-2xs'
+                                  : 'text-white font-medium hover:bg-white/[0.08] hover:border-white/10 border-transparent'
                               }`}
                             >
                               <span className="flex items-center gap-2 min-w-0">
-                                <CI className={`w-3.5 h-3.5 shrink-0 ${on ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-200'}`} />
-                                <span className="truncate">{c.label}</span>
+                                <CI className={`w-3.5 h-3.5 shrink-0 ${c.iconColor || 'text-white'}`} />
+                                <span className="truncate text-white font-medium">{c.label}</span>
                               </span>
                               {c.count !== undefined && c.count > 0 && (
                                 <span
@@ -490,10 +490,9 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   searchQuery,
   onSearchChange,
   onTrace,
-  onlineOperators = [],
+  onlineOperators: _onlineOperators = [],
 }) => {
   const [notifOpen, setNotifOpen] = useState(false);
-  const [onlineOpen, setOnlineOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -885,73 +884,6 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               </span>
             </div>
           )}
-
-          {/* Live System Presence (Who Is Online Using the System) */}
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => setOnlineOpen((o) => !o)}
-              title="See who is currently using the system"
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 border-emerald-200 cursor-pointer transition"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{Math.max(1, onlineOperators.length)} Online</span>
-            </button>
-            <AnimatePresence>
-              {onlineOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
-                  className="absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl border bg-white border-slate-200 text-zinc-900 overflow-hidden z-50 divide-y divide-slate-100"
-                >
-                  <div className="px-4 py-2.5 bg-emerald-50/80 flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-emerald-900 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      Active System Operators ({Math.max(1, onlineOperators.length)})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setOnlineOpen(false)}
-                      className="text-xs text-slate-500 hover:text-slate-800 font-bold cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
-                    {onlineOperators.length > 0 ? (
-                      onlineOperators.map((op, idx) => (
-                        <div key={op.id || op.empId || op.uid || idx} className="px-2.5 py-2 rounded-xl hover:bg-slate-50 flex items-center justify-between gap-2 text-xs">
-                          <div className="min-w-0">
-                            <div className="font-bold text-zinc-900 truncate">{op.name}</div>
-                            <div className="text-[10px] text-slate-500 font-mono">
-                              {op.role} · Branch {op.branchId} · {op.location || 'Phnom Penh'}
-                            </div>
-                          </div>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono text-[10px] font-bold shrink-0">
-                            Active
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-2.5 py-2 rounded-xl bg-slate-50 flex items-center justify-between gap-2 text-xs">
-                        <div>
-                          <div className="font-bold text-zinc-900">{role !== 'BRANCH' ? activeAdminStaff : activeStaff} (You)</div>
-                          <div className="text-[10px] text-slate-500 font-mono">
-                            {role} · Branch {activeBranchId} · Phnom Penh
-                          </div>
-                        </div>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono text-[10px] font-bold">
-                          Online
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
 
           {/* Request Stock Action Button in Signature Navy Blue */}
           <motion.button

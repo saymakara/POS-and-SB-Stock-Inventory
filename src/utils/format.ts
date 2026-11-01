@@ -43,26 +43,21 @@ export function formatBranchName(name?: string | null): string {
   return `${clean} Branch`;
 }
 
+import { isStaffManagementExempt } from './kpiManagementUtils';
+
 /**
- * Detects if a staff account or position belongs to the management level
- * (Branch Manager, Deputy Branch Manager, MS Supervisor, Team Lead, Unit Head, Admin).
- * Management level staff oversee operations and are exempt from mandatory frontline field KPIs.
+ * Detects if a staff account belongs to the management level (Exempt from mandatory field KPIs).
+ * Strictly follows explicit user definition in KPI Settings.
  */
-export function isManagementRole(position?: string | null, role?: string | null): boolean {
+export function isManagementRole(
+  _position?: string | null,
+  role?: string | null,
+  staffId?: string | null,
+  staffName?: string | null
+): boolean {
   if (role === 'SUPER_ADMIN' || role === 'ADMIN') return true;
-  if (!position) return false;
-  const p = position.trim().toLowerCase();
-  return (
-    p.includes('head') ||
-    p.includes('manager') ||
-    p.includes('supervisor') ||
-    p.includes('team lead') ||
-    p.includes('team-lead') ||
-    p.includes('leader') ||
-    p.includes('director') ||
-    p.includes('admin') ||
-    p.includes('management') ||
-    p.includes('coordinator') ||
-    /\b(bm|dbm|dm)\b/i.test(p)
-  );
+  if (staffId || staffName) {
+    return isStaffManagementExempt(staffId, staffName);
+  }
+  return false;
 }

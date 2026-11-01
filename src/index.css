@@ -664,7 +664,7 @@ button:hover:not(:disabled),
 }
 .data-table .row-btn:hover { background: #003857; color: #ffffff; border-color: #003857; }
 .data-table .serial-btn {
-  font-family: var(--font-mono); font-size: 12px; color: #0f172a;
+  font-family: var(--font-mono); font-size: 12px; color: #334155;
   padding: 2px 8px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc; cursor: pointer;
 }
 .data-table .serial-btn:hover { border-color: #003857; color: #003857; background: #eef5f9; }

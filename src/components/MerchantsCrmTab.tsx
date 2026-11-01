@@ -912,50 +912,6 @@ return (
           </div>
         </div>
 
-        {/* Quick MID Pill Selector Strip */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-          <button
-            type="button"
-            onClick={() => setSelectedTrendMid('ALL')}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold border transition shrink-0 ${
-              selectedTrendMid === 'ALL'
-                ? 'bg-[#003857] text-white border-[#005a8c]'
-                : isLight
-                ? 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                : 'bg-[#001d2e] text-slate-400 border-[#003857] hover:text-slate-200'
-            }`}
-          >
-            All MIDs ({filteredMerchants.length})
-          </button>
-          {topMerchantsForTrend.map((m, idx) => {
-            const active = selectedTrendMid === m.mid;
-            const dotColor = MID_SERIES_COLORS[idx % MID_SERIES_COLORS.length];
-            return (
-              <button
-                key={m.mid}
-                type="button"
-                onClick={() => setSelectedTrendMid(active ? 'ALL' : m.mid)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-mono border transition flex items-center gap-1.5 shrink-0 ${
-                  active
-                    ? 'bg-[#003857] text-white border-[#005a8c] font-bold'
-                    : isLight
-                    ? 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                    : 'bg-[#001d2e] text-slate-300 border-[#003857] hover:border-[#005a8c]'
-                }`}
-              >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: dotColor }}
-                />
-                <span>{m.mid}</span>
-                <span className="text-[10px] opacity-70 truncate max-w-[110px]">
-                  {dash(m.merchantName)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
         {/* Recharts Responsive Canvas */}
         {!trendHasData ? (
           <div className={`h-40 w-full flex flex-col items-center justify-center text-center rounded-xl border border-dashed ${isLight ? 'border-slate-300' : 'border-[#003857]'}`}>

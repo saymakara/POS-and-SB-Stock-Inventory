@@ -650,6 +650,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 onRuleSaved={handleRuleSaved}
                 onTargetsSaved={handleTargetsSaved}
                 toast={(msg) => onToast?.(msg)}
+                branches={branches}
               />
             ) : (
               <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">

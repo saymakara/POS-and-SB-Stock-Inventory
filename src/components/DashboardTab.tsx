@@ -954,7 +954,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                        <span className="font-mono font-extrabold text-zinc-900">
+                        <span className="font-mono font-medium text-slate-700 dark:text-slate-300">
                           {dev.serial}
                         </span>
                         <span className="text-slate-400">·</span>

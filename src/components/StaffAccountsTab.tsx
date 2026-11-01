@@ -60,7 +60,7 @@ export const StaffAccountsTab: React.FC<{
   const [locationMap, setLocationMap] = useState<Record<string, string>>(loadLocationMap);
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'REVOKED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ONLINE' | 'OFFLINE' | 'ACTIVE' | 'REVOKED'>('ALL');
   const [form, setForm] = useState<typeof blank | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -70,10 +70,26 @@ export const StaffAccountsTab: React.FC<{
   const onlineByEmp = useMemo(() => {
     const m = new Map<string, OnlineOperatorPresence>();
     onlineOperators.forEach((op) => {
-      if (op.empId) m.set(String(op.empId).trim(), op);
+      const id = (op.empId || op.id || '').trim();
+      if (id) {
+        m.set(id, op);
+        m.set(id.toLowerCase(), op);
+      }
+      if (op.name) {
+        m.set(op.name.trim().toLowerCase(), op);
+      }
     });
     return m;
   }, [onlineOperators]);
+
+  const isStaffOnline = useCallback(
+    (a: StaffAccount) => {
+      const id = String(a.empId || '').trim();
+      const name = String(a.name || '').trim().toLowerCase();
+      return onlineByEmp.has(id) || onlineByEmp.has(id.toLowerCase()) || onlineByEmp.has(name);
+    },
+    [onlineByEmp]
+  );
 
   const load = useCallback(async () => {
     const x = await fetchStaffAccounts(100, 0);
@@ -104,6 +120,8 @@ export const StaffAccountsTab: React.FC<{
   const matched = useMemo(() => {
     const s = dq.trim().toLowerCase();
     return (list || []).filter((a) => {
+      if (statusFilter === 'ONLINE' && !isStaffOnline(a)) return false;
+      if (statusFilter === 'OFFLINE' && isStaffOnline(a)) return false;
       if (statusFilter === 'ACTIVE' && !a.active) return false;
       if (statusFilter === 'REVOKED' && a.active) return false;
       if (!s) return true;
@@ -111,11 +129,12 @@ export const StaffAccountsTab: React.FC<{
         String(v).toLowerCase().includes(s)
       );
     });
-  }, [list, dq, statusFilter, branchName, getLocation]);
+  }, [list, dq, statusFilter, branchName, getLocation, isStaffOnline]);
 
   const { sorted: shown, sort: stSort, toggle: stToggle } = useSort<StaffAccount>(matched, {
     emp: (a) => Number(a.empId) || a.empId,
     name: (a) => a.name,
+    online: (a) => (isStaffOnline(a) ? 0 : 1),
     role: (a) => ROLE_LABEL[a.role],
     branch: (a) => Number(a.branchId) || a.branchId,
     location: (a) => getLocation(a),
@@ -248,7 +267,7 @@ export const StaffAccountsTab: React.FC<{
               <h2 className="text-lg font-extrabold text-slate-900">Accounts &amp; Access</h2>
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{onlineOperators.length || 1} Online Now</span>
+                <span>{(list || []).filter(isStaffOnline).length || onlineOperators.length || 1} Online Now</span>
               </span>
             </div>
             <p className="text-xs text-slate-600 max-w-2xl mt-0.5">
@@ -505,10 +524,12 @@ export const StaffAccountsTab: React.FC<{
             </div>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'REVOKED')}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
               className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 text-slate-800 outline-none focus:border-[#003857] cursor-pointer"
             >
               <option value="ALL">All Statuses ({list?.length || 0})</option>
+              <option value="ONLINE">Online Now ({(list || []).filter(isStaffOnline).length})</option>
+              <option value="OFFLINE">Offline ({(list || []).filter((a) => !isStaffOnline(a)).length})</option>
               <option value="ACTIVE">Retained / Active ({(list || []).filter((a) => a.active).length})</option>
               <option value="REVOKED">Revoked ({(list || []).filter((a) => !a.active).length})</option>
             </select>
@@ -537,6 +558,9 @@ export const StaffAccountsTab: React.FC<{
                 <SortTh k="name" sort={stSort} onSort={stToggle} className="text-left px-3 py-2.5">
                   Staff Name
                 </SortTh>
+                <SortTh k="online" sort={stSort} onSort={stToggle} className="text-left px-3 py-2.5">
+                  Live Status
+                </SortTh>
                 <SortTh k="role" sort={stSort} onSort={stToggle} className="text-left px-3 py-2.5">
                   System Role
                 </SortTh>
@@ -559,7 +583,7 @@ export const StaffAccountsTab: React.FC<{
                   no={pg.start + rowIdx + 1}
                   branchLabel={branchName(a.branchId)}
                   locationLabel={getLocation(a)}
-                  onlineInfo={onlineByEmp.get(String(a.empId).trim())}
+                  onlineInfo={onlineByEmp.get(String(a.empId).trim()) || onlineByEmp.get(a.name.trim().toLowerCase())}
                   editable={isAdmin && canEdit(a)}
                   onEdit={openEdit}
                   onToggleStatus={handleToggleStatus}
@@ -567,7 +591,7 @@ export const StaffAccountsTab: React.FC<{
               ))}
               {list && shown.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                  <td colSpan={8} className="py-8 text-center text-slate-500">
                     No accounts match the search.
                   </td>
                 </tr>
@@ -615,16 +639,26 @@ const StaffRow = memo(function StaffRow({
               @{a.telegramUsername.replace(/^@/, '')}
             </span>
           )}
-          {onlineInfo && (
-            <span
-              title={`Online now · Viewing ${onlineInfo.activeTab}`}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Online</span>
-            </span>
-          )}
         </div>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        {onlineInfo ? (
+          <span
+            title={`Online now · Viewing ${onlineInfo.activeTab || 'system'}`}
+            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Online</span>
+          </span>
+        ) : (
+          <span
+            title="Offline (not currently signed in or active)"
+            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-medium bg-slate-50 text-slate-400 border border-slate-200"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+            <span>Offline</span>
+          </span>
+        )}
       </td>
       <td className="px-3 py-2.5">
         {a.role !== 'BRANCH' && <ShieldCheck className="w-3.5 h-3.5 inline mr-1 text-[#003857]" />}

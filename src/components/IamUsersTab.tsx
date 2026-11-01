@@ -19,12 +19,14 @@ import {
   X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { OnlineOperatorPresence } from '../services/supabaseService';
 
 interface IamUsersTabProps {
   users: User[];
   branches: Branch[];
   role: UserRole;
   theme?: ThemeMode;
+  onlineOperators?: OnlineOperatorPresence[];
   onOpenUserModal: (user?: User) => void;
   onUpdateStatus: (userId: string, status: UserStatus) => void;
   onDeleteUser: (userId: string) => void;
@@ -36,6 +38,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
   users,
   branches,
   role,
+  onlineOperators = [],
   onOpenUserModal,
   onDeleteUser,
   onBulkUpdateStatus,
@@ -94,6 +97,21 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
     [branches]
   );
 
+  const onlineByEmp = useMemo(() => {
+    const m = new Map<string, OnlineOperatorPresence>();
+    onlineOperators.forEach((op) => {
+      const id = (op.empId || op.id || '').trim();
+      if (id) {
+        m.set(id, op);
+        m.set(id.toLowerCase(), op);
+      }
+      if (op.name) {
+        m.set(op.name.trim().toLowerCase(), op);
+      }
+    });
+    return m;
+  }, [onlineOperators]);
+
   const deferredSearch = useDeferredValue(searchQuery);                // typing stays instant; the list follows
   const matchedUsers = useMemo(() => {
     return users.filter((u) => {
@@ -117,7 +135,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
     });
   }, [users, branchFilter, roleFilter, statusFilter, deferredSearch, branchNameByCode]);
   const { sorted: filteredUsers, sort: uSort, toggle: uToggle } = useSort<(typeof users)[number]>(matchedUsers, {
-    emp: (u) => Number(u.empId) || u.empId, name: (u) => u.name, position: (u) => u.position, code: (u) => Number(u.branchId) || u.branchId,
+    emp: (u) => Number(u.empId) || u.empId, name: (u) => u.name, online: (u) => (onlineByEmp.has(u.empId) || onlineByEmp.has(u.name.toLowerCase()) ? 0 : 1), position: (u) => u.position, code: (u) => Number(u.branchId) || u.branchId,
     branch: (u) => branchNameByCode.get(u.branchId) || u.branchName, location: (u) => u.location || 'Phnom Penh', role: (u) => u.accessRole, status: (u) => u.status,
   });
 
@@ -266,6 +284,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                 <th className="py-3.5 px-2 w-10 text-right">No.</th>
                 <SortTh k="emp" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Employee ID</SortTh>
                 <SortTh k="name" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Staff Name</SortTh>
+                <SortTh k="online" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Live Status</SortTh>
                 <SortTh k="position" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Position</SortTh>
                 <SortTh k="code" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Branch Code</SortTh>
                 <SortTh k="branch" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Branch Name</SortTh>
@@ -304,6 +323,19 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                       <div className="font-extrabold text-zinc-900">
                         {u.name}
                       </div>
+                    </td>
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      {onlineByEmp.has(u.empId) || onlineByEmp.has(u.name.toLowerCase()) ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Online</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-medium bg-slate-50 text-slate-400 border border-slate-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                          <span>Offline</span>
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-3">
                       <span className="text-xs font-semibold text-slate-600">
