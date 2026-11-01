@@ -100,6 +100,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [openStaff, setOpenStaff] = useState<string | null>(null);
   const [showSubCategories, setShowSubCategories] = useState(false);
   const [rightDonutMode, setRightDonutMode] = useState<'branchRating' | 'categoryMix'>('branchRating');
+  const [tableMode, setTableMode] = useState<'branches' | 'staff'>('branches');
 
   const range = useMemo(() => kpiPeriodRange(period), [period]);
   const [data, setData] = useState<KpiDashboardData | null>(() => getCachedKpiSummary(range.from, range.to) || getCachedKpiSummary(null, null) || null);
