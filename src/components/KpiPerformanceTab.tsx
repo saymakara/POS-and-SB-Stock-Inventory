@@ -6,7 +6,7 @@ import {
   Sun, CheckSquare, Diamond, X,
 } from 'lucide-react';
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line, PieChart, Pie, Cell,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
 } from 'recharts';
 import { Branch, UserRole } from '../types';
 import { Pager } from './Pager';
@@ -99,7 +99,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [openBranch, setOpenBranch] = useState<string | null>(null);
   const [openStaff, setOpenStaff] = useState<string | null>(null);
   const [showSubCategories, setShowSubCategories] = useState(false);
-  const [rightDonutMode, setRightDonutMode] = useState<'branchRating' | 'categoryMix'>('branchRating');
   const [tableMode, setTableMode] = useState<'branch' | 'staff'>('branch');
 
   const range = useMemo(() => kpiPeriodRange(period), [period]);
@@ -561,82 +560,30 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     [filteredBranches]
   );
 
-  const workforceRatingData = useMemo(() => {
-    let outstanding = 0;
-    let meetTarget = 0;
-    let nearBelow = 0;
-    let needsImprovement = 0;
-
-    filteredStaff.forEach((s) => {
-      if (s.rating === 'Outstanding') outstanding += 1;
-      else if (s.rating === 'Meet Target') meetTarget += 1;
-      else if (s.rating === 'Near/Below Target') nearBelow += 1;
-      else needsImprovement += 1;
-    });
-
-    return [
-      { name: 'Outstanding', value: outstanding, color: '#c59b27', unit: 'staff' },
-      { name: 'Meet Target', value: meetTarget, color: '#1f9d55', unit: 'staff' },
-      { name: 'Near/Below', value: nearBelow, color: '#f5923e', unit: 'staff' },
-      { name: 'Needs Improvement', value: needsImprovement, color: '#c00000', unit: 'staff' },
-    ];
-  }, [filteredStaff]);
-
-  const branchRatingData = useMemo(() => {
-    let outstanding = 0;
-    let meetTarget = 0;
-    let nearBelow = 0;
-    let needsImprovement = 0;
-
-    filteredBranches.forEach((b) => {
-      if (b.rating === 'Outstanding') outstanding += 1;
-      else if (b.rating === 'Meet Target') meetTarget += 1;
-      else if (b.rating === 'Near/Below Target') nearBelow += 1;
-      else needsImprovement += 1;
-    });
-
-    return [
-      { name: 'Outstanding', value: outstanding, color: '#c59b27', unit: 'branches' },
-      { name: 'Meet Target', value: meetTarget, color: '#1f9d55', unit: 'branches' },
-      { name: 'Near/Below', value: nearBelow, color: '#f5923e', unit: 'branches' },
-      { name: 'Needs Improvement', value: needsImprovement, color: '#c00000', unit: 'branches' },
-    ];
-  }, [filteredBranches]);
-
-  const categoryDonutData = useMemo(
-    () => [
-      { name: 'Sound Box', value: totals.sbPoints, color: '#1e5b88', unit: 'pts' },
-      { name: 'KHQR', value: totals.khqrPoints, color: '#0d9488', unit: 'pts' },
-      { name: 'Credit Card', value: totals.ccPoints, color: '#f59e0b', unit: 'pts' },
-      { name: 'POS Terminal', value: totals.posPoints, color: '#0ea5e9', unit: 'pts' },
-    ],
-    [totals.sbPoints, totals.khqrPoints, totals.ccPoints, totals.posPoints]
-  );
-
   return (
     <div className="flex flex-col gap-3.5 apple-tab-panel" aria-label="KPI Performance">
       {/* ───────────── 1. HERO HEADER & 6 BIG KPI CARDS (Push Configuring Hub Backdrop Style) ───────────── */}
       <section
-        className="relative overflow-hidden rounded-2xl p-4 sm:p-5 border shadow-2xs bg-slate-100 border-slate-200/90 text-slate-900"
+        className="relative overflow-hidden rounded-2xl p-5 sm:p-6 lg:p-7 border shadow-2xs bg-slate-100 border-slate-200/90 text-slate-900"
         aria-label="KPI Performance statistics"
       >
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="space-y-1 max-w-2xl">
-            <h2 className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2 text-slate-900">
-              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-[#003857]" aria-hidden />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-3xl">
+            <h1 className="text-xl sm:text-2xl lg:text-[26px] font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900 leading-tight">
+              <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 text-[#003857]" aria-hidden />
               <span>KPI Performance<span className="text-slate-500 font-normal"> · Branch &amp; Staff Analytics</span></span>
-            </h2>
-            <p className="text-xs leading-relaxed text-slate-600">
+            </h1>
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
               Live institutional performance tracking across field installations, KHQR merchant onboarding, and credit card acquisitions.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <select
               aria-label="Period"
               value={period}
               onChange={(e) => setPeriod(e.target.value as KpiPeriod)}
-              className="btn-press px-3 py-1.5 rounded-xl text-xs font-medium border bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs outline-none focus:border-slate-400 cursor-pointer"
+              className="btn-press px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs outline-none focus:border-slate-400 cursor-pointer"
             >
               {(Object.keys(KPI_PERIOD_LABEL) as KpiPeriod[]).map((p) => (
                 <option key={p} value={p}>{KPI_PERIOD_LABEL[p]}</option>
@@ -647,13 +594,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               onClick={load}
               aria-label="Refresh KPI Performance"
               title="Refresh KPI Performance"
-              className="group relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl active:scale-[0.98] transition-all duration-150 font-medium text-xs border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90"
+              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all duration-150 font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90"
               data-allow-repeat
             >
               {loading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
+                <Loader2 className="w-4 h-4 animate-spin text-slate-600" />
               ) : (
-                <RefreshCw className="w-3.5 h-3.5 text-slate-600 group-hover:rotate-180 transition-transform duration-300" />
+                <RefreshCw className="w-4 h-4 text-slate-600 group-hover:rotate-180 transition-transform duration-300" />
               )}
               <span>Sync KPI</span>
             </button>
@@ -1083,45 +1030,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Row 2: Workforce & Branch Performance Rating Donut Charts */}
-          <div className="mt-3.5 grid grid-cols-1 lg:grid-cols-2 gap-3.5">
-            <PerformanceDonutCard
-              title="Workforce by Performance Rating"
-              icon={Users}
-              slices={workforceRatingData}
-              emptyText="No active workforce records in this period."
-            />
-
-            <PerformanceDonutCard
-              title={rightDonutMode === 'branchRating' ? 'Branch by Performance Rating' : 'KPI Points by Category'}
-              icon={rightDonutMode === 'branchRating' ? Building2 : Layers}
-              slices={rightDonutMode === 'branchRating' ? branchRatingData : categoryDonutData}
-              emptyText="No branch records in this period."
-              headerRight={
-                <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setRightDonutMode('branchRating')}
-                    className={`px-2 py-0.5 rounded-lg cursor-pointer transition ${
-                      rightDonutMode === 'branchRating' ? 'bg-[#1e5b88] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Branch Rating
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRightDonutMode('categoryMix')}
-                    className={`px-2 py-0.5 rounded-lg cursor-pointer transition ${
-                      rightDonutMode === 'categoryMix' ? 'bg-[#1e5b88] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    KPI Category
-                  </button>
-                </div>
-              }
-            />
           </div>
         </section>
       )}
@@ -1761,139 +1669,6 @@ const TaskPtsCell: React.FC<{ tasks: number; pts: number }> = ({ tasks, pts }) =
       <span className="text-slate-300 mx-1">·</span>
       <span className="font-medium text-slate-900">{fmtPts(pts)}</span>
     </span>
-  );
-};
-
-const DONUT_RADIAN = Math.PI / 180;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const renderDonutLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
-  const pct = Math.round((percent || 0) * 100);
-  if (pct < 5) return null;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * DONUT_RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * DONUT_RADIAN);
-  return (
-    <text
-      x={x}
-      y={y}
-      fill="#ffffff"
-      textAnchor="middle"
-      dominantBaseline="central"
-      fontSize={13}
-      fontWeight={700}
-    >
-      {`${pct}%`}
-    </text>
-  );
-};
-
-interface DonutSliceItem {
-  name: string;
-  value: number;
-  color: string;
-  unit: string;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomDonutTooltip: React.FC<any> = ({ active, payload, total }) => {
-  if (!active || !payload || !payload.length) return null;
-  const item = payload[0]?.payload as DonutSliceItem | undefined;
-  if (!item) return null;
-  const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white/98 backdrop-blur-md px-3 py-2 shadow-lg text-xs min-w-[175px]">
-      <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 font-semibold text-slate-900">
-          <span className="w-2.5 h-2.5 rounded-[2px] shrink-0" style={{ backgroundColor: item.color }} />
-          {item.name}
-        </span>
-        <span className="font-figure font-bold text-[#1e3a5f] tabular-nums">{pct}%</span>
-      </div>
-      <div className="mt-1 text-[11px] text-slate-500 tabular-nums">
-        {fmtPts(item.value)} {item.unit} of {fmtPts(total)} total
-      </div>
-    </div>
-  );
-};
-
-const PerformanceDonutCard: React.FC<{
-  title: string;
-  icon: React.ElementType;
-  slices: DonutSliceItem[];
-  emptyText: string;
-  headerRight?: React.ReactNode;
-}> = ({ title, icon: Icon, slices, emptyText, headerRight }) => {
-  const total = useMemo(() => slices.reduce((acc, s) => acc + s.value, 0), [slices]);
-  const nonZeroSlices = useMemo(() => slices.filter((s) => s.value > 0), [slices]);
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 mx-auto sm:mx-0">
-          <Icon className="w-4 h-4 text-[#1e5b88] shrink-0" aria-hidden />
-          <h3 className="text-[14px] sm:text-[15px] font-bold text-[#1e3a5f] tracking-tight">{title}</h3>
-        </div>
-        {headerRight && <div className="shrink-0">{headerRight}</div>}
-      </div>
-
-      {total <= 0 ? (
-        <div className="h-[220px] flex items-center justify-center text-xs text-slate-400">
-          {emptyText}
-        </div>
-      ) : (
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 py-1">
-          <div className="w-[216px] h-[216px] shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={nonZeroSlices}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={56}
-                  outerRadius={94}
-                  startAngle={90}
-                  endAngle={-270}
-                  stroke="#ffffff"
-                  strokeWidth={2.5}
-                  paddingAngle={0}
-                  label={renderDonutLabel}
-                  labelLine={false}
-                  isAnimationActive
-                  animationDuration={380}
-                >
-                  {nonZeroSlices.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomDonutTooltip total={total} />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="flex flex-col justify-center gap-3 min-w-[185px]">
-            {slices.map((s) => {
-              const pct = total > 0 ? Math.round((s.value / total) * 100) : 0;
-              return (
-                <div key={s.name} className="flex items-center justify-between gap-4 text-[13px]">
-                  <span className="inline-flex items-center gap-2.5 text-slate-700 font-medium">
-                    <span
-                      className="w-3 h-3 rounded-[2px] shrink-0 shadow-2xs"
-                      style={{ backgroundColor: s.color }}
-                    />
-                    <span>{s.name}</span>
-                  </span>
-                  <span className="text-xs font-figure tabular-nums text-slate-400">
-                    {fmtPts(s.value)} <span className="text-slate-300">({pct}%)</span>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
   );
 };
 
