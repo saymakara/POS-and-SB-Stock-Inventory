@@ -4198,7 +4198,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           />
 
           {/* Classic Pipeline Stage Filter Bar (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
-          {!['mobile_sync_khqr', 'mobile_sync_cc', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
+          {!['kpi_performance', 'mobile_sync_khqr', 'mobile_sync_cc', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
           <PipelineBar
               role={role}
               counts={pipelineCounts}
@@ -4217,7 +4217,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             <main className="px-4 sm:px-6 py-5 min-h-[calc(100vh-4rem)]">
               {isSupabaseConfigured && <ConnectionNotice />}
               {/* 6 Elevated KPI Cards with Shadows (hidden on non-inventory tabs: KHQR, Staff Directory, Audit Trail, Settings) */}
-              {!['mobile_sync_khqr', 'mobile_sync_cc', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
+              {!['kpi_performance', 'mobile_sync_khqr', 'mobile_sync_cc', 'users', 'iam', 'audit_log', 'settings'].includes(shownTab) && (
               <KpiCards
                 devices={scopedDevices}
                 theme={theme}
