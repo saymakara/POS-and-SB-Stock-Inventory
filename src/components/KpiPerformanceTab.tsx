@@ -37,7 +37,7 @@ function getKpiRating(pct: number): KpiRating {
 
 const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
   'POS Terminal': { hex: '#0284c7', badge: 'bg-sky-50 text-sky-700 border-sky-200/90', bar: 'bg-sky-500', dot: 'bg-sky-500', Icon: Cpu },
-  'Sound Box': { hex: '#8b5cf6', badge: 'bg-purple-50 text-purple-700 border-purple-200/90', bar: 'bg-purple-600', dot: 'bg-purple-600', Icon: Volume2 },
+  'Sound Box': { hex: '#003857', badge: 'bg-blue-50 text-[#003857] border-blue-200/90', bar: 'bg-[#003857]', dot: 'bg-[#003857]', Icon: Volume2 },
   KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', bar: 'bg-teal-600', dot: 'bg-teal-600', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-amber-500', dot: 'bg-amber-500', Icon: CreditCard },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },
@@ -723,6 +723,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     });
   }, [dailyMatrixMonth, data?.targets?.workingDaysMode, data?.targets?.excludeHolidays]);
 
+  const matrixDaysMap = useMemo(() => {
+    const map = new Map<number, (typeof matrixDays)[number]>();
+    for (const d of matrixDays) {
+      map.set(d.dayNum, d);
+    }
+    return map;
+  }, [matrixDays]);
+
   const dailyBranchRows = useMemo(() => {
     // Effective work days in this selected month (Mon-Fri excluding Cambodian public holidays)
     const workDays = monthWorkDaysSummary.workDays > 0 ? monthWorkDaysSummary.workDays : (data?.targets?.workDaysInMonth ?? 21);
@@ -802,8 +810,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       let cmp = 0;
       if (dailySortKey.startsWith('day_')) {
         const dNum = parseInt(dailySortKey.replace('day_', ''), 10);
-        const countA = a.days.find((d) => d.dayNum === dNum)?.count ?? 0;
-        const countB = b.days.find((d) => d.dayNum === dNum)?.count ?? 0;
+        const countA = a.days[dNum - 1]?.count ?? 0;
+        const countB = b.days[dNum - 1]?.count ?? 0;
         cmp = countA - countB;
       } else if (dailySortKey === 'branchId') {
         cmp = a.branchId.localeCompare(b.branchId, 'en', { numeric: true });
@@ -968,8 +976,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       let cmp = 0;
       if (dailyStaffSortKey.startsWith('day_')) {
         const dNum = parseInt(dailyStaffSortKey.replace('day_', ''), 10);
-        const countA = a.days.find((d) => d.dayNum === dNum)?.count ?? 0;
-        const countB = b.days.find((d) => d.dayNum === dNum)?.count ?? 0;
+        const countA = a.days[dNum - 1]?.count ?? 0;
+        const countB = b.days[dNum - 1]?.count ?? 0;
         cmp = countA - countB;
       } else if (dailyStaffSortKey === 'staffId') {
         cmp = a.staffId.localeCompare(b.staffId, 'en', { numeric: true });
@@ -1323,8 +1331,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
       {/* ───────────── Navigation & Filter Bar ───────────── */}
       <section className="bg-white rounded-2xl border border-slate-200/90 px-3.5 py-2.5 shadow-2xs" aria-label="KPI Navigation and Filters">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="inline-flex flex-wrap items-center p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5" role="tablist" aria-label="KPI Views">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="w-full sm:w-auto overflow-x-auto no-scrollbar py-0.5">
+            <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 shrink-0 whitespace-nowrap" role="tablist" aria-label="KPI Views">
             {navTabs.map((t) => {
               const active = view === t.id;
               const Icon = t.Icon;
@@ -1350,9 +1359,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </button>
               );
             })}
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 flex-1 justify-end min-w-[280px]">
+          <div className="flex flex-wrap items-center gap-1.5 flex-1 justify-start sm:justify-end w-full sm:w-auto">
               <select
                 aria-label="Region filter"
                 value={regionFilter}
@@ -1368,7 +1378,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 aria-label="Branch filter"
                 value={branchFilter}
                 onChange={(e) => setBranchFilter(e.target.value)}
-                className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer max-w-[175px] text-slate-800 font-medium outline-none focus:border-slate-400 transition"
+                className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer max-w-full sm:max-w-[175px] text-slate-800 font-medium outline-none focus:border-slate-400 transition min-w-[120px] flex-1 sm:flex-initial"
               >
                 <option value="">All branches</option>
                 <option value="100">Head Office (100)</option>
@@ -1462,7 +1472,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <span>POS Terminal</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-purple-600" aria-hidden />
+                    <Volume2 className="w-3.5 h-3.5 text-[#003857]" aria-hidden />
                     <span>Sound Box</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
@@ -1495,7 +1505,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           No trend data available for this granularity.
                         </div>
                       ) : (
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" debounce={60}>
                           <ComposedChart data={reversedTimeSeries} margin={{ top: 8, right: 6, left: -14, bottom: 0 }} barGap={4}>
                             <defs>
                               <linearGradient id="kpiPosGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1503,9 +1513,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 <stop offset="100%" stopColor="#0284c7" />
                               </linearGradient>
                               <linearGradient id="kpiSbGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#c084fc" />
-                                <stop offset="50%" stopColor="#8b5cf6" />
-                                <stop offset="100%" stopColor="#7c3aed" />
+                                <stop offset="0%" stopColor="#1e5b88" />
+                                <stop offset="50%" stopColor="#003857" />
+                                <stop offset="100%" stopColor="#002236" />
                               </linearGradient>
                               <linearGradient id="kpiKhqrGrad" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="0%" stopColor="#14b8a6" />
@@ -1588,7 +1598,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <span>POS</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-purple-600" aria-hidden />
+                    <Volume2 className="w-3.5 h-3.5 text-[#003857]" aria-hidden />
                     <span>Sound Box</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
@@ -1607,7 +1617,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       No branch activity matching current filters.
                     </div>
                   ) : (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" debounce={60}>
                       <BarChart
                         layout="vertical"
                         data={topBranchChartData}
@@ -1620,9 +1630,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <stop offset="100%" stopColor="#38bdf8" />
                           </linearGradient>
                           <linearGradient id="kpiBranchSbGrad" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#7c3aed" />
-                            <stop offset="50%" stopColor="#8b5cf6" />
-                            <stop offset="100%" stopColor="#c084fc" />
+                            <stop offset="0%" stopColor="#002236" />
+                            <stop offset="50%" stopColor="#003857" />
+                            <stop offset="100%" stopColor="#1e5b88" />
                           </linearGradient>
                           <linearGradient id="kpiBranchKhqrGrad" x1="0" y1="0" x2="1" y2="0">
                             <stop offset="0%" stopColor="#0d9488" />
@@ -1988,7 +1998,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
       {/* ───────────── Overall Performance Breakdown by Daily, Weekly, Monthly & Quarterly ───────────── */}
       {(showSection('all') || showSection('timeline')) && (
-        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Overall Performance by Period">
+        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden" aria-label="Overall Performance by Period">
           <div className="px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <Calendar className="w-4 h-4 text-[#1e5b88] shrink-0" aria-hidden />
@@ -2018,13 +2028,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             </div>
           </div>
 
-          <div className="min-w-[980px] w-full">
-            <div className="grid items-center gap-x-4 grid-cols-[minmax(115px,1.25fr)_minmax(72px,0.8fr)_minmax(68px,0.75fr)_minmax(110px,1.15fr)_minmax(110px,1.15fr)_minmax(124px,1.25fr)_minmax(110px,1.15fr)_minmax(76px,0.85fr)_minmax(80px,0.9fr)_minmax(105px,1.1fr)_minmax(80px,0.9fr)] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-4 py-2.5">
+          <div className="overflow-x-auto w-full overscroll-x-contain">
+            <div className="min-w-[980px] w-full">
+              <div className="grid items-center gap-x-4 grid-cols-[minmax(115px,1.25fr)_minmax(72px,0.8fr)_minmax(68px,0.75fr)_minmax(110px,1.15fr)_minmax(110px,1.15fr)_minmax(124px,1.25fr)_minmax(110px,1.15fr)_minmax(76px,0.85fr)_minmax(80px,0.9fr)_minmax(105px,1.1fr)_minmax(80px,0.9fr)] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-4 py-2.5">
               <SortableHeader label="Period" sortKey="period" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
               <SortableHeader label="Branches" sortKey="activeBranches" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Staff" sortKey="activeStaff" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader icon={<Cpu className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="POS (Tasks/Pts)" sortKey="posPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-              <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-purple-300 shrink-0" aria-hidden />} label="SB (Tasks/Pts)" sortKey="sbPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
+              <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-sky-200 shrink-0" aria-hidden />} label="SB (Tasks/Pts)" sortKey="sbPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader icon={<QrCode className="w-3.5 h-3.5 text-teal-300 shrink-0" aria-hidden />} label="KHQR (Tasks/Pts)" sortKey="khqrPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC (Cards/Pts)" sortKey="ccPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Tasks" sortKey="totalTasks" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
@@ -2066,18 +2077,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               )}
             </div>
           </div>
+          </div>
         </section>
       )}
 
       {/* ───────────── KPI Performance by Branch & Staff (Switchable Combined Table) ───────────── */}
       {(showSection('all') || showSection('branches') || showSection('staff')) && (
-        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto relative" aria-label="KPI Performance Table">
+        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden relative" aria-label="KPI Performance Table">
           {loading && (
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-sky-400 via-[#1e5b88] to-teal-400 animate-pulse z-20" />
           )}
           <div className="px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs">
+            <div className="flex flex-wrap items-center gap-3 max-w-full">
+              <div className="overflow-x-auto no-scrollbar max-w-full py-0.5">
+                <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => { handleTableModeChange('branch'); setBranchSubView('summary'); }}
@@ -2158,6 +2171,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     1–{matrixDays.length}d
                   </span>
                 </button>
+                </div>
               </div>
 
               {(tableMode === 'branch' && branchSubView === 'daily') || (tableMode === 'staff' && staffSubView === 'daily') ? (
@@ -2242,7 +2256,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 {tableMode === 'branch' ? (
                   branchSubView === 'daily' ? (
                     <>
-                      <div className="overflow-x-auto w-full">
+                      <div className="overflow-x-auto w-full overscroll-x-contain">
                         <table className="w-full text-left border-collapse text-[13px]">
                           <thead>
                             <tr className="navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider">
@@ -2386,7 +2400,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                                     {/* Day cells 1..N */}
                                     {row.days.map((d) => {
-                                      const dayMeta = matrixDays.find((md) => md.dayNum === d.dayNum);
+                                      const dayMeta = matrixDaysMap.get(d.dayNum);
                                       const isHol = dayMeta?.isHoliday;
                                       const isWk = dayMeta?.isWeekend;
                                       const hasTasks = d.count > 0;
@@ -2518,14 +2532,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     </>
                   ) : (
             <>
-              <div className="min-w-[1220px] w-full">
+              <div className="overflow-x-auto w-full overscroll-x-contain">
+                <div className="min-w-[1220px] w-full">
                 <div className="grid items-center gap-x-4 grid-cols-[40px_75px_minmax(160px,1.4fr)_minmax(55px,0.55fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(72px,0.7fr)_minmax(72px,0.7fr)_minmax(96px,0.95fr)_minmax(105px,1fr)_140px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-4 py-2.5">
                   <span className="text-right">No.</span>
                   <SortableHeader label="Code" sortKey="branchId" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch Name" sortKey="branchName" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Staff" sortKey="staffCount" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
                   <SortableHeader icon={<Cpu className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="POS (Tasks/Pts)" sortKey="posPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                  <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-purple-300 shrink-0" aria-hidden />} label="SB (Tasks/Pts)" sortKey="sbPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
+                  <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-sky-200 shrink-0" aria-hidden />} label="SB (Tasks/Pts)" sortKey="sbPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
                   <SortableHeader icon={<QrCode className="w-3.5 h-3.5 text-teal-300 shrink-0" aria-hidden />} label="KHQR (Tasks/Pts)" sortKey="khqrPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
                   <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC (Cards/Pts)" sortKey="ccPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
                   <SortableHeader label="Pts/Staff" sortKey="ptsPerStaff" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" title="Average KPI points per active staff member in the branch" />
@@ -2618,12 +2633,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   )}
                 </div>
               </div>
+              </div>
               <Pager pg={branchPg} label="branches" />
             </>
           )
         ) : staffSubView === 'daily' ? (
           <>
-            <div className="overflow-x-auto w-full">
+            <div className="overflow-x-auto w-full overscroll-x-contain">
               <table className="w-full text-left border-collapse text-[13px]">
                 <thead>
                   <tr className="navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider">
@@ -2785,7 +2801,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                           {/* Day cells 1..N */}
                           {row.days.map((d) => {
-                            const dayMeta = matrixDays.find((md) => md.dayNum === d.dayNum);
+                            const dayMeta = matrixDaysMap.get(d.dayNum);
                             const isHol = dayMeta?.isHoliday;
                             const isWk = dayMeta?.isWeekend;
                             const hasTasks = d.count > 0;
@@ -2917,14 +2933,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </>
         ) : (
           <>
-            <div className="min-w-[1220px] w-full">
+            <div className="overflow-x-auto w-full overscroll-x-contain">
+              <div className="min-w-[1220px] w-full">
                 <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(170px,1.3fr)_75px_minmax(140px,1.1fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(64px,0.6fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_140px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-4 py-2.5">
                   <span className="text-right">No.</span>
                   <SortableHeader label="Staff Name" sortKey="staffName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch Code" sortKey="branchId" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch Name" sortKey="branchName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader icon={<Cpu className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="POS (Tasks/Pts)" sortKey="posPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
-                  <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-purple-300 shrink-0" aria-hidden />} label="SB (Tasks/Pts)" sortKey="sbPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
+                  <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-sky-200 shrink-0" aria-hidden />} label="SB (Tasks/Pts)" sortKey="sbPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
                   <SortableHeader icon={<QrCode className="w-3.5 h-3.5 text-teal-300 shrink-0" aria-hidden />} label="KHQR (Tasks/Pts)" sortKey="khqrPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
                   <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC (Cards/Pts)" sortKey="ccPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
                   <SortableHeader label="Quality" sortKey="qualityPct" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
@@ -3007,6 +3024,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   )}
                 </div>
               </div>
+              </div>
               <Pager pg={staffPg} label="staff members" />
             </>
           )}
@@ -3078,7 +3096,7 @@ const CustomTrendTooltip: React.FC<any> = ({ active, payload, label }) => {
           <span className="text-slate-900 tabular-nums">{fmtPts(row.posPoints)} pts <span className="text-slate-400">({row.posTasks})</span></span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-purple-600" />Sound Box</span>
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#003857]" />Sound Box</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.sbPoints)} pts <span className="text-slate-400">({row.sbTasks})</span></span>
         </div>
         <div className="flex items-center justify-between gap-4">
@@ -3115,7 +3133,7 @@ const CustomBranchTooltip: React.FC<any> = ({ active, payload }) => {
           <span className="text-slate-900 tabular-nums">{fmtPts(row.posPoints)} pts</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-purple-600" />Sound Box</span>
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#003857]" />Sound Box</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.sbPoints)} pts</span>
         </div>
         <div className="flex items-center justify-between gap-4">
@@ -3303,7 +3321,7 @@ const MiniMixBar: React.FC<{ pos: number; sb: number; khqr: number; cc: number; 
       title={`POS: ${fmtPts(pos)} pts · Sound Box: ${fmtPts(sb)} pts · KHQR: ${fmtPts(khqr)} pts · Credit Card: ${fmtPts(cc)} pts`}
     >
       {pPos > 0 && <div className="bg-sky-500 h-full" style={{ width: `${pPos}%` }} />}
-      {pSb > 0 && <div className="bg-purple-600 h-full" style={{ width: `${pSb}%` }} />}
+      {pSb > 0 && <div className="bg-[#003857] h-full" style={{ width: `${pSb}%` }} />}
       {pKhqr > 0 && <div className="bg-teal-600 h-full" style={{ width: `${pKhqr}%` }} />}
       {pCc > 0 && <div className="bg-amber-500 h-full" style={{ width: `${pCc}%` }} />}
     </div>
