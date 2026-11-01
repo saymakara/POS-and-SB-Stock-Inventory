@@ -87,7 +87,7 @@ begin
     raise exception 'record_id (CC-YYYYMMDD-NNNN) and staff_id are required' using errcode = '22023';
   end if;
   v_url := p->>'notify_url';
-  if v_url ~ '^https://script\.google\.com/(a/macros/[A-Za-z0-9.-]+|macros)/s/[A-Za-z0-9_-]+/exec\?cc=[A-Za-z0-9]{24,64}$' then
+  if v_url ~ '^https://script\.google\.com/(a/macros/[A-Za-z0-9.-]+|macros)/s/[A-Za-z0-9_-]{65,}/exec\?cc=[A-Za-z0-9]{24,64}$' then
     insert into public.cc_settings (key, value) values ('notify_url', v_url)
     on conflict (key) do update set value = excluded.value, updated_at = now() where public.cc_settings.value <> excluded.value;
   end if;

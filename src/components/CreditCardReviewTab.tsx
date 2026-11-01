@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { Pager } from './Pager';
@@ -8,7 +9,9 @@ import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { usePager } from '../utils/usePager';
 import { stampPP } from '../utils/time';
 import { Period, periodRange } from '../services/khqrCache';
-import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccListKey, getCachedCcList, setCachedCcList, getCachedCcCounts, setCachedCcCounts } from '../services/ccService';
+import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccListKey, getCachedCcList, setCachedCcList, getCachedCcCounts, setCachedCcCounts, patchCachedCcEntry } from '../services/ccService';
+
+const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
 /**
  * Phone App Review → Credit Card (31 Oct 2026).
@@ -82,7 +85,16 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const load = useCallback(async () => {
     const seq = ++seqRef.current;
     const q = { from: range.from, to: range.to, review, branchId, search, page: pg.page, pageSize: pg.pageSize };
-    const key = ccListKey(q), hit = getCachedCcList(key);
+    const key = ccListKey(q);
+    let hit = getCachedCcList(key);
+    // Instant client-side derivation from the cached "All" list when switching status tabs on page 1
+    if (!hit && review && pg.page === 1) {
+      const allHit = getCachedCcList(ccListKey({ ...q, review: '' }));
+      if (allHit && allHit.rows.length === allHit.total) {
+        const filtered = allHit.rows.filter((r) => r.reviewStatus === review);
+        hit = { rows: filtered, total: filtered.length, masked: allHit.masked };
+      }
+    }
     if (hit) { setRows(hit.rows); setTotal(hit.total); setMasked(hit.masked); }   // the last answer at once (no waiting)
     setLoading(!hit);
     try {
@@ -122,14 +134,26 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
     return rows.length;
   };
   const onReviewed = (recordId: string, next: Partial<CcEntry>) => {
+    patchCachedCcEntry(recordId, next);
     setRows((rs) => (rs || []).map((r) => (r.recordId === recordId ? { ...r, ...next } : r)));
     loadCounts();
+    window.setTimeout(() => { load(); }, 4500);
+    window.setTimeout(() => { load(); }, 9500);
   };
 
   const branchOptions = useMemo(() => branches.filter((b) => b.id !== '100').sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true })), [branches]);
 
+  const tabCount = (v: CcReview | ''): number | undefined => {
+    if (!counts) return undefined;
+    if (v === '') return counts.total;
+    if (v === 'PENDING') return counts.pending;
+    if (v === 'CONFIRMED') return counts.confirmed;
+    if (v === 'REJECTED') return counts.rejected;
+    return counts.noReview;
+  };
+
   return (
-    <div className="flex flex-col gap-4" aria-label="Credit Card review">
+    <div className="flex flex-col gap-4 apple-tab-panel" aria-label="Credit Card review">
       <section className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
@@ -173,12 +197,22 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
         <section className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs" aria-label="Filters">
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex flex-wrap items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1" role="tablist" aria-label="Review status">
-              {REVIEW_TABS.map((t) => (
-                <button key={t.label} type="button" role="tab" aria-selected={review === t.v} onClick={() => setReview(t.v)}
-                  className={`px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${review === t.v ? 'tab-active-blue text-white font-semibold' : 'text-slate-600 hover:text-slate-900'}`}>
-                  {t.label}
-                </button>
-              ))}
+              {REVIEW_TABS.map((t) => {
+                const active = review === t.v;
+                const n = tabCount(t.v);
+                return (
+                  <button key={t.label} type="button" role="tab" aria-selected={active} onClick={() => setReview(t.v)}
+                    className={`relative px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900'}`}>
+                    {active && <motion.div layoutId="cc-review-pill" className="absolute inset-0 rounded-lg tab-active-blue" transition={SPRING} />}
+                    <span className="relative z-10">{t.label}</span>
+                    {n !== undefined && (
+                      <span className={`relative z-10 font-figure tabular-nums text-[10px] px-1.5 py-0.5 rounded-full leading-none ${active ? 'bg-white/20 text-white' : 'bg-white/80 text-slate-600'}`}>
+                        {n.toLocaleString()}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
             {isAdmin && (
               <select aria-label="Branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} className="text-xs rounded-xl border border-slate-200 bg-white px-2.5 py-2 cursor-pointer max-w-[220px]">
@@ -225,7 +259,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                 {review === 'PENDING' ? 'Nothing is waiting for review.' : 'No Credit Card entries match the current filters.'}
               </div>
             )}
-            <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
+            <div data-page-content className="divide-y divide-slate-200/90">
               {(rows || []).map((e, i) => (
                 <CcRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))}
                   canReview={isAdmin} onReviewed={onReviewed} toast={triggerToast} />
@@ -320,8 +354,16 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
       </button>
 
+      <AnimatePresence initial={false}>
       {open && (
-        <div className="px-4 pb-4 pt-1 bg-slate-50/60 border-t border-slate-100">
+        <motion.div
+          key="cc-details"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8, transition: { duration: 0.14 } }}
+          transition={SPRING}
+          className="px-4 pb-4 pt-1 bg-slate-50/60 border-t border-slate-100"
+        >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3 py-3">
             <Field k="Request type" v={e.requestType} />
             {!supp && <Field k="Card status" v={e.cardStatus} />}
@@ -449,8 +491,9 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 });

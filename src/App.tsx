@@ -61,6 +61,7 @@ import { prefetchKhqr } from './services/khqrCache';
 import { prefetchAudit } from './services/auditCache';
 import { prefetchFieldEvents } from './services/fieldCache';
 import { prefetchStaff } from './services/staffCache';
+import { prefetchCc } from './services/ccService';
 import { motion, AnimatePresence } from 'motion/react';
 
 // (22 Oct 2026, review) Screens other than the Dashboard and Stock Inventory are loaded when first opened, and fetched
@@ -74,6 +75,7 @@ function lazyTab<C extends React.ComponentType<any>>(load: () => Promise<{ defau
 export function prefetchTabs(): void {
   tabLoaders.forEach((load) => { load().catch(() => { /* loaded again when opened */ }); });
   prefetchKhqr();                                                   // (29 Oct 2026) the KHQR screen opens with its data already here
+  prefetchCc();                                                     // (1 Nov 2026) the Credit Card screen opens with its data already here
 }
 const BranchesTab = lazyTab(() => import('./components/BranchesTab').then((m) => ({ default: m.BranchesTab })));
 const IamUsersTab = lazyTab(() => import('./components/IamUsersTab').then((m) => ({ default: m.IamUsersTab })));
@@ -687,7 +689,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
     let alive = true;
-    const ask = () => import('./services/ccService').then((m) => m.fetchCcCounts(null, null)).then((c) => { if (alive && c) setCcPending(c.pendingAll); }).catch(() => {});
+    const ask = () => import('./services/ccService').then((m) => m.prefetchCc(true)).then((c) => { if (alive && c) setCcPending(c.pendingAll); }).catch(() => {});
     ask();
     const onVis = () => { if (document.visibilityState === 'visible') ask(); };   // back to the tab: the number is fresh again
     document.addEventListener('visibilitychange', onVis);

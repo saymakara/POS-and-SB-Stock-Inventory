@@ -64,7 +64,9 @@ export async function fetchCcList(q: CcQuery): Promise<{ rows: CcEntry[]; total:
   });
   if (error) throw new Error(error.message);
   const d: any = data || {};
-  return { rows: (Array.isArray(d.rows) ? d.rows : []).map(map), total: Number(d.total) || 0, masked: !!d.masked };
+  const res = { rows: (Array.isArray(d.rows) ? d.rows : []).map(map), total: Number(d.total) || 0, masked: !!d.masked };
+  setCachedCcList(ccListKey(q), res);
+  return res;
 }
 
 export async function fetchCcCounts(from: string | null, to: string | null): Promise<CcCounts | null> {
@@ -94,4 +96,32 @@ export const getCachedCcList = (k: string) => listCache.get(k);
 export const setCachedCcList = (k: string, v: { rows: CcEntry[]; total: number; masked: boolean }) => { if (listCache.size > 40) listCache.clear(); listCache.set(k, v); };
 export const getCachedCcCounts = (k: string) => countsCache.get(k);
 export const setCachedCcCounts = (k: string, v: CcCounts) => { countsCache.set(k, v); };
-export function clearCcCache(): void { listCache.clear(); countsCache.clear(); }
+export function patchCachedCcEntry(recordId: string, next: Partial<CcEntry>): void {
+  listCache.forEach((v, k) => {
+    if (v.rows.some((r) => r.recordId === recordId)) {
+      listCache.set(k, { ...v, rows: v.rows.map((r) => (r.recordId === recordId ? { ...r, ...next } : r)) });
+    }
+  });
+}
+export function clearCcCache(): void { listCache.clear(); countsCache.clear(); lastPrefetch = 0; }
+
+/** Warms the default Credit Card view (all time, all entries, page 1) and counts in the background so opening the tab is 0ms. */
+let inflightPrefetch: Promise<CcCounts | null> | null = null;
+let lastPrefetch = 0;
+export function prefetchCc(force = false): Promise<CcCounts | null> {
+  if (inflightPrefetch) return inflightPrefetch;
+  if (!force && Date.now() - lastPrefetch < 25000 && countsCache.has('|')) {
+    return Promise.resolve(countsCache.get('|') || null);
+  }
+  const q: CcQuery = { from: null, to: null, review: '', branchId: '', search: '', page: 1, pageSize: 50 };
+  inflightPrefetch = Promise.all([
+    fetchCcCounts(null, null).catch(() => null),
+    fetchCcList(q).catch(() => null),
+  ]).then(([c]) => {
+    lastPrefetch = Date.now();
+    return c;
+  }).finally(() => {
+    inflightPrefetch = null;
+  });
+  return inflightPrefetch;
+}

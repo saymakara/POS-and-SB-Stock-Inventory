@@ -26,7 +26,7 @@ import {
 
 // (29 Oct 2026) KHQR details are kept for this month and last month only (older months: monthly totals below)
 const PERIOD_LABEL: Record<Period, string> = {
-  TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months',
+  ALL: 'All time', TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months',
 };
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
@@ -49,7 +49,7 @@ interface Props {
 
 export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-  const [period, setPeriod] = useState<Period>('MONTH');
+  const [period, setPeriod] = useState<Period>('ALL');
   const [activity, setActivity] = useState<'ALL' | QrActivity>('ALL');
   const [branchId, setBranchId] = useState('');
   const [staffSel, setStaffSel] = useState<{ id: string; name: string } | null>(null);
@@ -63,7 +63,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
 
   // the last answers (kept in memory) are shown at once; fresh ones replace them quietly
   const [first] = useState(() => {
-    const r = periodRange('MONTH');
+    const r = periodRange('ALL');
     return { entries: getCachedEntries(entriesKey({ from: r.from, to: r.to, activity: 'ALL', search: '' }, 1, 50)), summary: getCachedSummary(r.from, r.to) };
   });
   const [rows, setRows] = useState<QrEntry[] | null>(first.entries ? first.entries.rows : null);
@@ -184,8 +184,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     return () => { unsub(); clearTimeout(t); if (statTimer) clearTimeout(statTimer); };
   }, [loadStats, loadMonthHistory]);
 
-  const filtersActive = !!query || activity !== 'ALL' || !!branchId || !!staffSel || period !== 'MONTH';
-  const clearAll = () => { setQuery(''); setSearch(''); setActivity('ALL'); setBranchId(''); setStaffSel(null); setPeriod('MONTH'); };
+  const filtersActive = !!query || activity !== 'ALL' || !!branchId || !!staffSel || period !== 'ALL';
+  const clearAll = () => { setQuery(''); setSearch(''); setActivity('ALL'); setBranchId(''); setStaffSel(null); setPeriod('ALL'); };
   const branchOptions = useMemo(
     () => [...branches].sort((a, b) => String(a.code || a.id).localeCompare(String(b.code || b.id), undefined, { numeric: true })),
     [branches]

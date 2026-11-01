@@ -318,6 +318,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                 if (isMobileView) onCloseMobile?.();
                               }}
                               aria-current={on ? 'page' : undefined}
+                              onMouseEnter={() => { if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc()); }}
                               className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 border ${
                                 on
                                   ? 'text-white font-medium bg-white/12 border-white/15'

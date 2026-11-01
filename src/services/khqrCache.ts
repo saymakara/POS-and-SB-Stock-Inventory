@@ -11,10 +11,11 @@ import {
  * once and refreshes quietly behind them; the same data is fetched in the background right after sign-in.
  * The memory is emptied whenever the signed-in user changes, so one person never sees another person's rows.
  */
-export type Period = 'TODAY' | '7D' | 'MONTH' | 'LAST' | 'BOTH';
+export type Period = 'ALL' | 'TODAY' | '7D' | 'MONTH' | 'LAST' | 'BOTH';
 
 /** A period in Phnom Penh time (UTC+7) as ISO: from (inclusive) and to (exclusive, null = now). */
-export function periodRange(p: Period): { from: string; to: string | null } {
+export function periodRange(p: Period): { from: string | null; to: string | null } {
+  if (p === 'ALL') return { from: null, to: null };
   const today = todayPP();
   const startOf = (ymd: string) => new Date(`${ymd}T00:00:00+07:00`);
   if (p === 'TODAY') return { from: startOf(today).toISOString(), to: null };
@@ -78,7 +79,7 @@ export function prefetchKhqr(): Promise<void> {
   if (!isSupabaseConfigured) return Promise.resolve();
   if (inflight) return inflight;
   if (Date.now() - lastRun < 30000) return Promise.resolve();
-  const { from, to } = periodRange('MONTH');
+  const { from, to } = periodRange('ALL');
   const f: QrQuery = { from, to, activity: 'ALL', branchId: undefined, staffId: undefined, search: '' };
   inflight = Promise.all([
     fetchQrEntriesPage({ ...f, page: 1, pageSize: 50 }).then((r) => setCachedEntries(entriesKey(f, 1, 50), { rows: r.rows, total: r.total })).catch(() => {}),
