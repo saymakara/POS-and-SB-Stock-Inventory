@@ -617,16 +617,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     <div className="flex flex-col gap-3.5 apple-tab-panel" aria-label="KPI Performance">
       {/* ───────────── 1. HERO HEADER & 6 BIG KPI CARDS (Push Configuring Hub Backdrop Style) ───────────── */}
       <section
-        className="relative overflow-hidden rounded-2xl p-4 sm:p-5 border shadow-2xs bg-slate-100 border-slate-200/90 text-slate-900"
+        className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border shadow-md bg-slate-100 border-slate-200/90 text-slate-900"
         aria-label="KPI Performance statistics"
       >
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="space-y-1 max-w-2xl">
-            <h2 className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2 text-slate-900">
-              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-[#003857]" aria-hidden />
-              <span>KPI Performance<span className="text-slate-500 font-normal"> · Branch &amp; Staff Analytics</span></span>
-            </h2>
-            <p className="text-xs leading-relaxed text-slate-600">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-2xl">
+            <h1 className="text-xl sm:text-2xl lg:text-[26px] font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900 leading-tight">
+              <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 text-[#1e5b88]" aria-hidden />
+              <span>
+                KPI Performance{' '}
+                <span className="text-slate-500 font-normal text-base sm:text-lg">
+                  · Branch &amp; Staff Analytics
+                </span>
+              </span>
+            </h1>
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
               Live institutional performance tracking across field installations, KHQR merchant onboarding, and credit card acquisitions.
             </p>
           </div>
@@ -685,7 +690,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             icon={Building2}
             accentColor="amber"
             badge={`${totals.branchesOnTarget} on target`}
-            onClick={() => setView('branches')}
+            onClick={() => {
+              setView('branches');
+              setTableMode('branches');
+            }}
             active={view === 'branches'}
           />
           <BigKpiCard
@@ -695,7 +703,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             icon={Users}
             accentColor="violet"
             badge={`${totals.staffOnTarget} on target`}
-            onClick={() => setView('staff')}
+            onClick={() => {
+              setView('staff');
+              setTableMode('staff');
+            }}
             active={view === 'staff'}
           />
           <BigKpiCard
@@ -705,7 +716,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             icon={Award}
             accentColor="emerald"
             badge={totals.topBranch ? `${totals.topBranch.staffCount} staff` : undefined}
-            onClick={() => setView('branches')}
+            onClick={() => {
+              setView('branches');
+              setTableMode('branches');
+            }}
             active={false}
           />
           <BigKpiCard
@@ -744,7 +758,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   type="button"
                   role="tab"
                   aria-selected={active}
-                  onClick={() => setView(t.id)}
+                  onClick={() => {
+                    setView(t.id);
+                    if (t.id === 'branches') setTableMode('branches');
+                    if (t.id === 'staff') setTableMode('staff');
+                  }}
                   className={`relative px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
                     active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900 font-medium'
                   }`}
@@ -820,7 +838,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       {/* ───────────── Executive Graphs & Charts (Push Configuring Hub Backdrop Style) ───────────── */}
       {showSection('all') && (
         <section
-          className="relative overflow-hidden rounded-2xl p-4 border shadow-2xs bg-slate-100 border-slate-200/90 text-slate-900"
+          className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border shadow-md bg-slate-100 border-slate-200/90 text-slate-900"
           aria-label="Executive KPI Charts"
         >
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
@@ -1125,7 +1143,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       {/* ───────────── Most KPI Types Consumed (Push Configuring Hub Backdrop Style) ───────────── */}
       {showSection('all') && (
         <section
-          className="relative overflow-hidden rounded-2xl p-4 border shadow-2xs bg-slate-100 border-slate-200/90 text-slate-900"
+          className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border shadow-md bg-slate-100 border-slate-200/90 text-slate-900"
           aria-label="Most KPI Types Consumed"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1250,7 +1268,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       {/* ───────────── Top 10 Branch and Staff Leaderboard Each Month (Push Configuring Hub Backdrop Style) ───────────── */}
       {(showSection('all') || showSection('top10')) && (
         <section
-          className="relative overflow-hidden rounded-2xl p-4 border shadow-2xs bg-slate-100 border-slate-200/90 text-slate-900"
+          className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border shadow-md bg-slate-100 border-slate-200/90 text-slate-900"
           aria-label="Top 10 Branch and Staff by Month"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1736,6 +1754,60 @@ const TaskPtsCell: React.FC<{ tasks: number; pts: number }> = ({ tasks, pts }) =
       <span className="text-slate-500">{fmtInt(tasks)}</span>
       <span className="text-slate-300 mx-1">·</span>
       <span className="font-medium text-slate-900">{fmtPts(pts)}</span>
+    </span>
+  );
+};
+
+const AchievementCell: React.FC<{ pct: number }> = ({ pct }) => {
+  let colorClass = 'bg-[#15803d] text-white';
+  if (pct >= 120) {
+    colorClass = 'bg-[#15803d] text-white font-bold';
+  } else if (pct >= 100) {
+    colorClass = 'bg-[#16a34a] text-white font-bold';
+  } else if (pct >= 70) {
+    colorClass = 'bg-[#ea580c] text-white font-bold';
+  } else {
+    colorClass = 'bg-[#dc2626] text-white font-bold';
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center justify-center min-w-[56px] px-1.5 py-0.5 rounded text-xs font-mono tabular-nums shadow-2xs ${colorClass}`}
+    >
+      {pct.toFixed(1)}%
+    </span>
+  );
+};
+
+const KpiRatingBadge: React.FC<{ rating: KpiRating }> = ({ rating }) => {
+  if (rating === 'Outstanding') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#b45309] shrink-0">
+        <Sun className="w-3.5 h-3.5 text-[#d97706] fill-[#fef3c7] shrink-0" />
+        <span>Outstanding</span>
+      </span>
+    );
+  }
+  if (rating === 'Meet Target') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#15803d] shrink-0">
+        <CheckSquare className="w-3.5 h-3.5 text-[#16a34a] shrink-0" />
+        <span>Meet Target</span>
+      </span>
+    );
+  }
+  if (rating === 'Near/Below Target') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#c2410c] shrink-0">
+        <Diamond className="w-3.5 h-3.5 text-[#ea580c] shrink-0" />
+        <span>Near/Below Target</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#b91c1c] shrink-0">
+      <X className="w-3.5 h-3.5 text-[#dc2626] stroke-[3] shrink-0" />
+      <span>Needs Improvement</span>
     </span>
   );
 };
