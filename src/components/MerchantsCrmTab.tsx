@@ -1,4 +1,5 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
+import { formatBranchName } from '../utils/format';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
 import { useSort, SortTh } from '../utils/sort';
@@ -641,7 +642,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     const rows = filteredMerchants.map((m, idx) => {
       const statusLabel = m.crmStatus === 'ONBOARDING' ? 'Pending install' : m.crmStatus === 'ATTENTION' ? 'Faulty / RMA' : 'Live';
       const installDate = m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate || '—';
-      const branchFormatted = `${m.branchId} · ${m.branchName.replace(' Branch', '')}`;
+      const branchFormatted = `${m.branchId} · ${formatBranchName(m.branchName)}`;
       const typeDisplay = [
         m.posCount > 0 ? `POS Terminal${m.posCount > 1 ? ` ×${m.posCount}` : ''}` : '',
         m.sbCount > 0 ? `Sound Box${m.sbCount > 1 ? ` ×${m.sbCount}` : ''}` : '',
@@ -695,16 +696,6 @@ return (
       >
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div
-              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${
-                isLight
-                  ? 'bg-white text-slate-700 border-slate-200/90 shadow-2xs'
-                  : 'bg-slate-800/80 text-slate-300 border-slate-700'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full animate-pulse ${isLight ? 'bg-sky-500' : 'bg-sky-400'}`} />
-              <span>Merchant Deployment &amp; Hardware Registry</span>
-            </div>
             <h1 className={`text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
               <Store className={`w-5 h-5 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} />
               <span>Merchant CRM &amp; Hardware Registry</span>
@@ -1118,7 +1109,7 @@ return (
             .filter((b) => b.id !== '100')
             .map((b) => (
               <option key={b.id} value={b.id}>
-                Code {b.id} — {b.name.replace(' Branch', '')}
+                Code {b.id} — {formatBranchName(b.name)}
               </option>
             ))}
         </select>
@@ -1221,7 +1212,7 @@ return (
                         {dash(m.accountOfficer)}
                       </div>
                       <div className="cell-sub max-w-[190px] truncate">
-                        Code {m.branchId} · {m.branchName.replace(' Branch', '')}
+                        Code {m.branchId} · {formatBranchName(m.branchName)}
                       </div>
                     </td>
                     <td className="whitespace-nowrap">

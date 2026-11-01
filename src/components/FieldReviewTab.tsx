@@ -139,36 +139,17 @@ const howText = (h: How) => (h === 'SCAN' ? 'Scanned' : h === 'TYPED' ? 'Typed b
 const InputMethodBadge: React.FC<{
   method: How;
   titlePrefix?: string;
-  showFallback?: boolean;
-}> = ({ method, titlePrefix = 'Value', showFallback = false }) => {
+  size?: 'sm' | 'xs';
+}> = ({ method, titlePrefix = 'Value', size = 'sm' }) => {
   if (method === 'SCAN') {
+    const iconCls = size === 'xs' ? 'w-2.5 h-2.5' : 'w-3 h-3';
     return (
       <span
-        title={`${titlePrefix} was scanned using mobile barcode scanner`}
-        className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-emerald-50 text-emerald-700 border border-emerald-200/90 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/80 whitespace-nowrap shadow-2xs"
+        title={`${titlePrefix} scanned with barcode scanner`}
+        className="inline-flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 select-none cursor-help"
+        aria-label={`${titlePrefix} scanned`}
       >
-        <ScanLine className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-        <span>Scanned</span>
-      </span>
-    );
-  }
-  if (method === 'TYPED') {
-    return (
-      <span
-        title={`${titlePrefix} was typed manually by hand on mobile keyboard`}
-        className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-normal bg-slate-100 text-slate-700 border border-slate-200/90 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 whitespace-nowrap shadow-2xs"
-      >
-        <span>Typed</span>
-      </span>
-    );
-  }
-  if (showFallback) {
-    return (
-      <span
-        title={`${titlePrefix} scan type not reported`}
-        className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal bg-slate-50 text-slate-500 border border-slate-200/80 dark:bg-slate-800/60 dark:text-slate-400 dark:border-slate-700/80 whitespace-nowrap"
-      >
-        <span>Not reported</span>
+        <ScanLine className={iconCls} aria-hidden="true" />
       </span>
     );
   }
@@ -1196,8 +1177,12 @@ const ReviewRow = memo(function ReviewRow({
               type="button"
               onClick={() => onToggle(e.id)}
               aria-expanded={isOpen}
-              className="text-left font-mono text-slate-800 truncate cursor-pointer hover:underline inline-flex items-center gap-1.5 group shrink-0"
-              title="Open record details"
+              className="text-left font-mono truncate cursor-pointer hover:underline inline-flex items-center gap-1.5 group shrink-0"
+              title={
+                entry.serial === 'SCAN'
+                  ? `Serial ${e.serial} (Scanned via barcode scanner)`
+                  : `Serial ${e.serial} (Typed manually)`
+              }
             >
               <ChevronDown
                 className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${
@@ -1205,21 +1190,33 @@ const ReviewRow = memo(function ReviewRow({
                 }`}
                 aria-hidden
               />
-              <span className="font-semibold text-slate-900 group-hover:text-[#003857]">{e.serial}</span>
+              <span
+                className={`font-semibold tabular-nums tracking-tight ${
+                  entry.serial === 'SCAN'
+                    ? 'text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300'
+                    : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200'
+                }`}
+              >
+                {e.serial}
+              </span>
             </button>
-            <InputMethodBadge method={entry.serial} titlePrefix="Serial" showFallback />
+            <InputMethodBadge method={entry.serial} titlePrefix="Serial" />
           </div>
 
           {e.oldSerial && (
             <div className="pl-5 mt-0.5 flex items-center gap-1.5">
               <span
-                className="text-[10px] text-slate-500 font-mono inline-flex items-center gap-1 truncate"
-                title={`Replaces old unit ${e.oldSerial}${entry.oldSerial ? ` (${entry.oldSerial === 'SCAN' ? 'Scanned' : 'Typed'})` : ''}`}
+                className={`text-[10px] font-mono inline-flex items-center gap-1 truncate ${
+                  entry.oldSerial === 'SCAN'
+                    ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+                title={`Replaces old unit ${e.oldSerial} (${entry.oldSerial === 'SCAN' ? 'Scanned' : 'Typed manually'})`}
               >
                 <span className="text-slate-400 font-bold">←</span>
                 <span className="truncate">{e.oldSerial}</span>
                 {entry.oldSerial && (
-                  <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" />
+                  <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" size="xs" />
                 )}
               </span>
             </div>
@@ -1230,9 +1227,20 @@ const ReviewRow = memo(function ReviewRow({
             {e.terminalName || e.outletName || '—'}
           </span>
           {e.mid && (
-            <span className="flex items-center gap-1.5 truncate font-mono text-[11px] font-normal text-slate-500" title={`MID ${e.mid}`}>
+            <span
+              className={`flex items-center gap-1.5 truncate font-mono text-[11px] ${
+                entry.mid === 'SCAN'
+                  ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                  : 'text-slate-500 dark:text-slate-400 font-normal'
+              }`}
+              title={
+                entry.mid === 'SCAN'
+                  ? `MID ${e.mid} (Scanned via barcode scanner)`
+                  : `MID ${e.mid} (Typed manually)`
+              }
+            >
               <span className="truncate">{e.mid}</span>
-              <InputMethodBadge method={entry.mid} titlePrefix="MID" />
+              <InputMethodBadge method={entry.mid} titlePrefix="MID" size="xs" />
             </span>
           )}
         </span>

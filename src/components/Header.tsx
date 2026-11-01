@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { formatBranchName } from '../utils/format';
 import {
   UserRole,
   Branch,
@@ -880,7 +881,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-white/80 border-zinc-200 text-zinc-900 backdrop-blur-md shrink-0">
               <Building2 className="w-3.5 h-3.5 text-zinc-700 shrink-0" />
               <span className="text-xs font-bold text-zinc-800">
-                {currentBranch ? `Branch Code ${currentBranch.id} - ${currentBranch.name.replace(' Branch', '')}` : `Branch Code ${activeBranchId}`}
+                {currentBranch ? `Branch Code ${currentBranch.id} - ${formatBranchName(currentBranch.name)}` : `Branch Code ${activeBranchId}`}
               </span>
             </div>
           )}

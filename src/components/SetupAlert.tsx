@@ -1,3 +1,4 @@
+import { formatBranchName } from '../utils/format';
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Device, UserRole } from '../types';
@@ -59,7 +60,7 @@ export const SetupAlert: React.FC<{ devices: Device[]; role: UserRole; onOpen: (
           </div>
           <div className="text-xs text-amber-900/80 mt-0.5">
             {isHq
-              ? `Branches to follow up: ${byBranch.slice(0, 5).map(([id, x]) => `${id} · ${x.name.replace(' Branch', '')} (${x.n})`).join(', ')}${byBranch.length > 5 ? '…' : ''}`
+              ? `Branches to follow up: ${byBranch.slice(0, 5).map(([id, x]) => `${id} · ${formatBranchName(x.name)} (${x.n})`).join(', ')}${byBranch.length > 5 ? '…' : ''}`
               : 'Please add the merchant name, MID and TID, or finish configuring, for the units below.'}
           </div>
         </div>
@@ -73,7 +74,7 @@ export const SetupAlert: React.FC<{ devices: Device[]; role: UserRole; onOpen: (
                 <button type="button" onClick={() => onOpen(d.serial)} className="font-mono font-semibold underline-offset-2 hover:underline cursor-pointer">{d.serial}</button>
                 <span>{d.type}</span>
                 <span className="text-amber-900/80">{reason}</span>
-                <span className="ml-auto text-amber-900/80">{d.branchId} · {d.branchName.replace(' Branch', '')} · {d.installedByStaff || d.staff || 'staff not recorded'}</span>
+                <span className="ml-auto text-amber-900/80">{d.branchId} · {formatBranchName(d.branchName)} · {d.installedByStaff || d.staff || 'staff not recorded'}</span>
               </li>
             ))}
           </ul>

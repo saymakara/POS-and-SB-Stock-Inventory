@@ -133,7 +133,8 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   const handleAutoCalculateTargets = () => {
     const eff = effectiveWorkDays;
     const staffDaily = Math.max(0, Number(tForm.staffDailyTarget) || 5);
-    const branchDaily = Math.max(0, Number(tForm.branchDailyTarget) || 25);
+    const staffPerBranchMultiplier = 5;
+    const branchDaily = staffDaily * staffPerBranchMultiplier;
     const weeklyDays = tForm.workingDaysMode === 'mon_fri' ? 5 : 6;
 
     const staffMonthly = Math.round(staffDaily * eff);
@@ -444,13 +445,13 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
             </div>
           </div>
 
-          {/* D / M Targets Grid (4 Clean Cards: Day and Month only) */}
+          {/* D / M Targets Grid (4 Clean Cards: Staff base first, Branch dynamically follows) */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
             {([
-              { key: 'branchDailyTarget', label: 'Branch · Daily', unit: 'pts/day', helper: 'Standard: 25 pts/day' },
-              { key: 'branchMonthlyTarget', label: 'Branch · Monthly', unit: 'pts/mo', helper: `Daily × Work Days (${tForm.branchDailyTarget * effectiveWorkDays} pts)` },
-              { key: 'staffDailyTarget', label: 'Staff · Daily', unit: 'pts/day', helper: 'Standard: 5 pts/day' },
-              { key: 'staffMonthlyTarget', label: 'Staff · Monthly', unit: 'pts/mo', helper: `Daily × Work Days (${tForm.staffDailyTarget * effectiveWorkDays} pts)` },
+              { key: 'staffDailyTarget', label: 'Staff · Daily (Individual)', unit: 'pts/day', helper: 'Individual base daily target' },
+              { key: 'staffMonthlyTarget', label: 'Staff · Monthly (Individual)', unit: 'pts/mo', helper: `Daily × Work Days (${tForm.staffDailyTarget * effectiveWorkDays} pts)` },
+              { key: 'branchDailyTarget', label: 'Branch · Daily (Benchmark)', unit: 'pts/day', helper: `Dynamic: Staff Daily (${tForm.staffDailyTarget} pts) × 5 staff benchmark` },
+              { key: 'branchMonthlyTarget', label: 'Branch · Monthly (Benchmark)', unit: 'pts/mo', helper: `Dynamic: Staff Monthly (${tForm.staffMonthlyTarget} pts) × 5 staff benchmark` },
             ] as const).map(({ key, label, unit, helper }) => (
               <div key={key} className="bg-white rounded-lg border border-slate-200 p-2.5">
                 <div className="flex items-center justify-between gap-1">
@@ -470,18 +471,32 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                           const next = { ...prev, [key]: val };
                           const eff = effectiveWorkDays;
                           const weeklyDays = prev.workingDaysMode === 'mon_fri' ? 5 : 6;
-                          if (key === 'branchDailyTarget') {
-                            next.branchMonthlyTarget = Math.round(val * eff);
-                            next.branchWeeklyTarget = Math.round(val * weeklyDays);
-                            next.branchQuarterlyTarget = next.branchMonthlyTarget * 3;
-                          } else if (key === 'staffDailyTarget') {
+                          const staffPerBranchMultiplier = 5;
+
+                          if (key === 'staffDailyTarget') {
                             next.staffMonthlyTarget = Math.round(val * eff);
                             next.staffWeeklyTarget = Math.round(val * weeklyDays);
                             next.staffQuarterlyTarget = next.staffMonthlyTarget * 3;
+                            // Branch target dynamically follows individual target (auto-multiplies by staff benchmark)
+                            next.branchDailyTarget = val * staffPerBranchMultiplier;
+                            next.branchMonthlyTarget = next.staffMonthlyTarget * staffPerBranchMultiplier;
+                            next.branchWeeklyTarget = next.staffWeeklyTarget * staffPerBranchMultiplier;
+                            next.branchQuarterlyTarget = next.staffQuarterlyTarget * staffPerBranchMultiplier;
+                          } else if (key === 'staffMonthlyTarget') {
+                            next.staffDailyTarget = eff > 0 ? Math.round(val / eff) : val;
+                            next.staffWeeklyTarget = Math.round(next.staffDailyTarget * weeklyDays);
+                            next.staffQuarterlyTarget = val * 3;
+                            // Branch target dynamically follows individual target
+                            next.branchMonthlyTarget = val * staffPerBranchMultiplier;
+                            next.branchDailyTarget = next.staffDailyTarget * staffPerBranchMultiplier;
+                            next.branchWeeklyTarget = next.staffWeeklyTarget * staffPerBranchMultiplier;
+                            next.branchQuarterlyTarget = next.branchMonthlyTarget * 3;
+                          } else if (key === 'branchDailyTarget') {
+                            next.branchMonthlyTarget = Math.round(val * eff);
+                            next.branchWeeklyTarget = Math.round(val * weeklyDays);
+                            next.branchQuarterlyTarget = next.branchMonthlyTarget * 3;
                           } else if (key === 'branchMonthlyTarget') {
                             next.branchQuarterlyTarget = val * 3;
-                          } else if (key === 'staffMonthlyTarget') {
-                            next.staffQuarterlyTarget = val * 3;
                           }
                           return next;
                         });
@@ -499,10 +514,10 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
 
           <div className="text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
             <span>
-              Target formula: Staff Monthly = Daily ({tForm.staffDailyTarget} pts) × {effectiveWorkDays} work days = <strong className="text-slate-800">{Math.round(tForm.staffDailyTarget * effectiveWorkDays)} pts</strong>
+              Individual Target: Daily (<strong>{tForm.staffDailyTarget} pts</strong>) × {effectiveWorkDays} work days = <strong className="text-slate-800">{Math.round(tForm.staffDailyTarget * effectiveWorkDays)} pts/mo</strong>
             </span>
             <span>
-              Branch Monthly = Daily ({tForm.branchDailyTarget} pts) × {effectiveWorkDays} work days = <strong className="text-slate-800">{Math.round(tForm.branchDailyTarget * effectiveWorkDays)} pts</strong>
+              Branch Target: Dynamically multiplies Individual Target by the number of staff in each branch (Benchmark 5 staff: <strong className="text-slate-800">{Math.round(tForm.staffDailyTarget * effectiveWorkDays * 5)} pts/mo</strong>)
             </span>
           </div>
         </div>

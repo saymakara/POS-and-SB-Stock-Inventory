@@ -27,3 +27,42 @@ export function showDateTime(v: string | Date | null | undefined, withSeconds = 
   if (!m[4]) return date;
   return `${date}, ${m[4]}:${m[5]}${withSeconds && m[6] ? ':' + m[6] : ''}`;
 }
+
+/**
+ * Ensures the branch name always includes the word "Branch" at the end.
+ * E.g., "Tuek Thla" -> "Tuek Thla Branch", "Head Office" -> "Head Office Branch",
+ * "Borei Keyla Branch" -> "Borei Keyla Branch".
+ */
+export function formatBranchName(name?: string | null): string {
+  if (!name) return 'Unassigned';
+  const clean = name.replace(/^Code\s+\d+\s*[·-]\s*/i, '').trim();
+  if (!clean || clean.toLowerCase() === 'unassigned') return 'Unassigned';
+  if (/^Branch\s+\d+/i.test(clean) || /\bbranch$/i.test(clean)) {
+    return clean;
+  }
+  return `${clean} Branch`;
+}
+
+/**
+ * Detects if a staff account or position belongs to the management level
+ * (Branch Manager, Deputy Branch Manager, MS Supervisor, Team Lead, Unit Head, Admin).
+ * Management level staff oversee operations and are exempt from mandatory frontline field KPIs.
+ */
+export function isManagementRole(position?: string | null, role?: string | null): boolean {
+  if (role === 'SUPER_ADMIN' || role === 'ADMIN') return true;
+  if (!position) return false;
+  const p = position.trim().toLowerCase();
+  return (
+    p.includes('head') ||
+    p.includes('manager') ||
+    p.includes('supervisor') ||
+    p.includes('team lead') ||
+    p.includes('team-lead') ||
+    p.includes('leader') ||
+    p.includes('director') ||
+    p.includes('admin') ||
+    p.includes('management') ||
+    p.includes('coordinator') ||
+    /\b(bm|dbm|dm)\b/i.test(p)
+  );
+}

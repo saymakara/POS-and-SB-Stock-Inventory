@@ -397,7 +397,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 w-full lg:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" aria-hidden="true" />
               <input
@@ -449,6 +449,21 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
 
             <ClearFiltersButton active={!!search || roleFilter !== 'ALL' || actionFilter !== 'ALL'} onClear={() => { setSearch(''); setRoleFilter('ALL'); setActionFilter('ALL'); setCurrentPage(1); }} />
 
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setRoleFilter('ALL');
+                setActionFilter('ALL');
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1.5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${inputClass}`}
+              title="Reset all filters and search"
+            >
+              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Reset</span>
+            </button>
+
             <select
               value={pageSize}
               onChange={(e) => {
@@ -462,20 +477,6 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
               <option value={50}>View: 50 / Page</option>
               <option value={100}>View: 100 / Page</option>
             </select>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSearch('');
-                setRoleFilter('ALL');
-                setActionFilter('ALL');
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-1.5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer ${inputClass}`}
-            >
-              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Reset</span>
-            </button>
           </div>
         </div>
 

@@ -7,6 +7,7 @@ import { generatePushTrackingId } from '../utils/telegram';
 import { normalizeStaffName, resolveStaffFromDirectory } from '../utils/staffUtils';
 import { hasKhmer } from '../utils/display';
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
+import { formatBranchName } from '../utils/format';
 import { todayPP, stampSecPP, clockPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -787,7 +788,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       const merchantMidTid = `${dev.merchantName || '—'} · MID: ${dev.mid || '—'}`;
       const staffName = resolveStaffFromDirectory(dev.staff || dev.installedByStaff, dev.branchId, users) || 'Assigned Branch Staff';
       const assignedBy = getAssignedBy(dev);
-      const branchDisplay = `${dev.branchId} · ${bName.replace(' Branch', '')}`;
+      const branchDisplay = `${dev.branchId} · ${formatBranchName(bName)}`;
 
       return [
         String(idx + 1),
@@ -916,16 +917,6 @@ return (
       >
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div
-              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${
-                isLight
-                  ? 'bg-white text-slate-700 border-slate-200/90 shadow-2xs'
-                  : 'bg-slate-800/80 text-slate-300 border-slate-700'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full animate-pulse ${isLight ? 'bg-slate-500' : 'bg-sky-400'}`} />
-              <span>Dedicated App Push Pipeline</span>
-            </div>
             <h1 className={`text-base sm:text-lg font-extrabold tracking-tight flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
               <SendHorizontal className={`w-5 h-5 shrink-0 ${isLight ? 'text-slate-700' : 'text-sky-300'}`} />
               <span>Push Configuring Hub</span>
@@ -1556,7 +1547,7 @@ return (
 
                       {/* Branch */}
                       <td>
-                        <div className="cell-main">Code {dev.branchId} · {bName.replace(' Branch', '')}</div>
+                        <div className="cell-main">Code {dev.branchId} · {formatBranchName(bName)}</div>
                         <div className="cell-sub text-sky-700 flex items-center gap-1 mt-0.5">
                           <Send className="w-2.5 h-2.5 text-sky-600 shrink-0" />
                           <span className="truncate max-w-[150px]">{resolveTelegramChatForBranch(dev.branchId, regionalGroups, branches).groupName}</span>

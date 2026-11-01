@@ -73,7 +73,6 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   const [shared, setShared] = useState<QrSharedMid[] | null>(null);   // (30 Oct 2026) one MID, 2+ staff, same day
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
-  const [live, setLive] = useState(false);
   const [newCount, setNewCount] = useState(0);
   const [open, setOpen] = useState<number | null>(null);
   // (30 Oct 2026) four views side by side: saved entries, failed attempts, wrong scans, same MID by 2+ staff
@@ -176,12 +175,10 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   useEffect(() => {
     let statTimer: ReturnType<typeof setTimeout> | null = null;
     const unsub = subscribeToQrEntries(() => {
-      setLive(true);
       setNewCount((n) => n + 1);
       if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(); loadMonthHistory(); setLogKey((k) => k + 1); }, 5000);
     });
-    const t = setTimeout(() => setLive(true), 2500);
-    return () => { unsub(); clearTimeout(t); if (statTimer) clearTimeout(statTimer); };
+    return () => { unsub(); if (statTimer) clearTimeout(statTimer); };
   }, [loadStats, loadMonthHistory]);
 
   const filtersActive = !!query || activity !== 'ALL' || !!branchId || !!staffSel || period !== 'ALL';
@@ -199,10 +196,6 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label="KHQR statistics">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border bg-white text-slate-700 border-slate-200/90 shadow-2xs">
-              <span className={`w-2 h-2 rounded-full ${live ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-              <span>{live ? 'Live Stream · KHQR Merchant Pipeline' : 'Connected · KHQR Merchant Pipeline'}</span>
-            </div>
             <h1 className="text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900">
               <QrCode className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />
               <span>Phone App Review<span className="text-slate-500 font-semibold"> · KHQR</span></span>

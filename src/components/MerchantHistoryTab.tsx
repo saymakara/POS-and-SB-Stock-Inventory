@@ -38,6 +38,7 @@ import {
 import { csvFile } from '../utils/csv';
 import { hasKhmer, isValidMid, serviceLength, statusText } from '../utils/display';
 import { newRecordId } from '../utils/ids';
+import { formatBranchName } from '../utils/format';
 import { todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';
 
@@ -319,7 +320,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
     ];
 
     const rows = filteredRecords.map((r, idx) => {
-      const bName = (branchMap.get(r.branchId) || r.branchName || `Branch ${r.branchId}`).replace(' Branch', '');
+      const bName = formatBranchName(branchMap.get(r.branchId) || r.branchName || `Branch ${r.branchId}`);
       const officer = r.returnedByStaff || r.handledByStaff || '-';
       const branchStaff = `${officer} (${r.branchId} · ${bName})`;
       const typeModel = `${r.deviceType}${r.model ? ' · ' + r.model : ''}`;
@@ -715,7 +716,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       </td>
                       <td>
                         <div className={`cell-main max-w-[190px] truncate ${hasKhmer(officer) ? 'khmer' : ''}`} title={officer}>{dash(officer)}</div>
-                        <div className="cell-sub max-w-[190px] truncate" title={`Code ${rec.branchId} · ${rec.branchName}`}>{rec.branchId} · {rec.branchName.replace(' Branch', '')}</div>
+                        <div className="cell-sub max-w-[190px] truncate" title={`Code ${rec.branchId} · ${rec.branchName}`}>{rec.branchId} · {formatBranchName(rec.branchName)}</div>
                       </td>
                       <td>
                         <div className="cell-main font-normal max-w-[170px] truncate" title={rec.returnReason}>{dash(rec.returnReason)}</div>

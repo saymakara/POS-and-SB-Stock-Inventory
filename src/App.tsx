@@ -36,6 +36,7 @@ import { tidFromMid } from './utils/tid';
 import { TraceModal } from './components/TraceModal';
 import { SaveGuard, throttled, watchNewVersion } from './utils/saveGuard';
 import { phoneFor } from './utils/privacy';
+import { formatBranchName } from './utils/format';
 import type { MerchantBindPayload } from './components/MerchantsCrmTab';
 import { Header, Sidebar } from './components/Header';
 import { PipelineBar } from './components/PipelineBar';
@@ -3609,8 +3610,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     ];
     const rowsExactTable = exportListExact.map((d, idx) => {
       const bObj = branches.find((b) => b.code === d.branchId);
-      const bName = bObj?.name || d.branchName || `Branch ${d.branchId}`;
-      const branchDisplay = `${d.branchId} · ${bName.replace(' Branch', '')}`;
+      const bName = formatBranchName(bObj?.name || d.branchName || `Branch ${d.branchId}`);
+      const branchDisplay = `${d.branchId} · ${bName}`;
       const staffDisplay = d.installedByStaff || d.staff || '-';
       const cycleCount = d.redeployCount || 0;
       const cycleDisplay = `${cycleCount} Cycle${cycleCount === 1 ? '' : 's'}`;

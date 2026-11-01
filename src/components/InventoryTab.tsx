@@ -15,6 +15,7 @@ import { STAGE_META } from '../data/initialData';
 import { detectDuplicateMids } from '../utils/crmUtils';
 import { hasKhmer, isValidMidForType, midRuleError } from '../utils/display';
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
+import { formatBranchName } from '../utils/format';
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -782,7 +783,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               <div className="text-sm font-extrabold flex flex-wrap items-center gap-2">
                 <span>Select Hardware for Requisition {fulfillingRequisition.reqId}</span>
                 <span className="px-2 py-0.5 rounded text-[10px] bg-sky-400/20 text-sky-200 border border-sky-400/30 font-mono">
-                  Target Branch Code {fulfillingRequisition.branchId} ({fulfillingRequisition.branchName.replace(' Branch', '')})
+                  Target Branch Code {fulfillingRequisition.branchId} ({formatBranchName(fulfillingRequisition.branchName)})
                 </span>
               </div>
               <div className="text-xs text-sky-100/90 mt-1 flex flex-wrap items-center gap-2.5">
@@ -1013,7 +1014,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           {dash(dev.installedByStaff || dev.staff || dev.customFields?.installedByStaff || (dev as any).custom_fields?.installedByStaff)}
                         </div>
                         <div className="cell-sub max-w-[190px] truncate">
-                          Code {dev.branchId} · {resolvedBranchName.replace(' Branch', '')}
+                          Code {dev.branchId} · {formatBranchName(resolvedBranchName)}
                         </div>
                       </td>
 

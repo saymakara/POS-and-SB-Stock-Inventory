@@ -6,6 +6,7 @@ import { useKeptMemo } from '../utils/useKeptMemo';
 import { createPortal } from 'react-dom';
 import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '../types';
 import { csvFile } from '../utils/csv';
+import { formatBranchName } from '../utils/format';
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -396,7 +397,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
       'Status',
     ];
     const rows = shownReqs.map((r, idx) => {
-      const bName = (r.branchName || `Branch ${r.branchId}`).replace(' Branch', '');
+      const bName = formatBranchName(r.branchName || `Branch ${r.branchId}`);
       const staffBranch = `${r.staff || '-'} (Code ${r.branchId} · ${bName})`;
       const reqType = r.type === 'STOCK_RETURN' ? 'Stock Return' : 'Stock Request';
       const qtyFormatted = `POS: ${r.posQty || 0}, SB: ${r.sbQty || 0} (Total: ${(r.posQty || 0) + (r.sbQty || 0)})`;
@@ -619,7 +620,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         <span className="truncate">{req.staff || 'Branch Staff'}</span>
                       </div>
                       <div className="cell-sub truncate max-w-[190px]">
-                        Code {req.branchId} · {req.branchName.replace(' Branch', '')}
+                        Code {req.branchId} · {formatBranchName(req.branchName)}
                       </div>
                     </td>
                     <td className="whitespace-nowrap">
@@ -1245,7 +1246,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       </div>
                       <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                         <span className="text-[10px] uppercase font-bold text-slate-400 block">Branch Location</span>
-                        <span className="text-xs font-semibold truncate mt-0.5 block" title={selectedRequisition.branchName}>Code {selectedRequisition.branchId} · {selectedRequisition.branchName.replace(' Branch', '')}</span>
+                        <span className="text-xs font-semibold truncate mt-0.5 block" title={selectedRequisition.branchName}>Code {selectedRequisition.branchId} · {formatBranchName(selectedRequisition.branchName)}</span>
                       </div>
                       <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                         <span className="text-[10px] uppercase font-bold text-slate-400 block">Requested Qty</span>

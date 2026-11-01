@@ -4,6 +4,7 @@ import { Device, Requisition, User, ThemeMode, UserRole } from '../types';
 import { csvFile } from '../utils/csv';
 import { todayPP, stampPP } from '../utils/time';
 import { phoneFor } from '../utils/privacy';
+import { formatBranchName } from '../utils/format';
 import { motion } from 'motion/react';
 import {
   Download,
@@ -114,7 +115,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
     ];
     const rows = devices.map((d, idx) => {
       const bName = d.branchName || `Branch ${d.branchId}`;
-      const branchDisplay = `${d.branchId} · ${bName.replace(' Branch', '')}`;
+      const branchDisplay = `${d.branchId} · ${formatBranchName(bName)}`;
       const staffDisplay = d.installedByStaff || d.staff || '-';
       const cycleCount = d.redeployCount || 0;
       const cycleDisplay = `${cycleCount} Cycle${cycleCount === 1 ? '' : 's'}`;
@@ -199,7 +200,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
       'Status',
     ];
     const rows = Array.from(map.values()).map((m, idx) => {
-      const branchDisplay = `${m.branchId} · ${m.branchName.replace(' Branch', '')}`;
+      const branchDisplay = `${m.branchId} · ${formatBranchName(m.branchName)}`;
       const deviceTypeDisplay = [
         m.posCount > 0 ? `POS Terminal${m.posCount > 1 ? ` ×${m.posCount}` : ''}` : '',
         m.sbCount > 0 ? `Sound Box${m.sbCount > 1 ? ` ×${m.sbCount}` : ''}` : '',
