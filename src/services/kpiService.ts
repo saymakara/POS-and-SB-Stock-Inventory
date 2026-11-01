@@ -84,6 +84,10 @@ export interface KpiTargets {
   staffWeeklyTarget: number;
   staffMonthlyTarget: number;
   staffQuarterlyTarget: number;
+  workDaysInMonth: number;
+  excludeHolidays: boolean;
+  holidayDaysCount: number;
+  workingDaysMode: 'mon_fri' | 'mon_sat' | 'custom';
   updatedBy: string | null;
   updatedAt: string | null;
 }
@@ -131,6 +135,17 @@ export interface KpiMonthlyStaffRaw extends KpiRawCounts {
   branchName: string;
 }
 
+export interface KpiDailyBranchRaw {
+  day: string; // YYYY-MM-DD
+  branchId: string;
+  activeStaff: number;
+  totalTasks: number;
+  posTasks: number;
+  sbTasks: number;
+  khqrTasks: number;
+  ccTasks: number;
+}
+
 export interface KpiDashboardData {
   rules: KpiPointRule[];
   targets: KpiTargets;
@@ -140,6 +155,7 @@ export interface KpiDashboardData {
   monthly: KpiTimeBucketRaw[];
   quarterly: KpiTimeBucketRaw[];
   monthlyStaff: KpiMonthlyStaffRaw[];
+  dailyBranch?: KpiDailyBranchRaw[];
 }
 
 export interface ComputedPoints {
@@ -272,6 +288,10 @@ function mapTargets(t: any): KpiTargets {
     staffWeeklyTarget: Number(t?.staff_weekly_target) || 30,
     staffMonthlyTarget: Number(t?.staff_monthly_target) || 120,
     staffQuarterlyTarget: Number(t?.staff_quarterly_target) || 360,
+    workDaysInMonth: Number(t?.work_days_in_month) || 24,
+    excludeHolidays: t?.exclude_holidays !== undefined ? Boolean(t.exclude_holidays) : true,
+    holidayDaysCount: Number(t?.holiday_days_count) || 0,
+    workingDaysMode: (t?.working_days_mode as any) || 'mon_sat',
     updatedBy: t?.updated_by || null,
     updatedAt: t?.updated_at || null,
   };
@@ -306,6 +326,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null): P
       monthly: [],
       quarterly: [],
       monthlyStaff: [],
+      dailyBranch: [],
     };
   }
   const { data, error } = await supabase.rpc('kpi_dashboard_summary', { p_from: from, p_to: to });
@@ -367,6 +388,17 @@ export async function fetchKpiSummary(from: string | null, to: string | null): P
       branchId: String(r.branch_id || 'UNASSIGNED'),
       branchName: String(r.branch_name || 'Unassigned'),
     })) : [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dailyBranch: Array.isArray(d.daily_branch) ? d.daily_branch.map((r: any) => ({
+      day: String(r.day || ''),
+      branchId: String(r.branch_id || 'UNASSIGNED'),
+      activeStaff: Number(r.active_staff) || 0,
+      totalTasks: Number(r.total_tasks) || 0,
+      posTasks: Number(r.pos_tasks) || 0,
+      sbTasks: Number(r.sb_tasks) || 0,
+      khqrTasks: Number(r.khqr_tasks) || 0,
+      ccTasks: Number(r.cc_tasks) || 0,
+    })) : [],
   };
   setCachedKpiSummary(from, to, out);
   return out;
@@ -409,6 +441,10 @@ export async function saveKpiTargetsOnServer(targets: {
   staffWeeklyTarget: number;
   staffMonthlyTarget: number;
   staffQuarterlyTarget: number;
+  workDaysInMonth?: number;
+  excludeHolidays?: boolean;
+  holidayDaysCount?: number;
+  workingDaysMode?: 'mon_fri' | 'mon_sat' | 'custom';
 }): Promise<KpiTargets> {
   const { data, error } = await supabase.rpc('kpi_save_targets', {
     p: {
@@ -420,6 +456,10 @@ export async function saveKpiTargetsOnServer(targets: {
       staff_weekly_target: targets.staffWeeklyTarget,
       staff_monthly_target: targets.staffMonthlyTarget,
       staff_quarterly_target: targets.staffQuarterlyTarget,
+      work_days_in_month: targets.workDaysInMonth ?? 24,
+      exclude_holidays: targets.excludeHolidays ?? true,
+      holiday_days_count: targets.holidayDaysCount ?? 0,
+      working_days_mode: targets.workingDaysMode ?? 'mon_sat',
     },
   });
   if (error) throw new Error(error.message);

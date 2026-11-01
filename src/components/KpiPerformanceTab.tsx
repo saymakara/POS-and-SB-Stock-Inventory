@@ -2,8 +2,8 @@ import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef,
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Settings2, Search, RefreshCw, Loader2,
-  ChevronDown, CheckCircle2, Cpu, Volume2, QrCode, CreditCard, Plus, Save, TrendingUp, TrendingDown, Target, ShieldCheck,
-  Sun, CheckSquare, Diamond, X, ArrowUpDown, ArrowUp, ArrowDown,
+  ChevronDown, ChevronLeft, ChevronRight, CheckCircle2, Cpu, Volume2, QrCode, CreditCard, Plus, Save, TrendingUp, TrendingDown, Target, ShieldCheck,
+  Sun, CheckSquare, Diamond, X, ArrowUpDown, ArrowUp, ArrowDown, Calculator,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
@@ -17,6 +17,7 @@ import { downloadCsv } from '../utils/exportCsv';
 import {
   KpiCategory, KpiPeriod, KPI_PERIOD_LABEL, kpiPeriodRange, KpiPointRule, KpiTargets, KpiDashboardData,
   KpiRawCounts, computeKpiPoints, rulePts, fetchKpiSummary, getCachedKpiSummary, saveKpiRuleOnServer, saveKpiTargetsOnServer,
+  KpiDailyBranchRaw,
 } from '../services/kpiService';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
@@ -100,6 +101,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [openStaff, setOpenStaff] = useState<string | null>(null);
   const [showSubCategories, setShowSubCategories] = useState(false);
   const [tableMode, setTableMode] = useState<'branch' | 'staff'>('branch');
+  const [branchSubView, setBranchSubView] = useState<'summary' | 'daily'>('summary');
+  const [dailyMatrixMonth, setDailyMatrixMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [dailySortKey, setDailySortKey] = useState<string>('monthTotalTasks');
+  const [dailySortDir, setDailySortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -107,14 +115,23 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     startTransition(() => {
       setView(newView);
       setSelectedCard(null);
-      if (newView === 'branches') setTableMode('branch');
+      if (newView === 'branches') {
+        setTableMode('branch');
+        setBranchSubView('summary');
+      }
       if (newView === 'staff') setTableMode('staff');
     });
   }, [startTransition]);
 
-  const handleTableModeChange = useCallback((mode: 'branch' | 'staff') => {
+  const handleTableModeChange = useCallback((mode: 'branch' | 'staff' | 'branch_daily') => {
     startTransition(() => {
-      setTableMode(mode);
+      if (mode === 'branch_daily') {
+        setTableMode('branch');
+        setBranchSubView('daily');
+      } else {
+        setTableMode(mode);
+        if (mode === 'branch') setBranchSubView('summary');
+      }
     });
   }, [startTransition]);
 
@@ -620,8 +637,187 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const set = new Set<string>();
     (data?.monthly || []).forEach((m) => { if (m.period) set.add(m.period); });
     (data?.monthlyStaff || []).forEach((m) => { if (m.month) set.add(m.month); });
+    (data?.dailyBranch || []).forEach((d) => {
+      if (d.day && d.day.length >= 7) set.add(d.day.substring(0, 7));
+    });
+    const now = new Date();
+    set.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
     return Array.from(set).sort((a, b) => b.localeCompare(a));
-  }, [data?.monthly, data?.monthlyStaff]);
+  }, [data?.monthly, data?.monthlyStaff, data?.dailyBranch]);
+
+  const dailyBranchMap = useMemo(() => {
+    const map = new Map<string, KpiDailyBranchRaw>();
+    if (Array.isArray(data?.dailyBranch)) {
+      for (const item of data.dailyBranch) {
+        map.set(`${item.branchId}__${item.day}`, item);
+      }
+    }
+    return map;
+  }, [data?.dailyBranch]);
+
+  const matrixDays = useMemo(() => {
+    const [yStr, mStr] = (dailyMatrixMonth || '').split('-');
+    const year = parseInt(yStr, 10) || new Date().getFullYear();
+    const month = parseInt(mStr, 10) || (new Date().getMonth() + 1);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const today = new Date();
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const dayNum = i + 1;
+      const dateObj = new Date(year, month - 1, dayNum);
+      const isoDay = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+      const isSunday = dateObj.getDay() === 0;
+      const isSaturday = dateObj.getDay() === 6;
+      const isWeekend = isSunday || (data?.targets?.workingDaysMode === 'mon_fri' && isSaturday);
+      const isToday = isoDay === todayIso;
+      return {
+        dayNum,
+        isoDay,
+        dayOfWeek,
+        isSunday,
+        isSaturday,
+        isWeekend,
+        isToday,
+      };
+    });
+  }, [dailyMatrixMonth, data?.targets?.workingDaysMode]);
+
+  const dailyBranchRows = useMemo(() => {
+    const workDays = data?.targets?.workDaysInMonth ?? 24;
+    const branchDailyTarget = data?.targets?.branchDailyTarget ?? 20;
+    const monthlyTarget = Math.round(branchDailyTarget * workDays);
+
+    return filteredBranches.map((b) => {
+      let monthTotal = 0;
+      const days = matrixDays.map((d) => {
+        const item = dailyBranchMap.get(`${b.branchId}__${d.isoDay}`);
+        const count = item?.totalTasks ?? 0;
+        monthTotal += count;
+        return {
+          dayNum: d.dayNum,
+          isoDay: d.isoDay,
+          count,
+          raw: item,
+        };
+      });
+
+      const dailyAvg = workDays > 0 ? Math.round((monthTotal / workDays) * 10) / 10 : 0;
+      const targetPct = monthlyTarget > 0 ? Math.round((monthTotal / monthlyTarget) * 100) : 0;
+      const rating = getKpiRating(targetPct);
+
+      return {
+        branchId: b.branchId,
+        branchName: b.branchName,
+        staffCount: b.staffCount,
+        days,
+        monthTotalTasks: monthTotal,
+        dailyAvg,
+        target: monthlyTarget,
+        targetPct,
+        rating,
+      };
+    });
+  }, [filteredBranches, matrixDays, dailyBranchMap, data?.targets]);
+
+  const matrixDayTotals = useMemo(() => {
+    const totalsByDay: { [dayNum: number]: number } = {};
+    let allGrandTotal = 0;
+    matrixDays.forEach((d) => { totalsByDay[d.dayNum] = 0; });
+
+    for (const row of dailyBranchRows) {
+      allGrandTotal += row.monthTotalTasks;
+      for (const d of row.days) {
+        totalsByDay[d.dayNum] += d.count;
+      }
+    }
+
+    const workDays = data?.targets?.workDaysInMonth ?? 24;
+    const avgDailyTotal = workDays > 0 ? Math.round((allGrandTotal / workDays) * 10) / 10 : 0;
+
+    return {
+      totalsByDay,
+      allGrandTotal,
+      avgDailyTotal,
+    };
+  }, [dailyBranchRows, matrixDays, data?.targets?.workDaysInMonth]);
+
+  const sortedDailyBranchRows = useMemo(() => {
+    return [...dailyBranchRows].sort((a, b) => {
+      let cmp = 0;
+      if (dailySortKey.startsWith('day_')) {
+        const dNum = parseInt(dailySortKey.replace('day_', ''), 10);
+        const countA = a.days.find((d) => d.dayNum === dNum)?.count ?? 0;
+        const countB = b.days.find((d) => d.dayNum === dNum)?.count ?? 0;
+        cmp = countA - countB;
+      } else if (dailySortKey === 'branchId') {
+        cmp = a.branchId.localeCompare(b.branchId, 'en', { numeric: true });
+      } else if (dailySortKey === 'branchName') {
+        cmp = a.branchName.localeCompare(b.branchName);
+      } else if (dailySortKey === 'dailyAvg') {
+        cmp = a.dailyAvg - b.dailyAvg;
+      } else if (dailySortKey === 'targetPct') {
+        cmp = a.targetPct - b.targetPct;
+      } else {
+        cmp = a.monthTotalTasks - b.monthTotalTasks;
+      }
+      return dailySortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [dailyBranchRows, dailySortKey, dailySortDir]);
+
+  const dailyBranchPg = usePager(sortedDailyBranchRows.length, [dailyMatrixMonth, regionFilter, branchFilter, categoryFilter, deferredQuery]);
+
+  const stepDailyMonth = (direction: -1 | 1) => {
+    const [yStr, mStr] = (dailyMatrixMonth || '').split('-');
+    const curYear = parseInt(yStr, 10) || new Date().getFullYear();
+    const curMonth = parseInt(mStr, 10) || (new Date().getMonth() + 1);
+    const dateObj = new Date(curYear, curMonth - 1 + direction, 1);
+    const newMonthStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+    setDailyMatrixMonth(newMonthStr);
+  };
+
+  const exportDailyBranchCsv = async () => {
+    if (!filteredBranches.length) return 0;
+    const header = [
+      'No.',
+      'Branch Code',
+      'Branch Name',
+      ...matrixDays.map((d) => `${d.dayNum} (${d.dayOfWeek})`),
+      'Month Total Tasks',
+      'Daily Average',
+      'Monthly Target',
+      'Achievement %',
+      'Rating',
+    ];
+    const rows = sortedDailyBranchRows.map((r, i) => [
+      i + 1,
+      r.branchId,
+      r.branchName,
+      ...r.days.map((d) => d.count),
+      r.monthTotalTasks,
+      r.dailyAvg,
+      r.target,
+      `${r.targetPct}%`,
+      r.rating,
+    ]);
+
+    // Footer summary row
+    rows.push([
+      'Total',
+      'ALL',
+      'Total Across All Branches',
+      ...matrixDays.map((d) => matrixDayTotals.totalsByDay[d.dayNum] || 0),
+      matrixDayTotals.allGrandTotal,
+      matrixDayTotals.avgDailyTotal,
+      '',
+      '',
+      '',
+    ]);
+
+    downloadCsv(`KPI_Daily_Tasks_Branch_${dailyMatrixMonth}`, header, rows);
+    return filteredBranches.length;
+  };
 
   const top10Data = useMemo(() => {
     if (selectedTopMonth === 'ALL' || !data) {
@@ -1227,7 +1423,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           tick={<BranchYAxisTick />}
                         />
                         <Tooltip content={<CustomBranchTooltip />} cursor={{ fill: 'rgba(0, 56, 87, 0.04)' }} />
-                        <Bar dataKey="posPoints" name="POS Terminal" stackId="b" fill="url(#kpiBranchPosGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} background={{ fill: '#f1f5f9', radius: 4 }} animationDuration={360} />
+                        <Bar dataKey="posPoints" name="POS Terminal" stackId="b" fill="url(#kpiBranchPosGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} animationDuration={360} />
                         <Bar dataKey="sbPoints" name="Sound Box" stackId="b" fill="url(#kpiBranchSbGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} animationDuration={360} />
                         <Bar dataKey="khqrPoints" name="KHQR" stackId="b" fill="url(#kpiBranchKhqrGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} animationDuration={360} />
                         <Bar dataKey="ccPoints" name="Credit Card" stackId="b" fill="url(#kpiBranchCcGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} animationDuration={360} />
@@ -1580,12 +1776,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs">
                 <button
                   type="button"
-                  onClick={() => handleTableModeChange('branch')}
+                  onClick={() => { handleTableModeChange('branch'); setBranchSubView('summary'); }}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
-                    tableMode === 'branch' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
                   }`}
                 >
-                  {tableMode === 'branch' && (
+                  {tableMode === 'branch' && branchSubView === 'summary' && (
                     <motion.div
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
@@ -1594,8 +1790,28 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   )}
                   <Building2 className="w-3.5 h-3.5 relative z-10" aria-hidden />
                   <span className="relative z-10">KPI by Branch</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
                     {filteredBranches.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleTableModeChange('branch'); setBranchSubView('daily'); }}
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
+                    tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  }`}
+                >
+                  {tableMode === 'branch' && branchSubView === 'daily' && (
+                    <motion.div
+                      layoutId="kpi-table-mode-pill"
+                      transition={SPRING}
+                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
+                    />
+                  )}
+                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <span className="relative z-10">Daily Tasks (Full Month)</span>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                    1–{matrixDays.length}d
                   </span>
                 </button>
                 <button
@@ -1620,17 +1836,67 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </button>
               </div>
 
-              <span className="text-xs font-medium text-slate-600 hidden sm:inline">
-                {tableMode === 'branch'
-                  ? `· ${filteredBranches.length} branches · ${activeTargets.label}: ${fmtPts(activeTargets.branch)} pts`
-                  : `· ${filteredStaff.length} staff · ${activeTargets.label}: ${fmtPts(activeTargets.staff)} pts`}
-              </span>
+              {tableMode === 'branch' && branchSubView === 'daily' ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 border border-slate-200 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => stepDailyMonth(-1)}
+                      title="Previous Month"
+                      className="p-1 rounded hover:bg-white text-slate-700 transition cursor-pointer"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <select
+                      value={dailyMatrixMonth}
+                      onChange={(e) => setDailyMatrixMonth(e.target.value)}
+                      className="bg-transparent text-xs font-semibold text-slate-800 outline-none px-1.5 py-0.5 cursor-pointer"
+                    >
+                      {availableMonths.map((m) => (
+                        <option key={m} value={m}>
+                          {fmtMonth(m)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => stepDailyMonth(1)}
+                      title="Next Month"
+                      className="p-1 rounded hover:bg-white text-slate-700 transition cursor-pointer"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <span className="text-xs font-medium text-slate-600 hidden md:inline">
+                    · Month Total: <strong className="text-slate-800 font-medium">{fmtInt(matrixDayTotals.allGrandTotal)} tasks</strong> · Daily Avg: <strong className="text-slate-800 font-medium">{matrixDayTotals.avgDailyTotal} tasks/day</strong> ({data?.targets?.workDaysInMonth ?? 24} work days{data?.targets?.excludeHolidays ? ', holidays excluded' : ''})
+                  </span>
+                </div>
+              ) : (
+                <span className="text-xs font-medium text-slate-600 hidden sm:inline">
+                  {tableMode === 'branch'
+                    ? `· ${filteredBranches.length} branches · ${activeTargets.label}: ${fmtPts(activeTargets.branch)} pts (${data?.targets?.workDaysInMonth ?? 24} work days${data?.targets?.excludeHolidays ? ', holidays excluded' : ''})`
+                    : `· ${filteredStaff.length} staff · ${activeTargets.label}: ${fmtPts(activeTargets.staff)} pts (${data?.targets?.workDaysInMonth ?? 24} work days${data?.targets?.excludeHolidays ? ', holidays excluded' : ''})`}
+                </span>
+              )}
             </div>
 
             <ExportCsvButton
-              onExport={tableMode === 'branch' ? exportBranchCsv : exportStaffCsv}
+              onExport={
+                tableMode === 'staff'
+                  ? exportStaffCsv
+                  : branchSubView === 'daily'
+                  ? exportDailyBranchCsv
+                  : exportBranchCsv
+              }
               toast={triggerToast}
-              title={`Export KPI Performance by ${tableMode === 'branch' ? 'Branch' : 'Staff'} to CSV`}
+              title={`Export ${
+                tableMode === 'staff'
+                  ? 'KPI Performance by Staff'
+                  : branchSubView === 'daily'
+                  ? `Daily Tasks Matrix (${fmtMonth(dailyMatrixMonth)}) by Branch`
+                  : 'KPI Performance by Branch'
+              } to CSV`}
             />
           </div>
 
@@ -1641,16 +1907,249 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           ) : (
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
-                key={tableMode}
+                key={`${tableMode}-${branchSubView}`}
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -3 }}
                 transition={{ duration: 0.12, ease: 'easeOut' }}
               >
                 {tableMode === 'branch' ? (
+                  branchSubView === 'daily' ? (
+                    <>
+                      <div className="overflow-x-auto w-full">
+                        <table className="w-full text-left border-collapse text-[13px]">
+                          <thead>
+                            <tr className="navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider">
+                              <th className="sticky left-0 bg-[#003857] z-30 px-2 py-2.5 text-center w-[44px] min-w-[44px] border-r border-[#1e5b88]/40">
+                                No.
+                              </th>
+                              <th
+                                className="sticky left-[44px] bg-[#003857] z-30 px-2.5 py-2.5 text-left w-[64px] min-w-[64px] border-r border-[#1e5b88]/40 cursor-pointer select-none hover:bg-[#002f4a]"
+                                onClick={() => {
+                                  setDailySortKey('branchId');
+                                  setDailySortDir((d) => (dailySortKey === 'branchId' ? (d === 'asc' ? 'desc' : 'asc') : 'asc'));
+                                }}
+                              >
+                                <div className="flex items-center gap-1">
+                                  <span>Code</span>
+                                  <SortIcon active={dailySortKey === 'branchId'} dir={dailySortDir} />
+                                </div>
+                              </th>
+                              <th
+                                className="sticky left-[108px] bg-[#003857] z-30 px-3 py-2.5 text-left w-[180px] min-w-[180px] shadow-[2px_0_5px_rgba(0,0,0,0.18)] border-r border-[#1e5b88]/40 cursor-pointer select-none hover:bg-[#002f4a]"
+                                onClick={() => {
+                                  setDailySortKey('branchName');
+                                  setDailySortDir((d) => (dailySortKey === 'branchName' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+                                }}
+                              >
+                                <div className="flex items-center gap-1">
+                                  <span>Branch Name</span>
+                                  <SortIcon active={dailySortKey === 'branchName'} dir={dailySortDir} />
+                                </div>
+                              </th>
+
+                              {/* Days 1..N */}
+                              {matrixDays.map((d) => (
+                                <th
+                                  key={d.dayNum}
+                                  onClick={() => {
+                                    const key = `day_${d.dayNum}`;
+                                    setDailySortKey(key);
+                                    setDailySortDir((dir) => (dailySortKey === key ? (dir === 'asc' ? 'desc' : 'asc') : 'desc'));
+                                  }}
+                                  title={`${d.isoDay} (${d.dayOfWeek}) · Click to sort branches by tasks`}
+                                  className={`px-0.5 py-1 text-center w-[36px] min-w-[36px] max-w-[36px] border-r border-[#1e5b88]/30 cursor-pointer select-none hover:bg-[#002f4a] ${
+                                    d.isToday ? 'bg-sky-700/90 text-amber-200' : d.isWeekend ? 'bg-[#002c44] text-slate-300' : 'text-white'
+                                  }`}
+                                >
+                                  <div className="leading-tight">
+                                    <span className="block text-[11px] font-medium tabular-nums">{d.dayNum}</span>
+                                    <span className="block text-[9px] font-normal opacity-75">{d.dayOfWeek}</span>
+                                  </div>
+                                </th>
+                              ))}
+
+                              {/* Summary Headers */}
+                              <th
+                                className="px-3 py-2.5 text-right w-[95px] min-w-[95px] border-l border-[#1e5b88]/40 cursor-pointer select-none hover:bg-[#002f4a]"
+                                onClick={() => {
+                                  setDailySortKey('monthTotalTasks');
+                                  setDailySortDir((d) => (dailySortKey === 'monthTotalTasks' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+                                }}
+                              >
+                                <div className="flex items-center justify-end gap-1">
+                                  <span>Month Tasks</span>
+                                  <SortIcon active={dailySortKey === 'monthTotalTasks'} dir={dailySortDir} />
+                                </div>
+                              </th>
+                              <th
+                                className="px-2 py-2.5 text-right w-[75px] min-w-[75px] cursor-pointer select-none hover:bg-[#002f4a]"
+                                onClick={() => {
+                                  setDailySortKey('dailyAvg');
+                                  setDailySortDir((d) => (dailySortKey === 'dailyAvg' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+                                }}
+                              >
+                                <div className="flex items-center justify-end gap-1">
+                                  <span>Daily Avg</span>
+                                  <SortIcon active={dailySortKey === 'dailyAvg'} dir={dailySortDir} />
+                                </div>
+                              </th>
+                              <th className="px-2 py-2.5 text-right w-[75px] min-w-[75px]">
+                                Target
+                              </th>
+                              <th
+                                className="px-2 py-2.5 text-right w-[80px] min-w-[80px] cursor-pointer select-none hover:bg-[#002f4a]"
+                                onClick={() => {
+                                  setDailySortKey('targetPct');
+                                  setDailySortDir((d) => (dailySortKey === 'targetPct' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+                                }}
+                              >
+                                <div className="flex items-center justify-end gap-1">
+                                  <span>% Target</span>
+                                  <SortIcon active={dailySortKey === 'targetPct'} dir={dailySortDir} />
+                                </div>
+                              </th>
+                              <th className="px-3 py-2.5 text-center w-[140px] min-w-[140px]">
+                                Rating
+                              </th>
+                            </tr>
+                          </thead>
+
+                          <tbody className="divide-y divide-slate-200/90 text-slate-700">
+                            {sortedDailyBranchRows.length === 0 ? (
+                              <tr>
+                                <td colSpan={matrixDays.length + 8} className="p-10 text-center text-sm text-slate-500">
+                                  No branch records match the current filters.
+                                </td>
+                              </tr>
+                            ) : (
+                              sortedDailyBranchRows.slice(dailyBranchPg.start, dailyBranchPg.end).map((row, idx) => {
+                                const rank = dailyBranchPg.start + idx + 1;
+                                return (
+                                  <tr key={row.branchId} className="group hover:bg-slate-50/80 transition-colors">
+                                    <td className="sticky left-0 bg-white group-hover:bg-slate-50 z-10 px-2 py-2 text-center tabular-nums text-slate-500 text-xs border-r border-slate-200/60 font-normal">
+                                      {rank}
+                                    </td>
+                                    <td className="sticky left-[44px] bg-white group-hover:bg-slate-50 z-10 px-2.5 py-2 font-mono text-xs text-slate-700 tabular-nums border-r border-slate-200/60 font-normal">
+                                      {row.branchId}
+                                    </td>
+                                    <td
+                                      className="sticky left-[108px] bg-white group-hover:bg-slate-50 z-10 px-3 py-2 text-slate-900 shadow-[2px_0_4px_rgba(0,0,0,0.06)] border-r border-slate-200/60 font-normal truncate max-w-[180px]"
+                                      title={row.branchName}
+                                    >
+                                      {row.branchName}
+                                    </td>
+
+                                    {/* Day cells 1..N */}
+                                    {row.days.map((d) => {
+                                      const dayMeta = matrixDays.find((md) => md.dayNum === d.dayNum);
+                                      const hasTasks = d.count > 0;
+                                      const tooltip = d.raw
+                                        ? `${row.branchName} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}\nActive Staff: ${d.raw.activeStaff}`
+                                        : `${row.branchName} · ${d.isoDay} (${dayMeta?.dayOfWeek}): 0 tasks`;
+
+                                      return (
+                                        <td
+                                          key={d.dayNum}
+                                          className={`px-0.5 py-1 text-center w-[36px] min-w-[36px] max-w-[36px] border-r border-slate-100 ${
+                                            dayMeta?.isWeekend ? 'bg-slate-50/50' : ''
+                                          } ${dayMeta?.isToday ? 'bg-sky-50/40' : ''}`}
+                                          title={tooltip}
+                                        >
+                                          {hasTasks ? (
+                                            <span
+                                              className={`inline-flex items-center justify-center min-w-[24px] h-[21px] px-1 rounded text-[11px] tabular-nums font-normal ${
+                                                d.count >= 20
+                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                                                  : d.count >= 10
+                                                  ? 'bg-sky-50 text-sky-800 border border-sky-300'
+                                                  : 'bg-slate-100 text-slate-800 border border-slate-200'
+                                              }`}
+                                            >
+                                              {d.count}
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-300 text-xs font-light select-none">·</span>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+
+                                    {/* Summary Columns */}
+                                    <td className="px-3 py-2 text-right tabular-nums font-normal text-slate-900 border-l border-slate-200/60">
+                                      {fmtInt(row.monthTotalTasks)}
+                                    </td>
+                                    <td className="px-2 py-2 text-right tabular-nums font-normal text-slate-700">
+                                      {row.dailyAvg}
+                                    </td>
+                                    <td className="px-2 py-2 text-right tabular-nums font-normal text-slate-500">
+                                      {fmtInt(row.target)}
+                                    </td>
+                                    <td className="px-2 py-2 text-right tabular-nums font-normal text-slate-900">
+                                      {row.targetPct}%
+                                    </td>
+                                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                                      <RatingBadge rating={row.rating} />
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+
+                          {sortedDailyBranchRows.length > 0 && (
+                            <tfoot>
+                              <tr className="bg-slate-100/90 font-medium text-slate-800 border-t-2 border-slate-300 text-[12px]">
+                                <td
+                                  colSpan={3}
+                                  className="sticky left-0 bg-slate-100 z-10 px-3 py-2.5 text-left font-semibold text-slate-900 shadow-[2px_0_4px_rgba(0,0,0,0.06)] border-r border-slate-300"
+                                >
+                                  Total Across All Branches ({sortedDailyBranchRows.length})
+                                </td>
+
+                                {matrixDays.map((d) => {
+                                  const count = matrixDayTotals.totalsByDay[d.dayNum] || 0;
+                                  return (
+                                    <td
+                                      key={d.dayNum}
+                                      className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] tabular-nums font-normal text-[11px] border-r border-slate-200 ${
+                                        count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light'
+                                      } ${d.isWeekend ? 'bg-slate-200/40' : ''}`}
+                                      title={`All branches on ${d.isoDay} (${d.dayOfWeek}): ${count} tasks`}
+                                    >
+                                      {count > 0 ? count : '·'}
+                                    </td>
+                                  );
+                                })}
+
+                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-[#003857] border-l border-slate-300 text-xs">
+                                  {fmtInt(matrixDayTotals.allGrandTotal)}
+                                </td>
+                                <td className="px-2 py-2.5 text-right tabular-nums font-semibold text-slate-800 text-xs">
+                                  {matrixDayTotals.avgDailyTotal}
+                                </td>
+                                <td className="px-2 py-2.5 text-right tabular-nums text-slate-500 text-xs">
+                                  {fmtInt(Math.round((data?.targets?.branchDailyTarget ?? 20) * (data?.targets?.workDaysInMonth ?? 24) * sortedDailyBranchRows.length))}
+                                </td>
+                                <td className="px-2 py-2.5 text-right tabular-nums font-semibold text-slate-900 text-xs">
+                                  {Math.round((data?.targets?.branchDailyTarget ?? 20) * (data?.targets?.workDaysInMonth ?? 24) * sortedDailyBranchRows.length) > 0
+                                    ? `${Math.round((matrixDayTotals.allGrandTotal / ((data?.targets?.branchDailyTarget ?? 20) * (data?.targets?.workDaysInMonth ?? 24) * sortedDailyBranchRows.length)) * 100)}%`
+                                    : '0%'}
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <span className="text-[11px] text-slate-500 font-medium">Month Total</span>
+                                </td>
+                              </tr>
+                            </tfoot>
+                          )}
+                        </table>
+                      </div>
+                      <Pager pg={dailyBranchPg} label="branches" />
+                    </>
+                  ) : (
             <>
-              <div className="min-w-[1180px] w-full">
-                <div className="grid items-center gap-x-4 grid-cols-[40px_75px_minmax(160px,1.4fr)_minmax(55px,0.55fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(72px,0.7fr)_minmax(72px,0.7fr)_minmax(96px,0.95fr)_minmax(105px,1fr)_120px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-4 py-2.5">
+              <div className="min-w-[1220px] w-full">
+                <div className="grid items-center gap-x-4 grid-cols-[40px_75px_minmax(160px,1.4fr)_minmax(55px,0.55fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(72px,0.7fr)_minmax(72px,0.7fr)_minmax(96px,0.95fr)_minmax(105px,1fr)_140px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-4 py-2.5">
                   <span className="text-right">No.</span>
                   <SortableHeader label="Code" sortKey="branchId" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch Name" sortKey="branchName" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
@@ -1680,7 +2179,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             type="button"
                             onClick={() => setOpenBranch((o) => (o === b.branchId ? null : b.branchId))}
                             aria-expanded={isOpen}
-                            className="grid items-center gap-x-4 grid-cols-[40px_75px_minmax(160px,1.4fr)_minmax(55px,0.55fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(72px,0.7fr)_minmax(72px,0.7fr)_minmax(96px,0.95fr)_minmax(105px,1fr)_120px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
+                            className="grid items-center gap-x-4 grid-cols-[40px_75px_minmax(160px,1.4fr)_minmax(55px,0.55fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(72px,0.7fr)_minmax(72px,0.7fr)_minmax(96px,0.95fr)_minmax(105px,1fr)_140px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
                           >
                             <span className="text-right tabular-nums text-slate-500">{rank}</span>
                             <span className="font-mono text-xs text-slate-700 tabular-nums">
@@ -1751,10 +2250,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
               <Pager pg={branchPg} label="branches" />
             </>
-          ) : (
-            <>
-              <div className="min-w-[1180px] w-full">
-                <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(170px,1.3fr)_75px_minmax(140px,1.1fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(64px,0.6fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_120px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-4 py-2.5">
+          )
+        ) : (
+          <>
+            <div className="min-w-[1220px] w-full">
+                <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(170px,1.3fr)_75px_minmax(140px,1.1fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(64px,0.6fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_140px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-4 py-2.5">
                   <span className="text-right">No.</span>
                   <SortableHeader label="Staff Name" sortKey="staffName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch Code" sortKey="branchId" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
@@ -1784,7 +2284,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             type="button"
                             onClick={() => setOpenStaff((o) => (o === s.staffId ? null : s.staffId))}
                             aria-expanded={isOpen}
-                            className="grid items-center gap-x-4 grid-cols-[40px_minmax(170px,1.3fr)_75px_minmax(140px,1.1fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(64px,0.6fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_120px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
+                            className="grid items-center gap-x-4 grid-cols-[40px_minmax(170px,1.3fr)_75px_minmax(140px,1.1fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(64px,0.6fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_140px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
                           >
                             <span className="text-right tabular-nums text-slate-500">{rank}</span>
                             <span className="flex items-center gap-2.5 min-w-0">
@@ -2167,6 +2667,17 @@ const MiniMixBar: React.FC<{ pos: number; sb: number; khqr: number; cc: number; 
   );
 };
 
+const SortIcon: React.FC<{ active: boolean; dir: 'asc' | 'desc' }> = ({ active, dir }) => {
+  if (!active) {
+    return <ArrowUpDown className="w-2.5 h-2.5 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" aria-hidden />;
+  }
+  return dir === 'asc' ? (
+    <ArrowUp className="w-3 h-3 text-sky-300 shrink-0" aria-hidden />
+  ) : (
+    <ArrowDown className="w-3 h-3 text-sky-300 shrink-0" aria-hidden />
+  );
+};
+
 const SortableHeader: React.FC<{
   label: string;
   sortKey: string;
@@ -2215,32 +2726,32 @@ const TargetBar: React.FC<{ pct: number }> = ({ pct }) => {
 const RatingBadge: React.FC<{ rating: KpiRating }> = ({ rating }) => {
   if (rating === 'Outstanding') {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
-        <Sun className="w-3 h-3 text-amber-600 shrink-0" aria-hidden />
-        <span className="truncate">Outstanding</span>
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-700 border border-emerald-200/90">
+        <Sun className="w-3 h-3 text-emerald-600 shrink-0" aria-hidden />
+        <span>Outstanding</span>
       </span>
     );
   }
   if (rating === 'Meet Target') {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
-        <CheckSquare className="w-3 h-3 text-emerald-600 shrink-0" aria-hidden />
-        <span className="truncate">Meet Target</span>
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-teal-50 text-teal-700 border border-teal-200/90">
+        <CheckSquare className="w-3 h-3 text-teal-600 shrink-0" aria-hidden />
+        <span>Meet Target</span>
       </span>
     );
   }
   if (rating === 'Near/Below Target') {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-orange-50 text-orange-800 border border-orange-200">
-        <Diamond className="w-3 h-3 text-orange-600 shrink-0" aria-hidden />
-        <span className="truncate">Near/Below</span>
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-amber-50 text-amber-700 border border-amber-200/90">
+        <Diamond className="w-3 h-3 text-amber-600 shrink-0" aria-hidden />
+        <span>Near/Below Target</span>
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-800 border border-rose-200">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium whitespace-nowrap bg-rose-50 text-rose-700 border border-rose-200/90">
       <X className="w-3 h-3 text-rose-600 shrink-0" aria-hidden />
-      <span className="truncate">Needs Impr.</span>
+      <span>Needs Improvement</span>
     </span>
   );
 };
@@ -2364,12 +2875,56 @@ const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
     }
   };
 
+  const effectiveWorkDays = useMemo(() => {
+    const baseDays = Math.max(1, Number(tForm.workDaysInMonth) || 24);
+    if (!tForm.excludeHolidays) return baseDays;
+    const holidays = Math.max(0, Number(tForm.holidayDaysCount) || 0);
+    return Math.max(1, baseDays - holidays);
+  }, [tForm.workDaysInMonth, tForm.excludeHolidays, tForm.holidayDaysCount]);
+
+  const handleAutoCalculateTargets = () => {
+    const eff = effectiveWorkDays;
+    const staffDaily = Math.max(0, Number(tForm.staffDailyTarget) || 5);
+    const branchDaily = Math.max(0, Number(tForm.branchDailyTarget) || 20);
+    const weeklyDays = tForm.workingDaysMode === 'mon_fri' ? 5 : 6;
+
+    const staffMonthly = Math.round(staffDaily * eff);
+    const staffWeekly = Math.round(staffDaily * weeklyDays);
+    const staffQuarterly = staffMonthly * 3;
+
+    const branchMonthly = Math.round(branchDaily * eff);
+    const branchWeekly = Math.round(branchDaily * weeklyDays);
+    const branchQuarterly = branchMonthly * 3;
+
+    setTForm((prev) => ({
+      ...prev,
+      staffWeeklyTarget: staffWeekly,
+      staffMonthlyTarget: staffMonthly,
+      staffQuarterlyTarget: staffQuarterly,
+      branchWeeklyTarget: branchWeekly,
+      branchMonthlyTarget: branchMonthly,
+      branchQuarterlyTarget: branchQuarterly,
+    }));
+    toast(`Targets auto-calculated: Staff ${staffMonthly} pts/mo · Branch ${branchMonthly} pts/mo (${eff} effective work days).`);
+  };
+
+  const handleScheduleModeChange = (mode: 'mon_fri' | 'mon_sat' | 'custom') => {
+    let defaultDays = 24;
+    if (mode === 'mon_fri') defaultDays = 22;
+    else if (mode === 'mon_sat') defaultDays = 26;
+    setTForm((prev) => ({
+      ...prev,
+      workingDaysMode: mode,
+      workDaysInMonth: mode === 'custom' ? prev.workDaysInMonth : defaultDays,
+    }));
+  };
+
   const handleSaveTargets = async () => {
     setSavingTargets(true);
     try {
       const saved = await saveKpiTargetsOnServer(tForm);
       onTargetsSaved(saved);
-      toast('Updated Daily, Weekly, Monthly & Quarterly KPI targets.');
+      toast(`Updated KPI targets: Staff ${saved.staffMonthlyTarget} pts/mo · Branch ${saved.branchMonthlyTarget} pts/mo (${saved.workDaysInMonth} work days, holidays ${saved.excludeHolidays ? 'excluded' : 'included'}).`);
     } catch (err) {
       toast(`Could not save targets: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -2489,23 +3044,160 @@ const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
           </form>
         )}
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-800">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
               <Target className="w-4 h-4 text-[#003857]" />
-              Daily, Weekly, Monthly &amp; Quarterly Target Points
+              <span>KPI Target Points, Work Days &amp; Holiday Settings</span>
             </div>
             {isAdmin && (
-              <button
-                type="button"
-                disabled={savingTargets}
-                onClick={handleSaveTargets}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#003857] hover:bg-[#002b44] text-white text-xs font-medium cursor-pointer disabled:opacity-50"
-              >
-                {savingTargets ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save targets
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAutoCalculateTargets}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-[#1e5b88] border border-sky-200 hover:bg-sky-100 text-xs font-medium cursor-pointer transition"
+                  title="Auto-calculate Monthly & Quarterly targets: Daily target × Effective Work Days"
+                >
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span>Auto-calculate targets ({effectiveWorkDays}d)</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={savingTargets}
+                  onClick={handleSaveTargets}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#003857] hover:bg-[#002b44] text-white text-xs font-medium cursor-pointer disabled:opacity-50 transition"
+                >
+                  {savingTargets ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save targets
+                </button>
+              </div>
             )}
           </div>
+
+          {/* Working Days in Month & Exclude/Include Holiday Rules */}
+          <div className="rounded-xl border border-slate-200 bg-white p-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+            {/* Work Days & Schedule (5 cols) */}
+            <div className="md:col-span-5 space-y-1.5 border-b md:border-b-0 md:border-r border-slate-100 pb-2.5 md:pb-0 md:pr-3">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-[#1e5b88]" />
+                  <span>Work Days in Month</span>
+                </label>
+                {isAdmin && (
+                  <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-[10px] gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleScheduleModeChange('mon_fri')}
+                      className={`px-1.5 py-0.5 rounded cursor-pointer transition ${tForm.workingDaysMode === 'mon_fri' ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      Mon–Fri (22d)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleScheduleModeChange('mon_sat')}
+                      className={`px-1.5 py-0.5 rounded cursor-pointer transition ${tForm.workingDaysMode === 'mon_sat' ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      Mon–Sat (26d)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleScheduleModeChange('custom')}
+                      className={`px-1.5 py-0.5 rounded cursor-pointer transition ${tForm.workingDaysMode === 'custom' ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      Custom
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {isAdmin ? (
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      step="0.5"
+                      value={tForm.workDaysInMonth}
+                      onChange={(e) => setTForm((prev) => ({ ...prev, workDaysInMonth: Math.max(1, Number(e.target.value) || 0) }))}
+                      className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-slate-900 tabular-nums outline-none focus:border-[#1e5b88]"
+                    />
+                    <span className="absolute right-2.5 top-1.5 text-xs text-slate-400 pointer-events-none">days / mo</span>
+                  </div>
+                ) : (
+                  <span className="text-xs font-semibold text-slate-800 tabular-nums">{tForm.workDaysInMonth} days / month</span>
+                )}
+              </div>
+            </div>
+
+            {/* Public Holiday Configuration (Exclude or Include Holiday) (4 cols) */}
+            <div className="md:col-span-4 space-y-1.5 border-b md:border-b-0 md:border-r border-slate-100 pb-2.5 md:pb-0 md:pr-3">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[11px] font-semibold text-slate-700">Public Holidays</label>
+                {isAdmin ? (
+                  <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-[10px] gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setTForm((prev) => ({ ...prev, excludeHolidays: true }))}
+                      className={`px-2 py-0.5 rounded cursor-pointer transition ${tForm.excludeHolidays ? 'bg-rose-600 text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      Exclude Holidays
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTForm((prev) => ({ ...prev, excludeHolidays: false }))}
+                      className={`px-2 py-0.5 rounded cursor-pointer transition ${!tForm.excludeHolidays ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      Include Holidays
+                    </button>
+                  </div>
+                ) : (
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${tForm.excludeHolidays ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-700'}`}>
+                    {tForm.excludeHolidays ? 'Excluded' : 'Included'}
+                  </span>
+                )}
+              </div>
+
+              {tForm.excludeHolidays ? (
+                <div className="flex items-center gap-2">
+                  {isAdmin ? (
+                    <div className="relative flex-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="15"
+                        step="0.5"
+                        value={tForm.holidayDaysCount}
+                        onChange={(e) => setTForm((prev) => ({ ...prev, holidayDaysCount: Math.max(0, Number(e.target.value) || 0) }))}
+                        className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-slate-900 tabular-nums outline-none focus:border-[#1e5b88]"
+                      />
+                      <span className="absolute right-2.5 top-1.5 text-xs text-slate-400 pointer-events-none">holidays deducted</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-700">{tForm.holidayDaysCount} holiday days deducted</span>
+                  )}
+                </div>
+              ) : (
+                <div className="text-[11.5px] text-slate-500 py-1">
+                  Holidays counted as regular work days
+                </div>
+              )}
+            </div>
+
+            {/* Effective Working Days Result (3 cols) */}
+            <div className="md:col-span-3 flex flex-col justify-center bg-slate-50 rounded-lg p-2.5 border border-slate-200/80">
+              <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Effective Work Days</span>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <span className="text-lg font-bold font-figure text-[#003857] tabular-nums">{effectiveWorkDays}</span>
+                <span className="text-xs font-medium text-slate-600">days in month</span>
+              </div>
+              <span className="text-[10.5px] text-slate-500 truncate">
+                {tForm.excludeHolidays && tForm.holidayDaysCount > 0
+                  ? `${tForm.workDaysInMonth} base − ${tForm.holidayDaysCount} hol.`
+                  : `${tForm.workDaysInMonth} days full count`}
+              </span>
+            </div>
+          </div>
+
+          {/* Daily, Weekly, Monthly & Quarterly Target Points Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
             {([
               ['branchDailyTarget', 'Branch · Daily'],
@@ -2533,6 +3225,15 @@ const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                 )}
               </div>
             ))}
+          </div>
+
+          <div className="text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
+            <span>
+              Target formula: Staff Monthly = Daily ({tForm.staffDailyTarget} pts) × {effectiveWorkDays} work days = <strong className="text-slate-800">{Math.round(tForm.staffDailyTarget * effectiveWorkDays)} pts</strong>
+            </span>
+            <span>
+              Branch Monthly = Daily ({tForm.branchDailyTarget} pts) × {effectiveWorkDays} work days = <strong className="text-slate-800">{Math.round(tForm.branchDailyTarget * effectiveWorkDays)} pts</strong>
+            </span>
           </div>
         </div>
 
