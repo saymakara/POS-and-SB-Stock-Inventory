@@ -756,10 +756,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   labels={topBranchesChart.labels}
                   series1Label="POS Terminal Units"
                   series1Data={topBranchesChart.posSeries}
-                  series1Color="#003857"
+                  series1Color="#0284c7"
                   series2Label="Sound Box Units"
                   series2Data={topBranchesChart.sbSeries}
-                  series2Color="#3b8fc4"
+                  series2Color="#8b5cf6"
                   height={240}
                   theme="light"
                 />

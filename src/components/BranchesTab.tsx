@@ -584,7 +584,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           {/* Sound Box Count */}
                           <td className="py-3 px-3.5 text-center">
                             <div className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-800">
-                              <Volume2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                              <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                               <span>{b.sbCount}</span>
                             </div>
                           </td>

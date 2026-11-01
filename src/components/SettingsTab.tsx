@@ -10,6 +10,8 @@ import {
   TelegramRegionalGroup,
 } from '../types';
 import { LogoPageTab } from './LogoPageTab';
+import { KpiRulesAdminSection } from './KpiRulesAdminSection';
+import { KpiPointRule, KpiTargets, fetchKpiSummary } from '../services/kpiService';
 // (31 Oct 2026) System Health: loaded only when that section is opened
 const SystemHealthPanel = React.lazy(() => import('./SystemHealthPanel'));
 import {
@@ -63,10 +65,12 @@ import {
   Send,
   Edit2,
   Activity,
+  Target,
 } from 'lucide-react';
 
 export type SettingsSubTab =
   | 'policy'
+  | 'kpi'
   | 'brand_logo'
   | 'hardware'
   | 'sla'
@@ -136,6 +140,41 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     getTelegramDetectedChats()
   );
   const [isDeleteConnectionModalOpen, setIsDeleteConnectionModalOpen] = useState(false);
+
+  const [kpiRules, setKpiRules] = useState<KpiPointRule[]>([]);
+  const [kpiTargets, setKpiTargets] = useState<KpiTargets | null>(null);
+  const [loadingKpi, setLoadingKpi] = useState(false);
+
+  useEffect(() => {
+    if (activeSubTab === 'kpi' && !kpiTargets) {
+      setLoadingKpi(true);
+      fetchKpiSummary(null, null)
+        .then((data) => {
+          setKpiRules(data.rules || []);
+          setKpiTargets(data.targets);
+        })
+        .catch((err) => {
+          console.error('Failed to load KPI settings', err);
+          onToast?.('Failed to load KPI settings');
+        })
+        .finally(() => {
+          setLoadingKpi(false);
+        });
+    }
+  }, [activeSubTab, kpiTargets, onToast]);
+
+  const handleRuleSaved = (updated: KpiPointRule) => {
+    setKpiRules((prev) => {
+      const exists = prev.some((r) => r.code === updated.code);
+      return exists
+        ? prev.map((r) => (r.code === updated.code ? updated : r))
+        : [...prev, updated].sort((a, b) => a.sortOrder - b.sortOrder);
+    });
+  };
+
+  const handleTargetsSaved = (updated: KpiTargets) => {
+    setKpiTargets(updated);
+  };
 
   const handleRemoveDetectedChat = (chatIdToRemove: string) => {
     const updated = tgDetectedChats.filter((c) => c.id !== chatIdToRemove);
@@ -470,6 +509,30 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
         <button
           type="button"
+          onClick={() => handleSubTabSelect('kpi')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+            activeSubTab === 'kpi'
+              ? 'tab-active-blue text-white shadow-xs'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
+          }`}
+        >
+          <Target className="w-4 h-4 text-[#003857]" />
+          <span>KPI Points &amp; Rules</span>
+          {kpiRules.length > 0 && (
+            <span
+              className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                activeSubTab === 'kpi'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-[#003857]/10 text-[#003857]'
+              }`}
+            >
+              {kpiRules.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
           onClick={() => handleSubTabSelect('brand_logo')}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
             activeSubTab === 'brand_logo'
@@ -571,6 +634,30 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       {/* Main Settings Sections */}
       <div className="space-y-6">
+        {/* SUBTAB: KPI Points & Rules */}
+        {activeSubTab === 'kpi' && (
+          <div className="space-y-6">
+            {loadingKpi && !kpiTargets ? (
+              <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#003857] mb-2" />
+                <p className="text-xs text-slate-500 font-medium">Loading KPI point rules and target settings...</p>
+              </div>
+            ) : kpiTargets ? (
+              <KpiRulesAdminSection
+                isAdmin={role === 'SUPER_ADMIN'}
+                rules={kpiRules}
+                targets={kpiTargets}
+                onRuleSaved={handleRuleSaved}
+                onTargetsSaved={handleTargetsSaved}
+                toast={(msg) => onToast?.(msg)}
+              />
+            ) : (
+              <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
+                <p className="text-xs text-rose-500">Could not load KPI settings. Please try again.</p>
+              </div>
+            )}
+          </div>
+        )}
         {/* SUBTAB: System Health (31 Oct 2026) */}
         {activeSubTab === 'health' && (
           <React.Suspense fallback={<div className="text-xs text-slate-500 p-4">Loading System Health…</div>}>

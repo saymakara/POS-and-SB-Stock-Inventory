@@ -146,6 +146,19 @@ export interface KpiDailyBranchRaw {
   ccTasks: number;
 }
 
+export interface KpiDailyStaffRaw {
+  day: string; // YYYY-MM-DD
+  staffId: string;
+  staffName: string;
+  branchId: string;
+  branchName: string;
+  totalTasks: number;
+  posTasks: number;
+  sbTasks: number;
+  khqrTasks: number;
+  ccTasks: number;
+}
+
 export interface KpiDashboardData {
   rules: KpiPointRule[];
   targets: KpiTargets;
@@ -156,6 +169,7 @@ export interface KpiDashboardData {
   quarterly: KpiTimeBucketRaw[];
   monthlyStaff: KpiMonthlyStaffRaw[];
   dailyBranch?: KpiDailyBranchRaw[];
+  dailyStaff?: KpiDailyStaffRaw[];
 }
 
 export interface ComputedPoints {
@@ -280,18 +294,18 @@ function mapRule(r: any): KpiPointRule {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapTargets(t: any): KpiTargets {
   return {
-    branchDailyTarget: Number(t?.branch_daily_target) || 20,
-    branchWeeklyTarget: Number(t?.branch_weekly_target) || 120,
-    branchMonthlyTarget: Number(t?.branch_monthly_target) || 500,
-    branchQuarterlyTarget: Number(t?.branch_quarterly_target) || 1500,
+    branchDailyTarget: Number(t?.branch_daily_target) || 25,
+    branchWeeklyTarget: Number(t?.branch_weekly_target) || 125,
+    branchMonthlyTarget: Number(t?.branch_monthly_target) || 550,
+    branchQuarterlyTarget: Number(t?.branch_quarterly_target) || 1650,
     staffDailyTarget: Number(t?.staff_daily_target) || 5,
-    staffWeeklyTarget: Number(t?.staff_weekly_target) || 30,
-    staffMonthlyTarget: Number(t?.staff_monthly_target) || 120,
-    staffQuarterlyTarget: Number(t?.staff_quarterly_target) || 360,
-    workDaysInMonth: Number(t?.work_days_in_month) || 24,
+    staffWeeklyTarget: Number(t?.staff_weekly_target) || 25,
+    staffMonthlyTarget: Number(t?.staff_monthly_target) || 110,
+    staffQuarterlyTarget: Number(t?.staff_quarterly_target) || 330,
+    workDaysInMonth: Number(t?.work_days_in_month) || 22,
     excludeHolidays: t?.exclude_holidays !== undefined ? Boolean(t.exclude_holidays) : true,
     holidayDaysCount: Number(t?.holiday_days_count) || 0,
-    workingDaysMode: (t?.working_days_mode as any) || 'mon_sat',
+    workingDaysMode: (t?.working_days_mode as any) || 'mon_fri',
     updatedBy: t?.updated_by || null,
     updatedAt: t?.updated_at || null,
   };
@@ -393,6 +407,19 @@ export async function fetchKpiSummary(from: string | null, to: string | null): P
       day: String(r.day || ''),
       branchId: String(r.branch_id || 'UNASSIGNED'),
       activeStaff: Number(r.active_staff) || 0,
+      totalTasks: Number(r.total_tasks) || 0,
+      posTasks: Number(r.pos_tasks) || 0,
+      sbTasks: Number(r.sb_tasks) || 0,
+      khqrTasks: Number(r.khqr_tasks) || 0,
+      ccTasks: Number(r.cc_tasks) || 0,
+    })) : [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dailyStaff: Array.isArray(d.daily_staff) ? d.daily_staff.map((r: any) => ({
+      day: String(r.day || ''),
+      staffId: String(r.staff_id || ''),
+      staffName: String(r.staff_name || r.staff_id || ''),
+      branchId: String(r.branch_id || 'UNASSIGNED'),
+      branchName: String(r.branch_name || 'Unassigned'),
       totalTasks: Number(r.total_tasks) || 0,
       posTasks: Number(r.pos_tasks) || 0,
       sbTasks: Number(r.sb_tasks) || 0,

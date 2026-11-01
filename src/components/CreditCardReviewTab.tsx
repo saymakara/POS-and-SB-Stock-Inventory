@@ -29,7 +29,7 @@ const REVIEW_TABS: { v: CcReview | ''; label: string }[] = [
 ];
 export const CC_REJECT_REASONS = ['Adverse CBC record', 'Incorrect account number', 'Customer details do not match ID',
   'Missing or unclear documents', 'Credit limit not approved', 'Other'];
-const GRID = 'grid items-center gap-x-3 grid-cols-[40px_140px_minmax(190px,1.3fr)_110px_minmax(170px,1fr)_150px_20px]';
+const GRID = 'grid items-center gap-x-3 grid-cols-[36px_130px_minmax(170px,1.2fr)_95px_110px_minmax(140px,1fr)_135px_20px]';
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
 const usd = (n: number | null) => (n === null ? '—' : `USD ${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`);
 const isMissing = (msg: string) => /cc_list|cc_counts|PGRST20[25]|does not exist|schema cache/i.test(msg);
@@ -123,12 +123,13 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
     const label: Record<CcReview, string> = { PENDING: 'Waiting review', CONFIRMED: 'Confirmed', REJECTED: 'Rejected', NO_REVIEW: 'Not onboarded' };
     downloadCsv(`Credit_Card_${review ? label[review].replace(/\s+/g, '_') : 'All'}_${PERIOD_LABEL[period].replace(/\s+/g, '_')}`,
       ['Record ID', 'Date Sent', 'Edited At', 'Request Type', 'Card Status', 'Failure Reason', 'Full Name', 'Contact Number', 'Status of Marriage',
-        'Account Number', 'MID or Acc Number', 'Limit (USD)', 'Repayment', 'Email', 'Supplementary Cards', 'Supplementary Details', 'Cards',
+        'Account Number', 'MID or Acc Number', 'Limit (USD)', 'Repayment', 'Email', 'Supplementary Cards', 'Supplementary Details', 'Cards Requested', 'Confirmed Cards Onboarded',
         'Remarks', 'Photos', 'Staff ID', 'Staff Name', 'Branch Code', 'Branch', 'Review', 'Reject Reason', 'Review Note', 'Reviewed By', 'Reviewed At', 'Telegram Reply'],
       rows.map((e) => [e.recordId, csvTime(e.submittedAt), csvTime(e.editedAt), e.requestType, e.cardStatus, e.failReason, e.fullName, e.contact, e.marital,
         e.primaryAcc, e.midOrAcc, e.limitUsd, e.repayment, e.email, e.supplementary.length,
         e.supplementary.map((x, i) => `${i + 1}. ${x.full_name || ''} · ${x.marital || ''} · ${x.account || ''}${x.email ? ' · ' + x.email : ''}`).join(' | '),
         (e.requestType === 'Add Supplementary Only' ? 0 : e.cardStatus === 'Onboarded Successfully' ? 1 : 0) + e.supplementary.length,
+        e.reviewStatus === 'CONFIRMED' ? ((e.requestType === 'Add Supplementary Only' ? 0 : 1) + e.supplementary.length) : 0,
         e.remarks, e.photoCount, e.staffId, e.staffName, e.branchId, e.branchText, label[e.reviewStatus], e.reviewReason, e.reviewNote, e.reviewedBy,
         csvTime(e.reviewedAt), e.notifyState === 'SENT' ? 'Posted' : e.notifyState === 'FAILED' ? 'Not posted' : e.notifyState ? 'Posting' : '']));
     return rows.length;
@@ -154,41 +155,57 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
 
   return (
     <div className="flex flex-col gap-4 apple-tab-panel" aria-label="Credit Card review">
-      <section className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#003857] text-white flex items-center justify-center"><CreditCard className="w-5 h-5" aria-hidden /></div>
-            <div>
-              <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">Phone App Review<span className="text-slate-500 font-semibold"> · Credit Card</span></h2>
-              <p className="text-xs text-slate-500">
-                {isAdmin ? 'Check each successful onboarding, then Confirm or Reject. The bot replies in the staff group under the entry.' : 'Credit Card entries of your branch and their review result.'}
-              </p>
+      {/* Hero Header & 5 KPI Cards (Push Configuring Hub Backdrop Style) */}
+      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label="Credit Card review">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border bg-white text-slate-700 border-slate-200/90 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>Credit Card Onboarding &amp; Review Pipeline</span>
             </div>
+            <h1 className="text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900">
+              <CreditCard className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />
+              <span>Phone App Review<span className="text-slate-500 font-semibold"> · Credit Card</span></span>
+            </h1>
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
+              {isAdmin ? 'Check each successful onboarding, then Confirm or Reject. The bot replies in the staff group under the entry.' : 'Credit Card entries of your branch and their review result.'}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <select aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value as CcPeriod)}
-              className="text-xs rounded-xl border border-slate-200 bg-white px-2.5 py-2 cursor-pointer">
+              className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs outline-none cursor-pointer">
               {(Object.keys(PERIOD_LABEL) as CcPeriod[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>
             <ExportCsvButton onExport={exportCsv} toast={triggerToast} />
             <button type="button" onClick={refresh} aria-label="Refresh" title="Refresh"
-              className="btn-press p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer transition" data-allow-repeat>
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90" data-allow-repeat>
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" /> : <RefreshCw className="w-3.5 h-3.5 text-slate-600 group-hover:rotate-180 transition-transform duration-300" />}
+              <span>Sync Review</span>
             </button>
           </div>
         </div>
         {loadError === 'SETUP' ? (
-          <div className="py-6 text-center text-sm text-slate-600">
+          <div className="py-6 text-center text-sm text-slate-600 mt-6 pt-6 border-t border-slate-200/90">
             <CreditCard className="w-6 h-6 mx-auto mb-2 text-slate-400" />
             The Credit Card tables are not set up in the database yet. Apply the migration <span className="font-mono text-xs">20261031_11_credit_card_review.sql</span>, then refresh.
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3" aria-label="Credit Card statistics">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mt-6 pt-6 border-t border-slate-200/90" aria-label="Credit Card statistics">
             <Kpi label="Waiting review" value={counts?.pending} sub="Onboarded · to confirm" tone="amber" Icon={Clock} onClick={() => setReview('PENDING')} active={review === 'PENDING'} />
             <Kpi label="Confirmed" value={counts?.confirmed} sub="Checked by Head Office" tone="emerald" Icon={CheckCircle2} onClick={() => setReview('CONFIRMED')} active={review === 'CONFIRMED'} />
             <Kpi label="Rejected" value={counts?.rejected} sub="Returned with a reason" tone="rose" Icon={XCircle} onClick={() => setReview('REJECTED')} active={review === 'REJECTED'} />
             <Kpi label="Not onboarded" value={counts?.noReview} sub="Onboarding failed · no review" tone="slate" Icon={MinusCircle} onClick={() => setReview('NO_REVIEW')} active={review === 'NO_REVIEW'} />
-            <Kpi label="Cards onboarded" value={counts?.cards} sub="Confirmed by Head Office · primary + supplementary" tone="blue" Icon={Users} onClick={() => setReview('')} active={review === ''} />
+            <Kpi
+              label="Cards onboarded"
+              value={counts?.cards}
+              sub={counts && (counts.primaryCards !== undefined || counts.suppCards !== undefined)
+                ? `Confirmed · ${counts.primaryCards ?? 0} primary + ${counts.suppCards ?? 0} supp.`
+                : 'Confirmed by Head Office · primary + supplementary'}
+              tone="blue"
+              Icon={Users}
+              onClick={() => setReview('CONFIRMED')}
+              active={review === 'CONFIRMED'}
+            />
           </div>
         )}
       </section>
@@ -239,6 +256,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
               <span>Date Sent</span>
               <span>Customer / Request</span>
               <span className="text-right">Limit</span>
+              <span className="text-center">Cards (Pri+Supp)</span>
               <span>Staff / Branch</span>
               <span>Review</span>
               <span />
@@ -346,6 +364,34 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
           </span>
         </span>
         <span className="text-right tabular-nums">{supp ? '—' : usd(e.limitUsd)}</span>
+        <span className="text-center">
+          {e.reviewStatus === 'CONFIRMED' ? (
+            <span className="inline-flex flex-col items-center">
+              <span className="font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full text-[11px] leading-tight">
+                {cards} {cards === 1 ? 'card' : 'cards'}
+              </span>
+              <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                {supp ? '0 pri' : '1 pri'}{e.supplementary.length > 0 ? ` + ${e.supplementary.length} supp` : ''}
+              </span>
+            </span>
+          ) : e.reviewStatus === 'PENDING' ? (
+            <span className="inline-flex flex-col items-center">
+              <span className="font-medium text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full text-[11px] leading-tight">
+                {cards} pending
+              </span>
+              <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                {supp ? '0 pri' : '1 pri'}{e.supplementary.length > 0 ? ` + ${e.supplementary.length} supp` : ''}
+              </span>
+            </span>
+          ) : e.reviewStatus === 'REJECTED' ? (
+            <span className="inline-flex flex-col items-center">
+              <span className="font-medium text-rose-600 text-[11px] leading-tight">0 cards</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">Rejected</span>
+            </span>
+          ) : (
+            <span className="text-slate-400 text-xs">—</span>
+          )}
+        </span>
         <span className="leading-tight min-w-0">
           <span className="block truncate">{e.staffName || '—'} <span className="text-slate-500">({e.staffId})</span></span>
           <span className="block text-[11px] text-slate-500 truncate">{e.branchId ? `Code ${e.branchId} · ` : ''}{e.branchText || ''}</span>

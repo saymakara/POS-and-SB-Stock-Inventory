@@ -195,25 +195,28 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
 
   return (
     <div className="flex flex-col gap-3.5 apple-tab-panel">
-      {/* KHQR statistics (this tab shows KHQR only) */}
-      <section className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs" aria-label="KHQR statistics">
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 mr-1">
-            Phone App Review<span className="text-slate-500 font-semibold"> · KHQR</span>
-          </h2>
-          <span
-            className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90"
-            title="New KHQR entries from the phone app are announced as they are saved"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
-            {live ? 'Live' : 'Connected'}
-          </span>
-          <div className="ml-auto flex items-center gap-2">
+      {/* KHQR Hero Statistics (Push Configuring Hub Backdrop Style) */}
+      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label="KHQR statistics">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border bg-white text-slate-700 border-slate-200/90 shadow-2xs">
+              <span className={`w-2 h-2 rounded-full ${live ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              <span>{live ? 'Live Stream · KHQR Merchant Pipeline' : 'Connected · KHQR Merchant Pipeline'}</span>
+            </div>
+            <h1 className="text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900">
+              <QrCode className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />
+              <span>Phone App Review<span className="text-slate-500 font-semibold"> · KHQR</span></span>
+            </h1>
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
+              Live merchant KHQR onboarding stream, materials tracking, and duplicate/wrong-MID inspection from field installations.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value as Period)}
               aria-label="Period"
-              className="btn-press px-3 py-1.5 rounded-xl text-xs border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-slate-400 cursor-pointer"
+              className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs outline-none cursor-pointer"
             >
               {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>
@@ -224,19 +227,20 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
               onClick={() => { load(); loadStats(); setLogKey((k) => k + 1); }}
               aria-label="Refresh"
               title="Refresh KHQR statistics and entries"
-              className="btn-press p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer transition"
+              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90"
             >
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" /> : <RefreshCw className="w-3.5 h-3.5 text-slate-600 group-hover:rotate-180 transition-transform duration-300" />}
+              <span>Sync Stream</span>
             </button>
           </div>
         </div>
         {loadError === 'SETUP' ? (
-          <div className="py-6 text-center text-sm text-slate-600">
+          <div className="py-6 text-center text-sm text-slate-600 mt-6 pt-6 border-t border-slate-200/90">
             <QrCode className="w-6 h-6 mx-auto mb-2 text-slate-400" />
             The KHQR tables are not set up in the database yet. Apply the migration <span className="font-mono text-xs">20261028_02_khqr_installation.sql</span>, then refresh.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3.5 mt-6 pt-6 border-t border-slate-200/90">
             <BigKpiCard
               label="KHQR entries"
               value={summary?.total}

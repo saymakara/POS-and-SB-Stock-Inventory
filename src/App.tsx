@@ -4556,6 +4556,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       userBranchId={selectedBranch}
                       branches={branches}
                       triggerToast={triggerToast}
+                      onNavigateToSettings={(subTab) => {
+                        if (subTab) setSettingsSubTab(subTab as SettingsSubTab);
+                        setActiveTab('settings');
+                      }}
                     />
                   )}
                   {shownTab === 'mobile_sync_cc' && isSupabaseConfigured && (

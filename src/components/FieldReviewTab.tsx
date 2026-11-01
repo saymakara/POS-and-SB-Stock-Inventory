@@ -54,7 +54,7 @@ const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as co
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_128px_minmax(150px,1.1fr)_minmax(130px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
+  'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_128px_minmax(195px,1.3fr)_minmax(130px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
 const CACHE_KEY = 'fe_review_cache_v5';
 
 /** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */
@@ -945,7 +945,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto"
         aria-label="Records"
       >
-        <div className="min-w-[1040px]">
+        <div className="min-w-[1080px]">
           <div
             className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`}
             role="row"
@@ -1191,38 +1191,39 @@ const ReviewRow = memo(function ReviewRow({
           {fmtTime(e.receivedAt)}
         </span>
         <div className="flex flex-col min-w-0 pr-1">
-          <button
-            type="button"
-            onClick={() => onToggle(e.id)}
-            aria-expanded={isOpen}
-            className="text-left font-mono text-slate-800 truncate cursor-pointer hover:underline inline-flex items-center gap-1.5 group"
-            title="Open record details"
-          >
-            <ChevronDown
-              className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${
-                isOpen ? 'rotate-180 text-slate-700' : ''
-              }`}
-              aria-hidden
-            />
-            <span className="truncate font-semibold text-slate-900 group-hover:text-[#003857]">{e.serial}</span>
-          </button>
-
-          <div className="pl-5 mt-0.5 flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onToggle(e.id)}
+              aria-expanded={isOpen}
+              className="text-left font-mono text-slate-800 truncate cursor-pointer hover:underline inline-flex items-center gap-1.5 group shrink-0"
+              title="Open record details"
+            >
+              <ChevronDown
+                className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${
+                  isOpen ? 'rotate-180 text-slate-700' : ''
+                }`}
+                aria-hidden
+              />
+              <span className="font-semibold text-slate-900 group-hover:text-[#003857]">{e.serial}</span>
+            </button>
             <InputMethodBadge method={entry.serial} titlePrefix="Serial" showFallback />
+          </div>
 
-            {e.oldSerial && (
+          {e.oldSerial && (
+            <div className="pl-5 mt-0.5 flex items-center gap-1.5">
               <span
-                className="text-[10px] text-slate-400 font-mono inline-flex items-center gap-1 truncate"
+                className="text-[10px] text-slate-500 font-mono inline-flex items-center gap-1 truncate"
                 title={`Replaces old unit ${e.oldSerial}${entry.oldSerial ? ` (${entry.oldSerial === 'SCAN' ? 'Scanned' : 'Typed'})` : ''}`}
               >
-                <span>←</span>
+                <span className="text-slate-400 font-bold">←</span>
                 <span className="truncate">{e.oldSerial}</span>
                 {entry.oldSerial && (
                   <InputMethodBadge method={entry.oldSerial} titlePrefix="Old Serial" />
                 )}
               </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <span className="min-w-0 leading-snug" title={merchant}>
           <span className="block truncate khmer font-normal text-slate-800">

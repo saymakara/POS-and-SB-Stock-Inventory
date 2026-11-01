@@ -685,124 +685,136 @@ return (
       </datalist>
       )}
 
-      {/* Top CRM Banner */}
+      {/* Top CRM Banner & 4 Executive Cards (Push Configuring Hub Backdrop Style) */}
       <div
-        className={`${cardClass} rounded-xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4`}
+        className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm ${
+          isLight
+            ? 'bg-slate-100 border-slate-200/90 text-slate-900'
+            : 'bg-[#161a24] border-slate-800 text-slate-100'
+        }`}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#003857]/12 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
-            <Store className="w-5 h-5" />
-          </div>
-          <div>
-            <h2
-              className={`text-base sm:text-lg font-bold tracking-tight ${headingClass}`}
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div
+              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${
+                isLight
+                  ? 'bg-white text-slate-700 border-slate-200/90 shadow-2xs'
+                  : 'bg-slate-800/80 text-slate-300 border-slate-700'
+              }`}
             >
-              Merchant Deployment &amp; Hardware Registry
-            </h2>
-            <p className={`text-xs ${subtextClass}`}>
-              Manage merchant accounts (MID) and deployed POS Terminals &amp; Sound Boxes (TID)
+              <span className={`w-2 h-2 rounded-full animate-pulse ${isLight ? 'bg-sky-500' : 'bg-sky-400'}`} />
+              <span>Merchant Deployment &amp; Hardware Registry</span>
+            </div>
+            <h1 className={`text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <Store className={`w-5 h-5 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} />
+              <span>Merchant CRM &amp; Hardware Registry</span>
+            </h1>
+            <p className={`text-xs sm:text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+              Manage merchant accounts (MID) and deployed POS Terminals &amp; Sound Boxes (TID) across all branch networks.
             </p>
           </div>
+
+          <div className="flex items-center flex-wrap gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowTrendChart((prev) => !prev)}
+              className={`group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm border shadow-2xs cursor-pointer ${
+                showTrendChart
+                  ? isLight
+                    ? 'bg-[#003857] text-white border-[#003857]'
+                    : 'bg-white text-[#003857] border-white'
+                  : isLight
+                  ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>{showTrendChart ? 'Hide Trends' : 'Trends Chart'}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowTrendChart((prev) => !prev)}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              showTrendChart
-                ? 'bg-[#003857] text-white border-[#004469]'
-                : isLight
-                ? 'bg-slate-50 hover:bg-slate-100 text-[#003857] border-slate-300'
-                : 'bg-[#001d2e] hover:bg-[#002a42] text-slate-200 border-[#003857]'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>{showTrendChart ? 'Hide Trends' : 'Trends Chart'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 4 CRM Executive Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className={`${cardClass} rounded-xl p-4 flex flex-col justify-between`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-semibold ${subtextClass}`}>
-              Active Merchants
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-[#003857]/12 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center">
-              <Store className="w-4 h-4" />
+        {/* 4 CRM Executive Summary Cards */}
+        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3.5 mt-6 pt-6 border-t ${isLight ? 'border-slate-200/90' : 'border-slate-800'}`}>
+          <div className={`${cardClass} rounded-2xl p-4 flex flex-col justify-between shadow-2xs`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-semibold ${subtextClass}`}>
+                Active Merchants
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-[#003857]/12 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center">
+                <Store className="w-4 h-4" />
+              </div>
+            </div>
+            <div
+              className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
+            >
+              {fmtNum(totalMerchants)}
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+              <span>Registered MIDs</span>
+              <span className="text-emerald-400 font-semibold font-figure">{fmtNum(activeMerchants)} Live</span>
             </div>
           </div>
-          <div
-            className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
-          >
-            {fmtNum(totalMerchants)}
-          </div>
-          <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
-            <span>Registered MIDs</span>
-            <span className="text-emerald-400 font-semibold font-figure">{fmtNum(activeMerchants)} Live</span>
-          </div>
-        </div>
 
-        <div className={`${cardClass} rounded-xl p-4 flex flex-col justify-between`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-semibold ${subtextClass}`}>
-              Device Replacements &amp; Swaps
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/12 text-emerald-400 flex items-center justify-center">
-              <Layers className="w-4 h-4" />
+          <div className={`${cardClass} rounded-2xl p-4 flex flex-col justify-between shadow-2xs`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-semibold ${subtextClass}`}>
+                Device Replacements &amp; Swaps
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/12 text-emerald-400 flex items-center justify-center">
+                <Layers className="w-4 h-4" />
+              </div>
+            </div>
+            <div
+              className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
+            >
+              {bundleMerchants}
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+              <span>POS (2…) &bull; SB (6…)</span>
+              <span className="text-[#003857] dark:text-[#7cc4ed] font-semibold">Swapped Units</span>
+              {/* Removed Full Suite */}
             </div>
           </div>
-          <div
-            className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
-          >
-            {bundleMerchants}
-          </div>
-          <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
-            <span>POS (2…) &bull; SB (6…)</span>
-            <span className="text-[#003857] dark:text-[#7cc4ed] font-semibold">Swapped Units</span>
-            {/* Removed Full Suite */}
-          </div>
-        </div>
 
-        <div className={`${cardClass} rounded-xl p-4 flex flex-col justify-between`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-semibold ${subtextClass}`}>
-              Pending Installation
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/12 text-amber-400 flex items-center justify-center">
-              <Clock className="w-4 h-4" />
+          <div className={`${cardClass} rounded-2xl p-4 flex flex-col justify-between shadow-2xs`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-semibold ${subtextClass}`}>
+                Pending Installation
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-amber-500/12 text-amber-400 flex items-center justify-center">
+                <Clock className="w-4 h-4" />
+              </div>
+            </div>
+            <div
+              className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
+            >
+              {onboardingMerchants}
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+              <span>Setup / Dispatch</span>
+              <span className="text-amber-400 font-semibold">In Queue</span>
             </div>
           </div>
-          <div
-            className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
-          >
-            {onboardingMerchants}
-          </div>
-          <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
-            <span>Setup / Dispatch</span>
-            <span className="text-amber-400 font-semibold">In Queue</span>
-          </div>
-        </div>
 
-        <div className={`${cardClass} rounded-xl p-4 flex flex-col justify-between`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-semibold ${subtextClass}`}>
-              Support &amp; RMA
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-rose-500/12 text-rose-400 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4" />
+          <div className={`${cardClass} rounded-2xl p-4 flex flex-col justify-between shadow-2xs`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-semibold ${subtextClass}`}>
+                Support &amp; RMA
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-rose-500/12 text-rose-400 flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
             </div>
-          </div>
-          <div
-            className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
-          >
-            {attentionMerchants}
-          </div>
-          <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
-            <span>Faulty / Swap</span>
-            <span className="text-rose-400 font-semibold">Priority</span>
+            <div
+              className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${headingClass}`}
+            >
+              {attentionMerchants}
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+              <span>Faulty / Swap</span>
+              <span className="text-rose-400 font-semibold">Priority</span>
+            </div>
           </div>
         </div>
       </div>

@@ -42,7 +42,17 @@ export interface CcEntry {
   notifiedAt: string | null;
   telegramLink: string | null;
 }
-export interface CcCounts { total: number; pending: number; confirmed: number; rejected: number; noReview: number; cards: number; pendingAll: number }
+export interface CcCounts {
+  total: number;
+  pending: number;
+  confirmed: number;
+  rejected: number;
+  noReview: number;
+  cards: number;
+  primaryCards?: number;
+  suppCards?: number;
+  pendingAll: number;
+}
 export interface CcQuery { from: string | null; to: string | null; review?: CcReview | ''; branchId?: string; search?: string; page: number; pageSize: number }
 
 const map = (r: any): CcEntry => ({
@@ -73,8 +83,17 @@ export async function fetchCcCounts(from: string | null, to: string | null): Pro
   const { data, error } = await supabase.rpc('cc_counts', { p_from: from, p_to: to });
   if (error) throw new Error(error.message);
   const d: any = data || {};
-  const res: CcCounts = { total: Number(d.total) || 0, pending: Number(d.pending) || 0, confirmed: Number(d.confirmed) || 0, rejected: Number(d.rejected) || 0,
-    noReview: Number(d.no_review) || 0, cards: Number(d.cards) || 0, pendingAll: Number(d.pending_all) || 0 };
+  const res: CcCounts = {
+    total: Number(d.total) || 0,
+    pending: Number(d.pending) || 0,
+    confirmed: Number(d.confirmed) || 0,
+    rejected: Number(d.rejected) || 0,
+    noReview: Number(d.no_review) || 0,
+    cards: Number(d.cards) || 0,
+    primaryCards: Number(d.primary_cards) || 0,
+    suppCards: Number(d.supp_cards) || 0,
+    pendingAll: Number(d.pending_all) || 0,
+  };
   setCachedCcCounts(`${from || ''}|${to || ''}`, res);
   return res;
 }
