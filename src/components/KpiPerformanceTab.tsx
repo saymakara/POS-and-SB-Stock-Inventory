@@ -389,8 +389,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const year = parseInt(yStr, 10) || new Date().getFullYear();
     const month = parseInt(mStr, 10) || (new Date().getMonth() + 1);
     const daysInMonth = new Date(year, month, 0).getDate();
-    const today = new Date();
-    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayIso = todayPP();
 
     return Array.from({ length: daysInMonth }, (_, i) => {
       const dayNum = i + 1;
@@ -2702,34 +2701,41 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       setDailySortDir((dir) => (dailySortKey === key ? (dir === 'asc' ? 'desc' : 'asc') : 'desc'));
                                     }}
                                     title={titleText}
-                                    className={`matrix-day-th px-0.5 py-1.5 text-center w-[36px] min-w-[36px] max-w-[36px] cursor-pointer select-none transition-colors border-b border-white/20 ${
+                                    className={`matrix-day-th px-0.5 py-1.5 text-center w-[36px] min-w-[36px] max-w-[36px] cursor-pointer select-none transition-all relative ${
                                       d.isToday
-                                        ? 'bg-sky-500/35 text-white ring-1 ring-inset ring-sky-400/50 hover:bg-sky-500/45'
+                                        ? 'bg-sky-600 text-white ring-2 ring-sky-300 shadow-md z-20 hover:bg-sky-500'
                                         : isHol
-                                        ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30'
+                                        ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30 border-b border-white/20'
                                         : isWk
-                                        ? 'bg-black/20 text-slate-300 hover:bg-black/30'
-                                        : 'text-white hover:bg-white/10'
+                                        ? 'bg-[#002236]/90 text-white hover:bg-[#001d2e] border-x border-sky-900/40 border-b border-white/20'
+                                        : 'text-white hover:bg-white/10 border-b border-white/20'
                                     }`}
                                   >
                                     <div className="leading-tight flex flex-col items-center justify-center">
-                                      <span className="block text-xs font-semibold tabular-nums text-white leading-none">
+                                      <span className={`block text-xs font-semibold tabular-nums leading-none ${
+                                        d.isToday ? 'text-white font-black text-[12.5px]' : isWk ? 'text-white font-bold' : 'text-white'
+                                      }`}>
                                         {d.dayNum}
                                       </span>
                                       <span
                                         className={`block text-[10px] font-medium leading-none mt-1 ${
-                                          isHol
+                                          d.isToday
+                                            ? 'text-sky-100 font-extrabold uppercase tracking-wide text-[9.5px]'
+                                            : isHol
                                             ? 'text-amber-300 font-semibold'
-                                            : isWk
-                                            ? 'text-slate-400'
-                                            : d.isToday
-                                            ? 'text-sky-200 font-medium'
+                                            : d.isSunday
+                                            ? 'text-rose-300 font-bold tracking-wide'
+                                            : d.isSaturday
+                                            ? 'text-sky-300 font-bold tracking-wide'
                                             : 'text-sky-200/90 font-medium'
                                         }`}
                                       >
                                         {isHol ? 'Hol' : d.dayOfWeek}
                                       </span>
                                     </div>
+                                    {d.isToday && (
+                                      <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-3.5 h-1 bg-sky-200 rounded-full shadow-xs" />
+                                    )}
                                   </th>
                                 );
                               })}
@@ -2833,14 +2839,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       return (
                                         <td
                                           key={d.dayNum}
-                                          className={`px-0.5 py-1 text-center w-[36px] min-w-[36px] max-w-[36px] border-r border-slate-100 ${
-                                            isHol
-                                              ? 'bg-amber-50/40'
+                                          className={`px-0.5 py-1 text-center w-[36px] min-w-[36px] max-w-[36px] transition-colors ${
+                                            dayMeta?.isToday
+                                              ? 'bg-sky-50/85 border-x-2 border-sky-400/50 group-hover:bg-sky-100/70 font-medium'
+                                              : isHol
+                                              ? 'bg-amber-50/45 border-r border-slate-100'
                                               : isWk
-                                              ? 'bg-slate-100/60'
-                                              : dayMeta?.isToday
-                                              ? 'bg-sky-50/40'
-                                              : ''
+                                              ? 'bg-slate-100/85 border-r border-slate-200/80'
+                                              : 'border-r border-slate-100'
                                           }`}
                                           title={tooltip}
                                         >
@@ -2906,9 +2912,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   return (
                                     <td
                                       key={d.dayNum}
-                                      className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] tabular-nums font-normal text-[11px] border-r border-slate-200 ${
-                                        count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light'
-                                      } ${d.isHoliday ? 'bg-amber-100/50' : d.isWeekend ? 'bg-slate-200/40' : ''}`}
+                                      className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] tabular-nums text-[11px] ${
+                                        d.isToday
+                                          ? 'bg-sky-100/95 text-sky-950 font-bold border-x-2 border-sky-400/60 shadow-xs'
+                                          : d.isHoliday
+                                          ? 'bg-amber-100/50 text-amber-900 font-medium border-r border-slate-200'
+                                          : d.isWeekend
+                                          ? 'bg-slate-200/70 text-slate-700 font-medium border-r border-slate-300/80'
+                                          : 'border-r border-slate-200 ' + (count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light')
+                                      }`}
                                       title={`All branches on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${count} tasks`}
                                     >
                                       {count > 0 ? count : '·'}
@@ -3113,34 +3125,41 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             setDailyStaffSortDir((dir) => (dailyStaffSortKey === key ? (dir === 'asc' ? 'desc' : 'asc') : 'desc'));
                           }}
                           title={titleText}
-                          className={`matrix-day-th px-0.5 py-1.5 text-center w-[36px] min-w-[36px] max-w-[36px] cursor-pointer select-none transition-colors border-b border-white/20 ${
+                          className={`matrix-day-th px-0.5 py-1.5 text-center w-[36px] min-w-[36px] max-w-[36px] cursor-pointer select-none transition-all relative ${
                             d.isToday
-                              ? 'bg-sky-500/35 text-white ring-1 ring-inset ring-sky-400/50 hover:bg-sky-500/45'
+                              ? 'bg-sky-600 text-white ring-2 ring-sky-300 shadow-md z-20 hover:bg-sky-500'
                               : isHol
-                              ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30'
+                              ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30 border-b border-white/20'
                               : isWk
-                              ? 'bg-black/20 text-slate-300 hover:bg-black/30'
-                              : 'text-white hover:bg-white/10'
+                              ? 'bg-[#002236]/90 text-white hover:bg-[#001d2e] border-x border-sky-900/40 border-b border-white/20'
+                              : 'text-white hover:bg-white/10 border-b border-white/20'
                           }`}
                         >
                           <div className="leading-tight flex flex-col items-center justify-center">
-                            <span className="block text-xs font-semibold tabular-nums text-white leading-none">
+                            <span className={`block text-xs font-semibold tabular-nums leading-none ${
+                              d.isToday ? 'text-white font-black text-[12.5px]' : isWk ? 'text-white font-bold' : 'text-white'
+                            }`}>
                               {d.dayNum}
                             </span>
                             <span
                               className={`block text-[10px] font-medium leading-none mt-1 ${
-                                isHol
+                                d.isToday
+                                  ? 'text-sky-100 font-extrabold uppercase tracking-wide text-[9.5px]'
+                                  : isHol
                                   ? 'text-amber-300 font-semibold'
-                                  : isWk
-                                  ? 'text-slate-400'
-                                  : d.isToday
-                                  ? 'text-sky-200 font-medium'
+                                  : d.isSunday
+                                  ? 'text-rose-300 font-bold tracking-wide'
+                                  : d.isSaturday
+                                  ? 'text-sky-300 font-bold tracking-wide'
                                   : 'text-sky-200/90 font-medium'
                               }`}
                             >
                               {isHol ? 'Hol' : d.dayOfWeek}
                             </span>
                           </div>
+                          {d.isToday && (
+                            <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-3.5 h-1 bg-sky-200 rounded-full shadow-xs" />
+                          )}
                         </th>
                       );
                     })}
@@ -3255,14 +3274,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             return (
                               <td
                                 key={d.dayNum}
-                                className={`px-0.5 py-1 text-center w-[36px] min-w-[36px] max-w-[36px] border-r border-slate-100 ${
-                                  isHol
-                                    ? 'bg-amber-50/40'
+                                className={`px-0.5 py-1 text-center w-[36px] min-w-[36px] max-w-[36px] transition-colors ${
+                                  dayMeta?.isToday
+                                    ? 'bg-sky-50/85 border-x-2 border-sky-400/50 group-hover:bg-sky-100/70 font-medium'
+                                    : isHol
+                                    ? 'bg-amber-50/45 border-r border-slate-100'
                                     : isWk
-                                    ? 'bg-slate-100/60'
-                                    : dayMeta?.isToday
-                                    ? 'bg-sky-50/40'
-                                    : ''
+                                    ? 'bg-slate-100/85 border-r border-slate-200/80'
+                                    : 'border-r border-slate-100'
                                 }`}
                                 title={tooltip}
                               >
@@ -3337,9 +3356,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         return (
                           <td
                             key={d.dayNum}
-                            className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] tabular-nums font-normal text-[11px] border-r border-slate-200 ${
-                              count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light'
-                            } ${d.isHoliday ? 'bg-amber-100/50' : d.isWeekend ? 'bg-slate-200/40' : ''}`}
+                            className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] tabular-nums text-[11px] ${
+                              d.isToday
+                                ? 'bg-sky-100/95 text-sky-950 font-bold border-x-2 border-sky-400/60 shadow-xs'
+                                : d.isHoliday
+                                ? 'bg-amber-100/50 text-amber-900 font-medium border-r border-slate-200'
+                                : d.isWeekend
+                                ? 'bg-slate-200/70 text-slate-700 font-medium border-r border-slate-300/80'
+                                : 'border-r border-slate-200 ' + (count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light')
+                            }`}
                             title={`All staff on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${count} tasks`}
                           >
                             {count > 0 ? count : '·' }
