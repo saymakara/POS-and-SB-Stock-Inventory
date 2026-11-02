@@ -300,12 +300,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
               ) : (
                 <History className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857] dark:text-[#5cc8ff]" aria-hidden="true" />
               )}
-              <span>
-                Staff &amp; Admin Audit Log
-                <span className="text-slate-500 dark:text-slate-400 font-semibold text-xl sm:text-2xl lg:text-[26px]">
-                  {' '}· {serverMode ? 'Server Records' : 'Local Activity'}
-                </span>
-              </span>
+              <span>Staff &amp; Admin Audit Log</span>
             </h1>
 
             <p className="text-sm sm:text-base leading-relaxed text-slate-600 dark:text-slate-300">
