@@ -442,56 +442,56 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     switch (activeSubTab) {
       case 'brand_logo':
         return {
-          icon: <Sparkles className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
           title: 'Brand & Logo Studio',
           subtitle: 'Portal Branding, Logos & Live Mockups',
           desc: 'Select brand presets, upload custom logos, configure institution titles, and review responsive application mockups.',
         };
       case 'kpi':
         return {
-          icon: <Target className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Target className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
           title: 'KPI Points & Rules',
           subtitle: 'Institutional Targets & Scoring Matrix',
           desc: 'Configure point weights, operational SLA targets, monthly goals, and role-based performance evaluation parameters.',
         };
       case 'hardware':
         return {
-          icon: <Layers className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Layers className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
           title: 'Serial Standards & Allocation',
           subtitle: 'Hardware Prefixes & Model Formats',
           desc: 'Manage hardware serial prefixes, validation patterns, and model stock allocation rules across warehouses.',
         };
       case 'sla':
         return {
-          icon: <Clock className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Clock className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
           title: 'SLA & Turnaround Policies',
           subtitle: 'Operational SLAs & Escalation Timers',
           desc: 'Define service level agreements, turnaround targets for technician visits, and resolution escalations.',
         };
       case 'customFields':
         return {
-          icon: <SlidersHorizontal className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <SlidersHorizontal className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
           title: 'Custom & Dynamic Fields',
           subtitle: 'Schema Extensions & Field Governance',
           desc: 'Manage dynamic metadata fields, validation constraints, and operational tags across devices and merchants.',
         };
       case 'data':
         return {
-          icon: <Database className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Database className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
           title: 'Data Backup & Export',
           subtitle: 'Snapshots, Export & Reset Controls',
           desc: 'Manage full system backups, export audit records, and securely administer database restore points.',
         };
       case 'security':
         return {
-          icon: <Lock className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Lock className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
           title: 'Security, Branding & Telegram',
           subtitle: 'Access Controls & Bot Notifications',
           desc: 'Configure notification channels, Telegram bot alerts, audit log policies, and institutional access security.',
         };
       case 'health':
         return {
-          icon: <Activity className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Activity className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
           title: 'System Health & Telemetry',
           subtitle: 'Database Connectivity & Services Status',
           desc: 'Real-time health telemetry across Supabase database tables, edge functions, API latency, and queue states.',
@@ -499,7 +499,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       case 'policy':
       default:
         return {
-          icon: <Settings className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          icon: <Settings className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
           title: 'System & Policy Settings',
           subtitle: 'FinTech Acquiring & Terminal Governance',
           desc: 'Configure 15-digit MID validation, 24-month POS battery lifecycle policies, operational SLA targets, hardware serial numbering standards, and data backup controls.',
@@ -516,16 +516,16 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       >
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
-            <h1 className="text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900 leading-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
               {headerInfo.icon}
               <span>
                 {headerInfo.title}{' '}
-                <span className="text-slate-500 font-semibold text-sm sm:text-base">
+                <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]">
                   · {headerInfo.subtitle}
                 </span>
               </span>
             </h1>
-            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
+            <p className="text-sm sm:text-base leading-relaxed text-slate-600">
               {headerInfo.desc}
             </p>
           </div>

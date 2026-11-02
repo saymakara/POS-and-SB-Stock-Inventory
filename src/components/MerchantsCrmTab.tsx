@@ -695,12 +695,12 @@ return (
         }`}
       >
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <h1 className={`text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              <Store className={`w-5 h-5 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} />
+          <div className="space-y-2 max-w-3xl">
+            <h1 className={`text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 ${isLight ? 'text-slate-900' : 'text-white'} leading-tight`}>
+              <Store className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} />
               <span>Merchant CRM &amp; Hardware Registry</span>
             </h1>
-            <p className={`text-xs sm:text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+            <p className={`text-sm sm:text-base leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
               Manage merchant accounts (MID) and deployed POS Terminals &amp; Sound Boxes (TID) across all branch networks.
             </p>
           </div>

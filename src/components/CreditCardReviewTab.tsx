@@ -167,12 +167,15 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
       {/* Hero Header & 5 KPI Cards (Push Configuring Hub Backdrop Style) */}
       <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label="Credit Card review">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <h1 className="text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900">
-              <CreditCard className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />
-              <span>Phone App Review<span className="text-slate-500 font-semibold"> · Credit Card</span></span>
+          <div className="space-y-2 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
+              <CreditCard className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+              <span>
+                Phone App Review
+                <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]"> · Credit Card</span>
+              </span>
             </h1>
-            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
+            <p className="text-sm sm:text-base leading-relaxed text-slate-600">
               {isAdmin ? 'Check each successful onboarding, then Confirm or Reject. The bot replies in the staff group under the entry.' : 'Credit Card entries of your branch and their review result.'}
             </p>
           </div>

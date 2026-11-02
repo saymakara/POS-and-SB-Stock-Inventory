@@ -1528,11 +1528,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       >
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
-            <h1 className="text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900 leading-tight">
-              <BarChart3 className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />
-              <span>KPI Performance <span className="text-slate-500 font-semibold text-sm sm:text-base">· Branch &amp; Staff Analytics</span></span>
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
+              <BarChart3 className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+              <span>
+                KPI Performance{' '}
+                <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]">
+                  · Branch &amp; Staff Analytics
+                </span>
+              </span>
             </h1>
-            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
+            <p className="text-sm sm:text-base leading-relaxed text-slate-600">
               Live institutional performance tracking across field installations, KHQR merchant onboarding, and credit card acquisitions.
             </p>
           </div>

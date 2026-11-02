@@ -708,9 +708,9 @@ export const FieldReviewTab: React.FC<Props> = ({
         aria-label="Filters"
       >
         <div className="flex flex-wrap items-center gap-2">
-          <div className="mr-2 flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">
-              Phone App Review{deviceType ? <span className="text-slate-500 font-semibold"> · {deviceType}</span> : null}
+          <div className="mr-2 flex items-center gap-2.5">
+            <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
+              Phone App Review{deviceType ? <span className="text-slate-500 font-semibold text-lg sm:text-xl"> · {deviceType}</span> : null}
             </h2>
             <span
               className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90"

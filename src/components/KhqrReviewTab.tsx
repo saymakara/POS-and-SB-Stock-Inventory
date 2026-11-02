@@ -195,12 +195,15 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       {/* KHQR Hero Statistics (Push Configuring Hub Backdrop Style) */}
       <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label="KHQR statistics">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <h1 className="text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900">
-              <QrCode className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />
-              <span>Phone App Review<span className="text-slate-500 font-semibold"> · KHQR</span></span>
+          <div className="space-y-2 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
+              <QrCode className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+              <span>
+                Phone App Review
+                <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]"> · KHQR</span>
+              </span>
             </h1>
-            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
+            <p className="text-sm sm:text-base leading-relaxed text-slate-600">
               Live merchant KHQR onboarding stream, materials tracking, and duplicate/wrong-MID inspection from field installations.
             </p>
           </div>
