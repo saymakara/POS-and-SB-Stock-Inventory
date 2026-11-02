@@ -2251,7 +2251,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         <th className="py-2.5 px-3">Device Type</th>
                         <th className="py-2.5 px-3">Model</th>
                         <th className="py-2.5 px-3">Battery Serial</th>
-                        <th className="py-2.5 px-3">Branch Code &amp; Name</th>
+                        <th className="py-2.5 px-3">Branch Name &amp; Code</th>
                         <th className="py-2.5 px-3">Lifecycle Stage</th>
                         {isStaffColVisible && <th className="py-2.5 px-3">Assigned Staff</th>}
                         {isMerchantColVisible && <th className="py-2.5 px-3">Merchant / MID</th>}
@@ -2329,9 +2329,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               isLight ? 'text-slate-700' : 'text-slate-300'
                             }`}
                           >
-                            <span className="font-mono font-bold">Code {item.branchId}</span>
-                            <span className="text-slate-400 ml-1 text-[11px]">
-                              ({item.branchName})
+                            <span>{item.branchName}</span>
+                            <span className="font-mono text-slate-400 ml-1 text-[11px]">
+                              (Code {item.branchId})
                             </span>
                           </td>
                           <td className="py-1.5 px-3 whitespace-nowrap">

@@ -832,8 +832,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <thead className="glass-table-thead text-[11px] font-extrabold uppercase text-white">
                 <tr>
                   <th className="py-3 px-3 w-10 text-right">No.</th>
-                  <SortTh k="code" sort={dbSort} onSort={dbToggle} className="py-3 px-4">Branch Code</SortTh>
                   <SortTh k="name" sort={dbSort} onSort={dbToggle} className="py-3 px-4">Branch Name</SortTh>
+                  <SortTh k="code" sort={dbSort} onSort={dbToggle} className="py-3 px-4">Branch Code</SortTh>
                   <SortTh k="pos" sort={dbSort} onSort={dbToggle} align="center" className="py-3 px-3 text-center">POS Terminals</SortTh>
                   <SortTh k="sb" sort={dbSort} onSort={dbToggle} align="center" className="py-3 px-3 text-center">Sound Boxes</SortTh>
                   <SortTh k="reserve" sort={dbSort} onSort={dbToggle} align="center" className="py-3 px-3 text-center">Branch Reserve</SortTh>
@@ -855,11 +855,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     className="hover:bg-slate-50/90 transition-colors"
                   >
                     <td className="py-2.5 px-3 text-right text-slate-500 tabular-nums">{rowIdx + 1}</td>
-                    <td className="py-2.5 px-4 font-mono font-bold text-zinc-900">
-                      Code {b.code}
-                    </td>
                     <td className="py-2.5 px-4 font-bold text-zinc-900">
                       {b.name}
+                    </td>
+                    <td className="py-2.5 px-4 font-mono font-bold text-zinc-900">
+                      Code {b.code}
                     </td>
                     <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-700">
                       {b.posCount}

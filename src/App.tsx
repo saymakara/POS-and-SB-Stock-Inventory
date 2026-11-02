@@ -212,6 +212,7 @@ const HIDE_STAGE_HEADER_TABS = new Set([
   'iam',
   'audit_log',
   'settings',
+  'branches',
 ]);
 
 const VALID_SETTINGS_SUB_TABS = new Set<SettingsSubTab>([

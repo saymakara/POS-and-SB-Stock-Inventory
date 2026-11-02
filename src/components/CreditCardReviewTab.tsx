@@ -124,13 +124,13 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
     downloadCsv(`Credit_Card_${review ? label[review].replace(/\s+/g, '_') : 'All'}_${PERIOD_LABEL[period].replace(/\s+/g, '_')}`,
       ['Record ID', 'Date Sent', 'Edited At', 'Request Type', 'Card Status', 'Failure Reason', 'Full Name', 'Contact Number', 'Status of Marriage',
         'Account Number', 'MID or Acc Number', 'Limit (USD)', 'Repayment', 'Email', 'Supplementary Cards', 'Supplementary Details', 'Cards Requested', 'Confirmed Cards Onboarded',
-        'Remarks', 'Photos', 'Staff ID', 'Staff Name', 'Branch Code', 'Branch', 'Review', 'Reject Reason', 'Review Note', 'Reviewed By', 'Reviewed At', 'Telegram Reply'],
+        'Remarks', 'Photos', 'Staff ID', 'Staff Name', 'Branch', 'Branch Code', 'Review', 'Reject Reason', 'Review Note', 'Reviewed By', 'Reviewed At', 'Telegram Reply'],
       rows.map((e) => [e.recordId, csvTime(e.submittedAt), csvTime(e.editedAt), e.requestType, e.cardStatus, e.failReason, e.fullName, e.contact, e.marital,
         e.primaryAcc, e.midOrAcc, e.limitUsd, e.repayment, e.email, e.supplementary.length,
         e.supplementary.map((x, i) => `${i + 1}. ${x.full_name || ''} · ${x.marital || ''} · ${x.account || ''}${x.email ? ' · ' + x.email : ''}`).join(' | '),
         (e.requestType === 'Add Supplementary Only' ? 0 : e.cardStatus === 'Onboarded Successfully' ? 1 : 0) + e.supplementary.length,
         e.reviewStatus === 'CONFIRMED' ? ((e.requestType === 'Add Supplementary Only' ? 0 : 1) + e.supplementary.length) : 0,
-        e.remarks, e.photoCount, e.staffId, e.staffName, e.branchId, e.branchText, label[e.reviewStatus], e.reviewReason, e.reviewNote, e.reviewedBy,
+        e.remarks, e.photoCount, e.staffId, e.staffName, e.branchText, e.branchId, label[e.reviewStatus], e.reviewReason, e.reviewNote, e.reviewedBy,
         csvTime(e.reviewedAt), e.notifyState === 'SENT' ? 'Posted' : e.notifyState === 'FAILED' ? 'Not posted' : e.notifyState ? 'Posting' : '']));
     return rows.length;
   };
@@ -390,7 +390,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
         </span>
         <span className="leading-tight min-w-0">
           <span className="block truncate">{e.staffName || '—'} <span className="text-slate-500">({e.staffId})</span></span>
-          <span className="block text-[11px] text-slate-500 truncate">{e.branchId ? `Code ${e.branchId} · ` : ''}{e.branchText || ''}</span>
+          <span className="block text-[11px] text-slate-500 truncate">{e.branchText ? `${e.branchText}${e.branchId ? ` · Code ${e.branchId}` : ''}` : (e.branchId ? `Code ${e.branchId}` : '')}</span>
         </span>
         <span className="leading-tight"><StatusChip s={e.reviewStatus} />{e.editedAt && <span className="block text-[11px] text-slate-500 mt-0.5">edited {fmt(e.editedAt)}</span>}</span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />

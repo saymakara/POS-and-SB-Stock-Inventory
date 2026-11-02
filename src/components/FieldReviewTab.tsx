@@ -506,10 +506,10 @@ export const FieldReviewTab: React.FC<Props> = ({
     if (!list.length) return 0;
     downloadCsv(`Phone_App_Review_${typeFilter === 'Sound Box' ? 'Sound_Box' : typeFilter === 'POS Terminal' ? 'POS_Terminal' : 'All'}`,
       ['Record ID', 'Device No', 'Revision', 'Date Sent', 'Recorded At', 'Device Type', 'Record Type', 'Serial', 'Old Serial', 'Old Battery', 'New Battery',
-        'MID', 'TID', 'Terminal Name', 'Outlet Name', 'Staff ID', 'Staff Name', 'Branch Code', 'Branch', 'Latitude', 'Longitude', 'Warnings',
+        'MID', 'TID', 'Terminal Name', 'Outlet Name', 'Staff ID', 'Staff Name', 'Branch', 'Branch Code', 'Latitude', 'Longitude', 'Warnings',
         'Status', 'Reviewed By', 'Reviewed At', 'Review Note', 'Remarks'],
       list.map((e) => [e.sourceRecordId, e.unitNo, e.revision, csvTime(e.receivedAt), csvTime(e.recordedAt), devType(e), KIND_LABEL[e.kind] || e.kind,
-        e.serial, e.oldSerial, e.oldBattery, e.newBattery, e.mid, e.tid, e.terminalName, e.outletName, e.staffId, e.staffName, e.branchId, e.branchText,
+        e.serial, e.oldSerial, e.oldBattery, e.newBattery, e.mid, e.tid, e.terminalName, e.outletName, e.staffId, e.staffName, e.branchText, e.branchId,
         e.latitude, e.longitude, (e.issues || []).map((i) => i.text).join(' | '), STATUS_LABEL[e.status] || e.status, e.reviewedByName,
         csvTime(e.reviewedAt), e.reviewNote, e.remarks]));
     return list.length;

@@ -234,12 +234,21 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
   };
 }
 
-// ───────────── In-memory cache (0ms tab opening & instant period switching) ─────────────
+// ───────────── In-memory & Session cache (0ms instant tab opening & instant switching) ─────────────
 const summaryCache = new Map<string, KpiDashboardData>();
+const SESSION_CACHE_PREFIX = 'kpi_summary_cache_v2_';
 let owner: string | null | undefined;
 
 export function clearKpiCache(): void {
   summaryCache.clear();
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith(SESSION_CACHE_PREFIX)) {
+        sessionStorage.removeItem(key);
+      }
+    }
+  } catch { /* ignore */ }
 }
 
 if (isSupabaseConfigured) {
@@ -253,9 +262,28 @@ if (isSupabaseConfigured) {
 }
 
 export const kpiCacheKey = (from: string | null, to: string | null) => `${from || ''}|${to || ''}`;
-export const getCachedKpiSummary = (from: string | null, to: string | null) => summaryCache.get(kpiCacheKey(from, to));
-export const setCachedKpiSummary = (from: string | null, to: string | null, d: KpiDashboardData) => {
-  summaryCache.set(kpiCacheKey(from, to), d);
+
+export const getCachedKpiSummary = (from: string | null, to: string | null): KpiDashboardData | undefined => {
+  const key = kpiCacheKey(from, to);
+  const mem = summaryCache.get(key);
+  if (mem) return mem;
+  try {
+    const raw = sessionStorage.getItem(SESSION_CACHE_PREFIX + key);
+    if (raw) {
+      const parsed = JSON.parse(raw) as KpiDashboardData;
+      summaryCache.set(key, parsed);
+      return parsed;
+    }
+  } catch { /* ignore storage errors */ }
+  return undefined;
+};
+
+export const setCachedKpiSummary = (from: string | null, to: string | null, d: KpiDashboardData): void => {
+  const key = kpiCacheKey(from, to);
+  summaryCache.set(key, d);
+  try {
+    sessionStorage.setItem(SESSION_CACHE_PREFIX + key, JSON.stringify(d));
+  } catch { /* ignore quota errors */ }
 };
 
 export function patchCachedKpiRule(rule: KpiPointRule): void {

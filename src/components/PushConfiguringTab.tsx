@@ -822,8 +822,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       'Merchant Name & MID',
       'Configure By (Staff)',
       'Assigned By',
-      'Branch Code',
       'Branch Name',
+      'Branch Code',
       'Action Required',
     ];
     const rows = tg.devices.map((dev, idx) => {
@@ -843,8 +843,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         merchantMidTid,
         staffName,
         assignedBy,
-        dev.branchId,
         bName,
+        dev.branchId,
         'OPEN device and connect to network to wait for App Push',
       ];
     });
@@ -871,8 +871,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
       'Merchant Name & MID',
       'Configure By (Staff)',
       'Assigned By',
-      'Branch Code',
       'Branch Name',
+      'Branch Code',
       'Action Required',
     ];
     const rows = selectedDevices.map((dev, idx) => {
@@ -890,8 +890,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
         merchantMidTid,
         staffName,
         assignedBy,
-        dev.branchId,
         bName,
+        dev.branchId,
         'OPEN device and connect to network to wait for App Push',
       ];
     });

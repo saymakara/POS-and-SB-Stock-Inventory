@@ -633,7 +633,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
       'MID',
       'Merchant Name',
       'Staff Name',
-      'Branch Code & Name',
+      'Branch Name & Code',
       'Device Type',
       'Serial Number',
       'Installed Date',
@@ -642,7 +642,7 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     const rows = filteredMerchants.map((m, idx) => {
       const statusLabel = m.crmStatus === 'ONBOARDING' ? 'Pending install' : m.crmStatus === 'ATTENTION' ? 'Faulty / RMA' : 'Live';
       const installDate = m.devices.find((d) => Boolean(d.deployedDate))?.deployedDate || '—';
-      const branchFormatted = `${m.branchId} · ${formatBranchName(m.branchName)}`;
+      const branchFormatted = `${formatBranchName(m.branchName)} · ${m.branchId}`;
       const typeDisplay = [
         m.posCount > 0 ? `POS Terminal${m.posCount > 1 ? ` ×${m.posCount}` : ''}` : '',
         m.sbCount > 0 ? `Sound Box${m.sbCount > 1 ? ` ×${m.sbCount}` : ''}` : '',
@@ -1168,7 +1168,7 @@ return (
                         {dash(m.accountOfficer)}
                       </div>
                       <div className="cell-sub max-w-[190px] truncate">
-                        Code {m.branchId} · {formatBranchName(m.branchName)}
+                        {formatBranchName(m.branchName)} · Code {m.branchId}
                       </div>
                     </td>
                     <td className="whitespace-nowrap">

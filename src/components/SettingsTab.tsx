@@ -438,62 +438,126 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     e.target.value = '';
   };
 
+  const headerInfo = (() => {
+    switch (activeSubTab) {
+      case 'brand_logo':
+        return {
+          icon: <Sparkles className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          title: 'Brand & Logo Studio',
+          subtitle: 'Portal Branding, Logos & Live Mockups',
+          desc: 'Select brand presets, upload custom logos, configure institution titles, and review responsive application mockups.',
+        };
+      case 'kpi':
+        return {
+          icon: <Target className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          title: 'KPI Points & Rules',
+          subtitle: 'Institutional Targets & Scoring Matrix',
+          desc: 'Configure point weights, operational SLA targets, monthly goals, and role-based performance evaluation parameters.',
+        };
+      case 'hardware':
+        return {
+          icon: <Layers className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          title: 'Serial Standards & Allocation',
+          subtitle: 'Hardware Prefixes & Model Formats',
+          desc: 'Manage hardware serial prefixes, validation patterns, and model stock allocation rules across warehouses.',
+        };
+      case 'sla':
+        return {
+          icon: <Clock className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          title: 'SLA & Turnaround Policies',
+          subtitle: 'Operational SLAs & Escalation Timers',
+          desc: 'Define service level agreements, turnaround targets for technician visits, and resolution escalations.',
+        };
+      case 'customFields':
+        return {
+          icon: <SlidersHorizontal className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          title: 'Custom & Dynamic Fields',
+          subtitle: 'Schema Extensions & Field Governance',
+          desc: 'Manage dynamic metadata fields, validation constraints, and operational tags across devices and merchants.',
+        };
+      case 'data':
+        return {
+          icon: <Database className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          title: 'Data Backup & Export',
+          subtitle: 'Snapshots, Export & Reset Controls',
+          desc: 'Manage full system backups, export audit records, and securely administer database restore points.',
+        };
+      case 'security':
+        return {
+          icon: <Lock className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          title: 'Security, Branding & Telegram',
+          subtitle: 'Access Controls & Bot Notifications',
+          desc: 'Configure notification channels, Telegram bot alerts, audit log policies, and institutional access security.',
+        };
+      case 'health':
+        return {
+          icon: <Activity className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          title: 'System Health & Telemetry',
+          subtitle: 'Database Connectivity & Services Status',
+          desc: 'Real-time health telemetry across Supabase database tables, edge functions, API latency, and queue states.',
+        };
+      case 'policy':
+      default:
+        return {
+          icon: <Settings className="w-5 h-5 shrink-0 text-[#003857]" aria-hidden />,
+          title: 'System & Policy Settings',
+          subtitle: 'FinTech Acquiring & Terminal Governance',
+          desc: 'Configure 15-digit MID validation, 24-month POS battery lifecycle policies, operational SLA targets, hardware serial numbering standards, and data backup controls.',
+        };
+    }
+  })();
+
   return (
-    <div className="space-y-6">
-      {/* Top Header Card */}
-      <div className="surface-card shadow-md p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-[#003857] flex items-center justify-center text-white shadow-sm shrink-0">
-            {activeSubTab === 'brand_logo' ? (
-              <Sparkles className="w-5 h-5 text-amber-300" />
-            ) : (
-              <Settings className="w-5 h-5 text-sky-300" />
-            )}
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-zinc-900">
-                {activeSubTab === 'brand_logo'
-                  ? 'Brand & Logo Studio'
-                  : 'System & Policy Settings'}
-              </h2>
-              <span className="text-xs font-mono font-bold text-slate-500">
-                {activeSubTab === 'brand_logo'
-                  ? '· Portal Branding, Logos & Live Mockups'
-                  : '· FinTech Acquiring & Terminal Governance'}
+    <div className="flex flex-col gap-5 apple-tab-panel">
+      {/* Hero Header (System Signature Backdrop Style) */}
+      <section
+        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900"
+        aria-label="System Settings"
+      >
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-3xl">
+            <h1 className="text-base sm:text-lg lg:text-xl font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900 leading-tight">
+              {headerInfo.icon}
+              <span>
+                {headerInfo.title}{' '}
+                <span className="text-slate-500 font-semibold text-sm sm:text-base">
+                  · {headerInfo.subtitle}
+                </span>
               </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {activeSubTab === 'brand_logo'
-                ? 'Select brand presets, upload custom logos, configure institution titles, and review responsive application mockups.'
-                : 'Configure 15-digit MID validation, 24-month POS battery lifecycle policies, operational SLA targets, hardware serial numbering standards, and data backup controls.'}
+            </h1>
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
+              {headerInfo.desc}
             </p>
           </div>
+
+          {activeSubTab !== 'brand_logo' && activeSubTab !== 'health' && (
+            <div className="flex items-center gap-2.5 shrink-0">
+              {savedSuccess && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Saved successfully</span>
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!isAdminLike}
+                className="group relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm shadow-2xs cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="w-4 h-4" />
+                <span>Save Configuration</span>
+              </button>
+            </div>
+          )}
         </div>
+      </section>
 
-        {activeSubTab !== 'brand_logo' && activeSubTab !== 'health' && (
-          <div className="flex items-center gap-2.5">
-            {savedSuccess && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold animate-in fade-in">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Saved successfully</span>
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!isAdminLike}
-              className="btn btn-primary"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save Configuration</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Navigation Sub-Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
+      {/* Navigation Sub-Tabs Bar */}
+      <nav
+        className="bg-white rounded-2xl border border-slate-200/90 p-2 shadow-2xs"
+        aria-label="Settings Sub Navigation"
+      >
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
         <button
           type="button"
           onClick={() => handleSubTabSelect('policy')}
@@ -630,7 +694,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <Activity className="w-4 h-4" />
           <span>System Health</span>
         </button>
-      </div>
+        </div>
+      </nav>
 
       {/* Main Settings Sections */}
       <div className="space-y-6">

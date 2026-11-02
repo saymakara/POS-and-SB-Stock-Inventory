@@ -98,9 +98,9 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       const rows = await collectAll((pg1) => fetchQrEntriesPage({ ...filters, page: pg1, pageSize: 1000 }));
       if (!rows.length) return 0;
       downloadCsv(`KHQR_Entries_${tag}`, ['Record ID', 'Date Sent', 'Activity', 'Merchant Name', 'Merchant Name (Khmer)', 'MID', 'QR Expected', 'QR Scanned',
-        'Failed Attempts', 'Staff ID', 'Staff Name', 'Branch Code', 'Branch', 'Location', 'Khan', 'Latitude', 'Longitude', 'Photos', 'Remark', 'Telegram'],
+        'Failed Attempts', 'Staff ID', 'Staff Name', 'Branch', 'Branch Code', 'Location', 'Khan', 'Latitude', 'Longitude', 'Photos', 'Remark', 'Telegram'],
         rows.map((e) => [e.recordId, csvTime(e.submittedAt), QR_ACTIVITY_LABEL[e.activity] || e.activity, e.merchantName, e.merchantNameKh, e.mid, e.qrExpected,
-          e.qrCount, e.failedAttempts, e.staffId, e.staffName, e.branchId, e.branchText, e.location, e.khan, e.latitude, e.longitude, e.photoCount, e.remark, e.telegramLink]));
+          e.qrCount, e.failedAttempts, e.staffId, e.staffName, e.branchText, e.branchId, e.location, e.khan, e.latitude, e.longitude, e.photoCount, e.remark, e.telegramLink]));
       return rows.length;
     }
     if (view === 'failed' || view === 'wrong') {
@@ -112,9 +112,9 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       const sessions = Array.from(new Set(rows.map((r) => r.sessionId).filter(Boolean)));
       for (let i = 0; i < sessions.length; i += 100) (await fetchQrSavedBySessions(sessions.slice(i, i + 100))).forEach((v, k) => saved.set(k, v));
       downloadCsv(view === 'wrong' ? `KHQR_Wrong_Scans_${tag}` : `KHQR_Failed_Attempts_${tag}`,
-        ['Date', 'Kind', 'Activity', 'Staff ID', 'Staff Name', 'Branch Code', 'Branch', 'Expected MID', 'Scanned MID', 'Scanned Merchant', 'QR Scanned Before', 'Saved Later As'],
+        ['Date', 'Kind', 'Activity', 'Staff ID', 'Staff Name', 'Branch', 'Branch Code', 'Expected MID', 'Scanned MID', 'Scanned Merchant', 'QR Scanned Before', 'Saved Later As'],
         rows.map((r) => [csvTime(r.clientAt || r.receivedAt), r.kind === 'WRONG_SCAN' ? 'Wrong scan' : 'Submit blocked', r.activity ? QR_ACTIVITY_LABEL[r.activity] : '',
-          r.staffId, r.staffName, r.branchId, r.branchText, r.expectedMid, r.gotMid, r.gotName, r.scannedCount, saved.get(r.sessionId) || 'Not saved']));
+          r.staffId, r.staffName, r.branchText, r.branchId, r.expectedMid, r.gotMid, r.gotName, r.scannedCount, saved.get(r.sessionId) || 'Not saved']));
       return rows.length;
     }
     const sq = search.toLowerCase();

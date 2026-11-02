@@ -286,8 +286,8 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                 <SortTh k="name" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Staff Name</SortTh>
                 <SortTh k="online" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Live Status</SortTh>
                 <SortTh k="position" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Position</SortTh>
-                <SortTh k="code" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Branch Code</SortTh>
                 <SortTh k="branch" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Branch Name</SortTh>
+                <SortTh k="code" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Branch Code</SortTh>
                 <SortTh k="location" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Location</SortTh>
                 <SortTh k="role" sort={uSort} onSort={uToggle} className="py-3.5 px-3">System Role</SortTh>
                 <SortTh k="status" sort={uSort} onSort={uToggle} className="py-3.5 px-3">Account Status</SortTh>
@@ -342,11 +342,11 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
                         {u.position}
                       </span>
                     </td>
-                    <td className="py-3 px-3 font-mono font-bold text-zinc-900">
-                      {u.branchId}
-                    </td>
                     <td className="py-3 px-3 font-bold text-zinc-900">
                       {resolvedBranchName}
+                    </td>
+                    <td className="py-3 px-3 font-mono font-bold text-zinc-900">
+                      {u.branchId}
                     </td>
                     <td className="py-3 px-3">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-semibold text-[11px]">

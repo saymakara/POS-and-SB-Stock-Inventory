@@ -245,8 +245,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
   const handleExportCsv = () => {
     const headers = [
       'No.',
-      'Branch Code',
       'Branch Name',
+      'Branch Code',
       'POS Terminal',
       'Sound Box',
       'Total Units',
@@ -258,8 +258,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
     ];
     const rows = enrichedBranches.map((b, idx) => [
       String(idx + 1),
-      b.code,
       b.name,
+      b.code,
       String(b.posCount),
       String(b.sbCount),
       String(b.totalDevices),
@@ -499,8 +499,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                 <tr>
                   <th className="py-3 px-3.5 w-10 text-center"><span className="sr-only">Expand</span></th>
                   <th className="py-3 px-3 w-10 text-right">No.</th>
-                  <SortTh k="code" sort={brSort} onSort={brToggle} className="py-3 px-3.5">Branch Code</SortTh>
                   <SortTh k="name" sort={brSort} onSort={brToggle} className="py-3 px-3.5">Branch Name</SortTh>
+                  <SortTh k="code" sort={brSort} onSort={brToggle} className="py-3 px-3.5">Branch Code</SortTh>
                   <SortTh k="pos" sort={brSort} onSort={brToggle} align="center" className="py-3 px-3.5 text-center">POS Terminal</SortTh>
                   <SortTh k="sb" sort={brSort} onSort={brToggle} align="center" className="py-3 px-3.5 text-center">Sound Box</SortTh>
                   <SortTh k="total" sort={brSort} onSort={brToggle} align="center" className="py-3 px-3.5 text-center">Total Units</SortTh>
@@ -555,13 +555,6 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
                           <td className="py-3 px-3 text-right text-slate-500 tabular-nums">{pg.start + rowIdx + 1}</td>
 
-                          {/* Branch Code */}
-                          <td className="py-3 px-3.5 font-mono">
-                            <span className="px-2 py-0.5 rounded-md text-xs font-mono bg-zinc-100 text-zinc-900 border border-zinc-200">
-                                Code {b.code}
-                              </span>
-                          </td>
-
                           {/* Branch Name */}
                           <td className="py-3 px-3.5">
                             <div className="khmer text-zinc-900 text-xs">
@@ -571,6 +564,13 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                               <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                               <span>Phnom Penh</span>
                             </div>
+                          </td>
+
+                          {/* Branch Code */}
+                          <td className="py-3 px-3.5 font-mono">
+                            <span className="px-2 py-0.5 rounded-md text-xs font-mono bg-zinc-100 text-zinc-900 border border-zinc-200">
+                                Code {b.code}
+                              </span>
                           </td>
 
                           {/* POS Terminal Count */}

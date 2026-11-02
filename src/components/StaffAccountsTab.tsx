@@ -565,7 +565,7 @@ export const StaffAccountsTab: React.FC<{
                   System Role
                 </SortTh>
                 <SortTh k="branch" sort={stSort} onSort={stToggle} className="text-left px-3 py-2.5">
-                  Branch Code &amp; Name
+                  Branch Name &amp; Code
                 </SortTh>
                 <SortTh k="location" sort={stSort} onSort={stToggle} className="text-left px-3 py-2.5">
                   Location
@@ -665,7 +665,7 @@ const StaffRow = memo(function StaffRow({
         {ROLE_LABEL[a.role]}
       </td>
       <td className="px-3 py-2.5">
-        {a.branchId} · {branchLabel}
+        {branchLabel} · {a.branchId}
       </td>
       <td className="px-3 py-2.5">
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-semibold text-[11px]">

@@ -780,6 +780,29 @@ table thead th {
 }
 table thead th.col-no { width: 44px; text-align: right; }
 
+/* Clean & Readable KPI Daily Matrix Table Header & Cells */
+.kpi-matrix-table thead th {
+  padding: 8px 6px !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  line-height: 1.25 !important;
+  box-sizing: border-box !important;
+}
+
+.kpi-matrix-table thead th.matrix-day-th {
+  padding: 6px 1px !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  box-sizing: border-box !important;
+}
+
+.kpi-matrix-table tbody td {
+  box-sizing: border-box !important;
+}
+
 /* "transition-all" strictly constrained to composite & paint properties for 60fps performance */
 .transition-all {
   transition-property: background-color, border-color, color, opacity, transform, box-shadow !important;
