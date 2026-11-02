@@ -38,6 +38,7 @@ import {
 import { csvFile } from '../utils/csv';
 import { hasKhmer, isValidMid, serviceLength, statusText } from '../utils/display';
 import { newRecordId } from '../utils/ids';
+import { CopyableRecordId } from './CopyableRecordId';
 import { formatBranchName } from '../utils/format';
 import { todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';
@@ -685,6 +686,11 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                           <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
                           <span>{dash(rec.returnedDate)}</span>
                         </span>
+                        {rec.recordId && (
+                          <div className="mt-0.5">
+                            <CopyableRecordId id={rec.recordId} onCopied={(id) => onToast?.(`Copied Record ID: ${id}`)} />
+                          </div>
+                        )}
                       </td>
                       <td>
                         <div className={`cell-main max-w-[160px] truncate ${hasKhmer(rec.merchantName) ? 'khmer' : ''}`} title={rec.merchantName}>
@@ -776,9 +782,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       <h3 className="text-base font-bold text-white tracking-tight truncate">
                         {dash(selectedRecord.merchantName)}
                       </h3>
-                      <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-white/15 text-white border border-white/20">
-                        {selectedRecord.recordId}
-                      </span>
+                      <CopyableRecordId id={selectedRecord.recordId} variant="pill" onCopied={(id) => onToast?.(`Copied Record ID: ${id}`)} />
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-500/30 text-rose-100 border border-rose-300/30">
                         Decommissioned
                       </span>

@@ -23,6 +23,7 @@ import {
 import { getCachedFieldEvents, setCachedFieldEvents } from '../services/fieldCache';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
+import { CopyableRecordId } from './CopyableRecordId';
 
 /**
  * Phone App Review.
@@ -1169,8 +1170,11 @@ const ReviewRow = memo(function ReviewRow({
             </span>
           )}
         </span>
-        <span className="tabular-nums font-normal text-slate-600 whitespace-nowrap" title={fmtTime(e.receivedAt)}>
-          {fmtTime(e.receivedAt)}
+        <span className="leading-tight min-w-0">
+          <span className="tabular-nums font-normal text-slate-600 whitespace-nowrap block" title={fmtTime(e.receivedAt)}>
+            {fmtTime(e.receivedAt)}
+          </span>
+          {e.sourceRecordId && <CopyableRecordId id={e.sourceRecordId} />}
         </span>
         <div className="flex flex-col min-w-0 pr-1">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -1319,8 +1323,10 @@ const ReviewRow = memo(function ReviewRow({
           >
             <Section title="Field Submission Details">
               <Line k="Record">
-                {e.sourceRecordId}
-                {e.unitNo > 1 ? ` · unit ${e.unitNo}` : ''} · {fmtTime(e.recordedAt)}
+                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                  <CopyableRecordId id={e.sourceRecordId} variant="badge" />
+                  {e.unitNo > 1 ? ` · unit ${e.unitNo}` : ''} · {fmtTime(e.recordedAt)}
+                </span>
               </Line>
               <Line k="Staff">{e.staffName ? `${e.staffName}${e.staffId ? ` (${e.staffId})` : ''}` : ''}</Line>
               <Line k="Entered by">{`Serial: ${howText(entry.serial)} · MID: ${howText(entry.mid)}`}</Line>

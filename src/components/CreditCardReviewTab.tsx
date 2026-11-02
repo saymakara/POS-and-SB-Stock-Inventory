@@ -10,6 +10,7 @@ import { usePager } from '../utils/usePager';
 import { stampPP } from '../utils/time';
 import { Period, periodRange } from '../services/khqrCache';
 import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccListKey, getCachedCcList, setCachedCcList, getCachedCcCounts, setCachedCcCounts, patchCachedCcEntry } from '../services/ccService';
+import { CopyableRecordId } from './CopyableRecordId';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -388,11 +389,23 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
 
   return (
     <div className="hover:bg-slate-50/70">
-      <button type="button" onClick={onToggle} aria-expanded={open} className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer`}>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            onToggle();
+          }
+        }}
+        aria-expanded={open}
+        className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer select-none`}
+      >
         <span className="text-right tabular-nums text-slate-500">{no}</span>
-        <span className="leading-tight">
+        <span className="leading-tight min-w-0">
           <span className="block tabular-nums">{fmt(e.submittedAt)}</span>
-          <span className="block text-[11px] text-slate-500 font-mono truncate">{e.recordId}</span>
+          <CopyableRecordId id={e.recordId} onCopied={(id) => toast(`Copied Record ID: ${id}`)} />
         </span>
         <span className="leading-tight min-w-0">
           <span className="block text-slate-900 truncate">{e.fullName || '—'}</span>
@@ -435,7 +448,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
         </span>
         <span className="leading-tight"><StatusChip s={e.reviewStatus} />{e.editedAt && <span className="block text-[11px] text-slate-500 mt-0.5">edited {fmt(e.editedAt)}</span>}</span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
-      </button>
+      </div>
 
       <AnimatePresence initial={false}>
       {open && (
@@ -448,6 +461,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
           className="px-4 pb-4 pt-1 bg-slate-50/60 border-t border-slate-100"
         >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3 py-3">
+            <Field k="Record ID" v={<CopyableRecordId id={e.recordId} onCopied={(id) => toast(`Copied Record ID: ${id}`)} variant="badge" />} />
             <Field k="Request type" v={e.requestType} />
             {!supp && <Field k="Card status" v={e.cardStatus} />}
             {e.failReason && <Field k="Failure reason" v={e.failReason} />}

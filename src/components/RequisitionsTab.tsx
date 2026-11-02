@@ -32,6 +32,7 @@ import {
   User,
 } from 'lucide-react';
 import { fmtNum, showDateTime } from '../utils/format';
+import { CopyableRecordId } from './CopyableRecordId';
 
 interface RequisitionsTabProps {
   role: UserRole;
@@ -592,14 +593,17 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       </div>
                     </td>
                     <td className="whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRequisition(req)}
-                        className="serial-btn font-mono"
-                        title="View requisition details"
-                      >
-                        {req.reqId}
-                      </button>
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRequisition(req)}
+                          className="serial-btn font-mono"
+                          title="View requisition details"
+                        >
+                          {req.reqId}
+                        </button>
+                        <CopyableRecordId id={req.reqId} />
+                      </div>
                     </td>
                     <td className="whitespace-nowrap">
                       {isReturnReq ? (
@@ -1212,6 +1216,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                           <h3 className="text-base font-bold text-white tracking-tight truncate">
                             {selectedRequisition.reqId}
                           </h3>
+                          <CopyableRecordId id={selectedRequisition.reqId} variant="pill" />
                           <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-white/15 text-white border border-white/20">
                             {selectedRequisition.type === 'STOCK_RETURN' ? 'Stock Return' : 'Stock Request'}
                           </span>

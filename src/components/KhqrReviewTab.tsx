@@ -15,6 +15,7 @@ import {
 import {
   Period, periodRange, attemptsKey, getCachedAttempts, setCachedAttempts, entriesKey, getCachedEntries, setCachedEntries, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory,
 } from '../services/khqrCache';
+import { CopyableRecordId } from './CopyableRecordId';
 
 /**
  * Phone App Review → KHQR (28 Oct 2026).
@@ -668,7 +669,7 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
                         {r.items.map((x) => (
                           <tr key={x.recordId + x.at} className="border-t border-slate-200/70">
                             <td className="py-1.5 pr-3 tabular-nums">{stampSecPP(new Date(x.at))}</td>
-                            <td className="py-1.5 pr-3 font-mono">{x.recordId || '—'}</td>
+                            <td className="py-1.5 pr-3 font-mono"><CopyableRecordId id={x.recordId} /></td>
                             <td className="py-1.5 pr-3">{x.staffName || x.staffId} <span className="text-slate-500 font-mono text-[11px]">{x.staffId}</span></td>
                             <td className="py-1.5 pr-3">{x.branch || '—'}</td>
                             <td className="py-1.5 pr-3">{x.activity ? QR_ACTIVITY_LABEL[x.activity] : '—'}</td>
@@ -791,11 +792,23 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
   const place = [e.location, e.khan].filter(Boolean).join(' · ');
   return (
     <div className="hover:bg-slate-50">
-      <button type="button" onClick={onToggle} aria-expanded={open} className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer relative`}>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            onToggle();
+          }
+        }}
+        aria-expanded={open}
+        className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer relative select-none`}
+      >
         <span className="text-right tabular-nums text-slate-500">{no}</span>
-        <span className="leading-tight">
+        <span className="leading-tight min-w-0">
           <span className="block tabular-nums">{fmt(e.submittedAt)}</span>
-          <span className="block text-[11px] text-slate-500 font-mono truncate">{e.recordId}</span>
+          <CopyableRecordId id={e.recordId} />
         </span>
         <span className="truncate">{QR_ACTIVITY_LABEL[e.activity]}</span>
         <span className="leading-tight min-w-0">
@@ -809,14 +822,14 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
         </span>
         <span className="truncate" title={place}>{place || '—'}</span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
-      </button>
+      </div>
 
       <AnimatePresence initial={false}>
         {open && (
           <motion.div key="d" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={SPRING} className="overflow-hidden">
             <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[13px] text-slate-700">
               <div className="space-y-1.5">
-                <Detail k="Record ID" v={<span className="font-mono">{e.recordId}</span>} />
+                <Detail k="Record ID" v={<CopyableRecordId id={e.recordId} variant="badge" />} />
                 <Detail k="Merchant" v={<>{e.merchantName}{e.merchantNameKh && <span className="block text-slate-500">{e.merchantNameKh}</span>}</>} />
                 <Detail k="MID" v={<span className="font-mono tabular-nums">{e.mid}</span>} />
                 <Detail k="QR materials" v={`${e.qrCount} scanned, all with the same MID`} />

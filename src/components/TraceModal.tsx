@@ -4,6 +4,7 @@ import { X, Search, Cpu, History, ClipboardList, Smartphone, ShieldCheck } from 
 import { Device, HistoricalMerchantRecord, Requisition } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { traceOnServer, FieldEvent, ServerAuditEntry } from '../services/supabaseService';
+import { CopyableRecordId } from './CopyableRecordId';
 
 interface Props {
   query: string;
@@ -90,7 +91,7 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
           <Section icon={<History className="w-3.5 h-3.5 text-slate-600" />} title="Merchant History (past merchants)" count={past.length}>
             {past.map((h) => (
               <div key={h.recordId} className="rounded-lg border border-slate-100 p-2.5 khmer">
-                <div>{h.merchantName} · <span className="font-mono">{h.serial}</span> · {h.status}</div>
+                <div className="flex items-center justify-between gap-2"><div className="min-w-0 truncate">{h.merchantName} · <span className="font-mono">{h.serial}</span> · {h.status}</div><CopyableRecordId id={h.recordId} /></div>
                 <div className="text-slate-500">MID {h.mid || '-'} · TID {h.tid || '-'} · Branch {h.branchId} · {h.installedDate} → {h.returnedDate}</div>
                 <div className="text-slate-500">{h.returnReason}{h.returnedByStaff ? ` · by ${h.returnedByStaff}` : ''}</div>
               </div>
@@ -99,7 +100,7 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
           <Section icon={<ClipboardList className="w-3.5 h-3.5 text-slate-600" />} title="Stock Requests and Returns" count={reqs.length}>
             {reqs.map((r) => (
               <div key={r.reqId} className="rounded-lg border border-slate-100 p-2.5">
-                <div><span className="font-mono">{r.reqId}</span> · {r.type === 'STOCK_RETURN' ? 'Return' : 'Request'} · {r.status.replace('_', ' ')}</div>
+                <div className="flex items-center justify-between gap-2"><div><span className="font-mono">{r.reqId}</span> · {r.type === 'STOCK_RETURN' ? 'Return' : 'Request'} · {r.status.replace('_', ' ')}</div><CopyableRecordId id={r.reqId} /></div>
                 <div className="text-slate-500">{r.date} · Branch {r.branchId} · {r.staff}</div>
               </div>
             ))}
@@ -107,7 +108,7 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
           <Section icon={<Smartphone className="w-3.5 h-3.5 text-slate-600" />} title="Phone App Review records" count={server?.events.length ?? 0}>
             {server === null ? <span className="text-slate-400">Loading…</span> : server.events.map((e) => (
               <div key={e.id} className="rounded-lg border border-slate-100 p-2.5 khmer">
-                <div>{e.kind} · <span className="font-mono">{e.serial}</span> · {e.status}</div>
+                <div className="flex items-center justify-between gap-2"><div>{e.kind} · <span className="font-mono">{e.serial}</span> · {e.status}</div>{e.sourceRecordId && <CopyableRecordId id={e.sourceRecordId} />}</div>
                 <div className="text-slate-500">{e.recordedAt} · MID {e.mid || '-'} · TID {e.tid || '-'} · {e.outletName || '-'} · {e.staffName || '-'}</div>
                 {e.reviewNote && <div className="text-slate-500">Note: {e.reviewNote}</div>}
               </div>
