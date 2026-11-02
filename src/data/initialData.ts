@@ -100,10 +100,10 @@ export const STAGE_META: Record<LifecycleStage, StageInfo> = {
   },
   CONFIGURING: {
     label: 'Under Configuring',
-    badgeClassLight: 'bg-indigo-50 text-indigo-800 border-indigo-200 font-semibold',
-    badgeClassDark: 'bg-slate-800 text-slate-100 border-slate-700 font-semibold',
+    badgeClassLight: 'bg-amber-50 text-amber-800 border-amber-200 font-semibold dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-400/40',
+    badgeClassDark: 'bg-amber-500/20 text-amber-200 border-amber-400/40 font-semibold',
     short: 'Under Configuring',
-    color: '#475569'
+    color: '#f59e0b'
   },
   COMPLETE: {
     label: 'Installed Live',
@@ -121,10 +121,10 @@ export const STAGE_META: Record<LifecycleStage, StageInfo> = {
   },
   LOST: {
     label: 'Device Lost',
-    badgeClassLight: 'bg-amber-50 text-amber-800 border-amber-200 font-semibold',
-    badgeClassDark: 'bg-amber-50 text-amber-800 border-amber-200 font-semibold',
+    badgeClassLight: 'bg-rose-50 text-rose-800 border-rose-200 font-semibold dark:bg-rose-500/20 dark:text-rose-200 dark:border-rose-400/40',
+    badgeClassDark: 'bg-rose-500/20 text-rose-200 border-rose-400/40 font-semibold',
     short: 'Device Lost',
-    color: '#d97706'
+    color: '#be123c'
   }
 };
 
