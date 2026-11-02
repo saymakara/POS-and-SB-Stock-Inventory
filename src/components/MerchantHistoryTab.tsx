@@ -453,30 +453,12 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#003857] text-white flex items-center justify-center shadow-sm shrink-0">
                 <Store className="w-6 h-6 sm:w-6.5 sm:h-6.5 text-white" aria-hidden />
               </div>
-              <span>
-                Historical Merchant Records
-                <span className="text-slate-500 dark:text-slate-400 font-semibold text-xl sm:text-2xl lg:text-[26px]">
-                  {' '}· Archival Ledger
-                </span>
-              </span>
+              <span>Historical Merchant Records</span>
             </h1>
 
             <p className="text-sm sm:text-base leading-relaxed text-slate-600 dark:text-slate-300">
               Complete institutional registry of merchants previously deployed with POS Terminals &amp; Sound Boxes that have since returned devices or ceased operation.
             </p>
-
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/90 shadow-2xs dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Verified Returns Ledger</span>
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-medium bg-white/80 text-slate-700 border border-slate-200/80 shadow-2xs font-mono dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-                {filteredRecords.length} Returned Devices
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-medium bg-white/80 text-slate-600 border border-slate-200/80 shadow-2xs dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
-                POS Terminals &amp; Sound Boxes
-              </span>
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
