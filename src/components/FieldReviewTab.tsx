@@ -1157,7 +1157,7 @@ const ReviewRow = memo(function ReviewRow({
         <span className="text-right text-slate-500 font-mono font-normal tabular-nums">{no}</span>
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-normal text-slate-700">
           <span
-            className={`w-2 h-2 rounded-full ${type === 'Sound Box' ? 'bg-violet-600' : 'bg-sky-600'}`}
+            className={`w-2 h-2 rounded-full ${type === 'Sound Box' ? 'bg-purple-500' : 'bg-sky-500'}`}
             aria-hidden
           />
           {type}

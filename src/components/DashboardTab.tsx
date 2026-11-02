@@ -640,10 +640,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       labels={monthlyChart.labels}
                       series1Label="POS Terminal Installed"
                       series1Data={monthlyChart.pos}
-                      series1Color="#003857"
+                      series1Color="#0284c7"
                       series2Label="Sound Box Installed"
                       series2Data={monthlyChart.sb}
-                      series2Color="#3b8fc4"
+                      series2Color="#8b5cf6"
                       height={240}
                       theme="light"
                     />
@@ -731,11 +731,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-200">
                         <div
                           style={{ width: `${posPct}%` }}
-                          className="h-full bg-[#003857]"
+                          className="h-full bg-sky-500"
                         />
                         <div
                           style={{ width: `${sbPct}%` }}
-                          className="h-full bg-[#3b8fc4]"
+                          className="h-full bg-purple-500"
                         />
                       </div>
                     </button>
@@ -756,10 +756,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   labels={topBranchesChart.labels}
                   series1Label="POS Terminal Units"
                   series1Data={topBranchesChart.posSeries}
-                  series1Color="#38bdf8"
+                  series1Color="#0284c7"
                   series2Label="Sound Box Units"
                   series2Data={topBranchesChart.sbSeries}
-                  series2Color="#003857"
+                  series2Color="#8b5cf6"
                   height={240}
                   theme="light"
                 />
@@ -945,11 +945,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   className="w-full text-left p-3 rounded-xl border bg-slate-50/70 hover:bg-white border-slate-200/80 hover:border-zinc-400 hover:shadow-xs flex items-center justify-between gap-3 transition cursor-pointer"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-800 border border-zinc-200 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 flex items-center justify-center shrink-0">
                       {dev.type === 'POS Terminal' ? (
-                        <Cpu className="w-4 h-4" />
+                        <Cpu className="w-4 h-4 text-sky-600" />
                       ) : (
-                        <Volume2 className="w-4 h-4" />
+                        <Volume2 className="w-4 h-4 text-purple-600" />
                       )}
                     </div>
                     <div className="min-w-0">

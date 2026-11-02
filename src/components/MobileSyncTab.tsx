@@ -1213,9 +1213,9 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5">
                         {currentDevice?.type === 'POS Terminal' ? (
-                          <Cpu className={`w-3.5 h-3.5 ${navyTitleClass}`} />
+                          <Cpu className="w-3.5 h-3.5 text-sky-400" />
                         ) : (
-                          <Volume2 className="w-3.5 h-3.5 text-[#1cc88a]" />
+                          <Volume2 className="w-3.5 h-3.5 text-purple-400" />
                         )}
                         <span>Hardware &amp; Battery Serial</span>
                       </span>
@@ -1809,7 +1809,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                             {isPos ? (
                               <Cpu className="w-4 h-4 text-sky-400" />
                             ) : (
-                              <Volume2 className="w-4 h-4 text-emerald-400" />
+                              <Volume2 className="w-4 h-4 text-purple-400" />
                             )}
                           </div>
                           <div>

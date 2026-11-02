@@ -1034,8 +1034,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                         <Cpu className="w-3 h-3 text-sky-600 dark:text-sky-400" />
                         <span>{inspectedBranch.posCount} POS</span>
                       </span>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-800 dark:text-indigo-300 font-mono font-bold text-[11px]">
-                        <Volume2 className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/60 text-purple-800 dark:text-purple-300 font-mono font-bold text-[11px]">
+                        <Volume2 className="w-3 h-3 text-purple-600 dark:text-purple-400" />
                         <span>{inspectedBranch.sbCount} Sound Box</span>
                       </span>
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 font-mono font-bold text-[11px]">

@@ -382,7 +382,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   {/* POS Terminal Row */}
                   <div className="p-3 sm:px-4 sm:py-3 flex items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-400 border border-[#1e5b88]/20 flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 flex items-center justify-center shrink-0">
                         <Cpu className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
@@ -438,7 +438,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   {/* Sound Box Row */}
                   <div className="p-3 sm:px-4 sm:py-3 flex items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0">
                         <Volume2 className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">

@@ -1508,8 +1508,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   <Cpu className="w-3 h-3 text-sky-600 dark:text-sky-400" />
                   <span>{validPosCount} POS</span>
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-800 dark:text-indigo-300 font-mono font-bold text-[11px]">
-                  <Volume2 className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/60 text-purple-800 dark:text-purple-300 font-mono font-bold text-[11px]">
+                  <Volume2 className="w-3 h-3 text-purple-600 dark:text-purple-400" />
                   <span>{validSbCount} Sound Box</span>
                 </span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 font-mono font-bold text-[11px]">
@@ -1946,11 +1946,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     )}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-[#133e5e] text-white">
+                        <span className="p-1.5 rounded-lg bg-sky-600 text-white">
                           <Cpu className="w-4 h-4" />
                         </span>
                         <div>
-                          <div className="text-xs font-extrabold text-[#133e5e]">
+                          <div className="text-xs font-extrabold text-sky-900 dark:text-sky-300">
                             Field 1: POS Terminal Serials
                           </div>
                           <div className="text-[10px] text-slate-500">
@@ -2062,11 +2062,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     )}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-[#1e5b88] text-white">
+                        <span className="p-1.5 rounded-lg bg-purple-600 text-white">
                           <Volume2 className="w-4 h-4" />
                         </span>
                         <div>
-                          <div className="text-xs font-extrabold text-[#154360]">
+                          <div className="text-xs font-extrabold text-purple-900 dark:text-purple-300">
                             Field 2: Sound Box Serials
                           </div>
                           <div className="text-[10px] text-slate-500">
@@ -2303,7 +2303,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               {item.type === 'POS Terminal' ? (
                                 <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" />
                               ) : (
-                                <Volume2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                               )}
                               <span
                                 className={`font-bold text-xs ${

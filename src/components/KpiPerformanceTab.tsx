@@ -39,8 +39,8 @@ function getKpiRating(pct: number, isManagement = false): KpiRating {
 }
 
 const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
-  'POS Terminal': { hex: '#38bdf8', badge: 'bg-sky-50 text-sky-700 border-sky-200/90', bar: 'bg-sky-400', dot: 'bg-sky-400', Icon: Cpu },
-  'Sound Box': { hex: '#003857', badge: 'bg-blue-50 text-[#003857] border-blue-200/90', bar: 'bg-[#003857]', dot: 'bg-[#003857]', Icon: Volume2 },
+  'POS Terminal': { hex: '#0284c7', badge: 'bg-sky-50 text-sky-700 border-sky-200/90', bar: 'bg-sky-500', dot: 'bg-sky-500', Icon: Cpu },
+  'Sound Box': { hex: '#8b5cf6', badge: 'bg-purple-50 text-purple-700 border-purple-200/90', bar: 'bg-purple-500', dot: 'bg-purple-500', Icon: Volume2 },
   KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', bar: 'bg-teal-600', dot: 'bg-teal-600', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-amber-500', dot: 'bg-amber-500', Icon: CreditCard },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },
@@ -1798,11 +1798,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <div className="px-4 pt-3 pb-4">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-2.5 text-[11px] font-semibold text-slate-700">
                   <span className="inline-flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-sky-400" aria-hidden />
+                    <Cpu className="w-3.5 h-3.5 text-sky-500" aria-hidden />
                     <span>POS Terminal</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-[#003857]" aria-hidden />
+                    <Volume2 className="w-3.5 h-3.5 text-purple-600" aria-hidden />
                     <span>Sound Box</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
@@ -1834,9 +1834,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <stop offset="100%" stopColor="#38bdf8" />
                           </linearGradient>
                           <linearGradient id="kpiSbGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#1e5b88" />
-                            <stop offset="50%" stopColor="#003857" />
-                            <stop offset="100%" stopColor="#002236" />
+                            <stop offset="0%" stopColor="#c084fc" />
+                            <stop offset="100%" stopColor="#8b5cf6" />
                           </linearGradient>
                           <linearGradient id="kpiKhqrGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#14b8a6" />
@@ -1914,11 +1913,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <div className="px-4 pt-3 pb-4">
                 <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 pb-2.5 text-[11px] font-semibold text-slate-700">
                   <span className="inline-flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-sky-400" aria-hidden />
+                    <Cpu className="w-3.5 h-3.5 text-sky-500" aria-hidden />
                     <span>POS</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-[#003857]" aria-hidden />
+                    <Volume2 className="w-3.5 h-3.5 text-purple-600" aria-hidden />
                     <span>Sound Box</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
@@ -1950,9 +1949,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <stop offset="100%" stopColor="#7dd3fc" />
                           </linearGradient>
                           <linearGradient id="kpiBranchSbGrad" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#002236" />
-                            <stop offset="50%" stopColor="#003857" />
-                            <stop offset="100%" stopColor="#1e5b88" />
+                            <stop offset="0%" stopColor="#8b5cf6" />
+                            <stop offset="100%" stopColor="#c084fc" />
                           </linearGradient>
                           <linearGradient id="kpiBranchKhqrGrad" x1="0" y1="0" x2="1" y2="0">
                             <stop offset="0%" stopColor="#0d9488" />
@@ -2374,7 +2372,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <SortableHeader label="Branches" sortKey="activeBranches" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Staff" sortKey="activeStaff" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader icon={<Cpu className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="POS Points" sortKey="posPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-              <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-sky-200 shrink-0" aria-hidden />} label="SB Points" sortKey="sbPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+              <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-purple-300 shrink-0" aria-hidden />} label="SB Points" sortKey="sbPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader icon={<QrCode className="w-3.5 h-3.5 text-teal-300 shrink-0" aria-hidden />} label="KHQR Points" sortKey="khqrPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC Points" sortKey="ccPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader label="Tasks" sortKey="totalTasks" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
@@ -2953,7 +2951,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <SortableHeader label="Branch Code" sortKey="branchId" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Staff" sortKey="staffCount" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader icon={<Cpu className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="POS Points" sortKey="posPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-sky-200 shrink-0" aria-hidden />} label="SB Points" sortKey="sbPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-purple-300 shrink-0" aria-hidden />} label="SB Points" sortKey="sbPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader icon={<QrCode className="w-3.5 h-3.5 text-teal-300 shrink-0" aria-hidden />} label="KHQR Points" sortKey="khqrPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC Points" sortKey="ccPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Pts/Staff" sortKey="ptsPerStaff" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" title="Average KPI points per active staff member in the branch" />
@@ -3390,7 +3388,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <SortableHeader label="Branch Name" sortKey="branchName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch Code" sortKey="branchId" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader icon={<Cpu className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="POS Points" sortKey="posPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
-                  <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-sky-200 shrink-0" aria-hidden />} label="SB Points" sortKey="sbPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-purple-300 shrink-0" aria-hidden />} label="SB Points" sortKey="sbPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader icon={<QrCode className="w-3.5 h-3.5 text-teal-300 shrink-0" aria-hidden />} label="KHQR Points" sortKey="khqrPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC Points" sortKey="ccPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Total Tasks" sortKey="totalTasks" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />

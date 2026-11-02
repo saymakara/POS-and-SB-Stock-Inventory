@@ -985,9 +985,15 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                             </td>
                             <td className="py-2.5 px-4 font-bold">
                               {item.type === 'POS Terminal' ? (
-                                <span className={navyTitleClass}>POS Terminal</span>
+                                <span className="inline-flex items-center gap-1.5 text-sky-600 dark:text-sky-400">
+                                  <Cpu className="w-3.5 h-3.5 shrink-0" />
+                                  POS Terminal
+                                </span>
                               ) : (
-                                <span className="text-[#1cc88a]">Sound Box</span>
+                                <span className="inline-flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
+                                  <Volume2 className="w-3.5 h-3.5 shrink-0" />
+                                  Sound Box
+                                </span>
                               )}
                             </td>
                             <td className="py-2.5 px-4">
