@@ -724,22 +724,22 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
     },
     rose: {
       iconBg: 'bg-rose-50 text-rose-600 border-rose-100',
-      numColor: value && value > 0 ? 'text-rose-600' : 'text-slate-900',
+      numColor: 'text-slate-900',
       hoverStyle: 'hover:border-rose-300 hover:ring-2 hover:ring-rose-100/80',
     },
     orange: {
       iconBg: 'bg-orange-50 text-orange-600 border-orange-100',
-      numColor: value && value > 0 ? 'text-orange-600' : 'text-slate-900',
+      numColor: 'text-slate-900',
       hoverStyle: 'hover:border-orange-300 hover:ring-2 hover:ring-orange-100/80',
     },
     violet: {
       iconBg: 'bg-violet-50 text-violet-600 border-violet-100',
-      numColor: value && value > 0 ? 'text-violet-700' : 'text-slate-900',
+      numColor: 'text-slate-900',
       hoverStyle: 'hover:border-violet-300 hover:ring-2 hover:ring-violet-100/80',
     },
     amber: {
       iconBg: 'bg-amber-50 text-amber-600 border-amber-100',
-      numColor: value && value > 0 ? 'text-amber-600' : 'text-slate-900',
+      numColor: 'text-slate-900',
       hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/80',
     },
   }[accentColor];
