@@ -25,7 +25,6 @@ import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHo
 import { todayPP } from '../utils/time';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
-const CHART_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
 
 type KpiView = 'all' | 'branches' | 'staff' | 'timeline' | 'top10';
 type Granularity = 'daily' | 'weekly' | 'monthly' | 'quarterly';
