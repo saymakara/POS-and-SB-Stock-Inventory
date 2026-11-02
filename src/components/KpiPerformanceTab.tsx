@@ -1311,8 +1311,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     if (!filteredStaff.length) return 0;
     const header = [
       'No.',
-      'Staff ID',
       'Staff Name',
+      'Staff ID',
       'Position',
       'Role / Level',
       'Branch Name',
@@ -1332,8 +1332,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     ];
     const rows = sortedDailyStaffRows.map((r, i) => [
       i + 1,
-      r.staffId,
       r.staffName,
+      r.staffId,
       r.position || '—',
       r.isManagement ? 'Management (Exempt)' : 'Field Officer',
       cleanBranchName(r.branchName),
@@ -1469,11 +1469,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const pTag = KPI_PERIOD_LABEL[period].replace(/[^A-Za-z0-9]+/g, '_');
     downloadCsv(
       `KPI_Individual_Staff_${pTag}`,
-      ['Rank', 'Staff ID', 'Staff Name', 'Position', 'Role / Level', 'Branch Name', 'Branch Code', 'POS Install', 'POS Replace', 'POS Battery', 'POS Points',
+      ['Rank', 'Staff Name', 'Staff ID', 'Position', 'Role / Level', 'Branch Name', 'Branch Code', 'POS Install', 'POS Replace', 'POS Battery', 'POS Points',
         'SB Install', 'SB Replace', 'SB Maint', 'SB Return', 'Sound Box Points', 'KHQR Install', 'KHQR Replace', 'QR Materials', 'KHQR Points',
         'CC Primary', 'CC Supplementary', 'Credit Card Points', 'Quality %', 'Total Tasks', 'Total KPI Points', 'Achievement %', 'Performance'],
       filteredStaff.map((s, i) => [
-        i + 1, s.staffId, s.staffName, s.position || (s.isManagement ? 'Management' : 'MS Officer'), s.isManagement ? 'Management (Exempt)' : 'Field Officer', cleanBranchName(s.branchName), s.branchId, s.posInstall, s.posReplace, s.posBattery, s.posPoints,
+        i + 1, s.staffName, s.staffId, s.position || (s.isManagement ? 'Management' : 'MS Officer'), s.isManagement ? 'Management (Exempt)' : 'Field Officer', cleanBranchName(s.branchName), s.branchId, s.posInstall, s.posReplace, s.posBattery, s.posPoints,
         s.sbInstall, s.sbReplace, s.sbMaint, s.sbReturn, s.sbPoints, s.khqrInstall, s.khqrReplace, s.khqrMaterials, s.khqrPoints,
         s.ccPrimary, s.ccSupp, s.ccPoints, `${s.qualityPct}%`, s.totalTasks, s.totalPoints, s.isManagement ? 'Exempt' : `${s.targetPct}%`, s.rating,
       ])
@@ -2253,10 +2253,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
                 <div className="overflow-x-auto">
                   <div className="min-w-[680px]">
-                    <div className="grid grid-cols-[28px_75px_minmax(130px,1.2fr)_minmax(130px,1.2fr)_80px_95px_80px] items-center gap-2.5 px-4 h-[38px] bg-slate-100/70 border-b border-slate-200/80 text-xs font-semibold normal-case tracking-normal text-slate-600">
+                    <div className="grid grid-cols-[28px_minmax(130px,1.2fr)_75px_minmax(130px,1.2fr)_80px_95px_80px] items-center gap-2.5 px-4 h-[38px] bg-slate-100/70 border-b border-slate-200/80 text-xs font-semibold normal-case tracking-normal text-slate-600">
                       <span className="whitespace-nowrap">No.</span>
-                      <span className="text-center whitespace-nowrap">Staff ID</span>
                       <span className="whitespace-nowrap">Staff Name</span>
+                      <span className="text-center whitespace-nowrap">Staff ID</span>
                       <span className="whitespace-nowrap">Branch Name</span>
                       <span className="text-center whitespace-nowrap">Branch Code</span>
                       <span className="text-center whitespace-nowrap">Mix</span>
@@ -2267,10 +2267,17 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <div className="p-8 text-center text-xs text-slate-400">No staff records in this period.</div>
                       ) : (
                         top10Data.staff.map((s, i) => (
-                          <div key={s.staffId} className="grid grid-cols-[28px_75px_minmax(130px,1.2fr)_minmax(130px,1.2fr)_80px_95px_80px] items-center gap-2.5 px-4 h-[48px] hover:bg-slate-50/80 transition-colors">
+                          <div key={s.staffId} className="grid grid-cols-[28px_minmax(130px,1.2fr)_75px_minmax(130px,1.2fr)_80px_95px_80px] items-center gap-2.5 px-4 h-[48px] hover:bg-slate-50/80 transition-colors">
                             {/* Rank */}
                             <div>
                               <RankBadge rank={i + 1} />
+                            </div>
+
+                            {/* Staff Name */}
+                            <div className="min-w-0 pr-1">
+                              <span className="font-normal text-slate-800 truncate text-[13px] block" title={s.staffName}>
+                                {s.staffName}
+                              </span>
                             </div>
 
                             {/* Staff ID Column */}
@@ -2280,13 +2287,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 title={s.staffId}
                               >
                                 {s.staffId || '—'}
-                              </span>
-                            </div>
-
-                            {/* Staff Name */}
-                            <div className="min-w-0 pr-1">
-                              <span className="font-normal text-slate-800 truncate text-[13px] block" title={s.staffName}>
-                                {s.staffName}
                               </span>
                             </div>
 
@@ -3075,19 +3075,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       No.
                     </th>
                     <th
-                      className="sticky left-[44px] bg-[#003857] z-30 px-2.5 py-2.5 text-left w-[68px] min-w-[68px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
-                      onClick={() => {
-                        setDailyStaffSortKey('staffId');
-                        setDailyStaffSortDir((d) => (dailyStaffSortKey === 'staffId' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
-                      }}
-                    >
-                      <div className="flex items-center gap-1 font-medium text-xs text-white">
-                        <span>Staff ID</span>
-                        <SortIcon active={dailyStaffSortKey === 'staffId'} dir={dailyStaffSortDir} />
-                      </div>
-                    </th>
-                    <th
-                      className="sticky left-[112px] bg-[#003857] z-30 px-3 py-2.5 text-left w-[170px] min-w-[170px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
+                      className="sticky left-[44px] bg-[#003857] z-30 px-3 py-2.5 text-left w-[170px] min-w-[170px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
                       onClick={() => {
                         setDailyStaffSortKey('staffName');
                         setDailyStaffSortDir((d) => (dailyStaffSortKey === 'staffName' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
@@ -3096,6 +3084,18 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       <div className="flex items-center gap-1 font-medium text-xs text-white">
                         <span>Staff Name</span>
                         <SortIcon active={dailyStaffSortKey === 'staffName'} dir={dailyStaffSortDir} />
+                      </div>
+                    </th>
+                    <th
+                      className="sticky left-[214px] bg-[#003857] z-30 px-2.5 py-2.5 text-left w-[68px] min-w-[68px] cursor-pointer select-none hover:bg-white/10 transition-colors border-b border-white/20"
+                      onClick={() => {
+                        setDailyStaffSortKey('staffId');
+                        setDailyStaffSortDir((d) => (dailyStaffSortKey === 'staffId' ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+                      }}
+                    >
+                      <div className="flex items-center gap-1 font-medium text-xs text-white">
+                        <span>Staff ID</span>
+                        <SortIcon active={dailyStaffSortKey === 'staffId'} dir={dailyStaffSortDir} />
                       </div>
                     </th>
                     <th
@@ -3230,11 +3230,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           <td className="sticky left-0 bg-white group-hover:bg-slate-50 z-10 px-2 py-2 text-center tabular-nums text-slate-500 text-xs border-r border-slate-200/60 font-normal">
                             {rank}
                           </td>
-                          <td className="sticky left-[44px] bg-white group-hover:bg-slate-50 z-10 px-2.5 py-2 font-mono text-xs text-slate-700 tabular-nums border-r border-slate-200/60 font-normal">
-                            {row.staffId}
-                          </td>
                           <td
-                            className="sticky left-[112px] bg-white group-hover:bg-slate-50 z-10 px-3 py-2 text-slate-900 border-r border-slate-200/60 font-normal truncate max-w-[170px]"
+                            className="sticky left-[44px] bg-white group-hover:bg-slate-50 z-10 px-3 py-2 text-slate-900 border-r border-slate-200/60 font-normal truncate max-w-[170px]"
                             title={`${row.staffName}${row.position ? ` · ${row.position}` : ''}`}
                           >
                             <span className="flex items-center gap-1.5 min-w-0">
@@ -3246,6 +3243,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 {row.position}
                               </span>
                             )}
+                          </td>
+                          <td className="sticky left-[214px] bg-white group-hover:bg-slate-50 z-10 px-2.5 py-2 font-mono text-xs text-slate-700 tabular-nums border-r border-slate-200/60 font-normal">
+                            {row.staffId}
                           </td>
                           <td
                             className="sticky left-[282px] bg-white group-hover:bg-slate-50 z-10 px-2.5 py-2 font-mono text-xs text-slate-700 shadow-[2px_0_4px_rgba(0,0,0,0.06)] border-r border-slate-200/60 font-normal truncate max-w-[105px]"
@@ -3413,10 +3413,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           <>
             <div className="overflow-x-auto w-full overscroll-x-contain">
               <div className="min-w-[1280px] w-full">
-                <div className="grid items-center gap-x-4 grid-cols-[40px_70px_minmax(160px,1.2fr)_minmax(140px,1.1fr)_75px_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(64px,0.6fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_140px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
+                <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(160px,1.2fr)_70px_minmax(140px,1.1fr)_75px_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(64px,0.6fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_140px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
                   <span className="text-right">No.</span>
-                  <SortableHeader label="Staff ID" sortKey="staffId" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Staff Name" sortKey="staffName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
+                  <SortableHeader label="Staff ID" sortKey="staffId" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch Name" sortKey="branchName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch Code" sortKey="branchId" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader icon={<Cpu className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="POS Points" sortKey="posPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
@@ -3444,12 +3444,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             type="button"
                             onClick={() => setOpenStaff((o) => (o === s.staffId ? null : s.staffId))}
                             aria-expanded={isOpen}
-                            className="grid items-center gap-x-4 grid-cols-[40px_70px_minmax(160px,1.2fr)_minmax(140px,1.1fr)_75px_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(64px,0.6fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_140px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
+                            className="grid items-center gap-x-4 grid-cols-[40px_minmax(160px,1.2fr)_70px_minmax(140px,1.1fr)_75px_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(64px,0.6fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_140px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
                           >
                             <span className="text-right tabular-nums text-slate-500">{rank}</span>
-                            <span className="font-mono text-xs text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/80 tabular-nums inline-block text-center w-fit truncate max-w-full" title={s.staffId}>
-                              {s.staffId || '—'}
-                            </span>
                             <span className="flex items-center gap-2 min-w-0">
                               <span className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 border ${s.isManagement ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-[#1e5b88] border-slate-200/80'}`}>
                                 {s.isManagement ? <ShieldCheck className="w-3.5 h-3.5" aria-hidden /> : <Users className="w-3.5 h-3.5" aria-hidden />}
@@ -3462,6 +3459,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   </span>
                                 )}
                               </span>
+                            </span>
+                            <span className="font-mono text-xs text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/80 tabular-nums inline-block text-center w-fit truncate max-w-full" title={s.staffId}>
+                              {s.staffId || '—'}
                             </span>
                             <span className="block truncate text-slate-800">
                               {cleanBranchName(s.branchName)}
