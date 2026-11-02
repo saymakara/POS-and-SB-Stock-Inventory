@@ -55,7 +55,7 @@ const DOT = { 'POS Terminal': 'bg-[#004E72]', 'Sound Box': 'bg-rose-500' } as co
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_128px_minmax(195px,1.3fr)_minmax(130px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
+  'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_160px_minmax(195px,1.3fr)_minmax(130px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
 const CACHE_KEY = 'fe_review_cache_v5';
 
 /** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */
@@ -928,7 +928,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto"
         aria-label="Records"
       >
-        <div className="min-w-[1080px]">
+        <div className="min-w-[1120px]">
           <div
             className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`}
             role="row"
@@ -960,7 +960,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             <SortBtn k="date" sort={sort} onSort={toggleSort}>
               Date Sent
             </SortBtn>
-            <SortBtn k="serial" sort={sort} onSort={toggleSort}>
+            <SortBtn k="serial" sort={sort} onSort={toggleSort} className="pl-3">
               Serial Number
             </SortBtn>
             <SortBtn k="merchant" sort={sort} onSort={toggleSort}>
@@ -1037,7 +1037,8 @@ const SortBtn: React.FC<{
   onSort: (k: string) => void;
   children: React.ReactNode;
   right?: boolean;
-}> = ({ k, sort, onSort, children, right }) => {
+  className?: string;
+}> = ({ k, sort, onSort, children, right, className = '' }) => {
   const a = sort?.key === k;
   const I = !a ? ChevronsUpDown : sort!.dir === 'asc' ? ArrowUp : ArrowDown;
   return (
@@ -1048,7 +1049,7 @@ const SortBtn: React.FC<{
       title="Sort: ascending, descending, original order"
       className={`inline-flex items-center gap-1 cursor-pointer uppercase font-medium tracking-wider whitespace-nowrap ${
         right ? 'justify-end' : ''
-      }`}
+      } ${className}`}
     >
       <span>{children}</span>
       <I className={`w-3 h-3 shrink-0 ${a ? 'opacity-100 text-sky-300' : 'opacity-65'}`} aria-hidden />
@@ -1176,7 +1177,7 @@ const ReviewRow = memo(function ReviewRow({
           </span>
           {e.sourceRecordId && <CopyableRecordId id={e.sourceRecordId} />}
         </span>
-        <div className="flex flex-col min-w-0 pr-1">
+        <div className="flex flex-col min-w-0 pl-3 pr-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
