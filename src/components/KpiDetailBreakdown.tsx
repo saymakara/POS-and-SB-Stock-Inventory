@@ -48,8 +48,8 @@ export const KPI_BREAKDOWN_TASK_DEFS: KpiTaskBreakdownDef[] = [
 ];
 
 const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; text: string; Icon: React.ElementType }> = {
-  'POS Terminal': { hex: '#004E72', badge: 'bg-[#004E72]/10 text-[#004E72] border-[#004E72]/20', text: 'text-[#004E72]', Icon: Cpu },
-  'Sound Box': { hex: '#006BA6', badge: 'bg-[#006BA6]/10 text-[#006BA6] border-[#006BA6]/20', text: 'text-[#006BA6]', Icon: Volume2 },
+  'POS Terminal': { hex: '#006BA6', badge: 'bg-[#006BA6]/10 text-[#006BA6] border-[#006BA6]/20', text: 'text-[#006BA6]', Icon: Cpu },
+  'Sound Box': { hex: '#4F518C', badge: 'bg-[#4F518C]/10 text-[#4F518C] border-[#4F518C]/20', text: 'text-[#4F518C]', Icon: Volume2 },
   KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', text: 'text-teal-600', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', text: 'text-amber-600', Icon: CreditCard },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', text: 'text-slate-600', Icon: Layers },

@@ -39,8 +39,8 @@ function getKpiRating(pct: number, isManagement = false): KpiRating {
 }
 
 const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
-  'POS Terminal': { hex: '#004E72', badge: 'bg-[#004E72]/10 text-[#004E72] border-[#004E72]/20', bar: 'bg-[#004E72]', dot: 'bg-[#004E72]', Icon: Cpu },
-  'Sound Box': { hex: '#006BA6', badge: 'bg-[#006BA6]/10 text-[#006BA6] border-[#006BA6]/20', bar: 'bg-[#006BA6]', dot: 'bg-[#006BA6]', Icon: Volume2 },
+  'POS Terminal': { hex: '#006BA6', badge: 'bg-[#006BA6]/10 text-[#006BA6] border-[#006BA6]/20', bar: 'bg-[#006BA6]', dot: 'bg-[#006BA6]', Icon: Cpu },
+  'Sound Box': { hex: '#4F518C', badge: 'bg-[#4F518C]/10 text-[#4F518C] border-[#4F518C]/20', bar: 'bg-[#4F518C]', dot: 'bg-[#4F518C]', Icon: Volume2 },
   KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', bar: 'bg-teal-600', dot: 'bg-teal-600', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-amber-500', dot: 'bg-amber-500', Icon: CreditCard },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },
@@ -1808,11 +1808,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <div className="px-4 pt-3 pb-4">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-2.5 text-[11px] font-semibold text-slate-700">
                   <span className="inline-flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-[#004E72]" aria-hidden />
+                    <Cpu className="w-3.5 h-3.5 text-[#006BA6]" aria-hidden />
                     <span>POS Terminal</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-[#006BA6]" aria-hidden />
+                    <Volume2 className="w-3.5 h-3.5 text-[#4F518C]" aria-hidden />
                     <span>Sound Box</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
@@ -1840,12 +1840,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       <ComposedChart data={reversedTimeSeries} margin={{ top: 8, right: 6, left: -14, bottom: 0 }} barGap={4}>
                         <defs>
                           <linearGradient id="kpiPosGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#006b9c" />
-                            <stop offset="100%" stopColor="#004E72" />
-                          </linearGradient>
-                          <linearGradient id="kpiSbGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#258cc9" />
                             <stop offset="100%" stopColor="#006BA6" />
+                          </linearGradient>
+                          <linearGradient id="kpiSbGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#6c6eb0" />
+                            <stop offset="100%" stopColor="#4F518C" />
                           </linearGradient>
                           <linearGradient id="kpiKhqrGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#14b8a6" />
@@ -1923,11 +1923,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <div className="px-4 pt-3 pb-4">
                 <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 pb-2.5 text-[11px] font-semibold text-slate-700">
                   <span className="inline-flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-[#004E72]" aria-hidden />
+                    <Cpu className="w-3.5 h-3.5 text-[#006BA6]" aria-hidden />
                     <span>POS</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-[#006BA6]" aria-hidden />
+                    <Volume2 className="w-3.5 h-3.5 text-[#4F518C]" aria-hidden />
                     <span>Sound Box</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
@@ -1955,12 +1955,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       >
                         <defs>
                           <linearGradient id="kpiBranchPosGrad" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#004E72" />
-                            <stop offset="100%" stopColor="#006b9c" />
-                          </linearGradient>
-                          <linearGradient id="kpiBranchSbGrad" x1="0" y1="0" x2="1" y2="0">
                             <stop offset="0%" stopColor="#006BA6" />
                             <stop offset="100%" stopColor="#258cc9" />
+                          </linearGradient>
+                          <linearGradient id="kpiBranchSbGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#4F518C" />
+                            <stop offset="100%" stopColor="#6c6eb0" />
                           </linearGradient>
                           <linearGradient id="kpiBranchKhqrGrad" x1="0" y1="0" x2="1" y2="0">
                             <stop offset="0%" stopColor="#0d9488" />
@@ -3683,11 +3683,11 @@ const CustomTrendTooltip: React.FC<any> = React.memo(({ active, payload, label }
       </div>
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-4">
-          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#004E72]" />POS Terminal</span>
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#006BA6]" />POS Terminal</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.posPoints)} pts</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#006BA6]" />Sound Box</span>
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#4F518C]" />Sound Box</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.sbPoints)} pts</span>
         </div>
         <div className="flex items-center justify-between gap-4">
@@ -3721,11 +3721,11 @@ const CustomBranchTooltip: React.FC<any> = React.memo(({ active, payload }: any)
       </div>
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-4">
-          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#004E72]" />POS Terminal</span>
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#006BA6]" />POS Terminal</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.posPoints)} pts</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#006BA6]" />Sound Box</span>
+          <span className="inline-flex items-center gap-1.5 text-slate-600"><span className="w-2 h-2 rounded-xs bg-[#4F518C]" />Sound Box</span>
           <span className="text-slate-900 tabular-nums">{fmtPts(row.sbPoints)} pts</span>
         </div>
         <div className="flex items-center justify-between gap-4">

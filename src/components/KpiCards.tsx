@@ -252,10 +252,10 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] font-bold font-figure text-slate-500">
               <span className="text-slate-600">
-                POS: <strong className="text-[#004E72]"><Odometer value={posCount} format={posCount >= 1000} duration={340} /></strong>
+                POS: <strong className="text-[#006BA6]"><Odometer value={posCount} format={posCount >= 1000} duration={340} /></strong>
               </span>
               <span className="text-slate-600">
-                SB: <strong className="text-[#006BA6]"><Odometer value={sbCount} format={sbCount >= 1000} duration={340} /></strong>
+                SB: <strong className="text-[#4F518C]"><Odometer value={sbCount} format={sbCount >= 1000} duration={340} /></strong>
               </span>
             </div>
           </motion.div>

@@ -631,7 +631,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       <div className="flex flex-col gap-1">
                         {req.posQty > 0 && (
                           <div className="cell-main flex items-center gap-1.5">
-                            <Cpu className="w-3.5 h-3.5 text-[#004E72] shrink-0" aria-hidden />
+                            <Cpu className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
                             <span>POS Terminal</span>
                             <span className="chip chip-slate font-mono text-[11px] px-1.5 py-0">
                               ×{req.posQty}
@@ -640,7 +640,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         )}
                         {req.sbQty > 0 && (
                           <div className="cell-main flex items-center gap-1.5">
-                            <Volume2 className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
+                            <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
                             <span>Sound Box</span>
                             <span className="chip chip-slate font-mono text-[11px] px-1.5 py-0">
                               ×{req.sbQty}
@@ -985,12 +985,12 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                             </td>
                             <td className="py-2.5 px-4 font-bold">
                               {item.type === 'POS Terminal' ? (
-                                <span className="inline-flex items-center gap-1.5 text-[#004E72] dark:text-[#5cc8ff]">
+                                <span className="inline-flex items-center gap-1.5 text-[#006BA6] dark:text-[#5cc8ff]">
                                   <Cpu className="w-3.5 h-3.5 shrink-0" />
                                   POS Terminal
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1.5 text-[#006BA6] dark:text-[#58b2e5]">
+                                <span className="inline-flex items-center gap-1.5 text-[#4F518C] dark:text-[#a2a5e0]">
                                   <Volume2 className="w-3.5 h-3.5 shrink-0" />
                                   Sound Box
                                 </span>

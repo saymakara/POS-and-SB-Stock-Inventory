@@ -971,7 +971,7 @@ return (
                   yAxisId="left"
                   dataKey="posDeployed"
                   name="POS Terminal Deployed"
-                  fill="#004E72"
+                  fill="#006BA6"
                   radius={[5, 5, 0, 0]}
                   barSize={22}
                 />
@@ -979,7 +979,7 @@ return (
                   yAxisId="left"
                   dataKey="sbDeployed"
                   name="Sound Box Deployed"
-                  fill="#006BA6"
+                  fill="#4F518C"
                   radius={[5, 5, 0, 0]}
                   barSize={22}
                 />
@@ -1174,13 +1174,13 @@ return (
                     <td className="whitespace-nowrap">
                       {m.posCount > 0 && (
                         <div className="cell-main font-medium flex items-center gap-1.5">
-                          <Cpu className="w-3.5 h-3.5 text-[#004E72] shrink-0" aria-hidden />
+                          <Cpu className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
                           POS Terminal{m.posCount > 1 ? ` ×${m.posCount}` : ''}
                         </div>
                       )}
                       {m.sbCount > 0 && (
                         <div className="cell-main font-medium flex items-center gap-1.5">
-                          <Volume2 className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
+                          <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
                           Sound Box{m.sbCount > 1 ? ` ×${m.sbCount}` : ''}
                         </div>
                       )}
