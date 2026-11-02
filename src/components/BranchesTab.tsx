@@ -584,7 +584,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           {/* Sound Box Count */}
                           <td className="py-3 px-3.5 text-center">
                             <div className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-800">
-                              <Volume2 className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                              <Volume2 className="w-3.5 h-3.5 text-[#006BA6] shrink-0" />
                               <span>{b.sbCount}</span>
                             </div>
                           </td>
@@ -1034,8 +1034,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                         <Cpu className="w-3 h-3 text-[#004E72] dark:text-[#5cc8ff]" />
                         <span>{inspectedBranch.posCount} POS</span>
                       </span>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-800/60 text-rose-800 dark:text-rose-300 font-mono font-bold text-[11px]">
-                        <Volume2 className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#006BA6]/10 dark:bg-[#006BA6]/30 border border-[#006BA6]/20 dark:border-[#006BA6]/40 text-[#006BA6] dark:text-[#58b2e5] font-mono font-bold text-[11px]">
+                        <Volume2 className="w-3 h-3 text-[#006BA6] dark:text-[#58b2e5]" />
                         <span>{inspectedBranch.sbCount} Sound Box</span>
                       </span>
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 font-mono font-bold text-[11px]">

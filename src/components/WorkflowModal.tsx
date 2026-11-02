@@ -696,7 +696,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 {device.type === 'POS Terminal' ? (
                   <Cpu className="w-4 h-4 text-[#5cc8ff]" />
                 ) : (
-                  <Volume2 className="w-4 h-4 text-purple-300" />
+                  <Volume2 className="w-4 h-4 text-[#58b2e5]" />
                 )}
               </div>
               <div className="min-w-0">

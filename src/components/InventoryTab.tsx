@@ -976,7 +976,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           {dev.type === 'POS Terminal' ? (
                             <Cpu className="w-3.5 h-3.5 text-[#004E72] shrink-0" aria-hidden />
                           ) : (
-                            <Volume2 className="w-3.5 h-3.5 text-rose-600 shrink-0" aria-hidden />
+                            <Volume2 className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
                           )}
                           <span>{dev.type}</span>
                         </div>

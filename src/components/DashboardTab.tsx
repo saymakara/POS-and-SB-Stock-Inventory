@@ -640,7 +640,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       series1Color="#004E72"
                       series2Label="Sound Box Installed"
                       series2Data={monthlyChart.sb}
-                      series2Color="#f43f5e"
+                      series2Color="#006BA6"
                       height={240}
                       theme="light"
                     />
@@ -756,7 +756,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   series1Color="#004E72"
                   series2Label="Sound Box Units"
                   series2Data={topBranchesChart.sbSeries}
-                  series2Color="#f43f5e"
+                  series2Color="#006BA6"
                   height={240}
                   theme="light"
                 />

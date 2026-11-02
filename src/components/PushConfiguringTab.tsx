@@ -1071,7 +1071,7 @@ return (
           >
             <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span className="w-2 h-2 rounded-full bg-[#006BA6]" />
                 Sound Boxes
               </span>
               <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
@@ -1512,7 +1512,7 @@ return (
                         <div className="flex items-center gap-1.5">
                           <span
                             className={`w-2 h-2 rounded-full shrink-0 ${
-                              isPos ? 'bg-[#004E72]' : 'bg-rose-500'
+                              isPos ? 'bg-[#004E72]' : 'bg-[#006BA6]'
                             }`}
                             title={dev.type}
                           />

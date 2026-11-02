@@ -562,7 +562,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
                 Sound Boxes
               </span>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 bg-gradient-to-br from-rose-50 to-pink-100/90 text-rose-700 border-rose-200/80 shadow-2xs dark:from-rose-950/40 dark:to-pink-900/40 dark:text-rose-300 dark:border-rose-800">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 bg-[#006BA6]/10 text-[#006BA6] border-[#006BA6]/20 shadow-2xs dark:bg-[#006BA6]/30 dark:text-[#58b2e5] dark:border-[#006BA6]/40">
                 <Volume2 className="w-5 h-5" />
               </div>
             </div>
@@ -571,7 +571,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             </div>
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
               <span className="truncate font-medium text-slate-600 dark:text-slate-300">Audio broadcast units</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 shrink-0">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#006BA6]/10 text-[#006BA6] border border-[#006BA6]/20 dark:bg-[#006BA6]/30 dark:text-[#58b2e5] dark:border-[#006BA6]/40 shrink-0">
                 {stats.total > 0 ? `${Math.round((stats.sbCount / stats.total) * 100)}%` : '0%'}
               </span>
             </div>
@@ -776,7 +776,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                           {rec.deviceType === 'POS Terminal' ? (
                             <Cpu className="w-3 h-3 text-[#004E72] dark:text-[#5cc8ff] shrink-0" aria-hidden />
                           ) : (
-                            <Volume2 className="w-3 h-3 text-rose-600 dark:text-rose-400 shrink-0" aria-hidden />
+                            <Volume2 className="w-3 h-3 text-[#006BA6] dark:text-[#58b2e5] shrink-0" aria-hidden />
                           )}
                           <span className="truncate">{rec.deviceType}{rec.model ? ` · ${rec.model}` : ''}</span>
                         </div>
