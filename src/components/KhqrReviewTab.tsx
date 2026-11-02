@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, RefreshCw, ChevronDown, MapPin, ScanLine, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users, Copy, ArrowRight } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, MapPin, ScanLine, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users, Copy } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
@@ -194,16 +194,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   return (
     <div className="flex flex-col gap-3.5 apple-tab-panel">
       {/* KHQR Hero Statistics (Push Configuring Hub Backdrop Style) */}
-      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-gradient-to-b from-slate-50 via-slate-100/70 to-slate-100 border-slate-200/90 text-slate-900" aria-label="KHQR statistics">
-        {/* Signature top micro-gradient bar */}
-        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#003857] via-sky-500 to-[#003857]" />
-
+      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label="KHQR statistics">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2.5 max-w-3xl">
-            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3.5 text-slate-900 leading-tight">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#003857] text-white flex items-center justify-center shadow-sm shrink-0">
-                <QrCode className="w-6 h-6 sm:w-6.5 sm:h-6.5" aria-hidden />
-              </div>
+          <div className="space-y-2 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
+              <QrCode className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
               <span>
                 Phone App Review
                 <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]"> · KHQR</span>
@@ -212,25 +207,13 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">
               Live merchant KHQR onboarding stream, materials tracking, and duplicate/wrong-MID inspection from field installations.
             </p>
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/90 shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Live Onboarding Stream</span>
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-medium bg-white/80 text-slate-700 border border-slate-200/80 shadow-2xs font-mono">
-                {summary ? `${summary.total.toLocaleString()} total entries` : 'Real-time telemetry'}
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-medium bg-white/80 text-slate-600 border border-slate-200/80 shadow-2xs">
-                Duplicate &amp; Wrong-MID Shield
-              </span>
-            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value as Period)}
               aria-label="Period"
-              className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-800 border-slate-200 shadow-2xs outline-none cursor-pointer"
+              className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs outline-none cursor-pointer"
             >
               {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>
@@ -241,9 +224,9 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
               onClick={() => { load(); loadStats(); setLogKey((k) => k + 1); }}
               aria-label="Refresh"
               title="Refresh KHQR statistics and entries"
-              className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white border-[#002a42]"
+              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <RefreshCw className="w-4 h-4 text-white group-hover:rotate-180 transition-transform duration-300" />}
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" /> : <RefreshCw className="w-3.5 h-3.5 text-slate-600 group-hover:rotate-180 transition-transform duration-300" />}
               <span>Sync Stream</span>
             </button>
           </div>
@@ -269,12 +252,12 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
               sub={summary && summary.total ? `${(summary.qr / summary.total).toFixed(1)} materials / entry` : PERIOD_LABEL[period]}
               icon={Layers}
               accentColor="emerald"
-              badge="Physical units"
+              badge="Physical items"
             />
             <BigKpiCard
               label="Failed Attempt"
               value={summary?.attempts}
-              sub="Submit blocked · wrong-MID QR"
+              sub="Submit tapped with a wrong-MID QR · blocked"
               icon={AlertTriangle}
               accentColor="rose"
               onClick={() => {
@@ -284,7 +267,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             <BigKpiCard
               label="Wrong Scan"
               value={summary?.wrongScans}
-              sub={summary && summary.wrongScans > 0 ? `${summary.wrongScanStaff.toLocaleString()} staff · wrong-MID QR` : 'Wrong-MID QR scanned'}
+              sub={summary && summary.wrongScans > 0 ? `${summary.wrongScanStaff.toLocaleString()} staff · wrong-MID QR scanned` : 'Wrong-MID QR scanned · submitted or not'}
               icon={ScanLine}
               accentColor="orange"
               onClick={() => {
@@ -294,7 +277,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             <BigKpiCard
               label="Same MID, 2+ staff"
               value={summary?.sharedMids}
-              sub={summary && summary.sharedMids > 0 ? `${summary.sharedMidStaff.toLocaleString()} staff · same day` : 'Shared MID across staff'}
+              sub={summary && summary.sharedMids > 0 ? `${summary.sharedMidStaff.toLocaleString()} staff · same day` : 'One MID entered by different staff on the same day'}
               icon={Copy}
               accentColor="violet"
               onClick={() => showView('shared')}
@@ -730,87 +713,72 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
 
   const theme = {
     blue: {
-      topBar: 'bg-sky-500',
-      iconBg: 'bg-gradient-to-br from-sky-50 to-blue-100/90 text-[#003857] border-sky-200/80 shadow-2xs',
+      iconBg: 'bg-sky-50 text-sky-600 border-sky-100',
+      numColor: 'text-slate-900',
       hoverStyle: 'hover:border-sky-300 hover:ring-2 hover:ring-sky-100/80',
-      statusPill: 'bg-sky-50 text-sky-800 border-sky-200/80',
     },
     emerald: {
-      topBar: 'bg-emerald-500',
-      iconBg: 'bg-gradient-to-br from-emerald-50 to-teal-100/90 text-emerald-700 border-emerald-200/80 shadow-2xs',
+      iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+      numColor: 'text-slate-900',
       hoverStyle: 'hover:border-emerald-300 hover:ring-2 hover:ring-emerald-100/80',
-      statusPill: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
     },
     rose: {
-      topBar: 'bg-rose-500',
-      iconBg: 'bg-gradient-to-br from-rose-50 to-pink-100/90 text-rose-700 border-rose-200/80 shadow-2xs',
+      iconBg: 'bg-rose-50 text-rose-600 border-rose-100',
+      numColor: value && value > 0 ? 'text-rose-600' : 'text-slate-900',
       hoverStyle: 'hover:border-rose-300 hover:ring-2 hover:ring-rose-100/80',
-      statusPill: 'bg-rose-50 text-rose-800 border-rose-200/80',
     },
     orange: {
-      topBar: 'bg-amber-500',
-      iconBg: 'bg-gradient-to-br from-amber-50 to-orange-100/90 text-amber-800 border-amber-200/80 shadow-2xs',
-      hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/80',
-      statusPill: 'bg-amber-50 text-amber-800 border-amber-200/80',
+      iconBg: 'bg-orange-50 text-orange-600 border-orange-100',
+      numColor: value && value > 0 ? 'text-orange-600' : 'text-slate-900',
+      hoverStyle: 'hover:border-orange-300 hover:ring-2 hover:ring-orange-100/80',
     },
     violet: {
-      topBar: 'bg-violet-500',
-      iconBg: 'bg-gradient-to-br from-violet-50 to-purple-100/90 text-violet-700 border-violet-200/80 shadow-2xs',
+      iconBg: 'bg-violet-50 text-violet-600 border-violet-100',
+      numColor: value && value > 0 ? 'text-violet-700' : 'text-slate-900',
       hoverStyle: 'hover:border-violet-300 hover:ring-2 hover:ring-violet-100/80',
-      statusPill: 'bg-violet-50 text-violet-800 border-violet-200/80',
     },
     amber: {
-      topBar: 'bg-amber-500',
-      iconBg: 'bg-gradient-to-br from-amber-50 to-yellow-100/90 text-amber-800 border-amber-200/80 shadow-2xs',
+      iconBg: 'bg-amber-50 text-amber-600 border-amber-100',
+      numColor: value && value > 0 ? 'text-amber-600' : 'text-slate-900',
       hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/80',
-      statusPill: 'bg-amber-50 text-amber-800 border-amber-200/80',
     },
   }[accentColor];
 
   return (
     <Tag
       {...(isClickable ? { type: 'button', onClick, title: `Show ${label.toLowerCase()} log below` } : {})}
-      className={`relative flex flex-col justify-between p-5 rounded-2xl border bg-gradient-to-b from-white via-white to-slate-50/50 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_16px_-4px_rgba(0,0,0,0.03)] transition-all duration-200 text-left overflow-hidden select-none border-slate-200/90 ${
+      className={`relative flex flex-col justify-between p-5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all duration-200 text-left ${
         isClickable ? `cursor-pointer ${theme.hoverStyle} hover:shadow-md hover:-translate-y-0.5 group` : 'hover:border-slate-300 hover:shadow-xs'
       }`}
     >
-      {/* Signature Top Accent Micro-line */}
-      <div className={`absolute top-0 inset-x-0 h-[3px] ${theme.topBar} opacity-90`} />
-
       {/* Top row: Category Label + Icon Badge */}
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest truncate">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
           {label}
         </span>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform ${isClickable ? 'group-hover:scale-105' : ''} ${theme.iconBg}`}>
+        <div className={`w-9.5 h-9.5 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform ${isClickable ? 'group-hover:scale-105' : ''} ${theme.iconBg}`}>
           <Icon className="w-5 h-5" />
         </div>
       </div>
 
       {/* Main KPI number */}
-      <div className="my-2.5 flex items-baseline justify-between gap-2">
-        <div className="font-figure text-3xl sm:text-[34px] font-extrabold tracking-tight tabular-nums leading-none text-slate-900 dark:text-white">
+      <div className="my-2.5">
+        <div className={`font-figure text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums leading-none ${theme.numColor}`}>
           {value === undefined ? '—' : value.toLocaleString()}
         </div>
-        {isClickable && value && value > 0 ? (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase border ${theme.statusPill}`}>
-            Flagged
-          </span>
-        ) : null}
       </div>
 
       {/* Subtitle / Footer info */}
-      <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
-        <span className="truncate font-medium text-slate-600" title={sub}>
+      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
+        <span className="truncate" title={sub}>
           {sub || '—'}
         </span>
         {isClickable ? (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 group-hover:bg-[#003857] group-hover:text-white group-hover:border-[#003857] transition-all shadow-2xs shrink-0">
-            <span>View log</span>
-            <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-rose-600 group-hover:text-rose-700 shrink-0">
+            View log <span className="transition-transform group-hover:translate-x-0.5">→</span>
           </span>
         ) : badge ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/60 shrink-0">
+          <span className="text-[11px] font-medium text-slate-400 shrink-0">
             {badge}
           </span>
         ) : null}

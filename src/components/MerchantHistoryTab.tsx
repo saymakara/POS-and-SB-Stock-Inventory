@@ -442,14 +442,11 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       <section
         className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm ${
           isLight
-            ? 'bg-gradient-to-b from-slate-50 via-slate-100/70 to-slate-100 border-slate-200/90 text-slate-900'
+            ? 'bg-slate-100 border-slate-200/90 text-slate-900'
             : 'bg-gradient-to-br from-slate-900 via-[#001f3f] to-slate-950 text-white border-slate-800'
         }`}
         aria-label="Historical Merchant Records header"
       >
-        {/* Top signature highlight micro-gradient bar */}
-        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#003857] via-sky-500 to-[#003857]" />
-
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2.5 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3.5 text-slate-900 dark:text-white leading-tight">
@@ -518,8 +515,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
         {/* 5 Analytical Metric Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 mt-6 pt-6 border-t border-slate-200/90 dark:border-slate-800">
           {/* Card 1: Total Decommissioned */}
-          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-gradient-to-b from-white via-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_16px_-4px_rgba(0,0,0,0.03)] border-slate-200/90 dark:border-slate-700/80 overflow-hidden text-left hover:border-slate-300 transition-all">
-            <div className="absolute top-0 inset-x-0 h-[3px] bg-[#003857] opacity-90" />
+          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-white dark:bg-slate-900 shadow-2xs border-slate-200/90 dark:border-slate-800 text-left hover:border-slate-300 transition-all">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
                 Total Decommissioned
@@ -540,8 +536,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           </div>
 
           {/* Card 2: POS Terminals Returned */}
-          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-gradient-to-b from-white via-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_16px_-4px_rgba(0,0,0,0.03)] border-slate-200/90 dark:border-slate-700/80 overflow-hidden text-left hover:border-slate-300 transition-all">
-            <div className="absolute top-0 inset-x-0 h-[3px] bg-sky-500 opacity-90" />
+          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-white dark:bg-slate-900 shadow-2xs border-slate-200/90 dark:border-slate-800 text-left hover:border-slate-300 transition-all">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
                 POS Terminals
@@ -562,8 +557,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           </div>
 
           {/* Card 3: Sound Boxes Returned */}
-          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-gradient-to-b from-white via-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_16px_-4px_rgba(0,0,0,0.03)] border-slate-200/90 dark:border-slate-700/80 overflow-hidden text-left hover:border-slate-300 transition-all">
-            <div className="absolute top-0 inset-x-0 h-[3px] bg-purple-500 opacity-90" />
+          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-white dark:bg-slate-900 shadow-2xs border-slate-200/90 dark:border-slate-800 text-left hover:border-slate-300 transition-all">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
                 Sound Boxes
@@ -584,8 +578,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           </div>
 
           {/* Card 4: Avg. Active Lifespan */}
-          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-gradient-to-b from-white via-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_16px_-4px_rgba(0,0,0,0.03)] border-slate-200/90 dark:border-slate-700/80 overflow-hidden text-left hover:border-slate-300 transition-all">
-            <div className="absolute top-0 inset-x-0 h-[3px] bg-emerald-500 opacity-90" />
+          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-white dark:bg-slate-900 shadow-2xs border-slate-200/90 dark:border-slate-800 text-left hover:border-slate-300 transition-all">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
                 Avg. Active Lifespan
@@ -607,8 +600,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           </div>
 
           {/* Card 5: Closed Business Ratio */}
-          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-gradient-to-b from-white via-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_16px_-4px_rgba(0,0,0,0.03)] border-slate-200/90 dark:border-slate-700/80 overflow-hidden text-left hover:border-slate-300 transition-all col-span-2 sm:col-span-1">
-            <div className="absolute top-0 inset-x-0 h-[3px] bg-rose-500 opacity-90" />
+          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-white dark:bg-slate-900 shadow-2xs border-slate-200/90 dark:border-slate-800 text-left hover:border-slate-300 transition-all col-span-2 sm:col-span-1">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
                 Closure Ratio
