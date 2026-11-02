@@ -208,6 +208,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [selectedTopMonth, setSelectedTopMonth] = useState<string>('ALL');
+  const [leaderboardMode, setLeaderboardMode] = useState<'staff' | 'branch'>('staff');
   const [openBranch, setOpenBranch] = useState<string | null>(null);
   const [openStaff, setOpenStaff] = useState<string | null>(null);
   const [showSubCategories, setShowSubCategories] = useState(false);
@@ -2173,11 +2174,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         </section>
       )}
 
-      {/* ───────────── Top 10 Branch and Staff Leaderboard Each Month (Push Configuring Hub Backdrop Style) ───────────── */}
+      {/* ───────────── Combined Institutional Leaderboard (Top 10 Staff & Branch Switchable) ───────────── */}
       {(showSection('all') || showSection('top10')) && (
         <section
           className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4"
-          aria-label="Top 10 Branch and Staff by Month"
+          aria-label="Top 10 Institutional Leaderboard"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
@@ -2186,200 +2187,316 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Institutional Leaderboards</h3>
-                <p className="text-[11.5px] text-slate-500 font-medium">Top 10 branches and individual staff rankings by KPI points</p>
+                <p className="text-[11.5px] text-slate-500 font-medium">Top 10 institutional performers and branches ranked by KPI points</p>
               </div>
             </div>
 
-            <div className="inline-flex flex-wrap items-center gap-0.5 p-0.5 rounded-xl bg-slate-100 border border-slate-200/90">
-              <button
-                type="button"
-                onClick={() => setSelectedTopMonth('ALL')}
-                className={`px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition ${
-                  selectedTopMonth === 'ALL' ? 'bg-[#1e5b88] text-white font-semibold shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-medium'
-                }`}
-              >
-                {KPI_PERIOD_LABEL[period]}
-              </button>
-              {availableMonths.slice(0, 6).map((m) => (
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Switch View by Staff or Branch */}
+              <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap">
                 <button
-                  key={m}
                   type="button"
-                  onClick={() => setSelectedTopMonth(m)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition ${
-                    selectedTopMonth === m ? 'bg-[#1e5b88] text-white font-semibold shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  onClick={() => setLeaderboardMode('staff')}
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
+                    leaderboardMode === 'staff' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
                   }`}
                 >
-                  {fmtMonth(m)}
+                  {leaderboardMode === 'staff' && (
+                    <motion.div
+                      layoutId="kpi-top10-mode-pill"
+                      transition={SPRING}
+                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 shadow-2xs"
+                    />
+                  )}
+                  <Users className={`w-3.5 h-3.5 relative z-10 transition-colors ${leaderboardMode === 'staff' ? 'text-white' : 'text-violet-600'}`} aria-hidden />
+                  <span className="relative z-10">Top 10 Staff</span>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${leaderboardMode === 'staff' ? 'bg-white/20 text-white' : 'bg-violet-50 text-violet-700 border border-violet-200/90'}`}>
+                    {top10Data.staff.length}
+                  </span>
                 </button>
-              ))}
+
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardMode('branch')}
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
+                    leaderboardMode === 'branch' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  }`}
+                >
+                  {leaderboardMode === 'branch' && (
+                    <motion.div
+                      layoutId="kpi-top10-mode-pill"
+                      transition={SPRING}
+                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 shadow-2xs"
+                    />
+                  )}
+                  <Building2 className={`w-3.5 h-3.5 relative z-10 transition-colors ${leaderboardMode === 'branch' ? 'text-white' : 'text-amber-600'}`} aria-hidden />
+                  <span className="relative z-10">Top 10 Branches</span>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${leaderboardMode === 'branch' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-700 border border-amber-200/90'}`}>
+                    {top10Data.branches.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Month Selector Pills */}
+              <div className="inline-flex flex-wrap items-center gap-0.5 p-0.5 rounded-xl bg-slate-100 border border-slate-200/90">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTopMonth('ALL')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition ${
+                    selectedTopMonth === 'ALL' ? 'bg-[#003857] text-white font-semibold shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  }`}
+                >
+                  {KPI_PERIOD_LABEL[period]}
+                </button>
+                {availableMonths.slice(0, 6).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setSelectedTopMonth(m)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition ${
+                      selectedTopMonth === m ? 'bg-[#003857] text-white font-semibold shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    {fmtMonth(m)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 items-start">
-            {/* Top 10 Branches */}
-            <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden flex flex-col">
-              <div>
-                <div className="bg-slate-50/90 border-b border-slate-200/90 text-slate-800 px-4 h-[42px] flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider">
-                  <span className="inline-flex items-center gap-1.5 text-slate-900">
-                    <Building2 className="w-3.5 h-3.5 text-[#1e5b88]" />
+          {/* Unified Big Detailed Table */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden flex flex-col">
+            <div className="bg-slate-50/90 border-b border-slate-200/90 px-4 h-[42px] flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider">
+              <span className="inline-flex items-center gap-2 text-slate-900 font-bold">
+                {leaderboardMode === 'staff' ? (
+                  <>
+                    <Users className="w-4 h-4 text-violet-600" />
+                    <span>Top 10 Individual Performers · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
+                  </>
+                ) : (
+                  <>
+                    <Building2 className="w-4 h-4 text-amber-600" />
                     <span>Top 10 Branches · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
-                  </span>
-                  <span className="text-slate-500 font-medium normal-case">ranked by points</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <div className="min-w-[660px]">
-                    <div className="grid grid-cols-[28px_minmax(130px,1.2fr)_80px_95px_85px_95px_80px] items-center gap-2.5 px-4 h-[38px] bg-slate-100/70 border-b border-slate-200/80 text-xs font-semibold normal-case tracking-normal text-slate-600">
-                      <span className="whitespace-nowrap">No.</span>
-                      <span className="whitespace-nowrap">Branch Name</span>
-                      <span className="text-center whitespace-nowrap">Branch Code</span>
-                      <span className="text-center whitespace-nowrap block w-full select-none">Active Staff</span>
-                      <span className="text-right whitespace-nowrap">Pts / Staff</span>
-                      <span className="text-center whitespace-nowrap">Mix</span>
-                      <span className="text-right whitespace-nowrap">Points</span>
-                    </div>
-                    <div className="divide-y divide-slate-100 text-[13px] text-slate-700">
-                      {top10Data.branches.length === 0 ? (
-                        <div className="p-8 text-center text-xs text-slate-400">No branch records in this period.</div>
-                      ) : (
-                        top10Data.branches.map((b, i) => (
-                          <div key={b.branchId} className="grid grid-cols-[28px_minmax(130px,1.2fr)_80px_95px_85px_95px_80px] items-center gap-2.5 px-4 h-[48px] hover:bg-slate-50/80 transition-colors">
-                            {/* Rank */}
-                            <div>
-                              <RankBadge rank={i + 1} />
-                            </div>
-
-                            {/* Branch Name Column */}
-                            <div className="min-w-0 pr-1">
-                              <span className="font-normal text-slate-800 truncate text-[13px] block" title={cleanBranchName(b.branchName)}>
-                                {cleanBranchName(b.branchName)}
-                              </span>
-                            </div>
-
-                            {/* Branch Code Column */}
-                            <div className="min-w-0 flex items-center justify-center">
-                              <span
-                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums truncate max-w-full block text-center"
-                                title={b.branchId === 'UNASSIGNED' ? 'Unassigned' : b.branchId}
-                              >
-                                {fmtBranchCode(b.branchId)}
-                              </span>
-                            </div>
-
-                            {/* Active Staff Count Column */}
-                            <div className="text-center whitespace-nowrap flex items-center justify-center">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-normal bg-slate-100 text-slate-600 border border-slate-200/80 tabular-nums whitespace-nowrap">
-                                {b.staffCount} staff
-                              </span>
-                            </div>
-
-                            {/* Points Per Staff Column */}
-                            <div className="text-right tabular-nums whitespace-nowrap leading-none flex flex-col justify-center items-end">
-                              <span className="font-normal text-slate-700 text-[12.5px] leading-tight">
-                                {fmtPts(b.ptsPerStaff)}
-                              </span>
-                              <span className="text-[10px] text-slate-400 leading-tight mt-0.5">pts/staff</span>
-                            </div>
-
-                            {/* Mix Column */}
-                            <div className="flex justify-center items-center">
-                              <MiniMixBar pos={b.posPoints} sb={b.sbPoints} khqr={b.khqrPoints} cc={b.ccPoints} total={b.totalPoints} />
-                            </div>
-
-                            {/* Total Points Column */}
-                            <div className="text-right tabular-nums whitespace-nowrap">
-                              <span className="font-figure font-normal text-slate-700 text-[13px]">{fmtPts(b.totalPoints)} pts</span>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  </>
+                )}
+              </span>
+              <span className="text-slate-500 font-medium normal-case text-xs">ranked by total KPI points</span>
             </div>
 
-            {/* Top 10 Individual Staff */}
-            <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden flex flex-col">
-              <div>
-                <div className="bg-slate-50/90 border-b border-slate-200/90 text-slate-800 px-4 h-[42px] flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider">
-                  <span className="inline-flex items-center gap-1.5 text-slate-900">
-                    <Users className="w-3.5 h-3.5 text-[#1e5b88]" />
-                    <span>Top 10 Staff · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
-                  </span>
-                  <span className="text-slate-500 font-medium normal-case">ranked by points</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <div className="min-w-[680px]">
-                    <div className="grid grid-cols-[28px_minmax(130px,1.2fr)_75px_minmax(130px,1.2fr)_80px_95px_80px] items-center gap-2.5 px-4 h-[38px] bg-slate-100/70 border-b border-slate-200/80 text-xs font-semibold normal-case tracking-normal text-slate-600">
-                      <span className="whitespace-nowrap">No.</span>
-                      <span className="whitespace-nowrap">Staff Name</span>
-                      <span className="text-center whitespace-nowrap">Staff ID</span>
-                      <span className="whitespace-nowrap">Branch Name</span>
-                      <span className="text-center whitespace-nowrap">Branch Code</span>
-                      <span className="text-center whitespace-nowrap">Mix</span>
-                      <span className="text-right whitespace-nowrap">Points</span>
-                    </div>
-                    <div className="divide-y divide-slate-100 text-[13px] text-slate-700">
+            <div className="overflow-x-auto w-full overscroll-x-contain">
+              <table className="w-full text-left border-separate border-spacing-0 text-[13px]">
+                {leaderboardMode === 'staff' ? (
+                  <>
+                    <thead>
+                      <tr className="navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal select-none">
+                        <th className="py-2.5 px-3 text-center w-14 border-b border-white/20">No.</th>
+                        <th className="py-2.5 px-4 text-left min-w-[200px] border-b border-white/20">Staff Name</th>
+                        <th className="py-2.5 px-3 text-center w-24 border-b border-white/20">Staff ID</th>
+                        <th className="py-2.5 px-4 text-left min-w-[200px] border-b border-white/20">Branch Name</th>
+                        <th className="py-2.5 px-3 text-center w-24 border-b border-white/20">Branch Code</th>
+                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <Cpu className="w-3.5 h-3.5 text-sky-400" />
+                            <span>POS Pts</span>
+                          </span>
+                        </th>
+                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <Volume2 className="w-3.5 h-3.5 text-[#58b2e5]" />
+                            <span>SB Pts</span>
+                          </span>
+                        </th>
+                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <QrCode className="w-3.5 h-3.5 text-teal-300" />
+                            <span>KHQR Pts</span>
+                          </span>
+                        </th>
+                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <CreditCard className="w-3.5 h-3.5 text-amber-300" />
+                            <span>CC Pts</span>
+                          </span>
+                        </th>
+                        <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Category Mix</th>
+                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">Total Tasks</th>
+                        <th className="py-2.5 px-4 text-right w-32 border-b border-white/20">Total Points</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700">
                       {top10Data.staff.length === 0 ? (
-                        <div className="p-8 text-center text-xs text-slate-400">No staff records in this period.</div>
+                        <tr>
+                          <td colSpan={12} className="py-12 text-center text-xs text-slate-400">
+                            No staff records in this period.
+                          </td>
+                        </tr>
                       ) : (
                         top10Data.staff.map((s, i) => (
-                          <div key={s.staffId} className="grid grid-cols-[28px_minmax(130px,1.2fr)_75px_minmax(130px,1.2fr)_80px_95px_80px] items-center gap-2.5 px-4 h-[48px] hover:bg-slate-50/80 transition-colors">
-                            {/* Rank */}
-                            <div>
-                              <RankBadge rank={i + 1} />
-                            </div>
-
-                            {/* Staff Name */}
-                            <div className="min-w-0 pr-1">
-                              <span className="font-normal text-slate-800 truncate text-[13px] block" title={s.staffName}>
+                          <tr key={s.staffId} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2.5 px-3 text-center">
+                              <div className="flex justify-center items-center">
+                                <RankBadge rank={i + 1} />
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-4">
+                              <span className="font-semibold text-slate-900 text-[13px] block truncate" title={s.staffName}>
                                 {s.staffName}
                               </span>
-                            </div>
-
-                            {/* Staff ID Column */}
-                            <div className="min-w-0 flex items-center justify-center">
-                              <span
-                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums truncate max-w-full block text-center"
-                                title={s.staffId}
-                              >
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums">
                                 {s.staffId || '—'}
                               </span>
-                            </div>
-
-                            {/* Branch Name Column */}
-                            <div className="min-w-0 pr-1">
-                              <span className="text-[13px] text-slate-700 truncate block" title={cleanBranchName(s.branchName)}>
+                            </td>
+                            <td className="py-2.5 px-4">
+                              <span className="text-[13px] text-slate-800 font-medium truncate block" title={cleanBranchName(s.branchName)}>
                                 {cleanBranchName(s.branchName)}
                               </span>
-                            </div>
-
-                            {/* Branch Code Column */}
-                            <div className="min-w-0 flex items-center justify-center">
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
                               <span
-                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums truncate max-w-full block text-center"
+                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums"
                                 title={s.branchId === 'UNASSIGNED' ? 'Unassigned' : s.branchId}
                               >
                                 {fmtBranchCode(s.branchId)}
                               </span>
-                            </div>
-
-                            {/* Mix Column */}
-                            <div className="flex justify-center items-center">
-                              <MiniMixBar pos={s.posPoints} sb={s.sbPoints} khqr={s.khqrPoints} cc={s.ccPoints} total={s.totalPoints} />
-                            </div>
-
-                            {/* Points Column */}
-                            <div className="text-right tabular-nums whitespace-nowrap">
-                              <span className="font-figure font-normal text-slate-700 text-[13px]">{fmtPts(s.totalPoints)} pts</span>
-                            </div>
-                          </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(s.posPoints)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(s.sbPoints)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(s.khqrPoints)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(s.ccPoints)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <div className="flex justify-center items-center">
+                                <MiniMixBar pos={s.posPoints} sb={s.sbPoints} khqr={s.khqrPoints} cc={s.ccPoints} total={s.totalPoints} />
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-600 font-medium">
+                              {fmtInt(s.totalTasks)}
+                            </td>
+                            <td className="py-2.5 px-4 text-right tabular-nums">
+                              <span className="font-bold text-[#003857] text-[13.5px]">
+                                {fmtPts(s.totalPoints)} <span className="text-xs font-semibold">pts</span>
+                              </span>
+                            </td>
+                          </tr>
                         ))
                       )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                    </tbody>
+                  </>
+                ) : (
+                  <>
+                    <thead>
+                      <tr className="navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal select-none">
+                        <th className="py-2.5 px-3 text-center w-14 border-b border-white/20">No.</th>
+                        <th className="py-2.5 px-4 text-left min-w-[220px] border-b border-white/20">Branch Name</th>
+                        <th className="py-2.5 px-3 text-center w-24 border-b border-white/20">Branch Code</th>
+                        <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Active Staff</th>
+                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <Cpu className="w-3.5 h-3.5 text-sky-400" />
+                            <span>POS Pts</span>
+                          </span>
+                        </th>
+                        <th className="py-2.5 px-3 text-right w-28 border-b border-white/20">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <Volume2 className="w-3.5 h-3.5 text-[#58b2e5]" />
+                            <span>SB Pts</span>
+                          </span>
+                        </th>
+                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <QrCode className="w-3.5 h-3.5 text-teal-300" />
+                            <span>KHQR Pts</span>
+                          </span>
+                        </th>
+                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <CreditCard className="w-3.5 h-3.5 text-amber-300" />
+                            <span>CC Pts</span>
+                          </span>
+                        </th>
+                        <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Category Mix</th>
+                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">Pts / Staff</th>
+                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">Total Tasks</th>
+                        <th className="py-2.5 px-4 text-right w-32 border-b border-white/20">Total Points</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700">
+                      {top10Data.branches.length === 0 ? (
+                        <tr>
+                          <td colSpan={12} className="py-12 text-center text-xs text-slate-400">
+                            No branch records in this period.
+                          </td>
+                        </tr>
+                      ) : (
+                        top10Data.branches.map((b, i) => (
+                          <tr key={b.branchId} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2.5 px-3 text-center">
+                              <div className="flex justify-center items-center">
+                                <RankBadge rank={i + 1} />
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-4">
+                              <span className="font-semibold text-slate-900 text-[13px] block truncate" title={cleanBranchName(b.branchName)}>
+                                {cleanBranchName(b.branchName)}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span
+                                className="font-mono text-xs text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80 tabular-nums"
+                                title={b.branchId === 'UNASSIGNED' ? 'Unassigned' : b.branchId}
+                              >
+                                {fmtBranchCode(b.branchId)}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-normal bg-slate-100 text-slate-600 border border-slate-200/80 tabular-nums whitespace-nowrap">
+                                {b.staffCount} staff
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(b.posPoints)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(b.sbPoints)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(b.khqrPoints)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(b.ccPoints)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <div className="flex justify-center items-center">
+                                <MiniMixBar pos={b.posPoints} sb={b.sbPoints} khqr={b.khqrPoints} cc={b.ccPoints} total={b.totalPoints} />
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(b.ptsPerStaff)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-600 font-medium">
+                              {fmtInt(b.totalTasks)}
+                            </td>
+                            <td className="py-2.5 px-4 text-right tabular-nums">
+                              <span className="font-bold text-[#003857] text-[13.5px]">
+                                {fmtPts(b.totalPoints)} <span className="text-xs font-semibold">pts</span>
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </>
+                )}
+              </table>
             </div>
           </div>
         </section>
