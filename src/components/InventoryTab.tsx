@@ -323,19 +323,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     return visibleDevices.slice(start, start + rowsPerPage);
   }, [visibleDevices, shownPage, rowsPerPage, isServerPaginated, serverPageRows]);
 
-  // Combined single-pass calculation for POS and Sound Box counts
-  const { posCount, sbCount } = useMemo(() => {
-    let pos = 0;
-    let sb = 0;
-    const len = visibleDevices.length;
-    for (let i = 0; i < len; i++) {
-      const t = visibleDevices[i].type;
-      if (t === 'POS Terminal') pos++;
-      else if (t === 'Sound Box') sb++;
-    }
-    return { posCount: pos, sbCount: sb };
-  }, [visibleDevices]);
-
   const allVisibleSelected =
     pagedDevices.length > 0 &&
     pagedDevices.every((d) => selectedSet.has(d.serial));
@@ -520,12 +507,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     ? 'Removed / Archived Serials'
                     : 'Stock Inventory & Multi-Branch Ledger'}
                 </h2>
-                <span className="text-[11px] font-mono font-extrabold px-2.5 py-0.5 rounded-md bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200/90 dark:border-slate-700 shadow-2xs">
-                  {visibleDevices.length.toLocaleString()} Active Units
-                </span>
-                <span className="hidden sm:inline-flex text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-200/80 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border border-slate-300/60 dark:border-slate-600">
-                  {posCount.toLocaleString()} POS · {sbCount.toLocaleString()} Sound Box
-                </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Select multiple serials (e.g. Select 10) to batch-assign to a Branch Code or return to Admin HQ Stock
