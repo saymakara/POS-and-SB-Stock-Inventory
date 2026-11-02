@@ -775,7 +775,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                   <div
                                     className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
                                       isSB
-                                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                        ? 'bg-rose-50 text-rose-700 border-rose-200'
                                         : 'bg-blue-50 text-[#004E72] border-blue-200'
                                     }`}
                                   >

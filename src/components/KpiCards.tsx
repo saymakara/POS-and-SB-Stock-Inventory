@@ -256,7 +256,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
               </span>
               <span aria-hidden="true">·</span>
               <span className="text-slate-600">
-                SB: <strong className="text-purple-700"><Odometer value={sbCount} format={sbCount >= 1000} duration={340} /></strong>
+                SB: <strong className="text-rose-600"><Odometer value={sbCount} format={sbCount >= 1000} duration={340} /></strong>
               </span>
             </div>
           </motion.div>

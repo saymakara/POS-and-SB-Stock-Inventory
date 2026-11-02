@@ -37,7 +37,7 @@ import { RAW_BRANCHES } from '../data/initialData';
 
 export const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
   'POS Terminal': { hex: '#004E72', badge: 'bg-[#004E72]/10 text-[#004E72] border-[#004E72]/20', bar: 'bg-[#004E72]', dot: 'bg-[#004E72]', Icon: Cpu },
-  'Sound Box': { hex: '#8b5cf6', badge: 'bg-purple-50 text-purple-700 border-purple-200/90', bar: 'bg-purple-500', dot: 'bg-purple-500', Icon: Volume2 },
+  'Sound Box': { hex: '#f43f5e', badge: 'bg-rose-50 text-rose-700 border-rose-200/90', bar: 'bg-rose-500', dot: 'bg-rose-500', Icon: Volume2 },
   KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', bar: 'bg-teal-600', dot: 'bg-teal-600', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-amber-500', dot: 'bg-amber-500', Icon: CreditCard },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },

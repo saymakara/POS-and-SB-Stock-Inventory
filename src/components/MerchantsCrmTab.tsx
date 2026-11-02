@@ -979,7 +979,7 @@ return (
                   yAxisId="left"
                   dataKey="sbDeployed"
                   name="Sound Box Deployed"
-                  fill="#8b5cf6"
+                  fill="#f43f5e"
                   radius={[5, 5, 0, 0]}
                   barSize={22}
                 />
@@ -1180,7 +1180,7 @@ return (
                       )}
                       {m.sbCount > 0 && (
                         <div className="cell-main font-medium flex items-center gap-1.5">
-                          <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" aria-hidden />
+                          <Volume2 className="w-3.5 h-3.5 text-rose-600 shrink-0" aria-hidden />
                           Sound Box{m.sbCount > 1 ? ` ×${m.sbCount}` : ''}
                         </div>
                       )}

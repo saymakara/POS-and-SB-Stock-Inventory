@@ -640,7 +640,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       series1Color="#004E72"
                       series2Label="Sound Box Installed"
                       series2Data={monthlyChart.sb}
-                      series2Color="#8b5cf6"
+                      series2Color="#f43f5e"
                       height={240}
                       theme="light"
                     />
@@ -732,7 +732,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         />
                         <div
                           style={{ width: `${sbPct}%` }}
-                          className="h-full bg-purple-500"
+                          className="h-full bg-rose-500"
                         />
                       </div>
                     </button>
@@ -756,7 +756,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   series1Color="#004E72"
                   series2Label="Sound Box Units"
                   series2Data={topBranchesChart.sbSeries}
-                  series2Color="#8b5cf6"
+                  series2Color="#f43f5e"
                   height={240}
                   theme="light"
                 />
@@ -946,7 +946,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       {dev.type === 'POS Terminal' ? (
                         <Cpu className="w-4 h-4 text-[#004E72]" />
                       ) : (
-                        <Volume2 className="w-4 h-4 text-purple-600" />
+                        <Volume2 className="w-4 h-4 text-rose-600" />
                       )}
                     </div>
                     <div className="min-w-0">

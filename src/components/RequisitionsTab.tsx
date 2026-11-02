@@ -640,7 +640,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                         )}
                         {req.sbQty > 0 && (
                           <div className="cell-main flex items-center gap-1.5">
-                            <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" aria-hidden />
+                            <Volume2 className="w-3.5 h-3.5 text-rose-600 shrink-0" aria-hidden />
                             <span>Sound Box</span>
                             <span className="chip chip-slate font-mono text-[11px] px-1.5 py-0">
                               ×{req.sbQty}
@@ -990,7 +990,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                                   POS Terminal
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
+                                <span className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
                                   <Volume2 className="w-3.5 h-3.5 shrink-0" />
                                   Sound Box
                                 </span>
