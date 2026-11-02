@@ -631,7 +631,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       <div className="flex flex-col gap-1">
                         {req.posQty > 0 && (
                           <div className="cell-main flex items-center gap-1.5">
-                            <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />
+                            <Cpu className="w-3.5 h-3.5 text-[#004E72] shrink-0" aria-hidden />
                             <span>POS Terminal</span>
                             <span className="chip chip-slate font-mono text-[11px] px-1.5 py-0">
                               ×{req.posQty}
@@ -985,7 +985,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                             </td>
                             <td className="py-2.5 px-4 font-bold">
                               {item.type === 'POS Terminal' ? (
-                                <span className="inline-flex items-center gap-1.5 text-sky-600 dark:text-sky-400">
+                                <span className="inline-flex items-center gap-1.5 text-[#004E72] dark:text-[#5cc8ff]">
                                   <Cpu className="w-3.5 h-3.5 shrink-0" />
                                   POS Terminal
                                 </span>

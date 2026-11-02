@@ -1036,8 +1036,8 @@ return (
             className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
               typeFilter === 'POS Terminal'
                 ? isLight
-                  ? 'bg-white border-sky-400 ring-2 ring-sky-400/30 shadow-sm'
-                  : 'bg-slate-800 border-sky-400 ring-2 ring-sky-400/30 shadow-md'
+                  ? 'bg-white border-[#004E72] ring-2 ring-[#004E72]/30 shadow-sm'
+                  : 'bg-slate-800 border-[#004E72] ring-2 ring-[#004E72]/30 shadow-md'
                 : isLight
                   ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
                   : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
@@ -1046,7 +1046,7 @@ return (
           >
             <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-sky-500" />
+                <span className="w-2 h-2 rounded-full bg-[#004E72]" />
                 POS Terminals
               </span>
               <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>

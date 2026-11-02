@@ -694,7 +694,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-xs text-white">
                 {device.type === 'POS Terminal' ? (
-                  <Cpu className="w-4 h-4 text-sky-300" />
+                  <Cpu className="w-4 h-4 text-[#5cc8ff]" />
                 ) : (
                   <Volume2 className="w-4 h-4 text-purple-300" />
                 )}

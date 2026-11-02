@@ -1504,8 +1504,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2 text-xs">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/60 text-sky-800 dark:text-sky-300 font-mono font-bold text-[11px]">
-                  <Cpu className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#004E72]/10 dark:bg-[#004E72]/30 border border-[#004E72]/20 dark:border-[#004E72]/40 text-[#004E72] dark:text-[#5cc8ff] font-mono font-bold text-[11px]">
+                  <Cpu className="w-3 h-3 text-[#004E72] dark:text-[#5cc8ff]" />
                   <span>{validPosCount} POS</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/60 text-purple-800 dark:text-purple-300 font-mono font-bold text-[11px]">
@@ -1946,11 +1946,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     )}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-sky-600 text-white">
+                        <span className="p-1.5 rounded-lg bg-[#004E72] text-white">
                           <Cpu className="w-4 h-4" />
                         </span>
                         <div>
-                          <div className="text-xs font-extrabold text-sky-900 dark:text-sky-300">
+                          <div className="text-xs font-extrabold text-[#004E72] dark:text-[#5cc8ff]">
                             Field 1: POS Terminal Serials
                           </div>
                           <div className="text-[10px] text-slate-500">
@@ -2301,7 +2301,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <td className="py-1.5 px-3 whitespace-nowrap">
                             <div className="flex items-center gap-1.5">
                               {item.type === 'POS Terminal' ? (
-                                <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                                <Cpu className="w-3.5 h-3.5 text-[#004E72] shrink-0" />
                               ) : (
                                 <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                               )}

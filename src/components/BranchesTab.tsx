@@ -576,7 +576,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           {/* POS Terminal Count */}
                           <td className="py-3 px-3.5 text-center">
                             <div className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-800">
-                              <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                              <Cpu className="w-3.5 h-3.5 text-[#004E72] shrink-0" />
                               <span>{b.posCount}</span>
                             </div>
                           </td>
@@ -1030,8 +1030,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/60 text-sky-800 dark:text-sky-300 font-mono font-bold text-[11px]">
-                        <Cpu className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#004E72]/10 dark:bg-[#004E72]/30 border border-[#004E72]/20 dark:border-[#004E72]/40 text-[#004E72] dark:text-[#5cc8ff] font-mono font-bold text-[11px]">
+                        <Cpu className="w-3 h-3 text-[#004E72] dark:text-[#5cc8ff]" />
                         <span>{inspectedBranch.posCount} POS</span>
                       </span>
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/60 text-purple-800 dark:text-purple-300 font-mono font-bold text-[11px]">

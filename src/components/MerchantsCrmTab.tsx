@@ -971,7 +971,7 @@ return (
                   yAxisId="left"
                   dataKey="posDeployed"
                   name="POS Terminal Deployed"
-                  fill="#0284c7"
+                  fill="#004E72"
                   radius={[5, 5, 0, 0]}
                   barSize={22}
                 />
@@ -1174,7 +1174,7 @@ return (
                     <td className="whitespace-nowrap">
                       {m.posCount > 0 && (
                         <div className="cell-main font-medium flex items-center gap-1.5">
-                          <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />
+                          <Cpu className="w-3.5 h-3.5 text-[#004E72] shrink-0" aria-hidden />
                           POS Terminal{m.posCount > 1 ? ` ×${m.posCount}` : ''}
                         </div>
                       )}

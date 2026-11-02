@@ -50,7 +50,7 @@ const STATUS_LABEL: Record<string, string> = {
 type Filter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
 type RecordTypeFilter = 'ALL' | FieldEvent['kind'];
-const DOT = { 'POS Terminal': 'bg-sky-500', 'Sound Box': 'bg-violet-500' } as const;
+const DOT = { 'POS Terminal': 'bg-[#004E72]', 'Sound Box': 'bg-purple-500' } as const;
 /** POS Terminal unless the record says Sound Box (the same rule as the row label) */
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
@@ -1157,7 +1157,7 @@ const ReviewRow = memo(function ReviewRow({
         <span className="text-right text-slate-500 font-mono font-normal tabular-nums">{no}</span>
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-normal text-slate-700">
           <span
-            className={`w-2 h-2 rounded-full ${type === 'Sound Box' ? 'bg-purple-500' : 'bg-sky-500'}`}
+            className={`w-2 h-2 rounded-full ${type === 'Sound Box' ? 'bg-purple-500' : 'bg-[#004E72]'}`}
             aria-hidden
           />
           {type}

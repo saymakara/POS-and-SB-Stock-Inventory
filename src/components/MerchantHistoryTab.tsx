@@ -541,7 +541,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
                 POS Terminals
               </span>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 bg-gradient-to-br from-sky-50 to-blue-100/90 text-sky-700 border-sky-200/80 shadow-2xs dark:from-sky-950/40 dark:to-blue-900/40 dark:text-sky-300 dark:border-sky-800">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 bg-[#004E72]/10 text-[#004E72] border-[#004E72]/20 shadow-2xs dark:bg-[#004E72]/30 dark:text-[#5cc8ff] dark:border-[#004E72]/40">
                 <Cpu className="w-5 h-5" />
               </div>
             </div>
@@ -550,7 +550,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             </div>
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
               <span className="truncate font-medium text-slate-600 dark:text-slate-300">POS hardware units</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200/70 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800 shrink-0">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#004E72]/10 text-[#004E72] border border-[#004E72]/20 dark:bg-[#004E72]/30 dark:text-[#5cc8ff] dark:border-[#004E72]/40 shrink-0">
                 {stats.total > 0 ? `${Math.round((stats.posCount / stats.total) * 100)}%` : '0%'}
               </span>
             </div>
@@ -774,7 +774,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         </button>
                         <div className="cell-sub flex items-center gap-1 max-w-[160px] truncate" title={`${rec.deviceType}${rec.model ? ' · ' + rec.model : ''}`}>
                           {rec.deviceType === 'POS Terminal' ? (
-                            <Cpu className="w-3 h-3 text-sky-600 dark:text-sky-400 shrink-0" aria-hidden />
+                            <Cpu className="w-3 h-3 text-[#004E72] dark:text-[#5cc8ff] shrink-0" aria-hidden />
                           ) : (
                             <Volume2 className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" aria-hidden />
                           )}

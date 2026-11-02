@@ -124,7 +124,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           count: webhookCount > 0 ? webhookCount : undefined,
           highlight: webhookCount > 0,
           children: [
-            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, iconColor: 'text-sky-400', count: reviewCounts?.pos },
+            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.pos },
             { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-purple-400', count: reviewCounts?.sb },
             { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode, iconColor: 'text-teal-400' },
             { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, iconColor: 'text-amber-400', count: reviewCounts?.cc || undefined },
@@ -776,7 +776,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                     className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
                                       isSB
                                         ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                        : 'bg-blue-50 text-[#003857] border-blue-200'
+                                        : 'bg-blue-50 text-[#004E72] border-blue-200'
                                     }`}
                                   >
                                     {isSB ? (

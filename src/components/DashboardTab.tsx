@@ -637,7 +637,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       labels={monthlyChart.labels}
                       series1Label="POS Terminal Installed"
                       series1Data={monthlyChart.pos}
-                      series1Color="#0284c7"
+                      series1Color="#004E72"
                       series2Label="Sound Box Installed"
                       series2Data={monthlyChart.sb}
                       series2Color="#8b5cf6"
@@ -728,7 +728,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-200">
                         <div
                           style={{ width: `${posPct}%` }}
-                          className="h-full bg-sky-500"
+                          className="h-full bg-[#004E72]"
                         />
                         <div
                           style={{ width: `${sbPct}%` }}
@@ -753,7 +753,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   labels={topBranchesChart.labels}
                   series1Label="POS Terminal Units"
                   series1Data={topBranchesChart.posSeries}
-                  series1Color="#0284c7"
+                  series1Color="#004E72"
                   series2Label="Sound Box Units"
                   series2Data={topBranchesChart.sbSeries}
                   series2Color="#8b5cf6"
@@ -944,7 +944,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 flex items-center justify-center shrink-0">
                       {dev.type === 'POS Terminal' ? (
-                        <Cpu className="w-4 h-4 text-sky-600" />
+                        <Cpu className="w-4 h-4 text-[#004E72]" />
                       ) : (
                         <Volume2 className="w-4 h-4 text-purple-600" />
                       )}
