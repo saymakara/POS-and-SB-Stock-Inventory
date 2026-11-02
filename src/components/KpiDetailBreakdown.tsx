@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
-  Layers, Search, Users, Cpu, Volume2, QrCode, CreditCard,
-  Check, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown
+  Layers, Search, Cpu, Volume2, QrCode, CreditCard,
+  FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown, X, Filter
 } from 'lucide-react';
 import { KpiCategory, KpiPeriod, KpiPointRule, KpiRawCounts, rulePts } from '../services/kpiService';
 import { Branch } from '../types';
@@ -75,8 +75,7 @@ export const KpiDetailBreakdown: React.FC<Props> = ({
 }) => {
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
-  const [sidebarTab, setSidebarTab] = useState<'staff' | 'branch'>('staff');
-  const [sidebarSearch, setSidebarSearch] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortKey, setSortKey] = useState<'points' | 'count' | 'name' | 'category' | 'unitPoints' | 'taskPct' | 'pointsPct'>('points');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -137,7 +136,18 @@ export const KpiDetailBreakdown: React.FC<Props> = ({
     };
   }, [activeStaffPool, ruleMap, sortKey, sortDir]);
 
-  // Summary Metrics Bar
+  // Search filter for tasks
+  const displayedRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return taskRows.rows;
+    return taskRows.rows.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.category.toLowerCase().includes(q)
+    );
+  }, [taskRows.rows, searchQuery]);
+
+  // Summary Metrics
   const summaryMetrics = useMemo(() => {
     const staffCount = activeStaffPool.length;
     const { grandTotalTasks, grandTotalPoints } = taskRows;
@@ -148,25 +158,21 @@ export const KpiDetailBreakdown: React.FC<Props> = ({
         : 0;
     const avgPtsPerStaff = staffCount > 0 ? Math.round(grandTotalPoints / staffCount) : 0;
 
-    let targetLabel = `${staffCount} Staff Selected (All Available)`;
-    let selectedBadge = `${staffCount}`;
+    let targetLabel = `All Staff (${staffCount})`;
     if (selectedStaffId) {
       const staffMember = filteredStaff.find((s) => s.staffId === selectedStaffId);
-      selectedBadge = '1';
       targetLabel = staffMember
         ? `${staffMember.staffName} (Code ${staffMember.branchId})`
         : '1 Staff Member';
     } else if (selectedBranchId) {
       const branchObj = branches.find((b) => b.id === selectedBranchId);
-      selectedBadge = '1';
       targetLabel = branchObj
-        ? `Branch ${selectedBranchId} · ${cleanBranchName(branchObj.name)} (${staffCount} staff)`
+        ? `Branch ${selectedBranchId} · ${cleanBranchName(branchObj.name)}`
         : `Branch Code ${selectedBranchId}`;
     }
 
     return {
       staffCount,
-      selectedBadge,
       targetLabel,
       grandTotalPoints,
       grandTotalTasks,
@@ -175,60 +181,32 @@ export const KpiDetailBreakdown: React.FC<Props> = ({
     };
   }, [activeStaffPool, taskRows, selectedStaffId, selectedBranchId, filteredStaff, branches]);
 
-  // Achievement Tone Classifier
+  // Achievement Tone
   const achievementTone = useMemo(() => {
     const a = summaryMetrics.avgAchievement;
     if (a >= 120) {
       return {
         label: 'Outstanding',
-        icon: '🚀',
         badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
       };
     }
     if (a >= 100) {
       return {
         label: 'Meet Target',
-        icon: '✅',
         badgeClass: 'bg-teal-50 text-teal-800 border-teal-300 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800',
       };
     }
     if (a >= 80) {
       return {
-        label: 'Near/Below',
-        icon: '◇',
+        label: 'Near Target',
         badgeClass: 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
       };
     }
     return {
-      label: 'Needs Improvement',
-      icon: '✕',
+      label: 'Needs Imp.',
       badgeClass: 'bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
     };
   }, [summaryMetrics.avgAchievement]);
-
-  // Sidebar list filters
-  const filteredSidebarStaff = useMemo(() => {
-    const q = sidebarSearch.trim().toLowerCase();
-    if (!q) return filteredStaff;
-    return filteredStaff.filter(
-      (s) =>
-        s.staffName.toLowerCase().includes(q) ||
-        s.staffId.toLowerCase().includes(q) ||
-        s.branchId.toLowerCase().includes(q) ||
-        s.branchName.toLowerCase().includes(q)
-    );
-  }, [filteredStaff, sidebarSearch]);
-
-  const filteredSidebarBranches = useMemo(() => {
-    const q = sidebarSearch.trim().toLowerCase();
-    const sorted = [...branches].sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true }));
-    if (!q) return sorted;
-    return sorted.filter(
-      (b) =>
-        b.name.toLowerCase().includes(q) ||
-        String(b.id).toLowerCase().includes(q)
-    );
-  }, [branches, sidebarSearch]);
 
   // Sort toggle handler
   const handleSort = (key: typeof sortKey) => {
@@ -262,505 +240,358 @@ export const KpiDetailBreakdown: React.FC<Props> = ({
         `${r.pointsPct}%`,
       ])
     );
-    onToast(`Exported KPI Task Breakdown table to CSV (${taskRows.rows.length} actions)`);
+    onToast(`Exported Action Breakdown table to CSV (${taskRows.rows.length} actions)`);
   }, [selectedStaffId, selectedBranchId, period, taskRows, onToast]);
 
   const resetAllFilters = () => {
     setSelectedStaffId('');
     setSelectedBranchId('');
-    setSidebarSearch('');
-    onToast('Reset filters to show all staff and branch breakdown');
+    setSearchQuery('');
   };
 
+  const isFiltered = Boolean(selectedStaffId || selectedBranchId || searchQuery);
+
+  const sortedBranches = useMemo(
+    () => [...branches].sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true })),
+    [branches]
+  );
+
+  const sortedStaff = useMemo(
+    () => [...filteredStaff].sort((a, b) => a.staffName.localeCompare(b.staffName)),
+    [filteredStaff]
+  );
+
   return (
-    <div className="space-y-5 p-4 sm:p-6 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl">
-      {/* ───────────── Header Bar (Spreadsheet Style) ───────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#003857] text-white flex items-center justify-center shrink-0 shadow-2xs">
-              <Search className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-black tracking-tight text-[#003857] dark:text-[#5cc8ff]">
-                KPI DETAIL — Individual &amp; Branch Breakdown
-              </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                Sort/filter the table by any column. Auto-syncs live from KPI &amp; Performance.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Top-right "TYPE TO SEARCH (no scrolling)" */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-xs font-semibold">
-            <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider hidden sm:inline">Type to Search:</span>
-            
-            {/* Staff Dropdown */}
-            <select
-              value={selectedStaffId}
-              onChange={(e) => {
-                setSelectedStaffId(e.target.value);
-                if (e.target.value) setSelectedBranchId('');
-              }}
-              aria-label="Filter by Staff"
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-2xs outline-none cursor-pointer max-w-[180px] truncate"
-            >
-              <option value="">Staff: All ({filteredStaff.length})</option>
-              {filteredStaff.map((s) => (
-                <option key={s.staffId} value={s.staffId}>
-                  {s.staffName} ({s.staffId})
-                </option>
-              ))}
-            </select>
-
-            {/* Branch Dropdown */}
-            <select
-              value={selectedBranchId}
-              onChange={(e) => {
-                setSelectedBranchId(e.target.value);
-                if (e.target.value) setSelectedStaffId('');
-              }}
-              aria-label="Filter by Branch"
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-2xs outline-none cursor-pointer max-w-[180px] truncate"
-            >
-              <option value="">Branch: All ({branches.length})</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  Code {b.id} · {cleanBranchName(b.name)}
-                </option>
-              ))}
-            </select>
-
-            {(selectedStaffId || selectedBranchId) && (
-              <button
-                type="button"
-                onClick={resetAllFilters}
-                className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 cursor-pointer transition shadow-2xs"
-                title="Clear selected staff or branch filter"
-              >
-                Clear
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="btn btn-secondary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer ml-1"
-              title="Export Breakdown Table to CSV"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Export CSV</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ───────────── Top Metrics Summary Bar (Navy Excel Style) ───────────── */}
-      <div className="rounded-2xl border border-[#002a42] bg-[#003857] text-white p-4 sm:p-5 shadow-sm">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-white/10">
-          {/* Card 1 */}
-          <div className="pt-2 sm:pt-0 sm:px-3 text-center">
-            <div className="text-[11px] font-bold text-sky-200 uppercase tracking-wider">
-              Staff / Branch Selected
-            </div>
-            <div className="text-2xl sm:text-3xl font-black mt-1 font-figure tracking-tight">
-              {summaryMetrics.selectedBadge}
-            </div>
-            <div className="text-[11px] text-sky-100/80 truncate mt-0.5 font-medium" title={summaryMetrics.targetLabel}>
-              {summaryMetrics.targetLabel}
-            </div>
+    <div className="w-full flex flex-col">
+      {/* ───────────── Sub-bar: Filters & KPI Metrics Strip ───────────── */}
+      <div className="px-5 py-2.5 bg-slate-50/70 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+        {/* Left: Filter Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 text-slate-500 font-semibold text-[11px] uppercase tracking-wider mr-1">
+            <Filter className="w-3.5 h-3.5 text-[#003857] dark:text-[#5cc8ff]" />
+            <span className="hidden sm:inline">Filter By:</span>
           </div>
 
-          {/* Card 2 */}
-          <div className="pt-2 sm:pt-0 sm:px-3 text-center">
-            <div className="text-[11px] font-bold text-sky-200 uppercase tracking-wider">
-              Total Points
-            </div>
-            <div className="text-2xl sm:text-3xl font-black mt-1 font-figure tracking-tight text-white">
-              {fmtPts(summaryMetrics.grandTotalPoints)}
-            </div>
-            <div className="text-[11px] text-sky-100/80 mt-0.5 font-medium">
-              Overall points accrued
-            </div>
-          </div>
+          {/* Staff Select */}
+          <select
+            value={selectedStaffId}
+            onChange={(e) => {
+              setSelectedStaffId(e.target.value);
+              if (e.target.value) setSelectedBranchId('');
+            }}
+            aria-label="Filter by Staff"
+            className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-2xs outline-none cursor-pointer max-w-[190px] truncate"
+          >
+            <option value="">All Staff ({filteredStaff.length})</option>
+            {sortedStaff.map((s) => (
+              <option key={s.staffId} value={s.staffId}>
+                {s.staffName} ({s.staffId})
+              </option>
+            ))}
+          </select>
 
-          {/* Card 3 */}
-          <div className="pt-2 sm:pt-0 sm:px-3 text-center">
-            <div className="text-[11px] font-bold text-sky-200 uppercase tracking-wider">
-              Total Tasks
-            </div>
-            <div className="text-2xl sm:text-3xl font-black mt-1 font-figure tracking-tight text-white">
-              {fmtInt(summaryMetrics.grandTotalTasks)}
-            </div>
-            <div className="text-[11px] text-sky-100/80 mt-0.5 font-medium">
-              Actions taken across tasks
-            </div>
-          </div>
+          {/* Branch Select */}
+          <select
+            value={selectedBranchId}
+            onChange={(e) => {
+              setSelectedBranchId(e.target.value);
+              if (e.target.value) setSelectedStaffId('');
+            }}
+            aria-label="Filter by Branch"
+            className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-2xs outline-none cursor-pointer max-w-[190px] truncate"
+          >
+            <option value="">All Branches ({branches.length})</option>
+            {sortedBranches.map((b) => (
+              <option key={b.id} value={b.id}>
+                Code {b.id} · {cleanBranchName(b.name)}
+              </option>
+            ))}
+          </select>
 
-          {/* Card 4 */}
-          <div className="pt-2 sm:pt-0 sm:px-3 text-center">
-            <div className="text-[11px] font-bold text-sky-200 uppercase tracking-wider">
-              Avg Achievement
-            </div>
-            <div className="mt-1">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xl sm:text-2xl font-black font-figure border shadow-xs ${achievementTone.badgeClass}`}>
-                <span>{summaryMetrics.avgAchievement}%</span>
-              </span>
-            </div>
-            <div className="text-[11px] text-sky-100/80 mt-1 font-medium">
-              {achievementTone.icon} {achievementTone.label}
-            </div>
-          </div>
-
-          {/* Card 5 */}
-          <div className="pt-2 sm:pt-0 sm:px-3 text-center col-span-2 sm:col-span-1">
-            <div className="text-[11px] font-bold text-sky-200 uppercase tracking-wider">
-              Avg Pts / Staff
-            </div>
-            <div className="text-2xl sm:text-3xl font-black mt-1 font-figure tracking-tight text-white">
-              {fmtInt(summaryMetrics.avgPtsPerStaff)}
-            </div>
-            <div className="text-[11px] text-sky-100/80 mt-0.5 font-medium">
-              Points per team member
-            </div>
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-[11px] text-sky-100/80">
-          <span className="font-semibold text-white/90">Avg Achievement Tone Scale:</span>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1 font-medium">
-              <span>🚀</span> <strong>&ge; 120%</strong> Outstanding
-            </span>
-            <span className="inline-flex items-center gap-1 font-medium">
-              <span>✅</span> <strong>100–120%</strong> Meet Target
-            </span>
-            <span className="inline-flex items-center gap-1 font-medium">
-              <span>◇</span> <strong>80–100%</strong> Near/Below
-            </span>
-            <span className="inline-flex items-center gap-1 font-medium">
-              <span>✕</span> <strong>&lt; 80%</strong> Needs Improvement
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ───────────── Main Content: Ranking Table + Quick Filter Sidebar ───────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left Column (Table) - 8 cols */}
-        <div className="lg:col-span-8 xl:col-span-9 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-2xs overflow-hidden">
-          <div className="overflow-x-auto w-full overscroll-x-contain">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="navy-header-bar bg-[#003857] text-white text-xs font-semibold select-none">
-                  <th className="py-3 px-3 text-center w-10">No.</th>
-                  
-                  <th
-                    className="py-3 px-3.5 cursor-pointer hover:bg-white/10 transition-colors"
-                    onClick={() => handleSort('name')}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>KPI Task</span>
-                      {sortKey === 'name' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-sky-300" /> : <ArrowDown className="w-3 h-3 text-sky-300" />) : <ArrowUpDown className="w-3 h-3 text-white/40" />}
-                    </div>
-                  </th>
-
-                  <th
-                    className="py-3 px-3 text-center cursor-pointer hover:bg-white/10 transition-colors"
-                    onClick={() => handleSort('category')}
-                  >
-                    <div className="flex items-center justify-center gap-1.5">
-                      <span>Category</span>
-                      {sortKey === 'category' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-sky-300" /> : <ArrowDown className="w-3 h-3 text-sky-300" />) : <ArrowUpDown className="w-3 h-3 text-white/40" />}
-                    </div>
-                  </th>
-
-                  <th
-                    className="py-3 px-3 text-right cursor-pointer hover:bg-white/10 transition-colors"
-                    onClick={() => handleSort('count')}
-                  >
-                    <div className="flex items-center justify-end gap-1.5">
-                      <span>Task Count</span>
-                      {sortKey === 'count' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-sky-300" /> : <ArrowDown className="w-3 h-3 text-sky-300" />) : <ArrowUpDown className="w-3 h-3 text-white/40" />}
-                    </div>
-                  </th>
-
-                  <th
-                    className="py-3 px-3 text-right cursor-pointer hover:bg-white/10 transition-colors"
-                    onClick={() => handleSort('taskPct')}
-                  >
-                    <div className="flex items-center justify-end gap-1.5">
-                      <span>% of Tasks</span>
-                      {sortKey === 'taskPct' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-sky-300" /> : <ArrowDown className="w-3 h-3 text-sky-300" />) : <ArrowUpDown className="w-3 h-3 text-white/40" />}
-                    </div>
-                  </th>
-
-                  <th
-                    className="py-3 px-3 text-right cursor-pointer hover:bg-white/10 transition-colors"
-                    onClick={() => handleSort('points')}
-                  >
-                    <div className="flex items-center justify-end gap-1.5">
-                      <span>Total Points</span>
-                      {sortKey === 'points' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-sky-300" /> : <ArrowDown className="w-3 h-3 text-sky-300" />) : <ArrowUpDown className="w-3 h-3 text-white/40" />}
-                    </div>
-                  </th>
-
-                  <th
-                    className="py-3 px-3 text-right cursor-pointer hover:bg-white/10 transition-colors"
-                    onClick={() => handleSort('pointsPct')}
-                  >
-                    <div className="flex items-center justify-end gap-1.5">
-                      <span>Points %</span>
-                      {sortKey === 'pointsPct' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-sky-300" /> : <ArrowDown className="w-3 h-3 text-sky-300" />) : <ArrowUpDown className="w-3 h-3 text-white/40" />}
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {taskRows.rows.map((row, idx) => {
-                  const cat = CAT_COLORS[row.category];
-                  const Icon = cat.Icon;
-                  return (
-                    <tr
-                      key={row.key}
-                      className="hover:bg-slate-50/80 dark:hover:bg-white/[0.03] transition-colors"
-                    >
-                      <td className="py-2.5 px-3 text-center text-slate-400 font-figure tabular-nums font-bold">
-                        {idx + 1}
-                      </td>
-
-                      <td className="py-2.5 px-3.5">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border ${cat.badge}`}>
-                            <Icon className="w-3.5 h-3.5" />
-                          </span>
-                          <span className="font-bold text-slate-800 dark:text-slate-100 tracking-tight">
-                            {row.name}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold border ${cat.badge}`}>
-                          {row.category}
-                        </span>
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right font-figure tabular-nums text-slate-800 dark:text-slate-200 font-bold">
-                        {fmtInt(row.count)}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5 justify-end">
-                          <span className="w-12 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden hidden sm:inline-block">
-                            <span
-                              className="h-full block rounded-full bg-slate-500"
-                              style={{ width: `${Math.min(100, Math.max(3, row.taskPct))}%` }}
-                            />
-                          </span>
-                          <span className="font-figure tabular-nums text-slate-600 dark:text-slate-300 w-10 text-right">
-                            {row.taskPct}%
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right font-figure tabular-nums text-[#003857] dark:text-[#5cc8ff] font-extrabold text-[13px]">
-                        {fmtPts(row.totalPoints)} pts
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5 justify-end">
-                          <span className="w-12 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden hidden sm:inline-block">
-                            <span
-                              className="h-full block rounded-full bg-[#003857] dark:bg-[#5cc8ff]"
-                              style={{ width: `${Math.min(100, Math.max(3, row.pointsPct))}%` }}
-                            />
-                          </span>
-                          <span className="font-figure tabular-nums font-bold text-slate-800 dark:text-slate-200 w-10 text-right">
-                            {row.pointsPct}%
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-
-              {/* Table Footer Totals */}
-              <tfoot>
-                <tr className="bg-slate-100 dark:bg-slate-800/80 font-bold text-slate-900 dark:text-white border-t-2 border-slate-300 dark:border-slate-700">
-                  <td colSpan={3} className="py-3 px-3.5 uppercase tracking-wider text-xs">
-                    Total All Operational Actions
-                  </td>
-                  <td className="py-3 px-3 text-right font-figure tabular-nums font-black text-sm">
-                    {fmtInt(taskRows.grandTotalTasks)}
-                  </td>
-                  <td className="py-3 px-3 text-right font-figure tabular-nums text-xs">
-                    100.0%
-                  </td>
-                  <td className="py-3 px-3 text-right font-figure tabular-nums font-black text-[#003857] dark:text-[#5cc8ff] text-sm">
-                    {fmtPts(taskRows.grandTotalPoints)} pts
-                  </td>
-                  <td className="py-3 px-3 text-right font-figure tabular-nums text-xs font-bold">
-                    100.0%
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-
-        {/* Right Column (Quick Selection & Search Sidebar) - 4 cols */}
-        <div className="lg:col-span-4 xl:col-span-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-2xs space-y-3.5">
-          {/* Tabs: Staff vs Branch */}
-          <div className="flex items-center justify-between gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold">
-            <button
-              type="button"
-              onClick={() => { setSidebarTab('staff'); setSidebarSearch(''); }}
-              className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer ${
-                sidebarTab === 'staff'
-                  ? 'bg-white dark:bg-slate-700 text-[#003857] dark:text-white shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              Staff ({filteredStaff.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => { setSidebarTab('branch'); setSidebarSearch(''); }}
-              className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer ${
-                sidebarTab === 'branch'
-                  ? 'bg-white dark:bg-slate-700 text-[#003857] dark:text-white shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              Branches ({branches.length})
-            </button>
-          </div>
-
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          {/* Task Search Input */}
+          <div className="relative w-40 sm:w-48">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              value={sidebarSearch}
-              onChange={(e) => setSidebarSearch(e.target.value)}
-              placeholder={`Search ${sidebarTab === 'staff' ? 'staff name or ID' : 'branch name or code'}...`}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#003857]"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search actions..."
+              className="w-full pl-7 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#003857] shadow-2xs"
             />
           </div>
 
-          {/* Scrollable list */}
-          <div className="space-y-1.5 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar text-xs">
-            {/* "All" reset option */}
+          {isFiltered && (
             <button
               type="button"
-              onClick={() => {
-                setSelectedStaffId('');
-                setSelectedBranchId('');
-              }}
-              className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
-                !selectedStaffId && !selectedBranchId
-                  ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
-              }`}
+              onClick={resetAllFilters}
+              className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 border border-rose-200 dark:border-rose-900 cursor-pointer transition shadow-2xs inline-flex items-center gap-1"
+              title="Reset all filters to show all actions"
             >
-              <div className="font-bold flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5" />
-                <span>All {sidebarTab === 'staff' ? 'Staff Members' : 'Branches'}</span>
-              </div>
-              {!selectedStaffId && !selectedBranchId && (
-                <Check className="w-3.5 h-3.5 text-sky-300 shrink-0" />
-              )}
+              <X className="w-3 h-3" />
+              <span>Clear</span>
             </button>
-
-            {sidebarTab === 'staff' ? (
-              filteredSidebarStaff.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400">
-                  No staff members matching &quot;{sidebarSearch}&quot;
-                </div>
-              ) : (
-                filteredSidebarStaff.map((s) => {
-                  const isSelected = selectedStaffId === s.staffId;
-                  return (
-                    <button
-                      key={s.staffId}
-                      type="button"
-                      onClick={() => {
-                        setSelectedStaffId(isSelected ? '' : s.staffId);
-                        setSelectedBranchId('');
-                      }}
-                      className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2 cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
-                          : 'bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <div className="font-bold truncate text-xs">
-                          {s.staffName}
-                        </div>
-                        <div className={`text-[10.5px] truncate font-mono ${isSelected ? 'text-sky-200' : 'text-slate-500'}`}>
-                          ID {s.staffId} · Code {s.branchId}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className={`font-figure font-bold text-xs ${isSelected ? 'text-white' : 'text-[#003857] dark:text-[#5cc8ff]'}`}>
-                          {fmtPts(s.totalPoints)} pts
-                        </div>
-                        <div className={`text-[10px] ${isSelected ? 'text-sky-200' : 'text-slate-400'}`}>
-                          {fmtInt(s.totalTasks)} tasks
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })
-              )
-            ) : (
-              filteredSidebarBranches.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400">
-                  No branches matching &quot;{sidebarSearch}&quot;
-                </div>
-              ) : (
-                filteredSidebarBranches.map((b) => {
-                  const isSelected = selectedBranchId === b.id;
-                  const bStaffCount = filteredStaff.filter((s) => s.branchId === b.id).length;
-                  return (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBranchId(isSelected ? '' : b.id);
-                        setSelectedStaffId('');
-                      }}
-                      className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2 cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
-                          : 'bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <div className="font-bold truncate text-xs">
-                          {cleanBranchName(b.name)}
-                        </div>
-                        <div className={`text-[10.5px] truncate font-mono ${isSelected ? 'text-sky-200' : 'text-slate-500'}`}>
-                          Code {b.id} · {bStaffCount} staff
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        {isSelected && <Check className="w-4 h-4 text-sky-300" />}
-                      </div>
-                    </button>
-                  );
-                })
-              )
-            )}
-          </div>
+          )}
         </div>
+
+        {/* Right: Quick Summary Metrics Chips & Export */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs font-figure text-[11.5px]">
+            <span className="text-slate-500 font-medium">Tasks:</span>
+            <strong className="text-slate-900 dark:text-white tabular-nums">{fmtInt(taskRows.grandTotalTasks)}</strong>
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs font-figure text-[11.5px]">
+            <span className="text-slate-500 font-medium">Points:</span>
+            <strong className="text-[#003857] dark:text-[#5cc8ff] tabular-nums">{fmtPts(taskRows.grandTotalPoints)} pts</strong>
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs font-figure text-[11.5px]">
+            <span className="text-slate-500 font-medium">Avg Target:</span>
+            <span className={`px-1.5 py-0.2 rounded font-bold text-[10.5px] border ${achievementTone.badgeClass}`}>
+              {summaryMetrics.avgAchievement}%
+            </span>
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs font-figure text-[11.5px] hidden sm:inline-flex">
+            <span className="text-slate-500 font-medium">Pts/Staff:</span>
+            <strong className="text-slate-900 dark:text-white tabular-nums">{fmtInt(summaryMetrics.avgPtsPerStaff)}</strong>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer transition ml-0.5"
+            title="Export Action Breakdown table to CSV"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden md:inline">Export CSV</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ───────────── Full-Width Action Breakdown Table ───────────── */}
+      <div className="overflow-x-auto w-full overscroll-x-contain">
+        <table className="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr className="navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal select-none">
+              <th className="py-2.5 px-3.5 text-center w-12 border-b border-white/20">No.</th>
+
+              <th
+                className="py-2.5 px-4 cursor-pointer hover:bg-white/10 transition-colors border-b border-white/20 min-w-[280px]"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>KPI Operational Task</span>
+                  {sortKey === 'name' ? (
+                    sortDir === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-sky-300" /> : <ArrowDown className="w-3.5 h-3.5 text-sky-300" />
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 text-white/40" />
+                  )}
+                </div>
+              </th>
+
+              <th
+                className="py-2.5 px-3 text-center cursor-pointer hover:bg-white/10 transition-colors border-b border-white/20 min-w-[130px]"
+                onClick={() => handleSort('category')}
+              >
+                <div className="flex items-center justify-center gap-1.5">
+                  <span>Category</span>
+                  {sortKey === 'category' ? (
+                    sortDir === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-sky-300" /> : <ArrowDown className="w-3.5 h-3.5 text-sky-300" />
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 text-white/40" />
+                  )}
+                </div>
+              </th>
+
+              <th
+                className="py-2.5 px-3 text-center cursor-pointer hover:bg-white/10 transition-colors border-b border-white/20 min-w-[120px]"
+                onClick={() => handleSort('unitPoints')}
+              >
+                <div className="flex items-center justify-center gap-1.5">
+                  <span>Points / Unit</span>
+                  {sortKey === 'unitPoints' ? (
+                    sortDir === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-sky-300" /> : <ArrowDown className="w-3.5 h-3.5 text-sky-300" />
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 text-white/40" />
+                  )}
+                </div>
+              </th>
+
+              <th
+                className="py-2.5 px-4 text-right cursor-pointer hover:bg-white/10 transition-colors border-b border-white/20 min-w-[110px]"
+                onClick={() => handleSort('count')}
+              >
+                <div className="flex items-center justify-end gap-1.5">
+                  <span>Task Count</span>
+                  {sortKey === 'count' ? (
+                    sortDir === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-sky-300" /> : <ArrowDown className="w-3.5 h-3.5 text-sky-300" />
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 text-white/40" />
+                  )}
+                </div>
+              </th>
+
+              <th
+                className="py-2.5 px-4 text-right cursor-pointer hover:bg-white/10 transition-colors border-b border-white/20 min-w-[130px]"
+                onClick={() => handleSort('taskPct')}
+              >
+                <div className="flex items-center justify-end gap-1.5">
+                  <span>% of Tasks</span>
+                  {sortKey === 'taskPct' ? (
+                    sortDir === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-sky-300" /> : <ArrowDown className="w-3.5 h-3.5 text-sky-300" />
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 text-white/40" />
+                  )}
+                </div>
+              </th>
+
+              <th
+                className="py-2.5 px-4 text-right cursor-pointer hover:bg-white/10 transition-colors border-b border-white/20 min-w-[130px]"
+                onClick={() => handleSort('points')}
+              >
+                <div className="flex items-center justify-end gap-1.5">
+                  <span>Total Points</span>
+                  {sortKey === 'points' ? (
+                    sortDir === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-sky-300" /> : <ArrowDown className="w-3.5 h-3.5 text-sky-300" />
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 text-white/40" />
+                  )}
+                </div>
+              </th>
+
+              <th
+                className="py-2.5 px-4 text-right cursor-pointer hover:bg-white/10 transition-colors border-b border-white/20 min-w-[130px]"
+                onClick={() => handleSort('pointsPct')}
+              >
+                <div className="flex items-center justify-end gap-1.5">
+                  <span>Points Share</span>
+                  {sortKey === 'pointsPct' ? (
+                    sortDir === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-sky-300" /> : <ArrowDown className="w-3.5 h-3.5 text-sky-300" />
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 text-white/40" />
+                  )}
+                </div>
+              </th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-slate-200/90 dark:divide-slate-800 font-medium">
+            {displayedRows.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-12 text-center text-slate-500 text-xs">
+                  No operational actions match &quot;{searchQuery}&quot;
+                </td>
+              </tr>
+            ) : (
+              displayedRows.map((row, idx) => {
+                const cat = CAT_COLORS[row.category];
+                const Icon = cat.Icon;
+                return (
+                  <tr
+                    key={row.key}
+                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors text-[13px] text-slate-700 dark:text-slate-300"
+                  >
+                    {/* Rank */}
+                    <td className="py-3 px-3.5 text-center text-slate-400 font-figure tabular-nums font-bold text-xs">
+                      {idx + 1}
+                    </td>
+
+                    {/* Task Name */}
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border shadow-2xs ${cat.badge}`}>
+                          <Icon className="w-3.5 h-3.5" />
+                        </span>
+                        <span className="font-bold text-slate-900 dark:text-white tracking-tight leading-snug">
+                          {row.name}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Category */}
+                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold border ${cat.badge}`}>
+                        {row.category}
+                      </span>
+                    </td>
+
+                    {/* Unit Points */}
+                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                      <span className="font-mono text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                        {row.unitPoints} pts / {row.unit}
+                      </span>
+                    </td>
+
+                    {/* Task Count */}
+                    <td className="py-3 px-4 text-right font-figure tabular-nums text-slate-900 dark:text-white font-bold text-xs">
+                      {fmtInt(row.count)}
+                    </td>
+
+                    {/* % of Tasks */}
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-2 justify-end">
+                        <span className="w-14 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden hidden sm:inline-block">
+                          <span
+                            className="h-full block rounded-full bg-slate-500"
+                            style={{ width: `${Math.min(100, Math.max(3, row.taskPct))}%` }}
+                          />
+                        </span>
+                        <span className="font-figure tabular-nums text-slate-700 dark:text-slate-300 w-11 text-right text-xs">
+                          {row.taskPct}%
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Total Points */}
+                    <td className="py-3 px-4 text-right font-figure tabular-nums text-[#003857] dark:text-[#5cc8ff] font-extrabold text-[13px]">
+                      {fmtPts(row.totalPoints)} pts
+                    </td>
+
+                    {/* Points Share */}
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-2 justify-end">
+                        <span className="w-14 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden hidden sm:inline-block">
+                          <span
+                            className="h-full block rounded-full bg-[#003857] dark:bg-[#5cc8ff]"
+                            style={{ width: `${Math.min(100, Math.max(3, row.pointsPct))}%` }}
+                          />
+                        </span>
+                        <span className="font-figure tabular-nums font-bold text-slate-900 dark:text-white w-11 text-right text-xs">
+                          {row.pointsPct}%
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+
+          {/* Table Footer Totals */}
+          <tfoot>
+            <tr className="bg-slate-100/90 dark:bg-slate-800/80 font-bold text-slate-900 dark:text-white border-t-2 border-slate-300 dark:border-slate-700">
+              <td colSpan={4} className="py-3 px-4 uppercase tracking-wider text-xs">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-[#003857] dark:text-[#5cc8ff]" />
+                  <span>Total All Operational Actions ({taskRows.rows.length} Actions)</span>
+                </div>
+              </td>
+              <td className="py-3 px-4 text-right font-figure tabular-nums font-black text-sm">
+                {fmtInt(taskRows.grandTotalTasks)}
+              </td>
+              <td className="py-3 px-4 text-right font-figure tabular-nums text-xs font-bold">
+                100.0%
+              </td>
+              <td className="py-3 px-4 text-right font-figure tabular-nums font-black text-[#003857] dark:text-[#5cc8ff] text-sm">
+                {fmtPts(taskRows.grandTotalPoints)} pts
+              </td>
+              <td className="py-3 px-4 text-right font-figure tabular-nums text-xs font-bold">
+                100.0%
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
     </div>
   );
