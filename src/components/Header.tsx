@@ -125,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           highlight: webhookCount > 0,
           children: [
             { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.pos },
-            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-[#4F518C]', count: reviewCounts?.sb },
+            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-[#a2a5e0]', count: reviewCounts?.sb },
             { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode, iconColor: 'text-teal-400' },
             { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, iconColor: 'text-amber-400', count: reviewCounts?.cc || undefined },
           ],

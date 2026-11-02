@@ -754,11 +754,11 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         >
                           {rec.serial}
                         </button>
-                        <div className="cell-sub flex items-center gap-1 max-w-[160px] truncate" title={`${rec.deviceType}${rec.model ? ' · ' + rec.model : ''}`}>
+                        <div className={`cell-sub flex items-center gap-1 max-w-[160px] truncate ${rec.deviceType === 'Sound Box' ? 'text-[#4F518C] dark:text-[#a2a5e0] font-medium' : rec.deviceType === 'POS Terminal' ? 'text-[#006BA6] dark:text-[#5cc8ff] font-medium' : ''}`} title={`${rec.deviceType}${rec.model ? ' · ' + rec.model : ''}`}>
                           {rec.deviceType === 'POS Terminal' ? (
-                            <Cpu className="w-3 h-3 text-[#006BA6] dark:text-[#5cc8ff] shrink-0" aria-hidden />
+                            <Cpu className="w-3.5 h-3.5 text-[#006BA6] dark:text-[#5cc8ff] shrink-0" aria-hidden />
                           ) : (
-                            <Volume2 className="w-3 h-3 text-[#4F518C] dark:text-[#a2a5e0] shrink-0" aria-hidden />
+                            <Volume2 className="w-3.5 h-3.5 text-[#4F518C] dark:text-[#a2a5e0] shrink-0" aria-hidden />
                           )}
                           <span className="truncate">{rec.deviceType}{rec.model ? ` · ${rec.model}` : ''}</span>
                         </div>
@@ -1041,8 +1041,8 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
                           selectedRecord.deviceType === 'POS Terminal'
-                            ? 'bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300'
-                            : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
+                            ? 'bg-[#006BA6]/10 dark:bg-[#006BA6]/30 text-[#006BA6] dark:text-[#5cc8ff]'
+                            : 'bg-[#4F518C]/10 dark:bg-[#4F518C]/30 text-[#4F518C] dark:text-[#a2a5e0]'
                         }`}>
                           {selectedRecord.deviceType === 'POS Terminal' ? (
                             <Cpu className="w-3.5 h-3.5" />

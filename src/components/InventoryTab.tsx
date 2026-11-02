@@ -972,7 +972,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       </td>
 
                       <td className="whitespace-nowrap">
-                        <div className="cell-main flex items-center gap-1.5 font-medium">
+                        <div className={`cell-main flex items-center gap-1.5 font-semibold ${dev.type === 'Sound Box' ? 'text-[#4F518C] dark:text-[#a2a5e0]' : dev.type === 'POS Terminal' ? 'text-[#006BA6] dark:text-[#5cc8ff]' : ''}`}>
                           {dev.type === 'POS Terminal' ? (
                             <Cpu className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
                           ) : (

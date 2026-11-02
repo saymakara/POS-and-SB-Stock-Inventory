@@ -2307,7 +2307,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               )}
                               <span
                                 className={`font-bold text-xs ${
-                                  isLight ? 'text-slate-800' : 'text-slate-200'
+                                  item.type === 'Sound Box' ? 'text-[#4F518C]' : 'text-[#006BA6]'
                                 }`}
                               >
                                 {item.type}

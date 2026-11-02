@@ -1,7 +1,7 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine, Cpu, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -1156,12 +1156,17 @@ const ReviewRow = memo(function ReviewRow({
           )}
         </span>
         <span className="text-right text-slate-500 font-mono font-normal tabular-nums">{no}</span>
-        <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-normal text-slate-700">
+        <span className={`inline-flex items-center gap-1.5 whitespace-nowrap font-semibold ${type === 'Sound Box' ? 'text-[#4F518C]' : 'text-[#006BA6]'}`}>
           <span
             className={`w-2 h-2 rounded-full ${type === 'Sound Box' ? 'bg-[#4F518C]' : 'bg-[#006BA6]'}`}
             aria-hidden
           />
-          {type}
+          {type === 'Sound Box' ? (
+            <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
+          ) : (
+            <Cpu className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
+          )}
+          <span>{type}</span>
         </span>
         <span className="truncate leading-snug font-normal text-slate-700" title={KIND_LABEL[e.kind]}>
           {KIND_LABEL[e.kind]}

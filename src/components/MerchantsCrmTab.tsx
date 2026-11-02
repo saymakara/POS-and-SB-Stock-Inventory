@@ -1173,15 +1173,15 @@ return (
                     </td>
                     <td className="whitespace-nowrap">
                       {m.posCount > 0 && (
-                        <div className="cell-main font-medium flex items-center gap-1.5">
+                        <div className="cell-main font-semibold flex items-center gap-1.5 text-[#006BA6] dark:text-[#5cc8ff]">
                           <Cpu className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
-                          POS Terminal{m.posCount > 1 ? ` ×${m.posCount}` : ''}
+                          <span>POS Terminal{m.posCount > 1 ? ` ×${m.posCount}` : ''}</span>
                         </div>
                       )}
                       {m.sbCount > 0 && (
-                        <div className="cell-main font-medium flex items-center gap-1.5">
+                        <div className="cell-main font-semibold flex items-center gap-1.5 text-[#4F518C] dark:text-[#a2a5e0]">
                           <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
-                          Sound Box{m.sbCount > 1 ? ` ×${m.sbCount}` : ''}
+                          <span>Sound Box{m.sbCount > 1 ? ` ×${m.sbCount}` : ''}</span>
                         </div>
                       )}
                       {m.posCount === 0 && m.sbCount === 0 && <span className="cell-sub">—</span>}
