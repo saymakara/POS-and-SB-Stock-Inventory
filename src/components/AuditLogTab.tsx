@@ -103,8 +103,6 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
   const [serverLogs, setServerLogs] = useState<ServerAuditEntry[]>(() => getCachedAudit(50, 0) || []);   // the last page is shown at once
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [loadedAt, setLoadedAt] = useState<string | null>(null);
-  const [integrityVerifiedAt, setIntegrityVerifiedAt] = useState<string>(() => stampSecPP());
   const requestSeq = useRef(0);
   const mounted = useRef(true);
   useEffect(() => {
@@ -131,7 +129,6 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
         setCachedAudit(pageSize, offset, rows);
         setServerLogs(rows);
         setHasNextServerPage(rows.length >= pageSize);
-        setLoadedAt(stampSecPP());
       }
     } catch (e) {
       if (!mounted.current || seq !== requestSeq.current) return;
@@ -316,55 +313,19 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 ? 'Immutable institutional audit records capturing administrative operations, role actions, and system error telemetry.'
                 : 'Activity recorded in this browser session on this workstation for operational tracking and verification.'}
             </p>
-
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-sky-50 text-sky-800 border border-sky-200/90 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
-                <span>{serverMode ? 'Server Quota Mode (Error-Only)' : 'Local Activity Log'}</span>
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-medium bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                <span>{pageSize} rows / page</span>
-              </span>
-              {loadedAt && (
-                <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs pl-1">
-                  <span>Last loaded: {showDateTime(loadedAt, true)}</span>
-                </span>
-              )}
-            </div>
           </div>
 
           <div className="flex items-center flex-wrap gap-2.5 shrink-0">
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/90 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-xs">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Integrity Verified</span>
-              <span className="text-emerald-700/80 dark:text-emerald-400/80 font-normal">
-                ({showDateTime(integrityVerifiedAt, true)})
-              </span>
-            </span>
-
-            <button
-              type="button"
-              onClick={() => {
-                const ts = stampSecPP();
-                setIntegrityVerifiedAt(ts);
-                onToast(`Audit Trail System Integrity Verified (${filteredRows.length} tamper-evident records checked at ${ts})`);
-              }}
-              className="btn btn-primary shadow-sm flex items-center gap-2 px-4 py-2 text-xs font-bold"
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-300 shrink-0" />
-              <span>Verify Integrity</span>
-            </button>
-
             {serverMode && (
               <button
                 type="button"
                 onClick={() => void refreshServerLogs()}
                 disabled={loading}
                 aria-label="Refresh audit log from the server"
-                className={`btn btn-secondary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-wait shadow-xs ${inputClass}`}
+                className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white border-[#002a42] disabled:opacity-60 disabled:cursor-wait"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-                <span>{loading ? 'Loading…' : 'Refresh'}</span>
+                <RefreshCw className={`w-3.5 h-3.5 text-white ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'}`} aria-hidden="true" />
+                <span>{loading ? 'Refreshing…' : 'Refresh'}</span>
               </button>
             )}
 
@@ -373,7 +334,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
               type="button"
               onClick={handleExportCsv}
               disabled={filteredRows.length === 0}
-              className="btn btn-secondary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
+              className="btn btn-secondary px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
               title="Export Audit Log Table to CSV (matching table columns)"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
