@@ -40,44 +40,37 @@ const STAGE_STYLES: Record<
     accentBar: string;
     iconBox: string;
     ringActive: string;
-    subtitle: string;
   }
 > = {
   HQ_STOCK: {
     accentBar: 'bg-slate-600',
     iconBox: 'bg-slate-100 text-slate-700 border-slate-200',
     ringActive: 'ring-2 ring-slate-600 border-slate-600',
-    subtitle: 'Branch Code 100 Vault',
   },
   BRANCH_RESERVE: {
     accentBar: 'bg-[#1e5b88]',
     iconBox: 'bg-[#eef5f9] text-[#1e5b88] border-[#cfe0ea] dark:bg-sky-500/20 dark:text-sky-300',
     ringActive: 'ring-2 ring-[#1e5b88] border-[#1e5b88]',
-    subtitle: 'Branch Code Buffer',
   },
   CONFIGURING: {
     accentBar: 'bg-amber-500',
     iconBox: 'bg-amber-50 text-amber-800 border-amber-200',
     ringActive: 'ring-2 ring-amber-500 border-amber-500',
-    subtitle: 'Under Configuring · App Push',
   },
   COMPLETE: {
     accentBar: 'bg-emerald-700',
     iconBox: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     ringActive: 'ring-2 ring-emerald-700 border-emerald-700',
-    subtitle: 'Installed at Merchant',
   },
   FAULTY: {
     accentBar: 'bg-slate-400',
     iconBox: 'bg-slate-100 text-slate-700 border-slate-200',
     ringActive: 'ring-2 ring-slate-500 border-slate-500',
-    subtitle: 'Merchant History & Swaps',
   },
   LOST: {
     accentBar: 'bg-rose-600',
     iconBox: 'bg-rose-50 text-rose-800 border-rose-200',
     ringActive: 'ring-2 ring-rose-600 border-rose-600',
-    subtitle: 'Lost / Unrecoverable',
   },
 };
 
@@ -241,12 +234,9 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
               </span>
             </div>
 
-            <div className="mb-2.5 sm:mb-3">
+            <div className="mb-2 sm:mb-2.5">
               <div className="text-xs font-extrabold tracking-tight truncate text-[#002f49]">
                 {meta.short}
-              </div>
-              <div className="text-[10px] font-medium truncate text-slate-500">
-                {style.subtitle}
               </div>
             </div>
 
