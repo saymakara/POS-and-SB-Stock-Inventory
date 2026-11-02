@@ -1487,57 +1487,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     [branches]
   );
 
-  const navTabs: {
-    id: KpiView;
-    label: string;
-    Icon: React.ElementType;
-    count?: number;
-    accentColor: string;
-    badgeClass: string;
-    activePill: string;
-  }[] = [
-    {
-      id: 'all',
-      label: 'Overview',
-      Icon: BarChart3,
-      accentColor: 'text-[#004E72]',
-      badgeClass: 'bg-sky-50 text-[#004E72] border border-sky-200/90',
-      activePill: 'tab-active-blue',
-    },
-    {
-      id: 'staff',
-      label: 'Staff KPI',
-      Icon: Users,
-      count: filteredStaff.length,
-      accentColor: 'text-violet-600',
-      badgeClass: 'bg-violet-50 text-violet-700 border border-violet-200/90',
-      activePill: 'bg-gradient-to-r from-violet-600 to-indigo-600',
-    },
-    {
-      id: 'branches',
-      label: 'Branch KPI',
-      Icon: Building2,
-      count: filteredBranches.length,
-      accentColor: 'text-amber-600',
-      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200/90',
-      activePill: 'bg-gradient-to-r from-amber-600 to-orange-600',
-    },
-    {
-      id: 'timeline',
-      label: 'Performance Trend',
-      Icon: Calendar,
-      accentColor: 'text-blue-600',
-      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200/90',
-      activePill: 'bg-gradient-to-r from-blue-600 to-sky-600',
-    },
-    {
-      id: 'top10',
-      label: 'Top 10 Leaderboard',
-      Icon: Trophy,
-      accentColor: 'text-amber-500',
-      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200/90',
-      activePill: 'bg-gradient-to-r from-amber-500 to-yellow-600',
-    },
+  const navTabs: { id: KpiView; label: string; Icon: React.ElementType; count?: number }[] = [
+    { id: 'all', label: 'Overview', Icon: BarChart3 },
+    { id: 'staff', label: 'Staff KPI', Icon: Users, count: filteredStaff.length },
+    { id: 'branches', label: 'Branch KPI', Icon: Building2, count: filteredBranches.length },
+    { id: 'timeline', label: 'Performance Trend', Icon: Calendar },
+    { id: 'top10', label: 'Top 10 Leaderboard', Icon: Trophy },
   ];
 
   const showSection = (sec: KpiView) => view === 'all' || view === sec;
@@ -1715,21 +1670,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   {active && (
                     <motion.div
                       layoutId="kpi-view-pill"
-                      className={`absolute inset-0 rounded-lg ${t.activePill} shadow-xs`}
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                       transition={SPRING}
                     />
                   )}
-                  <Icon
-                    className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${
-                      active ? 'text-white' : t.accentColor
-                    }`}
-                    aria-hidden
-                  />
+                  <Icon className="w-3.5 h-3.5 relative z-10 shrink-0" aria-hidden />
                   <span className="relative z-10">{t.label}</span>
                   {t.count !== undefined && (
                     <span
-                      className={`relative z-10 font-figure tabular-nums text-[10px] px-1.5 py-0.5 rounded-full leading-none font-bold transition-colors ${
-                        active ? 'bg-white/20 text-white' : t.badgeClass
+                      className={`relative z-10 font-figure tabular-nums text-[10px] px-1.5 py-0.5 rounded-full leading-none font-medium ${
+                        active ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'
                       }`}
                     >
                       {t.count.toLocaleString()}
@@ -2205,12 +2155,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <motion.div
                       layoutId="kpi-top10-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                     />
                   )}
-                  <Users className={`w-3.5 h-3.5 relative z-10 transition-colors ${leaderboardMode === 'staff' ? 'text-white' : 'text-violet-600'}`} aria-hidden />
+                  <Users className="w-3.5 h-3.5 relative z-10" aria-hidden />
                   <span className="relative z-10">Top 10 Staff</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${leaderboardMode === 'staff' ? 'bg-white/20 text-white' : 'bg-violet-50 text-violet-700 border border-violet-200/90'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-medium ${leaderboardMode === 'staff' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
                     {top10Data.staff.length}
                   </span>
                 </button>
@@ -2226,12 +2176,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <motion.div
                       layoutId="kpi-top10-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                     />
                   )}
-                  <Building2 className={`w-3.5 h-3.5 relative z-10 transition-colors ${leaderboardMode === 'branch' ? 'text-white' : 'text-amber-600'}`} aria-hidden />
+                  <Building2 className="w-3.5 h-3.5 relative z-10" aria-hidden />
                   <span className="relative z-10">Top 10 Branches</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${leaderboardMode === 'branch' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-700 border border-amber-200/90'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-medium ${leaderboardMode === 'branch' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
                     {top10Data.branches.length}
                   </span>
                 </button>
@@ -2270,12 +2220,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <span className="inline-flex items-center gap-2 text-slate-900 font-bold">
                 {leaderboardMode === 'staff' ? (
                   <>
-                    <Users className="w-4 h-4 text-violet-600" />
+                    <Users className="w-4 h-4 text-[#003857]" />
                     <span>Top 10 Individual Performers · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
                   </>
                 ) : (
                   <>
-                    <Building2 className="w-4 h-4 text-amber-600" />
+                    <Building2 className="w-4 h-4 text-[#003857]" />
                     <span>Top 10 Branches · {selectedTopMonth === 'ALL' ? KPI_PERIOD_LABEL[period] : fmtMonth(selectedTopMonth)}</span>
                   </>
                 )}
@@ -2627,12 +2577,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <motion.div
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                     />
                   )}
-                  <Users className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'staff' && staffSubView === 'summary' ? 'text-white' : 'text-violet-600'}`} aria-hidden />
+                  <Users className="w-3.5 h-3.5 relative z-10" aria-hidden />
                   <span className="relative z-10">KPI by Staff</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${tableMode === 'staff' && staffSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-violet-50 text-violet-700 border border-violet-200/90'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
                     {filteredStaff.length}
                   </span>
                 </button>
@@ -2647,12 +2597,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <motion.div
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                     />
                   )}
-                  <Building2 className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-amber-600'}`} aria-hidden />
+                  <Building2 className="w-3.5 h-3.5 relative z-10" aria-hidden />
                   <span className="relative z-10">KPI by Branch</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-700 border border-amber-200/90'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
                     {filteredBranches.length}
                   </span>
                 </button>
@@ -2670,9 +2620,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                     />
                   )}
-                  <Calendar className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-blue-600'}`} aria-hidden />
+                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
                   <span className="relative z-10">Staff Daily Tasks</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${tableMode === 'staff' && staffSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700 border border-blue-200/90'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
                     1–{matrixDays.length}d
                   </span>
                 </button>
@@ -2690,9 +2640,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                     />
                   )}
-                  <Calendar className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-blue-600'}`} aria-hidden />
+                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
                   <span className="relative z-10">Branch Daily Tasks</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${tableMode === 'branch' && branchSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700 border border-blue-200/90'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
                     1–{matrixDays.length}d
                   </span>
                 </button>
