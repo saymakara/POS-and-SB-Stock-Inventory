@@ -420,9 +420,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   ? 'Head Office Stock & Branch Deployment Overview'
                   : `Branch Code ${selectedBranch} Stock & Installation Overview`}
               </h2>
-              <span className="text-xs font-mono font-bold text-slate-500">
-                · {typeof serverTotalDevices === 'number' ? serverTotalDevices.toLocaleString() : activeDevices.length.toLocaleString()} Active Units
-              </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               {isAdminLike
