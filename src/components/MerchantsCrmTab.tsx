@@ -1,5 +1,4 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
-import { formatBranchName } from '../utils/format';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
 import { useSort, SortTh } from '../utils/sort';
@@ -45,7 +44,7 @@ import { hasKhmer, isValidMidForType, midRuleError, normalizeMid } from '../util
 import { lastMonthsPP, todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';
 import { canMove, moveError, statusOf } from '../utils/stages';
-import { fmtNum, showDateTime } from '../utils/format';
+import { formatBranchName, fmtNum, showDateTime } from '../utils/format';
 
 /**
  * What the CRM sends with a bind (22 Oct 2026). The stage fields are what the move to "Installed Live" must set

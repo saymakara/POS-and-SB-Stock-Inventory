@@ -1,6 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { fetchStaffAccounts } from './supabaseService';
-import type { StaffAccount } from './supabaseService';
+import { fetchStaffAccounts, type StaffAccount } from './supabaseService';
 
 /**
  * (29 Oct 2026) Staff Directory: instant opening.

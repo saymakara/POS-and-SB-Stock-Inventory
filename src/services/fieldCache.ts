@@ -1,6 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { fetchPendingFieldEvents, fetchReviewedFieldEvents } from './supabaseService';
-import type { FieldEvent } from './supabaseService';
+import { fetchPendingFieldEvents, fetchReviewedFieldEvents, type FieldEvent } from './supabaseService';
 
 /**
  * (29 Oct 2026) Phone App Review (POS Terminal and Sound Box): instant opening.

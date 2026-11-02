@@ -6,7 +6,6 @@ import { useKeptMemo } from '../utils/useKeptMemo';
 import { createPortal } from 'react-dom';
 import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '../types';
 import { csvFile } from '../utils/csv';
-import { formatBranchName } from '../utils/format';
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -31,7 +30,7 @@ import {
   Calendar,
   User,
 } from 'lucide-react';
-import { fmtNum, showDateTime } from '../utils/format';
+import { formatBranchName, fmtNum, showDateTime } from '../utils/format';
 import { CopyableRecordId } from './CopyableRecordId';
 
 interface RequisitionsTabProps {

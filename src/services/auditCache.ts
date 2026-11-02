@@ -1,6 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { fetchAuditLogs } from './supabaseService';
-import type { ServerAuditEntry } from './supabaseService';
+import { fetchAuditLogs, type ServerAuditEntry } from './supabaseService';
 
 /**
  * (29 Oct 2026) Audit Trail: instant opening.

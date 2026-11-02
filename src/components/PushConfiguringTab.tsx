@@ -7,7 +7,6 @@ import { generatePushTrackingId } from '../utils/telegram';
 import { normalizeStaffName, resolveStaffFromDirectory } from '../utils/staffUtils';
 import { hasKhmer } from '../utils/display';
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
-import { formatBranchName } from '../utils/format';
 import { todayPP, stampSecPP, clockPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -35,7 +34,7 @@ import {
   CheckSquare,
   Square,
 } from 'lucide-react';
-import { fmtNum } from '../utils/format';
+import { formatBranchName, fmtNum } from '../utils/format';
 
 interface PushConfiguringTabProps {
   devices: Device[];

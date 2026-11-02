@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { formatBranchName } from '../utils/format';
 import {
   UserRole,
   Branch,
@@ -45,7 +44,7 @@ import {
   CreditCard,
   Trophy,
 } from 'lucide-react';
-import { fmtNum } from '../utils/format';
+import { formatBranchName, fmtNum } from '../utils/format';
 import { prefetchKpi } from '../services/kpiService';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */

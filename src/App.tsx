@@ -33,7 +33,6 @@ import { canMove, moveError, statusOf, onMove } from './utils/stages';
 import { csvFile } from './utils/csv';
 import { deduplicateStaffList, normalizeStaffName, getStaffAliases } from './utils/staffUtils';
 import { tidFromMid } from './utils/tid';
-import { TraceModal } from './components/TraceModal';
 import { SaveGuard, throttled, watchNewVersion } from './utils/saveGuard';
 import { phoneFor } from './utils/privacy';
 import { formatBranchName } from './utils/format';
@@ -43,12 +42,6 @@ import { PipelineBar } from './components/PipelineBar';
 import { KpiCards } from './components/KpiCards';
 import { DashboardTab } from './components/DashboardTab';
 import { InventoryTab } from './components/InventoryTab';
-import { WorkflowModal } from './components/WorkflowModal';
-import { ChangeBatteryModal } from './components/ChangeBatteryModal';
-import { ExportDataModal } from './components/ExportDataModal';
-import { BatchUploadModal } from './components/BatchUploadModal';
-import { RequestStockModal } from './components/RequestStockModal';
-import { SessionLockModal } from './components/SessionLockModal';
 import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -95,6 +88,13 @@ const CreditCardReviewTab = lazyTab(() => import('./components/CreditCardReviewT
 const KpiPerformanceTab = lazyTab(() => import('./components/KpiPerformanceTab').then((m) => ({ default: m.KpiPerformanceTab })));
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
 const PushConfiguringTab = lazyTab(() => import('./components/PushConfiguringTab').then((m) => ({ default: m.PushConfiguringTab })));
+const TraceModal = lazyTab(() => import('./components/TraceModal').then((m) => ({ default: m.TraceModal })));
+const WorkflowModal = lazyTab(() => import('./components/WorkflowModal').then((m) => ({ default: m.WorkflowModal })));
+const ChangeBatteryModal = lazyTab(() => import('./components/ChangeBatteryModal').then((m) => ({ default: m.ChangeBatteryModal })));
+const ExportDataModal = lazyTab(() => import('./components/ExportDataModal').then((m) => ({ default: m.ExportDataModal })));
+const BatchUploadModal = lazyTab(() => import('./components/BatchUploadModal').then((m) => ({ default: m.BatchUploadModal })));
+const RequestStockModal = lazyTab(() => import('./components/RequestStockModal').then((m) => ({ default: m.RequestStockModal })));
+const SessionLockModal = lazyTab(() => import('./components/SessionLockModal').then((m) => ({ default: m.SessionLockModal })));
 
 import { SendHorizontal, Lock, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
@@ -4699,111 +4699,133 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
       {/* Modals */}
         {/* Classic Batch Upload & Stock Intake Modal */}
-        <BatchUploadModal
-          isOpen={isBatchModalOpen}
-          onClose={() => setIsBatchModalOpen(false)}
-          branches={branches}
-          users={users}
-          existingDevices={devices}
-          onCommitBatch={handleCommitBatch}
-          activeBranchId={selectedBranch}
-          theme={theme}
-          operatorLabel={operatorLabel}
-        />
+        {isBatchModalOpen && (
+          <Suspense fallback={null}>
+            <BatchUploadModal
+              isOpen={isBatchModalOpen}
+              onClose={() => setIsBatchModalOpen(false)}
+              branches={branches}
+              users={users}
+              existingDevices={devices}
+              onCommitBatch={handleCommitBatch}
+              activeBranchId={selectedBranch}
+              theme={theme}
+              operatorLabel={operatorLabel}
+            />
+          </Suspense>
+        )}
 
         {/* Classic Request Stock Modal (Triggers Alert Notification) */}
-        <RequestStockModal
-          isOpen={isReqModalOpen}
-          onClose={() => setIsReqModalOpen(false)}
-          branches={branches}
-          activeBranchId={selectedBranch}
-          onSubmitRequest={handleSubmitStockRequest}
-          theme={theme}
-          role={role}
-          operatorLabel={operatorLabel}
-        />
+        {isReqModalOpen && (
+          <Suspense fallback={null}>
+            <RequestStockModal
+              isOpen={isReqModalOpen}
+              onClose={() => setIsReqModalOpen(false)}
+              branches={branches}
+              activeBranchId={selectedBranch}
+              onSubmitRequest={handleSubmitStockRequest}
+              theme={theme}
+              role={role}
+              operatorLabel={operatorLabel}
+            />
+          </Suspense>
+        )}
 
         {traceQuery && (
-          <TraceModal
-            query={traceQuery}
-            devices={scopedDevices}
-            history={historicalMerchants}
-            requisitions={requisitions}
-            isAdmin={role === 'SUPER_ADMIN' || role === 'ADMIN'}
-            onOpenDevice={(sn) => setEditingDeviceSerial(sn)}
-            onClose={() => setTraceQuery('')}
-          />
+          <Suspense fallback={null}>
+            <TraceModal
+              query={traceQuery}
+              devices={scopedDevices}
+              history={historicalMerchants}
+              requisitions={requisitions}
+              isAdmin={role === 'SUPER_ADMIN' || role === 'ADMIN'}
+              onOpenDevice={(sn) => setEditingDeviceSerial(sn)}
+              onClose={() => setTraceQuery('')}
+            />
+          </Suspense>
         )}
 
         {/* Session Lock Modal */}
-        <SessionLockModal
-          isOpen={isSessionLocked}
-          onUnlock={() => {
-            setIsSessionLocked(false);
-            addAuditLog('Session Security Unlock', 'Workstation unlocked successfully via operator security PIN');
-            triggerToast('Workstation unlocked. Welcome back.');
-          }}
-          operatorName={
-            role === 'BRANCH' ? selectedStaffUser : activeAdminStaff
-          }
-          operatorRole={role}
-          theme={theme}
-        />
+        {isSessionLocked && (
+          <Suspense fallback={null}>
+            <SessionLockModal
+              isOpen={isSessionLocked}
+              onUnlock={() => {
+                setIsSessionLocked(false);
+                addAuditLog('Session Security Unlock', 'Workstation unlocked successfully via operator security PIN');
+                triggerToast('Workstation unlocked. Welcome back.');
+              }}
+              operatorName={
+                role === 'BRANCH' ? selectedStaffUser : activeAdminStaff
+              }
+              operatorRole={role}
+              theme={theme}
+            />
+          </Suspense>
+        )}
 
         {/* Workflow & Serial Cycle History Modal */}
         {editingDevice && (
-        <WorkflowModal
-          device={editingDevice}
-          branches={branches}
-          users={users}
-          role={role}
-          theme={theme}
-          onClose={() => { setEditingDeviceSerial(null); setWorkflowPreset(''); }}
-          preset={workflowPreset}
-          onSave={(sn, u) => { setWorkflowPreset(''); handleSaveWorkflow(sn, u); }}
-          onDeletePermanently={(sn) => handleDeletePermanently([sn])}
-          onReturnToAdminStock={(sn, reason) =>
-            handleReturnToAdminStock([sn], reason)
-          }
-          onRequestReturnToAdminStock={(sn, reason) =>
-            handleRequestReturnToAdminStock([sn], reason)
-          }
-          onReturnToBranchReserve={(sn, branchId, reason) =>
-            handleReturnToBranchReserve([sn], branchId, reason)
-          }
-          onRemoveFromDashboard={(sn, reason) =>
-            handleRemoveFromDashboard([sn], reason)
-          }
-          onChangeBattery={(dev) => setBatteryModalDevice(dev)}
-          customFields={appSettings.customFields}
-          onRenameSerial={handleRenameSerial}
-          onNotifyConfigReady={handleNotifyConfigReady}
-          operatorLabel={operatorLabel}
-        />
+          <Suspense fallback={null}>
+            <WorkflowModal
+              device={editingDevice}
+              branches={branches}
+              users={users}
+              role={role}
+              theme={theme}
+              onClose={() => { setEditingDeviceSerial(null); setWorkflowPreset(''); }}
+              preset={workflowPreset}
+              onSave={(sn, u) => { setWorkflowPreset(''); handleSaveWorkflow(sn, u); }}
+              onDeletePermanently={(sn) => handleDeletePermanently([sn])}
+              onReturnToAdminStock={(sn, reason) =>
+                handleReturnToAdminStock([sn], reason)
+              }
+              onRequestReturnToAdminStock={(sn, reason) =>
+                handleRequestReturnToAdminStock([sn], reason)
+              }
+              onReturnToBranchReserve={(sn, branchId, reason) =>
+                handleReturnToBranchReserve([sn], branchId, reason)
+              }
+              onRemoveFromDashboard={(sn, reason) =>
+                handleRemoveFromDashboard([sn], reason)
+              }
+              onChangeBattery={(dev) => setBatteryModalDevice(dev)}
+              customFields={appSettings.customFields}
+              onRenameSerial={handleRenameSerial}
+              onNotifyConfigReady={handleNotifyConfigReady}
+              operatorLabel={operatorLabel}
+            />
+          </Suspense>
         )}
 
         {/* POS Terminal Change Battery Modal (24-Month Lifespan Replacement) */}
         {batteryModalDevice && (
-        <ChangeBatteryModal
-          device={batteryModalDevice}
-          onClose={() => setBatteryModalDevice(null)}
-          onConfirm={handleConfirmChangeBattery}
-          theme={theme}
-        />
+          <Suspense fallback={null}>
+            <ChangeBatteryModal
+              device={batteryModalDevice}
+              onClose={() => setBatteryModalDevice(null)}
+              onConfirm={handleConfirmChangeBattery}
+              theme={theme}
+            />
+          </Suspense>
         )}
 
         {/* Export Data Modal */}
-        <ExportDataModal
-          isOpen={isExportModalOpen}
-          onClose={() => setIsExportModalOpen(false)}
-          devices={devices}
-          requisitions={requisitions}
-          users={users}
-          auditLogs={auditLogs}
-          theme={theme}
-          onToast={(msg) => triggerToast(msg)}
-          role={role}
-        />
+        {isExportModalOpen && (
+          <Suspense fallback={null}>
+            <ExportDataModal
+              isOpen={isExportModalOpen}
+              onClose={() => setIsExportModalOpen(false)}
+              devices={devices}
+              requisitions={requisitions}
+              users={users}
+              auditLogs={auditLogs}
+              theme={theme}
+              onToast={(msg) => triggerToast(msg)}
+              role={role}
+            />
+          </Suspense>
+        )}
 
       {/* Branch Code Create/Edit Modal */}
       {isNewBranchModalOpen && (

@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Pager as PagerState } from '../utils/usePager';
-import { PAGE_SIZES } from '../utils/usePager';
+import { PAGE_SIZES, type Pager as PagerState } from '../utils/usePager';
 import { glideIn } from '../utils/glide';
 
 /** The same page bar under every table: rows shown, page buttons and 50 / 100 rows per page. */

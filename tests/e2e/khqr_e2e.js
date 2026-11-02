@@ -270,10 +270,10 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   await p.getByRole('tab', { name: /KHQR entries/ }).click(); await sleep(800);
   const et = await p.textContent('main');
   ok(!(await p.getByRole('button', { name: /^Completed/ }).count()) && !/Completed \(/.test(et) && !(await p.locator('[aria-label="KHQR entries"] >> text=Failed Attempt (').count()), 'KHQR entries: no Completed / Failed Attempt split (every entry is a request)');
-  await p.locator('[aria-label="KHQR entries"] [data-page-content] > div > button').first().click(); await sleep(800);
+  await p.locator('[aria-label="KHQR entries"] [data-page-content] > div > button, [aria-label="KHQR entries"] [data-page-content] > div > [role="button"]').first().click(); await sleep(800);
   const det = await p.textContent('[aria-label="KHQR entries"]');
   ok(/on Telegram/.test(det) && /Phnom Penh · Tuol Kouk/.test(det) && !/Failed attempts \(/.test(det), 'details: location, Telegram post (no failed-attempt box)');
-  await p.screenshot({ path: '/tmp/claude-0/t/d2_open.png' });
+  if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/d2_open.png' });
   ok(/Showing 1–50 of 120/.test(await p.textContent('main')), 'Clear filters → back to all 120 entries');
   await p.fill('input[aria-label="Search KHQR entries"]', '200100000000077'); await sleep(1500);
   ok((await p.locator('[aria-label="KHQR entries"] [data-page-content] > div').count()) === 1 && state.calls.some(c => /mid=eq\.200100000000077/.test(c)), 'search by a full MID');

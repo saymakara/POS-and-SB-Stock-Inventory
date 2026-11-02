@@ -15,7 +15,6 @@ import { STAGE_META } from '../data/initialData';
 import { detectDuplicateMids } from '../utils/crmUtils';
 import { hasKhmer, isValidMidForType, midRuleError } from '../utils/display';
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
-import { formatBranchName } from '../utils/format';
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -44,7 +43,7 @@ import {
   Upload,
   Truck,
 } from 'lucide-react';
-import { showDateTime } from '../utils/format';
+import { formatBranchName, showDateTime } from '../utils/format';
 
 interface InventoryTabProps {
   devices: Device[];

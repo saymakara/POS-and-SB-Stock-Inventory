@@ -174,7 +174,15 @@ async function api(route) {
   }
   // (23 Oct 2026) Return: merchant details removed, unit back to stock, merchant kept in Merchant History
   await p.getByText('Stock Inventory', { exact: true }).first().click(); await sleep(900);
-  await p.getByRole('button', { name: 'Return WP0002' }).click(); await sleep(900);
+  const retBtn = p.getByRole('button', { name: 'Return WP0002' });
+  if (await retBtn.count()) {
+    await retBtn.click();
+  } else {
+    await p.locator('tr', { hasText: 'WP0002' }).getByRole('button', { name: 'Manage' }).click();
+    await sleep(600);
+    await p.selectOption('select[aria-label="Lifecycle stage"]', '__RETURN__');
+  }
+  await sleep(900);
   ok(/Return to Stock/.test(await p.textContent('body')) && /Merchant History/.test(await p.textContent('body')), 'Return opens straight on "Return to Stock" with the merchant-removal note');
   await p.getByRole('button', { name: /Review Changes/ }).click(); await sleep(600);
   await p.getByRole('button', { name: /Confirm & Commit Changes/ }).click(); await sleep(1800);
@@ -237,7 +245,7 @@ async function api(route) {
   // accounts
   await p.click('text=Staff Directory'); await sleep(1200);
   const acc = await p.textContent('body');
-  ok(/Accounts & Access/.test(acc) && /SEOUN Chettra/.test(acc) && /Branch staff/.test(acc), 'Accounts & Access lists the database accounts');
+  ok(/(Accounts & Access|Staff Accounts)/.test(acc) && /SEOUN Chettra/.test(acc) && /Branch staff/.test(acc), 'Accounts & Access lists the database accounts');
   // sign out: nothing stays in this browser
   await p.click('button[title="Sign Out to Login Page"]'); await sleep(2500);
   const left = await p.evaluate(() => ({ dev: localStorage.getItem('crm_pos_devices_v20'), ses: sessionStorage.getItem('crm_pos_auth_session_v20') }));

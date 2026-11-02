@@ -1,13 +1,12 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine, Cpu, Volume2 } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
 import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
-import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { STAGE_META } from '../data/initialData';
 import {
   FieldEvent,
