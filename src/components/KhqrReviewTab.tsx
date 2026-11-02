@@ -757,7 +757,7 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
 
       {/* Main KPI number */}
       <div className="my-2.5">
-        <div className={`font-figure text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums leading-none ${theme.numColor}`}>
+        <div className={`font-figure text-3xl sm:text-4xl font-bold tracking-tight tabular-nums leading-none ${theme.numColor}`}>
           {value === undefined ? '—' : value.toLocaleString()}
         </div>
       </div>
