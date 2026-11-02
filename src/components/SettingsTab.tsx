@@ -501,7 +501,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         return {
           icon: <Settings className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />,
           title: 'System & Policy Settings',
-          subtitle: 'FinTech Acquiring & Terminal Governance',
+          subtitle: '',
           desc: 'Configure 15-digit MID validation, 24-month POS battery lifecycle policies, operational SLA targets, hardware serial numbering standards, and data backup controls.',
         };
     }
@@ -519,10 +519,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
               {headerInfo.icon}
               <span>
-                {headerInfo.title}{' '}
-                <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]">
-                  · {headerInfo.subtitle}
-                </span>
+                {headerInfo.title}
+                {headerInfo.subtitle ? (
+                  <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]">
+                    {' '}· {headerInfo.subtitle}
+                  </span>
+                ) : null}
               </span>
             </h1>
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">
