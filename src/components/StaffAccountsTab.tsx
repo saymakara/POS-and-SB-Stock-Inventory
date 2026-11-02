@@ -257,48 +257,53 @@ export const StaffAccountsTab: React.FC<{
     'px-2.5 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold outline-none focus:border-[#003857]';
   return (
     <div className="flex flex-col gap-4 apple-tab-panel">
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#003857] text-white flex items-center justify-center shrink-0">
-            <UserCog className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-extrabold text-slate-900">Accounts &amp; Access</h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1.5">
+      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label="Staff accounts header">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
+              <UserCog className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+              <span>
+                Staff Accounts
+                <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]"> · Access &amp; Permissions</span>
+              </span>
+            </h1>
+            <p className="text-sm sm:text-base leading-relaxed text-slate-600">
+              Institutional staff directory and access governance. Sign-in credentials, operational roles, branch assignments, and authority levels.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/90 inline-flex items-center gap-1.5 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span>{(list || []).filter(isStaffOnline).length || onlineOperators.length || 1} Online Now</span>
               </span>
+              <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-200/80 text-slate-700">
+                <span>{(list || []).length} Total Accounts</span>
+              </span>
             </div>
-            <p className="text-xs text-slate-600 max-w-2xl mt-0.5">
-              Who can sign in to this dashboard. Sign-in is the Employee ID and a password; the role, branch, and
-              location decide what each person can see and change.
-            </p>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={load}
-            className="px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
-          </button>
-          {isAdmin && (
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
-              onClick={() => {
-                setIsNew(true);
-                setForm({ ...blank, password: makePassword() });
-                setFormErr('');
-              }}
-              className="btn btn-primary"
+              onClick={load}
+              className="btn btn-secondary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
             >
-              <Plus className="w-3.5 h-3.5" /> New account
+              <RefreshCw className="w-3.5 h-3.5" /> <span>Refresh</span>
             </button>
-          )}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsNew(true);
+                  setForm({ ...blank, password: makePassword() });
+                  setFormErr('');
+                }}
+                className="btn btn-primary shadow-sm flex items-center gap-1.5 px-4 py-2 text-xs font-bold"
+              >
+                <Plus className="w-3.5 h-3.5" /> <span>New Account</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
 
       {shownPassword && (
         <div

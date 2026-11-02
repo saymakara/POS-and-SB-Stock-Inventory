@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Building2,
   Server,
-  RotateCcw,
   RefreshCw,
   AlertTriangle,
   History,
@@ -287,82 +286,102 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Header banner */}
-      <div
-        className={`${cardClass} p-4 flex flex-col md:flex-row md:items-center justify-between gap-3`}
+      {/* Hero Header Banner */}
+      <section
+        className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm ${
+          isLight
+            ? 'bg-slate-100 border-slate-200/90 text-slate-900'
+            : 'bg-gradient-to-br from-slate-900 via-[#001f3f] to-slate-950 text-white border-slate-800'
+        }`}
+        aria-label="Audit Trail header"
       >
-        <div className="flex items-start sm:items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#003857]/15 text-[#003857] dark:text-[#5cc8ff] flex items-center justify-center shrink-0">
-            {serverMode ? <Server className="w-5 h-5" aria-hidden="true" /> : <History className="w-5 h-5" aria-hidden="true" />}
-          </div>
-          <div>
-            <div className="flex items-center flex-wrap gap-2">
-              <h2 className={`text-base sm:text-lg font-extrabold tracking-tight ${headingClass}`}>
-                Staff, Admin &amp; Super Admin Audit Log
-              </h2>
-              <span className={`text-xs font-mono font-bold ${subtextClass}`}>
-                {serverMode ? 'Server records (Error-Only Quota Mode)' : 'Local activity log'}
-              </span>
-            </div>
-            <p className={`text-xs ${subtextClass} mt-0.5`}>
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2.5 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 dark:text-white leading-tight">
               {serverMode ? (
-                <>
-                  Error-Only server logging is active to protect database log ingestion quota; only catch-block failures are written to Supabase.{' '}
-                  <strong>Server-side pagination ({pageSize} rows/page) is active.</strong>
-                  {loadedAt && <> Last loaded {showDateTime(loadedAt, true)}.</>}
-                </>
+                <Server className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857] dark:text-[#5cc8ff]" aria-hidden="true" />
               ) : (
-                <>
-                  Activity recorded in this app session. These entries are kept on this device only and do not show who
-                  made each change.
-                </>
+                <History className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857] dark:text-[#5cc8ff]" aria-hidden="true" />
               )}
-            </p>
-          </div>
-        </div>
+              <span>
+                Staff &amp; Admin Audit Log
+                <span className="text-slate-500 dark:text-slate-400 font-semibold text-xl sm:text-2xl lg:text-[26px]">
+                  {' '}· {serverMode ? 'Server Records' : 'Local Activity'}
+                </span>
+              </span>
+            </h1>
 
-        <div className="flex items-center flex-wrap gap-2 shrink-0">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-extrabold">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>System Integrity Verified ({showDateTime(integrityVerifiedAt, true)})</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              const ts = stampSecPP();
-              setIntegrityVerifiedAt(ts);
-              onToast(`Audit Trail System Integrity Verified (${filteredRows.length} tamper-evident records checked at ${ts})`);
-            }}
-            className="btn btn-primary"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
-            <span>Verify Integrity</span>
-          </button>
-          {serverMode && (
+            <p className="text-sm sm:text-base leading-relaxed text-slate-600 dark:text-slate-300">
+              {serverMode
+                ? 'Immutable institutional audit records capturing administrative operations, role actions, and system error telemetry.'
+                : 'Activity recorded in this browser session on this workstation for operational tracking and verification.'}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-sky-50 text-sky-800 border border-sky-200/90 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
+                <span>{serverMode ? 'Server Quota Mode (Error-Only)' : 'Local Activity Log'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-medium bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <span>{pageSize} rows / page</span>
+              </span>
+              {loadedAt && (
+                <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs pl-1">
+                  <span>Last loaded: {showDateTime(loadedAt, true)}</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center flex-wrap gap-2.5 shrink-0">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/90 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>Integrity Verified</span>
+              <span className="text-emerald-700/80 dark:text-emerald-400/80 font-normal">
+                ({showDateTime(integrityVerifiedAt, true)})
+              </span>
+            </span>
+
             <button
               type="button"
-              onClick={() => void refreshServerLogs()}
-              disabled={loading}
-              aria-label="Refresh audit log from the server"
-              className={`px-3.5 py-2 rounded-lg text-xs font-extrabold flex items-center gap-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-wait ${inputClass}`}
+              onClick={() => {
+                const ts = stampSecPP();
+                setIntegrityVerifiedAt(ts);
+                onToast(`Audit Trail System Integrity Verified (${filteredRows.length} tamper-evident records checked at ${ts})`);
+              }}
+              className="btn btn-primary shadow-sm flex items-center gap-2 px-4 py-2 text-xs font-bold"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-              <span>{loading ? 'Loading…' : 'Refresh'}</span>
+              <ShieldCheck className="w-4 h-4 text-emerald-300 shrink-0" />
+              <span>Verify Integrity</span>
             </button>
-          )}
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            type="button"
-            onClick={handleExportCsv}
-            disabled={filteredRows.length === 0}
-            className="btn btn-secondary"
-            title="Export Audit Log Table to CSV (matching table columns)"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-            <span>Export CSV</span>
-          </motion.button>
+
+            {serverMode && (
+              <button
+                type="button"
+                onClick={() => void refreshServerLogs()}
+                disabled={loading}
+                aria-label="Refresh audit log from the server"
+                className={`btn btn-secondary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-wait shadow-xs ${inputClass}`}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                <span>{loading ? 'Loading…' : 'Refresh'}</span>
+              </button>
+            )}
+
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              type="button"
+              onClick={handleExportCsv}
+              disabled={filteredRows.length === 0}
+              className="btn btn-secondary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
+              title="Export Audit Log Table to CSV (matching table columns)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+              <span>Export CSV</span>
+            </motion.button>
+          </div>
         </div>
-      </div>
+      </section>
 
       {serverMode && loadError && (
         <div
@@ -448,21 +467,6 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
             </select>
 
             <ClearFiltersButton active={!!search || roleFilter !== 'ALL' || actionFilter !== 'ALL'} onClear={() => { setSearch(''); setRoleFilter('ALL'); setActionFilter('ALL'); setCurrentPage(1); }} />
-
-            <button
-              type="button"
-              onClick={() => {
-                setSearch('');
-                setRoleFilter('ALL');
-                setActionFilter('ALL');
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-1.5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${inputClass}`}
-              title="Reset all filters and search"
-            >
-              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Reset</span>
-            </button>
 
             <select
               value={pageSize}

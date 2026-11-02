@@ -149,46 +149,49 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
 
   return (
     <div className="space-y-5">
-      <div className="surface-card shadow-md rounded-2xl p-5 border border-slate-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-[#003857] text-white flex items-center justify-center shadow-sm shrink-0">
-            {isSuperAdmin ? (
-              <ShieldAlert className="w-5 h-5 text-white" />
-            ) : (
-              <ShieldCheck className="w-5 h-5 text-white" />
-            )}
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-zinc-900 dark:text-white">
-                IAM Access Control &amp; Role Governance
-              </h2>
-              <span className="text-[10px] font-mono font-extrabold px-2.5 py-0.5 rounded-full bg-[#eef5f9] text-[#003857] border border-[#003857]/20 dark:bg-[#003857]/30 dark:text-[#7cc4ed] dark:border-[#003857]/40">
+      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label="IAM Access Control header">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
+              {isSuperAdmin ? (
+                <ShieldAlert className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+              ) : (
+                <ShieldCheck className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+              )}
+              <span>
+                IAM Access Control
+                <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]"> · Role Governance</span>
+              </span>
+            </h1>
+            <p className="text-sm sm:text-base leading-relaxed text-slate-600">
+              Fine-grained authority matrix and staff identity management across Head Office and nationwide branches.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#eef5f9] text-[#003857] border border-[#003857]/20">
                 {filteredUsers.length} Staff Accounts
               </span>
               {isSuperAdmin && (
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#eef5f9] text-[#003857] border border-[#003857]/20 dark:bg-[#003857]/30 dark:text-[#7cc4ed] dark:border-[#003857]/40 inline-flex items-center gap-1.5 shadow-2xs">
-                  <ShieldAlert className="w-3 h-3 text-[#003857] dark:text-[#7cc4ed]" />
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/90 inline-flex items-center gap-1.5 shadow-2xs">
+                  <ShieldAlert className="w-3 h-3 text-emerald-600" />
                   <span>Super Admin Authority Active</span>
                 </span>
               )}
             </div>
-            <p className="text-xs mt-0.5 text-slate-500 dark:text-slate-400">
-              Super Admin can manage and update all staff accounts, Branch Codes, and privileges except immutable system integrity logs
-            </p>
           </div>
-        </div>
 
-        {isAdminLike && (
-          <button
-            onClick={() => onOpenUserModal()}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-sm transition cursor-pointer border border-[#002840]/30"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Staff / Admin Account</span>
-          </button>
-        )}
-      </div>
+          {isAdminLike && (
+            <div className="shrink-0">
+              <button
+                onClick={() => onOpenUserModal()}
+                className="btn btn-primary shadow-sm flex items-center gap-2 px-4 py-2.5 text-xs font-bold"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Staff / Admin Account</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="surface-card rounded-2xl p-4 border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="relative">
