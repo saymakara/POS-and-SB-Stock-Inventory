@@ -1492,13 +1492,66 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     [branches]
   );
 
-  const navTabs: { id: KpiView; label: string; Icon: React.ElementType; count?: number }[] = [
-    { id: 'all', label: 'Overview', Icon: BarChart3 },
-    { id: 'staff', label: 'Staff KPI', Icon: Users, count: filteredStaff.length },
-    { id: 'branches', label: 'Branch KPI', Icon: Building2, count: filteredBranches.length },
-    { id: 'breakdown', label: 'Action Breakdown', Icon: Layers, count: KPI_BREAKDOWN_TASK_DEFS.length },
-    { id: 'timeline', label: 'Performance Trend', Icon: Calendar },
-    { id: 'top10', label: 'Top 10 Leaderboard', Icon: Trophy },
+  const navTabs: {
+    id: KpiView;
+    label: string;
+    Icon: React.ElementType;
+    count?: number;
+    accentColor: string;
+    badgeClass: string;
+    activePill: string;
+  }[] = [
+    {
+      id: 'all',
+      label: 'Overview',
+      Icon: BarChart3,
+      accentColor: 'text-[#004E72]',
+      badgeClass: 'bg-sky-50 text-[#004E72] border border-sky-200/90',
+      activePill: 'tab-active-blue',
+    },
+    {
+      id: 'staff',
+      label: 'Staff KPI',
+      Icon: Users,
+      count: filteredStaff.length,
+      accentColor: 'text-violet-600',
+      badgeClass: 'bg-violet-50 text-violet-700 border border-violet-200/90',
+      activePill: 'bg-gradient-to-r from-violet-600 to-indigo-600',
+    },
+    {
+      id: 'branches',
+      label: 'Branch KPI',
+      Icon: Building2,
+      count: filteredBranches.length,
+      accentColor: 'text-amber-600',
+      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200/90',
+      activePill: 'bg-gradient-to-r from-amber-600 to-orange-600',
+    },
+    {
+      id: 'breakdown',
+      label: 'Action Breakdown',
+      Icon: Layers,
+      count: KPI_BREAKDOWN_TASK_DEFS.length,
+      accentColor: 'text-emerald-600',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200/90',
+      activePill: 'bg-gradient-to-r from-emerald-600 to-teal-600',
+    },
+    {
+      id: 'timeline',
+      label: 'Performance Trend',
+      Icon: Calendar,
+      accentColor: 'text-blue-600',
+      badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200/90',
+      activePill: 'bg-gradient-to-r from-blue-600 to-sky-600',
+    },
+    {
+      id: 'top10',
+      label: 'Top 10 Leaderboard',
+      Icon: Trophy,
+      accentColor: 'text-amber-500',
+      badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200/90',
+      activePill: 'bg-gradient-to-r from-amber-500 to-yellow-600',
+    },
   ];
 
   const showSection = (sec: KpiView) => view === 'all' || view === sec;
@@ -1673,11 +1726,26 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
                   }`}
                 >
-                  {active && <motion.div layoutId="kpi-view-pill" className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs" transition={SPRING} />}
-                  <Icon className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  {active && (
+                    <motion.div
+                      layoutId="kpi-view-pill"
+                      className={`absolute inset-0 rounded-lg ${t.activePill} shadow-xs`}
+                      transition={SPRING}
+                    />
+                  )}
+                  <Icon
+                    className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${
+                      active ? 'text-white' : t.accentColor
+                    }`}
+                    aria-hidden
+                  />
                   <span className="relative z-10">{t.label}</span>
                   {t.count !== undefined && (
-                    <span className={`relative z-10 font-figure tabular-nums text-[10px] px-1.5 py-0.5 rounded-full leading-none ${active ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                    <span
+                      className={`relative z-10 font-figure tabular-nums text-[10px] px-1.5 py-0.5 rounded-full leading-none font-bold transition-colors ${
+                        active ? 'bg-white/20 text-white' : t.badgeClass
+                      }`}
+                    >
                       {t.count.toLocaleString()}
                     </span>
                   )}
@@ -2457,12 +2525,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <motion.div
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
+                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 shadow-2xs"
                     />
                   )}
-                  <Users className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Users className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'staff' && staffSubView === 'summary' ? 'text-white' : 'text-violet-600'}`} aria-hidden />
                   <span className="relative z-10">KPI by Staff</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${tableMode === 'staff' && staffSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-violet-50 text-violet-700 border border-violet-200/90'}`}>
                     {filteredStaff.length}
                   </span>
                 </button>
@@ -2477,12 +2545,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <motion.div
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
+                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 shadow-2xs"
                     />
                   )}
-                  <Building2 className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Building2 className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-amber-600'}`} aria-hidden />
                   <span className="relative z-10">KPI by Branch</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-700 border border-amber-200/90'}`}>
                     {filteredBranches.length}
                   </span>
                 </button>
@@ -2497,12 +2565,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <motion.div
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
+                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 shadow-2xs"
                     />
                   )}
-                  <Layers className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Layers className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'breakdown' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
                   <span className="relative z-10">Action Breakdown</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'breakdown' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${tableMode === 'breakdown' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/90'}`}>
                     {KPI_BREAKDOWN_TASK_DEFS.length}
                   </span>
                 </button>
@@ -2517,12 +2585,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <motion.div
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                     />
                   )}
-                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Calendar className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-blue-600'}`} aria-hidden />
                   <span className="relative z-10">Staff Daily Tasks</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${tableMode === 'staff' && staffSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700 border border-blue-200/90'}`}>
                     1–{matrixDays.length}d
                   </span>
                 </button>
@@ -2537,12 +2605,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <motion.div
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                     />
                   )}
-                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Calendar className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-blue-600'}`} aria-hidden />
                   <span className="relative z-10">Branch Daily Tasks</span>
-                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-bold transition-colors ${tableMode === 'branch' && branchSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700 border border-blue-200/90'}`}>
                     1–{matrixDays.length}d
                   </span>
                 </button>
