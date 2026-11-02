@@ -23,9 +23,18 @@ const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as co
 type CcPeriod = 'ALL' | Period;
 const PERIOD_LABEL: Record<CcPeriod, string> = { ALL: 'All time', TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months' };
 const ccPeriodRange = (p: CcPeriod): { from: string | null; to: string | null } => (p === 'ALL' ? { from: null, to: null } : periodRange(p));
-const REVIEW_TABS: { v: CcReview | ''; label: string }[] = [
-  { v: '', label: 'All' }, { v: 'PENDING', label: 'Waiting review' }, { v: 'CONFIRMED', label: 'Confirmed' },
-  { v: 'REJECTED', label: 'Rejected' }, { v: 'NO_REVIEW', label: 'Not onboarded' },
+const REVIEW_TABS: {
+  v: CcReview | '';
+  label: string;
+  Icon: React.ElementType;
+  accentColor: string;
+  badgeTone: string;
+}[] = [
+  { v: '', label: 'All', Icon: CreditCard, accentColor: 'text-[#003857]', badgeTone: 'bg-slate-100 text-slate-800 border-slate-200' },
+  { v: 'PENDING', label: 'Waiting review', Icon: Clock, accentColor: 'text-amber-500', badgeTone: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { v: 'CONFIRMED', label: 'Confirmed', Icon: CheckCircle2, accentColor: 'text-emerald-600', badgeTone: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { v: 'REJECTED', label: 'Rejected', Icon: XCircle, accentColor: 'text-rose-600', badgeTone: 'bg-rose-50 text-rose-700 border-rose-200' },
+  { v: 'NO_REVIEW', label: 'Not onboarded', Icon: MinusCircle, accentColor: 'text-slate-400', badgeTone: 'bg-slate-100 text-slate-600 border-slate-200' },
 ];
 export const CC_REJECT_REASONS = ['Adverse CBC record', 'Incorrect account number', 'Customer details do not match ID',
   'Missing or unclear documents', 'Credit limit not approved', 'Other'];
@@ -209,17 +218,46 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
       {loadError !== 'SETUP' && (<>
         <section className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs" aria-label="Filters">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex flex-wrap items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1" role="tablist" aria-label="Review status">
+            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100/90 border border-slate-200/90" role="tablist" aria-label="Review status">
               {REVIEW_TABS.map((t) => {
                 const active = review === t.v;
                 const n = tabCount(t.v);
+                const Icon = t.Icon;
                 return (
-                  <button key={t.label} type="button" role="tab" aria-selected={active} onClick={() => setReview(t.v)}
-                    className={`relative px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900'}`}>
-                    {active && <motion.div layoutId="cc-review-pill" className="absolute inset-0 rounded-lg tab-active-blue" transition={SPRING} />}
-                    <span className="relative z-10">{t.label}</span>
+                  <button
+                    key={t.label}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setReview(t.v)}
+                    className={`relative px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-200 inline-flex items-center gap-2 border select-none ${
+                      active
+                        ? 'border-transparent text-white'
+                        : 'bg-white border-slate-200/90 text-slate-800 hover:border-slate-300 hover:bg-slate-50 shadow-2xs'
+                    }`}
+                  >
+                    {active && (
+                      <motion.div
+                        layoutId="cc-review-pill"
+                        className="absolute -inset-[1px] rounded-lg tab-active-blue border border-sky-400/40 shadow-xs z-0 pointer-events-none"
+                        transition={SPRING}
+                      />
+                    )}
+                    <Icon
+                      className={`w-3.5 h-3.5 shrink-0 relative z-10 transition-colors duration-200 ${
+                        active ? 'text-white' : t.accentColor
+                      }`}
+                      aria-hidden
+                    />
+                    <span className="relative z-10 whitespace-nowrap">{t.label}</span>
                     {n !== undefined && (
-                      <span className={`relative z-10 font-figure tabular-nums text-[10px] px-1.5 py-0.5 rounded-full leading-none ${active ? 'bg-white/20 text-white' : 'bg-white/80 text-slate-600'}`}>
+                      <span
+                        className={`font-figure tabular-nums text-[10.5px] font-extrabold px-1.5 py-0.2 rounded relative z-10 border transition-colors duration-200 ${
+                          active
+                            ? 'bg-white/15 text-white border-white/20'
+                            : t.badgeTone
+                        }`}
+                      >
                         {n.toLocaleString()}
                       </span>
                     )}
