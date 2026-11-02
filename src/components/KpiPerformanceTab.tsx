@@ -14,6 +14,7 @@ import { usePager } from '../utils/usePager';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv } from '../utils/exportCsv';
+import { KpiDetailBreakdown, KPI_BREAKDOWN_TASK_DEFS } from './KpiDetailBreakdown';
 import { getManagementExemptSet, isStaffManagementExempt, KPI_MANAGEMENT_EXEMPT_EVENT } from '../utils/kpiManagementUtils';
 import { getCachedStaff } from '../services/staffCache';
 import {
@@ -26,7 +27,7 @@ import { todayPP } from '../utils/time';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
-type KpiView = 'all' | 'branches' | 'staff' | 'timeline' | 'top10';
+type KpiView = 'all' | 'branches' | 'staff' | 'breakdown' | 'timeline' | 'top10';
 type Granularity = 'daily' | 'weekly' | 'monthly' | 'quarterly';
 type KpiRating = 'Outstanding' | 'Meet Target' | 'Near/Below Target' | 'Needs Improvement' | 'Management (Exempt)';
 
@@ -211,7 +212,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [openBranch, setOpenBranch] = useState<string | null>(null);
   const [openStaff, setOpenStaff] = useState<string | null>(null);
   const [showSubCategories, setShowSubCategories] = useState(false);
-  const [tableMode, setTableMode] = useState<'branch' | 'staff'>('staff');
+  const [tableMode, setTableMode] = useState<'branch' | 'staff' | 'breakdown'>('staff');
   const [branchSubView, setBranchSubView] = useState<'summary' | 'daily'>('summary');
   const [staffSubView, setStaffSubView] = useState<'summary' | 'daily'>('summary');
   
@@ -248,13 +249,17 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         setTableMode('staff');
         setStaffSubView('summary');
       }
-      
+      if (newView === 'breakdown') {
+        setTableMode('breakdown');
+      }
     });
   }, [startTransition]);
 
-  const handleTableModeChange = useCallback((mode: 'branch' | 'staff' | 'branch_daily' | 'staff_daily') => {
+  const handleTableModeChange = useCallback((mode: 'branch' | 'staff' | 'branch_daily' | 'staff_daily' | 'breakdown') => {
     startTransition(() => {
-      if (mode === 'branch_daily') {
+      if (mode === 'breakdown') {
+        setTableMode('breakdown');
+      } else if (mode === 'branch_daily') {
         setTableMode('branch');
         setBranchSubView('daily');
       } else if (mode === 'staff_daily') {
@@ -1491,6 +1496,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     { id: 'all', label: 'Overview', Icon: BarChart3 },
     { id: 'staff', label: 'Staff KPI', Icon: Users, count: filteredStaff.length },
     { id: 'branches', label: 'Branch KPI', Icon: Building2, count: filteredBranches.length },
+    { id: 'breakdown', label: 'Action Breakdown', Icon: Layers, count: KPI_BREAKDOWN_TASK_DEFS.length },
     { id: 'timeline', label: 'Performance Trend', Icon: Calendar },
     { id: 'top10', label: 'Top 10 Leaderboard', Icon: Trophy },
   ];
@@ -2419,7 +2425,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       )}
 
       {/* ───────────── KPI Performance by Branch & Staff (Switchable Combined Table) ───────────── */}
-      {(showSection('all') || showSection('branches') || showSection('staff')) && (
+      {(showSection('all') || showSection('branches') || showSection('staff') || showSection('breakdown')) && (
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden relative" aria-label="KPI Performance Table">
           {loading && (
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-sky-400 via-[#1e5b88] to-teal-400 animate-pulse z-20" />
@@ -2482,6 +2488,26 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </button>
                 <button
                   type="button"
+                  onClick={() => { handleTableModeChange('breakdown'); }}
+                  className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
+                    tableMode === 'breakdown' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  }`}
+                >
+                  {tableMode === 'breakdown' && (
+                    <motion.div
+                      layoutId="kpi-table-mode-pill"
+                      transition={SPRING}
+                      className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
+                    />
+                  )}
+                  <Layers className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <span className="relative z-10">Action Breakdown</span>
+                  <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'breakdown' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
+                    {KPI_BREAKDOWN_TASK_DEFS.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => { handleTableModeChange('staff'); setStaffSubView('daily'); }}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
                     tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
@@ -2524,30 +2550,33 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
               </div>
 
-              <ExportCsvButton
-                onExport={
-                  tableMode === 'staff'
-                    ? (staffSubView === 'daily' ? exportDailyStaffCsv : exportStaffCsv)
-                    : branchSubView === 'daily'
-                    ? exportDailyBranchCsv
-                    : exportBranchCsv
-                }
-                toast={triggerToast}
-                title={`Export ${
-                  tableMode === 'staff'
-                    ? (staffSubView === 'daily'
-                        ? `Daily Tasks Matrix (${fmtMonth(dailyMatrixMonth)}) by Staff`
-                        : 'KPI Performance by Staff')
-                    : branchSubView === 'daily'
-                    ? `Daily Tasks Matrix (${fmtMonth(dailyMatrixMonth)}) by Branch`
-                    : 'KPI Performance by Branch'
-                } to CSV`}
-              />
+              {tableMode !== 'breakdown' && (
+                <ExportCsvButton
+                  onExport={
+                    tableMode === 'staff'
+                      ? (staffSubView === 'daily' ? exportDailyStaffCsv : exportStaffCsv)
+                      : branchSubView === 'daily'
+                      ? exportDailyBranchCsv
+                      : exportBranchCsv
+                  }
+                  toast={triggerToast}
+                  title={`Export ${
+                    tableMode === 'staff'
+                      ? (staffSubView === 'daily'
+                          ? `Daily Tasks Matrix (${fmtMonth(dailyMatrixMonth)}) by Staff`
+                          : 'KPI Performance by Staff')
+                      : branchSubView === 'daily'
+                      ? `Daily Tasks Matrix (${fmtMonth(dailyMatrixMonth)}) by Branch`
+                      : 'KPI Performance by Branch'
+                  } to CSV`}
+                />
+              )}
             </div>
           </div>
 
           {/* Sub-bar with Date picker / Work days badge or Target info */}
-          <div className="px-5 py-2.5 bg-slate-50/40 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          {tableMode !== 'breakdown' && (
+            <div className="px-5 py-2.5 bg-slate-50/40 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2.5 text-xs">
             {(tableMode === 'branch' && branchSubView === 'daily') || (tableMode === 'staff' && staffSubView === 'daily') ? (
               <div className="flex flex-wrap items-center gap-2.5 w-full justify-between">
                 <div className="inline-flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 border border-slate-200 shadow-2xs">
@@ -2635,7 +2664,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 )}
               </div>
             )}
-          </div>
+            </div>
+          )}
 
           {loading && !data ? (
             <div className="p-4">
@@ -2644,13 +2674,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           ) : (
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
-                key={`${tableMode}-${tableMode === 'branch' ? branchSubView : staffSubView}`}
+                key={`${tableMode}-${tableMode === 'branch' ? branchSubView : tableMode === 'staff' ? staffSubView : 'detail'}`}
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -3 }}
                 transition={{ duration: 0.12, ease: 'easeOut' }}
               >
-                {tableMode === 'branch' ? (
+                {tableMode === 'breakdown' ? (
+                  <KpiDetailBreakdown
+                    filteredStaff={filteredStaff}
+                    branches={branches}
+                    ruleMap={ruleMap}
+                    period={period}
+                    onToast={triggerToast}
+                  />
+                ) : tableMode === 'branch' ? (
                   branchSubView === 'daily' ? (
                     <>
                       <div className="overflow-x-auto w-full overscroll-x-contain">
