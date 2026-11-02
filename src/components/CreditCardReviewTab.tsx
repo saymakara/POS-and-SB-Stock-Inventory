@@ -166,11 +166,16 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   return (
     <div className="flex flex-col gap-4 apple-tab-panel" aria-label="Credit Card review">
       {/* Hero Header & 5 KPI Cards (Push Configuring Hub Backdrop Style) */}
-      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label="Credit Card review">
+      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-gradient-to-b from-slate-50 via-slate-100/70 to-slate-100 border-slate-200/90 text-slate-900" aria-label="Credit Card review">
+        {/* Signature top micro-gradient bar */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#003857] via-sky-500 to-[#003857]" />
+
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-3xl">
-            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
-              <CreditCard className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+          <div className="space-y-2.5 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3.5 text-slate-900 leading-tight">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#003857] text-white flex items-center justify-center shadow-sm shrink-0">
+                <CreditCard className="w-6 h-6 sm:w-6.5 sm:h-6.5" aria-hidden />
+              </div>
               <span>
                 Phone App Review
                 <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]"> · Credit Card</span>
@@ -179,16 +184,28 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">
               {isAdmin ? 'Check each successful onboarding, then Confirm or Reject. The bot replies in the staff group under the entry.' : 'Credit Card entries of your branch and their review result.'}
             </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/90 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Audit &amp; Onboarding Compliance</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-medium bg-white/80 text-slate-700 border border-slate-200/80 shadow-2xs font-mono">
+                {counts ? `${(counts.confirmed + counts.pending + counts.rejected + counts.noReview).toLocaleString()} total submissions` : 'Real-time telemetry'}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-medium bg-white/80 text-slate-600 border border-slate-200/80 shadow-2xs">
+                Head Office Verification
+              </span>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <select aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value as CcPeriod)}
-              className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs outline-none cursor-pointer">
+              className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-800 border-slate-200 shadow-2xs outline-none cursor-pointer">
               {(Object.keys(PERIOD_LABEL) as CcPeriod[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>
             <ExportCsvButton onExport={exportCsv} toast={triggerToast} />
             <button type="button" onClick={refresh} aria-label="Refresh" title="Refresh"
-              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90" data-allow-repeat>
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" /> : <RefreshCw className="w-3.5 h-3.5 text-slate-600 group-hover:rotate-180 transition-transform duration-300" />}
+              className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white border-[#002a42]" data-allow-repeat>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <RefreshCw className="w-4 h-4 text-white group-hover:rotate-180 transition-transform duration-300" />}
               <span>Sync Review</span>
             </button>
           </div>
@@ -330,20 +347,57 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
 };
 
 const TONES = {
-  amber: 'bg-amber-50 text-amber-600 border-amber-100', emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-  rose: 'bg-rose-50 text-rose-600 border-rose-100', slate: 'bg-slate-50 text-slate-500 border-slate-200', blue: 'bg-sky-50 text-sky-600 border-sky-100',
+  amber: {
+    topBar: 'bg-amber-500',
+    iconBg: 'bg-gradient-to-br from-amber-50 to-orange-100/90 text-amber-800 border-amber-200/80 shadow-2xs',
+  },
+  emerald: {
+    topBar: 'bg-emerald-500',
+    iconBg: 'bg-gradient-to-br from-emerald-50 to-teal-100/90 text-emerald-700 border-emerald-200/80 shadow-2xs',
+  },
+  rose: {
+    topBar: 'bg-rose-500',
+    iconBg: 'bg-gradient-to-br from-rose-50 to-pink-100/90 text-rose-700 border-rose-200/80 shadow-2xs',
+  },
+  slate: {
+    topBar: 'bg-slate-400',
+    iconBg: 'bg-gradient-to-br from-slate-50 to-slate-100 text-slate-700 border-slate-200/90 shadow-2xs',
+  },
+  blue: {
+    topBar: 'bg-sky-500',
+    iconBg: 'bg-gradient-to-br from-sky-50 to-blue-100/90 text-[#003857] border-sky-200/80 shadow-2xs',
+  },
 } as const;
-const Kpi: React.FC<{ label: string; value?: number; sub: string; tone: keyof typeof TONES; Icon: React.ElementType; onClick: () => void; active: boolean }> = ({ label, value, sub, tone, Icon, onClick, active }) => (
-  <button type="button" onClick={onClick} aria-pressed={active}
-    className={`text-left p-4 rounded-2xl border bg-white shadow-2xs transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 ${active ? 'border-[#003857] ring-2 ring-sky-100' : 'border-slate-200/90'}`}>
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">{label}</span>
-      <span className={`w-9 h-9 rounded-xl flex items-center justify-center border ${TONES[tone]}`}><Icon className="w-4.5 h-4.5" aria-hidden /></span>
-    </div>
-    <div className="font-figure text-3xl font-extrabold tabular-nums text-slate-900 my-2">{value === undefined ? '—' : value.toLocaleString()}</div>
-    <div className="pt-2 border-t border-slate-100 text-xs text-slate-500 truncate" title={sub}>{sub}</div>
-  </button>
-);
+
+const Kpi: React.FC<{ label: string; value?: number; sub: string; tone: keyof typeof TONES; Icon: React.ElementType; onClick: () => void; active: boolean }> = ({ label, value, sub, tone, Icon, onClick, active }) => {
+  const t = TONES[tone];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`relative flex flex-col justify-between p-5 rounded-2xl border bg-gradient-to-b from-white via-white to-slate-50/50 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_16px_-4px_rgba(0,0,0,0.03)] transition-all duration-200 text-left cursor-pointer overflow-hidden select-none hover:shadow-md hover:-translate-y-0.5 group ${
+        active ? 'border-[#003857] ring-2 ring-sky-100 shadow-md' : 'border-slate-200/90 hover:border-slate-300'
+      }`}
+    >
+      {/* Signature Top Accent Micro-line */}
+      <div className={`absolute top-0 inset-x-0 h-[3px] ${t.topBar} opacity-90`} />
+
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest truncate">{label}</span>
+        <span className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform group-hover:scale-105 ${t.iconBg}`}>
+          <Icon className="w-5 h-5" aria-hidden />
+        </span>
+      </div>
+      <div className="font-figure text-3xl sm:text-[34px] font-extrabold tracking-tight tabular-nums text-slate-900 my-2 leading-none">
+        {value === undefined ? '—' : value.toLocaleString()}
+      </div>
+      <div className="pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium truncate" title={sub}>
+        {sub}
+      </div>
+    </button>
+  );
+};
 
 const StatusChip: React.FC<{ s: CcReview }> = ({ s }) => {
   const u = STATUS_UI[s];
