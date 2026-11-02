@@ -3753,19 +3753,15 @@ const BigKpiCard: React.FC<{
   const theme = {
     blue: {
       iconBg: 'bg-sky-50 text-sky-600 border-sky-100',
-      hoverStyle: 'hover:border-sky-300 hover:ring-2 hover:ring-sky-100/80',
     },
     emerald: {
       iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-      hoverStyle: 'hover:border-emerald-300 hover:ring-2 hover:ring-emerald-100/80',
     },
     violet: {
       iconBg: 'bg-violet-50 text-violet-600 border-violet-100',
-      hoverStyle: 'hover:border-violet-300 hover:ring-2 hover:ring-violet-100/80',
     },
     amber: {
       iconBg: 'bg-amber-50 text-amber-600 border-amber-100',
-      hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/80',
     },
   }[accentColor];
 
@@ -3774,7 +3770,7 @@ const BigKpiCard: React.FC<{
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`relative flex flex-col justify-between p-4.5 sm:p-5 rounded-2xl border bg-white shadow-2xs transition-all duration-200 text-left cursor-pointer min-h-[142px] ${theme.hoverStyle} hover:shadow-md hover:-translate-y-0.5 group ${
+      className={`relative flex flex-col justify-between p-4.5 sm:p-5 rounded-2xl border bg-white shadow-2xs transition-all duration-200 text-left cursor-pointer min-h-[142px] hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 group ${
         active ? 'border-[#1e5b88] ring-2 ring-sky-100' : 'border-slate-200/90'
       }`}
     >

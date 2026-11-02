@@ -335,7 +335,7 @@ const TONES = {
 } as const;
 const Kpi: React.FC<{ label: string; value?: number; sub: string; tone: keyof typeof TONES; Icon: React.ElementType; onClick: () => void; active: boolean }> = ({ label, value, sub, tone, Icon, onClick, active }) => (
   <button type="button" onClick={onClick} aria-pressed={active}
-    className={`text-left p-4 rounded-2xl border bg-white shadow-2xs transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 ${active ? 'border-[#003857] ring-2 ring-sky-100' : 'border-slate-200/90'}`}>
+    className={`text-left p-4 rounded-2xl border bg-white shadow-2xs transition-all cursor-pointer hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 ${active ? 'border-[#003857] ring-2 ring-sky-100' : 'border-slate-200/90'}`}>
     <div className="flex items-center justify-between gap-2">
       <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">{label}</span>
       <span className={`w-9 h-9 rounded-xl flex items-center justify-center border ${TONES[tone]}`}><Icon className="w-4.5 h-4.5" aria-hidden /></span>

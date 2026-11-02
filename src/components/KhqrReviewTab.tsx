@@ -715,32 +715,26 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
     blue: {
       iconBg: 'bg-sky-50 text-sky-600 border-sky-100',
       numColor: 'text-slate-900',
-      hoverStyle: 'hover:border-sky-300 hover:ring-2 hover:ring-sky-100/80',
     },
     emerald: {
       iconBg: 'bg-emerald-50 text-emerald-600 border-emerald-100',
       numColor: 'text-slate-900',
-      hoverStyle: 'hover:border-emerald-300 hover:ring-2 hover:ring-emerald-100/80',
     },
     rose: {
       iconBg: 'bg-rose-50 text-rose-600 border-rose-100',
       numColor: 'text-slate-900',
-      hoverStyle: 'hover:border-rose-300 hover:ring-2 hover:ring-rose-100/80',
     },
     orange: {
       iconBg: 'bg-orange-50 text-orange-600 border-orange-100',
       numColor: 'text-slate-900',
-      hoverStyle: 'hover:border-orange-300 hover:ring-2 hover:ring-orange-100/80',
     },
     violet: {
       iconBg: 'bg-violet-50 text-violet-600 border-violet-100',
       numColor: 'text-slate-900',
-      hoverStyle: 'hover:border-violet-300 hover:ring-2 hover:ring-violet-100/80',
     },
     amber: {
       iconBg: 'bg-amber-50 text-amber-600 border-amber-100',
       numColor: 'text-slate-900',
-      hoverStyle: 'hover:border-amber-300 hover:ring-2 hover:ring-amber-100/80',
     },
   }[accentColor];
 
@@ -748,7 +742,7 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
     <Tag
       {...(isClickable ? { type: 'button', onClick, title: `Show ${label.toLowerCase()} log below` } : {})}
       className={`relative flex flex-col justify-between p-5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all duration-200 text-left ${
-        isClickable ? `cursor-pointer ${theme.hoverStyle} hover:shadow-md hover:-translate-y-0.5 group` : 'hover:border-slate-300 hover:shadow-xs'
+        isClickable ? 'cursor-pointer hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 group' : 'hover:border-slate-300 hover:shadow-xs'
       }`}
     >
       {/* Top row: Category Label + Icon Badge */}
