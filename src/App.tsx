@@ -94,7 +94,16 @@ const ChangeBatteryModal = lazyTab(() => import('./components/ChangeBatteryModal
 const ExportDataModal = lazyTab(() => import('./components/ExportDataModal').then((m) => ({ default: m.ExportDataModal })));
 const BatchUploadModal = lazyTab(() => import('./components/BatchUploadModal').then((m) => ({ default: m.BatchUploadModal })));
 const RequestStockModal = lazyTab(() => import('./components/RequestStockModal').then((m) => ({ default: m.RequestStockModal })));
-const SessionLockModal = lazyTab(() => import('./components/SessionLockModal').then((m) => ({ default: m.SessionLockModal })));
+import { SessionLockModal } from './components/SessionLockModal';
+import {
+  isWorkstationLocked,
+  lockWorkstation,
+  unlockWorkstation,
+  clearWorkstationLock,
+  notifySessionSignOut,
+  subscribeSessionSecurity,
+  recordCrossTabActivity,
+} from './utils/sessionSecurity';
 
 import { SendHorizontal, Lock, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
@@ -354,7 +363,20 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return Boolean(getBootSession());
   });
-  const [isSessionLocked, setIsSessionLocked] = useState<boolean>(false);
+  const [isSessionLocked, setIsSessionLocked] = useState<boolean>(() => isWorkstationLocked());
+
+  // Multi-tab session lock synchronization
+  useEffect(() => {
+    const unsub = subscribeSessionSecurity({
+      onLock: () => setIsSessionLocked(true),
+      onUnlock: () => setIsSessionLocked(false),
+      onSignOut: () => {
+        setIsSessionLocked(false);
+        setIsAuthenticated(false);
+      },
+    });
+    return unsub;
+  }, []);
   const [authUsername, setAuthUsername] = useState<string>(() => {
     return getBootSession()?.operatorLabel || '';
   });
@@ -1664,7 +1686,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
     const resetTimer = () => {
       clearTimeout(timer);
+      recordCrossTabActivity();
       timer = setTimeout(() => {
+        lockWorkstation({
+          operatorName: role === 'BRANCH' ? selectedStaffUser : activeAdminStaff,
+          operatorRole: role === 'BRANCH' ? `Branch Staff · Branch ${selectedBranch}` : 'System Administrator',
+          empId: (role === 'BRANCH' ? selectedStaffUser : activeAdminStaff).match(/\((\d+)\)/)?.[1],
+          reason: 'inactivity',
+        });
         setIsSessionLocked(true);
         addAuditLog(
           'Security Inactivity Lock',
@@ -1737,6 +1766,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       setActiveAdminStaff(params.operatorLabel);
       setBranchFilter('ALL');
     }
+    clearWorkstationLock();
+    setIsSessionLocked(false);
     setIsAuthenticated(true);
     addAuditLog(
       'User Session Sign-In',
@@ -3960,7 +3991,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   }
 
   return (
-    <div className="min-h-screen flex items-start fintech-ambient-light">
+    <>
+    <div className={`min-h-screen flex items-start fintech-ambient-light ${isSessionLocked ? 'pointer-events-none select-none filter blur-sm transition-all duration-200' : ''}`} aria-hidden={isSessionLocked}>
       {/* Full-Height Sidebar covering the top-left corner all the way from top to bottom */}
       <Sidebar
         role={role}
@@ -4171,10 +4203,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             onOpenRequestModal={() => setIsReqModalOpen(true)}
             onOpenExportModal={() => setIsExportModalOpen(true)}
             onLockSession={() => {
+              lockWorkstation({
+                operatorName: role === 'BRANCH' ? selectedStaffUser : activeAdminStaff,
+                operatorRole: role === 'BRANCH' ? `Branch Staff · Branch ${selectedBranch}` : 'System Administrator',
+                empId: (role === 'BRANCH' ? selectedStaffUser : activeAdminStaff).match(/\((\d+)\)/)?.[1],
+                reason: 'manual',
+              });
               setIsSessionLocked(true);
               addAuditLog('Session Manually Locked', 'Workstation session manually locked by operator');
             }}
             onSignOut={() => {
+              clearWorkstationLock();
+              notifySessionSignOut();
               if (isSupabaseConfigured) {                                  // (21 Oct 2026) the server session ends; this browser keeps nothing
                 writeAuditLog('Session Ended', 'Signed out').finally(() => signOutEverywhere());
                 return;
@@ -4745,24 +4785,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           </Suspense>
         )}
 
-        {/* Session Lock Modal */}
-        {isSessionLocked && (
-          <Suspense fallback={null}>
-            <SessionLockModal
-              isOpen={isSessionLocked}
-              onUnlock={() => {
-                setIsSessionLocked(false);
-                addAuditLog('Session Security Unlock', 'Workstation unlocked successfully via operator security PIN');
-                triggerToast('Workstation unlocked. Welcome back.');
-              }}
-              operatorName={
-                role === 'BRANCH' ? selectedStaffUser : activeAdminStaff
-              }
-              operatorRole={role}
-              theme={theme}
-            />
-          </Suspense>
-        )}
+        {/* Session Lock Modal moved outside blurred container */}
 
         {/* Workflow & Serial Cycle History Modal */}
         {editingDevice && (
@@ -5015,6 +5038,35 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         </div>
       )}
     </div>
+
+      {/* Operator Session Lock Modal rendered outside blurred container to guarantee pointer events */}
+      {isSessionLocked && (
+        <SessionLockModal
+          isOpen={isSessionLocked}
+          onUnlock={() => {
+            unlockWorkstation();
+            setIsSessionLocked(false);
+            addAuditLog('Session Security Unlock', 'Workstation unlocked successfully via operator security PIN');
+            triggerToast('Workstation unlocked. Welcome back.');
+          }}
+          operatorName={
+            role === 'BRANCH' ? selectedStaffUser : activeAdminStaff
+          }
+          operatorRole={
+            role === 'BRANCH'
+              ? `Branch Staff · Branch ${selectedBranch}`
+              : 'System Administrator'
+          }
+          theme={theme}
+          onSignOut={() => {
+            clearWorkstationLock();
+            notifySessionSignOut();
+            setIsSessionLocked(false);
+            setIsAuthenticated(false);
+          }}
+        />
+      )}
+    </>
   );
 }
 

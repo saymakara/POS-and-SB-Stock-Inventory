@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AppBrandLogo } from './AppBrandLogo';
 import { clearKeptMemos } from '../utils/useKeptMemo';
 import { clearCcCache } from '../services/ccService';
+import { clearWorkstationLock, notifySessionSignOut } from '../utils/sessionSecurity';
 
 /**
  * Sign-in with the shared database (21 Oct 2026).
@@ -48,11 +49,13 @@ export function clearLocalCaches(): void {
     /* not available */
   }
   clearKeptMemos();
-  clearCcCache();                                                     // (31 Oct 2026) results kept in memory between screens
+  clearCcCache();
+  clearWorkstationLock();                                                     // (31 Oct 2026) results kept in memory between screens
 }
 
 export async function signOutEverywhere(): Promise<void> {
   clearLocalCaches();
+  notifySessionSignOut();
   try {
     await supabase.auth.signOut();
   } catch {
@@ -154,6 +157,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
         return;
       }
       setPassword('');
+      clearWorkstationLock();
       await enter(data.user.id);
     } catch {
       setError('No connection to the server. Please check the internet and try again.');
