@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { timingSafeEqual } from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,6 +39,21 @@ const VALID_STAGES = new Set([
 const webhookLogs: ServerWebhookEvent[] = [];
 
 const sseClients = new Set<Response>();
+// (03 Nov 2026, audit) cap on open live-stream connections: each one holds a socket and a timer
+const MAX_SSE_CLIENTS = Number(process.env.MAX_SSE_CLIENTS) || 200;
+
+// (03 Nov 2026, audit) X-Installer-Key was listed in the CORS headers but never checked, so anyone could post fake
+// installations and read the merchant names/phones in the log. When INSTALLER_API_KEY is set, the sync, log and stream
+// endpoints require it (header X-Installer-Key, or ?key= for the browser stream, which cannot send headers).
+// In production without a key the endpoints are closed (fail closed); local development without a key stays open.
+const INSTALLER_API_KEY = (process.env.INSTALLER_API_KEY || '').trim();
+
+function keyMatches(given: unknown): boolean {
+  if (!INSTALLER_API_KEY || typeof given !== 'string') return false;
+  const a = Buffer.from(given);
+  const b = Buffer.from(INSTALLER_API_KEY);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 function broadcastSseEvent(eventName: string, data: unknown) {
   const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -74,8 +90,28 @@ async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
   const isProd = process.env.NODE_ENV === 'production';
 
-  // Reverse proxy trust (1 hop) for accurate IP resolution behind cloud load balancers
-  app.set('trust proxy', 1);
+  // (03 Nov 2026, audit) Reverse-proxy trust is now opt-in. With a fixed 'trust proxy = 1' and no proxy in front, any
+  // client could send its own X-Forwarded-For header, appear as a new IP on every request and bypass the rate limit
+  // (load test: 5,100/5,100 spoofed requests accepted). Set TRUST_PROXY=1 (number of hops) only behind a real proxy.
+  const trustProxy = process.env.TRUST_PROXY;
+  app.set('trust proxy', trustProxy ? (Number.isFinite(Number(trustProxy)) ? Number(trustProxy) : trustProxy) : false);
+  if (isProd && !INSTALLER_API_KEY) {
+    console.warn('[Security] INSTALLER_API_KEY is not set: the installer sync, log and stream endpoints are closed.');
+  }
+
+  const requireInstallerKey = (req: Request, res: Response, next: NextFunction) => {
+    if (!INSTALLER_API_KEY) {
+      if (!isProd) return next();
+      res.status(503).json({ ok: false, error: 'Installer API is not configured on this server.' });
+      return;
+    }
+    const given = req.get('x-installer-key') ?? (typeof req.query.key === 'string' ? req.query.key : undefined);
+    if (!keyMatches(given)) {
+      res.status(401).json({ ok: false, error: 'Unauthorized', message: 'A valid X-Installer-Key is required.' });
+      return;
+    }
+    next();
+  };
 
   app.disable('x-powered-by');
   app.use(express.json({ limit: '512kb' }));
@@ -114,9 +150,14 @@ async function startServer() {
     const windowMs = 60 * 1000;
     const maxReqs = 180;
 
-    // Safety guard against memory overflow from distributed spoofed IPs
+    // Safety guard against memory growth. (03 Nov 2026, audit) Before, the whole table was cleared, which reset every
+    // client's counter (including an abusive one). Now expired entries go first, then the oldest 10%.
     if (ipRequests.size > MAX_RATE_LIMIT_ENTRIES) {
-      ipRequests.clear();
+      for (const [key, entry] of ipRequests) if (now > entry.resetAt) ipRequests.delete(key);
+      if (ipRequests.size > MAX_RATE_LIMIT_ENTRIES) {
+        let drop = Math.ceil(MAX_RATE_LIMIT_ENTRIES / 10);
+        for (const key of ipRequests.keys()) { if (drop-- <= 0) break; ipRequests.delete(key); }
+      }
     }
 
     const current = ipRequests.get(ip);
@@ -162,7 +203,7 @@ async function startServer() {
   });
 
   // 2. Get Webhook Event Logs
-  app.get('/api/v1/webhooks/logs', (_req: Request, res: Response) => {
+  app.get('/api/v1/webhooks/logs', requireInstallerKey, (_req: Request, res: Response) => {
     res.json({
       ok: true,
       events: webhookLogs,
@@ -170,7 +211,11 @@ async function startServer() {
   });
 
   // 3. Real-Time Server-Sent Events (SSE) Stream
-  app.get('/api/v1/stream', (req: Request, res: Response) => {
+  app.get('/api/v1/stream', requireInstallerKey, (req: Request, res: Response) => {
+    if (sseClients.size >= MAX_SSE_CLIENTS) {
+      res.status(503).json({ ok: false, error: 'Too many live connections. Please retry shortly.' });
+      return;
+    }
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
@@ -206,7 +251,7 @@ async function startServer() {
   });
 
   // 4. Mobile Installer Webhook Endpoint (POST /api/v1/installations/sync)
-  app.post('/api/v1/installations/sync', (req: Request, res: Response) => {
+  app.post('/api/v1/installations/sync', requireInstallerKey, (req: Request, res: Response) => {
     const body = req.body || {};
     const serial = sanitizeField(body.serial, 40);
     const rawStage = sanitizeField(body.stage || 'COMPLETE', 30).toUpperCase();
@@ -297,6 +342,17 @@ async function startServer() {
 
   // Centralized Error Handling Middleware
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    // (03 Nov 2026, audit) a malformed or oversized JSON body is the client's error (400 / 413), not a server crash (500)
+    const status = (err as { status?: number; type?: string })?.status;
+    if (status && status >= 400 && status < 500 && !res.headersSent) {
+      const type = (err as { type?: string }).type;
+      res.status(status).json({
+        ok: false,
+        error: type === 'entity.too.large' ? 'Payload Too Large' : 'Bad Request',
+        message: type === 'entity.parse.failed' ? 'The request body is not valid JSON.' : 'The request could not be processed.',
+      });
+      return;
+    }
     const errorMsg = err instanceof Error ? err.message : 'Internal Server Error';
     console.error('[API Server Error]:', err);
     if (!res.headersSent) {

@@ -1,10 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MotionConfig } from 'motion/react';
 // (31 Oct 2026, speed) the app itself loads separately: the sign-in page no longer waits for the whole dashboard code
 // (on a phone it was busy ~1 s before the fields could be used). It starts downloading at once in the background, so it
 // is ready by the time the password is typed.
-const loadApp = () => import('./App.tsx');
+const loadApp = () => import('./AppWithMotion.tsx');
 const App = lazy(loadApp);
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthGate } from './components/AuthGate';
@@ -45,17 +44,14 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta
 }
 
 // (21 Oct 2026) the app opens only after sign-in with the shared database; it restarts for each person signed in
-// (29 Oct 2026) MotionConfig reducedMotion="user": with "reduce motion" on in the phone/PC settings, Motion skips
-// movement (opacity fades stay), like the CSS animations already do
+// (03 Nov 2026) MotionConfig reducedMotion="user" now lives in AppWithMotion.tsx (keeps Motion off the sign-in screen)
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
-    <MotionConfig reducedMotion="user">
-      <AuthGate>{(profile) => (
-        <Suspense fallback={<AppLoading />}>
-          <App profile={profile} />
-        </Suspense>
-      )}</AuthGate>
-    </MotionConfig>
+    <AuthGate>{(profile) => (
+      <Suspense fallback={<AppLoading />}>
+        <App profile={profile} />
+      </Suspense>
+    )}</AuthGate>
   </ErrorBoundary>
 );
 
