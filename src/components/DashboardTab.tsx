@@ -944,9 +944,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 flex items-center justify-center shrink-0">
                       {dev.type === 'POS Terminal' ? (
-                        <Cpu className="w-4 h-4 text-[#006BA6]" />
+                        <Cpu className="w-4 h-4 text-[#006BA6] dark:text-[#5cc8ff]" />
                       ) : (
-                        <Volume2 className="w-4 h-4 text-rose-600" />
+                        <Volume2 className="w-4 h-4 text-[#4F518C] dark:text-[#a2a5e0]" />
                       )}
                     </div>
                     <div className="min-w-0">
