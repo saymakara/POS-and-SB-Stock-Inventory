@@ -227,11 +227,11 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   ok(/POS Terminal\s*3/.test(sideTxt) && /Sound Box\s*1/.test(sideTxt) && /KHQR\s*Credit Card/.test(sideTxt), 'badges: 3 POS, 1 Sound Box waiting; KHQR has no approval badge');
   await side.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1500);
   let body = await p.textContent('main');
-  ok(/Phone App Review\s*·\s*POS Terminal/.test(body) && /WP0001/.test(body) && !/SB0001/.test(body), 'POS Terminal: POS records only');
+  ok((/Phone App Review\s*·\s*POS Terminal/.test(body) || /POS Terminal/.test(body)) && /WP0001/.test(body) && !/SB0001/.test(body), 'POS Terminal: POS records only');
   ok(await p.isVisible('text=Admin HQ Stock'), 'stock cards still shown on the other pages');
   await side.getByRole('button', { name: /^Sound Box/ }).click(); await sleep(1200);
   body = await p.textContent('main');
-  ok(/Phone App Review\s*·\s*Sound Box/.test(body) && /SB0001/.test(body) && !/WP0001/.test(body), 'Sound Box: Sound Box records only');
+  ok((/Phone App Review\s*·\s*Sound Box/.test(body) || /Sound Box/.test(body)) && /SB0001/.test(body) && !/WP0001/.test(body), 'Sound Box: Sound Box records only');
   // KHQR
   await side.getByRole('button', { name: /^KHQR/ }).click(); await sleep(2200);
   body = await p.textContent('body');

@@ -199,10 +199,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
           <div className="space-y-2 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
               <QrCode className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
-              <span>
-                Phone App Review
-                <span className="text-slate-500 font-semibold text-xl sm:text-2xl lg:text-[26px]"> · KHQR</span>
-              </span>
+              <span>KHQR</span>
             </h1>
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">
               Live merchant KHQR onboarding stream, materials tracking, and duplicate/wrong-MID inspection from field installations.
