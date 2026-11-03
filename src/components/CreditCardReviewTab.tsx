@@ -39,7 +39,7 @@ const REVIEW_TABS: {
 ];
 export const CC_REJECT_REASONS = ['Adverse CBC record', 'Incorrect account number', 'Customer details do not match ID',
   'Missing or unclear documents', 'Credit limit not approved', 'Other'];
-const GRID = 'grid items-center gap-x-4 grid-cols-[42px_145px_minmax(185px,1fr)_110px_135px_minmax(200px,1.25fr)_145px_24px]';
+const GRID = 'grid items-center gap-x-4 grid-cols-[42px_145px_minmax(185px,1fr)_110px_120px_minmax(205px,1.25fr)_145px_24px]';
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
 const usd = (n: number | null) => (n === null ? '—' : `USD ${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`);
 const isMissing = (msg: string) => /cc_list|cc_counts|PGRST20[25]|does not exist|schema cache/i.test(msg);
@@ -291,7 +291,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
               <span>Date Sent</span>
               <span>Customer / Request</span>
               <span className="text-right">Limit</span>
-              <span className="text-center">Cards (Pri+Supp)</span>
+              <span className="text-center">Cards</span>
               <span>Staff / Branch</span>
               <span className="pl-1">Review</span>
               <span />
@@ -356,37 +356,18 @@ const Field: React.FC<{ k: string; v: React.ReactNode; mono?: boolean }> = ({ k,
 
 const CardCountCell: React.FC<{
   cards: number;
-  supp: boolean;
-  suppCount: number;
   isRejected?: boolean;
-}> = ({ cards, supp, suppCount, isRejected }) => {
+}> = ({ cards, isRejected }) => {
   if (cards <= 0) {
     return <span className="text-slate-300 font-mono text-xs select-none">—</span>;
   }
 
-  const priCount = supp ? 0 : 1;
-
   return (
-    <div className={`inline-flex flex-col items-center justify-center ${isRejected ? 'opacity-60' : ''}`}>
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200/70 border border-slate-200/90 text-slate-800 font-bold text-xs tabular-nums shadow-2xs transition-colors">
-        <CreditCard className="w-3 h-3 text-slate-500 shrink-0" aria-hidden />
+    <div className={`inline-flex items-center justify-center ${isRejected ? 'opacity-50' : ''}`}>
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100/90 border border-slate-200/80 text-slate-600 text-xs tabular-nums font-normal">
+        <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden />
         <span>{cards} {cards === 1 ? 'card' : 'cards'}</span>
       </span>
-      <div className="flex items-center gap-1 mt-1 text-[10.5px] font-semibold leading-tight">
-        {priCount > 0 && (
-          <span className="text-slate-600 bg-slate-50 px-1.5 py-0.2 rounded border border-slate-200/70">
-            {priCount} Pri
-          </span>
-        )}
-        {priCount > 0 && suppCount > 0 && (
-          <span className="text-slate-300 text-[10px] font-bold">+</span>
-        )}
-        {suppCount > 0 && (
-          <span className="text-[#4F518C] bg-[#4F518C]/10 px-1.5 py-0.2 rounded border border-[#4F518C]/20 font-semibold">
-            {suppCount} Supp
-          </span>
-        )}
-      </div>
     </div>
   );
 };
@@ -459,8 +440,6 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
         <span className="text-center">
           <CardCountCell
             cards={cards}
-            supp={supp}
-            suppCount={e.supplementary.length}
             isRejected={e.reviewStatus === 'REJECTED'}
           />
         </span>
