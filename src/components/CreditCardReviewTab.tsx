@@ -39,7 +39,7 @@ const REVIEW_TABS: {
 ];
 export const CC_REJECT_REASONS = ['Adverse CBC record', 'Incorrect account number', 'Customer details do not match ID',
   'Missing or unclear documents', 'Credit limit not approved', 'Other'];
-const GRID = 'grid items-center gap-x-3 grid-cols-[36px_130px_minmax(170px,1.2fr)_95px_110px_minmax(140px,1fr)_135px_20px]';
+const GRID = 'grid items-center gap-x-4 grid-cols-[42px_145px_minmax(185px,1fr)_110px_135px_minmax(200px,1.25fr)_145px_24px]';
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
 const usd = (n: number | null) => (n === null ? '—' : `USD ${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`);
 const isMissing = (msg: string) => /cc_list|cc_counts|PGRST20[25]|does not exist|schema cache/i.test(msg);
@@ -285,15 +285,15 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
         </section>
 
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Credit Card entries">
-          <div className="min-w-[960px]">
-            <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
-              <span className="text-right">No.</span>
+          <div className="min-w-[1060px]">
+            <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-bold uppercase tracking-wider px-4 py-3`} role="row">
+              <span className="text-center font-bold">No.</span>
               <span>Date Sent</span>
               <span>Customer / Request</span>
               <span className="text-right">Limit</span>
               <span className="text-center">Cards (Pri+Supp)</span>
               <span>Staff / Branch</span>
-              <span>Review</span>
+              <span className="pl-1">Review</span>
               <span />
             </div>
             {loadError && (
@@ -304,7 +304,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
             )}
             {rows === null && !loadError && (
               <div aria-busy="true" aria-label="Loading">
-                {[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-[54px] border-b border-slate-100 px-3.5 flex items-center"><div className="skeleton h-3.5 rounded w-2/3" /></div>)}
+                {[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-[60px] border-b border-slate-100 px-4 flex items-center"><div className="skeleton h-3.5 rounded w-2/3" /></div>)}
               </div>
             )}
             {rows && rows.length === 0 && !loadError && (
@@ -354,6 +354,43 @@ const Field: React.FC<{ k: string; v: React.ReactNode; mono?: boolean }> = ({ k,
   </div>
 );
 
+const CardCountCell: React.FC<{
+  cards: number;
+  supp: boolean;
+  suppCount: number;
+  isRejected?: boolean;
+}> = ({ cards, supp, suppCount, isRejected }) => {
+  if (cards <= 0) {
+    return <span className="text-slate-300 font-mono text-xs select-none">—</span>;
+  }
+
+  const priCount = supp ? 0 : 1;
+
+  return (
+    <div className={`inline-flex flex-col items-center justify-center ${isRejected ? 'opacity-60' : ''}`}>
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200/70 border border-slate-200/90 text-slate-800 font-bold text-xs tabular-nums shadow-2xs transition-colors">
+        <CreditCard className="w-3 h-3 text-slate-500 shrink-0" aria-hidden />
+        <span>{cards} {cards === 1 ? 'card' : 'cards'}</span>
+      </span>
+      <div className="flex items-center gap-1 mt-1 text-[10.5px] font-semibold leading-tight">
+        {priCount > 0 && (
+          <span className="text-slate-600 bg-slate-50 px-1.5 py-0.2 rounded border border-slate-200/70">
+            {priCount} Pri
+          </span>
+        )}
+        {priCount > 0 && suppCount > 0 && (
+          <span className="text-slate-300 text-[10px] font-bold">+</span>
+        )}
+        {suppCount > 0 && (
+          <span className="text-[#4F518C] bg-[#4F518C]/10 px-1.5 py-0.2 rounded border border-[#4F518C]/20 font-semibold">
+            {suppCount} Supp
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed, toast }: {
   e: CcEntry; no: number; open: boolean; onToggle: () => void; canReview: boolean;
   onReviewed: (recordId: string, next: Partial<CcEntry>) => void; toast: (m: string) => void;
@@ -397,54 +434,56 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
           }
         }}
         aria-expanded={open}
-        className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer select-none`}
+        className={`${GRID} w-full text-left px-4 py-3 text-[13px] text-slate-700 cursor-pointer select-none transition-colors duration-150`}
       >
-        <span className="text-right tabular-nums text-slate-500">{no}</span>
+        <span className="text-center tabular-nums text-slate-400 font-mono text-xs">{no}</span>
         <span className="leading-tight min-w-0">
-          <span className="block tabular-nums">{fmt(e.submittedAt)}</span>
+          <span className="block tabular-nums font-medium text-slate-800">{fmt(e.submittedAt)}</span>
           <CopyableRecordId id={e.recordId} onCopied={(id) => toast(`Copied Record ID: ${id}`)} />
         </span>
-        <span className="leading-tight min-w-0">
-          <span className="block text-slate-900 truncate">{e.fullName || '—'}</span>
-          <span className="block text-[11px] text-slate-500 truncate">
+        <span className="leading-tight min-w-0 pr-2">
+          <span className="block text-slate-900 font-semibold truncate">{e.fullName || '—'}</span>
+          <span className="block text-[11px] text-slate-500 truncate mt-0.5">
             {supp ? `Add supplementary · ${e.supplementary.length} card(s)` : e.cardStatus === 'Onboarding Failed' ? `Onboarding failed${e.failReason ? ' · ' + e.failReason : ''}` : `New card${e.supplementary.length ? ` + ${e.supplementary.length} supplementary` : ''}`}
           </span>
         </span>
-        <span className="text-right tabular-nums">{supp ? '—' : usd(e.limitUsd)}</span>
-        <span className="text-center">
-          {e.reviewStatus === 'CONFIRMED' ? (
-            <span className="inline-flex flex-col items-center">
-              <span className="font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full text-[11px] leading-tight">
-                {cards} {cards === 1 ? 'card' : 'cards'}
-              </span>
-              <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                {supp ? '0 pri' : '1 pri'}{e.supplementary.length > 0 ? ` + ${e.supplementary.length} supp` : ''}
-              </span>
-            </span>
-          ) : e.reviewStatus === 'PENDING' ? (
-            <span className="inline-flex flex-col items-center">
-              <span className="font-medium text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full text-[11px] leading-tight">
-                {cards} pending
-              </span>
-              <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                {supp ? '0 pri' : '1 pri'}{e.supplementary.length > 0 ? ` + ${e.supplementary.length} supp` : ''}
-              </span>
-            </span>
-          ) : e.reviewStatus === 'REJECTED' ? (
-            <span className="inline-flex flex-col items-center">
-              <span className="font-medium text-rose-600 text-[11px] leading-tight">0 cards</span>
-              <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">Rejected</span>
-            </span>
+        <span className="text-right tabular-nums font-semibold text-slate-900 text-xs">
+          {supp ? (
+            <span className="text-slate-300 font-mono select-none">—</span>
+          ) : e.limitUsd ? (
+            usd(e.limitUsd)
           ) : (
-            <span className="text-slate-400 text-xs">—</span>
+            <span className="text-slate-300 font-mono select-none">—</span>
           )}
         </span>
-        <span className="leading-tight min-w-0">
-          <span className="block truncate">{e.staffName || '—'} <span className="text-slate-500">({e.staffId})</span></span>
-          <span className="block text-[11px] text-slate-500 truncate">{e.branchText ? `${e.branchText}${e.branchId ? ` · Code ${e.branchId}` : ''}` : (e.branchId ? `Code ${e.branchId}` : '')}</span>
+        <span className="text-center">
+          <CardCountCell
+            cards={cards}
+            supp={supp}
+            suppCount={e.supplementary.length}
+            isRejected={e.reviewStatus === 'REJECTED'}
+          />
         </span>
-        <span className="leading-tight"><StatusChip s={e.reviewStatus} />{e.editedAt && <span className="block text-[11px] text-slate-500 mt-0.5">edited {fmt(e.editedAt)}</span>}</span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
+        <span className="leading-tight min-w-0 pr-2">
+          <span className="block truncate font-semibold text-slate-900">
+            {e.staffName || '—'}{' '}
+            <span className="text-slate-400 font-normal text-xs">({e.staffId})</span>
+          </span>
+          <span className="block text-[11px] text-slate-500 truncate mt-0.5">
+            {e.branchText ? `${e.branchText}${e.branchId ? ` · Code ${e.branchId}` : ''}` : (e.branchId ? `Code ${e.branchId}` : '')}
+          </span>
+        </span>
+        <span className="leading-tight pl-1">
+          <StatusChip s={e.reviewStatus} />
+          {e.editedAt && (
+            <span className="block text-[10.5px] text-slate-400 mt-1">
+              edited {fmt(e.editedAt)}
+            </span>
+          )}
+        </span>
+        <div className="flex items-center justify-center">
+          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${open ? 'rotate-180 text-slate-600' : ''}`} aria-hidden />
+        </div>
       </div>
 
       <AnimatePresence initial={false}>
