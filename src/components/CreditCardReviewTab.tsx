@@ -423,12 +423,12 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
           <CopyableRecordId id={e.recordId} onCopied={(id) => toast(`Copied Record ID: ${id}`)} />
         </span>
         <span className="leading-tight min-w-0 pr-2">
-          <span className="block text-slate-900 font-semibold truncate">{e.fullName || '—'}</span>
+          <span className="block text-slate-800 font-medium truncate uppercase">{e.fullName || '—'}</span>
           <span className="block text-[11px] text-slate-500 truncate mt-0.5">
             {supp ? `Add supplementary · ${e.supplementary.length} card(s)` : e.cardStatus === 'Onboarding Failed' ? `Onboarding failed${e.failReason ? ' · ' + e.failReason : ''}` : `New card${e.supplementary.length ? ` + ${e.supplementary.length} supplementary` : ''}`}
           </span>
         </span>
-        <span className="text-right tabular-nums font-semibold text-slate-900 text-xs">
+        <span className="text-right tabular-nums font-medium text-slate-800 text-[13px]">
           {supp ? (
             <span className="text-slate-300 font-mono select-none">—</span>
           ) : e.limitUsd ? (
@@ -444,9 +444,8 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
           />
         </span>
         <span className="leading-tight min-w-0 pr-2">
-          <span className="block truncate font-semibold text-slate-900">
-            {e.staffName || '—'}{' '}
-            <span className="text-slate-400 font-normal text-xs">({e.staffId})</span>
+          <span className="block truncate font-medium text-slate-800">
+            {e.staffName || '—'}{e.staffId ? ` (${e.staffId})` : ''}
           </span>
           <span className="block text-[11px] text-slate-500 truncate mt-0.5">
             {e.branchText ? `${e.branchText}${e.branchId ? ` · Code ${e.branchId}` : ''}` : (e.branchId ? `Code ${e.branchId}` : '')}
@@ -480,7 +479,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
             <Field k="Request type" v={e.requestType} />
             {!supp && <Field k="Card status" v={e.cardStatus} />}
             {e.failReason && <Field k="Failure reason" v={e.failReason} />}
-            <Field k={supp ? 'Primary cardholder' : 'Full name'} v={e.fullName} />
+            <Field k={supp ? 'Primary cardholder' : 'Full name'} v={e.fullName ? <span className="uppercase">{e.fullName}</span> : null} />
             {!supp && <Field k="Contact number" v={e.contact} mono />}
             {!supp && <Field k="Status of marriage" v={e.marital} />}
             <Field k={supp ? 'Primary account number' : 'Settlement account'} v={e.primaryAcc} mono />
@@ -498,7 +497,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
                 <thead><tr className="text-left text-slate-500"><th className="px-3 py-1.5 font-medium">#</th><th className="px-3 py-1.5 font-medium">Full name</th><th className="px-3 py-1.5 font-medium">Status of marriage</th><th className="px-3 py-1.5 font-medium">Account number</th><th className="px-3 py-1.5 font-medium">Email</th></tr></thead>
                 <tbody>
                   {e.supplementary.map((s, i) => (
-                    <tr key={i} className="border-t border-slate-100"><td className="px-3 py-1.5">{i + 1}</td><td className="px-3 py-1.5">{s.full_name || '—'}</td><td className="px-3 py-1.5">{s.marital || '—'}</td><td className="px-3 py-1.5 font-mono">{s.account || '—'}</td><td className="px-3 py-1.5">{s.email || '—'}</td></tr>
+                    <tr key={i} className="border-t border-slate-100"><td className="px-3 py-1.5">{i + 1}</td><td className="px-3 py-1.5 uppercase">{s.full_name || '—'}</td><td className="px-3 py-1.5">{s.marital || '—'}</td><td className="px-3 py-1.5 font-mono">{s.account || '—'}</td><td className="px-3 py-1.5">{s.email || '—'}</td></tr>
                   ))}
                 </tbody>
               </table>
