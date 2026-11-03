@@ -11,6 +11,7 @@ import { todayPP, stampSecPP, clockPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
+  Minus,
   SendHorizontal,
   Building2,
   Users,
@@ -31,8 +32,6 @@ import {
   RotateCw,
   Copy,
   Check,
-  CheckSquare,
-  Square,
 } from 'lucide-react';
 import { formatBranchName, fmtNum } from '../utils/format';
 
@@ -493,7 +492,25 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
     tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const handleToggleSelectOne = (sn: string) => {
+  const lastPushSelectedIdxRef = useRef<number | null>(null);
+
+  const handleToggleSelectOne = (sn: string, index?: number, e?: React.MouseEvent) => {
+    if (
+      typeof index === 'number' &&
+      e?.shiftKey &&
+      lastPushSelectedIdxRef.current !== null &&
+      lastPushSelectedIdxRef.current !== index
+    ) {
+      const start = Math.min(lastPushSelectedIdxRef.current, index);
+      const end = Math.max(lastPushSelectedIdxRef.current, index);
+      const rangeSns = filteredDevices.slice(start, end + 1).map((d) => d.serial);
+      setSelectedSns((prev) => Array.from(new Set([...prev, ...rangeSns])));
+      lastPushSelectedIdxRef.current = index;
+      return;
+    }
+    if (typeof index === 'number') {
+      lastPushSelectedIdxRef.current = index;
+    }
     setSelectedSns((prev) =>
       prev.includes(sn) ? prev.filter((x) => x !== sn) : [...prev, sn]
     );
@@ -1395,19 +1412,33 @@ return (
           <table className="data-table min-w-[960px]">
             <thead className="glass-table-thead">
               <tr>
-                <th className="w-10 text-center">
+                <th className="w-12 text-center p-0">
                   <button
                     type="button"
                     onClick={handleToggleSelectAll}
-                    className="flex items-center justify-center text-white cursor-pointer active:scale-90 transition-transform duration-100 mx-auto"
-                    title="Select all in queue"
+                    className="w-full h-full min-h-[46px] flex items-center justify-center p-2 text-white cursor-pointer hover:bg-white/10 transition-colors focus:outline-none"
+                    title={
+                      selectedSns.length === filteredDevices.length && filteredDevices.length > 0
+                        ? 'Unselect all in queue'
+                        : 'Select all in queue (or Shift+Click rows for range)'
+                    }
                     aria-label="Select all in queue"
                   >
-                    {selectedSns.length === filteredDevices.length && filteredDevices.length > 0 ? (
-                      <CheckSquare className="w-4 h-4 text-white" />
-                    ) : (
-                      <Square className="w-4 h-4 text-white/75 hover:text-white" />
-                    )}
+                    <div
+                      className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-all duration-150 ${
+                        selectedSns.length === filteredDevices.length && filteredDevices.length > 0
+                          ? 'bg-white border-white text-[#003857] shadow-xs scale-105'
+                          : selectedSns.length > 0
+                          ? 'bg-white/20 border-white text-white shadow-xs'
+                          : 'bg-white/10 border-white/60 hover:border-white hover:bg-white/20 shadow-2xs'
+                      }`}
+                    >
+                      {selectedSns.length === filteredDevices.length && filteredDevices.length > 0 ? (
+                        <Check className="w-3.5 h-3.5 text-[#003857] stroke-[3]" />
+                      ) : selectedSns.length > 0 ? (
+                        <Minus className="w-3.5 h-3.5 text-white stroke-[3]" />
+                      ) : null}
+                    </div>
                   </button>
                 </th>
                 <th>Tracking ID</th>
@@ -1434,7 +1465,7 @@ return (
                   </td>
                 </tr>
               ) : (
-                filteredDevices.map((dev) => {
+                filteredDevices.map((dev, index) => {
                   const isSelected = selectedSns.includes(dev.serial);
                   const isPos = dev.type === 'POS Terminal';
                   const bObj = branches.find((b) => b.code === dev.branchId);
@@ -1449,18 +1480,29 @@ return (
                       key={dev.serial}
                       className={`interactive-row ${isSelected ? '!bg-sky-50/70' : ''}`}
                     >
-                      <td className="w-10 text-center">
+                      <td
+                        className="w-12 text-center p-0 cursor-pointer select-none"
+                        onClick={(e) => handleToggleSelectOne(dev.serial, index, e)}
+                      >
                         <button
                           type="button"
-                          onClick={() => handleToggleSelectOne(dev.serial)}
-                          className="flex items-center justify-center cursor-pointer p-1 rounded active:scale-90 transition-transform duration-100 mx-auto"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleSelectOne(dev.serial, index, e);
+                          }}
+                          className="w-full h-full min-h-[46px] flex items-center justify-center p-2 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors focus:outline-none"
+                          title={isSelected ? 'Unselect serial (or Shift+Click for range)' : 'Select serial (or Shift+Click for range)'}
                           aria-label={`Select ${dev.serial}`}
                         >
-                          {isSelected ? (
-                            <CheckSquare className="w-4 h-4 text-[#003857]" />
-                          ) : (
-                            <Square className="w-4 h-4 text-slate-400 hover:text-slate-600" />
-                          )}
+                          <div
+                            className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-all duration-150 ${
+                              isSelected
+                                ? 'bg-[#003857] border-[#003857] text-white shadow-xs scale-105'
+                                : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-500 hover:border-[#003857] dark:hover:border-slate-300 shadow-2xs'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                          </div>
                         </button>
                       </td>
 

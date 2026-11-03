@@ -1,5 +1,5 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useSort, SortTh } from '../utils/sort';
 import {
   Device,
@@ -18,12 +18,13 @@ const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
 import {
+  Check,
+  Minus,
   Search,
   Filter,
   Plus,
   FileSpreadsheet,
   CheckSquare,
-  Square,
   Building2,
   RotateCcw,
   Trash2,
@@ -321,6 +322,13 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     return visibleDevices.slice(start, start + rowsPerPage);
   }, [visibleDevices, shownPage, rowsPerPage, isServerPaginated, serverPageRows]);
 
+  const lastSelectedIdxRef = useRef<number | null>(null);
+
+  const selectedOnPageCount = useMemo(
+    () => pagedDevices.filter((d) => selectedSet.has(d.serial)).length,
+    [pagedDevices, selectedSet]
+  );
+
   const allVisibleSelected =
     pagedDevices.length > 0 &&
     pagedDevices.every((d) => selectedSet.has(d.serial));
@@ -336,7 +344,27 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     }
   };
 
-  const toggleSelectOne = (sn: string) => {
+  const toggleSelectOne = (sn: string, index?: number, e?: React.MouseEvent) => {
+    if (
+      typeof index === 'number' &&
+      e?.shiftKey &&
+      lastSelectedIdxRef.current !== null &&
+      lastSelectedIdxRef.current !== index
+    ) {
+      const start = Math.min(lastSelectedIdxRef.current, index);
+      const end = Math.max(lastSelectedIdxRef.current, index);
+      const rangeSns = pagedDevices.slice(start, end + 1).map((d) => d.serial);
+      setSelectedSns((prev) => {
+        const set = new Set(prev);
+        rangeSns.forEach((s) => set.add(s));
+        return Array.from(set);
+      });
+      lastSelectedIdxRef.current = index;
+      return;
+    }
+    if (typeof index === 'number') {
+      lastSelectedIdxRef.current = index;
+    }
     setSelectedSns((prev) => {
       const set = new Set(prev);
       if (set.has(sn)) set.delete(sn);
@@ -524,6 +552,19 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               >
                 <CheckSquare className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
                 <span>Select 10 Units</span>
+              </motion.button>
+            )}
+
+            {selectedSns.length > 0 && (
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setSelectedSns([])}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition cursor-pointer shadow-2xs"
+                title="Clear all selected serials"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Clear ({selectedSns.length})</span>
               </motion.button>
             )}
 
@@ -858,20 +899,34 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           <table className="data-table min-w-[960px]">
             <thead className="glass-table-thead">
               <tr>
-                <th className="w-10 text-center">
+                <th className="w-12 text-center p-0">
                   <button
                     type="button"
                     onClick={toggleSelectAll}
-                    className="flex items-center justify-center text-white cursor-pointer active:scale-90 transition-transform duration-100 mx-auto"
-                    title="Select All Visible Serials"
+                    className="w-full h-full min-h-[46px] flex items-center justify-center p-2 text-white cursor-pointer hover:bg-white/10 transition-colors focus:outline-none"
+                    title={
+                      allVisibleSelected
+                        ? 'Unselect all serials on this page'
+                        : 'Select all visible serials on this page (or Shift+Click rows for range selection)'
+                    }
                     aria-label={allVisibleSelected ? 'Unselect all serials on this page' : 'Select all serials on this page'}
                     aria-pressed={allVisibleSelected}
                   >
-                    {allVisibleSelected ? (
-                      <CheckSquare className="w-4 h-4 text-white" />
-                    ) : (
-                      <Square className="w-4 h-4 text-white/75 hover:text-white" />
-                    )}
+                    <div
+                      className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-all duration-150 ${
+                        allVisibleSelected
+                          ? 'bg-white border-white text-[#003857] shadow-xs scale-105'
+                          : selectedOnPageCount > 0
+                          ? 'bg-white/20 border-white text-white shadow-xs'
+                          : 'bg-white/10 border-white/60 hover:border-white hover:bg-white/20 shadow-2xs'
+                      }`}
+                    >
+                      {allVisibleSelected ? (
+                        <Check className="w-3.5 h-3.5 text-[#003857] stroke-[3]" />
+                      ) : selectedOnPageCount > 0 ? (
+                        <Minus className="w-3.5 h-3.5 text-white stroke-[3]" />
+                      ) : null}
+                    </div>
                   </button>
                 </th>
                 <th className="col-no">No.</th>
@@ -915,19 +970,30 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         isSyncingThisDevice ? 'optimistic-sync-active' : ''
                       } ${isChecked ? '!bg-sky-50/70' : ''}`}
                     >
-                      <td className="w-10 text-center">
+                      <td
+                        className="w-12 text-center p-0 cursor-pointer select-none"
+                        onClick={(e) => toggleSelectOne(dev.serial, index, e)}
+                      >
                         <button
                           type="button"
-                          onClick={() => toggleSelectOne(dev.serial)}
-                          className="flex items-center justify-center cursor-pointer p-1 rounded active:scale-90 transition-transform duration-100 mx-auto"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelectOne(dev.serial, index, e);
+                          }}
+                          className="w-full h-full min-h-[46px] flex items-center justify-center p-2 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors focus:outline-none"
+                          title={isChecked ? 'Unselect serial (or Shift+Click for range)' : 'Select serial (or Shift+Click for range)'}
                           aria-label={`${isChecked ? 'Unselect' : 'Select'} serial ${dev.serial}`}
                           aria-pressed={isChecked}
                         >
-                          {isChecked ? (
-                            <CheckSquare className="w-4 h-4 text-[#003857]" />
-                          ) : (
-                            <Square className="w-4 h-4 text-slate-400 hover:text-slate-600" />
-                          )}
+                          <div
+                            className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-all duration-150 ${
+                              isChecked
+                                ? 'bg-[#003857] border-[#003857] text-white shadow-xs scale-105'
+                                : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-500 hover:border-[#003857] dark:hover:border-slate-300 shadow-2xs'
+                            }`}
+                          >
+                            {isChecked && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                          </div>
                         </button>
                       </td>
 
