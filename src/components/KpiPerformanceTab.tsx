@@ -2831,23 +2831,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     }}
                                     title={titleText}
                                     className={`matrix-day-th px-0.5 py-1.5 text-center w-[36px] min-w-[36px] max-w-[36px] cursor-pointer select-none transition-colors border-b border-white/20 ${
-                                      isHol
+                                      isHol || isWk
                                         ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30'
-                                        : isWk
-                                        ? 'bg-[#002236]/90 text-white hover:bg-[#001d2e] border-x border-sky-900/40'
                                         : 'text-white hover:bg-white/10'
                                     }`}
                                   >
                                     <div className="leading-tight flex flex-col items-center justify-center">
-                                      <span className={`block text-xs font-semibold tabular-nums leading-none ${isWk ? 'text-white font-bold' : 'text-white'}`}>
+                                      <span className={`block text-xs font-semibold tabular-nums leading-none ${isWk || isHol ? 'text-white font-bold' : 'text-white'}`}>
                                         {d.dayNum}
                                       </span>
                                       <span
                                         className={`block text-[10px] font-medium leading-none mt-1 ${
-                                          isHol
-                                            ? 'text-amber-300 font-semibold'
-                                            : (d.isSunday || d.isSaturday)
-                                            ? 'text-rose-300 font-bold tracking-wide'
+                                          isHol || d.isSunday || d.isSaturday
+                                            ? 'text-amber-300 font-semibold tracking-wide'
                                             : 'text-sky-200/90 font-medium'
                                         }`}
                                       >
@@ -2958,10 +2954,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                         <td
                                           key={d.dayNum}
                                           className={`px-0.5 py-1 text-center w-[36px] min-w-[36px] max-w-[36px] transition-colors ${
-                                            isHol
-                                              ? 'bg-amber-50/45 border-r border-slate-100'
-                                              : isWk
-                                              ? 'bg-slate-100/85 border-r border-slate-200/80'
+                                            isHol || isWk
+                                              ? 'bg-amber-50/40 border-r border-slate-100'
                                               : 'border-r border-slate-100'
                                           }`}
                                           title={tooltip}
@@ -2969,10 +2963,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                           {hasTasks ? (
                                             <span
                                               className={`inline-flex items-center justify-center min-w-[24px] h-[21px] px-1 rounded text-[11px] tabular-nums font-normal ${
-                                                isHol
+                                                isHol || isWk
                                                   ? 'bg-amber-100/80 text-amber-900 border border-amber-300 border-dashed'
-                                                  : isWk
-                                                  ? 'bg-slate-200/80 text-slate-700 border border-slate-300 border-dashed'
                                                   : d.count >= 20
                                                   ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
                                                   : d.count >= 10
@@ -3029,10 +3021,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                     <td
                                       key={d.dayNum}
                                       className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] tabular-nums text-[11px] ${
-                                        d.isHoliday
+                                        d.isHoliday || d.isWeekend
                                           ? 'bg-amber-100/50 text-amber-900 font-medium border-r border-slate-200'
-                                          : d.isWeekend
-                                          ? 'bg-slate-200/70 text-slate-700 font-medium border-r border-slate-300/80'
                                           : 'border-r border-slate-200 ' + (count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light')
                                       }`}
                                       title={`All branches on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${count} tasks`}
@@ -3240,24 +3230,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           }}
                           title={titleText}
                           className={`matrix-day-th px-0.5 py-1.5 text-center w-[36px] min-w-[36px] max-w-[36px] cursor-pointer select-none transition-colors border-b border-white/20 ${
-                            isHol
-                              ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30'
-                              : isWk
-                              ? 'bg-[#002236]/90 text-white hover:bg-[#001d2e] border-x border-sky-900/40'
-                              : 'text-white hover:bg-white/10'
+                            isHol || isWk
+                                        ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30'
+                                        : 'text-white hover:bg-white/10'
                           }`}
                         >
                           <div className="leading-tight flex flex-col items-center justify-center">
-                            <span className={`block text-xs font-semibold tabular-nums leading-none ${isWk ? 'text-white font-bold' : 'text-white'}`}>
+                            <span className={`block text-xs font-semibold tabular-nums leading-none ${isWk || isHol ? 'text-white font-bold' : 'text-white'}`}>
                               {d.dayNum}
                             </span>
                             <span
                               className={`block text-[10px] font-medium leading-none mt-1 ${
-                                isHol
-                                  ? 'text-amber-300 font-semibold'
-                                  : (d.isSunday || d.isSaturday)
-                                  ? 'text-rose-300 font-bold tracking-wide'
-                                  : 'text-sky-200/90 font-medium'
+                                isHol || d.isSunday || d.isSaturday
+                                            ? 'text-amber-300 font-semibold tracking-wide'
+                                            : 'text-sky-200/90 font-medium'
                               }`}
                             >
                               {isHol ? 'Hol' : d.dayOfWeek}
@@ -3378,21 +3364,17 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               <td
                                 key={d.dayNum}
                                 className={`px-0.5 py-1 text-center w-[36px] min-w-[36px] max-w-[36px] transition-colors ${
-                                  isHol
-                                    ? 'bg-amber-50/45 border-r border-slate-100'
-                                    : isWk
-                                    ? 'bg-slate-100/85 border-r border-slate-200/80'
-                                    : 'border-r border-slate-100'
+                                  isHol || isWk
+                                              ? 'bg-amber-50/40 border-r border-slate-100'
+                                              : 'border-r border-slate-100'
                                 }`}
                                 title={tooltip}
                               >
                                 {hasTasks ? (
                                   <span
                                     className={`inline-flex items-center justify-center min-w-[24px] h-[21px] px-1 rounded text-[11px] tabular-nums font-normal ${
-                                      isHol
+                                      isHol || isWk
                                         ? 'bg-amber-100/80 text-amber-900 border border-amber-300 border-dashed'
-                                        : isWk
-                                        ? 'bg-slate-200/80 text-slate-700 border border-slate-300 border-dashed'
                                         : d.count >= 10
                                         ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
                                         : d.count >= 5
@@ -3458,11 +3440,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           <td
                             key={d.dayNum}
                             className={`px-0.5 py-2 text-center w-[36px] min-w-[36px] max-w-[36px] tabular-nums text-[11px] ${
-                              d.isHoliday
-                                ? 'bg-amber-100/50 text-amber-900 font-medium border-r border-slate-200'
-                                : d.isWeekend
-                                ? 'bg-slate-200/70 text-slate-700 font-medium border-r border-slate-300/80'
-                                : 'border-r border-slate-200 ' + (count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light')
+                              d.isHoliday || d.isWeekend
+                                          ? 'bg-amber-100/50 text-amber-900 font-medium border-r border-slate-200'
+                                          : 'border-r border-slate-200 ' + (count > 0 ? 'text-slate-900 font-medium' : 'text-slate-400 font-light')
                             }`}
                             title={`All staff on ${d.isoDay} (${d.dayOfWeek}${d.isHoliday ? ` · HOL: ${d.holidayName}` : ''}): ${count} tasks`}
                           >
