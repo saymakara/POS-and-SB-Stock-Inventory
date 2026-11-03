@@ -36,16 +36,22 @@ export default defineConfig(() => {
           return deps.filter((dep) => !dep.includes('vendor-charts'));
         },
       },
-      rollupOptions: {
+      rolldownOptions: {
         output: {
-          manualChunks: (id) => {
-            if (id.includes('node_modules')) {
-              if (id.includes('recharts')) return 'vendor-charts';
-              if (id.includes('motion')) return 'vendor-motion';
-              if (id.includes('lucide-react')) return 'vendor-icons';
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-is')) return 'vendor-react';
-              return 'vendor-libs';
-            }
+          // (03 Nov 2026, audit) Replaces the old manualChunks function. With Rolldown (Vite 8), a group also takes in
+          // the dependencies of what it captures, so the charts group pulled React itself (and react-dom, react-is,
+          // clsx, use-sync-external-store) into vendor-charts, and the motion group took react/jsx-runtime. The entry
+          // then had to import React from vendor-charts: the 399 kB Recharts chunk was downloaded on the sign-in screen
+          // even though its preload hint was removed. React now has the highest priority, so it is captured first and
+          // every heavy library stays in its own on-demand chunk.
+          codeSplitting: {
+            groups: [
+              { name: 'vendor-react', test: /node_modules[\\/](react|react-dom|scheduler|react-is|use-sync-external-store)[\\/]/, priority: 50 },
+              { name: 'vendor-charts', test: /node_modules[\\/](recharts|d3-[^\\/]+|victory-vendor|internmap|decimal\.js-light|es-toolkit|redux|redux-thunk|@reduxjs|react-redux|reselect|immer|eventemitter3|tiny-invariant)[\\/]/, priority: 40 },
+              { name: 'vendor-motion', test: /node_modules[\\/](motion|framer-motion|motion-dom|motion-utils)[\\/]/, priority: 30 },
+              { name: 'vendor-icons', test: /node_modules[\\/]lucide-react[\\/]/, priority: 20 },
+              { name: 'vendor-libs', test: /node_modules[\\/]/, priority: 10 },
+            ],
           },
         },
       },
