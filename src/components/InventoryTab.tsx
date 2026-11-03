@@ -903,7 +903,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   <button
                     type="button"
                     onClick={toggleSelectAll}
-                    className="w-full h-full min-h-[46px] flex items-center justify-center p-2 text-white cursor-pointer hover:bg-white/10 transition-colors focus:outline-none"
+                    className="w-full h-full min-h-[34px] flex items-center justify-center py-1 px-2 text-white cursor-pointer hover:bg-white/10 transition-colors focus:outline-none"
                     title={
                       allVisibleSelected
                         ? 'Unselect all serials on this page'
@@ -913,7 +913,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     aria-pressed={allVisibleSelected}
                   >
                     <div
-                      className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-all duration-150 ${
+                      className={`w-4.5 h-4.5 rounded-[4px] border-[1.5px] flex items-center justify-center transition-all duration-150 ${
                         allVisibleSelected
                           ? 'bg-white border-white text-[#003857] shadow-xs scale-105'
                           : selectedOnPageCount > 0
@@ -922,9 +922,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                       }`}
                     >
                       {allVisibleSelected ? (
-                        <Check className="w-3.5 h-3.5 text-[#003857] stroke-[3]" />
+                        <Check className="w-3 h-3 text-[#003857] stroke-[3]" />
                       ) : selectedOnPageCount > 0 ? (
-                        <Minus className="w-3.5 h-3.5 text-white stroke-[3]" />
+                        <Minus className="w-3 h-3 text-white stroke-[3]" />
                       ) : null}
                     </div>
                   </button>

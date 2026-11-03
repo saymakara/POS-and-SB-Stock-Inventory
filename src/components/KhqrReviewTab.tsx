@@ -299,7 +299,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             <span className="text-[12px] text-slate-500">· latest month only</span>
           </div>
           <div className="min-w-[880px]">
-            <div className={`${HGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`} role="row">
+            <div className={`${HGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
               <span>Month</span>
               <span className="text-right">Entries</span>
               <span className="text-right">New Installation</span>
@@ -441,7 +441,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       {/* Entries */}
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KHQR entries">
         <div className="min-w-[1080px]">
-          <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
+          <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
             <span className="text-right">No.</span>
             <span>Date Sent</span>
             <span>Activity</span>
@@ -534,7 +534,7 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
         </span>
       </div>
       <div className="min-w-[1080px]">
-        <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-3`} role="row">
+        <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
           <span className="text-right">No.</span>
           <span>Time</span>
           <span>Staff</span>
@@ -612,7 +612,7 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
         <span className="text-[12px] text-slate-500">· same day (Phnom Penh time) · {periodLabel}</span>
       </div>
       <div className="min-w-[1160px]">
-        <div className={`${SMGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2.5`} role="row">
+        <div className={`${SMGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
           <span className="text-right">No.</span>
           <span>Date</span>
           <span>MID</span>

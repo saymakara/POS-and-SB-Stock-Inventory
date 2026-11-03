@@ -286,7 +286,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
 
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Credit Card entries">
           <div className="min-w-[1060px]">
-            <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-bold uppercase tracking-wider px-4 py-3`} role="row">
+            <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2`} role="row">
               <span className="text-center font-bold">No.</span>
               <span>Date Sent</span>
               <span>Customer / Request</span>
