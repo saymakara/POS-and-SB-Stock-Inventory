@@ -1827,28 +1827,28 @@ return (
                   className="fixed inset-0 bg-slate-950/75 backdrop-blur-md"
                 />
 
-                {/* Modal Container in the exact style of WorkflowModal */}
+                {/* Clean, Modern Modal Container */}
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 14 }}
+                  initial={{ opacity: 0, scale: 0.95, y: 12 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 12 }}
                   transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-                  className={`relative w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden my-auto z-10 border-0 flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
-                    isLight ? 'bg-white text-[#002f49]' : 'bg-[#12151e] text-slate-100'
+                  className={`relative w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden my-auto z-10 border-0 flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
+                    isLight ? 'bg-white text-slate-900' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
-                  {/* Signature Navy Header Bar */}
-                  <div className="navy-header-bar rounded-t-3xl px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+                  {/* Clean Signature Navy Header Bar */}
+                  <div className="navy-header-bar rounded-t-3xl px-6 py-4 flex items-center justify-between text-white border-b border-white/10 shrink-0">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-amber-300">
-                        <Lock className="w-5 h-5" />
+                      <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-sky-300">
+                        <Lock className="w-4.5 h-4.5" />
                       </div>
                       <div>
                         <h3 className="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
-                          <span>Pusher Security Authorization</span>
+                          <span>Confirm Telegram Broadcast</span>
                         </h3>
                         <p className="text-xs text-slate-200/90 font-medium mt-0.5">
-                          PIN or password verification required before broadcasting deployment alerts
+                          Authorize deployment alert to branch technician groups
                         </p>
                       </div>
                     </div>
@@ -1866,197 +1866,140 @@ return (
                     </button>
                   </div>
 
-                  {/* Sub-Header Context Bar */}
-                  <div
-                    className={`px-6 py-2.5 border-b flex items-center justify-between text-xs shrink-0 ${
-                      isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-[#151924] border-slate-800 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-[#003857] dark:text-sky-400" />
-                      <span className="font-bold text-slate-800 dark:text-slate-200">
-                        Two-Factor Broadcast Verification
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>Double-Step Safeguard Active</span>
-                    </div>
-                  </div>
-
                   {/* Form & Modal Body */}
                   <form onSubmit={handleConfirmPushAllWithPassword} className="flex flex-col flex-1 overflow-hidden">
                     <div className="p-6 overflow-y-auto max-h-[70vh] space-y-4 text-xs">
-                      {/* Section 1: Broadcast Impact & Queue Targets */}
-                      <div className={`p-4 rounded-2xl border space-y-3 transition-colors ${
-                        isLight ? 'bg-amber-50/60 border-amber-200/90' : 'bg-amber-950/20 border-amber-900/50'
-                      }`}>
-                        <div className="flex items-center justify-between pb-2.5 border-b border-amber-200/60 dark:border-amber-800/40">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
-                                1. Broadcast Safeguard &amp; Queue Targets
-                              </h4>
-                              <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
-                                High-impact deployment alert sent to branch Telegram groups
-                              </p>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/30">
-                            High Impact
+                      {/* Metric Summary Grid */}
+                      <div className="grid grid-cols-3 gap-2.5">
+                        <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex flex-col">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total Devices</span>
+                          <span className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 mt-1">
+                            <SendHorizontal className="w-3.5 h-3.5 text-[#006BA6]" />
+                            {configuringDevices.length} {configuringDevices.length === 1 ? 'Unit' : 'Units'}
+                          </span>
+                          <span className="text-[10px] text-slate-500 mt-0.5">
+                            {configuringDevices.filter((d) => d.type === 'POS Terminal').length} POS · {configuringDevices.filter((d) => d.type === 'Sound Box').length} Sound Box
                           </span>
                         </div>
 
-                        {/* Metrics Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          <div className="p-2.5 rounded-xl bg-white/95 dark:bg-[#121620] border border-amber-200/80 dark:border-amber-900/50 flex flex-col shadow-2xs">
-                            <span className="text-[10px] uppercase font-bold text-slate-400">Total Devices</span>
-                            <span className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 mt-0.5">
-                              <SendHorizontal className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
-                              {configuringDevices.length} {configuringDevices.length === 1 ? 'Unit' : 'Units'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 mt-0.5">
-                              {configuringDevices.filter((d) => d.type === 'POS Terminal').length} POS · {configuringDevices.filter((d) => d.type === 'Sound Box').length} Sound Box
-                            </span>
-                          </div>
-
-                          <div className="p-2.5 rounded-xl bg-white/95 dark:bg-[#121620] border border-amber-200/80 dark:border-amber-900/50 flex flex-col shadow-2xs">
-                            <span className="text-[10px] uppercase font-bold text-slate-400">Branch Teams</span>
-                            <span className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 mt-0.5">
-                              <Building2 className="w-3.5 h-3.5 text-indigo-500" />
-                              {teamGroups.length} {teamGroups.length === 1 ? 'Team' : 'Teams'}
-                            </span>
-                            <span className="text-[10px] text-slate-500 mt-0.5 truncate">
-                              {Array.from(new Set(configuringDevices.map((d) => `Code ${d.branchId}`))).slice(0, 3).join(', ')}
-                              {new Set(configuringDevices.map((d) => d.branchId)).size > 3 ? '…' : ''}
-                            </span>
-                          </div>
-
-                          <div className="p-2.5 rounded-xl bg-white/95 dark:bg-[#121620] border border-amber-200/80 dark:border-amber-900/50 flex flex-col col-span-2 sm:col-span-1 shadow-2xs">
-                            <span className="text-[10px] uppercase font-bold text-slate-400">Alert Channel</span>
-                            <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 mt-0.5">
-                              <Users className="w-3.5 h-3.5" />
-                              Telegram Broadcast
-                            </span>
-                            <span className="text-[10px] text-slate-500 mt-0.5 truncate">
-                              Alerts Field Technicians
-                            </span>
-                          </div>
+                        <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex flex-col">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Branch Teams</span>
+                          <span className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 mt-1">
+                            <Building2 className="w-3.5 h-3.5 text-indigo-500" />
+                            {teamGroups.length} {teamGroups.length === 1 ? 'Team' : 'Teams'}
+                          </span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 truncate" title={Array.from(new Set(configuringDevices.map((d) => `Code ${d.branchId}`))).join(', ')}>
+                            {Array.from(new Set(configuringDevices.map((d) => `Code ${d.branchId}`))).slice(0, 3).join(', ')}
+                            {new Set(configuringDevices.map((d) => d.branchId)).size > 3 ? '…' : ''}
+                          </span>
                         </div>
 
-                        <p className="text-[11px] text-amber-900/90 dark:text-amber-200/90 leading-relaxed bg-amber-100/60 dark:bg-amber-900/30 p-2.5 rounded-xl border border-amber-300/40 dark:border-amber-800/40">
-                          You are about to broadcast configuration alerts to all assigned branch Telegram groups. Field technicians will receive instructions to power ON units and stage them for app pushing.
-                        </p>
+                        <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex flex-col">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Alert Channel</span>
+                          <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 mt-1">
+                            <Users className="w-3.5 h-3.5" />
+                            Telegram
+                          </span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 truncate">
+                            Field Technicians
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Section 2: Operator Security Authorization */}
-                      <div className={`p-4 rounded-2xl border space-y-3.5 transition-colors ${
-                        isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
-                      }`}>
-                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60 dark:border-white/[0.06]">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
-                              <KeyRound className="w-3.5 h-3.5" />
+                      {/* Clean Info Note */}
+                      <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/30 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/40 text-[11px] leading-relaxed">
+                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <span>
+                          Broadcasts configuration instructions to assigned branch Telegram groups so field technicians can power on and stage units.
+                        </span>
+                      </div>
+
+                      {/* Operator Badge */}
+                      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-[#003857]/10 dark:bg-sky-500/15 flex items-center justify-center text-[#003857] dark:text-sky-300 shrink-0 font-bold">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                              Active Operator
                             </div>
-                            <div>
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                                2. Operator Security Authorization
-                              </h4>
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                                Verify employee PIN or password to authorize queue broadcast
-                              </p>
+                            <div className="text-xs font-extrabold text-slate-900 dark:text-white">
+                              {operatorLabel}
                             </div>
                           </div>
                         </div>
+                        <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 shadow-2xs">
+                          Authorized Admin
+                        </span>
+                      </div>
 
-                        {/* Active Pusher Operator Row */}
-                        <div className="p-3 rounded-xl bg-white dark:bg-[#121620] border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-2xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-[#003857]/10 dark:bg-sky-950/50 flex items-center justify-center text-[#003857] dark:text-sky-400 shrink-0">
-                              <User className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <div className="text-[10px] uppercase font-bold text-slate-400">
-                                Active Pusher Operator
-                              </div>
-                              <div className="text-xs font-extrabold text-slate-900 dark:text-white">
-                                {operatorLabel}
-                              </div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-mono px-2.5 py-1 rounded-full font-extrabold bg-[#003857]/10 text-[#003857] dark:bg-sky-500/20 dark:text-sky-300 border border-[#003857]/20 shadow-2xs">
-                            Authorized Admin
+                      {/* PIN Input Field */}
+                      <div className="flex flex-col gap-1.5 pt-1">
+                        <div className="flex items-center justify-between">
+                          <label
+                            htmlFor="pusher_auth_pin_input"
+                            className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+                          >
+                            <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Employee PIN or Password</span>
+                            <span className="text-rose-500 font-bold">*</span>
+                          </label>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {operatorLabel.match(/\((\d+)\)/)?.[1] ? `Employee ID (${operatorLabel.match(/\((\d+)\)/)![1]})` : 'Employee ID'}
                           </span>
                         </div>
 
-                        {/* PIN Input Field */}
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center justify-between">
-                            <label
-                              htmlFor="pusher_auth_pin_input"
-                              className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
-                            >
-                              <KeyRound className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                              <span>Enter Pusher PIN to Confirm</span>
-                              <span className="text-rose-500 font-bold">*</span>
-                            </label>
-                            <span className="text-[10px] text-slate-400 font-mono">Employee ID or Security PIN</span>
-                          </div>
-
-                          <div className="relative">
-                            <input
-                              id="pusher_auth_pin_input"
-                              name="pusher_security_pin_field"
-                              type={showPusherPassword ? 'text' : 'password'}
-                              autoComplete="new-password"
-                              autoCorrect="off"
-                              autoCapitalize="off"
-                              spellCheck={false}
-                              data-form-type="other"
-                              data-lpignore="true"
-                              data-1p-ignore="true"
-                              data-bwignore="true"
-                              autoFocus
-                              value={pusherPassword}
-                              onChange={(e) => {
-                                setPusherPassword(e.target.value);
-                                if (pusherPasswordError) setPusherPasswordError('');
-                              }}
-                              placeholder="Enter your PIN (e.g. Employee ID)..."
-                              className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono font-medium border outline-none transition shadow-2xs ${
-                                pusherPasswordError
-                                  ? 'border-rose-500 focus:border-rose-500 bg-rose-50/40 text-rose-900 dark:text-rose-200'
-                                  : isLight
-                                  ? 'bg-white hover:bg-slate-50/50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                                  : 'bg-[#121620] hover:bg-[#181d2a] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400'
-                              }`}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowPusherPassword(!showPusherPassword)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
-                              aria-label={showPusherPassword ? 'Hide PIN' : 'Show PIN'}
-                            >
-                              {showPusherPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                          </div>
-
-                          {pusherPasswordError && (
-                            <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-[11px] font-semibold flex items-center gap-1.5 mt-0.5">
-                              <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
-                              <span>{pusherPasswordError}</span>
-                            </div>
-                          )}
+                        <div className="relative">
+                          <input
+                            id="pusher_auth_pin_input"
+                            name="pusher_security_pin_field"
+                            type={showPusherPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
+                            data-form-type="other"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            data-bwignore="true"
+                            autoFocus
+                            value={pusherPassword}
+                            onChange={(e) => {
+                              setPusherPassword(e.target.value);
+                              if (pusherPasswordError) setPusherPasswordError('');
+                            }}
+                            placeholder="Enter Employee ID or Security PIN to confirm..."
+                            className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono font-medium border outline-none transition shadow-2xs ${
+                              pusherPasswordError
+                                ? 'border-rose-500 focus:border-rose-500 bg-rose-50/40 text-rose-900 dark:text-rose-200'
+                                : isLight
+                                ? 'bg-white hover:bg-slate-50/50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                                : 'bg-[#121620] hover:bg-[#181d2a] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400'
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPusherPassword(!showPusherPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
+                            aria-label={showPusherPassword ? 'Hide PIN' : 'Show PIN'}
+                          >
+                            {showPusherPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
                         </div>
+
+                        {pusherPasswordError && (
+                          <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-[11px] font-semibold flex items-center gap-1.5 mt-0.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                            <span>{pusherPasswordError}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {/* Footer Actions Strip */}
                     <div
-                      className={`px-6 py-4 flex items-center justify-between text-xs border-t shrink-0 ${
+                      className={`px-6 py-3.5 flex items-center justify-between text-xs border-t shrink-0 ${
                         isLight ? 'bg-slate-50 border-slate-200/90' : 'bg-[#0f121a] border-slate-800'
                       }`}
                     >
@@ -2067,7 +2010,7 @@ return (
                           setPusherPassword('');
                           setPusherPasswordError('');
                         }}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                        className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
                           isLight
                             ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-2xs'
                             : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700 shadow-2xs'
