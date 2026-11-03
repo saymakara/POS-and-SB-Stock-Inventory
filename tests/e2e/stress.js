@@ -125,6 +125,17 @@ async function api(route) {
     return json(200, { id: e.id, status: 'APPROVED' });
   }
   if (path === '/rest/v1/rpc/field_reject') { const e = state.events.find(x => x.id === body.p_id); e.status = 'REJECTED'; e.review_note = body.p_note; return json(200, { status: 'REJECTED' }); }
+  if (path === '/rest/v1/rpc/cc_counts') return json(200, { pending: 0, confirmed: 0, rejected: 0, no_review: 0, total: 0 });
+  if (path === '/rest/v1/qr_installations') return json(200, [], { 'content-range': '0-0/0' });
+  if (path === '/rest/v1/qr_attempts') return json(200, []);
+  if (path === '/rest/v1/rpc/qr_summary') return json(200, { total: 0, completed: 0, failed: 0, install: 0, replace: 0, qr: 0, attempts: 0, staff_failed: 0 });
+  if (path === '/rest/v1/rpc/qr_month_history') return json(200, []);
+  if (path === '/rest/v1/rpc/device_page_bounds') return json(200, []);
+  if (path === '/rest/v1/rpc/get_device_stage_counts') return json(200, {});
+  if (path === '/rest/v1/rpc/cc_list') return json(200, []);
+  if (path === '/rest/v1/rpc/kpi_dashboard_summary') return json(200, []);
+  if (path === '/rest/v1/kpi_point_rules') return json(200, []);
+  if (path === '/rest/v1/kpi_settings') return json(200, [{ id: 1 }]);
   return json(404, { message: 'not in the stand-in: ' + path });
 }
 
@@ -135,6 +146,7 @@ async function api(route) {
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   p.on('crash', () => console.log('PAGE CRASHED')); p.on('close', () => console.log('PAGE CLOSED at ' + new Date().toISOString()));
   p.on('console', (m) => { if (m.type() === 'error') console.log('console.error: ' + m.text().slice(0, 200)); });
+  p.on('response', (r) => { if (r.status() === 404) console.log('404 URL:', r.url()); });
   await p.addInitScript(() => {
     window.__lt = 0; window.__ltMax = 0;
     try { new PerformanceObserver((l) => l.getEntries().forEach((e) => { window.__lt += e.duration; window.__ltMax = Math.max(window.__ltMax, e.duration); })).observe({ type: 'longtask', buffered: true }); } catch (e) {}
