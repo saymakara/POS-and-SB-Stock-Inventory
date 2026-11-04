@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { todayPP } from '../utils/time';
 
-export type KpiCategory = 'POS Terminal' | 'Sound Box' | 'KHQR' | 'Credit Card' | 'Other';
+export type KpiCategory = 'POS Terminal' | 'Sound Box' | 'KHQR' | 'Credit Card' | 'Merchant Visit' | 'Other';
 
 export type KpiPeriod =
   | 'ALL'
@@ -105,6 +105,16 @@ export interface KpiRawCounts {
   khqrMaterials: number;
   ccPrimary: number;
   ccSupp: number;
+  /** (4 Nov 2026) tasks of the rules added for the Merchant Visit app (POS_MAINT, POS_INACTIVE, POS_RETURN, MV_<activity>):
+   *  { rule code: count }. The server counts only active rules. */
+  extra?: Record<string, number>;
+}
+
+/** Adds the "extra" counts of `src` into `target` (branch and grand totals). */
+export function addExtraCounts(target: KpiRawCounts, src: KpiRawCounts): void {
+  if (!src.extra) return;
+  const t = target.extra || (target.extra = {});
+  for (const [k, n] of Object.entries(src.extra)) t[k] = (t[k] || 0) + (Number(n) || 0);
 }
 
 export interface KpiStaffRaw extends KpiRawCounts {
@@ -144,6 +154,7 @@ export interface KpiDailyBranchRaw {
   sbTasks: number;
   khqrTasks: number;
   ccTasks: number;
+  mvTasks?: number;
 }
 
 export interface KpiDailyStaffRaw {
@@ -182,6 +193,8 @@ export interface ComputedPoints {
   khqrPoints: number;
   ccTasks: number;
   ccPoints: number;
+  mvTasks: number;
+  mvPoints: number;
   totalTasks: number;
   totalPoints: number;
 }
@@ -216,12 +229,23 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
     c.ccPrimary * rulePts(ruleMap, 'CC_PRIMARY') +
     c.ccSupp * rulePts(ruleMap, 'CC_SUPP');
 
-  const totalTasks = posTasks + sbTasks + khqrTasks + ccTasks;
-  const totalPoints = Math.round((posPoints + sbPoints + khqrPoints + ccPoints) * 100) / 100;
+  // (4 Nov 2026) the rules added for the Merchant Visit app: counted per rule code, points from Settings
+  let xPosTasks = 0, xPosPoints = 0, mvTasks = 0, mvPoints = 0, xOtherTasks = 0, xOtherPoints = 0;
+  for (const [code, raw] of Object.entries(c.extra || {})) {
+    const n = Number(raw) || 0, rule = ruleMap.get(code);
+    if (!n || !rule || !rule.active) continue;
+    const pts = n * rule.points;
+    if (rule.category === 'POS Terminal') { xPosTasks += n; xPosPoints += pts; }
+    else if (rule.category === 'Merchant Visit') { mvTasks += n; mvPoints += pts; }
+    else { xOtherTasks += n; xOtherPoints += pts; }
+  }
+
+  const totalTasks = posTasks + xPosTasks + sbTasks + khqrTasks + ccTasks + mvTasks + xOtherTasks;
+  const totalPoints = Math.round((posPoints + xPosPoints + sbPoints + khqrPoints + ccPoints + mvPoints + xOtherPoints) * 100) / 100;
 
   return {
-    posTasks,
-    posPoints: Math.round(posPoints * 100) / 100,
+    posTasks: posTasks + xPosTasks,
+    posPoints: Math.round((posPoints + xPosPoints) * 100) / 100,
     sbTasks,
     sbPoints: Math.round(sbPoints * 100) / 100,
     khqrTasks,
@@ -229,6 +253,8 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
     khqrPoints: Math.round(khqrPoints * 100) / 100,
     ccTasks,
     ccPoints: Math.round(ccPoints * 100) / 100,
+    mvTasks,
+    mvPoints: Math.round(mvPoints * 100) / 100,
     totalTasks,
     totalPoints,
   };
@@ -354,6 +380,9 @@ function mapRawCounts(r: any): KpiRawCounts {
     khqrMaterials: Number(r.khqr_materials) || 0,
     ccPrimary: Number(r.cc_primary) || 0,
     ccSupp: Number(r.cc_supp) || 0,
+    extra: r.extra && typeof r.extra === 'object'
+      ? Object.fromEntries(Object.entries(r.extra).map(([k, v]) => [k, Number(v) || 0]))
+      : {},
   };
 }
 
@@ -440,6 +469,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null): P
       sbTasks: Number(r.sb_tasks) || 0,
       khqrTasks: Number(r.khqr_tasks) || 0,
       ccTasks: Number(r.cc_tasks) || 0,
+      mvTasks: Number(r.mv_tasks) || 0,
     })) : [],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     dailyStaff: Array.isArray(d.daily_staff) ? d.daily_staff.map((r: any) => ({
