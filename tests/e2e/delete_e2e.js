@@ -18,6 +18,13 @@ const qrs = Array.from({ length: 3 }, (_, i) => ({ id: 8000 + i, record_id: 'QR-
   staff_id: 'STF1', staff_name: 'Staff 1', branch_text: 'Toul Kork Branch', branch_id: '105', merchant_name: 'QR Shop ' + i, merchant_name_kh: null, mid: '12345678901234' + i,
   qr_expected: 1, qr_count: 1, failed_attempts: 0, status: 'COMPLETED', attempts: [], location: null, khan: null, latitude: null, longitude: null, gps_accuracy: null,
   remark: null, photo_count: 1, telegram_link: null, app_version: '3.66', captured_at: null, submitted_at: iso(i * 5) }));
+const attempts = Array.from({ length: 4 }, (_, i) => ({ id: 6000 + i, session_id: 'sx' + i, activity: 'NEW_INSTALLATION', staff_id: 'STF1', staff_name: 'Staff 1',
+  branch_text: 'Toul Kork Branch', branch_id: '105', expected_mid: '111111111111111', got_mid: '22222222222222' + i, got_name: 'Wrong ' + i, scanned_count: 1,
+  client_at: iso(i), received_at: iso(i), kind: i < 2 ? 'SUBMIT_BLOCKED' : 'WRONG_SCAN' }));
+const shared = [{ day: new Date(now).toISOString().slice(0, 10), mid: '123456789012341', merchant_name: 'QR Shop 1', staff_count: 2, entries: 2, branches: 'Toul Kork',
+  first_at: iso(20), last_at: iso(5), items: [
+    { record_id: 'QR-20261104-000002', staff_id: 'STF1', staff_name: 'Staff 1', branch: 'Toul Kork', activity: 'NEW_INSTALLATION', qr: 1, at: iso(20) },
+    { record_id: 'QR-20261104-000003', staff_id: 'STF2', staff_name: 'Staff 2', branch: 'Toul Kork', activity: 'NEW_INSTALLATION', qr: 1, at: iso(5) }] }];
 const ccs = Array.from({ length: 2 }, (_, i) => ({ id: 9500 + i, record_id: 'CC-20261104-000' + (i + 1), request_type: 'New Credit Card Request', card_status: 'Onboarded Successfully',
   full_name: 'Customer ' + i, contact: null, supplementary: [], photo_count: 1, staff_id: 'STF1', staff_name: 'Staff 1', branch_text: 'Toul Kork Branch', branch_id: '105',
   submitted_at: iso(i * 7), review_status: 'PENDING', review_history: [], limit_usd: 1000 }));
@@ -34,6 +41,11 @@ async function api(route) {
   if (path === '/rest/v1/mv_visits') return json(route, 200, visits, { 'content-range': '0-' + Math.max(0, visits.length - 1) + '/' + visits.length });
   if (path === '/rest/v1/rpc/mv_visit_summary') return json(route, 200, { total: visits.length, staff: 1, branches: 1, no_branch: 0, with_gps: 0, by_activity: [{ activity: 'KHQR Issue', n: visits.length }] });
   if (path === '/rest/v1/qr_installations') return json(route, 200, qrs, { 'content-range': '0-' + Math.max(0, qrs.length - 1) + '/' + qrs.length });
+  if (path === '/rest/v1/qr_attempts') {
+    const k = url.searchParams.get('kind'); const list = attempts.filter((a) => !k || ('eq.' + a.kind) === k);
+    return json(route, 200, list, { 'content-range': (list.length ? '0-' + (list.length - 1) : '*') + '/' + list.length });
+  }
+  if (path === '/rest/v1/rpc/qr_shared_mids') return json(route, 200, shared.filter((g) => g.items.some((x) => qrs.some((q) => q.record_id === x.record_id))));
   if (path === '/rest/v1/rpc/cc_list') return json(route, 200, { rows: ccs, total: ccs.length, masked: false });
   if (path === '/rest/v1/rpc/admin_delete_phone_records') {
     const p = body.p; calls.push(p);
@@ -41,7 +53,8 @@ async function api(route) {
     if (!me || me.profile.role !== 'SUPER_ADMIN') return json(route, 403, { code: '42501', message: 'Only a Super Admin can delete phone app records.' });
     const ids = new Set(p.ids.map(Number)); let deleted = 0; const refused = [];
     const drop = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (ids.has(arr[i].id)) { if (arr === state.events && arr[i].status === 'APPROVED') { refused.push({ id: arr[i].id, record: arr[i].source_record_id, why: 'Approved' }); continue; } arr.splice(i, 1); deleted++; } };
-    drop({ VISIT: visits, KHQR: qrs, CC: ccs, FIELD: state.events }[p.source]);
+    if (p.source === 'KHQR' && Array.isArray(p.record_ids)) qrs.filter((q) => p.record_ids.includes(q.record_id)).forEach((q) => ids.add(q.id));
+    drop({ VISIT: visits, KHQR: qrs, KHQR_ATTEMPT: attempts, CC: ccs, FIELD: state.events }[p.source]);
     return json(route, 200, { deleted, refused, not_found: 0 });
   }
   return S.api(route);
@@ -110,20 +123,81 @@ async function confirmDelete(p, reason) {
   ok(last.source === 'FIELD' && JSON.stringify(last.ids.sort()) === JSON.stringify([9101, 9103]) && c.closed, 'POS: deleted the rejected and the waiting record, never the approved (' + JSON.stringify(last.ids) + ')');
   ok(!(await p.locator('div.border-b', { hasText: 'POS-DEL-0001' }).count()) && await p.locator('div.border-b', { hasText: 'POS-DEL-0002' }).count() >= 1, 'POS list: deleted rows gone, approved row stays');
   // KHQR
+  const mouseClick = async (loc) => { const bx = await loc.boundingBox(); await p.mouse.click(bx.x + bx.width / 2, bx.y + bx.height / 2); await sleep(250); };
   await openPage(p, 'KHQR');
-  await p.getByLabel('Select QR-20261104-000001').click(); await sleep(200);
+  await mouseClick(p.getByLabel('Select QR-20261104-000001'));
+  ok(/1 Selected/.test(await p.textContent('main')) && await p.getByLabel('Select QR-20261104-000001').getAttribute('aria-pressed') === 'true', 'KHQR: a real mouse click ticks the box');
   await p.getByRole('button', { name: /Delete 1 permanently/ }).click();
   c = await confirmDelete(p, '');
   last = calls[calls.length - 1];
   ok(last.source === 'KHQR' && JSON.stringify(last.ids) === JSON.stringify([8000]) && qrs.length === 2, 'KHQR: deleted 1 entry');
   // Credit Card
   await openPage(p, 'Credit Card');
-  await p.getByLabel('Select CC-20261104-0002').click(); await sleep(200);
+  await mouseClick(p.getByLabel('Select CC-20261104-0002'));
+  ok(/1 Selected/.test(await p.textContent('main')), 'Credit Card: a real mouse click ticks the box');
   await p.getByRole('button', { name: /Delete 1 permanently/ }).click();
   c = await confirmDelete(p, '');
   last = calls[calls.length - 1];
   ok(last.source === 'CC' && JSON.stringify(last.ids) === JSON.stringify([9501]) && ccs.length === 1, 'Credit Card: deleted 1 entry');
+  // KHQR: failed attempts, wrong scans, same MID
+  await openPage(p, 'KHQR');
+  await p.getByText('Wrong Scan', { exact: true }).first().click(); await sleep(1500);
+  ok(await p.getByLabel(/^Select wrong scan /).count() === 2, 'KHQR Wrong scans: a tick box on each wrong scan (' + await p.getByLabel(/^Select wrong scan /).count() + ')');
+  await mouseClick(p.getByLabel(/^Select wrong scan /).first());
+  await p.getByRole('button', { name: /Delete 1 permanently/ }).click();
+  c = await confirmDelete(p, '');
+  last = calls[calls.length - 1];
+  ok(last.source === 'KHQR_ATTEMPT' && last.ids.length === 1 && attempts.filter((a) => a.kind === 'WRONG_SCAN').length === 1, 'KHQR: deleted 1 wrong scan (' + JSON.stringify(last.ids) + ')');
+  const failCard = p.getByText(/^Failed Attempts?$/).first();
+  if (await failCard.count()) { await failCard.click(); await sleep(1500); }
+  ok(await p.getByLabel(/^Select failed attempt /).count() === 2, 'KHQR Failed attempts: a tick box on each (' + await p.getByLabel(/^Select failed attempt /).count() + ')');
+  await p.getByLabel('Select this page').first().click(); await sleep(250);
+  await p.getByRole('button', { name: /Delete 2 permanently/ }).click();
+  c = await confirmDelete(p, 'test');
+  last = calls[calls.length - 1];
+  ok(last.source === 'KHQR_ATTEMPT' && last.ids.length === 2 && attempts.filter((a) => a.kind === 'SUBMIT_BLOCKED').length === 0, 'KHQR: deleted the 2 failed attempts with "select this page"');
+  await p.getByText('Same MID, 2+ staff', { exact: true }).first().click(); await sleep(1500);
+  const grp = p.getByLabel(/^Select all entries of MID /).first();
+  ok(await grp.count() === 1, 'KHQR Same MID: a tick box on the group');
+  await mouseClick(grp);
+  ok(/2 Selected/.test(await p.textContent('main')), 'ticking the group selects its 2 entries');
+  await p.getByRole('button', { name: /Delete 2 permanently/ }).click();
+  c = await confirmDelete(p, '');
+  last = calls[calls.length - 1];
+  ok(last.source === 'KHQR' && JSON.stringify((last.record_ids || []).sort()) === JSON.stringify(['QR-20261104-000002', 'QR-20261104-000003']) && qrs.length === 0,
+    'KHQR Same MID: deleted the 2 entries by Record ID (' + JSON.stringify(last.record_ids) + ')');
   ok(errs.length === 0, 'Super Admin: no page or console errors ' + errs.slice(0, 3).join(' | '));
+  await ctx.close();
+  // ===== Super Admin on a tablet (touch): tap the boxes
+  qrs.push({ ...qrs[0] || {}, id: 8100, record_id: 'QR-20261104-000100', request_id: 'r100', session_id: 's100', activity: 'NEW_INSTALLATION', staff_id: 'STF1', staff_name: 'Staff 1',
+    branch_text: 'Toul Kork Branch', branch_id: '105', merchant_name: 'Tap Shop', merchant_name_kh: null, mid: '123456789012999', qr_expected: 1, qr_count: 1, failed_attempts: 0,
+    status: 'COMPLETED', attempts: [], location: null, khan: null, latitude: null, longitude: null, gps_accuracy: null, remark: null, photo_count: 1, telegram_link: null,
+    app_version: '3.66', captured_at: null, submitted_at: iso(1) });
+  {
+    const tctx = await b.newContext({ viewport: { width: 1024, height: 1366 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 });
+    await tctx.route(B + '/**', api);
+    const tp = await tctx.newPage(); const terrs = []; tp.on('pageerror', (e) => terrs.push(e.message));
+    await tp.goto('http://127.0.0.1:' + (process.env.DIST_PORT || '8500') + '/index.html'); await tp.waitForSelector('#empId', { state: 'visible' });
+    await tp.fill('#empId', '8986'); await tp.fill('#pw', 'Secret123'); await tp.click('button[type=submit]');
+    await tp.waitForFunction(() => /Dashboard/.test(document.body.innerText), null, { timeout: 30000 }); await sleep(1200);
+    const tside = tp.locator('aside, nav');
+    const topen = async (label) => {
+      if (!(await tside.getByText(label, { exact: true }).first().isVisible().catch(() => false))) {
+        const menu = tp.getByRole('button', { name: /menu|sidebar/i }).first(); if (await menu.count()) { await menu.tap().catch(() => {}); await sleep(500); }
+        await tside.getByText('Phone App Review', { exact: true }).first().tap().catch(() => {}); await sleep(500);
+      }
+      await tside.getByText(label, { exact: true }).first().tap(); await sleep(1800);
+    };
+    await topen('KHQR');
+    await tp.getByLabel('Select QR-20261104-000100').tap(); await sleep(300);
+    ok(await tp.getByLabel('Select QR-20261104-000100').getAttribute('aria-pressed') === 'true', 'tablet: tapping the KHQR box ticks it');
+    await topen('Credit Card');
+    await tp.getByLabel('Select CC-20261104-0001').tap(); await sleep(300);
+    ok(await tp.getByLabel('Select CC-20261104-0001').getAttribute('aria-pressed') === 'true', 'tablet: tapping the Credit Card box ticks it');
+    ok(terrs.length === 0, 'tablet: no page errors ' + terrs.join(' | '));
+    await tctx.close();
+  }
+  ({ ctx, p, errs } = await signIn(b, '8986', 'Secret123'));
   await ctx.close();
   // ===== Admin (not Super Admin)
   ({ ctx, p, errs } = await signIn(b, '7777', 'Admin123'));

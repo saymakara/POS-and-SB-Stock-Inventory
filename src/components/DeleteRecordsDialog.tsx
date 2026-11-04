@@ -122,10 +122,10 @@ export const SelectBox: React.FC<{ checked: boolean; onChange: () => void; label
     aria-label={label}
     onClick={(ev) => { ev.stopPropagation(); onChange(); }}
     onKeyDown={(ev) => ev.stopPropagation()}
-    className="cursor-pointer inline-flex shrink-0"
+    className={`cursor-pointer inline-flex shrink-0 items-center justify-center w-7 h-7 -m-1.5 rounded-lg ${light ? 'hover:bg-white/15' : 'hover:bg-slate-200/70'}`}
   >
     {checked
-      ? <CheckSquare className={`w-4 h-4 ${light ? 'text-emerald-300' : 'text-slate-800'}`} />
-      : <Square className={`w-4 h-4 ${light ? 'text-white/75 hover:text-white' : 'text-slate-400 hover:text-slate-600'}`} />}
+      ? <CheckSquare className={`w-[18px] h-[18px] ${light ? 'text-emerald-300' : 'text-sky-700'}`} />
+      : <Square className={`w-[18px] h-[18px] ${light ? 'text-white/80' : 'text-slate-400'}`} />}
   </button>
 );

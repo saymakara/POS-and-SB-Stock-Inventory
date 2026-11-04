@@ -1760,16 +1760,19 @@ export function mapQrEntry(r: any): QrEntry {
 // ============================== PERMANENT DELETE (4 Nov 2026) ==============================
 // Phone App Review: a Super Admin deletes records for good. The server refuses approved POS / Sound Box records (they
 // changed the stock) and keeps the Record IDs so the Merchant Visit app never sends them again.
-export type PhoneRecordSource = 'FIELD' | 'KHQR' | 'CC' | 'VISIT';
+export type PhoneRecordSource = 'FIELD' | 'KHQR' | 'KHQR_ATTEMPT' | 'CC' | 'VISIT';
 export interface PhoneDeleteResult {
   deleted: number;
   refused: { id: number; record: string; why: string }[];
   notFound: number;
 }
-export async function deletePhoneRecords(source: PhoneRecordSource, ids: number[], reason: string): Promise<PhoneDeleteResult> {
+export async function deletePhoneRecords(source: PhoneRecordSource, ids: number[], reason: string, recordIds: string[] = []): Promise<PhoneDeleteResult> {
   const out: PhoneDeleteResult = { deleted: 0, refused: [], notFound: 0 };
-  for (let i = 0; i < ids.length; i += 500) {                       // (the server takes 500 per call)
-    const { data, error } = await supabase.rpc('admin_delete_phone_records', { p: { source, ids: ids.slice(i, i + 500), reason } });
+  const n = Math.max(ids.length, recordIds.length);
+  for (let i = 0; i < n; i += 500) {                                 // (the server takes 500 per call; KHQR may be named by Record ID)
+    const p: Record<string, unknown> = { source, ids: ids.slice(i, i + 500), reason };
+    if (recordIds.length) p.record_ids = recordIds.slice(i, i + 500);
+    const { data, error } = await supabase.rpc('admin_delete_phone_records', { p });
     if (error) throw new Error(error.message);
     const d: any = data || {};
     out.deleted += Number(d.deleted) || 0;
