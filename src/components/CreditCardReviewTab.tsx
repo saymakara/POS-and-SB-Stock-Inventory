@@ -43,7 +43,8 @@ export const CC_REJECT_REASONS = ['Adverse CBC record', 'Incorrect account numbe
   'Missing or unclear documents', 'Credit limit not approved', 'Other'];
 const GRID = 'grid items-center gap-x-4 grid-cols-[62px_145px_minmax(185px,1fr)_110px_120px_minmax(205px,1.25fr)_145px_24px]';
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
-const usd = (n: number | null) => (n === null ? '—' : `USD ${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`);
+const NF_USD = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const usd = (n: number | null) => (n === null ? '—' : `USD ${NF_USD.format(n)}`);
 const isMissing = (msg: string) => /cc_list|cc_counts|PGRST20[25]|does not exist|schema cache/i.test(msg);
 
 const STATUS_UI: Record<CcReview, { label: string; cls: string; Icon: React.ElementType }> = {
@@ -82,13 +83,13 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const pg = usePager(total, [range.from, range.to, review, branchId, search]);
 
   const cSeq = useRef(0);
-  const loadCounts = useCallback(async () => {
+  const loadCounts = useCallback(async (fresh = false) => {
     const seq = ++cSeq.current;
     const ck = `${range.from || ''}|${range.to || ''}`;
     const hitC = getCachedCcCounts(ck);
     if (hitC) setCounts(hitC);                                         // shown at once; the fresh numbers replace them
     try {
-      const c = await fetchCcCounts(range.from, range.to);
+      const c = await fetchCcCounts(range.from, range.to, fresh ? 0 : 4000);
       if (seq !== cSeq.current || !c) return;
       setCachedCcCounts(ck, c);
       setCounts(c);
@@ -98,7 +99,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   useEffect(() => { loadCounts(); }, [loadCounts]);
 
   const seqRef = useRef(0);
-  const load = useCallback(async () => {
+  const load = useCallback(async (fresh = false) => {
     const seq = ++seqRef.current;
     const q = { from: range.from, to: range.to, review, branchId, search, page: pg.page, pageSize: pg.pageSize };
     const key = ccListKey(q);
@@ -114,7 +115,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
     if (hit) { setRows(hit.rows); setTotal(hit.total); setMasked(hit.masked); }   // the last answer at once (no waiting)
     setLoading(!hit);
     try {
-      const res = await fetchCcList(q);
+      const res = await fetchCcList(q, fresh ? 0 : 4000);   // an answer from the last 4 s (the warm-up) is reused
       if (seq !== seqRef.current) return;
       setCachedCcList(key, res);
       setRows(res.rows); setTotal(res.total); setMasked(res.masked); setLoadError('');
@@ -129,12 +130,12 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   }, [range.from, range.to, review, branchId, search, pg.page, pg.pageSize]);
   useEffect(() => { load(); }, [load]);
 
-  const refresh = () => { load(); loadCounts(); };
+  const refresh = () => { load(true); loadCounts(true); };
   const filtersActive = period !== 'ALL' || review !== '' || !!branchId || !!query;
   const clearAll = () => { setPeriod('ALL'); setReview(''); setBranchId(''); setQuery(''); setSearch(''); };
   // (31 Oct 2026) Export CSV: every entry that matches the filters (all pages). Branch staff get masked account numbers.
   const exportCsv = async () => {
-    const rows = await collectAll((page) => fetchCcList({ from: range.from, to: range.to, review, branchId, search, page, pageSize: 200 }).then((r) => ({ rows: r.rows, total: r.total })), 200);
+    const rows = await collectAll((page) => fetchCcList({ from: range.from, to: range.to, review, branchId, search, page, pageSize: 200 }, 0).then((r) => ({ rows: r.rows, total: r.total })), 200);
     if (!rows.length) return 0;
     const label: Record<CcReview, string> = { PENDING: 'Waiting review', CONFIRMED: 'Confirmed', REJECTED: 'Rejected', NO_REVIEW: 'Not onboarded' };
     downloadCsv(`Credit_Card_${review ? label[review].replace(/\s+/g, '_') : 'All'}_${PERIOD_LABEL[period].replace(/\s+/g, '_')}`,
@@ -153,9 +154,9 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const onReviewed = (recordId: string, next: Partial<CcEntry>) => {
     patchCachedCcEntry(recordId, next);
     setRows((rs) => (rs || []).map((r) => (r.recordId === recordId ? { ...r, ...next } : r)));
-    loadCounts();
-    window.setTimeout(() => { load(); }, 4500);
-    window.setTimeout(() => { load(); }, 9500);
+    loadCounts(true);
+    window.setTimeout(() => { load(true); }, 4500);
+    window.setTimeout(() => { load(true); }, 9500);
   };
 
   const branchOptions = useMemo(() => branches.filter((b) => b.id !== '100').sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true })), [branches]);
@@ -326,7 +327,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
             {loadError && (
               <div className="p-6 text-center text-sm text-rose-700 bg-rose-50/60">
                 Could not load the Credit Card entries: {loadError}{' '}
-                <button type="button" onClick={load} className="underline cursor-pointer">Try again</button>
+                <button type="button" onClick={() => { load(true); loadCounts(true); }} className="underline cursor-pointer">Try again</button>
               </div>
             )}
             {rows === null && !loadError && (

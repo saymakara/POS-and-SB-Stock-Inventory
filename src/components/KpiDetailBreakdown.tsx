@@ -56,8 +56,10 @@ const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; text: string
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', text: 'text-slate-600', Icon: Layers },
 };
 
-const fmtInt = (n: number) => n.toLocaleString('en-US');
-const fmtPts = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+const NF_INT = new Intl.NumberFormat('en-US');
+const fmtInt = (n: number) => NF_INT.format(n);
+const NF_PTS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 });   // reused (same text as toLocaleString)
+const fmtPts = (n: number) => NF_PTS.format(n);
 
 interface Props {
   filteredStaff: BreakdownStaffItem[];

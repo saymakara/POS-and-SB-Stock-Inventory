@@ -5,8 +5,8 @@ import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
 import { UserCog, Plus, Search, Loader2, KeyRound, ShieldCheck, RefreshCw, MapPin, CheckCircle2, Ban } from 'lucide-react';
 import { Branch, UserRole } from '../types';
-import { StaffAccount, fetchStaffAccounts, saveStaffAccount, OnlineOperatorPresence } from '../services/supabaseService';
-import { getCachedStaff, setCachedStaff } from '../services/staffCache';
+import { StaffAccount, saveStaffAccount, OnlineOperatorPresence } from '../services/supabaseService';
+import { getCachedStaff, loadStaff, onStaffList } from '../services/staffCache';
 import { saveStaffAlias } from '../utils/staffUtils';
 
 /**
@@ -91,19 +91,19 @@ export const StaffAccountsTab: React.FC<{
     [onlineByEmp]
   );
 
-  const load = useCallback(async () => {
-    const x = await fetchStaffAccounts(100, 0);
+  const load = useCallback(async (fresh = false) => {
+    const x = await loadStaff({ maxAgeMs: fresh ? 0 : 30000 });   // the list fetched at sign-in is reused for 30 s
     if (!x) {
       setErr('The accounts could not be loaded.');
       return;
     }
     setErr('');
-    setCachedStaff(x);
     setList(x);
   }, []);
   useEffect(() => {
     load();
   }, [load]);
+  useEffect(() => onStaffList(setList), []);   // a fresh list fetched anywhere (e.g. after a save) shows here at once
 
   const branchNames = useMemo(() => {
     const m = new Map<string, string>();
@@ -183,8 +183,7 @@ export const StaffAccountsTab: React.FC<{
           active: nextActive,
         });
         triggerToast(`Access ${actionText} for ${a.name} (${a.empId}).`);
-        load();
-        if (onStaffUpdated) onStaffUpdated();
+        if (onStaffUpdated) onStaffUpdated(); else load(true);   // one fresh download, shared
       } catch (err) {
         triggerToast(`Failed to update status: ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -244,8 +243,7 @@ export const StaffAccountsTab: React.FC<{
       if (form.password) setShownPassword({ emp: cleanEmp, pw: form.password });
       triggerToast(isNew ? `Account ${cleanEmp} created` : `Account ${cleanEmp} saved`);
       setForm(null);
-      load();
-      if (onStaffUpdated) onStaffUpdated();
+      if (onStaffUpdated) onStaffUpdated(); else load(true);
     } catch (x) {
       setFormErr(x instanceof Error ? x.message : String(x));
     } finally {
@@ -283,7 +281,7 @@ export const StaffAccountsTab: React.FC<{
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
-              onClick={load}
+              onClick={() => load(true)}
               className="btn btn-secondary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
             >
               <RefreshCw className="w-3.5 h-3.5" /> <span>Refresh</span>

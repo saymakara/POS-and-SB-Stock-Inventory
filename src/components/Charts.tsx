@@ -16,7 +16,8 @@ interface GroupedBarChartProps {
 }
 
 type Ctx2D = CanvasRenderingContext2D;
-const fmt = (n: number) => n.toLocaleString('en-US');
+const NF = new Intl.NumberFormat('en-US');   // reused for every axis label and tooltip
+const fmt = (n: number) => NF.format(n);
 /** (31 Oct 2026, UI standard) round axis steps (0, 150, 300, 450, 600), not quarters of the highest bar (143, 286, 429). */
 function niceScale(maxVal: number, targetSteps = 4): { max: number; steps: number; step: number } {
   const raw = Math.max(1, maxVal) / targetSteps;

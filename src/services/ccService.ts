@@ -67,7 +67,28 @@ const map = (r: any): CcEntry => ({
   notifyState: r.notify_state ?? null, notifiedAt: r.notified_at ?? null, telegramLink: r.telegram_link ?? null,
 });
 
-export async function fetchCcList(q: CcQuery): Promise<{ rows: CcEntry[]; total: number; masked: boolean }> {
+/**
+ * (4 Nov 2026) Requests for the same answer share one network call, and an answer fetched less than `maxAgeMs` ago is
+ * reused: the background warm-up and the page used to ask for the same list and counts at the same moment (2-3 calls each).
+ * `maxAgeMs: 0` (Refresh, after a review) always asks the database.
+ */
+const inflight = new Map<string, Promise<unknown>>();
+const born = new Map<string, number>();
+function shared<T>(key: string, maxAgeMs: number, cached: () => T | undefined, run: () => Promise<T>): Promise<T> {
+  const hit = cached();
+  if (hit !== undefined && maxAgeMs > 0 && Date.now() - (born.get(key) || 0) < maxAgeMs) return Promise.resolve(hit);
+  const running = inflight.get(key) as Promise<T> | undefined;
+  if (running && maxAgeMs > 0) return running;
+  const p = run().then((v) => { born.set(key, Date.now()); return v; }).finally(() => { if (inflight.get(key) === p) inflight.delete(key); });
+  inflight.set(key, p);
+  return p;
+}
+
+export function fetchCcList(q: CcQuery, maxAgeMs = 4000): Promise<{ rows: CcEntry[]; total: number; masked: boolean }> {
+  const k = ccListKey(q);
+  return shared('L' + k, maxAgeMs, () => listCache.get(k), () => fetchCcListNow(q));
+}
+async function fetchCcListNow(q: CcQuery): Promise<{ rows: CcEntry[]; total: number; masked: boolean }> {
   const { data, error } = await supabase.rpc('cc_list', {
     p_from: q.from, p_to: q.to, p_review: q.review || null, p_branch: q.branchId || null, p_search: q.search || null,
     p_limit: q.pageSize, p_offset: (q.page - 1) * q.pageSize,
@@ -79,7 +100,11 @@ export async function fetchCcList(q: CcQuery): Promise<{ rows: CcEntry[]; total:
   return res;
 }
 
-export async function fetchCcCounts(from: string | null, to: string | null): Promise<CcCounts | null> {
+export function fetchCcCounts(from: string | null, to: string | null, maxAgeMs = 4000): Promise<CcCounts | null> {
+  const k = `${from || ''}|${to || ''}`;
+  return shared('C' + k, maxAgeMs, () => countsCache.get(k), () => fetchCcCountsNow(from, to));
+}
+async function fetchCcCountsNow(from: string | null, to: string | null): Promise<CcCounts | null> {
   const { data, error } = await supabase.rpc('cc_counts', { p_from: from, p_to: to });
   if (error) throw new Error(error.message);
   const d: any = data || {};
@@ -122,7 +147,7 @@ export function patchCachedCcEntry(recordId: string, next: Partial<CcEntry>): vo
     }
   });
 }
-export function clearCcCache(): void { listCache.clear(); countsCache.clear(); lastPrefetch = 0; }
+export function clearCcCache(): void { listCache.clear(); countsCache.clear(); born.clear(); lastPrefetch = 0; }
 
 /** Warms the default Credit Card view (all time, all entries, page 1) and counts in the background so opening the tab is 0ms. */
 let inflightPrefetch: Promise<CcCounts | null> | null = null;
@@ -134,8 +159,8 @@ export function prefetchCc(force = false): Promise<CcCounts | null> {
   }
   const q: CcQuery = { from: null, to: null, review: '', branchId: '', search: '', page: 1, pageSize: 50 };
   inflightPrefetch = Promise.all([
-    fetchCcCounts(null, null).catch(() => null),
-    fetchCcList(q).catch(() => null),
+    fetchCcCounts(null, null, force ? 0 : 4000).catch(() => null),
+    fetchCcList(q, force ? 0 : 4000).catch(() => null),
   ]).then(([c]) => {
     lastPrefetch = Date.now();
     return c;

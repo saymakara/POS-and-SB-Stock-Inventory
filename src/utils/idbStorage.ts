@@ -153,7 +153,8 @@ export async function saveDevicesToIdb(
 
     // Use transaction in chunks of 5,000 to keep UI responsive on massive datasets
     // (30 Oct 2026) 1,000 per step (was 5,000): each step is a short task, so taps and scrolling stay smooth during the save
-    const CHUNK_SIZE = 1000;
+    // (4 Nov 2026) 250 per step: on a phone 1,000 writes took ~130 ms (a visible stutter); 250 stay under the 50 ms frame budget
+    const CHUNK_SIZE = 250;
     for (let i = 0; i < total; i += CHUNK_SIZE) {
       const chunk = devices.slice(i, i + CHUNK_SIZE);
       await new Promise<void>((resolve, reject) => {

@@ -9,6 +9,9 @@ import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP } from '../utils/time';
 import { MvVisit, MvVisitQuery, MvVisitSummary, fetchMvVisitsPage, fetchMvVisitSummary, deletePhoneRecords } from '../services/supabaseService';
+import { getMvPage, setMvPage, getMvSummary, setMvSummary, clearMvCache } from '../services/mvCache';
+const mvKey = (r: { from: string | null; to: string | null }, activity: string, branchId: string, search: string, page: number, pageSize: number) =>
+  JSON.stringify([r.from, r.to, activity, branchId, search, page, pageSize]);
 import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
 import { Period, periodRange } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
@@ -54,9 +57,11 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
     return () => clearTimeout(t);
   }, [deferredQuery]);
 
-  const [rows, setRows] = useState<MvVisit[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [summary, setSummary] = useState<MvVisitSummary | null>(null);
+  // the page as it was last shown (memory only): no "Loading" flash when coming back
+  const [first] = useState(() => getMvPage(mvKey(periodRange('MONTH'), '', '', '', 1, 50)));
+  const [rows, setRows] = useState<MvVisit[] | null>(first ? first.rows : null);
+  const [total, setTotal] = useState(first ? first.total : 0);
+  const [summary, setSummary] = useState<MvVisitSummary | null>(() => getMvSummary(`${periodRange('MONTH').from}|${periodRange('MONTH').to}`) || null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [open, setOpen] = useState<number | null>(null);
@@ -71,10 +76,14 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
 
   const load = useCallback(async () => {
     const my = ++seq.current;
-    setLoading(true);
+    const key = mvKey({ from, to }, activity, branchId, search, page, pageSize);
+    const hit = getMvPage(key);
+    if (hit) { setRows(hit.rows); setTotal(hit.total); }               // the last answer at once; the fresh one replaces it
+    setLoading(!hit);
     try {
       const res = await fetchMvVisitsPage({ ...filters, page, pageSize });
       if (my !== seq.current) return;
+      setMvPage(key, { rows: res.rows, total: res.total });
       setRows(res.rows); setTotal(res.total); setLoadError('');
     } catch (err) {
       if (my !== seq.current) return;
@@ -84,10 +93,14 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
     } finally {
       if (my === seq.current) setLoading(false);
     }
-  }, [filters, page, pageSize]);
+  }, [filters, page, pageSize, from, to, activity, branchId, search]);
   const loadStats = useCallback(async () => {
+    const k = `${from}|${to}`;
+    const hit = getMvSummary(k);
+    if (hit) setSummary(hit);
     const s = await fetchMvVisitSummary(from, to);
-    setSummary(s);
+    if (s) setMvSummary(k, s);
+    setSummary((prev) => s || prev);                                   // a failed refresh keeps the numbers on screen
   }, [from, to]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadStats(); }, [loadStats]);
@@ -115,7 +128,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
     setDelBusy(true);
     try {
       const res = await deletePhoneRecords('VISIT', Array.from(pick.sel.keys()), reason);
-      pick.clear(); setDelOpen(false); setOpen(null);
+      pick.clear(); setDelOpen(false); setOpen(null); clearMvCache();   // never show the deleted rows again, even for a moment
       triggerToast(`${res.deleted} visit(s) deleted permanently`);
       load(); loadStats();
     } catch (err) {
