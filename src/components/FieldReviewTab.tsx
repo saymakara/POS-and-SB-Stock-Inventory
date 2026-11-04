@@ -1,7 +1,7 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -19,6 +19,8 @@ import {
   approveFieldEvent,
   rejectFieldEvent,
 } from '../services/supabaseService';
+import { deletePhoneRecords } from '../services/supabaseService';
+import { DeleteRecordsDialog } from './DeleteRecordsDialog';
 import { getCachedFieldEvents, setCachedFieldEvents } from '../services/fieldCache';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
@@ -177,6 +179,12 @@ export const FieldReviewTab: React.FC<Props> = ({
   }, [scope]);
 
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const isSuper = role === 'SUPER_ADMIN';
+  // (4 Nov 2026) Admins select waiting records to approve / reject; a Super Admin can also select rejected, withdrawn and
+  // replaced records to delete them for good. Approved records are never selectable (they changed the stock).
+  const selectable = useCallback((e: FieldEvent) => (isAdmin && e.status === 'PENDING') || (isSuper && e.status !== 'APPROVED'), [isAdmin, isSuper]);
+  const [delOpen, setDelOpen] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
   const [events, setEvents] = useState<FieldEvent[] | null>(() => {
     const mem = getCachedFieldEvents();                              // fetched in the background after sign-in: no parsing, no waiting
     if (mem) return mem;
@@ -521,9 +529,30 @@ export const FieldReviewTab: React.FC<Props> = ({
     return list.length;
   }, [filter, query, inScope, recordTypeFilter, typeFilter]);
 
-  const shownPending = useMemo(() => shown.filter((e) => e.status === 'PENDING'), [shown]);
-  const selectedShown = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
-  const allSelected = shownPending.length > 0 && selectedShown.length === shownPending.length;
+  const shownPending = useMemo(() => shown.filter(selectable), [shown, selectable]);   // (the selectable rows shown)
+  const selectedAll = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
+  const selectedShown = useMemo(() => selectedAll.filter((e) => e.status === 'PENDING'), [selectedAll]);   // approve / reject: waiting only
+  const allSelected = shownPending.length > 0 && selectedAll.length === shownPending.length;
+
+  const runDelete = async (reason: string) => {
+    const list = selectedAll.filter((e) => e.status !== 'APPROVED');
+    if (!list.length) return;
+    setDelBusy(true);
+    try {
+      const res = await deletePhoneRecords('FIELD', list.map((e) => e.id), reason);
+      const refused = new Set(res.refused.map((x) => x.id));
+      const gone = new Set(list.filter((e) => !refused.has(e.id)).map((e) => e.id));
+      setEvents((prev) => prev && prev.filter((x) => !gone.has(x.id)));
+      setSelected(new Set());
+      setDelOpen(false);
+      setBulkReport(res.refused.length ? [`${res.deleted} deleted.`, ...res.refused.map((x) => `${x.record}: ${x.why}`)] : []);
+      triggerToast(`${res.deleted} record(s) deleted permanently`);
+    } catch (err) {
+      triggerToast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setDelBusy(false);
+    }
+  };
 
   const optsRef = useRef(opts);
   optsRef.current = opts;
@@ -857,7 +886,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
       {/* Section 2 — Bulk Decision Bar */}
       <AnimatePresence initial={false}>
-        {isAdmin && selectedShown.length > 0 && (
+        {isAdmin && selectedAll.length > 0 && (
           <motion.section
             key="bulk"
             initial={{ opacity: 0, y: -10, scale: 0.99 }}
@@ -868,8 +897,9 @@ export const FieldReviewTab: React.FC<Props> = ({
             aria-label="Decide the selected records"
           >
             <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-normal font-mono">
-              {selectedShown.length} Selected
+              {selectedAll.length} Selected
             </span>
+            {selectedShown.length > 0 && (<>
             <input
               value={bulkNote}
               onChange={(e) => setBulkNote(e.target.value)}
@@ -910,6 +940,17 @@ export const FieldReviewTab: React.FC<Props> = ({
               )}{' '}
               Approve {selectedShown.length}
             </button>
+            </>)}
+            {isSuper && (
+              <button
+                type="button"
+                onClick={() => setDelOpen(true)}
+                disabled={!!bulkBusy || delBusy}
+                className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete {selectedAll.length}
+              </button>
+            )}
             {bulkReport.length > 0 && (
               <ul role="status" className="basis-full text-[11px] space-y-0.5 pt-1 border-t border-slate-100">
                 {bulkReport.slice(0, 8).map((l, i) => (
@@ -923,6 +964,16 @@ export const FieldReviewTab: React.FC<Props> = ({
           </motion.section>
         )}
       </AnimatePresence>
+      <DeleteRecordsDialog
+        open={delOpen}
+        count={selectedAll.length}
+        what={deviceType === 'Sound Box' ? 'Sound Box records' : deviceType === 'POS Terminal' ? 'POS Terminal records' : 'phone app records'}
+        sample={selectedAll.map((e) => e.sourceRecordId + (e.unitNo > 1 ? ' #' + e.unitNo : ''))}
+        note={selectedAll.some((e) => e.status === 'PENDING') ? 'Waiting records are deleted without a review decision; the staff member is not told.' : undefined}
+        busy={delBusy}
+        onCancel={() => setDelOpen(false)}
+        onConfirm={runDelete}
+      />
 
       {loadError && (
         <div
@@ -947,7 +998,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               {isAdmin && shownPending.length > 0 && (
                 <button
                   type="button"
-                  aria-label={allSelected ? 'Unselect all' : 'Select all waiting'}
+                  aria-label={allSelected ? 'Unselect all' : shownPending.every((x) => x.status === 'PENDING') ? 'Select all waiting' : 'Select all (not approved)'}
                   aria-pressed={allSelected}
                   onClick={() => setSelected(allSelected ? new Set() : new Set(shownPending.map((e) => e.id)))}
                   className="cursor-pointer flex text-white"
@@ -1020,6 +1071,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                   branches={branches}
                   o={opts[e.id]}
                   checked={selected.has(e.id)}
+                  selectable={selectable(e)}
                   isOpen={open === e.id}
                   busy={busyIds.has(e.id) || !!bulkBusy}
                   err={rowErr[e.id] || ''}
@@ -1090,6 +1142,7 @@ interface RowProps {
   branches: Branch[];
   o?: RowOpt;
   checked: boolean;
+  selectable: boolean;
   isOpen: boolean;
   busy: boolean;
   err: string;
@@ -1111,6 +1164,7 @@ const ReviewRow = memo(function ReviewRow({
   branches,
   o,
   checked,
+  selectable,
   isOpen,
   busy,
   err,
@@ -1149,7 +1203,7 @@ const ReviewRow = memo(function ReviewRow({
       {/* Clean Row */}
       <div className={`${GRID} px-3.5 py-2.5 text-xs font-normal text-slate-700`}>
         <span>
-          {isAdmin && pending && (
+          {selectable && (
             <button
               type="button"
               onClick={() => onCheck(e.id)}

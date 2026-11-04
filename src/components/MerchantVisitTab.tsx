@@ -8,7 +8,8 @@ import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP } from '../utils/time';
-import { MvVisit, MvVisitQuery, MvVisitSummary, fetchMvVisitsPage, fetchMvVisitSummary } from '../services/supabaseService';
+import { MvVisit, MvVisitQuery, MvVisitSummary, fetchMvVisitsPage, fetchMvVisitSummary, deletePhoneRecords } from '../services/supabaseService';
+import { DeleteRecordsDialog, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
 import { Period, periodRange } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
 
@@ -24,7 +25,7 @@ const PERIOD_LABEL: Record<Period, string> = {
   ALL: 'All time', TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months',
 };
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
-const GRID = 'grid items-center gap-x-3 grid-cols-[44px_150px_minmax(150px,1fr)_minmax(200px,1.4fr)_minmax(160px,1fr)_minmax(140px,1fr)_20px]';
+const GRID = 'grid items-center gap-x-3 grid-cols-[64px_150px_minmax(150px,1fr)_minmax(200px,1.4fr)_minmax(160px,1fr)_minmax(140px,1fr)_20px]';
 const isMissingTable = (msg: string) => /mv_visits|mv_visit_summary|PGRST20[25]|does not exist|schema cache/i.test(msg);
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
 // answers already shown in their own line of the details
@@ -38,6 +39,10 @@ interface Props {
 
 export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const isSuper = role === 'SUPER_ADMIN';                            // (4 Nov 2026) only a Super Admin deletes
+  const pick = useRecordSelection();
+  const [delOpen, setDelOpen] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
   const [period, setPeriod] = useState<Period>('MONTH');
   const [activity, setActivity] = useState('');
   const [branchId, setBranchId] = useState('');
@@ -105,6 +110,20 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
         v.latitude, v.longitude, v.remarks, v.photoLink, csvTime(v.editedAt)].concat(extra.map((k) => v.answers[k] || ''))));
     return list.length;
   }, [filters, period]);
+
+  const runDelete = async (reason: string) => {
+    setDelBusy(true);
+    try {
+      const res = await deletePhoneRecords('VISIT', Array.from(pick.sel.keys()), reason);
+      pick.clear(); setDelOpen(false); setOpen(null);
+      triggerToast(`${res.deleted} visit(s) deleted permanently`);
+      load(); loadStats();
+    } catch (err) {
+      triggerToast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
+    } finally { setDelBusy(false); }
+  };
+  const pageItems = (rows || []).map((v) => ({ id: v.id, rec: v.recordId }));
+  const pageAll = pageItems.length > 0 && pageItems.every((i) => pick.sel.has(i.id));
 
   const top = summary?.byActivity?.slice(0, 3) || [];
   return (
@@ -186,11 +205,22 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
         <ClearFiltersButton active={filtered} onClear={() => { setActivity(''); setBranchId(''); setQuery(''); }} />
       </section>
 
+      {isSuper && pick.sel.size > 0 && (
+        <SelectionBar count={pick.sel.size} onClear={pick.clear} onDelete={() => setDelOpen(true)} />
+      )}
+      <DeleteRecordsDialog open={delOpen} count={pick.sel.size} what="merchant visits" sample={Array.from(pick.sel.values())}
+        busy={delBusy} onCancel={() => setDelOpen(false)} onConfirm={runDelete} />
+
       {/* Visits */}
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Merchant visits">
         <div className="min-w-[1000px]">
           <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-            <span className="text-right">No.</span>
+            <span className="flex items-center justify-end gap-2">
+              {isSuper && pageItems.length > 0 && (
+                <SelectBox light checked={pageAll} onChange={() => pick.setMany(pageItems, !pageAll)} label={pageAll ? 'Unselect this page' : 'Select this page'} />
+              )}
+              No.
+            </span>
             <span>Date Sent</span>
             <span>Activity</span>
             <span>Merchant / MID</span>
@@ -218,7 +248,8 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
           )}
           <div className="divide-y divide-slate-100">
             {(rows || []).map((v, i) => (
-              <VisitRow key={v.id} v={v} no={(page - 1) * pageSize + i + 1} open={open === v.id} onToggle={() => setOpen((o) => (o === v.id ? null : v.id))} />
+              <VisitRow key={v.id} v={v} no={(page - 1) * pageSize + i + 1} open={open === v.id} onToggle={() => setOpen((o) => (o === v.id ? null : v.id))}
+                checked={pick.sel.has(v.id)} onCheck={isSuper ? () => pick.toggle(v.id, v.recordId) : undefined} />
             ))}
           </div>
         </div>
@@ -238,12 +269,14 @@ const Kpi: React.FC<{ icon: React.ElementType; label: string; value: number | un
   </div>
 );
 
-const VisitRow = memo(function VisitRow({ v, no, open, onToggle }: { v: MvVisit; no: number; open: boolean; onToggle: () => void }) {
+const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onCheck }: {
+  v: MvVisit; no: number; open: boolean; onToggle: () => void; checked?: boolean; onCheck?: () => void;
+}) {
   const mapUrl = v.latitude !== null && v.longitude !== null ? `https://www.google.com/maps?q=${v.latitude},${v.longitude}` : '';
   const place = [v.location, v.khan].filter(Boolean).join(' · ');
   const others = Object.entries(v.answers).filter(([k]) => !SHOWN.has(k.toLowerCase()));
   return (
-    <div className="hover:bg-slate-50">
+    <div className={checked ? 'bg-sky-50/80' : 'hover:bg-slate-50'}>
       <div
         role="button"
         tabIndex={0}
@@ -252,7 +285,10 @@ const VisitRow = memo(function VisitRow({ v, no, open, onToggle }: { v: MvVisit;
         aria-expanded={open}
         className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer relative select-none`}
       >
-        <span className="text-right tabular-nums text-slate-500">{no}</span>
+        <span className="flex items-center justify-end gap-2 tabular-nums text-slate-500">
+          {onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${v.recordId}`} />}
+          {no}
+        </span>
         <span className="leading-tight min-w-0">
           <span className="block tabular-nums">{fmt(v.submittedAt)}</span>
           <CopyableRecordId id={v.recordId} />
