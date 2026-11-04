@@ -11,7 +11,7 @@ import { stampPP } from '../utils/time';
 import { Period, periodRange } from '../services/khqrCache';
 import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccListKey, getCachedCcList, setCachedCcList, getCachedCcCounts, setCachedCcCounts, patchCachedCcEntry, clearCcCache } from '../services/ccService';
 import { deletePhoneRecords } from '../services/supabaseService';
-import { DeleteRecordsDialog, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
+import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
 import { CopyableRecordId } from './CopyableRecordId';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
@@ -310,14 +310,11 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Credit Card entries">
           <div className="min-w-[1060px]">
             <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2`} role="row">
-              <span className="flex items-center justify-center gap-2 font-bold">
-                {isSuper && (rows || []).length > 0 && (() => {
-                  const items = (rows || []).map((x) => ({ id: x.id, rec: x.recordId }));
-                  const all = items.every((i) => pick.sel.has(i.id));
-                  return <SelectBox light checked={all} onChange={() => pick.setMany(items, !all)} label={all ? 'Unselect this page' : 'Select this page'} />;
-                })()}
-                No.
-              </span>
+              <NoCell className="font-bold" box={isSuper && (rows || []).length > 0 && (() => {
+                const items = (rows || []).map((x) => ({ id: x.id, rec: x.recordId }));
+                const all = items.every((i) => pick.sel.has(i.id));
+                return <SelectBox light checked={all} onChange={() => pick.setMany(items, !all)} label={all ? 'Unselect this page' : 'Select this page'} />;
+              })()}>No.</NoCell>
               <span>Date Sent</span>
               <span>Customer / Request</span>
               <span className="text-right">Limit</span>
@@ -448,10 +445,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
         aria-expanded={open}
         className={`${GRID} w-full text-left px-4 py-3 text-[13px] text-slate-700 cursor-pointer select-none transition-colors duration-150`}
       >
-        <span className="flex items-center justify-center gap-2 tabular-nums text-slate-400 font-mono text-xs">
-          {onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}
-          {no}
-        </span>
+        <NoCell className="text-slate-500" box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}>{no}</NoCell>
         <span className="leading-tight min-w-0">
           <span className="block tabular-nums font-medium text-slate-800">{fmt(e.submittedAt)}</span>
           <CopyableRecordId id={e.recordId} onCopied={(id) => toast(`Copied Record ID: ${id}`)} />

@@ -9,7 +9,7 @@ import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP } from '../utils/time';
 import { MvVisit, MvVisitQuery, MvVisitSummary, fetchMvVisitsPage, fetchMvVisitSummary, deletePhoneRecords } from '../services/supabaseService';
-import { DeleteRecordsDialog, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
+import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
 import { Period, periodRange } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
 
@@ -215,12 +215,9 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Merchant visits">
         <div className="min-w-[1000px]">
           <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-            <span className="flex items-center justify-end gap-2">
-              {isSuper && pageItems.length > 0 && (
-                <SelectBox light checked={pageAll} onChange={() => pick.setMany(pageItems, !pageAll)} label={pageAll ? 'Unselect this page' : 'Select this page'} />
-              )}
-              No.
-            </span>
+            <NoCell box={isSuper && pageItems.length > 0 && (
+              <SelectBox light checked={pageAll} onChange={() => pick.setMany(pageItems, !pageAll)} label={pageAll ? 'Unselect this page' : 'Select this page'} />
+            )}>No.</NoCell>
             <span>Date Sent</span>
             <span>Activity</span>
             <span>Merchant / MID</span>
@@ -285,10 +282,7 @@ const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onChec
         aria-expanded={open}
         className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer relative select-none`}
       >
-        <span className="flex items-center justify-end gap-2 tabular-nums text-slate-500">
-          {onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${v.recordId}`} />}
-          {no}
-        </span>
+        <NoCell className="text-slate-500" box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${v.recordId}`} />}>{no}</NoCell>
         <span className="leading-tight min-w-0">
           <span className="block tabular-nums">{fmt(v.submittedAt)}</span>
           <CopyableRecordId id={v.recordId} />

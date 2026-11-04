@@ -1,5 +1,5 @@
 // Merchant Visit page + POS maintenance / return in Phone App Review (4 Nov 2026), against the stand-in Supabase API.
-// Run against a built dist/ (VITE_SUPABASE_URL = the stand-in address) served on 127.0.0.1:8500 (node serve_test.cjs).
+// Run against a built dist/ (VITE_SUPABASE_URL = the stand-in address) served on 127.0.0.1:8500 (node tests/e2e/serve-dist.cjs).
 // Never touches live data.
 process.env.N_DEV = process.env.N_DEV || '300';
 const S = require('./lib/standin.js');

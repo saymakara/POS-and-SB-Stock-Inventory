@@ -1,6 +1,6 @@
 // Smoke test (03 Nov 2026 audit): the sign-in screen must not download the heavy chart / animation libraries, and after
 // sign-in every main tab must open without a page error or a console error. Charts must still render where used.
-// Run against a built dist/ served on 127.0.0.1:${DIST_PORT:-8500} (node serve_test.cjs). Never touches live data (stand-in API).
+// Run against a built dist/ served on 127.0.0.1:${DIST_PORT:-8500} (node tests/e2e/serve-dist.cjs). Never touches live data (stand-in API).
 const { chromium, B, api, sleep } = require('./lib/standin.js');
 let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 // the sandbox cannot open the live-update socket; that message is about the test environment, not the app

@@ -1,7 +1,7 @@
 // Phone App Review: multiple select + permanent delete (4 Nov 2026), against the stand-in Supabase API.
 // Super Admin: tick boxes on POS Terminal / KHQR / Merchant Visit / Credit Card, Delete (type DELETE) -> admin_delete_phone_records.
 // Approved POS records are never selectable. An Admin sees no delete and no tick boxes outside waiting POS records.
-// Run against a built dist/ (VITE_SUPABASE_URL = the stand-in address) served on 127.0.0.1:8500. Never touches live data.
+// Run against a built dist/ (VITE_SUPABASE_URL = the stand-in address) served on 127.0.0.1:8500 (node tests/e2e/serve-dist.cjs). Never touches live data.
 process.env.N_DEV = process.env.N_DEV || '300';
 const S = require('./lib/standin.js');
 const { chromium, B, state, sleep, USERS } = S;

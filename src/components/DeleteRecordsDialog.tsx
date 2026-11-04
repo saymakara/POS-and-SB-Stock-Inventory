@@ -129,3 +129,15 @@ export const SelectBox: React.FC<{ checked: boolean; onChange: () => void; label
       : <Square className={`w-[18px] h-[18px] ${light ? 'text-white/80' : 'text-slate-400'}`} />}
   </button>
 );
+
+/**
+ * The "No." cell of a selectable table: the tick box in a fixed slot on the left, the number right-aligned beside it,
+ * so the boxes form one straight column whatever the number of digits (9 → 10 → 100), in the header and every row.
+ * The slot is kept even when there is no box, so the numbers stay aligned as well.
+ */
+export const NoCell: React.FC<{ box?: React.ReactNode; children: React.ReactNode; className?: string }> = ({ box, children, className = '' }) => (
+  <span className={`flex items-center gap-2 ${className}`}>
+    <span className="inline-flex w-4 shrink-0 items-center justify-center">{box || null}</span>
+    <span className="flex-1 text-right tabular-nums">{children}</span>
+  </span>
+);
