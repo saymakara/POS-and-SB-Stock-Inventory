@@ -54,7 +54,7 @@ const isNetworkFailure = (err?: string): boolean =>
 import { prefetchKhqr } from './services/khqrCache';
 import { prefetchAudit } from './services/auditCache';
 import { prefetchFieldEvents } from './services/fieldCache';
-import { prefetchStaff } from './services/staffCache';
+import { loadStaff, prefetchStaff } from './services/staffCache';
 import { prefetchCc } from './services/ccService';
 import { prefetchKpi } from './services/kpiService';
 import { motion, AnimatePresence } from 'motion/react';
@@ -135,7 +135,6 @@ import {
   receiveReturnOnServer,
   fetchBranchesFromSupabase,
   saveBranchOnServer,
-  fetchStaffAccounts,
   StaffAccount,
   renameDeviceSerialOnServer,
   subscribeToOnlinePresence,
@@ -879,7 +878,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const devs = devLoad.list;
     const devsUnchanged = Boolean(devLoad.unchanged);
     if (isAdminProfile) {
-      fetchStaffAccounts().then((staffList) => {
+      loadStaff({ maxAgeMs: opts?.full ? 0 : 30000 }).then((staffList) => {
         if (staffList) {
           const bn = new Map((srvBranches || []).map((b) => [b.id, b.name]));
           const nextUsers = staffList.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId)));
@@ -2658,7 +2657,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   const reloadStaffAccounts = useCallback(async () => {
     try {
-      const staffList = await fetchStaffAccounts(500, 0);
+      const staffList = await loadStaff({ maxAgeMs: 0 });
       if (staffList && staffList.length > 0) {
         setBranches((prev) => {
           const bn = new Map(prev.map((b) => [b.id, b.name]));

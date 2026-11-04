@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AppBrandLogo } from './AppBrandLogo';
 import { clearKeptMemos } from '../utils/useKeptMemo';
 import { clearCcCache } from '../services/ccService';
+import { clearMvCache } from '../services/mvCache';
 import { clearWorkstationLock, notifySessionSignOut } from '../utils/sessionSecurity';
 
 /**
@@ -50,6 +51,7 @@ export function clearLocalCaches(): void {
   }
   clearKeptMemos();
   clearCcCache();
+  clearMvCache();
   clearWorkstationLock();                                                     // (31 Oct 2026) results kept in memory between screens
 }
 

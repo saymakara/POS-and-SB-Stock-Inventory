@@ -70,8 +70,11 @@ function fmtShortDate(ymd: string): string {
   return `${MONTH_NAMES[m - 1] || parts[1]} ${String(d).padStart(2, '0')}`;
 }
 
-const fmtPts = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
-const fmtInt = (n: number) => n.toLocaleString('en-US');
+const NF_PTS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 });   // reused (same text as toLocaleString)
+const fmtPts = (n: number) => NF_PTS.format(n);
+const NF_INT = new Intl.NumberFormat('en-US');
+const WEEKDAY = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
+const fmtInt = (n: number) => NF_INT.format(n);
 
 function cleanBranchName(name: string, _stripSuffix = false): string {
   const base = (name || '').replace(/^Code\s+\d+\s*[·-]\s*/i, '').trim();
@@ -397,7 +400,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const dayNum = i + 1;
       const dateObj = new Date(year, month - 1, dayNum);
       const isoDay = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+      const dayOfWeek = WEEKDAY.format(dateObj);
       const isSunday = dateObj.getDay() === 0;
       const isSaturday = dateObj.getDay() === 6;
       // Saturdays and Sundays are excluded from KPI

@@ -2162,7 +2162,7 @@ const mapStaff = (r: any): StaffAccount => ({
 });
 
 export async function fetchStaffAccounts(limit = 100, offset = 0): Promise<StaffAccount[] | null> {
-  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeLimit = Math.max(1, Math.min(limit, 1000));   // (4 Nov 2026) pages of up to 1,000 (the API maximum): 1 request instead of 16
   try {
     const all: any[] = [];
     let curOffset = Math.max(0, offset);

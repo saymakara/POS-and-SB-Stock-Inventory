@@ -1,5 +1,7 @@
 import { csvFile } from '../utils/csv';
 import React, { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue } from 'react';
+import { usePager } from '../utils/usePager';
+import { Pager } from './Pager';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, TelegramRegionalGroup, User as AppUser } from '../types';
 import { resolveTelegramChatForBranch } from '../utils/errorLogger';
@@ -493,6 +495,12 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   };
 
   const lastPushSelectedIdxRef = useRef<number | null>(null);
+  // (4 Nov 2026, speed) 50 / 100 rows per page like every other table. Before, every unit in the queue was drawn at once:
+  // 2,857 units = 108,000 page elements, a freeze of several seconds when the tab opened and again when it was left.
+  // Select all, the branch file and the push actions still work on the whole filtered list.
+  const pg = usePager(filteredDevices.length, [search, typeFilter, branchFilter]);
+  const pageDevices = useMemo(() => filteredDevices.slice(pg.start, pg.end), [filteredDevices, pg.start, pg.end]);
+  const selectedSet = useMemo(() => new Set(selectedSns), [selectedSns]);   // one lookup per row instead of a scan
 
   const handleToggleSelectOne = (sn: string, index?: number, e?: React.MouseEvent) => {
     if (
@@ -1465,8 +1473,9 @@ return (
                   </td>
                 </tr>
               ) : (
-                filteredDevices.map((dev, index) => {
-                  const isSelected = selectedSns.includes(dev.serial);
+                pageDevices.map((dev, i) => {
+                  const index = pg.start + i;                      // position in the whole list (Shift+Click ranges)
+                  const isSelected = selectedSet.has(dev.serial);
                   const isPos = dev.type === 'POS Terminal';
                   const bObj = branches.find((b) => b.code === dev.branchId);
                   const bName = bObj ? bObj.name : (dev.branchName || `Branch ${dev.branchId}`);
@@ -1667,6 +1676,7 @@ return (
             </tbody>
           </table>
         </div>
+        <Pager pg={pg} label="units" />
       </div>
 
       {/* 5. FLOATING BATCH ACTION BAR WHEN ITEMS ARE CHECKED (Sleek System Design Language) */}

@@ -2,6 +2,19 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 4 Nov 2026 — Speed and smoothness
+Measured first (20,000–28,000 units, phone-speed CPU), then fixed at the cause. No change to design, features or database security.
+- **Push Configuring: 50 / 100 rows per page.** Every queued unit was drawn at once (2,857 units = 108,000 page elements):
+  opening the tab, and leaving it for Stock Requests, froze the browser for up to 22 s on a phone. Now under 1 s. Select all,
+  branch file and push actions still cover the whole filtered list.
+- **No more duplicate downloads.** The staff list was downloaded 2–3 times at sign-in (16 pages each); Credit Card list and
+  counts twice per visit. Requests now share one download; the staff list comes in 1 request instead of 16.
+  Sign-in: 89 → about 40 requests.
+- **Dates and numbers 13–20× faster to format.** The Phnom Penh time helper built a new formatter on every call (used in
+  145 places: KPI, dashboard, tables, CSV). One reused formatter; identical output.
+- **Merchant Visit opens instantly on return** (no "Loading" flash), like the other review pages; memory only, cleared on sign-out.
+- **First sign-in on a new browser:** the saved copy of the stock is written in steps of 250 (was 1,000) so the page stays responsive.
+
 ## 4 Nov 2026
 - **Phone App Review — tick boxes aligned.** On every page the tick box sits in a fixed slot at the left of the No.
   column, so boxes form one straight column under the header box (rows 9 → 10 no longer shift), with one box style everywhere.

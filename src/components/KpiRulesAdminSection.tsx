@@ -49,7 +49,8 @@ export const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: 
 export const mvCodeOf = (activity: string): string =>
   ('MV_' + (activity.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'OTHER')).slice(0, 40);
 
-const fmtPts = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+const NF_PTS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 });   // reused (same text as toLocaleString)
+const fmtPts = (n: number) => NF_PTS.format(n);
 
 export interface KpiRulesAdminSectionProps {
   isAdmin: boolean;

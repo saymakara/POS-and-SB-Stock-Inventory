@@ -27,13 +27,14 @@ export async function collectAll<T>(fetchPage: (page: number) => Promise<{ rows:
   return out.slice(0, max);
 }
 
+// one formatter for every cell of an export (building one per cell made a 20,000-row export noticeably slower)
+const CSV_TIME = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Phnom_Penh', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 /** Phnom Penh date and time for a CSV cell ("2026-10-31 14:05"). */
 export const csvTime = (iso: string | null | undefined): string => {
   if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
   const p: Record<string, string> = {};
-  new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Phnom_Penh', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
-    .formatToParts(d).forEach((x) => { p[x.type] = x.value; });
+  CSV_TIME.formatToParts(d).forEach((x) => { p[x.type] = x.value; });
   return `${p.year}-${p.month}-${p.day} ${p.hour === '24' ? '00' : p.hour}:${p.minute}`;
 };
