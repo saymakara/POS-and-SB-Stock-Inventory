@@ -4,6 +4,7 @@ import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
   ChevronDown, ChevronLeft, ChevronRight, Cpu, Volume2, QrCode, CreditCard, TrendingUp, TrendingDown, Target,
   Sun, CheckSquare, Diamond, X, ArrowUpDown, ArrowUp, ArrowDown, ShieldCheck,
+  ClipboardList,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
@@ -18,7 +19,7 @@ import { getManagementExemptSet, isStaffManagementExempt, KPI_MANAGEMENT_EXEMPT_
 import { getCachedStaff } from '../services/staffCache';
 import {
   KpiCategory, KpiPeriod, KPI_PERIOD_LABEL, kpiPeriodRange, KpiPointRule, KpiDashboardData,
-  KpiRawCounts, computeKpiPoints, rulePts, fetchKpiSummary, getCachedKpiSummary,
+  KpiRawCounts, computeKpiPoints, addExtraCounts, rulePts, fetchKpiSummary, getCachedKpiSummary,
   KpiDailyBranchRaw, KpiDailyStaffRaw, KpiTimeBucketRaw,
 } from '../services/kpiService';
 import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHolidays';
@@ -43,6 +44,7 @@ const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string;
   'Sound Box': { hex: '#4F518C', badge: 'bg-[#4F518C]/10 text-[#4F518C] border-[#4F518C]/20', bar: 'bg-[#4F518C]', dot: 'bg-[#4F518C]', Icon: Volume2 },
   KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', bar: 'bg-teal-600', dot: 'bg-teal-600', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-amber-500', dot: 'bg-amber-500', Icon: CreditCard },
+  'Merchant Visit': { hex: '#0284c7', badge: 'bg-sky-50 text-sky-700 border-sky-200/90', bar: 'bg-sky-600', dot: 'bg-sky-600', Icon: ClipboardList },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },
 };
 
@@ -613,6 +615,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       b.raw.khqrMaterials += s.khqrMaterials;
       b.raw.ccPrimary += s.ccPrimary;
       b.raw.ccSupp += s.ccSupp;
+      addExtraCounts(b.raw, s);
       b.totalSubmitted += s.posSubmitted + s.sbSubmitted + s.khqrTasks + s.ccSubmitted;
       b.totalIssues += s.posRejected + s.sbRejected + s.khqrFailed + s.ccRejected;
     });
@@ -829,6 +832,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       raw.khqrMaterials += b.raw.khqrMaterials;
       raw.ccPrimary += b.raw.ccPrimary;
       raw.ccSupp += b.raw.ccSupp;
+      addExtraCounts(raw, b.raw);
       submitted += b.totalSubmitted;
       issues += b.totalIssues;
     });
@@ -1418,6 +1422,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       b.raw.khqrMaterials += s.khqrMaterials;
       b.raw.ccPrimary += s.ccPrimary;
       b.raw.ccSupp += s.ccSupp;
+      addExtraCounts(b.raw, s);
     });
 
     const monthBranches = Array.from(bMap.values())

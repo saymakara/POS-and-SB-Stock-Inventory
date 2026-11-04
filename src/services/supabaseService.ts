@@ -1398,7 +1398,7 @@ export interface FieldEvent {
   sourceRecordId: string;
   unitNo: number;
   revision: number;
-  kind: 'INSTALL' | 'REPLACE' | 'BATTERY' | 'SB_MAINT' | 'SB_RETURN';
+  kind: 'INSTALL' | 'REPLACE' | 'BATTERY' | 'SB_MAINT' | 'SB_RETURN' | 'POS_MAINT' | 'POS_INACTIVE' | 'POS_RETURN';
   deviceType: 'POS Terminal' | 'Sound Box';
   serial: string;
   oldSerial: string | null;
@@ -1755,6 +1755,103 @@ export function mapQrEntry(r: any): QrEntry {
     capturedAt: r.captured_at || null,
     submittedAt: r.submitted_at,
   };
+}
+
+// ============================== MERCHANT VISITS (4 Nov 2026) ==============================
+// Every Merchant Visit form activity (Account Opening, QR Merchant Onboarding, KHQR Issue, ...) from the phone app.
+// Written by the phone app's server only (mv_visit_sync); read here with the row rules (admins: all, branch users: theirs).
+export interface MvVisit {
+  id: number;
+  recordId: string;
+  activity: string;
+  merchantName: string;
+  mid: string;
+  location: string;
+  khan: string;
+  latitude: number | null;
+  longitude: number | null;
+  remarks: string;
+  answers: Record<string, string>;
+  photoLink: string;
+  staffId: string;
+  staffName: string;
+  branchText: string;
+  branchId: string;
+  submittedAt: string;
+  editedAt: string | null;
+}
+export interface MvVisitQuery {
+  from?: string | null;
+  to?: string | null;
+  activity?: string;
+  branchId?: string;
+  search?: string;
+}
+export interface MvVisitSummary {
+  total: number;
+  staff: number;
+  branches: number;
+  noBranch: number;
+  withGps: number;
+  byActivity: { activity: string; n: number }[];
+}
+const MV_COLUMNS = 'id,record_id,activity,merchant_name,mid,location,khan,latitude,longitude,remarks,answers,photo_link,staff_id,staff_name,branch_text,branch_id,submitted_at,edited_at';
+function mapMvVisit(r: any): MvVisit {
+  const num = (v: any) => (v === null || v === undefined || v === '' || !isFinite(Number(v)) ? null : Number(v));
+  return {
+    id: r.id, recordId: r.record_id, activity: r.activity || '', merchantName: r.merchant_name || '', mid: r.mid || '',
+    location: r.location || '', khan: r.khan || '', latitude: num(r.latitude), longitude: num(r.longitude), remarks: r.remarks || '',
+    answers: r.answers && typeof r.answers === 'object' ? r.answers : {}, photoLink: r.photo_link || '',
+    staffId: r.staff_id || '', staffName: r.staff_name || '', branchText: r.branch_text || '', branchId: r.branch_id || '',
+    submittedAt: r.submitted_at, editedAt: r.edited_at || null,
+  };
+}
+function applyMvFilters(q: any, p: MvVisitQuery) {
+  let query = q;
+  if (p.from) query = query.gte('submitted_at', p.from);
+  if (p.to) query = query.lt('submitted_at', p.to);
+  if (p.activity) query = query.eq('activity', p.activity);
+  if (p.branchId === 'NONE') query = query.is('branch_id', null);
+  else if (p.branchId) query = query.eq('branch_id', p.branchId);
+  const term = cleanSearchTerm(p.search);
+  if (term) {
+    if (/^\d{4,15}$/.test(term)) query = query.like('mid', `%${term}%`);
+    else query = query.or(`merchant_name.ilike.%${term}%,record_id.ilike.%${term}%,staff_name.ilike.%${term}%,staff_id.ilike.%${term}%`);
+  }
+  return query;
+}
+/** One page of merchant visits, newest first. The total counts the same filters. */
+export async function fetchMvVisitsPage(p: MvVisitQuery & { page?: number; pageSize?: number }): Promise<PaginatedResult<MvVisit>> {
+  const pageSize = p.pageSize === 1000 ? 1000 : p.pageSize === 100 ? 100 : 50;
+  const page = Math.max(1, p.page || 1);
+  const offset = (page - 1) * pageSize;
+  try {
+    const { data, count, error } = await applyMvFilters(supabase.from('mv_visits').select(MV_COLUMNS, { count: 'exact' }), p)
+      .order('submitted_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    return { rows: (data || []).map(mapMvVisit), total: count || 0, page, pageSize };
+  } catch (err) {
+    await reportCaughtError('fetchMvVisitsPage', err, { showPopup: false });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+/** Totals of a period (the reader's row rules apply). */
+export async function fetchMvVisitSummary(from: string | null, to: string | null): Promise<MvVisitSummary | null> {
+  try {
+    const { data, error } = await supabase.rpc('mv_visit_summary', { p_from: from, p_to: to });
+    if (error) throw error;
+    const d: any = data || {};
+    return {
+      total: Number(d.total) || 0, staff: Number(d.staff) || 0, branches: Number(d.branches) || 0, noBranch: Number(d.no_branch) || 0,
+      withGps: Number(d.with_gps) || 0,
+      byActivity: Array.isArray(d.by_activity) ? d.by_activity.map((x: any) => ({ activity: String(x.activity || ''), n: Number(x.n) || 0 })) : [],
+    };
+  } catch (err) {
+    await reportCaughtError('fetchMvVisitSummary', err, { showPopup: false });
+    return null;
+  }
 }
 
 export interface QrQuery {

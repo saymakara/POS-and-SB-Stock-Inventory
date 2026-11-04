@@ -17,6 +17,7 @@ import {
   Trash2,
   Search,
   Users,
+  ClipboardList,
 } from 'lucide-react';
 import {
   KpiPointRule,
@@ -40,8 +41,13 @@ export const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: 
   'Sound Box': { hex: '#4F518C', badge: 'bg-[#4F518C]/10 text-[#4F518C] border-[#4F518C]/20', bar: 'bg-[#4F518C]', dot: 'bg-[#4F518C]', Icon: Volume2 },
   KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', bar: 'bg-teal-600', dot: 'bg-teal-600', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-amber-500', dot: 'bg-amber-500', Icon: CreditCard },
+  'Merchant Visit': { hex: '#0284c7', badge: 'bg-sky-50 text-sky-700 border-sky-200/90', bar: 'bg-sky-600', dot: 'bg-sky-600', Icon: ClipboardList },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },
 };
+
+/** The KPI rule code of a Merchant Visit activity, as the server counts it: "Account Opening" -> MV_ACCOUNT_OPENING. */
+export const mvCodeOf = (activity: string): string =>
+  ('MV_' + (activity.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'OTHER')).slice(0, 40);
 
 const fmtPts = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
 
@@ -339,7 +345,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200/90 text-[11px] gap-0.5">
-            {(['ALL', 'POS Terminal', 'Sound Box', 'KHQR', 'Credit Card'] as const).map((c) => (
+            {(['ALL', 'POS Terminal', 'Sound Box', 'KHQR', 'Credit Card', 'Merchant Visit'] as const).map((c) => (
               <button
                 key={c}
                 type="button"
@@ -380,13 +386,18 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               <label className="block text-[11px] text-slate-600 mb-1">Category</label>
               <select
                 value={newCat}
-                onChange={(e) => setNewCat(e.target.value as KpiCategory)}
+                onChange={(e) => {
+                  const c = e.target.value as KpiCategory;
+                  setNewCat(c);
+                  if (c === 'Merchant Visit' && newSub.trim()) setNewCode(mvCodeOf(newSub));
+                }}
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
               >
                 <option value="POS Terminal">POS Terminal</option>
                 <option value="Sound Box">Sound Box</option>
                 <option value="KHQR">KHQR</option>
                 <option value="Credit Card">Credit Card</option>
+                <option value="Merchant Visit">Merchant Visit</option>
                 <option value="Other">Other</option>
               </select>
             </div>
@@ -394,8 +405,12 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               <label className="block text-[11px] text-slate-600 mb-1">Sub-Category / Task Name</label>
               <input
                 value={newSub}
-                onChange={(e) => setNewSub(e.target.value)}
-                placeholder="e.g. Merchant Staff Training"
+                onChange={(e) => {
+                  setNewSub(e.target.value);
+                  // a Merchant Visit rule counts the visits whose activity has this name: the code follows the name
+                  if (newCat === 'Merchant Visit') setNewCode(mvCodeOf(e.target.value));
+                }}
+                placeholder={newCat === 'Merchant Visit' ? 'The activity name, exactly as in the app (e.g. Account Opening)' : 'e.g. Merchant Staff Training'}
                 className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white"
               />
             </div>

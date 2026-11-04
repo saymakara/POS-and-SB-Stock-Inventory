@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
-  Layers, Search, Cpu, Volume2, QrCode, CreditCard,
+  Layers, Search, Cpu, Volume2, QrCode, CreditCard, ClipboardList,
   FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown, X, Filter
 } from 'lucide-react';
 import { KpiCategory, KpiPeriod, KpiPointRule, KpiRawCounts, rulePts } from '../services/kpiService';
@@ -52,6 +52,7 @@ const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; text: string
   'Sound Box': { hex: '#4F518C', badge: 'bg-[#4F518C]/10 text-[#4F518C] border-[#4F518C]/20', text: 'text-[#4F518C]', Icon: Volume2 },
   KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', text: 'text-teal-600', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', text: 'text-amber-600', Icon: CreditCard },
+  'Merchant Visit': { hex: '#0284c7', badge: 'bg-sky-50 text-sky-700 border-sky-200/90', text: 'text-sky-700', Icon: ClipboardList },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', text: 'text-slate-600', Icon: Layers },
 };
 
@@ -93,7 +94,7 @@ export const KpiDetailBreakdown: React.FC<Props> = ({
   // Compute breakdown tasks rows
   const taskRows = useMemo(() => {
     const rows = KPI_BREAKDOWN_TASK_DEFS.map((def) => {
-      const count = activeStaffPool.reduce((sum, s) => sum + (s[def.key] || 0), 0);
+      const count = activeStaffPool.reduce((sum, s) => sum + (Number(s[def.key]) || 0), 0);
       const unitPoints = rulePts(ruleMap, def.ruleCode) || def.defaultPoints;
       const totalPoints = Math.round(count * unitPoints * 10) / 10;
       return {
@@ -102,6 +103,19 @@ export const KpiDetailBreakdown: React.FC<Props> = ({
         unitPoints,
         totalPoints,
       };
+    });
+    // (4 Nov 2026) the active rules added for the Merchant Visit app (POS maintenance / return, merchant visits)
+    const extraCodes = new Set<string>();
+    activeStaffPool.forEach((s) => Object.keys(s.extra || {}).forEach((k) => extraCodes.add(k)));
+    extraCodes.forEach((code) => {
+      const rule = ruleMap.get(code);
+      if (!rule || !rule.active) return;
+      const count = activeStaffPool.reduce((sum, s) => sum + ((s.extra || {})[code] || 0), 0);
+      rows.push({
+        key: 'extra' as keyof KpiRawCounts, ruleCode: code, name: rule.subCategory.toUpperCase(), category: rule.category,
+        defaultPoints: 0, unit: rule.unit.replace(/^per\s+/i, '') || 'task', count, unitPoints: rule.points,
+        totalPoints: Math.round(count * rule.points * 10) / 10,
+      });
     });
 
     const grandTotalTasks = rows.reduce((sum, r) => sum + r.count, 0);

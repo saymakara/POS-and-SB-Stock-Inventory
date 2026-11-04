@@ -85,6 +85,7 @@ const SettingsTab = lazyTab(() => import('./components/SettingsTab').then((m) =>
 const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
 const KhqrReviewTab = lazyTab(() => import('./components/KhqrReviewTab').then((m) => ({ default: m.KhqrReviewTab })));
 const CreditCardReviewTab = lazyTab(() => import('./components/CreditCardReviewTab').then((m) => ({ default: m.CreditCardReviewTab })));
+const MerchantVisitTab = lazyTab(() => import('./components/MerchantVisitTab').then((m) => ({ default: m.MerchantVisitTab })));
 const KpiPerformanceTab = lazyTab(() => import('./components/KpiPerformanceTab').then((m) => ({ default: m.KpiPerformanceTab })));
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
 const PushConfiguringTab = lazyTab(() => import('./components/PushConfiguringTab').then((m) => ({ default: m.PushConfiguringTab })));
@@ -197,6 +198,7 @@ const VALID_TABS = new Set([
   'mobile_sync_sb',
   'mobile_sync_khqr',
   'mobile_sync_cc',
+  'mobile_sync_visit',
   'kpi_performance',
   'inventory',
   'push_configuring',
@@ -217,6 +219,7 @@ const HIDE_STAGE_HEADER_TABS = new Set([
   'requisitions',
   'mobile_sync_khqr',
   'mobile_sync_cc',
+  'mobile_sync_visit',
   'users',
   'iam',
   'audit_log',
@@ -4633,7 +4636,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       onPendingChange={setCcPending}
                     />
                   )}
-                  {(shownTab === 'mobile_sync' || shownTab === 'mobile_sync_sb' || shownTab === 'mobile_sync_khqr' || shownTab === 'mobile_sync_cc') && !isSupabaseConfigured && (
+                  {shownTab === 'mobile_sync_visit' && isSupabaseConfigured && (
+                    <MerchantVisitTab
+                      role={role}
+                      branches={branches}
+                      triggerToast={triggerToast}
+                    />
+                  )}
+                  {(shownTab === 'mobile_sync' || shownTab === 'mobile_sync_sb' || shownTab === 'mobile_sync_khqr' || shownTab === 'mobile_sync_cc' || shownTab === 'mobile_sync_visit') && !isSupabaseConfigured && (
                     <MobileSyncTab
                       devices={devices}
                       branches={branches}

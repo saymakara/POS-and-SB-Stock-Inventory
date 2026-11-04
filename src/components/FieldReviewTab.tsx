@@ -38,6 +38,9 @@ const KIND_LABEL: Record<FieldEvent['kind'], string> = {
   BATTERY: 'Battery replacement',
   SB_MAINT: 'Sound Box maintenance',
   SB_RETURN: 'Sound Box returned',
+  POS_MAINT: 'POS active maintenance',
+  POS_INACTIVE: 'POS in-active maintenance',
+  POS_RETURN: 'POS returned & terminated',
 };
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'Waiting',
@@ -110,7 +113,7 @@ interface RowOpt {
   ack?: boolean;
 }
 
-const needsReturnOf = (e: FieldEvent) => (e.kind === 'REPLACE' && !!e.oldSerial) || e.kind === 'SB_RETURN';
+const needsReturnOf = (e: FieldEvent) => (e.kind === 'REPLACE' && !!e.oldSerial) || e.kind === 'SB_RETURN' || e.kind === 'POS_RETURN';
 const needsBranchOf = (e: FieldEvent) => e.kind === 'INSTALL' || e.kind === 'REPLACE';
 const hasBlock = (e: FieldEvent) => e.issues.some((i) => i.level === 'block');
 const hasWarn = (e: FieldEvent) => e.issues.some((i) => i.level === 'warn');
@@ -405,10 +408,10 @@ export const FieldReviewTab: React.FC<Props> = ({
   const availableKinds = useMemo(() => {
     const defaultKinds: FieldEvent['kind'][] =
       deviceType === 'POS Terminal'
-        ? ['INSTALL', 'REPLACE', 'BATTERY']
+        ? ['INSTALL', 'REPLACE', 'BATTERY', 'POS_MAINT', 'POS_INACTIVE', 'POS_RETURN']
         : deviceType === 'Sound Box'
         ? ['INSTALL', 'REPLACE', 'SB_MAINT', 'SB_RETURN']
-        : ['INSTALL', 'REPLACE', 'BATTERY', 'SB_MAINT', 'SB_RETURN'];
+        : ['INSTALL', 'REPLACE', 'BATTERY', 'SB_MAINT', 'SB_RETURN', 'POS_MAINT', 'POS_INACTIVE', 'POS_RETURN'];
     const dynamicKinds = new Set<FieldEvent['kind']>(defaultKinds);
     (scoped || []).forEach((e) => {
       if (deviceType && devType(e) !== deviceType) return;
@@ -425,6 +428,9 @@ export const FieldReviewTab: React.FC<Props> = ({
       BATTERY: 0,
       SB_MAINT: 0,
       SB_RETURN: 0,
+      POS_MAINT: 0,
+      POS_INACTIVE: 0,
+      POS_RETURN: 0,
     };
     scoped
       .filter((e) => filter === 'ALL' || e.status === filter)
@@ -1353,6 +1359,14 @@ const ReviewRow = memo(function ReviewRow({
                   {`${e.oldBattery || '—'} → ${e.newBattery}`}
                 </Line>
               )}
+              {Array.isArray(e.payload?.entry?.details) && e.payload.entry.details.length > 0 && (
+                <Line k="Details">
+                  {e.payload.entry.details
+                    .map((d: { k: string; v: string }) => `${d.k}: ${d.v}`)
+                    .join(' · ')}
+                </Line>
+              )}
+              {e.remarks && <Line k="Remark">{e.remarks}</Line>}
               <Line k="In inventory">{stageText(device)}</Line>
               {e.oldSerial && <Line k="Old unit">{stageText(oldDevice)}</Line>}
               {e.issues.length > 0 && (
@@ -1407,7 +1421,7 @@ const ReviewRow = memo(function ReviewRow({
                   )}
                   {needsReturn && (
                     <label className="flex flex-col gap-1 text-slate-600 font-normal">
-                      {e.kind === 'REPLACE' ? 'The old unit goes to' : 'The returned sound box goes to'}
+                      {e.kind === 'REPLACE' ? 'The old unit goes to' : e.kind === 'POS_RETURN' ? 'The returned POS terminal goes to' : 'The returned sound box goes to'}
                       <select
                         value={r.returnStage}
                         onChange={(x) => onOpt(e.id, { returnStage: x.target.value })}
