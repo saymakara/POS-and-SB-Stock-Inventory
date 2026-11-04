@@ -3,6 +3,8 @@
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
 ## 4 Nov 2026
+- **Phone App Review — tick boxes aligned.** On every page the tick box sits in a fixed slot at the left of the No.
+  column, so boxes form one straight column under the header box (rows 9 → 10 no longer shift), with one box style everywhere.
 - **Phone App Review — permanent delete (Super Admin only).** Multiple select on POS Terminal, Sound Box, KHQR (entries,
   failed attempts, wrong scans, same MID by 2+ staff), Merchant Visit and Credit Card; delete after typing DELETE, with an
   optional reason in the Audit Trail. Approved POS / Sound Box records cannot be deleted (they changed the stock).

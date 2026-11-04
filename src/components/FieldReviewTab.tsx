@@ -1,7 +1,7 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, CheckSquare, Square, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -20,7 +20,7 @@ import {
   rejectFieldEvent,
 } from '../services/supabaseService';
 import { deletePhoneRecords } from '../services/supabaseService';
-import { DeleteRecordsDialog } from './DeleteRecordsDialog';
+import { DeleteRecordsDialog, SelectBox } from './DeleteRecordsDialog';
 import { getCachedFieldEvents, setCachedFieldEvents } from '../services/fieldCache';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
@@ -994,21 +994,14 @@ export const FieldReviewTab: React.FC<Props> = ({
             className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`}
             role="row"
           >
-            <span>
+            <span className="flex justify-center">
               {isAdmin && shownPending.length > 0 && (
-                <button
-                  type="button"
-                  aria-label={allSelected ? 'Unselect all' : shownPending.every((x) => x.status === 'PENDING') ? 'Select all waiting' : 'Select all (not approved)'}
-                  aria-pressed={allSelected}
-                  onClick={() => setSelected(allSelected ? new Set() : new Set(shownPending.map((e) => e.id)))}
-                  className="cursor-pointer flex text-white"
-                >
-                  {allSelected ? (
-                    <CheckSquare className="w-4 h-4 text-emerald-300" />
-                  ) : (
-                    <Square className="w-4 h-4 text-white/75 hover:text-white" />
-                  )}
-                </button>
+                <SelectBox
+                  light
+                  checked={allSelected}
+                  onChange={() => setSelected(allSelected ? new Set() : new Set(shownPending.map((e) => e.id)))}
+                  label={allSelected ? 'Unselect all' : shownPending.every((x) => x.status === 'PENDING') ? 'Select all waiting' : 'Select all (not approved)'}
+                />
               )}
             </span>
             <span className="text-right">No.</span>
@@ -1202,22 +1195,8 @@ const ReviewRow = memo(function ReviewRow({
     >
       {/* Clean Row */}
       <div className={`${GRID} px-3.5 py-2.5 text-xs font-normal text-slate-700`}>
-        <span>
-          {selectable && (
-            <button
-              type="button"
-              onClick={() => onCheck(e.id)}
-              aria-pressed={checked}
-              aria-label={`Select ${e.serial}`}
-              className="cursor-pointer flex"
-            >
-              {checked ? (
-                <CheckSquare className="w-4 h-4 text-slate-800" />
-              ) : (
-                <Square className="w-4 h-4 text-slate-400 hover:text-slate-600" />
-              )}
-            </button>
-          )}
+        <span className="flex justify-center">
+          {selectable && <SelectBox checked={checked} onChange={() => onCheck(e.id)} label={`Select ${e.serial}`} />}
         </span>
         <span className="text-right text-slate-500 font-mono font-normal tabular-nums">{no}</span>
         <span className={`inline-flex items-center gap-1.5 whitespace-nowrap font-semibold ${type === 'Sound Box' ? 'text-[#4F518C]' : 'text-[#006BA6]'}`}>

@@ -16,7 +16,7 @@ import {
   clearKhqrCache, Period, periodRange, attemptsKey, getCachedAttempts, setCachedAttempts, entriesKey, getCachedEntries, setCachedEntries, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory,
 } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
-import { DeleteRecordsDialog, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
+import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
 
 /**
  * Phone App Review → KHQR (28 Oct 2026).
@@ -466,14 +466,11 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KHQR entries">
         <div className="min-w-[1080px]">
           <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-            <span className="flex items-center justify-end gap-2">
-              {isSuper && (rows || []).length > 0 && (() => {
-                const items = (rows || []).map((x) => ({ id: x.id, rec: x.recordId }));
-                const all = items.every((i) => pick.sel.has(i.id));
-                return <SelectBox light checked={all} onChange={() => pick.setMany(items, !all)} label={all ? 'Unselect this page' : 'Select this page'} />;
-              })()}
-              No.
-            </span>
+            <NoCell box={isSuper && (rows || []).length > 0 && (() => {
+              const items = (rows || []).map((x) => ({ id: x.id, rec: x.recordId }));
+              const all = items.every((i) => pick.sel.has(i.id));
+              return <SelectBox light checked={all} onChange={() => pick.setMany(items, !all)} label={all ? 'Unselect this page' : 'Select this page'} />;
+            })()}>No.</NoCell>
             <span>Date Sent</span>
             <span>Activity</span>
             <span>Merchant / MID</span>
@@ -588,12 +585,9 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
       </div>
       <div className="min-w-[1080px]">
         <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-          <span className="flex items-center justify-end gap-2">
-            {isSuper && pageItems.length > 0 && (
-              <SelectBox light checked={pageAll} onChange={() => pick.setMany(pageItems, !pageAll)} label={pageAll ? 'Unselect this page' : 'Select this page'} />
-            )}
-            No.
-          </span>
+          <NoCell box={isSuper && pageItems.length > 0 && (
+            <SelectBox light checked={pageAll} onChange={() => pick.setMany(pageItems, !pageAll)} label={pageAll ? 'Unselect this page' : 'Select this page'} />
+          )}>No.</NoCell>
           <span>Time</span>
           <span>Staff</span>
           <span>Branch</span>
@@ -620,10 +614,7 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
         <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
           {(rows || []).map((a, i) => (
             <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[13px] text-slate-700 ${pick.sel.has(a.id) ? 'bg-sky-50/80' : 'hover:bg-rose-50/50'}`}>
-              <span className="flex items-center justify-end gap-2 tabular-nums text-slate-500">
-                {isSuper && <SelectBox checked={pick.sel.has(a.id)} onChange={() => pick.toggle(a.id, pageItems[i].rec)} label={`Select ${what.slice(0, -1)} ${pageItems[i].rec}`} />}
-                {pg.start + i + 1}
-              </span>
+              <NoCell className="text-slate-500" box={isSuper && <SelectBox checked={pick.sel.has(a.id)} onChange={() => pick.toggle(a.id, pageItems[i].rec)} label={`Select ${what.slice(0, -1)} ${pageItems[i].rec}`} />}>{pg.start + i + 1}</NoCell>
               <span className="tabular-nums whitespace-nowrap" title={a.clientAt ? `On the phone: ${stampSecPP(new Date(a.clientAt))}` : undefined}>{stampSecPP(new Date(a.clientAt || a.receivedAt))}</span>
               <span className="leading-tight min-w-0">
                 <span className="block truncate text-slate-900">{a.staffName || a.staffId}</span>
@@ -694,7 +685,7 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
       </div>
       <div className="min-w-[1160px]">
         <div className={`${SMGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-          <span className="text-right">No.</span>
+          <NoCell>No.</NoCell>
           <span>Date</span>
           <span>MID</span>
           <span>Merchant</span>
@@ -726,13 +717,10 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
                 <div role="button" tabIndex={0} onClick={() => setOpen(isOpen ? null : key)} aria-expanded={isOpen}
                   onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setOpen(isOpen ? null : key); } }}
                   className={`${SMGRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-violet-50/50 cursor-pointer select-none`}>
-                  <span className="flex items-center justify-end gap-2 tabular-nums text-slate-500">
-                    {isSuper && (() => {
-                      const ids = r.items.map((x) => x.recordId), all = ids.every((x) => sel.has(x));
-                      return <SelectBox checked={all} onChange={() => flip(ids, !all)} label={`Select all entries of MID ${r.mid} on ${r.day}`} />;
-                    })()}
-                    {i + 1}
-                  </span>
+                  <NoCell className="text-slate-500" box={isSuper && (() => {
+                    const ids = r.items.map((x) => x.recordId), all = ids.every((x) => sel.has(x));
+                    return <SelectBox checked={all} onChange={() => flip(ids, !all)} label={`Select all entries of MID ${r.mid} on ${r.day}`} />;
+                  })()}>{i + 1}</NoCell>
                   <span className="tabular-nums">{r.day}</span>
                   <span className="font-mono tabular-nums text-slate-900">{r.mid}</span>
                   <span className="truncate">{r.merchantName || '—'}</span>
@@ -887,10 +875,7 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck }: {
         aria-expanded={open}
         className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer relative select-none`}
       >
-        <span className="flex items-center justify-end gap-2 tabular-nums text-slate-500">
-          {onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}
-          {no}
-        </span>
+        <NoCell className="text-slate-500" box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}>{no}</NoCell>
         <span className="leading-tight min-w-0">
           <span className="block tabular-nums">{fmt(e.submittedAt)}</span>
           <CopyableRecordId id={e.recordId} />
