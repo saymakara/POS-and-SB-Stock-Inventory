@@ -33,8 +33,8 @@ const PERIOD_LABEL: Record<Period, string> = {
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
   'grid items-center gap-x-3 grid-cols-[64px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
-const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
-const SMGRID = 'grid items-center gap-x-3 grid-cols-[36px_96px_150px_minmax(160px,1fr)_70px_minmax(220px,1.6fr)_70px_minmax(140px,1fr)_120px_20px]';
+const LGRID = 'grid items-center gap-x-3 grid-cols-[60px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
+const SMGRID = 'grid items-center gap-x-3 grid-cols-[60px_96px_150px_minmax(160px,1fr)_70px_minmax(220px,1.6fr)_70px_minmax(140px,1fr)_120px_20px]';
 const HGRID = 'grid items-center gap-x-3 grid-cols-[minmax(150px,1.2fr)_90px_120px_120px_110px_110px_110px_110px]';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -417,11 +417,13 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
 
       {(view === 'failed' || view === 'wrong') && loadError !== 'SETUP' && (
         <QrAttemptLog key={view} from={from} to={to} activity={activity} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey}
-          kind={view === 'wrong' ? 'WRONG_SCAN' : 'SUBMIT_BLOCKED'} />
+          kind={view === 'wrong' ? 'WRONG_SCAN' : 'SUBMIT_BLOCKED'} isSuper={isSuper} toast={triggerToast}
+          onDeleted={() => { clearKhqrCache(); setLogKey((k) => k + 1); loadStats(); }} />
       )}
 
       {view === 'shared' && loadError !== 'SETUP' && (
-        <SharedMidTable rows={shared} periodLabel={PERIOD_LABEL[period]} search={search} />
+        <SharedMidTable rows={shared} periodLabel={PERIOD_LABEL[period]} search={search} isSuper={isSuper} toast={triggerToast}
+          onDeleted={() => { clearKhqrCache(); load(); loadStats(); }} />
       )}
 
       {view === 'entries' && (<>
@@ -514,9 +516,13 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
 
 /** (28 Oct 2026) Failed attempts log: every blocked Submit (a QR with another MID), newest first, page by page. */
 const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity: 'ALL' | QrActivity; branchId: string; staffId: string; search: string; reloadKey: number;
-  kind: QrAttemptKind }> = ({
-  from, to, activity, branchId, staffId, search, reloadKey, kind,
+  kind: QrAttemptKind; isSuper: boolean; toast: (m: string) => void; onDeleted: () => void }> = ({
+  from, to, activity, branchId, staffId, search, reloadKey, kind, isSuper, toast, onDeleted,
 }) => {
+  const pick = useRecordSelection();                                 // (4 Nov 2026) Super Admin: delete failed attempts / wrong scans
+  const [delOpen, setDelOpen] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
+  const what = kind === 'WRONG_SCAN' ? 'wrong scans' : 'failed attempts';
   // (30 Oct 2026) two kinds, kept apart: Submit blocked (as before, the default) and Wrong scan (recorded at scan time)
   const [first] = useState(() => getCachedAttempts(attemptsKey({ from, to, activity, branchId: branchId || undefined, staffId: staffId || undefined, search, kind }, 1, 50)));
   const [rows, setRows] = useState<QrAttempt[] | null>(first ? first.rows : null);
@@ -554,7 +560,24 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
     }
   }, [from, to, activity, branchId, staffId, search, kind, page, pageSize]);
   useEffect(() => { load(); }, [load, reloadKey]);
-  return (
+  const pageItems = (rows || []).map((a) => ({ id: a.id, rec: (a.gotMid || a.expectedMid || '#' + a.id) + ' · ' + (a.staffName || a.staffId) }));
+  const pageAll = pageItems.length > 0 && pageItems.every((x) => pick.sel.has(x.id));
+  return (<>
+    {isSuper && pick.sel.size > 0 && <SelectionBar count={pick.sel.size} onClear={pick.clear} onDelete={() => setDelOpen(true)} />}
+    <DeleteRecordsDialog open={delOpen} count={pick.sel.size} what={what} sample={Array.from(pick.sel.values())}
+      note="The KHQR entries themselves are not deleted, only these log records."
+      busy={delBusy} onCancel={() => setDelOpen(false)}
+      onConfirm={async (reason) => {
+        setDelBusy(true);
+        try {
+          const res = await deletePhoneRecords('KHQR_ATTEMPT', Array.from(pick.sel.keys()), reason);
+          pick.clear(); setDelOpen(false);
+          toast(`${res.deleted} ${what} deleted permanently`);
+          onDeleted();
+        } catch (err) {
+          toast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
+        } finally { setDelBusy(false); }
+      }} />
     <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label={kind === 'WRONG_SCAN' ? 'Wrong scans' : 'Failed attempts'}>
       <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200">
         <span className={`w-2 h-2 rounded-full ${kind === 'WRONG_SCAN' ? 'bg-orange-500' : 'bg-rose-500'}`} aria-hidden />
@@ -565,7 +588,12 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
       </div>
       <div className="min-w-[1080px]">
         <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-          <span className="text-right">No.</span>
+          <span className="flex items-center justify-end gap-2">
+            {isSuper && pageItems.length > 0 && (
+              <SelectBox light checked={pageAll} onChange={() => pick.setMany(pageItems, !pageAll)} label={pageAll ? 'Unselect this page' : 'Select this page'} />
+            )}
+            No.
+          </span>
           <span>Time</span>
           <span>Staff</span>
           <span>Branch</span>
@@ -591,8 +619,11 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
         )}
         <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
           {(rows || []).map((a, i) => (
-            <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-rose-50/50`}>
-              <span className="text-right tabular-nums text-slate-500">{pg.start + i + 1}</span>
+            <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[13px] text-slate-700 ${pick.sel.has(a.id) ? 'bg-sky-50/80' : 'hover:bg-rose-50/50'}`}>
+              <span className="flex items-center justify-end gap-2 tabular-nums text-slate-500">
+                {isSuper && <SelectBox checked={pick.sel.has(a.id)} onChange={() => pick.toggle(a.id, pageItems[i].rec)} label={`Select ${what.slice(0, -1)} ${pageItems[i].rec}`} />}
+                {pg.start + i + 1}
+              </span>
               <span className="tabular-nums whitespace-nowrap" title={a.clientAt ? `On the phone: ${stampSecPP(new Date(a.clientAt))}` : undefined}>{stampSecPP(new Date(a.clientAt || a.receivedAt))}</span>
               <span className="leading-tight min-w-0">
                 <span className="block truncate text-slate-900">{a.staffName || a.staffId}</span>
@@ -623,18 +654,38 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
       </div>
       <Pager pg={pg} label={kind === 'WRONG_SCAN' ? 'wrong scans' : 'failed attempts'} />
     </section>
-  );
+  </>);
 };
 
 /** (30 Oct 2026) MIDs entered by two or more different staff on the same day (Phnom Penh time), newest day first. */
-const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string; search: string }> = ({ rows: all, periodLabel, search }) => {
+const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string; search: string; isSuper: boolean; toast: (m: string) => void;
+  onDeleted: () => void }> = ({ rows: all, periodLabel, search, isSuper, toast, onDeleted }) => {
   const [open, setOpen] = useState<string | null>(null);
+  // (4 Nov 2026) Super Admin: tick a whole group (all its entries) or single entries, then delete those KHQR entries
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [delOpen, setDelOpen] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
+  const flip = (ids: string[], on: boolean) => setSel((p) => { const n = new Set(p); ids.forEach((x) => (on ? n.add(x) : n.delete(x))); return n; });
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!all || !q) return all;
     return all.filter((r) => `${r.mid} ${r.merchantName} ${r.branches} ${r.items.map((x) => `${x.staffId} ${x.staffName} ${x.recordId}`).join(' ')}`.toLowerCase().includes(q));
   }, [all, search]);
-  return (
+  return (<>
+    {isSuper && sel.size > 0 && <SelectionBar count={sel.size} onClear={() => setSel(new Set())} onDelete={() => setDelOpen(true)} label="KHQR entries" />}
+    <DeleteRecordsDialog open={delOpen} count={sel.size} what="KHQR entries" sample={Array.from(sel)}
+      busy={delBusy} onCancel={() => setDelOpen(false)}
+      onConfirm={async (reason) => {
+        setDelBusy(true);
+        try {
+          const res = await deletePhoneRecords('KHQR', [], reason, Array.from(sel));
+          setSel(new Set()); setDelOpen(false);
+          toast(`${res.deleted} KHQR entr${res.deleted === 1 ? 'y' : 'ies'} deleted permanently`);
+          onDeleted();
+        } catch (err) {
+          toast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
+        } finally { setDelBusy(false); }
+      }} />
     <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Same MID by two or more staff">
       <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200">
         <Copy className="w-4 h-4 text-violet-600" />
@@ -672,9 +723,16 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
             const t = (iso: string) => stampPP(new Date(iso)).slice(11, 16);
             return (
               <div key={key}>
-                <button type="button" onClick={() => setOpen(isOpen ? null : key)} aria-expanded={isOpen}
-                  className={`${SMGRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-violet-50/50 cursor-pointer`}>
-                  <span className="text-right tabular-nums text-slate-500">{i + 1}</span>
+                <div role="button" tabIndex={0} onClick={() => setOpen(isOpen ? null : key)} aria-expanded={isOpen}
+                  onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setOpen(isOpen ? null : key); } }}
+                  className={`${SMGRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-violet-50/50 cursor-pointer select-none`}>
+                  <span className="flex items-center justify-end gap-2 tabular-nums text-slate-500">
+                    {isSuper && (() => {
+                      const ids = r.items.map((x) => x.recordId), all = ids.every((x) => sel.has(x));
+                      return <SelectBox checked={all} onChange={() => flip(ids, !all)} label={`Select all entries of MID ${r.mid} on ${r.day}`} />;
+                    })()}
+                    {i + 1}
+                  </span>
                   <span className="tabular-nums">{r.day}</span>
                   <span className="font-mono tabular-nums text-slate-900">{r.mid}</span>
                   <span className="truncate">{r.merchantName || '—'}</span>
@@ -684,17 +742,18 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
                   <span className="truncate" title={r.branches}>{r.branches || '—'}</span>
                   <span className="tabular-nums">{t(r.firstAt)} – {t(r.lastAt)}</span>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                </button>
+                </div>
                 {isOpen && (
                   <div className="px-5 pb-3 pt-1 bg-slate-50/60">
                     <table className="w-full text-[12px] text-slate-700">
                       <thead><tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
-                        <th className="py-1.5 pr-3 font-medium">Time</th><th className="py-1.5 pr-3 font-medium">Record ID</th><th className="py-1.5 pr-3 font-medium">Staff</th>
+                        {isSuper && <th className="py-1.5 pr-2 w-8" />}<th className="py-1.5 pr-3 font-medium">Time</th><th className="py-1.5 pr-3 font-medium">Record ID</th><th className="py-1.5 pr-3 font-medium">Staff</th>
                         <th className="py-1.5 pr-3 font-medium">Branch</th><th className="py-1.5 pr-3 font-medium">Activity</th><th className="py-1.5 pr-3 font-medium text-center">QR</th>
                       </tr></thead>
                       <tbody>
                         {r.items.map((x) => (
-                          <tr key={x.recordId + x.at} className="border-t border-slate-200/70">
+                          <tr key={x.recordId + x.at} className={`border-t border-slate-200/70 ${sel.has(x.recordId) ? 'bg-sky-50/80' : ''}`}>
+                            {isSuper && <td className="py-1.5 pr-2"><SelectBox checked={sel.has(x.recordId)} onChange={() => flip([x.recordId], !sel.has(x.recordId))} label={`Select ${x.recordId}`} /></td>}
                             <td className="py-1.5 pr-3 tabular-nums">{stampSecPP(new Date(x.at))}</td>
                             <td className="py-1.5 pr-3 font-mono"><CopyableRecordId id={x.recordId} /></td>
                             <td className="py-1.5 pr-3">{x.staffName || x.staffId} <span className="text-slate-500 font-mono text-[11px]">{x.staffId}</span></td>
@@ -713,7 +772,7 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
         </div>
       </div>
     </section>
-  );
+  </>);
 };
 
 interface BigKpiCardProps {
