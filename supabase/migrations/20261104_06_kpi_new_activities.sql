@@ -157,7 +157,7 @@ begin
 
   -- daily task totals per branch and per staff (5 months)
   with x as (select * from kpi_x k where k.d >= (date_trunc('month', now() at time zone 'Asia/Phnom_Penh')::date - interval '5 months')::date),
-  ex as (select d::text day, branch_id, count(*) n, count(*) filter (where cat = 'POS Terminal') pos_n, count(*) filter (where cat = 'Merchant Visit') mv_n,
+  ex as (select d::text as day, branch_id, count(*) n, count(*) filter (where cat = 'POS Terminal') pos_n, count(*) filter (where cat = 'Merchant Visit') mv_n,
                 count(distinct staff_id) staff_n from x group by 1, 2),
   base as (select e.value obj, e.value->>'day' dy, e.value->>'branch_id' k, e.ordinality o from jsonb_array_elements(coalesce(v->'daily_branch', '[]'::jsonb)) with ordinality e)
   select coalesce(jsonb_agg(
@@ -170,7 +170,7 @@ begin
     from base b full join ex on ex.day = b.dy and ex.branch_id = b.k;
 
   with x as (select * from kpi_x k where k.d >= (date_trunc('month', now() at time zone 'Asia/Phnom_Penh')::date - interval '5 months')::date),
-  ex as (select d::text day, staff_id, count(*) n, count(*) filter (where cat = 'POS Terminal') pos_n, count(*) filter (where cat = 'Merchant Visit') mv_n,
+  ex as (select d::text as day, staff_id, count(*) n, count(*) filter (where cat = 'POS Terminal') pos_n, count(*) filter (where cat = 'Merchant Visit') mv_n,
                 max(staff_name) staff_name, max(branch_id) branch_id, max(branch_text) branch_text from x group by 1, 2),
   base as (select e.value obj, e.value->>'day' dy, e.value->>'staff_id' k from jsonb_array_elements(coalesce(v->'daily_staff', '[]'::jsonb)) e)
   select coalesce(jsonb_agg(
