@@ -10,12 +10,13 @@ import { usePager } from '../utils/usePager';
 import { stampPP, stampSecPP } from '../utils/time';
 import {
   QrActivity, QrAttempt, QrAttemptKind, QrEntry, QrMonthTotal, QrQuery, QrSummary, QR_ACTIVITY_LABEL,
-  fetchQrAttemptsPage, fetchQrSavedBySessions, fetchQrSharedMids, QrSharedMid, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, subscribeToQrEntries,
+  deletePhoneRecords, fetchQrAttemptsPage, fetchQrSavedBySessions, fetchQrSharedMids, QrSharedMid, fetchQrEntriesPage, fetchQrMonthHistory, fetchQrSummary, subscribeToQrEntries,
 } from '../services/supabaseService';
 import {
-  Period, periodRange, attemptsKey, getCachedAttempts, setCachedAttempts, entriesKey, getCachedEntries, setCachedEntries, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory,
+  clearKhqrCache, Period, periodRange, attemptsKey, getCachedAttempts, setCachedAttempts, entriesKey, getCachedEntries, setCachedEntries, getCachedSummary, setCachedSummary, getCachedHistory, setCachedHistory,
 } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
+import { DeleteRecordsDialog, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
 
 /**
  * Phone App Review → KHQR (28 Oct 2026).
@@ -31,7 +32,7 @@ const PERIOD_LABEL: Record<Period, string> = {
 };
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-3 grid-cols-[44px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
+  'grid items-center gap-x-3 grid-cols-[64px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
 const LGRID = 'grid items-center gap-x-3 grid-cols-[36px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
 const SMGRID = 'grid items-center gap-x-3 grid-cols-[36px_96px_150px_minmax(160px,1fr)_70px_minmax(220px,1.6fr)_70px_minmax(140px,1fr)_120px_20px]';
 const HGRID = 'grid items-center gap-x-3 grid-cols-[minmax(150px,1.2fr)_90px_120px_120px_110px_110px_110px_110px]';
@@ -50,6 +51,10 @@ interface Props {
 
 export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const isSuper = role === 'SUPER_ADMIN';                            // (4 Nov 2026) only a Super Admin deletes
+  const pick = useRecordSelection();
+  const [delOpen, setDelOpen] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
   const [period, setPeriod] = useState<Period>('ALL');
   const [activity, setActivity] = useState<'ALL' | QrActivity>('ALL');
   const [branchId, setBranchId] = useState('');
@@ -438,11 +443,35 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
         )}
       </AnimatePresence>
 
+      {isSuper && pick.sel.size > 0 && (
+        <SelectionBar count={pick.sel.size} onClear={pick.clear} onDelete={() => setDelOpen(true)} />
+      )}
+      <DeleteRecordsDialog open={delOpen} count={pick.sel.size} what="KHQR entries" sample={Array.from(pick.sel.values())}
+        note="The failed-attempt log of these entries is kept (it is the audit of wrong scans)."
+        busy={delBusy} onCancel={() => setDelOpen(false)}
+        onConfirm={async (reason) => {
+          setDelBusy(true);
+          try {
+            const res = await deletePhoneRecords('KHQR', Array.from(pick.sel.keys()), reason);
+            pick.clear(); setDelOpen(false); setOpen(null); clearKhqrCache();
+            triggerToast(`${res.deleted} KHQR entr${res.deleted === 1 ? 'y' : 'ies'} deleted permanently`);
+            load(); loadStats();
+          } catch (err) {
+            triggerToast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
+          } finally { setDelBusy(false); }
+        }} />
       {/* Entries */}
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KHQR entries">
         <div className="min-w-[1080px]">
           <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-            <span className="text-right">No.</span>
+            <span className="flex items-center justify-end gap-2">
+              {isSuper && (rows || []).length > 0 && (() => {
+                const items = (rows || []).map((x) => ({ id: x.id, rec: x.recordId }));
+                const all = items.every((i) => pick.sel.has(i.id));
+                return <SelectBox light checked={all} onChange={() => pick.setMany(items, !all)} label={all ? 'Unselect this page' : 'Select this page'} />;
+              })()}
+              No.
+            </span>
             <span>Date Sent</span>
             <span>Activity</span>
             <span>Merchant / MID</span>
@@ -471,7 +500,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
 
           <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
             {(rows || []).map((e, i) => (
-              <QrRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))} />
+              <QrRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))}
+                checked={pick.sel.has(e.id)} onCheck={isSuper ? () => pick.toggle(e.id, e.recordId) : undefined} />
             ))}
           </div>
         </div>
@@ -778,11 +808,13 @@ const BigKpiCard: React.FC<BigKpiCardProps> = ({
   );
 };
 
-const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: number; open: boolean; onToggle: () => void }) {
+const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck }: {
+  e: QrEntry; no: number; open: boolean; onToggle: () => void; checked?: boolean; onCheck?: () => void;
+}) {
   const mapUrl = e.latitude !== null && e.longitude !== null ? `https://www.google.com/maps?q=${e.latitude},${e.longitude}` : '';
   const place = [e.location, e.khan].filter(Boolean).join(' · ');
   return (
-    <div className="hover:bg-slate-50">
+    <div className={checked ? 'bg-sky-50/80' : 'hover:bg-slate-50'}>
       <div
         role="button"
         tabIndex={0}
@@ -796,7 +828,10 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle }: { e: QrEntry; no: n
         aria-expanded={open}
         className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer relative select-none`}
       >
-        <span className="text-right tabular-nums text-slate-500">{no}</span>
+        <span className="flex items-center justify-end gap-2 tabular-nums text-slate-500">
+          {onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}
+          {no}
+        </span>
         <span className="leading-tight min-w-0">
           <span className="block tabular-nums">{fmt(e.submittedAt)}</span>
           <CopyableRecordId id={e.recordId} />

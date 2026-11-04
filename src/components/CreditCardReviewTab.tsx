@@ -9,7 +9,9 @@ import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { usePager } from '../utils/usePager';
 import { stampPP } from '../utils/time';
 import { Period, periodRange } from '../services/khqrCache';
-import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccListKey, getCachedCcList, setCachedCcList, getCachedCcCounts, setCachedCcCounts, patchCachedCcEntry } from '../services/ccService';
+import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccListKey, getCachedCcList, setCachedCcList, getCachedCcCounts, setCachedCcCounts, patchCachedCcEntry, clearCcCache } from '../services/ccService';
+import { deletePhoneRecords } from '../services/supabaseService';
+import { DeleteRecordsDialog, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
 import { CopyableRecordId } from './CopyableRecordId';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
@@ -39,7 +41,7 @@ const REVIEW_TABS: {
 ];
 export const CC_REJECT_REASONS = ['Adverse CBC record', 'Incorrect account number', 'Customer details do not match ID',
   'Missing or unclear documents', 'Credit limit not approved', 'Other'];
-const GRID = 'grid items-center gap-x-4 grid-cols-[42px_145px_minmax(185px,1fr)_110px_120px_minmax(205px,1.25fr)_145px_24px]';
+const GRID = 'grid items-center gap-x-4 grid-cols-[62px_145px_minmax(185px,1fr)_110px_120px_minmax(205px,1.25fr)_145px_24px]';
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
 const usd = (n: number | null) => (n === null ? '—' : `USD ${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`);
 const isMissing = (msg: string) => /cc_list|cc_counts|PGRST20[25]|does not exist|schema cache/i.test(msg);
@@ -55,6 +57,10 @@ interface Props { role: UserRole; branches: Branch[]; triggerToast: (msg: string
 
 export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerToast, onPendingChange }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const isSuper = role === 'SUPER_ADMIN';                            // (4 Nov 2026) only a Super Admin deletes
+  const pick = useRecordSelection();
+  const [delOpen, setDelOpen] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
   const [period, setPeriod] = useState<CcPeriod>('ALL');
   const [review, setReview] = useState<CcReview | ''>('');
   const [branchId, setBranchId] = useState('');
@@ -284,10 +290,34 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
           {masked && <p className="mt-2 text-[11px] text-slate-500">Account numbers are shown masked (last 4 digits). Head Office sees the full numbers.</p>}
         </section>
 
+        {isSuper && pick.sel.size > 0 && (
+          <SelectionBar count={pick.sel.size} onClear={pick.clear} onDelete={() => setDelOpen(true)} />
+        )}
+        <DeleteRecordsDialog open={delOpen} count={pick.sel.size} what="Credit Card entries" sample={Array.from(pick.sel.values())}
+          note="Any review reply still waiting to be posted in the staff group is cancelled."
+          busy={delBusy} onCancel={() => setDelOpen(false)}
+          onConfirm={async (reason) => {
+            setDelBusy(true);
+            try {
+              const res = await deletePhoneRecords('CC', Array.from(pick.sel.keys()), reason);
+              pick.clear(); setDelOpen(false); setOpen(null); clearCcCache();
+              triggerToast(`${res.deleted} Credit Card entr${res.deleted === 1 ? 'y' : 'ies'} deleted permanently`);
+              refresh();
+            } catch (err) {
+              triggerToast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
+            } finally { setDelBusy(false); }
+          }} />
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Credit Card entries">
           <div className="min-w-[1060px]">
             <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2`} role="row">
-              <span className="text-center font-bold">No.</span>
+              <span className="flex items-center justify-center gap-2 font-bold">
+                {isSuper && (rows || []).length > 0 && (() => {
+                  const items = (rows || []).map((x) => ({ id: x.id, rec: x.recordId }));
+                  const all = items.every((i) => pick.sel.has(i.id));
+                  return <SelectBox light checked={all} onChange={() => pick.setMany(items, !all)} label={all ? 'Unselect this page' : 'Select this page'} />;
+                })()}
+                No.
+              </span>
               <span>Date Sent</span>
               <span>Customer / Request</span>
               <span className="text-right">Limit</span>
@@ -315,7 +345,8 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
             <div data-page-content className="divide-y divide-slate-200/90">
               {(rows || []).map((e, i) => (
                 <CcRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))}
-                  canReview={isAdmin} onReviewed={onReviewed} toast={triggerToast} />
+                  canReview={isAdmin} onReviewed={onReviewed} toast={triggerToast}
+                  checked={pick.sel.has(e.id)} onCheck={isSuper ? () => pick.toggle(e.id, e.recordId) : undefined} />
               ))}
             </div>
           </div>
@@ -372,9 +403,9 @@ const CardCountCell: React.FC<{
   );
 };
 
-const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed, toast }: {
+const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed, toast, checked, onCheck }: {
   e: CcEntry; no: number; open: boolean; onToggle: () => void; canReview: boolean;
-  onReviewed: (recordId: string, next: Partial<CcEntry>) => void; toast: (m: string) => void;
+  onReviewed: (recordId: string, next: Partial<CcEntry>) => void; toast: (m: string) => void; checked?: boolean; onCheck?: () => void;
 }) {
   const supp = e.requestType === 'Add Supplementary Only';
   const cards = (supp ? 0 : e.cardStatus === 'Onboarded Successfully' ? 1 : 0) + e.supplementary.length;
@@ -403,7 +434,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
   };
 
   return (
-    <div className="hover:bg-slate-50/70">
+    <div className={checked ? "bg-sky-50/80" : "hover:bg-slate-50/70"}>
       <div
         role="button"
         tabIndex={0}
@@ -417,7 +448,10 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
         aria-expanded={open}
         className={`${GRID} w-full text-left px-4 py-3 text-[13px] text-slate-700 cursor-pointer select-none transition-colors duration-150`}
       >
-        <span className="text-center tabular-nums text-slate-400 font-mono text-xs">{no}</span>
+        <span className="flex items-center justify-center gap-2 tabular-nums text-slate-400 font-mono text-xs">
+          {onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}
+          {no}
+        </span>
         <span className="leading-tight min-w-0">
           <span className="block tabular-nums font-medium text-slate-800">{fmt(e.submittedAt)}</span>
           <CopyableRecordId id={e.recordId} onCopied={(id) => toast(`Copied Record ID: ${id}`)} />
