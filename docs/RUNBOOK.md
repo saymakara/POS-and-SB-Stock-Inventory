@@ -4,7 +4,7 @@ Owner: Makara, Merchant Support (ABA Bank). Internal use. Last reviewed 29 Oct 2
 
 ## 1. Before every release
 1. `npm run typecheck` must show no errors (the GitHub deploy also runs it and stops if it fails).
-2. `npm run build`, then the end-to-end tests described in `CLAUDE.md`.
+2. `npm run build`, then the end-to-end tests described in `README.md` (section Tests).
 3. Run any new SQL in the Supabase SQL editor FIRST, then push the code that needs it.
 
 ## 2. Roll back a bad release (about 5 minutes)

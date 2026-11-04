@@ -322,7 +322,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, 'dist');
+    const distPath = path.join(__dirname, '..', 'dist');   // (the repository root's dist/)
     // 1-year immutable cache for hashed bundles in /assets/
     app.use('/assets', express.static(path.join(distPath, 'assets'), { maxAge: '1y', immutable: true }));
     // General static files with 1-day cache; index.html and sw.js must revalidate

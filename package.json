@@ -4,11 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
-    "start": "tsx server.ts",
+    "dev": "tsx scripts/dev-server.ts",
+    "start": "tsx scripts/dev-server.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
   },

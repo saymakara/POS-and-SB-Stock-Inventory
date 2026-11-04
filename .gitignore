@@ -10,3 +10,7 @@ coverage/
 .vercel
 .antigravity/
 .aistudio/
+
+# editor settings stay on each computer
+.vscode/
+.idea/
