@@ -92,4 +92,4 @@ Rollback and backup steps: [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Change history:
 
 ## License
 
-Proprietary — ABA Bank internal use. All rights reserved.
+Proprietary — Personal use. All rights reserved.
