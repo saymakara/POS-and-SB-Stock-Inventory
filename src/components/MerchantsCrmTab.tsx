@@ -1,4 +1,5 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
+import { MerchantKitCard } from './MerchantKitCard';
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
 import { useSort, SortTh } from '../utils/sort';
@@ -1700,6 +1701,9 @@ return (
                     })}
                   </div>
                 </div>
+
+                {/* (5 Nov 2026) What the merchant holds with each unit: SIM, battery, adaptor, stand, dock */}
+                <MerchantKitCard devices={selectedMerchantProfile.devices} role={role} />
               </div>
             </motion.div>
           </div>

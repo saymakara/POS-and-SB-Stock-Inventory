@@ -59,6 +59,8 @@ interface InventoryTabProps {
   onStageFilterChange: (s: string) => void;
   typeFilter: string;
   onTypeFilterChange: (t: string) => void;
+  /** (5 Nov 2026) on the POS Terminal / Sound Box pages the product is fixed: the type list is hidden */
+  lockType?: boolean;
   branchFilter: string;
   onBranchFilterChange: (b: string) => void;
   onSelectDevice: (sn: string) => void;
@@ -100,6 +102,7 @@ interface InventoryTabProps {
 }
 
 export const InventoryTab: React.FC<InventoryTabProps> = ({
+  lockType,
   devices,
   allDevices = [],
   branches,
@@ -709,7 +712,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             </select>
           </div>
 
-          <select
+          {!lockType && <select
             value={typeFilter}
             onChange={(e) => {
               onTypeFilterChange(e.target.value);
@@ -720,7 +723,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             <option value="ALL">All Hardware Types</option>
             <option value="POS Terminal">POS Terminal (Wizar POS Q2 Pro)</option>
             <option value="Sound Box">Sound Box (QR Audio)</option>
-          </select>
+          </select>}
 
           <select
             value={midDeviceFilter}
@@ -775,9 +778,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           )}
           <div className="sm:col-span-2 md:col-span-3 lg:col-span-6 flex justify-end">
             <ClearFiltersButton
-              active={!!searchQuery || stageFilter !== 'ALL' || typeFilter !== 'ALL' || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}
+              active={!!searchQuery || stageFilter !== 'ALL' || (!lockType && typeFilter !== 'ALL') || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}
               onClear={() => {
-                onSearchChange(''); onStageFilterChange('ALL'); onTypeFilterChange('ALL');
+                onSearchChange(''); onStageFilterChange('ALL'); if (!lockType) onTypeFilterChange('ALL');
                 if (isAdminLike) onBranchFilterChange('ALL');
                 setBatteryFilter('ALL'); setMidDeviceFilter('ALL'); setCurrentPage(1);
               }}

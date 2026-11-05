@@ -42,6 +42,8 @@ import {
   Volume2,
   QrCode,
   CreditCard,
+  CardSim,
+  ClipboardCheck,
   ClipboardList,
   Trophy,
 } from 'lucide-react';
@@ -49,7 +51,9 @@ import { formatBranchName, fmtNum } from '../utils/format';
 import { prefetchKpi } from '../services/kpiService';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */
-export type ReviewCounts = { pos: number; sb: number; cc?: number };
+/** (5 Nov 2026) the Stock Inventory pages (the phone's "Stock" button stays lit on all of them) */
+const STOCK_TABS = ['inventory', 'inventory_pos', 'inventory_sb', 'sim_cards', 'material_count'];
+export type ReviewCounts = { pos: number; sb: number; cc?: number; lostPos?: number; lostSb?: number; lostSim?: number };
 
 interface SidebarProps {
   role?: UserRole;
@@ -137,9 +141,17 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       heading: 'OPERATIONS & GOVERNANCE',
       items: [
         {
+          // (5 Nov 2026) the heading opens all units (both products, as before); below it one page per product
+          // (units + its materials), SIM cards and the monthly count
           id: 'inventory',
           label: 'Stock Inventory',
           icon: Boxes,
+          children: [
+            { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.lostPos || undefined },
+            { id: 'inventory_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-[#a2a5e0]', count: reviewCounts?.lostSb || undefined },
+            { id: 'sim_cards', label: 'SIM Card', icon: CardSim, iconColor: 'text-emerald-300', count: reviewCounts?.lostSim || undefined },
+            { id: 'material_count', label: 'Monthly Count', icon: ClipboardCheck, iconColor: 'text-sky-300' },
+          ],
         },
         {
           id: 'push_configuring',
@@ -250,7 +262,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               <div className="flex flex-col gap-1 relative">
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const childActive = !!item.children?.some((c) => c.id === activeTab);
+                  const childActive = !!item.children?.some((c) => c.id === activeTab) ;
                   const showChildren = !!item.children && (isMobileView || !collapsed);
                   const isActive = showChildren ? false : (activeTab === item.id || childActive);
 
@@ -637,10 +649,10 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   const reviewActive = activeTab.startsWith('mobile_sync');
   const bottomTabs: { id: string; label: string; icon: React.ElementType; active: boolean; dot?: boolean; onTap: () => void }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, active: activeTab === 'dashboard', onTap: () => onSelectTab('dashboard') },
-    { id: 'inventory', label: 'Stock', icon: Boxes, active: activeTab === 'inventory', onTap: () => onSelectTab('inventory') },
+    { id: 'inventory', label: 'Stock', icon: Boxes, active: STOCK_TABS.includes(activeTab), onTap: () => onSelectTab('inventory') },
     { id: 'requisitions', label: 'Requests', icon: ScrollText, active: activeTab === 'requisitions', dot: unreadCount > 0, onTap: () => onSelectTab('requisitions') },
     { id: 'mobile_sync', label: 'Review', icon: Smartphone, active: reviewActive, onTap: () => onSelectTab(reviewActive ? activeTab : 'mobile_sync') },
-    { id: 'more', label: 'More', icon: Menu, active: !['dashboard', 'inventory', 'requisitions'].includes(activeTab) && !reviewActive, onTap: () => setDrawerOpen(true) },
+    { id: 'more', label: 'More', icon: Menu, active: !['dashboard', 'requisitions'].includes(activeTab) && !STOCK_TABS.includes(activeTab) && !reviewActive, onTap: () => setDrawerOpen(true) },
   ];
 
   return (

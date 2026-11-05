@@ -168,6 +168,8 @@ function mapRowToRequisition(row: any): Requisition {
     rejectReason: row.reject_reason || undefined,
     rejectedBy: row.rejected_by || undefined,
     rejectedAt: row.rejected_at || undefined,
+    materials: row.materials && typeof row.materials === 'object' ? row.materials : {},
+    materialsSent: row.materials_sent && typeof row.materials_sent === 'object' ? row.materials_sent : {},
   };
 }
 
@@ -188,6 +190,8 @@ function mapRequisitionToRow(req: Requisition): any {
     arranged_devices: req.arrangedDevices || [],
     type: req.type || 'STOCK_REQUEST',
     return_serials: req.returnSerials || [],
+    // (5 Nov 2026) sent only when materials were requested, so a request without materials also saves before the migration
+    ...(req.materials && Object.keys(req.materials).length ? { materials: req.materials } : {}),
   };
 }
 
@@ -1225,6 +1229,23 @@ export async function dispatchRequisitionOnServer(
   } catch (err) {
     await reportCaughtError('dispatchRequisitionOnServer', err, { target: reqId });
     throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
+/** (5 Nov 2026) Dispatch devices and materials together (all or nothing): admin_dispatch_request. */
+export async function dispatchRequestWithMaterialsOnServer(
+  reqId: string,
+  serials: string[],
+  materials: { qty: Record<string, number>; serials: Record<string, string[]> },
+  note?: string
+): Promise<ArrangedDeviceItem[]> {
+  try {
+    const { data, error } = await supabase.rpc('admin_dispatch_request', { p: { req_id: reqId, serials, note: note || null, materials } });
+    if (error) throw error;
+    return (data && data.arranged) || [];
+  } catch (err) {
+    await reportCaughtError('dispatchRequestWithMaterialsOnServer', err, { target: reqId });
+    throw new Error(String((err as any)?.message || err).replace(/^(INPUT|STOCK|KIT): /, ''));
   }
 }
 

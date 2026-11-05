@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { MATERIALS } from '../services/materialsService';
 import { Branch, ThemeMode, UserRole } from '../types';
 import { deduplicateStaffList } from '../utils/staffUtils';
 import {
@@ -33,6 +34,8 @@ interface RequestStockModalProps {
     posQty: number;
     sbQty: number;
     reason: string;
+    /** (5 Nov 2026) materials requested with the units: {SIM: 10, POS_ADAPTOR: 5, …} (only quantities above 0) */
+    materials?: Record<string, number>;
   }) => void;
   theme?: ThemeMode;
   /** Signed-in role (from the server). BRANCH users can only request for their own branch, as themselves. */
@@ -57,6 +60,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
   const [selectedStaff, setSelectedStaff] = useState('');
   const [posQty, setPosQty] = useState(0);
   const [sbQty, setSbQty] = useState(0);
+  const [mats, setMats] = useState<Record<string, string>>({});
   const [reason, setReason] = useState(
     'Branch reserve stock replenishment for merchant deployment & installation'
   );
@@ -87,12 +91,15 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
       // Quantities start at zero each time: the branch states what it needs.
       setPosQty(0);
       setSbQty(0);
+      setMats({});
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   const totalQty = posQty + sbQty;
+  const matList = MATERIALS.map((m) => ({ ...m, n: Math.max(0, Math.min(5000, Math.floor(Number(mats[m.code]) || 0))) })).filter((m) => m.n > 0);
+  const matTotal = matList.reduce((a, m) => a + m.n, 0);
   const formError = !effectiveBranchId || !currentBranch || effectiveBranchId === '100'
     ? isAdmin
       ? 'Choose the requesting branch.'
@@ -101,8 +108,8 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
     ? isAdmin
       ? 'Choose the requesting branch staff officer.'
       : 'Your signed-in name is missing. Please sign out and sign in again.'
-    : totalQty <= 0
-    ? 'Request at least one unit.'
+    : totalQty + matTotal <= 0
+    ? 'Request at least one unit or material.'
     : '';
 
   const handleProceedToPreview = (e: React.FormEvent) => {
@@ -119,6 +126,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
       posQty,
       sbQty,
       reason: reason.trim() || 'Branch reserve stock replenishment',
+      materials: Object.fromEntries(matList.map((m) => [m.code, m.n])),
     });
     onClose();
   };
@@ -493,6 +501,32 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 </div>
               </div>
 
+              {/* (5 Nov 2026) Materials kept at the branch for installations, replacements and add-ons */}
+              <div className="flex flex-col gap-1.5">
+                <span className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <span>Materials for branch reserve</span>
+                  <span className="text-[10px] text-slate-400 font-medium">optional · quantities</span>
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {MATERIALS.map((m) => (
+                    <label key={m.code} className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 ${isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#181c26] border-slate-700/80'}`}>
+                      <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-tight">{m.name}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={5000}
+                        inputMode="numeric"
+                        value={mats[m.code] ?? ''}
+                        onChange={(e) => setMats((x) => ({ ...x, [m.code]: e.target.value }))}
+                        placeholder="0"
+                        aria-label={`${m.name} quantity`}
+                        className={`w-16 rounded-lg px-2 py-1 text-right text-xs font-bold border focus:outline-none ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-black/30 border-slate-700 text-white'}`}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               {/* Field 4: Request Note / Purpose */}
               <div className="flex flex-col gap-1.5">
                 <label className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -548,7 +582,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 }`}
               >
                 <div className="flex flex-col gap-0.5 text-[11px] font-mono font-bold text-[#1e5b88] dark:text-sky-300">
-                  <span>Staging {posQty} POS &amp; {sbQty} Sound Box</span>
+                  <span>Staging {posQty} POS &amp; {sbQty} Sound Box{matTotal ? ` + ${matTotal} material(s)` : ''}</span>
                   {formError && (
                     <span role="alert" className="font-sans text-[11px] text-rose-600 dark:text-rose-400">
                       {formError}
@@ -632,6 +666,12 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     {sbQty} unit(s)
                   </span>
                 </div>
+                {matList.length > 0 && (
+                  <div className="p-3 flex items-start justify-between gap-3">
+                    <span className="text-slate-500 font-medium">Materials:</span>
+                    <span className="font-bold text-right">{matList.map((m) => `${m.name} × ${m.n}`).join(' · ')}</span>
+                  </div>
+                )}
                 <div className="p-3 flex items-center justify-between bg-slate-100/60 dark:bg-black/20 font-bold">
                   <span>Total Units to Dispatch:</span>
                   <span className="font-mono text-sm text-[#1e5b88] dark:text-sky-300">
