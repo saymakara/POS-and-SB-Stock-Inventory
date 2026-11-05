@@ -683,7 +683,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-          className={`relative w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden ${
+          className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden ${
             isLight
               ? 'bg-white text-slate-800'
               : 'bg-[#12151e] text-slate-100'
@@ -742,7 +742,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 : 'bg-[#151922] border-slate-800 text-slate-300'
             }`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setModalStep('EDIT')}
@@ -755,10 +755,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 <span className="w-3.5 h-3.5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">
                   1
                 </span>
-                <span>Configure &amp; Edit Details</span>
+                <span>Configure</span>
               </button>
 
-              <ArrowRight className="w-3 h-3 text-slate-400" />
+              <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
 
               <button
                 type="button"
@@ -777,13 +777,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 <span className="w-3.5 h-3.5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">
                   2
                 </span>
-                <span>Impact Review &amp; Before/After Diff</span>
+                <span>Impact Review</span>
               </button>
             </div>
 
-            <div className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            <div className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 shrink-0">
               <ShieldCheck className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
-              <span>Double-Step Safeguard Active</span>
+              <span>Safeguard Active</span>
             </div>
           </div>
 
@@ -920,7 +920,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               )}
 
               {/* Form Body */}
-              <form onSubmit={handleSubmit} className="flex-1 p-3.5 sm:p-5 flex flex-col gap-3 overflow-y-auto min-h-0 custom-scrollbar">
+              <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3 overflow-y-auto min-h-0 custom-scrollbar">
             {/* Section 0: Admin Serial Number Correction */}
             {isAdminLike && onRenameSerial && (
               <div className={`p-2 sm:px-3 sm:py-1.5 rounded-xl border transition-colors shrink-0 ${
@@ -931,13 +932,11 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     <div className="w-6 h-6 rounded-md bg-sky-100 text-[#003857] dark:bg-sky-950/60 dark:text-sky-300 flex items-center justify-center shrink-0">
                       <Pencil className="w-3 h-3" />
                     </div>
-                    <div className="flex items-baseline gap-2">
-                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">
                         Hardware Serial Correction
                       </h4>
-                      <span className="text-[11px] text-slate-400 hidden sm:inline">
-                        (Super Admin / Admin typo correction)
-                      </span>
+                      <p className="text-[10px] text-slate-400">Typo correction for Super Admin</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -987,7 +986,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             )}
 
             {/* Sections 1 & 2: Lifecycle Custody & Field Staff in 2 Columns */}
-            <div className={returnMode ? '' : 'grid grid-cols-1 md:grid-cols-2 gap-2.5'}>
+            <div className="flex flex-col gap-3">
               {/* Section 1: Lifecycle & Branch Assignment */}
               <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
                 isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
@@ -1316,9 +1315,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 )}
 
                 <fieldset disabled={merchantLocked} className="contents">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
                     {/* Merchant Name */}
-                    <div className="flex flex-col gap-1 sm:col-span-1">
+                    <div className="flex flex-col gap-1 sm:col-span-2">
                       <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
                         <Store className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
                         <span>Merchant Name</span>
@@ -1650,10 +1649,12 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               />
             </div>
 
-            {/* Footer */}
+                </div>
+
+            {/* Pinned Action Footer Bar */}
             <div
-              className={`mt-auto flex items-center justify-end gap-2 pt-3 border-t shrink-0 ${
-                isLight ? 'border-slate-200' : 'border-slate-800'
+              className={`shrink-0 px-4 py-3 sm:px-5 sm:py-3.5 border-t flex items-center justify-between gap-3 ${
+                isLight ? 'bg-slate-50/95 border-slate-200' : 'bg-[#151922]/95 border-slate-800'
               }`}
             >
               {(role === 'SUPER_ADMIN' || role === 'ADMIN') && onDeletePermanently && device && (
@@ -1696,7 +1697,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       ) : (
         /* STEP 2: IMPACT PREVIEW & BEFORE/AFTER DIFF CONFIRMATION */
         pendingPayload && (
-          <div className="flex-1 p-3.5 sm:p-5 flex flex-col gap-3 overflow-y-auto min-h-0 custom-scrollbar">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3 overflow-y-auto min-h-0 custom-scrollbar">
             {/* Impact Notice Alert Banner */}
             <div
               className={`p-3 rounded-xl border flex items-start gap-2.5 ${
@@ -1720,7 +1722,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             </div>
 
             {/* Before vs After Diff Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-3">
               {/* Left Column: Live Record (Before) */}
               <div
                 className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${
@@ -2061,10 +2063,12 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               </div>
             </div>
 
-            {/* Preview Footer Actions */}
+            </div>
+
+            {/* Pinned Action Footer Bar */}
             <div
-              className={`mt-auto flex items-center justify-between gap-3 pt-3 border-t shrink-0 ${
-                isLight ? 'border-slate-200' : 'border-slate-800/80'
+              className={`shrink-0 px-4 py-3 sm:px-5 sm:py-3.5 border-t flex items-center justify-between gap-3 ${
+                isLight ? 'bg-slate-50/95 border-slate-200' : 'bg-[#151922]/95 border-slate-800'
               }`}
             >
               <motion.button
