@@ -1,7 +1,7 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
   Search, RefreshCw, Loader2, PackagePlus, PencilLine, CreditCard, Download,
-  Cpu, Volume2, Layers, Filter, CheckCircle2, ArrowRightLeft
+  Cpu, Volume2, Layers
 } from 'lucide-react';
 import { Branch, UserRole, Device } from '../types';
 import { Pager } from './Pager';

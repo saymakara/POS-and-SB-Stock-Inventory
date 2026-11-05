@@ -34,7 +34,6 @@ import {
   AlertTriangle,
   Sparkles,
   FileText,
-  Search,
   SearchX,
   ArrowRight,
   ArrowLeft,

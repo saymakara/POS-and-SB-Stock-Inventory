@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, CheckSquare, Loader2, Square, Trash2, X, Check } from 'lucide-react';
+import { AlertTriangle, Loader2, Trash2, X, Check } from 'lucide-react';
 
 /**
  * Phone App Review (4 Nov 2026): confirm a permanent delete. The Super Admin types DELETE; an optional reason goes to the
