@@ -219,6 +219,8 @@ const VALID_TABS = new Set([
 
 const HIDE_STAGE_HEADER_TABS = new Set([
   'kpi_performance',
+  'mobile_sync',       // (5 Nov 2026) POS / Sound Box review: own header with the phone app figures, like KHQR
+  'mobile_sync_sb',
   'sim_cards',
   'merchants',
   'merchant_history',
@@ -1956,10 +1958,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return () => clearTimeout(timer);
   }, [deferredSearchQuery, serverDeviceTotal, shownTab, role, selectedBranch, branchFilter, handleFetchInventoryPage]);
 
-  // (5 Nov 2026) on the POS Terminal and Sound Box pages (Stock Inventory and Phone App Review) the stock strip counts
+  // (5 Nov 2026) on the POS Terminal and Sound Box stock pages the stock strip counts
   // that product only; elsewhere both products together
   const productType: 'POS Terminal' | 'Sound Box' | null =
-    shownTab === 'inventory_pos' || shownTab === 'mobile_sync' ? 'POS Terminal' : shownTab === 'inventory_sb' || shownTab === 'mobile_sync_sb' ? 'Sound Box' : null;
+    shownTab === 'inventory_pos' ? 'POS Terminal' : shownTab === 'inventory_sb' ? 'Sound Box' : null;
   const pipelineCounts = useMemo(() => {
     if (serverStageSummary && productType) {
       const n = (st: keyof typeof serverStageSummary.byStage) => {

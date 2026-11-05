@@ -228,7 +228,7 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   await side.getByRole('group', { name: 'Phone App Review sections' }).getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1500);
   let body = await p.textContent('main');
   ok((/Phone App Review\s*·\s*POS Terminal/.test(body) || /POS Terminal/.test(body)) && /WP0001/.test(body) && !/SB0001/.test(body), 'POS Terminal: POS records only');
-  ok(await p.isVisible('text=Admin HQ Stock'), 'stock cards still shown on the other pages');
+  ok(!(await p.isVisible('.kpi-strip')) && await p.isVisible('text=Waiting review'), 'POS Terminal review: its own header with the phone app figures (like KHQR), no stock cards');
   await side.getByRole('group', { name: 'Phone App Review sections' }).getByRole('button', { name: /^Sound Box/ }).click(); await sleep(1200);
   body = await p.textContent('main');
   ok((/Phone App Review\s*·\s*Sound Box/.test(body) || /Sound Box/.test(body)) && /SB0001/.test(body) && !/WP0001/.test(body), 'Sound Box: Sound Box records only');
