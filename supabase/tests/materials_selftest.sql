@@ -25,6 +25,12 @@ declare
 begin
   -- test data -----------------------------------------------------------------------------------------------------
   insert into public.branches (id, name, code) values ('905', 'Test Branch 905', '905'), ('906', 'Test Branch 906', '906') on conflict do nothing;
+  -- staff profiles belong to a login account (rolled back with everything else)
+  if to_regclass('auth.users') is not null then
+    execute 'insert into auth.users (id, aud, role, email) values ($1, ''authenticated'', ''authenticated'', ''t-adm@test.invalid''),
+               ($2, ''authenticated'', ''authenticated'', ''t-905@test.invalid''), ($3, ''authenticated'', ''authenticated'', ''t-906@test.invalid'') on conflict (id) do nothing'
+      using a, b, c;
+  end if;
   insert into public.staff_profiles (user_id, emp_id, name, role, branch_id, active, must_change_password) values
     (a, 'T-ADM', 'TEST Admin', 'ADMIN', '100', true, false),
     (b, 'T-905', 'TEST Staff905', 'BRANCH', '905', true, false),
