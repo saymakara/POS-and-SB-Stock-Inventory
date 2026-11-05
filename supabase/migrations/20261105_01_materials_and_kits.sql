@@ -728,27 +728,28 @@ end $$;
 
 -- 6. Stock Requests carry materials ----------------------------------------------------------------------------------
 -- Materials move only through dispatch and receipt; a branch may change the requested quantities while pending.
+-- (literals pass through replace(..., chr(13), ''): the script works when pasted with Windows line endings)
 do $do$
 declare v_def text; v_new text;
 begin
-  v_def := pg_get_functiondef('app.requisitions_guard()'::regprocedure);
+  v_def := replace(pg_get_functiondef('app.requisitions_guard()'::regprocedure), chr(13), '');
   if position('materials_sent' in v_def) > 0 then return; end if;   -- already patched (migration run twice)
   v_new := replace(v_def,
-    $a$    new.arranged_devices := '[]'::jsonb;$a$,
-    $a$    new.arranged_devices := '[]'::jsonb;
-    new.materials_sent := '{}'::jsonb;$a$);
+    replace($a$    new.arranged_devices := '[]'::jsonb;$a$, chr(13), ''),
+    replace($a$    new.arranged_devices := '[]'::jsonb;
+    new.materials_sent := '{}'::jsonb;$a$, chr(13), ''));
   v_new := replace(v_new,
-    $a$     or new.branch_id is distinct from old.branch_id then$a$,
-    $a$     or new.branch_id is distinct from old.branch_id or new.materials_sent is distinct from old.materials_sent then$a$);
+    replace($a$     or new.branch_id is distinct from old.branch_id then$a$, chr(13), ''),
+    replace($a$     or new.branch_id is distinct from old.branch_id or new.materials_sent is distinct from old.materials_sent then$a$, chr(13), ''));
   v_new := replace(v_new,
-    $a$      or new.reason is distinct from old.reason or new.staff is distinct from old.staff) then$a$,
-    $a$      or new.reason is distinct from old.reason or new.staff is distinct from old.staff or new.materials is distinct from old.materials) then$a$);
+    replace($a$      or new.reason is distinct from old.reason or new.staff is distinct from old.staff) then$a$, chr(13), ''),
+    replace($a$      or new.reason is distinct from old.reason or new.staff is distinct from old.staff or new.materials is distinct from old.materials) then$a$, chr(13), ''));
   v_new := replace(v_new,
-    $a$    if coalesce(new.pos_qty, 0) + coalesce(new.sb_qty, 0) <= 0 then
-      raise exception 'Enter at least one POS Terminal or Sound Box.' using errcode = '22023';$a$,
-    $a$    if coalesce(new.pos_qty, 0) + coalesce(new.sb_qty, 0)
+    replace($a$    if coalesce(new.pos_qty, 0) + coalesce(new.sb_qty, 0) <= 0 then
+      raise exception 'Enter at least one POS Terminal or Sound Box.' using errcode = '22023';$a$, chr(13), ''),
+    replace($a$    if coalesce(new.pos_qty, 0) + coalesce(new.sb_qty, 0)
        + coalesce((select sum(greatest((x.value)::int, 0)) from jsonb_each_text(coalesce(new.materials, '{}'::jsonb)) x where x.value ~ '^\d+$'), 0) <= 0 then
-      raise exception 'Enter at least one POS Terminal, Sound Box or material.' using errcode = '22023';$a$);
+      raise exception 'Enter at least one POS Terminal, Sound Box or material.' using errcode = '22023';$a$, chr(13), ''));
   if v_new = v_def or position('new.materials_sent := ' in v_new) = 0 or position('or new.materials is distinct from old.materials' in v_new) = 0
      or position('or material.' in v_new) = 0 then
     raise exception 'requisitions_guard has changed since this migration was written: not patched.';
@@ -787,17 +788,17 @@ end $$;
 revoke all on function app.material_receive(text, text) from public, anon, authenticated;
 
 do $do$
-declare f text; v_def text; v_new text; v_anchor text := $a$  update public.requisitions set status = 'RECEIVED' where req_id = r.req_id;$a$;
+declare f text; v_def text; v_new text; v_anchor text := replace($a$  update public.requisitions set status = 'RECEIVED' where req_id = r.req_id;$a$, chr(13), '');
 begin
   foreach f in array array['public.branch_confirm_receipt(text)', 'public.mv_req_confirm(jsonb)'] loop
-    v_def := pg_get_functiondef(f::regprocedure);
+    v_def := replace(pg_get_functiondef(f::regprocedure), chr(13), '');
     if position(v_anchor in v_def) = 0 then raise exception '% has changed since this migration was written: not patched.', f; end if;
     if position('app.material_receive' in v_def) > 0 then continue; end if;
     v_new := replace(v_def, v_anchor,
       case when f like 'public.branch_confirm_receipt%'
-           then $a$  perform app.material_receive(r.req_id, coalesce(app.label(), 'staff'));
-$a$ else $a$  perform app.material_receive(r.req_id, v_by || ' (Merchant Visit app)');
-$a$ end || v_anchor);
+           then replace($a$  perform app.material_receive(r.req_id, coalesce(app.label(), 'staff'));
+$a$, chr(13), '') else replace($a$  perform app.material_receive(r.req_id, v_by || ' (Merchant Visit app)');
+$a$, chr(13), '') end || v_anchor);
     execute v_new;
   end loop;
 end $do$;
