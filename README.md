@@ -1,6 +1,6 @@
 # In-Store Management Portal
 
-Stock control and merchant deployment management for ABA Bank Merchant Support: POS Terminals, Sound Boxes and KHQR,
+Stock control and merchant deployment management for POS Terminals, Sound Boxes and KHQR,
 with review of the field work sent from the Merchant Visit app.
 
 [![Deploy to GitHub Pages](https://github.com/saymakara/POS-and-SB-Stock-Inventory/actions/workflows/deploy.yml/badge.svg)](https://github.com/saymakara/POS-and-SB-Stock-Inventory/actions/workflows/deploy.yml)
