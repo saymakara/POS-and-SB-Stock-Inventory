@@ -1,6 +1,9 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useSort, SortTh } from '../utils/sort';
+import { useKeptMemo } from '../utils/useKeptMemo';
+import { isFresh } from '../utils/freshness';
+import { getCachedDevicePage, setCachedDevicePage, makeDevicePageKey } from '../services/inventoryCache';
 import {
   Device,
   Branch,
@@ -152,8 +155,19 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   const [midDeviceFilter, setMidDeviceFilter] = useState<'ALL' | 'SINGLE' | 'MULTIPLE'>('ALL');
   const [rowsPerPage, setRowsPerPage] = useState<number>(50);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [serverPageRows, setServerPageRows] = useState<Device[] | null>(null);
-  const [serverMatchedTotal, setServerMatchedTotal] = useState<number | null>(null);
+  const effectiveBranch = role === 'BRANCH' ? selectedBranch : branchFilter;
+  const pageCacheKey = useMemo(() => makeDevicePageKey({
+    page: currentPage,
+    pageSize: rowsPerPage,
+    stage: stageFilter,
+    type: typeFilter,
+    branchId: effectiveBranch,
+    search: searchQuery,
+    archived: showArchivedView,
+  }), [currentPage, rowsPerPage, stageFilter, typeFilter, effectiveBranch, searchQuery, showArchivedView]);
+
+  const [serverPageRows, setServerPageRows] = useState<Device[] | null>(() => getCachedDevicePage(pageCacheKey)?.rows ?? null);
+  const [serverMatchedTotal, setServerMatchedTotal] = useState<number | null>(() => getCachedDevicePage(pageCacheKey)?.total ?? null);
 
   const isServerPaginated = Boolean(
     onFetchServerPage && typeof serverTotalDevices === 'number' && serverTotalDevices > 10000 && allDevices.length < serverTotalDevices / 2
@@ -166,8 +180,13 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       setServerMatchedTotal(null);
       return;
     }
+    const hit = getCachedDevicePage(pageCacheKey);
+    if (hit) {
+      setServerPageRows(hit.rows);
+      setServerMatchedTotal(hit.total);
+      if (isFresh('inv:p:' + pageCacheKey, 60000)) return;
+    }
     let cancelled = false;
-    const effectiveBranch = role === 'BRANCH' ? selectedBranch : branchFilter;
     const timer = setTimeout(() => {
       onFetchServerPage({
         page: currentPage,
@@ -181,6 +200,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
         if (!cancelled && res) {
           setServerPageRows(res.rows);
           setServerMatchedTotal(res.total);
+          setCachedDevicePage(pageCacheKey, res);
         }
       });
     }, searchQuery.trim() ? 180 : 0);
@@ -192,13 +212,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   }, [
     isServerPaginated,
     onFetchServerPage,
+    pageCacheKey,
     currentPage,
     rowsPerPage,
     stageFilter,
     typeFilter,
-    branchFilter,
-    selectedBranch,
-    role,
+    effectiveBranch,
     searchQuery,
     showArchivedView,
   ]);
@@ -215,12 +234,14 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     return c;
   }, [devices, serverStageCounts]);
 
-  const latestBySerial = useMemo(
+  const latestBySerial = useKeptMemo(
+    'inv.latestBySerial',
     () => new Map((allDevices.length > 0 ? allDevices : devices).map((d) => [d.serial, d])),
     [allDevices, devices]
   );
 
-  const duplicateMidsMap = useMemo(
+  const duplicateMidsMap = useKeptMemo(
+    'inv.duplicateMids',
     () => detectDuplicateMids(allDevices.length > 0 ? allDevices : devices),
     [allDevices, devices]
   );

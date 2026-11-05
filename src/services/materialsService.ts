@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { isFresh, markFresh, clearFresh } from '../utils/freshness';
 
 /**
  * (5 Nov 2026) Merchant kit & materials: SIM cards, batteries, adaptors, stands and docks.
@@ -68,8 +69,42 @@ export const cleanMaterialError = (e: unknown): string => {
 
 const fail = (error: { message?: string } | null) => { if (error) throw new Error(error.message || 'Request failed'); };
 
-export async function fetchMaterialBalances(): Promise<MaterialBalance[]> {
+let cachedBalances: MaterialBalance[] | null = null;
+const cachedLost = new Map<string, LostItem[]>();
+let cachedOpenLostCounts: { pos: number; sb: number; sim: number } | null = null;
+let owner: string | null | undefined;
+
+export const getCachedMaterialBalances = () => cachedBalances;
+export const getCachedLost = (codes?: MaterialCode[], status?: LostItem['status'] | '') => {
+  const k = (codes ? [...codes].sort().join(',') : '') + '|' + (status || '');
+  return cachedLost.get(k);
+};
+export const getCachedOpenLostCounts = () => cachedOpenLostCounts;
+
+export function clearMaterialsCache(): void {
+  cachedBalances = null;
+  cachedLost.clear();
+  cachedOpenLostCounts = null;
+  clearFresh('mat:');
+}
+
+if (isSupabaseConfigured) {
+  try {
+    supabase.auth.onAuthStateChange((_e, session) => {
+      const id = session?.user?.id ?? null;
+      if (owner !== undefined && id !== owner) clearMaterialsCache();
+      owner = id;
+    });
+  } catch {
+    /* cache stays empty */
+  }
+}
+
+export async function fetchMaterialBalances(force = false): Promise<MaterialBalance[]> {
   if (!isSupabaseConfigured) return [];
+  if (!force && cachedBalances && isFresh('mat:balances', 60000)) {
+    return cachedBalances;
+  }
   const { data, error } = await supabase.from('material_balances').select('material_code,branch_id,on_hand,in_transit,at_merchant').limit(5000);
   fail(error);
   const sum = new Map<string, MaterialBalance>();
@@ -79,7 +114,9 @@ export async function fetchMaterialBalances(): Promise<MaterialBalance[]> {
     b.onHand += Number(r.on_hand) || 0; b.inTransit += Number(r.in_transit) || 0; b.atMerchant += Number(r.at_merchant) || 0;
     sum.set(k, b);
   });
-  return Array.from(sum.values());
+  cachedBalances = Array.from(sum.values());
+  markFresh('mat:balances');
+  return cachedBalances;
 }
 
 const mapSerial = (r: any): MaterialSerial => ({
@@ -124,17 +161,27 @@ const mapLost = (r: any): LostItem => ({
   deviceSerial: r.device_serial ?? null, mid: r.mid ?? null, merchantName: r.merchant_name ?? null, source: r.source ?? null, remark: r.remark ?? null,
   reportedBy: r.reported_by ?? null, status: r.status, blocked: !!r.blocked_with_carrier, resolution: r.resolution ?? null, resolvedBy: r.resolved_by ?? null, resolvedAt: r.resolved_at ?? null,
 });
-export async function fetchLost(codes: MaterialCode[], status?: LostItem['status'] | ''): Promise<LostItem[]> {
+export async function fetchLost(codes: MaterialCode[], status?: LostItem['status'] | '', force = false): Promise<LostItem[]> {
   if (!isSupabaseConfigured) return [];
+  const k = (codes ? [...codes].sort().join(',') : '') + '|' + (status || '');
+  if (!force && cachedLost.has(k) && isFresh('mat:lost:' + k, 60000)) {
+    return cachedLost.get(k)!;
+  }
   let req = supabase.from('material_lost').select('*').in('material_code', codes);
   if (status) req = req.eq('status', status);
   const { data, error } = await req.order('created_at', { ascending: false }).limit(500);
   fail(error);
-  return (data || []).map(mapLost);
+  const mapped = (data || []).map(mapLost);
+  cachedLost.set(k, mapped);
+  markFresh('mat:lost:' + k);
+  return mapped;
 }
 /** Open lost items per product page and SIM (menu numbers). */
-export async function fetchOpenLostCounts(): Promise<{ pos: number; sb: number; sim: number }> {
+export async function fetchOpenLostCounts(force = false): Promise<{ pos: number; sb: number; sim: number }> {
   if (!isSupabaseConfigured) return { pos: 0, sb: 0, sim: 0 };
+  if (!force && cachedOpenLostCounts && isFresh('mat:open_lost', 45000)) {
+    return cachedOpenLostCounts;
+  }
   const { data, error } = await supabase.from('material_lost').select('material_code').eq('status', 'OPEN').limit(5000);
   if (error) return { pos: 0, sb: 0, sim: 0 };
   const out = { pos: 0, sb: 0, sim: 0 };
@@ -143,6 +190,8 @@ export async function fetchOpenLostCounts(): Promise<{ pos: number; sb: number; 
     else if (r.material_code === 'SB_ADAPTOR') out.sb++;
     else out.pos++;
   });
+  cachedOpenLostCounts = out;
+  markFresh('mat:open_lost');
   return out;
 }
 
@@ -175,6 +224,7 @@ export async function fetchMovements(q: { deviceSerial?: string; code?: Material
 async function rpc<T = any>(fn: string, p: unknown): Promise<T> {
   const { data, error } = await supabase.rpc(fn, { p });
   if (error) throw new Error(error.message);
+  clearMaterialsCache();
   return data as T;
 }
 export const materialStockIn = (p: { code: MaterialCode; branch_id?: string; qty?: number; serials?: string[]; note?: string }) =>

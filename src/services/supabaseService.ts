@@ -2,6 +2,8 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, ArrangedDeviceItem } from '../types';
 import { normalizeMid } from '../utils/display';
 import { reportCaughtError } from '../utils/errorLogger';
+import { isFresh, markFresh, clearFresh } from '../utils/freshness';
+import { getCachedDevicePage, setCachedDevicePage, makeDevicePageKey, clearInventoryCache } from './inventoryCache';
 
 /** Batch size and inter-batch delay for CSV / bulk device inserts (prevents connection pool exhaustion & payload timeouts). */
 export const CSV_BATCH_SIZE = 250;
@@ -438,11 +440,22 @@ export async function checkExistingSerialsOnServer(serials: string[]): Promise<S
 }
 
 export async function fetchDevicesPageFromSupabase(
-  params: DeviceQueryParams = {}
+  params: DeviceQueryParams = {},
+  force = false
 ): Promise<PaginatedResult<Device> | null> {
   if (!isSupabaseConfigured) return null;
   const pageSize = params.pageSize === 100 ? 100 : 50;
   const page = Math.max(1, params.page || 1);
+  const key = makeDevicePageKey(params);
+  const hit = getCachedDevicePage(key);
+  if (!force && hit && isFresh('inv:p:' + key, 60000)) {
+    return {
+      rows: hit.rows,
+      total: hit.total,
+      page: hit.page || page,
+      pageSize: hit.pageSize || pageSize,
+    };
+  }
   const offset = (page - 1) * pageSize;
   const orderCol = params.orderCol || 'serial';
   const ascending = params.ascending !== false;
@@ -480,12 +493,20 @@ export async function fetchDevicesPageFromSupabase(
   });
 
   if (!res) return null;
-  return {
+  const result: PaginatedResult<Device> = {
     rows: res.rows.map(mapRowToDevice),
     total: res.count,
     page,
     pageSize,
   };
+  setCachedDevicePage(key, result);
+  return result;
+}
+
+let configuringCache: Device[] | null = null;
+export function clearConfiguringCache(): void {
+  configuringCache = null;
+  clearFresh('devices:configuring');
 }
 
 /**
@@ -493,8 +514,11 @@ export async function fetchDevicesPageFromSupabase(
  * Uses index `idx_devices_stage` to return the complete live app push queue in <10ms,
  * ensuring no configuring devices are missed regardless of overall inventory table size.
  */
-export async function fetchConfiguringDevicesFromSupabase(): Promise<Device[] | null> {
+export async function fetchConfiguringDevicesFromSupabase(force = false): Promise<Device[] | null> {
   if (!isSupabaseConfigured) return null;
+  if (!force && configuringCache && isFresh('devices:configuring', 45000)) {
+    return configuringCache;
+  }
   try {
     const { data, error } = await supabase
       .from('devices')
@@ -506,7 +530,9 @@ export async function fetchConfiguringDevicesFromSupabase(): Promise<Device[] | 
     if (error) {
       throw error;
     }
-    return (data || []).map(mapRowToDevice);
+    configuringCache = (data || []).map(mapRowToDevice);
+    markFresh('devices:configuring');
+    return configuringCache;
   } catch (err) {
     await reportCaughtError('fetchConfiguringDevicesFromSupabase', err, { showPopup: false });
     return null;
@@ -1070,6 +1096,8 @@ export async function saveDevicesStrict(
         })
       );
     }
+    clearInventoryCache();
+    clearConfiguringCache();
     return first ? { ...(first as { error: string; stale: boolean }), versions } : { error: '', stale: false, versions };
   } catch (err) {
     await reportCaughtError('saveDevicesStrict', err, { target: devices[0]?.serial });

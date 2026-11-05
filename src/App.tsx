@@ -109,6 +109,9 @@ import {
   recordCrossTabActivity,
 } from './utils/sessionSecurity';
 
+import { useKeptMemo } from './utils/useKeptMemo';
+import { clearInventoryCache } from './services/inventoryCache';
+import { clearMaterialsCache, fetchOpenLostCounts } from './services/materialsService';
 import { SendHorizontal, Lock, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import {
@@ -755,7 +758,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [lostCounts, setLostCounts] = useState<{ pos: number; sb: number; sim: number }>({ pos: 0, sb: 0, sim: 0 });
   const refreshLostCounts = useCallback(() => {
     if (!isSupabaseConfigured) return;
-    import('./services/materialsService').then((m) => m.fetchOpenLostCounts()).then((c) => setLostCounts((p) => (p.pos === c.pos && p.sb === c.sb && p.sim === c.sim ? p : c))).catch(() => {});
+    fetchOpenLostCounts().then((c) => setLostCounts((p) => (p.pos === c.pos && p.sb === c.sb && p.sim === c.sim ? p : c))).catch(() => {});
   }, []);
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
@@ -1328,6 +1331,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     if (tabId === 'settings' && subTab) {
       setSettingsSubTab(subTab as any);
     }
+    if (tabId === 'inventory_pos') {
+      setTypeFilter('POS Terminal');
+    } else if (tabId === 'inventory_sb') {
+      setTypeFilter('Sound Box');
+    } else if (tabId === 'inventory' && (activeTab === 'inventory_pos' || activeTab === 'inventory_sb')) {
+      setTypeFilter('ALL');
+    }
     // (31 Oct 2026, native-like) On a phone the drawer closes on this tap at once; the new page is drawn from the next
     // frames on (the page itself is a background render, see shownTab), so the tap answers immediately instead of waiting for the whole page to render.
     if (getDrawerOpen()) {
@@ -1879,7 +1889,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   const handleRefreshConfiguringQueue = useCallback(async () => {
     if (!isSupabaseConfigured) return;
-    const cDevs = await fetchConfiguringDevicesFromSupabase();
+    const cDevs = await fetchConfiguringDevicesFromSupabase(true);
     if (cDevs) {
       setDevices((prev) => {
         const map = new Map(prev.map((d) => [d.serial, d]));
@@ -2018,34 +2028,37 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   }, [scopedDevices, pushedConfiguringSerials]);
   const unpushedConfiguringCount = unpushedByType.pos + unpushedByType.sb;
 
-  const filteredInventory = useMemo(() => {
-    const q = deferredSearchQuery.trim().toLowerCase();
-    const hasSearch = q !== '';
-    const isStageAll = stageFilter === 'ALL';
-    const isTypeAll = typeFilter === 'ALL';
-    const isBranchAll = branchFilter === 'ALL';
-    const isAdminOrSuper = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  const effectiveTypeFilter = productType || typeFilter;
+  const filteredInventory = useKeptMemo(
+    `inv.filtered.${effectiveTypeFilter}.${stageFilter}.${branchFilter}.${deferredSearchQuery}.${role === 'BRANCH' ? selectedBranch : ''}`,
+    () => {
+      const q = deferredSearchQuery.trim().toLowerCase();
+      const hasSearch = q !== '';
+      const isStageAll = stageFilter === 'ALL';
+      const isTypeAll = effectiveTypeFilter === 'ALL';
+      const isBranchAll = branchFilter === 'ALL';
+      const isAdminOrSuper = role === 'SUPER_ADMIN' || role === 'ADMIN';
 
-    // Fast-path: When no filters or search are active, single pass without string operations
-    if (!hasSearch && isStageAll && isTypeAll && (isBranchAll || !isAdminOrSuper)) {
-      const active: Device[] = [];
+      // Fast-path: When no filters or search are active, single pass without string operations
+      if (!hasSearch && isStageAll && isTypeAll && (isBranchAll || !isAdminOrSuper)) {
+        const active: Device[] = [];
+        const len = scopedDevices.length;
+        for (let i = 0; i < len; i++) {
+          if (!scopedDevices[i].archived) active.push(scopedDevices[i]);
+        }
+        return active;
+      }
+
+      const result: Device[] = [];
       const len = scopedDevices.length;
       for (let i = 0; i < len; i++) {
-        if (!scopedDevices[i].archived) active.push(scopedDevices[i]);
-      }
-      return active;
-    }
+        const d = scopedDevices[i];
+        if (d.archived) continue;
+        if (!isStageAll && d.stage !== stageFilter) continue;
+        if (!isTypeAll && d.type !== effectiveTypeFilter) continue;
+        if (isAdminOrSuper && !isBranchAll && d.branchId !== branchFilter) continue;
 
-    const result: Device[] = [];
-    const len = scopedDevices.length;
-    for (let i = 0; i < len; i++) {
-      const d = scopedDevices[i];
-      if (d.archived) continue;
-      if (!isStageAll && d.stage !== stageFilter) continue;
-      if (!isTypeAll && d.type !== typeFilter) continue;
-      if (isAdminOrSuper && !isBranchAll && d.branchId !== branchFilter) continue;
-
-      if (hasSearch) {
+        if (hasSearch) {
         // High-speed short-circuiting: Check high-discriminator primary keys first
         const match =
           d.serial.toLowerCase().includes(q) ||
@@ -2066,7 +2079,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       result.push(d);
     }
     return result;
-  }, [scopedDevices, stageFilter, typeFilter, branchFilter, deferredSearchQuery, role]);
+  }, [scopedDevices, stageFilter, effectiveTypeFilter, branchFilter, deferredSearchQuery, role]);
 
   const scopedRequisitions = useMemo(() => {
     if (role === 'SUPER_ADMIN' || role === 'ADMIN') return requisitions;
@@ -2096,6 +2109,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     devicesRef.current = devices; }, [devices]);
 
   const triggerOptimisticSync = useCallback((serials: string[], _actionText: string, syncPayload?: Device[]) => {
+    clearInventoryCache();
     // 1. Immediately mark serials for instant row highlight
     setSyncingSerials((prev) => {
       const next = new Set(prev);
@@ -2637,6 +2651,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const gone = new Set(serials);
     const names = serials.slice(0, 20).join(', ') + (serials.length > 20 ? '…' : '');
     const finish = () => {
+      clearInventoryCache();
       setDevices((prev) => {
         return prev.filter((d) => !gone.has(d.serial));          // (the saved copy follows through the effect on `devices`)
       });
@@ -2681,6 +2696,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   const handleRestoreToDashboard = (serials: string[]) => {
     if (role === 'BRANCH') { triggerToast('Only HQ can restore archived units.'); return; }
+    clearInventoryCache();
     const today = todayPP();
     const nowTime = stampSecPP();
     setDevices((prev) =>
@@ -4273,7 +4289,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               addAuditLog('Session Manually Locked', 'Workstation session manually locked by operator');
             }}
             onSignOut={() => {
-              clearWorkstationLock();
+              clearInventoryCache();
+              clearMaterialsCache();
+              clearInventoryCache();
+            clearMaterialsCache();
+            clearWorkstationLock();
               notifySessionSignOut();
               if (isSupabaseConfigured) {                                  // (21 Oct 2026) the server session ends; this browser keeps nothing
                 writeAuditLog('Session Ended', 'Signed out').finally(() => signOutEverywhere());
@@ -4478,7 +4498,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       selectedBranch={selectedBranch}
                       theme={theme}
                       stageFilter={stageFilter}
-                      typeFilter={typeFilter}
+                      typeFilter={effectiveTypeFilter}
                       branchFilter={branchFilter}
                       searchQuery={searchQuery}
                       onStageFilterChange={setStageFilter}
@@ -5154,6 +5174,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           }
           theme={theme}
           onSignOut={() => {
+            clearInventoryCache();
+            clearMaterialsCache();
             clearWorkstationLock();
             notifySessionSignOut();
             setIsSessionLocked(false);

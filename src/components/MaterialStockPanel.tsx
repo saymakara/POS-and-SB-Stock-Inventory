@@ -6,7 +6,9 @@ import { parseCsv } from '../utils/csv';
 import {
   DeviceGroup, LostItem, MaterialBalance, MaterialCode, MATERIALS, SerialStatus, cleanMaterialError, fetchLost, fetchMaterialBalances,
   isMaterialsMissing, materialAdjust, materialByCode, materialLostAction, materialName, materialOpening, materialStockIn, normMaterialSerial, placeName, productMaterials,
+  getCachedMaterialBalances, getCachedLost, clearMaterialsCache,
 } from '../services/materialsService';
+import { isFresh } from '../utils/freshness';
 import { BusyLabel, Kpi, MaterialDialog, MaterialsSetupNotice, Pill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
 
 /**
@@ -52,25 +54,34 @@ const MaterialStockPanel: React.FC<{ group: DeviceGroup; role: UserRole; branche
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const mats = useMemo(() => productMaterials(group), [group]);
   const codes = useMemo(() => mats.map((m) => m.code), [mats]);
-  const [bal, setBal] = useState<MaterialBalance[] | null>(null);
-  const [lost, setLost] = useState<LostItem[] | null>(null);
+  const [lostFilter, setLostFilter] = useState<'OPEN' | ''>('OPEN');
+  const [bal, setBal] = useState<MaterialBalance[] | null>(() => getCachedMaterialBalances() || null);
+  const [lost, setLost] = useState<LostItem[] | null>(() => getCachedLost(codes, 'OPEN') || null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   const [onlyStock, setOnlyStock] = useState(false);
-  const [lostFilter, setLostFilter] = useState<'OPEN' | ''>('OPEN');
   const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST' | 'OPENING'>('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (force = false) => {
+    const cachedB = getCachedMaterialBalances();
+    const cachedL = getCachedLost(codes, lostFilter);
+    const kLost = codes.slice().sort().join(',') + '|' + lostFilter;
+    if (!force && cachedB && cachedL && isFresh('mat:balances', 60000) && isFresh('mat:lost:' + kLost, 60000)) {
+      setBal(cachedB);
+      setLost(cachedL);
+      setLoading(false);
+      return;
+    }
+    if (!cachedB || !cachedL) setLoading(true);
     try {
-      const [b, l] = await Promise.all([fetchMaterialBalances(), fetchLost(codes, lostFilter)]);
+      const [b, l] = await Promise.all([fetchMaterialBalances(force), fetchLost(codes, lostFilter, force)]);
       setBal(b); setLost(l); setErr('');
     } catch (e) {
       const m = cleanMaterialError(e); setErr(isMaterialsMissing(m) ? 'SETUP' : m); setBal((x) => x || []); setLost((x) => x || []);
     } finally { setLoading(false); }
   }, [codes, lostFilter]);
   useEffect(() => { load(); }, [load]);
-  const changed = () => { load(); onLostChanged?.(); };
+  const changed = () => { clearMaterialsCache(); load(true); onLostChanged?.(); };
 
   const cell = useMemo(() => {
     const m = new Map<string, MaterialBalance>();
@@ -119,7 +130,7 @@ const MaterialStockPanel: React.FC<{ group: DeviceGroup; role: UserRole; branche
           {isAdmin && <button type="button" className={btnLight} onClick={() => setDlg('ADJUST')}><PencilLine className="w-4 h-4" />Correct</button>}
           {isAdmin && <button type="button" className={btnLight} onClick={() => setDlg('OPENING')}><Upload className="w-4 h-4" />Opening stock</button>}
           <button type="button" className={btnLight} onClick={exportCsv}><Download className="w-4 h-4" />Export CSV</button>
-          <button type="button" className={btnLight} onClick={load} aria-label="Refresh">
+          <button type="button" className={btnLight} onClick={() => load(true)} aria-label="Refresh">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}Refresh
           </button>
         </div>

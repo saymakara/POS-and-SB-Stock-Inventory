@@ -21,6 +21,13 @@ export type UserStatus = 'Operating' | 'Pending' | 'Suspended';
 
 export type ThemeMode = 'light' | 'dark';
 
+export interface PaginatedResult<T> {
+  rows: T[];
+  total: number;
+  page?: number;
+  pageSize?: number;
+}
+
 export interface User {
   uid: string;
   empId: string;
