@@ -85,10 +85,9 @@ const SettingsTab = lazyTab(() => import('./components/SettingsTab').then((m) =>
 const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
 const KhqrReviewTab = lazyTab(() => import('./components/KhqrReviewTab').then((m) => ({ default: m.KhqrReviewTab })));
 const CreditCardReviewTab = lazyTab(() => import('./components/CreditCardReviewTab').then((m) => ({ default: m.CreditCardReviewTab })));
-// (5 Nov 2026) Stock Inventory → POS Terminal / Sound Box (units + materials), SIM Card, Monthly Count
+// (5 Nov 2026) Stock Inventory → POS Terminal / Sound Box (units + materials), SIM Card
 const ProductStockPage = lazyTab(() => import('./components/MaterialStockPanel').then((m) => ({ default: m.ProductStockPage })));
 const SimCardTab = lazyTab(() => import('./components/SimCardTab').then((m) => ({ default: m.SimCardTab })));
-const MaterialCountTab = lazyTab(() => import('./components/MaterialCountTab').then((m) => ({ default: m.MaterialCountTab })));
 const MerchantVisitTab = lazyTab(() => import('./components/MerchantVisitTab').then((m) => ({ default: m.MerchantVisitTab })));
 const KpiPerformanceTab = lazyTab(() => import('./components/KpiPerformanceTab').then((m) => ({ default: m.KpiPerformanceTab })));
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
@@ -208,7 +207,6 @@ const VALID_TABS = new Set([
   'inventory_pos',
   'inventory_sb',
   'sim_cards',
-  'material_count',
   'push_configuring',
   'requisitions',
   'branches',
@@ -222,7 +220,6 @@ const VALID_TABS = new Set([
 const HIDE_STAGE_HEADER_TABS = new Set([
   'kpi_performance',
   'sim_cards',
-  'material_count',
   'merchants',
   'merchant_history',
   'push_configuring',
@@ -4534,10 +4531,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
                   {shownTab === 'sim_cards' && (
                     <SimCardTab role={role} branches={branches} myBranch={selectedBranch} triggerToast={triggerToast} onLostChanged={refreshLostCounts} />
-                  )}
-
-                  {shownTab === 'material_count' && (
-                    <MaterialCountTab role={role} branches={branches} myBranch={selectedBranch} triggerToast={triggerToast} onChanged={refreshLostCounts} />
                   )}
 
                   {shownTab === 'branches' && (

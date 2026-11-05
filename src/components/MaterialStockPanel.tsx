@@ -96,7 +96,7 @@ const MaterialStockPanel: React.FC<{ group: DeviceGroup; role: UserRole; branche
           <Kpi key={t.code} icon={Package} label={materialName(t.code)} value={bal ? t.hq + t.branches : undefined}
             sub={`HQ ${t.hq.toLocaleString()} · branches ${t.branches.toLocaleString()}${t.transit ? ` · ${t.transit} in transit` : ''}`} />
         ))}
-        <Kpi icon={AlertTriangle} label="Lost, open" value={lost ? openLost : undefined} tone={openLost ? 'bad' : undefined} sub="reported at returns, replacements and counts" />
+        <Kpi icon={AlertTriangle} label="Lost, open" value={lost ? openLost : undefined} tone={openLost ? 'bad' : undefined} sub="reported at returns and replacements" />
       </section>
 
       <section className="flex flex-wrap items-center justify-between gap-2.5 bg-white rounded-2xl border border-slate-200 shadow-2xs px-3.5 py-3" aria-label="Actions">

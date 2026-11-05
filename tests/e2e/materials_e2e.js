@@ -1,7 +1,7 @@
 // Merchant kit & materials (5 Nov 2026), against the stand-in Supabase API. Never touches live data.
 // Admin HQ: Stock Inventory group, POS Terminal (Units / Material), Stock In, Lost write-off, Sound Box material, SIM Card
-// (Blocked with carrier), Monthly Count approval, Merchant 360 Kit (Record kit), dispatch of a request with materials.
-// Branch staff: own-branch views without admin actions, monthly count, stock request with materials.
+// (Blocked with carrier), Merchant 360 Kit (Record kit), dispatch of a request with materials.
+// Branch staff: own-branch views without admin actions, stock request with materials.
 // Run against a built dist/ served on 127.0.0.1:8500 (node tests/e2e/serve-dist.cjs).
 process.env.N_DEV = process.env.N_DEV || '300';
 const S = require('./lib/standin.js');
@@ -96,7 +96,8 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   const { p, errs } = await signIn(b, '8986', 'Secret123');
   const g = stockGroup(p);
   ok(await g.count() === 1, 'Stock Inventory is a menu group');
-  for (const t of ['POS Terminal', 'Sound Box', 'SIM Card', 'Monthly Count']) ok(await g.getByRole('button', { name: new RegExp('^' + t) }).isVisible(), `Stock Inventory → ${t}`);
+  ok(await g.getByRole('button', { name: /^Monthly Count/ }).count() === 0, 'no Monthly Count page in the menu');
+  for (const t of ['POS Terminal', 'Sound Box', 'SIM Card']) ok(await g.getByRole('button', { name: new RegExp('^' + t) }).isVisible(), `Stock Inventory → ${t}`);
   ok(/POS Terminal\s*1/.test((await g.textContent()).replace(/\s+/g, ' ')), 'menu shows 1 open lost item on POS Terminal');
 
   await g.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1500);
@@ -132,13 +133,6 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   await p.locator('section[aria-label="Lost · SIM Card"]').getByRole('button', { name: 'Blocked with carrier' }).click(); await sleep(1200);
   const bl = last('admin_material_lost_action');
   ok(bl && bl.p.id === 2 && bl.p.action === 'BLOCKED', 'Lost SIM → Blocked with carrier');
-
-  await g.getByRole('button', { name: /^Monthly Count/ }).click(); await sleep(1500);
-  ok(/Waiting for review/.test(await p.textContent('body')), 'Monthly Count: branch 108 count waiting');
-  await p.getByRole('button', { name: /Approve/ }).first().click(); await sleep(400);
-  await p.locator('[role=dialog]').getByRole('button', { name: 'Approve' }).click(); await sleep(1200);
-  const ap = last('admin_material_count_review');
-  ok(ap && ap.p.id === 7 && ap.p.action === 'APPROVE', 'Approve count → admin_material_count_review');
 
   // Merchant 360 → Kit → Record kit
   await p.locator('aside').first().getByText('Merchant Deployment', { exact: true }).click(); await sleep(1800);
@@ -181,17 +175,6 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   const t2 = await q.locator('section[aria-label="Stock per location"]').textContent();
   ok(!/Head Office/.test(t2) && /105/.test(t2), 'branch staff see only their own branch');
   ok(await q.getByRole('button', { name: 'Stock In', exact: true }).count() === 0 && await q.getByRole('button', { name: 'Correct', exact: true }).count() === 0, 'branch staff: no Stock In / Correct');
-
-  await g2.getByRole('button', { name: /^Monthly Count/ }).click(); await sleep(1500);
-  await q.getByRole('button', { name: 'Count my branch' }).click(); await sleep(1500);
-  const cd = q.locator('[role=dialog]').last();
-  const nums = cd.locator('input[type=number]');
-  for (let i = 0; i < await nums.count(); i++) await nums.nth(i).fill(String(i + 1));
-  const boxes = cd.locator('label:has(input[type=checkbox]) input[type=checkbox]');
-  if (await boxes.count()) await boxes.first().check();
-  await cd.getByRole('button', { name: 'Send count' }).click(); await sleep(1500);
-  const cs = last('material_count_submit');
-  ok(cs && cs.p.branch_id === '105' && cs.p.lines.length === 6 && cs.p.lines.some((l) => l.code === 'SIM' && Array.isArray(l.present)), 'branch count → material_count_submit ' + JSON.stringify(cs && cs.p.lines.map((l) => l.code)));
 
   await g2.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1000);
   await q.getByRole('tab', { name: 'Units' }).click(); await sleep(1200);

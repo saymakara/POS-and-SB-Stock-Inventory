@@ -3,10 +3,11 @@
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
 ## 5 Nov 2026 — Merchant kit & materials (step 1: portal)
-Database: migration `20261105_01_materials_and_kits.sql` (apply in the SQL Editor **before** merging); self-test
+- The Monthly Count page was removed at the user's request (its database table and functions stay, unused).
+Database: migration `20261105_01_materials_and_kits.sql` (applied 5 Nov 2026); self-test
 `supabase/tests/materials_selftest.sql` (39 checks, rolls itself back).
 - **Stock Inventory is now a group.** The heading opens all units as before; below it: **POS Terminal** and **Sound Box**
-  (tabs *Units* and *Material*), **SIM Card** and **Monthly Count**. A red number shows open Lost items per page.
+  (tabs *Units* and *Material*) and **SIM Card**. A red number shows open Lost items per page.
 - **Materials per location:** Battery (by serial), POS AC Adaptor, POS Stand Holder, Charging Dock (POS), Sound Box AC Adaptor;
   Stock In, Correct (with reason), opening stock from a CSV template, Export CSV. Each page has its own **Lost** table:
   Recovered or Written off (reason); a lost SIM can be marked **Blocked with carrier**.
@@ -16,8 +17,6 @@ Database: migration `20261105_01_materials_and_kits.sql` (apply in the SQL Edito
   Admin HQ can record the kit of an existing merchant, issue from branch stock, replace, or take back (Returned / Lost / Faulty).
 - **Stock Requests carry materials:** branches request them with POS and Sound Box; Admin HQ dispatches devices and
   materials together (all or nothing); receipt (portal or Merchant Visit app) moves them into the branch reserve.
-- **Monthly Count:** branch staff count their shelf (SIMs and batteries ticked by number); Admin HQ approves (the system is
-  corrected, a missing SIM or battery is recorded Lost) or rejects (recount).
 - Branch staff see only their own branch; every change goes through a checked database function and the Audit Trail.
 - Step 2 (with the next Merchant Visit app release): kits recorded at installation and return from the phone, reviewed in
   Phone App Review.

@@ -43,7 +43,6 @@ import {
   QrCode,
   CreditCard,
   CardSim,
-  ClipboardCheck,
   ClipboardList,
   Trophy,
 } from 'lucide-react';
@@ -52,7 +51,7 @@ import { prefetchKpi } from '../services/kpiService';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */
 /** (5 Nov 2026) the Stock Inventory pages (the phone's "Stock" button stays lit on all of them) */
-const STOCK_TABS = ['inventory', 'inventory_pos', 'inventory_sb', 'sim_cards', 'material_count'];
+const STOCK_TABS = ['inventory', 'inventory_pos', 'inventory_sb', 'sim_cards'];
 export type ReviewCounts = { pos: number; sb: number; cc?: number; lostPos?: number; lostSb?: number; lostSim?: number };
 
 interface SidebarProps {
@@ -142,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       items: [
         {
           // (5 Nov 2026) the heading opens all units (both products, as before); below it one page per product
-          // (units + its materials), SIM cards and the monthly count
+          // (units + its materials) and SIM cards
           id: 'inventory',
           label: 'Stock Inventory',
           icon: Boxes,
@@ -150,7 +149,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.lostPos || undefined },
             { id: 'inventory_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-[#a2a5e0]', count: reviewCounts?.lostSb || undefined },
             { id: 'sim_cards', label: 'SIM Card', icon: CardSim, iconColor: 'text-emerald-300', count: reviewCounts?.lostSim || undefined },
-            { id: 'material_count', label: 'Monthly Count', icon: ClipboardCheck, iconColor: 'text-sky-300' },
           ],
         },
         {
