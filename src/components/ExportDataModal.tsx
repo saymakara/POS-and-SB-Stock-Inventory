@@ -331,20 +331,20 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   }`;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 14 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 12 }}
-        transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-        className={`w-full max-w-xl rounded-xl overflow-hidden shadow-2xl border-0 transform-gpu will-change-gpu gpu-modal-container ${
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+        className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden ${
           isLight
             ? 'bg-white text-zinc-900'
             : 'bg-[#18191e] text-slate-100'
         }`}
       >
         {/* Header */}
-        <div className="navy-header-bar rounded-t-xl px-6 py-4 flex items-center justify-between text-white">
+        <div className="navy-header-bar px-6 py-4 flex items-center shrink-0 justify-between text-white">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-white/10 text-[#7cc4ed] border border-white/15 flex items-center justify-center">
               <Download className="w-4 h-4" />
@@ -394,7 +394,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
           </div>
         ) : (
         /* Content list of exportable data */
-        <div className="p-5 flex flex-col gap-2.5 max-h-[75vh] overflow-y-auto custom-scrollbar">
+        <div className="flex-1 p-5 flex flex-col gap-2.5 overflow-y-auto min-h-0 custom-scrollbar">
           {/* 1. Master Inventory CSV */}
           <div className={itemClass}>
             <div className="flex items-center gap-3">

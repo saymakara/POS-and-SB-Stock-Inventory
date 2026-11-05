@@ -1400,23 +1400,23 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       {/* DOUBLE-STEP BULK ACTION CONFIRMATION & IMPACT PREVIEW MODAL */}
       <AnimatePresence>
         {pendingBulkAction && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setPendingBulkAction(null)}
-              className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs"
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
             />
 
-            {/* Modal Window */}
+            {/* Slide-over Drawer Window */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-              className="relative w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden my-6 z-10 border bg-white border-slate-200 text-slate-800"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+              className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden bg-white text-slate-800"
             >
               {/* Navy Header */}
               <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white border-b border-white/10">

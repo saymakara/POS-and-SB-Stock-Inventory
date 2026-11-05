@@ -1383,16 +1383,16 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xl flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs">
       <motion.div
-        initial={{ opacity: 0, scale: 0.94, y: 14 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.94, y: 14 }}
-        transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-        className={`${modalBoxClass} border-0 rounded-3xl w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] transform-gpu will-change-gpu gpu-modal-container`}
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+        className={`${modalBoxClass} border-l border-slate-200 dark:border-slate-800 w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-gpu gpu-modal-container`}
       >
         {/* Header (Signature Navy Bar) */}
-        <div className="navy-header-bar rounded-t-3xl px-6 py-4 flex items-center justify-between text-white">
+        <div className="navy-header-bar px-6 py-4 flex items-center shrink-0 justify-between text-white">
           <div>
             <h3 className="text-base font-bold flex items-center gap-2">
               <FilePlus className="w-5 h-5 text-[#7cc4ed]" />

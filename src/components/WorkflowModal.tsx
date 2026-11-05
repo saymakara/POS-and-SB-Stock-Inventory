@@ -711,16 +711,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     Branch Code {device.branchId}
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[11px] text-white/75 truncate">
-                  <span className="font-mono text-white/90 font-medium">
-                    {device.batterySerial || 'Battery serial not recorded'}
-                  </span>
-                  <span className="text-white/30">•</span>
-                  <span>{device.model}</span>
-                  <span className="text-white/30">•</span>
-                  <span>Stock-In: {device.stockInDate}</span>
                 </div>
-              </div>
             </div>
 
             <button
@@ -1303,9 +1294,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       3. Merchant &amp; Terminal Setup
                     </h4>
                   </div>
-                  <span className="text-[11px] text-slate-400 hidden sm:inline">
-                    Merchant business name, 15-digit banking MID, and 8-digit Terminal ID
-                  </span>
+                  
                 </div>
 
                 {merchantLocked && (
@@ -1333,7 +1322,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             setStage('CONFIGURING');
                           }
                         }}
-                        placeholder="e.g. Brown Coffee BKK"
+                        
                         className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition ${
                           isLight
                             ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
@@ -1366,7 +1355,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         maxLength={15}
                         inputMode="numeric"
                         aria-label="MID"
-                        placeholder={device.type === 'Sound Box' ? '15 digits starting with 6' : '15 digits starting with 2'}
+                        
                         className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                           midError
                             ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/50'
@@ -1391,7 +1380,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         value={mid.length >= 8 ? mid.slice(-8) : tid}
                         readOnly
                         title="Filled automatically: the last 8 digits of the MID"
-                        placeholder="Automatic: last 8 digits of MID"
+                        
                         className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
                             ? 'bg-slate-200/60 border-slate-300/80 text-slate-700 placeholder:text-slate-400'
@@ -1485,7 +1474,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                   [field.id]: e.target.value,
                                 }))
                               }
-                              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
+                              
                               required={field.required && !(field.id === 'merchantPhone' && device.merchantPhone)}
                               className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition ${
                                 isLight
@@ -1563,7 +1552,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         onChange={(e) => setBatterySerial(e.target.value)}
                         id="workflow-battery-serial"
                         aria-label="Battery serial number"
-                        placeholder="e.g. 160525A1234567"
+                        
                         className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
                             ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
@@ -1622,34 +1611,28 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               )}
             </>)}
 
-            {/* Section 5: Audit Note / Update Reason */}
+            {/* Clean Remark */}
             <div className={`p-2.5 sm:px-3 sm:py-2.5 rounded-xl border flex flex-col gap-1.5 transition-colors ${
               isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
             }`}>
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  <FileText className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
-                  <span>Audit Note &amp; Update Reason</span>
-                  <span className="text-rose-500 font-bold">*</span>
-                </label>
-                <span className="text-[11px] text-slate-400 hidden sm:inline">
-                  Required note documenting reason for stage change, merchant deployment, or branch transfer
-                </span>
-              </div>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <FileText className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
+                <span>Remark</span>
+                <span className="text-[11px] font-normal text-slate-400">(Optional)</span>
+              </label>
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Describe reason for stage change, merchant deployment, or branch transfer..."
                 className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition ${
                   isLight
-                    ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                    : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                    ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                    : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                 }`}
               />
             </div>
 
-                </div>
+            </div>
 
             {/* Pinned Action Footer Bar */}
             <div

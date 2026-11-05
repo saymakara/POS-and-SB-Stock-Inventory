@@ -139,30 +139,30 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
         />
 
         {/* Modal Box */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 14 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 12 }}
-          transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-          className={`relative w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col z-10 border-0 transform-gpu will-change-gpu gpu-modal-container ${
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+          className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden ${
             isLight
               ? 'bg-white text-slate-800'
               : 'bg-[#11141e] text-slate-100'
           }`}
         >
           {/* Header */}
-          <div className="navy-header-bar rounded-t-2xl px-6 py-4 flex items-center justify-between text-white border-b border-white/20">
+          <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white border-b border-white/20 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-white">
                 <SendHorizontal className="w-5 h-5 text-white" />
@@ -243,7 +243,8 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
 
           {/* Form / Preview Conditional View */}
           {modalStep === 'FORM' ? (
-            <form onSubmit={handleProceedToPreview} className="p-6 flex flex-col gap-4 text-xs">
+            <form onSubmit={handleProceedToPreview} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 p-5 sm:p-6 flex flex-col gap-4 text-xs overflow-y-auto min-h-0 custom-scrollbar">
               {/* Field 1: Requesting Branch */}
               <div className="flex flex-col gap-1.5">
                 <label className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -575,12 +576,12 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 </div>
               </div>
 
-              {/* Footer */}
+              </div>
+              {/* Pinned Action Footer Bar */}
               <div
-                className={`flex items-center justify-between gap-3 pt-3 border-t ${
-                  isLight ? 'border-slate-100' : 'border-slate-800/80'
-                }`}
-              >
+                className={`shrink-0 px-5 py-3.5 border-t flex items-center justify-between gap-3 ${
+                  isLight ? 'bg-slate-50/95 border-slate-200' : 'bg-[#151922]/95 border-slate-800'
+                }`}>
                 <div className="flex flex-col gap-0.5 text-[11px] font-mono font-bold text-[#1e5b88] dark:text-sky-300">
                   <span>Staging {posQty} POS &amp; {sbQty} Sound Box{matTotal ? ` + ${matTotal} material(s)` : ''}</span>
                   {formError && (
@@ -618,7 +619,8 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
             </form>
           ) : (
             /* Step 2: Preview & Double-Check Step */
-            <div className="p-6 flex flex-col gap-4 text-xs">
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 p-5 sm:p-6 flex flex-col gap-4 text-xs overflow-y-auto min-h-0 custom-scrollbar">
               <div
                 className={`p-4 rounded-xl border flex items-start gap-3.5 shadow-2xs ${
                   isLight
@@ -686,12 +688,12 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 </div>
               </div>
 
-              {/* Preview Footer */}
+              </div>
+              {/* Pinned Action Footer Bar */}
               <div
-                className={`flex items-center justify-between gap-2.5 pt-4 border-t ${
-                  isLight ? 'border-slate-100' : 'border-slate-800/80'
-                }`}
-              >
+                className={`shrink-0 px-5 py-3.5 border-t flex items-center justify-between gap-2.5 ${
+                  isLight ? 'bg-slate-50/95 border-slate-200' : 'bg-[#151922]/95 border-slate-800'
+                }`}>
                 <motion.button
                   whileTap={{ scale: 0.94 }}
                   type="button"
@@ -717,7 +719,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   <span>Confirm &amp; Transmit Request</span>
                 </motion.button>
               </div>
-            </div>
+              </div>
           )}
         </motion.div>
       </div>

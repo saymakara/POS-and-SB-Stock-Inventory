@@ -5004,8 +5004,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
       {/* Branch Code Create/Edit Modal */}
       {isNewBranchModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border-0 p-6 shadow-2xl bg-white text-slate-900">
+        <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setIsNewBranchModalOpen(false); }}>
+          <div className="w-full sm:max-w-[500px] h-full border-l border-slate-200 p-6 shadow-2xl bg-white text-slate-900 flex flex-col justify-between overflow-y-auto">
             <h3 className="text-base font-black mb-4 text-[#002f49]">
               {editingBranch
                 ? `Edit Branch Code ${editingBranch.code}`
@@ -5073,8 +5073,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
       {/* User Account Modal */}
       {isUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border-0 p-6 shadow-2xl bg-white text-slate-900">
+        <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) { setIsUserModalOpen(false); setEditingUser(null); } }}>
+          <div className="w-full sm:max-w-[500px] h-full border-l border-slate-200 p-6 shadow-2xl bg-white text-slate-900 flex flex-col justify-between overflow-y-auto">
             <h3 className="text-base font-black mb-4 text-slate-900">
               {editingUser ? 'Update IAM Account & Role' : 'Create IAM Account'}
             </h3>

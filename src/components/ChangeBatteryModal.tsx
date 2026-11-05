@@ -102,16 +102,16 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
+    <div className="fixed inset-0 z-[60] flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 14 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 12 }}
-        transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-        className="w-full max-w-lg rounded-3xl border-0 shadow-2xl overflow-hidden my-8 bg-white text-[#002f49] transform-gpu will-change-gpu gpu-modal-container"
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+        className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden bg-white text-[#002f49]"
       >
         {/* Navy Header */}
-        <div className="px-6 py-4.5 bg-[#002f49] rounded-t-3xl text-white flex items-center justify-between">
+        <div className="px-6 py-4.5 bg-[#002f49] text-white flex items-center shrink-0 justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-emerald-300 shadow-xs">
               <BatteryCharging className="w-5 h-5" />
@@ -136,7 +136,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
         </div>
 
         {/* Stepper Progress Bar */}
-        <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+        <div className="px-6 py-2.5 bg-slate-50 border-b shrink-0 border-slate-200 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -330,7 +330,8 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
           </form>
         ) : (
           /* STEP 2: PREVIEW & VERIFICATION */
-          <div className="p-6 space-y-4 text-xs">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 p-6 space-y-4 text-xs overflow-y-auto min-h-0 custom-scrollbar">
             {/* Impact Notice Alert Banner */}
             <div className="p-3.5 rounded-2xl border bg-amber-50 border-amber-200 text-amber-900 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -414,8 +415,9 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               </span>
             </div>
 
+            </div>
             {/* Actions */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <div className="shrink-0 px-6 py-3.5 border-t border-slate-200 bg-slate-50/95 flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setStep('FORM')}
@@ -433,7 +435,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>Confirm &amp; Install New Battery</span>
               </button>
-            </div>
+                </div>
           </div>
         )}
       </motion.div>

@@ -973,28 +973,28 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         createPortal(
           <AnimatePresence>
             {inspectedBranch && (
-              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+              <div className="fixed inset-0 z-[9999] flex justify-end overflow-hidden">
                 {/* Backdrop */}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setInspectedBranchCode(null)}
-                  className="fixed inset-0 bg-slate-950/75 backdrop-blur-md"
+                  className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
                 />
 
-                {/* Modal Container */}
+                {/* Slide-over Drawer Window */}
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 14 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-                  className={`relative w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden my-auto z-10 border-0 flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
                     isLight ? 'bg-white text-[#002f49]' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
                   {/* Signature Navy Header Bar */}
-                  <div className="navy-header-bar rounded-t-3xl px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+                  <div className="navy-header-bar px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-sky-300">
                         <Building2 className="w-5 h-5" />

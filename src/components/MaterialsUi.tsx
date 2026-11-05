@@ -49,18 +49,18 @@ export const MaterialDialog: React.FC<{
   if (!open) return null;
   const id = 'matdlg-' + title.replace(/\W+/g, '-').toLowerCase();
   return createPortal(
-    <div className="fixed inset-0 z-[95] flex items-center justify-center p-3 sm:p-6 bg-slate-900/50" role="dialog" aria-modal="true" aria-labelledby={id}
+    <div className="fixed inset-0 z-[95] flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby={id}
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}>
-      <div ref={box} className={`modal-glide w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} max-h-[92vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-200`}>
-        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-slate-100">
+      <div ref={box} className={`drawer-glide w-full ${wide ? 'sm:max-w-xl md:max-w-2xl' : 'sm:max-w-[560px] md:max-w-[580px]'} h-full flex flex-col bg-white shadow-2xl border-l border-slate-200`}>
+        <div className="navy-header-bar flex items-start justify-between gap-3 px-5 py-4 border-b border-white/15 text-white shrink-0">
           <div className="min-w-0">
-            <h2 id={id} className="text-base font-bold text-slate-900">{title}</h2>
-            {sub && <p className="text-xs text-slate-500 mt-0.5">{sub}</p>}
+            <h2 id={id} className="text-base font-bold text-white">{title}</h2>
+            {sub && <p className="text-xs text-white/80 mt-0.5">{sub}</p>}
           </div>
-          <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer disabled:opacity-40"><X className="w-4 h-4" /></button>
+          <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer disabled:opacity-40"><X className="w-4 h-4" /></button>
         </div>
-        <div className="px-5 py-4 overflow-y-auto flex flex-col gap-3.5">{children}</div>
-        {footer && <div className="px-5 py-3.5 border-t border-slate-100 flex flex-wrap justify-end gap-2">{footer}</div>}
+        <div className="flex-1 px-5 py-4 overflow-y-auto min-h-0 flex flex-col gap-3.5 custom-scrollbar">{children}</div>
+        {footer && <div className="shrink-0 px-5 py-3.5 border-t border-slate-200 bg-slate-50/95 flex flex-wrap justify-end gap-2">{footer}</div>}
       </div>
     </div>,
     document.body,

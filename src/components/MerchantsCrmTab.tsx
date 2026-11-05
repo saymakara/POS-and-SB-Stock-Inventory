@@ -1322,26 +1322,26 @@ return (
         createPortal(
           <AnimatePresence>
             {selectedMerchantProfile && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setSelectedMid(null)}
-                  className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+                  className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
                 />
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 14 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-                  className={`relative w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] z-10 border-0 flex flex-col ${
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden ${
                     isLight
                       ? 'bg-white text-slate-800'
                       : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
-              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
+              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white shrink-0">
                 <div>
                   <div className="flex items-center gap-2 text-xs text-cyan-400 font-mono">
                     <span>MERCHANT 360 PROFILE</span>
@@ -1717,14 +1717,14 @@ return (
         createPortal(
           <AnimatePresence>
             {bindModalMerchant && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-md">
+              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setBindModalMerchant(null); }}>
                 <motion.form
-                  initial={{ opacity: 0, scale: 0.95, y: 14 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
                   onSubmit={handleConfirmBindDevice}
-                  className={`w-full max-w-2xl rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
                     isLight
                       ? 'bg-white border-slate-200 text-slate-800'
                       : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
@@ -1835,14 +1835,14 @@ return (
           <>
             <AnimatePresence>
         {terminateModalMerchant && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setTerminateModalMerchant(null); }}>
             <motion.form
-              initial={{ opacity: 0, scale: 0.95, y: 14 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
               onSubmit={handleConfirmTerminate}
-              className={`w-full max-w-2xl rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
+              className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-800'
                   : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
@@ -2101,14 +2101,14 @@ return (
       {/* Assign Hardware to Merchant Modal (with Real-Time MID/TID Validator) */}
       <AnimatePresence>
         {newMerchantModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setNewMerchantModalOpen(false); }}>
             <motion.form
-              initial={{ opacity: 0, scale: 0.95, y: 14 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
               onSubmit={handleCreateNewMerchant}
-              className={`w-full max-w-2xl rounded-3xl border overflow-hidden shadow-2xl transform-gpu will-change-gpu gpu-modal-container ${
+              className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-800'
                   : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'

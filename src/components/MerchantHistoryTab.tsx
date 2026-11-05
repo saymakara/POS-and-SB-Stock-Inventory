@@ -795,27 +795,27 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           <>
             <AnimatePresence>
               {selectedRecord && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={() => setSelectedRecord(null)}
-                    className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+                    className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
                   />
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 14 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                    transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-                    className={`relative w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] z-10 border-0 flex flex-col ${
+                    initial={{ x: '100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '100%' }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                    className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden ${
                       isLight
                         ? 'bg-white text-slate-800'
                         : 'bg-[#12151e] text-slate-100'
                     }`}
                   >
               {/* Prestigious Navy Header Bar */}
-              <div className="navy-header-bar rounded-t-2xl px-6 py-4.5 text-white flex items-center justify-between border-b border-white/10">
+              <div className="navy-header-bar px-6 py-4.5 shrink-0 text-white flex items-center justify-between border-b border-white/10">
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-white shrink-0 shadow-xs">
                     <Store className="w-5 h-5 text-white" />
@@ -1319,14 +1319,15 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
       {/* Log Return Modal */}
       <AnimatePresence>
         {isLogReturnModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setIsLogReturnModalOpen(false); }}>
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              className="w-full max-w-lg rounded-3xl border-0 shadow-2xl overflow-hidden my-8 bg-white text-zinc-900"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+              className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden bg-white text-zinc-900"
             >
-              <div className="px-6 py-4.5 bg-[#003857] rounded-t-3xl border-b border-white/10 text-white flex items-center justify-between">
+              <div className="px-6 py-4.5 bg-[#003857] border-b border-white/10 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2.5">
                   <RotateCcw className="w-5 h-5 text-white" />
                   <h3 className="text-base font-extrabold text-white">
@@ -1344,7 +1345,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 </button>
               </div>
 
-              <form onSubmit={handleLogSubmit} className="p-6 space-y-3.5 text-xs">
+              <form onSubmit={handleLogSubmit} className="flex-1 p-6 space-y-3.5 text-xs overflow-y-auto custom-scrollbar">
                 {formError && (
                   <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 font-bold text-xs flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 shrink-0" />

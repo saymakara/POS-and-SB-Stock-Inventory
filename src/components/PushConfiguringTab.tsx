@@ -2002,7 +2002,7 @@ return (
         createPortal(
           <AnimatePresence>
             {isPushAllModalOpen && (
-              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+              <div className="fixed inset-0 z-[9999] flex justify-end overflow-hidden">
                 {/* Backdrop with true background blur covering entire viewport */}
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -2013,21 +2013,21 @@ return (
                     setPusherPassword('');
                     setPusherPasswordError('');
                   }}
-                  className="fixed inset-0 bg-slate-950/75 backdrop-blur-md"
+                  className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
                 />
 
-                {/* Clean, Modern Modal Container */}
+                {/* Clean, Modern Slide-over Drawer */}
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 12 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-                  className={`relative w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden my-auto z-10 border-0 flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
                     isLight ? 'bg-white text-slate-900' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
                   {/* Clean Signature Navy Header Bar */}
-                  <div className="navy-header-bar rounded-t-3xl px-6 py-4 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+                  <div className="navy-header-bar px-6 py-4 flex items-center shrink-0 justify-between text-white border-b border-white/10 shrink-0">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-sky-300">
                         <Lock className="w-4.5 h-4.5" />

@@ -742,20 +742,22 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {rejectingReq && (
-              <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setRejectingReq(null); }}>
+              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onMouseDown={(e) => { if (e.target === e.currentTarget) setRejectingReq(null); }}>
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
-                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-                  className="w-full max-w-md rounded-2xl bg-white text-slate-900 shadow-2xl overflow-hidden" role="dialog" aria-modal="true" aria-label="Reject request"
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 border-l border-slate-200 bg-white text-slate-900 flex flex-col my-0 overflow-hidden" role="dialog" aria-modal="true" aria-label="Reject request"
                 >
-                  <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white">
+                  <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white shrink-0">
                     <div>
                       <div className="text-sm font-semibold">Reject {rejectingReq.type === 'STOCK_RETURN' ? 'stock return' : 'stock request'}</div>
                       <div className="text-xs text-white/75 font-mono">{rejectingReq.reqId} · Code {rejectingReq.branchId}</div>
                     </div>
                     <button type="button" onClick={() => setRejectingReq(null)} aria-label="Close" className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"><X className="w-4 h-4" /></button>
                   </div>
-                  <div className="p-5 flex flex-col gap-3 text-xs">
+                  <div className="flex-1 p-5 flex flex-col gap-3 text-xs overflow-y-auto min-h-0 custom-scrollbar">
                     <div className="text-slate-600">The branch will see this reason. A rejected request cannot be dispatched.</div>
                     <div className="flex flex-wrap gap-1.5">
                       {['No stock available at Head Office', 'Quantity is more than the branch needs', 'Request is not clear, please submit again', 'Not approved by management'].map((t) => (
@@ -766,12 +768,12 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       <span className="text-slate-500">Reason (required)</span>
                       <textarea rows={3} maxLength={500} value={rejectText} onChange={(e) => setRejectText(e.target.value)} className="khmer rounded-lg border border-slate-300 px-3 py-2" />
                     </label>
-                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-                      <button type="button" onClick={() => setRejectingReq(null)} className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer">Cancel</button>
-                      <button type="button" disabled={rejectText.trim().length < 3}
-                        onClick={() => { onRejectRequisition?.(rejectingReq.reqId, rejectText.trim()); setRejectingReq(null); }}
-                        className="px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-800 disabled:opacity-45 text-white cursor-pointer">Reject request</button>
-                    </div>
+                  </div>
+                  <div className="shrink-0 px-5 py-3.5 border-t border-slate-200 bg-slate-50/95 flex justify-end gap-2">
+                    <button type="button" onClick={() => setRejectingReq(null)} className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer">Cancel</button>
+                    <button type="button" disabled={rejectText.trim().length < 3}
+                      onClick={() => { onRejectRequisition?.(rejectingReq.reqId, rejectText.trim()); setRejectingReq(null); }}
+                      className="px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-800 disabled:opacity-45 text-white cursor-pointer">Reject request</button>
                   </div>
                 </motion.div>
               </div>
@@ -785,22 +787,22 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {editingReq && (
-              <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setEditingReq(null); }}>
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.96, y: 12 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96, y: 12 }}
-                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-                  className="w-full max-w-md rounded-2xl bg-white text-slate-900 shadow-2xl overflow-hidden"
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 border-l border-slate-200 bg-white text-slate-900 flex flex-col my-0 overflow-hidden"
                 >
-                  <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white">
+                  <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white shrink-0">
                     <div>
                       <div className="text-sm font-semibold">Edit stock request</div>
                       <div className="text-xs text-white/75 font-mono">{editingReq.reqId} · Code {editingReq.branchId}</div>
                     </div>
                     <button type="button" onClick={() => setEditingReq(null)} aria-label="Close" className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"><X className="w-4 h-4" /></button>
                   </div>
-                  <div className="p-5 flex flex-col gap-3 text-xs">
+                  <div className="flex-1 p-5 flex flex-col gap-3 text-xs overflow-y-auto min-h-0 custom-scrollbar">
                     <div className="grid grid-cols-2 gap-3">
                       <label className="flex flex-col gap-1">
                         <span className="text-slate-500">POS Terminal quantity</span>
@@ -818,10 +820,10 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     {(Math.floor(Number(editPos) || 0) + Math.floor(Number(editSb) || 0)) === 0 && (
                       <div role="alert" className="text-rose-700">Enter at least one POS Terminal or Sound Box.</div>
                     )}
-                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-                      <button type="button" onClick={() => setEditingReq(null)} className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer">Cancel</button>
-                      <button type="button" onClick={saveEdit} className="px-4 py-2 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer">Save changes</button>
-                    </div>
+                  </div>
+                  <div className="shrink-0 px-5 py-3.5 border-t border-slate-200 bg-slate-50/95 flex justify-end gap-2">
+                    <button type="button" onClick={() => setEditingReq(null)} className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer">Cancel</button>
+                    <button type="button" onClick={saveEdit} className="px-4 py-2 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer">Save changes</button>
                   </div>
                 </motion.div>
               </div>
@@ -835,13 +837,13 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {arrangingReq && isAdmin && (
-              <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-md overflow-y-auto p-4 flex justify-center items-start sm:items-center">
+              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs">
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.96, y: 14 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96, y: 12 }}
-                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-                  className={`my-auto border-0 rounded-3xl w-full max-w-5xl xl:max-w-6xl shadow-2xl overflow-hidden flex flex-col transform-gpu will-change-gpu gpu-modal-container ${
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  className={`border-l border-slate-200 dark:border-slate-800 w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-gpu gpu-modal-container ${
                     isLight
                       ? 'bg-white text-slate-900'
                       : 'bg-[#121622] text-slate-100'
@@ -1260,20 +1262,20 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {selectedRequisition && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setSelectedRequisition(null)}
-                  className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+                  className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
                 />
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 14 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 12 }}
-                  transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-                  className={`relative w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[92vh] z-10 border-0 flex flex-col ${
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden ${
                     isLight ? 'bg-white text-slate-800' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
