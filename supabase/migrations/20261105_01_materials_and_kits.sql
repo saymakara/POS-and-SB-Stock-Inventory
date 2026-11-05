@@ -1,4 +1,4 @@
--- 05 Nov 2026 · Merchant kit & materials, step 1 (portal). Applied: not yet (apply in the SQL Editor before merging).
+-- 05 Nov 2026 · Merchant kit & materials, step 1 (portal). Applied: 5 Nov 2026 (SQL Editor).
 --
 -- What a merchant receives with a device, and the branch reserve of those materials:
 --   SIM Card (by number, only when the merchant uses 4G), Battery (by serial, POS), POS AC Adaptor, POS Stand Holder,

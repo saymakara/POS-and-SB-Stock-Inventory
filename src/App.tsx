@@ -85,10 +85,9 @@ const SettingsTab = lazyTab(() => import('./components/SettingsTab').then((m) =>
 const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
 const KhqrReviewTab = lazyTab(() => import('./components/KhqrReviewTab').then((m) => ({ default: m.KhqrReviewTab })));
 const CreditCardReviewTab = lazyTab(() => import('./components/CreditCardReviewTab').then((m) => ({ default: m.CreditCardReviewTab })));
-// (5 Nov 2026) Stock Inventory → POS Terminal / Sound Box (units + materials), SIM Card, Monthly Count
+// (5 Nov 2026) Stock Inventory → POS Terminal / Sound Box (units + materials), SIM Card
 const ProductStockPage = lazyTab(() => import('./components/MaterialStockPanel').then((m) => ({ default: m.ProductStockPage })));
 const SimCardTab = lazyTab(() => import('./components/SimCardTab').then((m) => ({ default: m.SimCardTab })));
-const MaterialCountTab = lazyTab(() => import('./components/MaterialCountTab').then((m) => ({ default: m.MaterialCountTab })));
 const MerchantVisitTab = lazyTab(() => import('./components/MerchantVisitTab').then((m) => ({ default: m.MerchantVisitTab })));
 const KpiPerformanceTab = lazyTab(() => import('./components/KpiPerformanceTab').then((m) => ({ default: m.KpiPerformanceTab })));
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
@@ -208,7 +207,6 @@ const VALID_TABS = new Set([
   'inventory_pos',
   'inventory_sb',
   'sim_cards',
-  'material_count',
   'push_configuring',
   'requisitions',
   'branches',
@@ -222,7 +220,6 @@ const VALID_TABS = new Set([
 const HIDE_STAGE_HEADER_TABS = new Set([
   'kpi_performance',
   'sim_cards',
-  'material_count',
   'merchants',
   'merchant_history',
   'push_configuring',
@@ -1959,7 +1956,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return () => clearTimeout(timer);
   }, [deferredSearchQuery, serverDeviceTotal, shownTab, role, selectedBranch, branchFilter, handleFetchInventoryPage]);
 
+  // (5 Nov 2026) on the POS Terminal and Sound Box pages (Stock Inventory and Phone App Review) the stock strip counts
+  // that product only; elsewhere both products together
+  const productType: 'POS Terminal' | 'Sound Box' | null =
+    shownTab === 'inventory_pos' || shownTab === 'mobile_sync' ? 'POS Terminal' : shownTab === 'inventory_sb' || shownTab === 'mobile_sync_sb' ? 'Sound Box' : null;
   const pipelineCounts = useMemo(() => {
+    if (serverStageSummary && productType) {
+      const n = (st: keyof typeof serverStageSummary.byStage) => {
+        const b = serverStageSummary.byStage[st];
+        return b ? (productType === 'POS Terminal' ? b.posCount : b.sbCount) : 0;
+      };
+      const hq = n('HQ_STOCK'), reserve = n('BRANCH_RESERVE'), config = n('CONFIGURING'), complete = n('COMPLETE'), faulty = n('FAULTY'), lost = n('LOST');
+      return { all: hq + reserve + config + complete + faulty + lost, hq, reserve, config, complete, faulty, lost };
+    }
     if (serverStageSummary) {
       return {
         all: serverStageSummary.all,
@@ -1975,7 +1984,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const len = scopedDevices.length;
     for (let i = 0; i < len; i++) {
       const d = scopedDevices[i];
-      if (d.archived) continue;
+      if (d.archived || (productType && d.type !== productType)) continue;
       all++;
       switch (d.stage) {
         case 'HQ_STOCK': hq++; break;
@@ -1987,7 +1996,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       }
     }
     return { all, hq, reserve, config, complete, faulty, lost };
-  }, [scopedDevices, serverStageSummary]);
+  }, [scopedDevices, serverStageSummary, productType]);
+  /** a stage chosen on the stock strip opens the unit list of the same product (all units elsewhere) */
+  const stockTabForStage = productType === 'POS Terminal' ? 'inventory_pos' : productType === 'Sound Box' ? 'inventory_sb' : 'inventory';
 
   // Count of devices in CONFIGURING stage that have NOT yet been pushed (controls sidebar badge pill)
   const unpushedConfiguringCount = useMemo(() => {
@@ -4312,11 +4323,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           <PipelineBar
               role={role}
               counts={pipelineCounts}
+              allLabel={productType ? `All ${productType}` : undefined}
               currentStageFilter={stageFilter}
               onSelectStage={(st) => {
                 setStageFilter(st);
-                if (activeTab !== 'inventory' && st !== 'ALL') {
-                  setActiveTab('inventory');
+                if (activeTab !== stockTabForStage && st !== 'ALL') {
+                  if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                  setActiveTab(stockTabForStage);
                 }
               }}
               theme={theme}
@@ -4330,6 +4343,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               {!HIDE_STAGE_HEADER_TABS.has(shownTab) && !(productView === 'MATERIAL' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb')) && (
               <KpiCards
                 devices={scopedDevices}
+                deviceType={productType || undefined}
                 theme={theme}
                 activeStageFilter={stageFilter}
                 serverStatsByStage={serverStageSummary?.byStage}
@@ -4338,8 +4352,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                 onOpenHistoryTab={() => handleSelectTab('merchant_history')}
                 onSelectStage={(st) => {
                   setStageFilter(st);
-                  if (activeTab !== 'inventory' && st !== 'ALL') {
-                    setActiveTab('inventory');
+                  if (activeTab !== stockTabForStage && st !== 'ALL') {
+                    if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                    setActiveTab(stockTabForStage);
                   }
                 }}
               />
@@ -4534,10 +4549,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
                   {shownTab === 'sim_cards' && (
                     <SimCardTab role={role} branches={branches} myBranch={selectedBranch} triggerToast={triggerToast} onLostChanged={refreshLostCounts} />
-                  )}
-
-                  {shownTab === 'material_count' && (
-                    <MaterialCountTab role={role} branches={branches} myBranch={selectedBranch} triggerToast={triggerToast} onChanged={refreshLostCounts} />
                   )}
 
                   {shownTab === 'branches' && (

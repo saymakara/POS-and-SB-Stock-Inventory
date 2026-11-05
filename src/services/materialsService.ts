@@ -55,11 +55,6 @@ export interface LostItem {
   merchantName: string | null; source: string | null; remark: string | null; reportedBy: string | null; status: 'OPEN' | 'RECOVERED' | 'WRITTEN_OFF';
   blocked: boolean; resolution: string | null; resolvedBy: string | null; resolvedAt: string | null;
 }
-export interface CountLine { code: MaterialCode; system: number; counted: number; diff: number; missing?: string[]; extra?: string[]; remark?: string | null }
-export interface MaterialCount {
-  id: number; branchId: string; month: string; lines: CountLine[]; differences: number; status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  submittedBy: string | null; submittedAt: string; reviewedBy: string | null; reviewedAt: string | null; reviewNote: string | null;
-}
 export interface Movement { id: number; at: string; kind: string; code: MaterialCode; serial: string | null; qty: number; fromBranch: string | null; toBranch: string | null; branchId: string | null; ref: string | null; deviceSerial: string | null; mid: string | null; note: string | null; actor: string | null }
 
 /** "Not set up yet": the migration has not been applied to this database. */
@@ -123,14 +118,6 @@ export async function fetchSerialStatusCounts(code: MaterialCode, branchId?: str
   }));
   return out;
 }
-/** Numbers in the reserve of one branch (the monthly count list). */
-export async function fetchReserveSerials(code: MaterialCode, branchId: string): Promise<string[]> {
-  if (!isSupabaseConfigured) return [];
-  const { data, error } = await supabase.from('material_serials').select('serial').eq('material_code', code).eq('branch_id', branchId)
-    .in('status', branchId === '100' ? ['HQ_STOCK'] : ['BRANCH_RESERVE']).order('serial').limit(5000);
-  fail(error);
-  return (data || []).map((r: any) => r.serial);
-}
 
 const mapLost = (r: any): LostItem => ({
   id: Number(r.id), createdAt: r.created_at, code: r.material_code, serial: r.serial ?? null, qty: Number(r.qty) || 1, branchId: String(r.branch_id),
@@ -184,16 +171,6 @@ export async function fetchMovements(q: { deviceSerial?: string; code?: Material
   }));
 }
 
-const mapCount = (r: any): MaterialCount => ({
-  id: Number(r.id), branchId: String(r.branch_id), month: r.month, lines: Array.isArray(r.lines) ? r.lines : [], differences: Number(r.differences) || 0,
-  status: r.status, submittedBy: r.submitted_by ?? null, submittedAt: r.submitted_at, reviewedBy: r.reviewed_by ?? null, reviewedAt: r.reviewed_at ?? null, reviewNote: r.review_note ?? null,
-});
-export async function fetchCounts(month: string): Promise<MaterialCount[]> {
-  if (!isSupabaseConfigured) return [];
-  const { data, error } = await supabase.from('material_counts').select('*').eq('month', month).order('submitted_at', { ascending: false }).limit(500);
-  fail(error);
-  return (data || []).map(mapCount);
-}
 
 async function rpc<T = any>(fn: string, p: unknown): Promise<T> {
   const { data, error } = await supabase.rpc(fn, { p });
@@ -213,17 +190,9 @@ export const kitReturn = (p: { device_serial: string; items: { code: MaterialCod
   rpc('admin_kit_return', p);
 export const kitReplace = (p: { device_serial: string; code: MaterialCode; old_serial?: string; old_result: 'RETURNED' | 'LOST' | 'FAULTY'; remark?: string; new_serial?: string; qty?: number }) =>
   rpc('admin_kit_replace', p);
-export const countSubmit = (p: { branch_id?: string; month: string; lines: { code: MaterialCode; counted?: number; present?: string[]; remark?: string }[] }) =>
-  rpc<{ id: number; differences: number }>('material_count_submit', p);
-export const countReview = (p: { id: number; action: 'APPROVE' | 'REJECT'; note?: string }) => rpc('admin_material_count_review', p);
 export interface MaterialsToSend { qty: Partial<Record<MaterialCode, number>>; serials: Partial<Record<MaterialCode, string[]>> }
 export const dispatchRequestWithMaterials = (p: { req_id: string; serials: string[]; note?: string; materials: MaterialsToSend }) =>
   rpc<{ arranged?: unknown[]; materials_sent: unknown }>('admin_dispatch_request', p);
 
-/** The month a count belongs to ("2026-11"), in Phnom Penh time. */
-export const countMonth = (d = new Date()) => {
-  const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Phnom_Penh', year: 'numeric', month: '2-digit' }).formatToParts(d);
-  return `${p.find((x) => x.type === 'year')!.value}-${p.find((x) => x.type === 'month')!.value}`;
-};
 export const placeName = (branchId: string, branches: { id: string; name: string }[]) =>
   branchId === '100' ? 'Head Office' : `${branchId} · ${branches.find((b) => b.id === branchId)?.name || 'Branch ' + branchId}`;
