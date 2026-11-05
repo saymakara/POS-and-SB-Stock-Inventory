@@ -667,30 +667,30 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
         />
 
-        {/* Modal Window */}
+        {/* Slide-over Drawer Window */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 14 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 12 }}
-          transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
-          className={`relative w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden my-auto max-h-[96vh] z-10 border-0 flex flex-col ${
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+          className={`relative w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden ${
             isLight
               ? 'bg-white text-slate-800'
               : 'bg-[#12151e] text-slate-100'
           }`}
         >
           {/* Header */}
-          <div className="navy-header-bar rounded-t-2xl px-4 py-2.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+          <div className="navy-header-bar px-4 sm:px-5 py-3 flex items-center justify-between text-white border-b border-white/10 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-xs text-white">
                 {device.type === 'POS Terminal' ? (
@@ -920,7 +920,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               )}
 
               {/* Form Body */}
-              <form onSubmit={handleSubmit} className="p-3 sm:p-3.5 flex flex-col gap-2.5 overflow-y-auto max-h-[calc(94vh-110px)] custom-scrollbar">
+              <form onSubmit={handleSubmit} className="flex-1 p-3.5 sm:p-5 flex flex-col gap-3 overflow-y-auto min-h-0 custom-scrollbar">
             {/* Section 0: Admin Serial Number Correction */}
             {isAdminLike && onRenameSerial && (
               <div className={`p-2 sm:px-3 sm:py-1.5 rounded-xl border transition-colors shrink-0 ${
@@ -1652,8 +1652,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
             {/* Footer */}
             <div
-              className={`flex items-center justify-end gap-2 pt-2 border-t shrink-0 ${
-                isLight ? 'border-slate-100' : 'border-slate-800/80'
+              className={`mt-auto flex items-center justify-end gap-2 pt-3 border-t shrink-0 ${
+                isLight ? 'border-slate-200' : 'border-slate-800'
               }`}
             >
               {(role === 'SUPER_ADMIN' || role === 'ADMIN') && onDeletePermanently && device && (
@@ -1696,7 +1696,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       ) : (
         /* STEP 2: IMPACT PREVIEW & BEFORE/AFTER DIFF CONFIRMATION */
         pendingPayload && (
-          <div className="p-3 sm:p-3.5 flex flex-col gap-2.5 max-h-[calc(94vh-110px)] overflow-y-auto custom-scrollbar">
+          <div className="flex-1 p-3.5 sm:p-5 flex flex-col gap-3 overflow-y-auto min-h-0 custom-scrollbar">
             {/* Impact Notice Alert Banner */}
             <div
               className={`p-3 rounded-xl border flex items-start gap-2.5 ${
@@ -2063,8 +2063,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
             {/* Preview Footer Actions */}
             <div
-              className={`flex items-center justify-between gap-3 pt-2.5 border-t ${
-                isLight ? 'border-slate-100' : 'border-slate-800/80'
+              className={`mt-auto flex items-center justify-between gap-3 pt-3 border-t shrink-0 ${
+                isLight ? 'border-slate-200' : 'border-slate-800/80'
               }`}
             >
               <motion.button
