@@ -722,11 +722,11 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <AnimatePresence>
               {isSearchFocused && localSearch.trim().length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                  initial={{ opacity: 0, y: 6, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 6, scale: 0.98 }}
-                  transition={{ duration: 0.15, ease: 'easeOut' }}
-                  className="absolute left-0 top-full mt-2 w-full min-w-[340px] sm:min-w-[420px] max-w-[500px] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden z-50 divide-y divide-slate-100"
+                  exit={{ opacity: 0, y: 6, scale: 0.95, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="origin-top-left absolute left-0 top-full mt-2 w-full min-w-[340px] sm:min-w-[420px] max-w-[500px] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden z-50 divide-y divide-slate-100"
                 >
                   {onTrace && localSearch.trim().length >= 4 && (
                     <button
@@ -931,11 +931,11 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             <AnimatePresence>
               {notifOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.95, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }}
                   transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
-                  className="absolute right-0 mt-2.5 w-[360px] sm:w-[420px] rounded-2xl shadow-2xl border bg-white border-slate-200/90 text-zinc-900 overflow-hidden z-50 divide-y divide-slate-100 transform-gpu will-change-gpu"
+                  className="origin-top-right absolute right-0 mt-2.5 w-[360px] sm:w-[420px] rounded-2xl shadow-2xl border bg-white border-slate-200/90 text-zinc-900 overflow-hidden z-50 divide-y divide-slate-100 transform-gpu will-change-gpu"
                 >
                   {/* Clean, Modern Header */}
                   <div className="px-4 py-3 bg-slate-50/80 flex items-center justify-between">

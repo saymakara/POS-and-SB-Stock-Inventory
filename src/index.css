@@ -93,17 +93,23 @@
 }
 
 :root {
-  /* Enterprise-Banking Timing & Easing Design Tokens */
-  --duration-instant: 75ms;   /* micro-taps, active click depression */
-  --duration-fast: 140ms;     /* hover states, focus rings, dropdown pops, tooltips */
-  --duration-normal: 220ms;   /* modals, drawers, expandables, state changes */
-  --duration-smooth: 280ms;   /* view-transitions, page glides, list transitions */
+  /* Enterprise Motion Tokens (Following 20 Ways to Make Beautiful Animations) */
+  --duration-instant: 40ms;          /* Rule 14: Don't tween while held */
+  --duration-dropdown: 200ms;        /* Rule 2: Dropdowns at 150–250ms */
+  --duration-dropdown-exit: 160ms;   /* Rule 15: Make exits 20% shorter */
+  --duration-fast: 140ms;            /* hover states, focus rings, tooltips */
+  --duration-normal: 220ms;          /* modals, drawers, expandables */
+  --duration-normal-exit: 176ms;     /* Rule 15: 20% shorter exit */
+  --duration-smooth: 280ms;          /* view-transitions, page glides, list transitions */
 
-  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);  /* swift, calm deceleration (no bounce) */
-  --ease-press: cubic-bezier(0.32, 0.72, 0, 1);     /* organic physical release */
-  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);    /* restrained, zero-overshoot spring */
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);           /* calm enter */
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);            /* subtle exit */
+  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1); /* Rule 1: Ease-out for entrances */
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);  /* Rule 13: zero-overshoot everyday spring */
+  --ease-move: cubic-bezier(0.4, 0, 0.2, 1);       /* Rule 9: Ease-in-out for moves */
+  --ease-press: cubic-bezier(0, 0, 0.2, 1);        /* instant physical press */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);    /* Rule 13: restrained, zero-overshoot spring */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);          /* Rule 1: calm enter */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);           /* subtle exit */
+  --stagger-row: 30ms;                            /* Rule 3: Stagger list rows by 30ms */
 
   --ease-snappy: var(--ease-standard);
   --ease-apple-spring: var(--ease-standard);
@@ -433,6 +439,7 @@ button strong,
 }
 
 /* Calm Active Press: 1.5% micro-depression for precise tactile confirmation */
+/* Rule 4: Scale to 0.97 on press & Rule 14: Don't tween while held */
 button:active:not(:disabled),
 [role="button"]:active:not(:disabled),
 .tactile-btn:active:not(:disabled),
@@ -440,8 +447,8 @@ button:active:not(:disabled),
 .row-btn:active:not(:disabled),
 .btn-press:active:not(:disabled),
 .btn-tactile:active:not(:disabled) {
-  transform: scale(0.985) translateZ(0);
-  transition: transform var(--duration-instant) var(--ease-standard) !important;
+  transform: scale(0.97) translateZ(0);
+  transition: transform 40ms cubic-bezier(0, 0, 0.2, 1) !important;
 }
 
 /* Strict Disabled Protection: Blocks double-triggers and cursor anomalies */
@@ -1256,4 +1263,69 @@ datalist option {
     font-weight: 400 !important;
     font-family: var(--font-sans);
   }
+}
+
+
+/* ==========================================================================
+   20 WAYS TO MAKE BEAUTIFUL ANIMATIONS - SYSTEM UTILITIES
+   ========================================================================== */
+
+/* Rule 5: Stretch moving knobs 12% */
+.toggle-knob-stretch:active,
+.toggle-switch:active .toggle-knob,
+input[type="checkbox"].switch-toggle:active::after {
+  transform: scaleX(1.12);
+}
+
+/* Rule 8: Pulse to confirm success */
+@keyframes confirmSuccessPulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+.pulse-success {
+  animation: confirmSuccessPulse 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Rule 10: Start popovers at 0.95 & Rule 11/12: Enter/exit from trigger */
+.popover-container {
+  transform-origin: top;
+}
+.popover-enter {
+  transform-origin: top;
+  animation: popoverScaleIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.popover-exit {
+  transform-origin: top;
+  animation: popoverScaleOut 160ms cubic-bezier(0.4, 0, 1, 1) forwards; /* Rule 15: 20% shorter */
+}
+@keyframes popoverScaleIn {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes popoverScaleOut {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.95); }
+}
+
+/* Rule 18: Crossfade icons + blur (2px blur) */
+.icon-blur-crossfade-enter {
+  animation: iconBlurIn 140ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.icon-blur-crossfade-exit {
+  animation: iconBlurOut 110ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+@keyframes iconBlurIn {
+  0% { opacity: 0; filter: blur(2px); transform: scale(0.92); }
+  100% { opacity: 1; filter: blur(0px); transform: scale(1); }
+}
+@keyframes iconBlurOut {
+  0% { opacity: 1; filter: blur(0px); transform: scale(1); }
+  100% { opacity: 0; filter: blur(2px); transform: scale(0.92); }
+}
+
+/* Rule 19: Rubber band past bounds */
+.rubber-band-scroll {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
