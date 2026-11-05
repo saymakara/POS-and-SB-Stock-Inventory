@@ -89,7 +89,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
     const hitC = getCachedCcCounts(ck);
     if (hitC) setCounts(hitC);                                         // shown at once; the fresh numbers replace them
     try {
-      const c = await fetchCcCounts(range.from, range.to, fresh ? 0 : 4000);
+      const c = await fetchCcCounts(range.from, range.to, fresh ? 0 : 30000);
       if (seq !== cSeq.current || !c) return;
       setCachedCcCounts(ck, c);
       setCounts(c);
@@ -115,7 +115,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
     if (hit) { setRows(hit.rows); setTotal(hit.total); setMasked(hit.masked); }   // the last answer at once (no waiting)
     setLoading(!hit);
     try {
-      const res = await fetchCcList(q, fresh ? 0 : 4000);   // an answer from the last 4 s (the warm-up) is reused
+      const res = await fetchCcList(q, fresh ? 0 : 30000);   // an answer from the last 30 s (sign-in warm-up, last visit) is reused
       if (seq !== seqRef.current) return;
       setCachedCcList(key, res);
       setRows(res.rows); setTotal(res.total); setMasked(res.masked); setLoadError('');

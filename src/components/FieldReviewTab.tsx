@@ -1,5 +1,6 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
+import { isFresh, markFresh } from '../utils/freshness';
 import { useKeptMemo } from '../utils/useKeptMemo';
 import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Users } from 'lucide-react';
 import { BigKpiCard } from './BigKpiCard';
@@ -270,13 +271,16 @@ export const FieldReviewTab: React.FC<Props> = ({
         });
         setReviewedReady(true);
       });
+      markFresh('field');
     } catch {
       setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
     }
   }, []);
 
   useEffect(() => {
-    load();
+    // (5 Nov 2026, speed) the records fetched in the last minute (sign-in warm-up, the other review page) are used as
+    // they are: the live feed below keeps them current, Refresh fetches again
+    if (!(getCachedFieldEvents() && isFresh('field', 60000))) load();
     // (29 Oct 2026, speed review) live changes are collected and applied together once per frame: a burst of phone records
     // (or a bulk approval) is one screen update, not one per record
     const queued = new Map<number, FieldEvent>();

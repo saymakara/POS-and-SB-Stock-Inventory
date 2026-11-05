@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { clearFresh } from '../utils/freshness';
 import { todayPP } from '../utils/time';
 import {
   QrAttempt, QrEntry, QrMonthTotal, QrQuery, QrSummary,
@@ -39,7 +40,7 @@ const attempts = new Map<string, { rows: QrAttempt[]; total: number }>();
 let history: QrMonthTotal[] | null = null;
 let owner: string | null | undefined;
 
-export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); history = null; }
+export function clearKhqrCache(): void { entries.clear(); summaries.clear(); attempts.clear(); history = null; clearFresh('qr:'); }
 
 if (isSupabaseConfigured) {
   try {

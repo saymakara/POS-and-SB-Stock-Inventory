@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- (5 Nov 2026, speed) start the connection to the database while the page loads: the first request saves 1-2 round trips -->
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
     <meta charset="UTF-8" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
