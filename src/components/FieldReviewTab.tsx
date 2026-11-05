@@ -1,7 +1,8 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Users } from 'lucide-react';
+import { BigKpiCard } from './BigKpiCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -397,6 +398,20 @@ export const FieldReviewTab: React.FC<Props> = ({
     return c;
   }, [scoped, deviceType]);
 
+  // (5 Nov 2026) the figures of the page header (same layout as KHQR): this device type, in the active scope
+  const hero = useMemo(() => {
+    const kinds = new Map<string, number>(); const staff = new Set<string>(); let warn = 0; let block = 0;
+    scoped.forEach((e) => {
+      if (deviceType && devType(e) !== deviceType) return;
+      if (e.status !== 'APPROVED' && e.status !== 'PENDING' && e.status !== 'REJECTED') return;
+      kinds.set(e.kind, (kinds.get(e.kind) || 0) + 1);
+      if (e.staffId || e.staffName) staff.add(String(e.staffId || e.staffName));
+      if (e.status === 'PENDING') { if (hasBlock(e)) block++; else if (hasWarn(e)) warn++; }
+    });
+    const top = Array.from(kinds.entries()).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, n]) => `${n.toLocaleString()} ${(KIND_LABEL[k as FieldEvent['kind']] || k).toLowerCase()}`);
+    return { staff: staff.size, warn, block, top };
+  }, [scoped, deviceType]);
+
   // Keep the sub-menu badges synchronized with the active scope's exact waiting count of each device type
   const pendingByType = useMemo(() => {
     const c = { pos: 0, sb: 0 };
@@ -737,33 +752,61 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col gap-3.5 apple-tab-panel">
+      {/* (5 Nov 2026) Page header with the phone app figures: the same layout as KHQR */}
+      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900" aria-label={`${deviceType || 'Review'} statistics`}>
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex flex-wrap items-center gap-3 text-slate-900 leading-tight">
+              {deviceType === 'Sound Box'
+                ? <Volume2 className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#4F518C]" aria-hidden />
+                : <Cpu className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#006BA6]" aria-hidden />}
+              <span>{deviceType || 'Review'}</span>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90 tracking-normal"
+                title="New records from the phone app appear here as they are saved">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
+                {live ? 'Live' : 'Connected'}
+              </span>
+            </h1>
+            <p className="text-sm sm:text-base leading-relaxed text-slate-600">
+              {deviceType === 'Sound Box'
+                ? 'Sound Box records from the Merchant Visit app: installations, replacements, maintenance and returns. Approve to update the stock, or reject with a reason.'
+                : 'POS Terminal records from the Merchant Visit app: installations, replacements, battery changes, maintenance and returns. Approve to update the stock, or reject with a reason.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <ExportCsvButton onExport={exportCsv} toast={triggerToast} title="Save the records that match the filters as a CSV file" />
+            <button
+              type="button"
+              onClick={load}
+              aria-label="Refresh"
+              title="Refresh Phone App Review records"
+              className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-slate-600 group-hover:rotate-180 transition-transform duration-300" />
+              <span>Sync Stream</span>
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3.5 mt-6 pt-6 border-t border-slate-200/90">
+          <BigKpiCard label="Waiting review" value={events ? counts.PENDING : undefined} icon={Clock}
+            sub={hero.block ? `${hero.block.toLocaleString()} blocked · ${hero.warn.toLocaleString()} with warnings` : hero.warn ? `${hero.warn.toLocaleString()} with warnings to check` : 'Approve or reject each record'}
+            accentColor="amber" onClick={() => setFilter('PENDING')} actionLabel="Show" />
+          <BigKpiCard label="Approved" value={events ? counts.APPROVED : undefined} icon={CheckCircle2} sub="Stock updated from the record" accentColor="emerald" onClick={() => setFilter('APPROVED')} actionLabel="Show" />
+          <BigKpiCard label="Rejected" value={events ? counts.REJECTED : undefined} icon={XCircle} sub="Sent back with a reason" accentColor="rose" onClick={() => setFilter('REJECTED')} actionLabel="Show" />
+          <BigKpiCard label="All records" value={events ? counts.ALL : undefined} icon={deviceType === 'Sound Box' ? Volume2 : Cpu}
+            sub={hero.top.length ? hero.top.join(' · ') : 'Every record received'} accentColor="blue" onClick={() => setFilter('ALL')} actionLabel="Show" />
+          <BigKpiCard label="With warnings" value={events ? hero.warn + hero.block : undefined} icon={AlertTriangle}
+            sub="Waiting records the system flagged" accentColor="orange" badge={hero.block ? `${hero.block} blocked` : undefined} />
+          <BigKpiCard label="Staff" value={events ? hero.staff : undefined} icon={Users} sub="Sent at least one record" accentColor="violet" />
+        </div>
+      </section>
+
       {/* Section 1 — Clean Filter Header */}
       <section
         className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs transition-all"
         aria-label="Filters"
       >
         <div className="flex flex-wrap items-center gap-2">
-          <div className="mr-2 flex items-center gap-2.5">
-            <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2.5">
-              {deviceType === 'Sound Box' ? (
-                <Volume2 className="w-6 h-6 text-[#4F518C] shrink-0" aria-hidden />
-              ) : (
-                <Cpu className="w-6 h-6 text-[#006BA6] shrink-0" aria-hidden />
-              )}
-              <span>{deviceType || 'Review'}</span>
-            </h2>
-            <span
-              className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90"
-              title="New records from the phone app appear here as they are saved"
-            >
-              <span
-                className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
-                aria-hidden
-              />
-              {live ? 'Live' : 'Connected'}
-            </span>
-          </div>
-
           {/* Segmented status tabs */}
           <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0">
             {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as Filter[]).map((f) => {
@@ -871,16 +914,6 @@ export const FieldReviewTab: React.FC<Props> = ({
               setRecordTypeFilter('ALL');
             }}
           />
-          <ExportCsvButton onExport={exportCsv} toast={triggerToast} />
-          <button
-            type="button"
-            onClick={load}
-            aria-label="Refresh"
-            title="Refresh Phone App Review records"
-            className="btn-press p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer transition"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
         </div>
       </section>
 
