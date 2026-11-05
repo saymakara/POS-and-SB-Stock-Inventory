@@ -2,7 +2,7 @@ import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { isFresh, markFresh } from '../utils/freshness';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Users } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Users, Check, X } from 'lucide-react';
 import { BigKpiCard } from './BigKpiCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
@@ -61,7 +61,7 @@ const DOT = { 'POS Terminal': 'bg-[#006BA6]', 'Sound Box': 'bg-[#4F518C]' } as c
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-3 grid-cols-[24px_30px_104px_112px_160px_minmax(195px,1.3fr)_minmax(130px,1.1fr)_minmax(130px,1.15fr)_96px_138px]';
+  'grid items-center gap-x-2.5 grid-cols-[24px_28px_96px_104px_140px_minmax(125px,1.2fr)_minmax(120px,1.1fr)_minmax(120px,1.15fr)_84px_156px]';
 const CACHE_KEY = 'fe_review_cache_v5';
 
 /** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */
@@ -955,12 +955,12 @@ export const FieldReviewTab: React.FC<Props> = ({
               type="button"
               onClick={() => runBulk('reject')}
               disabled={!!bulkBusy}
-              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-normal border border-slate-300 text-slate-700 bg-slate-100 hover:bg-slate-200 dark:border-slate-700 dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-rose-200/90 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all active:scale-[0.97]"
             >
               {bulkBusy === 'reject' ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
               ) : (
-                <XCircle className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                <XCircle className="w-3.5 h-3.5 text-rose-600" aria-hidden="true" />
               )}{' '}
               Reject {selectedShown.length}
             </button>
@@ -968,12 +968,12 @@ export const FieldReviewTab: React.FC<Props> = ({
               type="button"
               onClick={() => runBulk('approve')}
               disabled={!!bulkBusy}
-              className="btn-press btn btn-primary"
+              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow border border-emerald-600/30 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer transition-all active:scale-[0.97]"
             >
               {bulkBusy === 'approve' ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
               ) : (
-                <CheckCircle2 className="w-3.5 h-3.5" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-white" aria-hidden="true" />
               )}{' '}
               Approve {selectedShown.length}
             </button>
@@ -1026,7 +1026,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto"
         aria-label="Records"
       >
-        <div className="min-w-[1120px]">
+        <div className="min-w-[1020px]">
           <div
             className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`}
             role="row"
@@ -1364,8 +1364,9 @@ const ReviewRow = memo(function ReviewRow({
                 type="button"
                 onClick={() => onReject(e)}
                 disabled={busy}
-                className="btn-press btn btn-danger"
+                className="btn-press inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold tracking-normal border transition-all cursor-pointer bg-rose-50 hover:bg-rose-100/90 text-rose-700 border-rose-200/90 hover:border-rose-300 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
               >
+                <X className="w-3 h-3 text-rose-600 stroke-[2.4]" aria-hidden="true" />
                 Reject
               </button>
               <button
@@ -1379,9 +1380,18 @@ const ReviewRow = memo(function ReviewRow({
                     ? 'Open the line and choose the branch'
                     : undefined
                 }
-                className="btn-press btn btn-primary"
+                className={`btn-press inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold tracking-normal border transition-all active:scale-[0.97] ${
+                  canApprove
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600/30 shadow-xs hover:shadow-sm cursor-pointer'
+                    : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                }`}
               >
-                {busy && <Loader2 className="w-3 h-3 animate-spin" />}Approve
+                {busy ? (
+                  <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Check className={`w-3 h-3 stroke-[2.4] ${canApprove ? 'text-white' : 'text-slate-300'}`} aria-hidden="true" />
+                )}
+                Approve
               </button>
             </>
           ) : (
