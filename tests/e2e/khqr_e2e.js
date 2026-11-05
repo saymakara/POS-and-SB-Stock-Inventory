@@ -222,14 +222,14 @@ state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, re
   await p.fill('#empId', '8986'); await p.fill('#pw', 'Secret123'); await p.click('button[type=submit]'); await sleep(3500);
   ok(!(await p.isVisible('#empId')), 'Super Admin signed in');
   const side = p.locator('aside').first();
-  for (const t of ['POS Terminal', 'Sound Box', 'KHQR']) ok(await side.getByRole('button', { name: new RegExp('^' + t) }).isVisible(), `sidebar: "${t}" under Phone App Review`);
+  for (const t of ['POS Terminal', 'Sound Box', 'KHQR']) ok(await side.getByRole('group', { name: 'Phone App Review sections' }).getByRole('button', { name: new RegExp('^' + t) }).isVisible(), `sidebar: "${t}" under Phone App Review`);
   const sideTxt = (await side.textContent()).replace(/\s+/g, ' ');
   ok(/POS Terminal\s*3/.test(sideTxt) && /Sound Box\s*1/.test(sideTxt) && /KHQR\s*Merchant Visit\s*Credit Card/.test(sideTxt), 'badges: 3 POS, 1 Sound Box waiting; KHQR and Merchant Visit have no approval badge');
-  await side.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1500);
+  await side.getByRole('group', { name: 'Phone App Review sections' }).getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1500);
   let body = await p.textContent('main');
   ok((/Phone App Review\s*·\s*POS Terminal/.test(body) || /POS Terminal/.test(body)) && /WP0001/.test(body) && !/SB0001/.test(body), 'POS Terminal: POS records only');
   ok(await p.isVisible('text=Admin HQ Stock'), 'stock cards still shown on the other pages');
-  await side.getByRole('button', { name: /^Sound Box/ }).click(); await sleep(1200);
+  await side.getByRole('group', { name: 'Phone App Review sections' }).getByRole('button', { name: /^Sound Box/ }).click(); await sleep(1200);
   body = await p.textContent('main');
   ok((/Phone App Review\s*·\s*Sound Box/.test(body) || /Sound Box/.test(body)) && /SB0001/.test(body) && !/WP0001/.test(body), 'Sound Box: Sound Box records only');
   // KHQR

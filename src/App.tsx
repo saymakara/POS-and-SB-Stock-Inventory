@@ -85,6 +85,10 @@ const SettingsTab = lazyTab(() => import('./components/SettingsTab').then((m) =>
 const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then((m) => ({ default: m.FieldReviewTab })));
 const KhqrReviewTab = lazyTab(() => import('./components/KhqrReviewTab').then((m) => ({ default: m.KhqrReviewTab })));
 const CreditCardReviewTab = lazyTab(() => import('./components/CreditCardReviewTab').then((m) => ({ default: m.CreditCardReviewTab })));
+// (5 Nov 2026) Stock Inventory → POS Terminal / Sound Box (units + materials), SIM Card, Monthly Count
+const ProductStockPage = lazyTab(() => import('./components/MaterialStockPanel').then((m) => ({ default: m.ProductStockPage })));
+const SimCardTab = lazyTab(() => import('./components/SimCardTab').then((m) => ({ default: m.SimCardTab })));
+const MaterialCountTab = lazyTab(() => import('./components/MaterialCountTab').then((m) => ({ default: m.MaterialCountTab })));
 const MerchantVisitTab = lazyTab(() => import('./components/MerchantVisitTab').then((m) => ({ default: m.MerchantVisitTab })));
 const KpiPerformanceTab = lazyTab(() => import('./components/KpiPerformanceTab').then((m) => ({ default: m.KpiPerformanceTab })));
 const StaffAccountsTab = lazyTab(() => import('./components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
@@ -131,6 +135,7 @@ import {
   fetchAuditLogs,
   subscribeToFieldEvents,
   dispatchRequisitionOnServer,
+  dispatchRequestWithMaterialsOnServer,
   rejectRequisitionOnServer,
   receiveReturnOnServer,
   fetchBranchesFromSupabase,
@@ -200,6 +205,10 @@ const VALID_TABS = new Set([
   'mobile_sync_visit',
   'kpi_performance',
   'inventory',
+  'inventory_pos',
+  'inventory_sb',
+  'sim_cards',
+  'material_count',
   'push_configuring',
   'requisitions',
   'branches',
@@ -212,6 +221,8 @@ const VALID_TABS = new Set([
 
 const HIDE_STAGE_HEADER_TABS = new Set([
   'kpi_performance',
+  'sim_cards',
+  'material_count',
   'merchants',
   'merchant_history',
   'push_configuring',
@@ -741,6 +752,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [pendingByType, setPendingByType] = useState<{ pos: number; sb: number }>({ pos: 0, sb: 0 });
   // (31 Oct 2026) Credit Card entries waiting for Head Office review (sidebar number)
   const [ccPending, setCcPending] = useState(0);
+  // (5 Nov 2026) open lost materials per page (menu numbers under Stock Inventory)
+  const [lostCounts, setLostCounts] = useState<{ pos: number; sb: number; sim: number }>({ pos: 0, sb: 0, sim: 0 });
+  const refreshLostCounts = useCallback(() => {
+    if (!isSupabaseConfigured) return;
+    import('./services/materialsService').then((m) => m.fetchOpenLostCounts()).then((c) => setLostCounts((p) => (p.pos === c.pos && p.sb === c.sb && p.sim === c.sim ? p : c))).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!isSupabaseConfigured || !serverReady) return;
+    refreshLostCounts();
+    const onVis = () => { if (document.visibilityState === 'visible') refreshLostCounts(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [serverReady, refreshLostCounts]);
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
     let alive = true;
@@ -1361,6 +1385,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // Inventory Filters
   const [stageFilter, setStageFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  // (5 Nov 2026) the product pages show one product: the unit list follows the page; back on the all-units page, all types again
+  const [productView, setProductView] = useState<'UNITS' | 'MATERIAL'>('UNITS');
+  const lastStockTab = React.useRef('');
+  useEffect(() => {
+    if (activeTab === 'inventory_pos') setTypeFilter('POS Terminal');
+    else if (activeTab === 'inventory_sb') setTypeFilter('Sound Box');
+    else if (activeTab === 'inventory' && (lastStockTab.current === 'inventory_pos' || lastStockTab.current === 'inventory_sb')) setTypeFilter('ALL');
+    if (activeTab.startsWith('inventory')) lastStockTab.current = activeTab;
+  }, [activeTab]);
   const [branchFilter, setBranchFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -3246,15 +3279,18 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     posQty: number;
     sbQty: number;
     reason: string;
+    materials?: Record<string, number>;
   }) => {
     const nowStr = stampPP();
+    const materials = Object.fromEntries(Object.entries(reqData.materials || {}).filter(([, n]) => Number(n) > 0).map(([k, n]) => [k, Math.floor(Number(n))]));
+    const matText = Object.entries(materials).map(([k, n]) => `${n}x ${k.replace(/_/g, ' ')}`).join(', ');
     // (22 Oct 2026) a branch account always requests for its own branch, in its own name
     const branchId = role === 'BRANCH' ? selectedBranch : reqData.branchId;
     const branchObj = branches.find((b) => b.code === branchId);
     const posQty = Math.max(0, Math.floor(Number(reqData.posQty) || 0));
     const sbQty = Math.max(0, Math.floor(Number(reqData.sbQty) || 0));
     if (!branchObj || branchId === '100') { triggerToast('Choose the branch the stock is for.'); return; }
-    if (posQty + sbQty === 0) { triggerToast('Enter at least one POS Terminal or Sound Box.'); return; }
+    if (posQty + sbQty === 0 && !matText) { triggerToast('Enter at least one POS Terminal, Sound Box or material.'); return; }
     const newReq: Requisition = {
       reqId: newRecordId('REQ'),
       date: nowStr,
@@ -3267,12 +3303,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       status: 'PENDING_ADMIN',
       type: 'STOCK_REQUEST',
       returnSerials: [],
+      materials,
     };
 
     setRequisitions((prev) => [newReq, ...prev]);
     addAuditLog(
       'Stock Request Submitted',
-      `Submitted ${newReq.reqId} for ${newReq.posQty}x POS & ${newReq.sbQty}x Sound Box (Branch Code ${reqData.branchId})`
+      `Submitted ${newReq.reqId} for ${newReq.posQty}x POS & ${newReq.sbQty}x Sound Box${matText ? ` + ${matText}` : ''} (Branch Code ${reqData.branchId})`
     );
 
     addNotification(
@@ -3304,23 +3341,27 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   // unit and keeps it allocated in HQ stock until the branch confirms receipt; no unit is ever created here.
   const handleApproveRequisition = (
     reqId: string,
-    arrangedDevices?: ArrangedDeviceItem[]
+    arrangedDevices?: ArrangedDeviceItem[],
+    materials?: { qty: Record<string, number>; serials: Record<string, string[]> }
   ) => {
     const targetReq = requisitions.find((r) => r.reqId === reqId);
     if (!targetReq) return;
     if (role === 'BRANCH') { triggerToast('Only HQ can dispatch stock.'); return; }
     if (targetReq.status !== 'PENDING_ADMIN' || targetReq.type === 'STOCK_RETURN') { triggerToast(`Request ${reqId} cannot be dispatched (${targetReq.status}).`); return; }
     const serials = (arrangedDevices || []).map((a) => (a.serial || '').trim()).filter(Boolean);
-    if (!serials.length) { triggerToast('Choose the units to dispatch first.'); return; }
+    const matCount = materials ? Object.values(materials.qty).reduce((a, b) => a + b, 0) + Object.values(materials.serials).reduce((a, b) => a + b.length, 0) : 0;
+    if (!serials.length && !matCount) { triggerToast('Choose the units to dispatch first.'); return; }
 
     const finish = (count: number) => {
-      addAuditLog('Requisition Approved & Dispatched', `Dispatched ${count} unit(s) for ${reqId} to Branch Code ${targetReq.branchId}`);
-      triggerToast(`Dispatched ${count} unit(s) for ${reqId} to Branch Code ${targetReq.branchId}. They stay allocated in HQ stock until the branch confirms receipt.`);
+      const what = `${count} unit(s)${matCount ? ` and ${matCount} material item(s)` : ''}`;
+      addAuditLog('Requisition Approved & Dispatched', `Dispatched ${what} for ${reqId} to Branch Code ${targetReq.branchId}`);
+      triggerToast(`Dispatched ${what} for ${reqId} to Branch Code ${targetReq.branchId}. They stay allocated in HQ stock until the branch confirms receipt.`);
       setFulfillingRequisition(null);
       setStagedFulfillmentItems(null);
     };
     if (isSupabaseConfigured) {
-      dispatchRequisitionOnServer(reqId, serials)
+      // (5 Nov 2026) with materials: devices and materials in one all-or-nothing call
+      (matCount ? dispatchRequestWithMaterialsOnServer(reqId, serials, materials!) : dispatchRequisitionOnServer(reqId, serials))
         .then((items) => finish(items.length))                  // the live feed brings the changed rows
         .catch((e) => triggerToast(e instanceof Error ? e.message : String(e)));
       return;
@@ -4001,7 +4042,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
         webhookCount={isSupabaseConfigured ? pendingFieldCount + ccPending : outOfSyncWebhooksCount}
-        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb, cc: ccPending } : undefined}
+        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb, cc: ccPending, lostPos: lostCounts.pos, lostSb: lostCounts.sb, lostSim: lostCounts.sim } : undefined}
         pendingReqs={pendingReqsCount}
         configuringCount={unpushedConfiguringCount}
         collapsed={sidebarCollapsed}
@@ -4267,7 +4308,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           />
 
           {/* Classic Pipeline Stage Filter Bar (hidden on non-inventory/CRM/History/Push/Request tabs) */}
-          {!HIDE_STAGE_HEADER_TABS.has(shownTab) && (
+          {!HIDE_STAGE_HEADER_TABS.has(shownTab) && !(productView === 'MATERIAL' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb')) && (
           <PipelineBar
               role={role}
               counts={pipelineCounts}
@@ -4286,7 +4327,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             <main className="px-4 sm:px-6 py-5 min-h-[calc(100vh-4rem)]">
               {isSupabaseConfigured && <ConnectionNotice />}
               {/* 6 Elevated KPI Cards with Shadows (hidden on non-inventory/CRM/History/Push/Request tabs) */}
-              {!HIDE_STAGE_HEADER_TABS.has(shownTab) && (
+              {!HIDE_STAGE_HEADER_TABS.has(shownTab) && !(productView === 'MATERIAL' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb')) && (
               <KpiCards
                 devices={scopedDevices}
                 theme={theme}
@@ -4421,8 +4462,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {shownTab === 'inventory' && (
+                  {(shownTab === 'inventory' || shownTab === 'inventory_pos' || shownTab === 'inventory_sb') && (() => {
+                    const units = (
                     <InventoryTab
+                      lockType={shownTab !== 'inventory'}
                       onReturnDevice={(sn) => { setWorkflowPreset('RETURN'); setEditingDeviceSerial(sn); }}
                       devices={filteredInventory}
                       allDevices={scopedDevices}
@@ -4472,6 +4515,29 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       }
                       onFetchServerPage={handleFetchInventoryPage}
                     />
+                    );
+                    if (shownTab === 'inventory') return units;
+                    return (
+                      <ProductStockPage
+                        group={shownTab === 'inventory_pos' ? 'POS' : 'SB'}
+                        role={role}
+                        branches={branches}
+                        myBranch={selectedBranch}
+                        triggerToast={triggerToast}
+                        units={units}
+                        view={productView}
+                        onViewChange={setProductView}
+                        onLostChanged={refreshLostCounts}
+                      />
+                    );
+                  })()}
+
+                  {shownTab === 'sim_cards' && (
+                    <SimCardTab role={role} branches={branches} myBranch={selectedBranch} triggerToast={triggerToast} onLostChanged={refreshLostCounts} />
+                  )}
+
+                  {shownTab === 'material_count' && (
+                    <MaterialCountTab role={role} branches={branches} myBranch={selectedBranch} triggerToast={triggerToast} onChanged={refreshLostCounts} />
                   )}
 
                   {shownTab === 'branches' && (

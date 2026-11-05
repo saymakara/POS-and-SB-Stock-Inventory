@@ -1,0 +1,229 @@
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+
+/**
+ * (5 Nov 2026) Merchant kit & materials: SIM cards, batteries, adaptors, stands and docks.
+ * Read straight from the tables (the database shows branch staff only their own branch); every change goes through a
+ * checked database function (migration 20261105_01_materials_and_kits.sql), which also writes the Audit Trail.
+ */
+
+export type MaterialCode = 'SIM' | 'BATTERY' | 'POS_ADAPTOR' | 'STAND' | 'DOCK' | 'SB_ADAPTOR';
+export type DeviceGroup = 'POS' | 'SB';
+export interface MaterialType { code: MaterialCode; name: string; short: string; deviceType: DeviceGroup | 'BOTH'; tracking: 'SERIAL' | 'QTY'; kitRule: 'DEFAULT' | 'OPTIONAL' | 'CONNECTION' }
+
+/** The catalogue (the same six rows as public.material_types). */
+export const MATERIALS: MaterialType[] = [
+  { code: 'SIM', name: 'SIM Card', short: 'SIM', deviceType: 'BOTH', tracking: 'SERIAL', kitRule: 'CONNECTION' },
+  { code: 'BATTERY', name: 'Battery', short: 'Battery', deviceType: 'POS', tracking: 'SERIAL', kitRule: 'DEFAULT' },
+  { code: 'POS_ADAPTOR', name: 'POS AC Adaptor', short: 'AC Adaptor', deviceType: 'POS', tracking: 'QTY', kitRule: 'DEFAULT' },
+  { code: 'STAND', name: 'POS Stand Holder', short: 'Stand', deviceType: 'POS', tracking: 'QTY', kitRule: 'OPTIONAL' },
+  { code: 'DOCK', name: 'Charging Dock', short: 'Dock', deviceType: 'POS', tracking: 'QTY', kitRule: 'OPTIONAL' },
+  { code: 'SB_ADAPTOR', name: 'Sound Box AC Adaptor', short: 'AC Adaptor', deviceType: 'SB', tracking: 'QTY', kitRule: 'DEFAULT' },
+];
+export const materialByCode = new Map(MATERIALS.map((m) => [m.code, m]));
+export const materialName = (code: string) => materialByCode.get(code as MaterialCode)?.name || code;
+/** Materials shown on a product page (the SIM has its own page). */
+export const productMaterials = (g: DeviceGroup) => MATERIALS.filter((m) => m.code !== 'SIM' && m.deviceType === g);
+/** Materials that can go into the kit of a device of this group. */
+export const kitMaterials = (g: DeviceGroup) => MATERIALS.filter((m) => m.deviceType === 'BOTH' || m.deviceType === g);
+export const deviceGroup = (type: string): DeviceGroup => (type === 'Sound Box' ? 'SB' : 'POS');
+
+/** A SIM number in its standard form ("096 555 0142"), or '' when it is not a valid number. Same rule as the database. */
+export function normSim(raw: string): string {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (d.startsWith('855') && d.length >= 11) d = '0' + d.slice(3);
+  if (!/^0\d{8,9}$/.test(d)) return '';
+  return `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
+}
+export const normMaterialSerial = (code: string, raw: string) =>
+  code === 'SIM' ? normSim(raw) : String(raw || '').replace(/\s+/g, '').toUpperCase();
+
+export type SerialStatus = 'HQ_STOCK' | 'IN_TRANSIT' | 'BRANCH_RESERVE' | 'AT_MERCHANT' | 'LOST' | 'FAULTY' | 'WRITTEN_OFF';
+export const SERIAL_STATUS_LABEL: Record<SerialStatus, string> = {
+  HQ_STOCK: 'HQ stock', IN_TRANSIT: 'In transit', BRANCH_RESERVE: 'Branch reserve', AT_MERCHANT: 'At merchant',
+  LOST: 'Lost', FAULTY: 'Faulty', WRITTEN_OFF: 'Written off',
+};
+
+export interface MaterialBalance { code: MaterialCode; branchId: string; onHand: number; inTransit: number; atMerchant: number }
+export interface MaterialSerial {
+  code: MaterialCode; serial: string; status: SerialStatus; branchId: string; deviceSerial: string | null; mid: string | null;
+  merchantName: string | null; reqId: string | null; blocked: boolean; note: string | null; updatedAt: string; updatedBy: string | null;
+}
+export interface KitItem { code: MaterialCode; qty: number; serial?: string | null; given_at?: string; given_by?: string | null; note?: string | null }
+export interface DeviceKit { deviceSerial: string; connection: 'SIM' | 'WIFI' | null; items: KitItem[]; updatedAt: string; updatedBy: string | null }
+export interface LostItem {
+  id: number; createdAt: string; code: MaterialCode; serial: string | null; qty: number; branchId: string; deviceSerial: string | null; mid: string | null;
+  merchantName: string | null; source: string | null; remark: string | null; reportedBy: string | null; status: 'OPEN' | 'RECOVERED' | 'WRITTEN_OFF';
+  blocked: boolean; resolution: string | null; resolvedBy: string | null; resolvedAt: string | null;
+}
+export interface CountLine { code: MaterialCode; system: number; counted: number; diff: number; missing?: string[]; extra?: string[]; remark?: string | null }
+export interface MaterialCount {
+  id: number; branchId: string; month: string; lines: CountLine[]; differences: number; status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  submittedBy: string | null; submittedAt: string; reviewedBy: string | null; reviewedAt: string | null; reviewNote: string | null;
+}
+export interface Movement { id: number; at: string; kind: string; code: MaterialCode; serial: string | null; qty: number; fromBranch: string | null; toBranch: string | null; branchId: string | null; ref: string | null; deviceSerial: string | null; mid: string | null; note: string | null; actor: string | null }
+
+/** "Not set up yet": the migration has not been applied to this database. */
+export const isMaterialsMissing = (msg: string) => /material_|device_kits|admin_kit|admin_dispatch_request|PGRST20[25]|does not exist|schema cache|Could not find the function/i.test(msg);
+/** The database's message without its internal prefix ("STOCK: not enough …" → "Not enough …"). */
+export const cleanMaterialError = (e: unknown): string => {
+  const msg = e instanceof Error ? e.message : String((e as { message?: string })?.message || e || 'Network error');
+  const m = msg.replace(/^(INPUT|STOCK|KIT): /, '');
+  return m.charAt(0).toUpperCase() + m.slice(1);
+};
+
+const fail = (error: { message?: string } | null) => { if (error) throw new Error(error.message || 'Request failed'); };
+
+export async function fetchMaterialBalances(): Promise<MaterialBalance[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase.from('material_balances').select('material_code,branch_id,on_hand,in_transit,at_merchant').limit(5000);
+  fail(error);
+  const sum = new Map<string, MaterialBalance>();
+  (data || []).forEach((r: any) => {
+    const k = `${r.material_code}|${r.branch_id}`;
+    const b = sum.get(k) || { code: r.material_code, branchId: String(r.branch_id), onHand: 0, inTransit: 0, atMerchant: 0 };
+    b.onHand += Number(r.on_hand) || 0; b.inTransit += Number(r.in_transit) || 0; b.atMerchant += Number(r.at_merchant) || 0;
+    sum.set(k, b);
+  });
+  return Array.from(sum.values());
+}
+
+const mapSerial = (r: any): MaterialSerial => ({
+  code: r.material_code, serial: r.serial, status: r.status, branchId: String(r.branch_id), deviceSerial: r.device_serial ?? null, mid: r.mid ?? null,
+  merchantName: r.merchant_name ?? null, reqId: r.req_id ?? null, blocked: !!r.blocked_with_carrier, note: r.note ?? null, updatedAt: r.updated_at, updatedBy: r.updated_by ?? null,
+});
+export interface SerialQuery { code: MaterialCode; status?: SerialStatus | ''; branchId?: string; search?: string; page: number; pageSize: number }
+export async function fetchSerialsPage(q: SerialQuery): Promise<{ rows: MaterialSerial[]; total: number }> {
+  if (!isSupabaseConfigured) return { rows: [], total: 0 };
+  let req = supabase.from('material_serials').select('*', { count: 'exact' }).eq('material_code', q.code);
+  if (q.status) req = req.eq('status', q.status);
+  if (q.branchId) req = req.eq('branch_id', q.branchId);
+  const term = (q.search || '').trim().replace(/[%,()*]/g, ' ').trim();
+  if (term) {
+    const sim = q.code === 'SIM' ? normSim(term) : '';
+    const digits = term.replace(/\D/g, '');
+    const parts = [`serial.ilike.%${sim || term}%`, `mid.ilike.%${term}%`, `device_serial.ilike.%${term}%`, `merchant_name.ilike.%${term}%`];
+    if (q.code === 'SIM' && digits.length >= 3 && !sim) parts.push(`serial.ilike.%${digits.slice(-3)}%`);
+    req = req.or(parts.join(','));
+  }
+  const from = (q.page - 1) * q.pageSize;
+  const { data, error, count } = await req.order('updated_at', { ascending: false }).order('serial').range(from, from + q.pageSize - 1);
+  fail(error);
+  return { rows: (data || []).map(mapSerial), total: count || 0 };
+}
+/** How many numbers of this material are in each status (optionally one branch). */
+export async function fetchSerialStatusCounts(code: MaterialCode, branchId?: string): Promise<Record<SerialStatus, number>> {
+  const out = { HQ_STOCK: 0, IN_TRANSIT: 0, BRANCH_RESERVE: 0, AT_MERCHANT: 0, LOST: 0, FAULTY: 0, WRITTEN_OFF: 0 } as Record<SerialStatus, number>;
+  if (!isSupabaseConfigured) return out;
+  await Promise.all((Object.keys(out) as SerialStatus[]).map(async (st) => {
+    let req = supabase.from('material_serials').select('serial', { count: 'exact', head: true }).eq('material_code', code).eq('status', st);
+    if (branchId) req = req.eq('branch_id', branchId);
+    const { count, error } = await req;
+    fail(error);
+    out[st] = count || 0;
+  }));
+  return out;
+}
+/** Numbers in the reserve of one branch (the monthly count list). */
+export async function fetchReserveSerials(code: MaterialCode, branchId: string): Promise<string[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase.from('material_serials').select('serial').eq('material_code', code).eq('branch_id', branchId)
+    .in('status', branchId === '100' ? ['HQ_STOCK'] : ['BRANCH_RESERVE']).order('serial').limit(5000);
+  fail(error);
+  return (data || []).map((r: any) => r.serial);
+}
+
+const mapLost = (r: any): LostItem => ({
+  id: Number(r.id), createdAt: r.created_at, code: r.material_code, serial: r.serial ?? null, qty: Number(r.qty) || 1, branchId: String(r.branch_id),
+  deviceSerial: r.device_serial ?? null, mid: r.mid ?? null, merchantName: r.merchant_name ?? null, source: r.source ?? null, remark: r.remark ?? null,
+  reportedBy: r.reported_by ?? null, status: r.status, blocked: !!r.blocked_with_carrier, resolution: r.resolution ?? null, resolvedBy: r.resolved_by ?? null, resolvedAt: r.resolved_at ?? null,
+});
+export async function fetchLost(codes: MaterialCode[], status?: LostItem['status'] | ''): Promise<LostItem[]> {
+  if (!isSupabaseConfigured) return [];
+  let req = supabase.from('material_lost').select('*').in('material_code', codes);
+  if (status) req = req.eq('status', status);
+  const { data, error } = await req.order('created_at', { ascending: false }).limit(500);
+  fail(error);
+  return (data || []).map(mapLost);
+}
+/** Open lost items per product page and SIM (menu numbers). */
+export async function fetchOpenLostCounts(): Promise<{ pos: number; sb: number; sim: number }> {
+  if (!isSupabaseConfigured) return { pos: 0, sb: 0, sim: 0 };
+  const { data, error } = await supabase.from('material_lost').select('material_code').eq('status', 'OPEN').limit(5000);
+  if (error) return { pos: 0, sb: 0, sim: 0 };
+  const out = { pos: 0, sb: 0, sim: 0 };
+  (data || []).forEach((r: any) => {
+    if (r.material_code === 'SIM') out.sim++;
+    else if (r.material_code === 'SB_ADAPTOR') out.sb++;
+    else out.pos++;
+  });
+  return out;
+}
+
+const mapKit = (r: any): DeviceKit => ({
+  deviceSerial: r.device_serial, connection: r.connection ?? null, items: Array.isArray(r.items) ? r.items : [], updatedAt: r.updated_at, updatedBy: r.updated_by ?? null,
+});
+export async function fetchKits(deviceSerials: string[]): Promise<Map<string, DeviceKit>> {
+  const out = new Map<string, DeviceKit>();
+  if (!isSupabaseConfigured || !deviceSerials.length) return out;
+  const { data, error } = await supabase.from('device_kits').select('*').in('device_serial', deviceSerials.slice(0, 200));
+  fail(error);
+  (data || []).forEach((r: any) => out.set(r.device_serial, mapKit(r)));
+  return out;
+}
+export async function fetchMovements(q: { deviceSerial?: string; code?: MaterialCode; branchId?: string; limit?: number }): Promise<Movement[]> {
+  if (!isSupabaseConfigured) return [];
+  let req = supabase.from('material_movements').select('*');
+  if (q.deviceSerial) req = req.eq('device_serial', q.deviceSerial);
+  if (q.code) req = req.eq('material_code', q.code);
+  if (q.branchId) req = req.eq('branch_id', q.branchId);
+  const { data, error } = await req.order('at', { ascending: false }).limit(q.limit || 100);
+  fail(error);
+  return (data || []).map((r: any) => ({
+    id: Number(r.id), at: r.at, kind: r.kind, code: r.material_code, serial: r.serial ?? null, qty: Number(r.qty) || 0, fromBranch: r.from_branch ?? null,
+    toBranch: r.to_branch ?? null, branchId: r.branch_id ?? null, ref: r.ref ?? null, deviceSerial: r.device_serial ?? null, mid: r.mid ?? null, note: r.note ?? null, actor: r.actor ?? null,
+  }));
+}
+
+const mapCount = (r: any): MaterialCount => ({
+  id: Number(r.id), branchId: String(r.branch_id), month: r.month, lines: Array.isArray(r.lines) ? r.lines : [], differences: Number(r.differences) || 0,
+  status: r.status, submittedBy: r.submitted_by ?? null, submittedAt: r.submitted_at, reviewedBy: r.reviewed_by ?? null, reviewedAt: r.reviewed_at ?? null, reviewNote: r.review_note ?? null,
+});
+export async function fetchCounts(month: string): Promise<MaterialCount[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase.from('material_counts').select('*').eq('month', month).order('submitted_at', { ascending: false }).limit(500);
+  fail(error);
+  return (data || []).map(mapCount);
+}
+
+async function rpc<T = any>(fn: string, p: unknown): Promise<T> {
+  const { data, error } = await supabase.rpc(fn, { p });
+  if (error) throw new Error(error.message);
+  return data as T;
+}
+export const materialStockIn = (p: { code: MaterialCode; branch_id?: string; qty?: number; serials?: string[]; note?: string }) =>
+  rpc<{ added: number; refused: { serial: string; why: string }[] }>('admin_material_stock_in', p);
+export const materialOpening = (p: { qty: { branch: string; code: string; qty: number }[]; serials: { branch: string; code: string; serial: string }[] }) =>
+  rpc<{ qty_lines: number; serials: number; refused: { row: unknown; why: string }[] }>('admin_material_opening', p);
+export const materialAdjust = (p: { code: MaterialCode; branch_id: string; qty?: number; serial?: string; status?: SerialStatus; reason: string }) =>
+  rpc('admin_material_adjust', p);
+export const materialLostAction = (p: { id: number; action: 'RECOVER' | 'WRITE_OFF' | 'BLOCKED'; reason?: string }) => rpc('admin_material_lost_action', p);
+export const kitAdd = (p: { device_serial: string; connection?: 'SIM' | 'WIFI'; from_stock: boolean; items: { code: MaterialCode; qty?: number; serial?: string; note?: string }[] }) =>
+  rpc('admin_kit_add', p);
+export const kitReturn = (p: { device_serial: string; items: { code: MaterialCode; qty?: number; serial?: string; result: 'RETURNED' | 'LOST' | 'FAULTY'; remark?: string }[] }) =>
+  rpc('admin_kit_return', p);
+export const kitReplace = (p: { device_serial: string; code: MaterialCode; old_serial?: string; old_result: 'RETURNED' | 'LOST' | 'FAULTY'; remark?: string; new_serial?: string; qty?: number }) =>
+  rpc('admin_kit_replace', p);
+export const countSubmit = (p: { branch_id?: string; month: string; lines: { code: MaterialCode; counted?: number; present?: string[]; remark?: string }[] }) =>
+  rpc<{ id: number; differences: number }>('material_count_submit', p);
+export const countReview = (p: { id: number; action: 'APPROVE' | 'REJECT'; note?: string }) => rpc('admin_material_count_review', p);
+export interface MaterialsToSend { qty: Partial<Record<MaterialCode, number>>; serials: Partial<Record<MaterialCode, string[]>> }
+export const dispatchRequestWithMaterials = (p: { req_id: string; serials: string[]; note?: string; materials: MaterialsToSend }) =>
+  rpc<{ arranged?: unknown[]; materials_sent: unknown }>('admin_dispatch_request', p);
+
+/** The month a count belongs to ("2026-11"), in Phnom Penh time. */
+export const countMonth = (d = new Date()) => {
+  const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Phnom_Penh', year: 'numeric', month: '2-digit' }).formatToParts(d);
+  return `${p.find((x) => x.type === 'year')!.value}-${p.find((x) => x.type === 'month')!.value}`;
+};
+export const placeName = (branchId: string, branches: { id: string; name: string }[]) =>
+  branchId === '100' ? 'Head Office' : `${branchId} · ${branches.find((b) => b.id === branchId)?.name || 'Branch ' + branchId}`;

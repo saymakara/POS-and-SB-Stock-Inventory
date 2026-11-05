@@ -211,6 +211,9 @@ export interface Requisition {
   arrangedDevices?: ArrangedDeviceItem[];
   type?: 'STOCK_REQUEST' | 'STOCK_RETURN';
   returnSerials?: string[];
+  /** (5 Nov 2026) materials requested {SIM: 10, POS_ADAPTOR: 5, …} and what Admin HQ dispatched */
+  materials?: Record<string, number>;
+  materialsSent?: { qty?: Record<string, number>; serials?: Record<string, string[]>; received?: boolean };
 }
 
 export interface StageInfo {

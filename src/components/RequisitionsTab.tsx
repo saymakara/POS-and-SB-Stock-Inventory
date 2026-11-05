@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { MATERIALS, materialName, normMaterialSerial } from '../services/materialsService';
 import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
 import { useSort, SortTh } from '../utils/sort';
@@ -38,7 +39,7 @@ interface RequisitionsTabProps {
   requisitions: Requisition[];
   hqDevices?: Device[];
   onOpenRequestModal: () => void;
-  onApproveRequisition: (reqId: string, arrangedDevices?: ArrangedDeviceItem[]) => void;
+  onApproveRequisition: (reqId: string, arrangedDevices?: ArrangedDeviceItem[], materials?: { qty: Record<string, number>; serials: Record<string, string[]> }) => void;
   onApproveReturnRequisition?: (reqId: string, returnSerials?: string[], reason?: string) => void;
   onRejectRequisition?: (reqId: string, reason: string) => void;
   onReceiveRequisition: (reqId: string) => void;
@@ -187,8 +188,38 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
     };
   };
 
+  // (5 Nov 2026) materials to send with the request: quantities, and SIM / battery numbers
+  const [matQty, setMatQty] = useState<Record<string, string>>({});
+  const [matNums, setMatNums] = useState<Record<string, string>>({});
+  const reqMats = arrangingReq ? MATERIALS.filter((m) => (arrangingReq.materials?.[m.code] || 0) > 0) : [];
+  const materialsToSend = () => {
+    const qty: Record<string, number> = {}; const serials: Record<string, string[]> = {}; const errs: string[] = [];
+    reqMats.forEach((m) => {
+      const asked = arrangingReq?.materials?.[m.code] || 0;
+      if (m.tracking === 'QTY') {
+        const n = Math.max(0, Math.floor(Number(matQty[m.code]) || 0));
+        if (n > asked) errs.push(`${m.name}: ${n} to send but ${asked} requested.`);
+        if (n > 0) qty[m.code] = n;
+      } else {
+        const seen = new Set<string>();
+        (matNums[m.code] || '').split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean).forEach((raw) => {
+          const sn = normMaterialSerial(m.code, raw);
+          if (!sn) errs.push(`${m.name}: "${raw}" is not a valid number.`);
+          else if (seen.has(sn)) errs.push(`${m.name}: ${sn} is listed twice.`);
+          else seen.add(sn);
+        });
+        if (seen.size > asked) errs.push(`${m.name}: ${seen.size} numbers but ${asked} requested.`);
+        if (seen.size) serials[m.code] = Array.from(seen);
+      }
+    });
+    const count = Object.values(qty).reduce((a, b) => a + b, 0) + Object.values(serials).reduce((a, b) => a + b.length, 0);
+    return { qty, serials, errs, count };
+  };
+
   const openArrangeModal = (req: Requisition) => {
     if (!isAdmin) return;
+    setMatQty(Object.fromEntries(MATERIALS.filter((m) => m.tracking === 'QTY' && (req.materials?.[m.code] || 0) > 0).map((m) => [m.code, String(req.materials![m.code])])));
+    setMatNums({});
     const { items, shortfall: sf } = buildAutoMatch(req);
     setStagedItems(items);
     setShortfall(sf);
@@ -235,7 +266,9 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
   /** Every reason this list cannot be dispatched (blank, unknown, duplicate, wrong stage/type, allocated elsewhere). */
   const validateDispatch = (items: ArrangedDeviceItem[]): string[] => {
     const errs: string[] = [];
-    if (!items.length) errs.push('Nothing to dispatch: the list is empty.');
+    const ms = materialsToSend();
+    if (!items.length && ms.count === 0) errs.push('Nothing to dispatch: the list is empty.');
+    errs.push(...ms.errs);
     const seen = new Map<string, number>();
     items.forEach((item, i) => {
       const line = `Line ${i + 1}`;
@@ -293,9 +326,11 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
       setArrangeStep('ARRANGE');
       return;
     }
+    const ms = materialsToSend();
     onApproveRequisition(
       arrangingReq.reqId,
-      stagedItems.map((it) => ({ ...it, serial: it.serial.trim(), batterySerial: String(it.batterySerial || '').trim(), model: it.model.trim() }))
+      stagedItems.map((it) => ({ ...it, serial: it.serial.trim(), batterySerial: String(it.batterySerial || '').trim(), model: it.model.trim() })),
+      ms.count ? { qty: ms.qty, serials: ms.serials } : undefined
     );
     setArrangingReq(null);
     setArrangeStep('ARRANGE');
@@ -644,6 +679,11 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                             <span className="chip chip-slate font-mono text-[11px] px-1.5 py-0">
                               ×{req.sbQty}
                             </span>
+                          </div>
+                        )}
+                        {Object.entries(req.materials || {}).filter(([, n]) => Number(n) > 0).length > 0 && (
+                          <div className="cell-sub max-w-[240px] whitespace-normal leading-snug" title="Materials requested">
+                            + {Object.entries(req.materials || {}).filter(([, n]) => Number(n) > 0).map(([c, n]) => `${materialName(c)} ×${n}`).join(' · ')}
                           </div>
                         )}
                       </div>
@@ -1073,6 +1113,28 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                     </table>
                   </div>
 
+                  {reqMats.length > 0 && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 flex flex-col gap-2.5">
+                      <div className="font-bold text-slate-800 text-[13px]">Materials requested · sent from Head Office stock</div>
+                      <div className="grid sm:grid-cols-2 gap-2.5">
+                        {reqMats.map((m) => (
+                          <label key={m.code} className="flex flex-col gap-1 font-semibold text-slate-600">
+                            <span>{m.name} <span className="font-normal text-slate-500">(requested {arrangingReq.materials?.[m.code]})</span></span>
+                            {m.tracking === 'QTY' ? (
+                              <input type="number" min={0} max={arrangingReq.materials?.[m.code]} value={matQty[m.code] ?? ''} onChange={(e) => setMatQty((x) => ({ ...x, [m.code]: e.target.value }))}
+                                className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 font-bold" aria-label={`${m.name} to send`} />
+                            ) : (
+                              <textarea rows={3} value={matNums[m.code] || ''} onChange={(e) => setMatNums((x) => ({ ...x, [m.code]: e.target.value }))}
+                                placeholder={m.code === 'SIM' ? 'One SIM number per line, e.g. 096 555 0142' : 'One battery serial per line'}
+                                className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 font-mono" aria-label={`${m.name} numbers`} />
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-slate-500 font-normal">Each SIM and battery must be in Head Office stock. Devices and materials are dispatched together: if one item is refused, nothing is sent.</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-[#003b5c]">
                     <button
                       type="button"
@@ -1093,6 +1155,11 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
               ) : (
                 /* STEP 2: DISPATCH PREVIEW & VERIFICATION */
                 <div className="p-6 flex flex-col gap-4 text-xs">
+                  {(() => { const ms = materialsToSend(); return ms.count > 0 && (
+                    <div className="p-3 rounded-xl border border-sky-200 bg-sky-50 text-sky-900">
+                      <b>Materials to send:</b> {[...Object.entries(ms.qty).map(([c, n]) => `${materialName(c)} ×${n}`), ...Object.entries(ms.serials).map(([c, l]) => `${materialName(c)} ${l.length} (${l.slice(0, 3).join(', ')}${l.length > 3 ? '…' : ''})`)].join(' · ')}
+                    </div>
+                  ); })()}
                   {/* Alert Banner */}
                   <div className="p-3.5 rounded-xl border bg-amber-50 border-amber-200 text-amber-900 flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -1261,6 +1328,12 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                       <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                         <span className="text-[10px] uppercase font-bold text-slate-400 block">Requested Qty</span>
                         <span className="text-xs font-semibold mt-0.5 block">{selectedRequisition.posQty} POS · {selectedRequisition.sbQty} Sound Box</span>
+                        {Object.keys(selectedRequisition.materials || {}).length > 0 && (
+                          <span className="text-[11px] mt-0.5 block text-slate-600">Materials: {Object.entries(selectedRequisition.materials || {}).map(([c, n]) => `${materialName(c)} ×${n}`).join(' · ')}</span>
+                        )}
+                        {selectedRequisition.materialsSent && (Object.keys(selectedRequisition.materialsSent.qty || {}).length > 0 || Object.keys(selectedRequisition.materialsSent.serials || {}).length > 0) && (
+                          <span className="text-[11px] mt-0.5 block text-sky-800">Sent: {[...Object.entries(selectedRequisition.materialsSent.qty || {}).map(([c, n]) => `${materialName(c)} ×${n}`), ...Object.entries(selectedRequisition.materialsSent.serials || {}).map(([c, l]) => `${materialName(c)}: ${l.join(', ')}`)].join(' · ')}{selectedRequisition.materialsSent.received ? ' · received' : ''}</span>
+                        )}
                       </div>
                     </div>
 

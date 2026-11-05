@@ -162,6 +162,19 @@ revoke all on public.material_types, public.material_serials, public.material_qt
 grant select on public.material_types, public.material_serials, public.material_qty, public.material_movements,
                public.device_kits, public.material_lost, public.material_counts to authenticated;
 
+-- Stock on hand per location, one row per material and place: quantities, plus SIMs / batteries counted by number
+-- (in transit shown apart). Reads with the caller's rights, so branch staff see only their own branch.
+create or replace view public.material_balances with (security_invoker = true) as
+  select q.material_code, q.branch_id, q.qty as on_hand, 0 as in_transit, 0 as at_merchant from public.material_qty q
+  union all
+  select s.material_code, s.branch_id,
+         count(*) filter (where s.status in ('HQ_STOCK', 'BRANCH_RESERVE'))::int,
+         count(*) filter (where s.status = 'IN_TRANSIT')::int,
+         count(*) filter (where s.status = 'AT_MERCHANT')::int
+    from public.material_serials s group by s.material_code, s.branch_id;
+revoke all on public.material_balances from anon;
+grant select on public.material_balances to authenticated;
+
 -- 4. Helpers ---------------------------------------------------------------------------------------------------------
 -- A SIM number in one standard form: "096 555 0142", "012 345 678". +855 / 855 become 0. Null when it is not a number.
 create or replace function app.norm_sim(p text) returns text

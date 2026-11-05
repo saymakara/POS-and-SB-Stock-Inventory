@@ -2,6 +2,26 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 5 Nov 2026 — Merchant kit & materials (step 1: portal)
+Database: migration `20261105_01_materials_and_kits.sql` (apply in the SQL Editor **before** merging); self-test
+`supabase/tests/materials_selftest.sql` (39 checks, rolls itself back).
+- **Stock Inventory is now a group.** The heading opens all units as before; below it: **POS Terminal** and **Sound Box**
+  (tabs *Units* and *Material*), **SIM Card** and **Monthly Count**. A red number shows open Lost items per page.
+- **Materials per location:** Battery (by serial), POS AC Adaptor, POS Stand Holder, Charging Dock (POS), Sound Box AC Adaptor;
+  Stock In, Correct (with reason), opening stock from a CSV template, Export CSV. Each page has its own **Lost** table:
+  Recovered or Written off (reason); a lost SIM can be marked **Blocked with carrier**.
+- **SIM Card register:** every SIM by number (096 555 0142 = 0965550142 = +855 96 555 0142), where it is and which merchant
+  and unit it serves. A SIM already at a merchant cannot be given to another one. Returned SIMs are re-used.
+- **Merchant 360 → Kit:** connection (4G SIM / merchant Wi-Fi) and every item the merchant holds, with who gave it and when.
+  Admin HQ can record the kit of an existing merchant, issue from branch stock, replace, or take back (Returned / Lost / Faulty).
+- **Stock Requests carry materials:** branches request them with POS and Sound Box; Admin HQ dispatches devices and
+  materials together (all or nothing); receipt (portal or Merchant Visit app) moves them into the branch reserve.
+- **Monthly Count:** branch staff count their shelf (SIMs and batteries ticked by number); Admin HQ approves (the system is
+  corrected, a missing SIM or battery is recorded Lost) or rejects (recount).
+- Branch staff see only their own branch; every change goes through a checked database function and the Audit Trail.
+- Step 2 (with the next Merchant Visit app release): kits recorded at installation and return from the phone, reviewed in
+  Phone App Review.
+
 ## 4 Nov 2026 — Speed and smoothness
 Measured first (20,000–28,000 units, phone-speed CPU), then fixed at the cause. No change to design, features or database security.
 - **Push Configuring: 50 / 100 rows per page.** Every queued unit was drawn at once (2,857 units = 108,000 page elements):

@@ -13,7 +13,8 @@ with review of the field work sent from the Merchant Visit app.
 
 | Area | What it does |
 |---|---|
-| **Stock Inventory** | Each device through its life cycle: Admin HQ stock → branch reserve → configuring → installed at a merchant → returned / terminated, or lost. Full unit history. |
+| **Stock Inventory** | Each device through its life cycle: Admin HQ stock → branch reserve → configuring → installed at a merchant → returned / terminated, or lost. Full unit history. One page per product (POS Terminal, Sound Box) with its units and materials. |
+| **Materials & Merchant Kit** | SIM cards (by number), batteries (by serial), adaptors, stands and docks per location; the kit each merchant holds; Lost items; the monthly branch count. |
 | **Merchant Deployment & History** | Merchant profiles (MID, TID, contact, address), installations, replacements and terminations, with past merchants kept in Merchant History. |
 | **Stock Requests** | Branch replenishment and returns: request, dispatch with serial numbers, reject with a reason, receipt confirmation (also from the Merchant Visit app). |
 | **Phone App Review** | Records from the Merchant Visit app: POS Terminal and Sound Box (approve / reject updates the stock), KHQR, Merchant Visit and Credit Card. Super Admin can select several records and delete them permanently. |
@@ -67,6 +68,7 @@ node tests/e2e/smoke_all_tabs.js        # every tab opens without errors
 node tests/e2e/inv_e2e.js               # sign-in, dispatch, phone review, saving
 node tests/e2e/delete_e2e.js            # multiple select and permanent delete
 node tests/e2e/visit_e2e.js             # Merchant Visit page and POS maintenance / return review
+node tests/e2e/materials_e2e.js         # materials, SIM register, kits, monthly count, requests with materials
 node tests/e2e/stress.js                # 20,000 units, 1,500 requests, 3,000 phone records
 ```
 

@@ -198,7 +198,12 @@ begin
   reset role;
   if (select count(*) from public.material_movements where branch_id = '905') < 10
      or (select count(*) from public.audit_logs where action like 'MATERIAL_%') < 8 then raise exception 'FAIL 11c history not kept'; end if;
-  n := n + 3;
+  perform pg_temp.as_user(b);
+  set local role authenticated;
+  if (select coalesce(sum(on_hand), 0) from public.material_balances where material_code = 'SIM') <> 1
+     or (select count(*) from public.material_balances where branch_id <> '905') <> 0 then raise exception 'FAIL 11d balances view'; end if;
+  reset role;
+  n := n + 4;
 
   raise exception 'TESTRESULT: all checks passed (%)', n;
 end $t$;
