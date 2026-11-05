@@ -4344,8 +4344,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             onlineOperators={onlineOperators}
           />
 
-          {/* Classic Pipeline Stage Filter Bar (hidden on non-inventory/CRM/History/Push/Request tabs) */}
-          {!HIDE_STAGE_HEADER_TABS.has(shownTab) && !(productView !== 'UNITS' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb')) && (
+          {/* Classic Pipeline Stage Filter Bar (hidden on product subpages where it lives under Units, and non-inventory tabs) */}
+          {!HIDE_STAGE_HEADER_TABS.has(shownTab) && shownTab !== 'inventory_pos' && shownTab !== 'inventory_sb' && (
           <PipelineBar
               role={role}
               counts={pipelineCounts}
@@ -4365,8 +4365,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             {/* (31 Oct 2026) at least one screen high: switching to a shorter screen no longer makes the footer jump up and down */}
             <main className="px-4 sm:px-6 py-5 min-h-[calc(100vh-4rem)]">
               {isSupabaseConfigured && <ConnectionNotice />}
-              {/* 6 Elevated KPI Cards with Shadows (hidden on non-inventory/CRM/History/Push/Request tabs) */}
-              {!HIDE_STAGE_HEADER_TABS.has(shownTab) && !(productView !== 'UNITS' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb')) && (
+              {/* 6 Elevated KPI Cards with Shadows (hidden on product subpages where it lives under Units, and non-inventory tabs) */}
+              {!HIDE_STAGE_HEADER_TABS.has(shownTab) && shownTab !== 'inventory_pos' && shownTab !== 'inventory_sb' && (
               <KpiCards
                 devices={scopedDevices}
                 deviceType={productType || undefined}
@@ -4541,6 +4541,43 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                     );
                     if (shownTab === 'inventory') return units;
+                    const productUnits = (
+                      <div className="flex flex-col gap-3.5">
+                        <PipelineBar
+                          role={role}
+                          counts={pipelineCounts}
+                          allLabel={productType ? `All ${productType}` : undefined}
+                          currentStageFilter={stageFilter}
+                          onSelectStage={(st) => {
+                            setStageFilter(st);
+                            if (activeTab !== stockTabForStage && st !== 'ALL') {
+                              if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                              setActiveTab(stockTabForStage);
+                            }
+                          }}
+                          theme={theme}
+                          noPadding
+                        />
+                        <KpiCards
+                          devices={scopedDevices}
+                          deviceType={productType || undefined}
+                          theme={theme}
+                          activeStageFilter={stageFilter}
+                          serverStatsByStage={serverStageSummary?.byStage}
+                          serverTotal={serverStageSummary?.all}
+                          historicalMerchants={historicalMerchants}
+                          onOpenHistoryTab={() => handleSelectTab('merchant_history')}
+                          onSelectStage={(st) => {
+                            setStageFilter(st);
+                            if (activeTab !== stockTabForStage && st !== 'ALL') {
+                              if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                              setActiveTab(stockTabForStage);
+                            }
+                          }}
+                        />
+                        {units}
+                      </div>
+                    );
                     return (
                       <ProductStockPage
                         group={shownTab === 'inventory_pos' ? 'POS' : 'SB'}
@@ -4548,7 +4585,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                         branches={branches}
                         myBranch={selectedBranch}
                         triggerToast={triggerToast}
-                        units={units}
+                        units={productUnits}
                         push={
                     <PushConfiguringTab
                       devices={scopedDevices.filter((d) => d.type === (shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'))}

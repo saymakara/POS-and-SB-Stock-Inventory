@@ -935,203 +935,376 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   };
 
 return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-4">
       {/* 1. HERO HEADER WITH LIVE PIPELINE STATS */}
-      <div
-        className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm ${
-          isLight
-            ? 'bg-slate-100 border-slate-200/90 text-slate-900'
-            : 'bg-[#161a24] border-slate-800 text-slate-100'
-        }`}
-      >
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-3xl">
-            <h1 className={`text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 ${isLight ? 'text-slate-900' : 'text-white'} leading-tight`}>
-              <SendHorizontal className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} />
-              <span>Push Configuring Hub</span>
-            </h1>
-            <p className={`text-sm sm:text-base leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              Live deployment queue for merchant setup. Alert field technicians and branch officers to power ON devices, connect to network, and wait for pushing the merchant application.
-            </p>
-          </div>
+      {lockType ? (
+        /* (5 Nov 2026) Embedded in POS Terminal / Sound Box: sleek integrated summary matching Units & Material */
+        <div className="flex flex-col gap-3.5">
+          <div className={`flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl border shadow-2xs ${
+            isLight ? 'bg-white border-slate-200/90' : 'bg-[#141822] border-slate-800'
+          }`}>
+            <div className="flex items-center gap-2.5">
+              <div className={`p-2 rounded-xl ${isLight ? 'bg-sky-50 text-[#006BA6]' : 'bg-sky-950 text-sky-400'}`}>
+                <SendHorizontal className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className={`text-sm font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <span>Push Configuring Hub</span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${isLight ? 'bg-slate-100 text-slate-700' : 'bg-slate-800 text-slate-300'}`}>
+                    {lockType}
+                  </span>
+                </h3>
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Live queue for merchant setup. Alert field technicians and branch officers to power ON devices.
+                </p>
+              </div>
+            </div>
 
-          {/* Quick Action Button for Entire Queue */}
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            {onRefreshQueue && (
-              <button
-                type="button"
-                onClick={handleManualRefreshQueue}
-                disabled={isRefreshingQueue}
-                className={`group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm border shadow-2xs cursor-pointer disabled:opacity-50 ${
-                  isLight
-                    ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                }`}
-                title="Refresh hardware configuring queue from database"
-              >
-                <RotateCw
-                  className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-sky-300'} ${
-                    isRefreshingQueue ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'
-                  }`}
-                />
-                <span>Sync Queue</span>
-              </button>
-            )}
-            {isAdminLike && onNotifyConfigReady && (
-              <button
-                type="button"
-                disabled={configuringDevices.length === 0}
-                onClick={() => {
-                  setPusherPassword('');
-                  setPusherPasswordError('');
-                  setIsPushAllModalOpen(true);
-                }}
-                className={`group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border ${
-                  isLight
-                    ? 'bg-[#003857] hover:bg-[#002a42] text-white border-[#002a42]'
-                    : 'bg-white hover:bg-slate-50 text-[#003857] border-white/90'
-                }`}
-                title="Push alerts to all devices (Requires Pusher Password verification)"
-              >
-                <Lock
-                  className={`w-4 h-4 shrink-0 group-hover:scale-110 transition-transform duration-150 ${
-                    isLight ? 'text-white' : 'text-[#003857]'
-                  }`}
-                />
-                <span className="tracking-tight font-bold">
-                  {waitingDevices.length === 0 && configuringDevices.length > 0
-                    ? 'Re-push All'
-                    : 'Notify All Ready'}
-                </span>
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-mono font-bold ${
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {onRefreshQueue && (
+                <button
+                  type="button"
+                  onClick={handleManualRefreshQueue}
+                  disabled={isRefreshingQueue}
+                  className={`group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs border shadow-2xs cursor-pointer disabled:opacity-50 ${
                     isLight
-                      ? 'bg-white/20 text-white border border-white/30'
-                      : 'bg-[#003857]/8 text-[#003857] border border-[#003857]/15'
+                      ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                   }`}
+                  title="Refresh hardware configuring queue from database"
                 >
-                  {waitingDevices.length > 0 ? (
-                    <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>
-                        {waitingDevices.length} Waiting
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className={`w-3 h-3 ${isLight ? 'text-emerald-300' : 'text-emerald-600'}`} />
-                      <span>
-                        {configuringDevices.length} {configuringDevices.length === 1 ? 'Unit (Pushed)' : 'Units (Pushed)'}
-                      </span>
-                    </>
-                  )}
+                  <RotateCw
+                    className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-sky-300'} ${
+                      isRefreshingQueue ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'
+                    }`}
+                  />
+                  <span>Sync Queue</span>
+                </button>
+              )}
+              {isAdminLike && onNotifyConfigReady && (
+                <button
+                  type="button"
+                  disabled={configuringDevices.length === 0}
+                  onClick={() => {
+                    setPusherPassword('');
+                    setPusherPasswordError('');
+                    setIsPushAllModalOpen(true);
+                  }}
+                  className={`group relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-xs hover:shadow-sm active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border ${
+                    isLight
+                      ? 'bg-[#003857] hover:bg-[#002a42] text-white border-[#002a42]'
+                      : 'bg-white hover:bg-slate-50 text-[#003857] border-white/90'
+                  }`}
+                  title="Push alerts to all devices (Requires Pusher Password verification)"
+                >
+                  <Lock
+                    className={`w-3.5 h-3.5 shrink-0 group-hover:scale-110 transition-transform duration-150 ${
+                      isLight ? 'text-white' : 'text-[#003857]'
+                    }`}
+                  />
+                  <span className="tracking-tight font-bold">
+                    {waitingDevices.length === 0 && configuringDevices.length > 0
+                      ? 'Re-push All'
+                      : 'Notify All Ready'}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md text-[11px] font-mono font-bold ${
+                      isLight
+                        ? 'bg-white/20 text-white border border-white/30'
+                        : 'bg-[#003857]/8 text-[#003857] border border-[#003857]/15'
+                    }`}
+                  >
+                    {waitingDevices.length > 0 ? (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>{waitingDevices.length} Waiting</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className={`w-3 h-3 ${isLight ? 'text-emerald-300' : 'text-emerald-600'}`} />
+                        <span>{configuringDevices.length} Units</span>
+                      </>
+                    )}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Clean Integrated KPI Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+            <button
+              type="button"
+              onClick={() => handleCardClick('WAITING')}
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none shadow-2xs ${
+                pushStatusFilter === 'WAITING'
+                  ? isLight
+                    ? 'bg-white border-[#006BA6] ring-2 ring-[#006BA6]/30 shadow-sm'
+                    : 'bg-slate-800 border-sky-400 ring-2 ring-sky-400/30 shadow-md'
+                  : isLight
+                    ? 'bg-white border-slate-200/90 hover:border-slate-300'
+                    : 'bg-[#141822] border-slate-800 hover:border-slate-700'
+              }`}
+              title="Click to view table and filter waiting devices"
+            >
+              <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                <span>Total Waiting Push</span>
+                <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
+              </div>
+              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(waitingDevices.length)}</div>
+              <div className={`text-[10px] font-medium mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-sky-300'}`}>
+                {alreadyPushedDevices.length > 0
+                  ? `${fmtNum(alreadyPushedDevices.length)} already pushed (${fmtNum(configuringDevices.length)} total)`
+                  : 'Click to view hardware queue'}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleCardClick(lockType === 'POS Terminal' ? 'POS' : 'SB')}
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none shadow-2xs ${
+                (lockType === 'POS Terminal' ? typeFilter === 'POS Terminal' : typeFilter === 'Sound Box')
+                  ? isLight
+                    ? 'bg-white border-[#006BA6] ring-2 ring-[#006BA6]/30 shadow-sm'
+                    : 'bg-slate-800 border-[#006BA6] ring-2 ring-[#006BA6]/30 shadow-md'
+                  : isLight
+                    ? 'bg-white border-slate-200/90 hover:border-slate-300'
+                    : 'bg-[#141822] border-slate-800 hover:border-slate-700'
+              }`}
+              title={`Click to view and filter ${lockType} in queue`}
+            >
+              <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${lockType === 'POS Terminal' ? 'bg-[#006BA6]' : 'bg-[#4F518C]'}`} />
+                  {lockType === 'POS Terminal' ? 'POS Terminals' : 'Sound Boxes'}
                 </span>
-              </button>
-            )}
+                <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
+              </div>
+              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                {fmtNum(lockType === 'POS Terminal' ? posCount : sbCount)}
+              </div>
+              <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleCardClick('ALL')}
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none shadow-2xs ${
+                isLight
+                  ? 'bg-white border-slate-200/90 hover:border-slate-300'
+                  : 'bg-[#141822] border-slate-800 hover:border-slate-700'
+              }`}
+              title="Click to view all active teams in queue"
+            >
+              <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                <span className="flex items-center gap-1.5">
+                  <Users className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-sky-400'}`} />
+                  Active Teams
+                </span>
+                <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
+              </div>
+              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{teamGroups.length}</div>
+              <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Assigned branch teams</div>
+            </button>
           </div>
         </div>
+      ) : (
+        <div
+          className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm ${
+            isLight
+              ? 'bg-slate-100 border-slate-200/90 text-slate-900'
+              : 'bg-[#161a24] border-slate-800 text-slate-100'
+          }`}
+        >
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-3xl">
+              <h1 className={`text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 ${isLight ? 'text-slate-900' : 'text-white'} leading-tight`}>
+                <SendHorizontal className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} />
+                <span>Push Configuring Hub</span>
+              </h1>
+              <p className={`text-sm sm:text-base leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                Live deployment queue for merchant setup. Alert field technicians and branch officers to power ON devices, connect to network, and wait for pushing the merchant application.
+              </p>
+            </div>
 
-        {/* KPI Mini-Cards (Clickable to view and filter queue table) */}
-        <div className={`grid grid-cols-2 ${lockType ? 'sm:grid-cols-3' : 'sm:grid-cols-4'} gap-3 mt-6 pt-6 border-t ${isLight ? 'border-slate-200/90' : 'border-slate-800'}`}>
-          <button
-            type="button"
-            onClick={() => handleCardClick('WAITING')}
-            className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
-              pushStatusFilter === 'WAITING'
-                ? isLight
-                  ? 'bg-white border-slate-400 ring-2 ring-slate-400/30 shadow-sm'
-                  : 'bg-slate-800 border-sky-400 ring-2 ring-sky-400/30 shadow-md'
-                : isLight
+            {/* Quick Action Button for Entire Queue */}
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              {onRefreshQueue && (
+                <button
+                  type="button"
+                  onClick={handleManualRefreshQueue}
+                  disabled={isRefreshingQueue}
+                  className={`group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm border shadow-2xs cursor-pointer disabled:opacity-50 ${
+                    isLight
+                      ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                  }`}
+                  title="Refresh hardware configuring queue from database"
+                >
+                  <RotateCw
+                    className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-sky-300'} ${
+                      isRefreshingQueue ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'
+                    }`}
+                  />
+                  <span>Sync Queue</span>
+                </button>
+              )}
+              {isAdminLike && onNotifyConfigReady && (
+                <button
+                  type="button"
+                  disabled={configuringDevices.length === 0}
+                  onClick={() => {
+                    setPusherPassword('');
+                    setPusherPasswordError('');
+                    setIsPushAllModalOpen(true);
+                  }}
+                  className={`group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border ${
+                    isLight
+                      ? 'bg-[#003857] hover:bg-[#002a42] text-white border-[#002a42]'
+                      : 'bg-white hover:bg-slate-50 text-[#003857] border-white/90'
+                  }`}
+                  title="Push alerts to all devices (Requires Pusher Password verification)"
+                >
+                  <Lock
+                    className={`w-4 h-4 shrink-0 group-hover:scale-110 transition-transform duration-150 ${
+                      isLight ? 'text-white' : 'text-[#003857]'
+                    }`}
+                  />
+                  <span className="tracking-tight font-bold">
+                    {waitingDevices.length === 0 && configuringDevices.length > 0
+                      ? 'Re-push All'
+                      : 'Notify All Ready'}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-mono font-bold ${
+                      isLight
+                        ? 'bg-white/20 text-white border border-white/30'
+                        : 'bg-[#003857]/8 text-[#003857] border border-[#003857]/15'
+                    }`}
+                  >
+                    {waitingDevices.length > 0 ? (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>
+                          {waitingDevices.length} Waiting
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className={`w-3 h-3 ${isLight ? 'text-emerald-300' : 'text-emerald-600'}`} />
+                        <span>
+                          {configuringDevices.length} {configuringDevices.length === 1 ? 'Unit (Pushed)' : 'Units (Pushed)'}
+                        </span>
+                      </>
+                    )}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* KPI Mini-Cards (Clickable to view and filter queue table) */}
+          <div className={`grid grid-cols-2 ${lockType ? 'sm:grid-cols-3' : 'sm:grid-cols-4'} gap-3 mt-6 pt-6 border-t ${isLight ? 'border-slate-200/90' : 'border-slate-800'}`}>
+            <button
+              type="button"
+              onClick={() => handleCardClick('WAITING')}
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+                pushStatusFilter === 'WAITING'
+                  ? isLight
+                    ? 'bg-white border-slate-400 ring-2 ring-slate-400/30 shadow-sm'
+                    : 'bg-slate-800 border-sky-400 ring-2 ring-sky-400/30 shadow-md'
+                  : isLight
+                    ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
+                    : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
+              }`}
+              title="Click to view table and filter waiting devices"
+            >
+              <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                <span>Total Waiting Push</span>
+                <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
+              </div>
+              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(waitingDevices.length)}</div>
+              <div className={`text-[10px] font-medium mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-sky-300'}`}>
+                {alreadyPushedDevices.length > 0
+                  ? `${fmtNum(alreadyPushedDevices.length)} already pushed (${fmtNum(configuringDevices.length)} total)`
+                  : 'Click to view hardware queue'}
+              </div>
+            </button>
+
+            {/* (5 Nov 2026) inside a product page only that product's card is shown */}
+            {lockType !== 'Sound Box' && <button
+              type="button"
+              onClick={() => handleCardClick('POS')}
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+                typeFilter === 'POS Terminal'
+                  ? isLight
+                    ? 'bg-white border-[#006BA6] ring-2 ring-[#006BA6]/30 shadow-sm'
+                    : 'bg-slate-800 border-[#006BA6] ring-2 ring-[#006BA6]/30 shadow-md'
+                  : isLight
+                    ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
+                    : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
+              }`}
+              title="Click to view and filter POS Terminals in queue"
+            >
+              <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#006BA6]" />
+                  POS Terminals
+                </span>
+                <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
+              </div>
+              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(posCount)}</div>
+              <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
+            </button>}
+
+            {lockType !== 'POS Terminal' && <button
+              type="button"
+              onClick={() => handleCardClick('SB')}
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+                typeFilter === 'Sound Box'
+                  ? isLight
+                    ? 'bg-white border-purple-400 ring-2 ring-purple-400/30 shadow-sm'
+                    : 'bg-slate-800 border-purple-400 ring-2 ring-purple-400/30 shadow-md'
+                  : isLight
+                    ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
+                    : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
+              }`}
+              title="Click to view and filter Sound Boxes in queue"
+            >
+              <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#4F518C]" />
+                  Sound Boxes
+                </span>
+                <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
+              </div>
+              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(sbCount)}</div>
+              <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
+            </button>}
+
+            <button
+              type="button"
+              onClick={() => handleCardClick('ALL')}
+              className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
+                isLight
                   ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
                   : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
-            }`}
-            title="Click to view table and filter waiting devices"
-          >
-            <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              <span>Total Waiting Push</span>
-              <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
-            </div>
-            <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(waitingDevices.length)}</div>
-            <div className={`text-[10px] font-medium mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-sky-300'}`}>
-              {alreadyPushedDevices.length > 0
-                ? `${fmtNum(alreadyPushedDevices.length)} already pushed (${fmtNum(configuringDevices.length)} total)`
-                : 'Click to view hardware queue'}
-            </div>
-          </button>
-
-          {/* (5 Nov 2026) inside a product page only that product's card is shown */}
-          {lockType !== 'Sound Box' && <button
-            type="button"
-            onClick={() => handleCardClick('POS')}
-            className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
-              typeFilter === 'POS Terminal'
-                ? isLight
-                  ? 'bg-white border-[#006BA6] ring-2 ring-[#006BA6]/30 shadow-sm'
-                  : 'bg-slate-800 border-[#006BA6] ring-2 ring-[#006BA6]/30 shadow-md'
-                : isLight
-                  ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
-                  : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
-            }`}
-            title="Click to view and filter POS Terminals in queue"
-          >
-            <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#006BA6]" />
-                POS Terminals
-              </span>
-              <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
-            </div>
-            <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(posCount)}</div>
-            <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
-          </button>}
-
-          {lockType !== 'POS Terminal' && <button
-            type="button"
-            onClick={() => handleCardClick('SB')}
-            className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
-              typeFilter === 'Sound Box'
-                ? isLight
-                  ? 'bg-white border-purple-400 ring-2 ring-purple-400/30 shadow-sm'
-                  : 'bg-slate-800 border-purple-400 ring-2 ring-purple-400/30 shadow-md'
-                : isLight
-                  ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
-                  : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
-            }`}
-            title="Click to view and filter Sound Boxes in queue"
-          >
-            <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#4F518C]" />
-                Sound Boxes
-              </span>
-              <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
-            </div>
-            <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(sbCount)}</div>
-            <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
-          </button>}
-
-          <button
-            type="button"
-            onClick={() => handleCardClick('ALL')}
-            className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
-              isLight
-                ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
-                : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
-            }`}
-            title="Click to view all active teams in queue"
-          >
-            <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              <span className="flex items-center gap-1.5">
-                <Users className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-sky-400'}`} />
-                Active Teams
-              </span>
-              <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
-            </div>
-            <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{teamGroups.length}</div>
-            <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Assigned branch teams</div>
-          </button>
+              }`}
+              title="Click to view all active teams in queue"
+            >
+              <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                <span className="flex items-center gap-1.5">
+                  <Users className={`w-3.5 h-3.5 ${isLight ? 'text-slate-600' : 'text-sky-400'}`} />
+                  Active Teams
+                </span>
+                <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
+              </div>
+              <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{teamGroups.length}</div>
+              <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Assigned branch teams</div>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 3. FILTER & SEARCH TOOLBAR */}
       <div className={`p-4 rounded-2xl border shadow-xs space-y-3 ${isLight ? 'bg-white border-slate-200/90' : 'bg-[#141822] border-slate-800'}`}>

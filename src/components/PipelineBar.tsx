@@ -29,6 +29,7 @@ interface PipelineBarProps {
   theme?: ThemeMode;
   /** (5 Nov 2026) on a product page the first chip names the product ("All POS Terminal") */
   allLabel?: string;
+  noPadding?: boolean;
 }
 
 export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
@@ -38,6 +39,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
   onSelectStage,
   theme = 'light',
   allLabel,
+  noPadding = false,
 }) => {
   const isLight = theme === 'light';
 
@@ -97,7 +99,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
   const visibleStages = stages.filter((s) => !s.hidden);
 
   return (
-    <section className="w-full px-4 sm:px-6 pt-3">
+    <section className={`w-full ${noPadding ? '' : 'px-4 sm:px-6 pt-3'}`}>
       <div
         className={`${
           isLight ? 'surface-card-light' : 'surface-card-dark'
