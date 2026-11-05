@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { isFresh, markFresh } from '../utils/freshness';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, RefreshCw, ChevronDown, MapPin, Loader2, Send, ClipboardList, Users, Building2, Navigation } from 'lucide-react';
 import { Branch, UserRole } from '../types';
@@ -74,16 +75,18 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
   const pg = usePager(total, [from, to, activity, branchId, search]);
   const page = pg.page, pageSize = pg.pageSize;
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     const my = ++seq.current;
     const key = mvKey({ from, to }, activity, branchId, search, page, pageSize);
     const hit = getMvPage(key);
     if (hit) { setRows(hit.rows); setTotal(hit.total); }               // the last answer at once; the fresh one replaces it
+    if (hit && force !== true && isFresh('mv:p:' + key)) { setLoading(false); return; }   // (5 Nov 2026) fetched moments ago
     setLoading(!hit);
     try {
       const res = await fetchMvVisitsPage({ ...filters, page, pageSize });
       if (my !== seq.current) return;
       setMvPage(key, { rows: res.rows, total: res.total });
+      markFresh('mv:p:' + key);
       setRows(res.rows); setTotal(res.total); setLoadError('');
     } catch (err) {
       if (my !== seq.current) return;
@@ -94,12 +97,13 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
       if (my === seq.current) setLoading(false);
     }
   }, [filters, page, pageSize, from, to, activity, branchId, search]);
-  const loadStats = useCallback(async () => {
+  const loadStats = useCallback(async (force = false) => {
     const k = `${from}|${to}`;
     const hit = getMvSummary(k);
     if (hit) setSummary(hit);
+    if (hit && force !== true && isFresh('mv:s:' + k)) return;
     const s = await fetchMvVisitSummary(from, to);
-    if (s) setMvSummary(k, s);
+    if (s) { setMvSummary(k, s); markFresh('mv:s:' + k); }
     setSummary((prev) => s || prev);                                   // a failed refresh keeps the numbers on screen
   }, [from, to]);
   useEffect(() => { load(); }, [load]);
@@ -130,7 +134,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
       const res = await deletePhoneRecords('VISIT', Array.from(pick.sel.keys()), reason);
       pick.clear(); setDelOpen(false); setOpen(null); clearMvCache();   // never show the deleted rows again, even for a moment
       triggerToast(`${res.deleted} visit(s) deleted permanently`);
-      load(); loadStats();
+      load(true); loadStats(true);
     } catch (err) {
       triggerToast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
     } finally { setDelBusy(false); }
@@ -164,7 +168,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
             <ExportCsvButton onExport={exportCsv} toast={triggerToast} title="Save the visits that match the filters as a CSV file (every answer in its own column)" />
             <button
               type="button"
-              onClick={() => { load(); loadStats(); }}
+              onClick={() => { load(true); loadStats(true); }}
               aria-label="Refresh"
               title="Refresh the visits"
               className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90"
@@ -241,7 +245,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
           {loadError && loadError !== 'SETUP' && (
             <div className="p-6 text-center text-sm text-rose-700 bg-rose-50/60">
               Could not load the visits: {loadError}{' '}
-              <button type="button" onClick={load} className="underline cursor-pointer">Try again</button>
+              <button type="button" onClick={() => load(true)} className="underline cursor-pointer">Try again</button>
             </div>
           )}
           {rows === null && !loadError && (

@@ -1,3 +1,4 @@
+import { clearFresh } from '../utils/freshness';
 import type { MvVisit, MvVisitSummary } from './supabaseService';
 
 /**
@@ -11,4 +12,4 @@ export const getMvPage = (k: string) => pages.get(k);
 export const setMvPage = (k: string, v: { rows: MvVisit[]; total: number }) => { if (pages.size > 40) pages.clear(); pages.set(k, v); };
 export const getMvSummary = (k: string) => summaries.get(k);
 export const setMvSummary = (k: string, v: MvVisitSummary) => { if (summaries.size > 20) summaries.clear(); summaries.set(k, v); };
-export function clearMvCache(): void { pages.clear(); summaries.clear(); }
+export function clearMvCache(): void { pages.clear(); summaries.clear(); clearFresh('mv:'); }

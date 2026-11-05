@@ -13,10 +13,12 @@ import { BusyLabel, Kpi, MaterialDialog, MaterialsSetupNotice, Pill, btnLight, b
  * (5 Nov 2026) Stock Inventory → POS Terminal / Sound Box. Two tabs: Units (today's Stock Inventory, this product only)
  * and Material (the kit materials of this product: stock per location and the Lost table).
  */
+export type ProductView = 'UNITS' | 'PUSH' | 'MATERIAL';
 export const ProductStockPage: React.FC<{
   group: DeviceGroup; role: UserRole; branches: Branch[]; myBranch: string; triggerToast: (m: string) => void;
-  units: React.ReactNode; view: 'UNITS' | 'MATERIAL'; onViewChange: (v: 'UNITS' | 'MATERIAL') => void; onLostChanged?: () => void;
-}> = ({ group, role, branches, myBranch, triggerToast, units, view, onViewChange, onLostChanged }) => {
+  units: React.ReactNode; push?: React.ReactNode; pushCount?: number; lostCount?: number;
+  view: ProductView; onViewChange: (v: ProductView) => void; onLostChanged?: () => void;
+}> = ({ group, role, branches, myBranch, triggerToast, units, push, pushCount, lostCount, view, onViewChange, onLostChanged }) => {
   const Icon = group === 'POS' ? Cpu : Volume2;
   const title = group === 'POS' ? 'POS Terminal' : 'Sound Box';
   return (
@@ -26,15 +28,20 @@ export const ProductStockPage: React.FC<{
           <Icon className={`w-5 h-5 ${group === 'POS' ? 'text-[#006BA6]' : 'text-[#4F518C]'}`} aria-hidden />{title}
         </h2>
         <div role="tablist" aria-label={`${title} views`} className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200">
-          {(['UNITS', 'MATERIAL'] as const).map((v) => (
-            <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => onViewChange(v)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer transition ${view === v ? 'bg-[#003857] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
-              {v === 'UNITS' ? 'Units' : 'Material'}
-            </button>
-          ))}
+          {((push ? ['UNITS', 'PUSH', 'MATERIAL'] : ['UNITS', 'MATERIAL']) as ProductView[]).map((v) => {
+            const n = v === 'PUSH' ? pushCount || 0 : v === 'MATERIAL' ? lostCount || 0 : 0;
+            return (
+              <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => onViewChange(v)}
+                title={v === 'PUSH' && n ? `${n} unit(s) waiting to be pushed` : v === 'MATERIAL' && n ? `${n} open lost item(s)` : undefined}
+                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer transition ${view === v ? 'bg-[#003857] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
+                {v === 'UNITS' ? 'Units' : v === 'PUSH' ? 'Push Configuring' : 'Material'}
+                {n > 0 && <span className={`text-[10.5px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${v === 'MATERIAL' ? 'bg-rose-600 text-white' : view === v ? 'bg-white text-[#003857]' : 'bg-amber-100 text-amber-800'}`}>{n}</span>}
+              </button>
+            );
+          })}
         </div>
       </div>
-      {view === 'UNITS' ? units : <MaterialStockPanel group={group} role={role} branches={branches} myBranch={myBranch} triggerToast={triggerToast} onLostChanged={onLostChanged} />}
+      {view === 'UNITS' ? units : view === 'PUSH' && push ? push : <MaterialStockPanel group={group} role={role} branches={branches} myBranch={myBranch} triggerToast={triggerToast} onLostChanged={onLostChanged} />}
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { AppBrandLogo } from './AppBrandLogo';
 import { clearKeptMemos } from '../utils/useKeptMemo';
 import { clearCcCache } from '../services/ccService';
 import { clearMvCache } from '../services/mvCache';
+import { clearFresh } from '../utils/freshness';
 import { clearWorkstationLock, notifySessionSignOut } from '../utils/sessionSecurity';
 
 /**
@@ -52,6 +53,7 @@ export function clearLocalCaches(): void {
   clearKeptMemos();
   clearCcCache();
   clearMvCache();
+  clearFresh();
   clearWorkstationLock();                                                     // (31 Oct 2026) results kept in memory between screens
 }
 

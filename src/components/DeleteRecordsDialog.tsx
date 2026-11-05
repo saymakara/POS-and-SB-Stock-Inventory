@@ -17,20 +17,20 @@ interface Props {
   onConfirm: (reason: string) => void;
 }
 
-export const DeleteRecordsDialog: React.FC<Props> = ({ open, count, what, sample, note, busy, onCancel, onConfirm }) => {
+export const DeleteRecordsDialog: React.FC<Props> = (props) => (props.open ? <DeleteDialogBody {...props} /> : null);
+
+/** (5 Nov 2026) Mounted fresh at every opening, so the box starts empty at once. Before, it was emptied a moment after
+ *  the dialog appeared, which could wipe the first letters of a quick "DELETE". */
+const DeleteDialogBody: React.FC<Props> = ({ count, what, sample, note, busy, onCancel, onConfirm }) => {
   const [typed, setTyped] = useState('');
   const [reason, setReason] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (!open) return;
-    setTyped(''); setReason('');
     const t = setTimeout(() => inputRef.current?.focus(), 50);
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onCancel(); };
     window.addEventListener('keydown', onKey);
     return () => { clearTimeout(t); window.removeEventListener('keydown', onKey); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-  if (!open) return null;
+  }, [busy, onCancel]);
   const ready = typed.trim().toUpperCase() === 'DELETE' && count > 0 && !busy;
   return createPortal(
     <div className="fixed inset-0 z-[95] flex items-center justify-center p-3 sm:p-6 bg-slate-900/50"

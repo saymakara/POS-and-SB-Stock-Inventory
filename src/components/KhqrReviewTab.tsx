@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { isFresh, markFresh } from '../utils/freshness';
 import { BigKpiCard } from './BigKpiCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, RefreshCw, ChevronDown, MapPin, ScanLine, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users, Copy } from 'lucide-react';
@@ -28,6 +29,8 @@ import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelectio
  */
 
 // (29 Oct 2026) KHQR details are kept for this month and last month only (older months: monthly totals below)
+/** (5 Nov 2026) the last "same MID, 2+ staff" answer per period (memory only) */
+const sharedCache = new Map<string, any>();
 const PERIOD_LABEL: Record<Period, string> = {
   ALL: 'All time', TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months',
 };
@@ -135,34 +138,42 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
 
   // Single fast RPC for summary; monthly history is fetched once and updated on live events
   const statSeq = useRef(0);
-  const loadStats = useCallback(async () => {
+  const loadStats = useCallback(async (force = false) => {
     const seq = ++statSeq.current;
+    const fk = `qr:sum:${from}|${to}`;
     const hit = getCachedSummary(from, to);
     if (hit) setSummary(hit);
+    if (sharedCache.has(fk)) setShared(sharedCache.get(fk)!);
+    if (hit && sharedCache.has(fk) && force !== true && isFresh(fk)) return;   // (5 Nov 2026) fetched moments ago
     const [sum, sm] = await Promise.all([fetchQrSummary(from, to), fetchQrSharedMids(from, to, 200)]);
     if (seq !== statSeq.current) return;
     if (sum) { setCachedSummary(from, to, sum); setSummary(sum); }
     setShared(sm);
+    sharedCache.set(fk, sm);
+    if (sum) markFresh(fk);
   }, [from, to]);
   useEffect(() => { loadStats(); }, [loadStats]);
 
-  const loadMonthHistory = useCallback(async () => {
+  const loadMonthHistory = useCallback(async (force = false) => {
+    if (getCachedHistory() && force !== true && isFresh('qr:hist', 120000)) return;
     const hist = await fetchQrMonthHistory(1);
-    if (hist) { setCachedHistory(hist.slice(0, 1)); setHistory(hist.slice(0, 1)); }
+    if (hist) { setCachedHistory(hist.slice(0, 1)); setHistory(hist.slice(0, 1)); markFresh('qr:hist'); }
   }, []);
   useEffect(() => { loadMonthHistory(); }, [loadMonthHistory]);
 
   const reqSeq = useRef(0);
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     const seq = ++reqSeq.current;
     const key = entriesKey(filters, page, pageSize);
     const hit = getCachedEntries(key);
     if (hit) { setRows(hit.rows); setTotal(hit.total); }               // shown at once; the fresh answer replaces it quietly
+    if (hit && force !== true && isFresh('qr:e:' + key)) { setLoading(false); return; }   // (5 Nov 2026) fetched moments ago
     setLoading(!hit);
     try {
       const res = await fetchQrEntriesPage({ ...filters, page, pageSize });
       if (seq !== reqSeq.current) return;                             // an older request: a newer one is on its way
       setCachedEntries(key, { rows: res.rows, total: res.total });
+      markFresh('qr:e:' + key);
       setRows(res.rows);
       setTotal(res.total);
       setLoadError('');
@@ -183,7 +194,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
     let statTimer: ReturnType<typeof setTimeout> | null = null;
     const unsub = subscribeToQrEntries(() => {
       setNewCount((n) => n + 1);
-      if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(); loadMonthHistory(); setLogKey((k) => k + 1); }, 5000);
+      if (!statTimer) statTimer = setTimeout(() => { statTimer = null; loadStats(true); loadMonthHistory(true); setLogKey((k) => k + 1); }, 5000);
     });
     return () => { unsub(); if (statTimer) clearTimeout(statTimer); };
   }, [loadStats, loadMonthHistory]);
@@ -224,7 +235,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
               title="Save the records of the view below (KHQR entries, failed attempts, wrong scans or same MID) that match the filters as a CSV file" />
             <button
               type="button"
-              onClick={() => { load(); loadStats(); setLogKey((k) => k + 1); }}
+              onClick={() => { load(true); loadStats(true); loadMonthHistory(true); setLogKey((k) => k + 1); }}
               aria-label="Refresh"
               title="Refresh KHQR statistics and entries"
               className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90"
@@ -419,12 +430,12 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       {(view === 'failed' || view === 'wrong') && loadError !== 'SETUP' && (
         <QrAttemptLog key={view} from={from} to={to} activity={activity} branchId={branchId} staffId={staffSel?.id || ''} search={search} reloadKey={logKey}
           kind={view === 'wrong' ? 'WRONG_SCAN' : 'SUBMIT_BLOCKED'} isSuper={isSuper} toast={triggerToast}
-          onDeleted={() => { clearKhqrCache(); setLogKey((k) => k + 1); loadStats(); }} />
+          onDeleted={() => { clearKhqrCache(); setLogKey((k) => k + 1); loadStats(true); }} />
       )}
 
       {view === 'shared' && loadError !== 'SETUP' && (
         <SharedMidTable rows={shared} periodLabel={PERIOD_LABEL[period]} search={search} isSuper={isSuper} toast={triggerToast}
-          onDeleted={() => { clearKhqrCache(); load(); loadStats(); }} />
+          onDeleted={() => { clearKhqrCache(); load(true); loadStats(true); }} />
       )}
 
       {view === 'entries' && (<>
@@ -437,7 +448,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={SPRING}
-            onClick={() => { if (pg.page !== 1) pg.setPage(1); else load(); setNewCount(0); }}
+            onClick={() => { if (pg.page !== 1) pg.setPage(1); else load(true); setNewCount(0); }}
             className="self-center inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#003857] text-white text-xs shadow-sm cursor-pointer hover:bg-[#002a42]"
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -458,7 +469,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             const res = await deletePhoneRecords('KHQR', Array.from(pick.sel.keys()), reason);
             pick.clear(); setDelOpen(false); setOpen(null); clearKhqrCache();
             triggerToast(`${res.deleted} KHQR entr${res.deleted === 1 ? 'y' : 'ies'} deleted permanently`);
-            load(); loadStats();
+            load(true); loadStats(true);
           } catch (err) {
             triggerToast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
           } finally { setDelBusy(false); }
@@ -484,7 +495,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
           {loadError && loadError !== 'SETUP' && (
             <div className="p-6 text-center text-sm text-rose-700 bg-rose-50/60">
               Could not load the KHQR entries: {loadError}{' '}
-              <button type="button" onClick={load} className="underline cursor-pointer">Try again</button>
+              <button type="button" onClick={() => load(true)} className="underline cursor-pointer">Try again</button>
             </div>
           )}
           {loadingFirst && !loadError && (

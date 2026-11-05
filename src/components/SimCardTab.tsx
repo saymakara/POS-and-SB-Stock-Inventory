@@ -41,11 +41,8 @@ export const SimCardTab: React.FC<{ role: UserRole; branches: Branch[]; myBranch
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, c] = await Promise.all([
-        fetchSerialsPage({ code: 'SIM', status, branchId: branchId || undefined, search, page: pg.page, pageSize: pg.pageSize }),
-        fetchSerialStatusCounts('SIM', branchId || undefined),
-      ]);
-      setRows(p.rows); setTotal(p.total); setCounts(c); setErr('');
+      const p = await fetchSerialsPage({ code: 'SIM', status, branchId: branchId || undefined, search, page: pg.page, pageSize: pg.pageSize });
+      setRows(p.rows); setTotal(p.total); setErr('');
     } catch (e) {
       const m = cleanMaterialError(e); setErr(isMaterialsMissing(m) ? 'SETUP' : m); setRows((r) => r || []);
     } finally { setLoading(false); }
@@ -53,9 +50,17 @@ export const SimCardTab: React.FC<{ role: UserRole; branches: Branch[]; myBranch
   const loadLost = useCallback(async () => {
     try { setLost(await fetchLost(['SIM'], lostFilter)); } catch { setLost((x) => x || []); }
   }, [lostFilter]);
+  // (5 Nov 2026, speed) the status counts change only with the location or after a change: not with every page,
+  // status or search (they were 7 extra requests each time)
+  const [countsKey, setCountsKey] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    fetchSerialStatusCounts('SIM', branchId || undefined).then((c) => { if (alive) setCounts(c); }).catch(() => {});
+    return () => { alive = false; };
+  }, [branchId, countsKey]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadLost(); }, [loadLost]);
-  const changed = () => { load(); loadLost(); onLostChanged?.(); };
+  const changed = () => { load(); loadLost(); setCountsKey((k) => k + 1); onLostChanged?.(); };
 
   const exportCsv = async () => {
     const all = await collectAll((page) => fetchSerialsPage({ code: 'SIM', status, branchId: branchId || undefined, search, page, pageSize: 1000 }), 1000);

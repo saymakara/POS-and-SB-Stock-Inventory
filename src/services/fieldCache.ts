@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { fetchPendingFieldEvents, fetchReviewedFieldEvents, type FieldEvent } from './supabaseService';
+import { markFresh } from '../utils/freshness';
 
 /**
  * (29 Oct 2026) Phone App Review (POS Terminal and Sound Box): instant opening.
@@ -38,6 +39,7 @@ export function prefetchFieldEvents(): Promise<void> {
       const keepPending = pending ?? (events || []).filter((e) => e.status === 'PENDING');
       const keepReviewed = reviewed ?? (events || []).filter((e) => e.status !== 'PENDING');
       events = [...keepPending, ...keepReviewed];
+      markFresh('field');
     }
   })().catch(() => {}).finally(() => { inflight = null; });
   return inflight;
