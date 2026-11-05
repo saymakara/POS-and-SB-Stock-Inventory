@@ -1456,7 +1456,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                     [field.id]: e.target.value,
                                   }))
                                 }
-                                className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
+                                className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-normal border focus:outline-none transition cursor-pointer pr-8 ${
                                   isLight
                                     ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                                     : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'

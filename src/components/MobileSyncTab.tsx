@@ -1227,7 +1227,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     <select
                       value={selectedSerial}
                       onChange={(e) => setSelectedSerial(e.target.value)}
-                      className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-bold border focus:outline-none focus:ring-2 focus:ring-sky-500/40 cursor-pointer transition ${
+                      className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-normal border focus:outline-none focus:ring-2 focus:ring-sky-500/40 cursor-pointer transition ${
                         isLight
                           ? 'bg-slate-50 border-slate-300 text-zinc-900'
                           : 'bg-black/40 border-white/15 text-white'
@@ -1304,7 +1304,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         <select
                           value={replacementSerial}
                           onChange={(e) => setReplacementSerial(e.target.value)}
-                          className={`w-full rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold border focus:outline-none ${
+                          className={`w-full rounded-xl px-2.5 py-1.5 text-xs font-mono font-normal border focus:outline-none ${
                             isLight
                               ? 'bg-white border-rose-300 text-zinc-900'
                               : 'bg-black/40 border-rose-500/40 text-white'
@@ -1338,7 +1338,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         <select
                           value={replaceStaffOfficer}
                           onChange={(e) => setReplaceStaffOfficer(e.target.value)}
-                          className={`w-full rounded-xl px-2.5 py-1.5 text-xs font-bold border focus:outline-none ${
+                          className={`w-full rounded-xl px-2.5 py-1.5 text-xs font-normal border focus:outline-none ${
                             isLight
                               ? 'bg-white border-rose-300 text-zinc-900'
                               : 'bg-black/40 border-rose-500/40 text-white'
@@ -1424,7 +1424,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         <select
                           value={returnStaffOfficer}
                           onChange={(e) => setReturnStaffOfficer(e.target.value)}
-                          className={`w-full rounded-xl px-2.5 py-1.5 text-xs font-bold border focus:outline-none ${
+                          className={`w-full rounded-xl px-2.5 py-1.5 text-xs font-normal border focus:outline-none ${
                             isLight
                               ? 'bg-white border-amber-300 text-zinc-900'
                               : 'bg-black/40 border-amber-500/40 text-white'

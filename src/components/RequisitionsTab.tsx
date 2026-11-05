@@ -1066,7 +1066,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                                     onChange={(e) =>
                                       handleUpdateStagedItem(idx, 'serial', e.target.value)
                                     }
-                                    className={`w-full rounded-lg px-3 py-2 text-xs font-mono font-bold border ${
+                                    className={`w-full rounded-lg px-3 py-2 text-xs font-mono font-normal border ${
                                       isLight
                                         ? 'bg-white border-slate-300 text-[#002f49] focus:border-[#003857]'
                                         : 'bg-[#001a2c] border-[#003b5c] text-white focus:border-sky-400'

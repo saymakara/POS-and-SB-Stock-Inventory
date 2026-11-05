@@ -1749,7 +1749,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                         [field.id]: e.target.value,
                                       }))
                                     }
-                                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                                    className="w-full px-3 py-2 rounded-xl text-xs font-normal bg-white border border-slate-200 text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
                                   >
                                     <option value="">-- {field.placeholder || 'Select Option'} --</option>
                                     {field.options.map((opt) => (
@@ -1855,7 +1855,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               e.target.value as 'inventory' | 'merchants' | 'branches' | 'staff' | 'requisitions' | 'all'
                             )
                           }
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 cursor-pointer"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-normal text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 cursor-pointer"
                         >
                           <option value="all">All Tables &amp; Workflows (Global)</option>
                           <option value="inventory">Stock Inventory Table &amp; CSV</option>
@@ -1876,7 +1876,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                 e.target.value as 'ALL' | 'POS' | 'SOUND_BOX'
                               )
                             }
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 cursor-pointer"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-normal text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 cursor-pointer"
                           >
                             <option value="ALL">All Devices (POS &amp; Sound Box)</option>
                             <option value="POS">POS Terminal Only</option>
@@ -1939,7 +1939,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                             onChange={(e) =>
                               setModalFieldType(e.target.value as CustomFieldType)
                             }
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 cursor-pointer"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-normal text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 cursor-pointer"
                           >
                             <option value="text">Text (Single-Line Input)</option>
                             <option value="phone">Phone Number</option>
@@ -2219,7 +2219,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         sessionTimeoutMinutes: Number(e.target.value),
                       })
                     }
-                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
                   >
                     <option value={15}>15 Minutes</option>
                     <option value={30}>30 Minutes (Recommended)</option>
@@ -2237,7 +2237,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     onChange={(e) =>
                       setFormState({ ...formState, phoneReviewScope: e.target.value as 'PHNOM_PENH' | 'ALL' })
                     }
-                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-[#003857] transition"
                   >
                     <option value="ALL">Phnom Penh and Regional staff</option>
                     <option value="PHNOM_PENH">Phnom Penh staff only</option>

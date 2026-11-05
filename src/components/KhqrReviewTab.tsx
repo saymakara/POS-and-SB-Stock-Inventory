@@ -227,7 +227,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
               value={period}
               onChange={(e) => setPeriod(e.target.value as Period)}
               aria-label="Period"
-              className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs outline-none cursor-pointer"
+              className="px-3 py-2 rounded-xl text-xs sm:text-sm font-normal border bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs outline-none cursor-pointer"
             >
               {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
             </select>

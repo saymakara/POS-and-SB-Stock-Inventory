@@ -1442,7 +1442,7 @@ return (
             {!lockType && <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold border outline-none cursor-pointer transition-all duration-150 ${
+              className={`px-3 py-2 rounded-xl text-xs font-normal border outline-none cursor-pointer transition-all duration-150 ${
                 isLight ? 'border-slate-200 bg-slate-50 text-zinc-800' : 'border-slate-700 bg-[#0f121a] text-slate-200'
               }`}
             >
@@ -1454,7 +1454,7 @@ return (
             <select
               value={branchFilter}
               onChange={(e) => setBranchFilter(e.target.value)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold border outline-none cursor-pointer transition-all duration-150 ${
+              className={`px-3 py-2 rounded-xl text-xs font-normal border outline-none cursor-pointer transition-all duration-150 ${
                 isLight ? 'border-slate-200 bg-slate-50 text-zinc-800' : 'border-slate-700 bg-[#0f121a] text-slate-200'
               }`}
             >
@@ -1891,7 +1891,7 @@ return (
                     }}
                     defaultValue=""
                     aria-label="Assign to Staff"
-                    className="w-36 sm:w-44 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-medium text-white outline-none cursor-pointer truncate transition"
+                    className="w-36 sm:w-44 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-normal text-white outline-none cursor-pointer truncate transition"
                   >
                     <option value="" disabled className="bg-slate-900 text-slate-300">Assign to Staff...</option>
                     {users.filter(u => u.status !== 'Suspended').map((u) => (

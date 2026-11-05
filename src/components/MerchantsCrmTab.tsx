@@ -1267,7 +1267,7 @@ return (
                     setMerchantsPerPage(Number(e.target.value));
                     setMerchantPage(1);
                   }}
-                  className={`text-xs rounded-lg px-2 py-1 border outline-none font-semibold cursor-pointer ${
+                  className={`text-xs rounded-lg px-2 py-1 border outline-none font-normal cursor-pointer ${
                     isLight
                       ? 'bg-white border-slate-300 text-slate-800'
                       : 'bg-zinc-800 border-white/10 text-slate-200'
@@ -1990,7 +1990,7 @@ return (
                     <select
                       value={returnBranchId}
                       onChange={(e) => setReturnBranchId(e.target.value)}
-                      className={`w-full rounded-xl px-3 py-2 border font-semibold text-xs ${inputClass}`}
+                      className={`w-full rounded-xl px-3 py-2 border font-normal text-xs ${inputClass}`}
                     >
                       {branches
                         .filter((b) => (b.code || b.id) !== '100')
@@ -2048,7 +2048,7 @@ return (
                   <select
                     value={terminateReason}
                     onChange={(e) => setTerminateReason(e.target.value)}
-                    className={`w-full rounded-xl px-3 py-2 border font-semibold ${inputClass}`}
+                    className={`w-full rounded-xl px-3 py-2 border font-normal ${inputClass}`}
                   >
                     <option value="Returned by Merchant">Returned by Merchant</option>
                     <option value="Merchant Closed Business">Merchant Closed Business</option>

@@ -725,7 +725,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                   <select
                     value={selectedStaffKey}
                     onChange={(e) => setSelectedStaffKey(e.target.value)}
-                    className="w-full text-xs rounded-lg border border-slate-200/90 bg-slate-50/60 focus:bg-white px-3 py-2 cursor-pointer text-slate-800 font-medium outline-none focus:border-indigo-400 transition"
+                    className="w-full text-xs rounded-lg border border-slate-200/90 bg-slate-50/60 focus:bg-white px-3 py-2 cursor-pointer text-slate-800 font-normal outline-none focus:border-indigo-400 transition"
                   >
                     <option value="">— Select a staff member to exempt ({availableSelectableStaff.length} available) —</option>
                     {availableSelectableStaff.map((s) => (

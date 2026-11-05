@@ -208,7 +208,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
         <select
           value={branchFilter}
           onChange={(e) => setBranchFilter(e.target.value)}
-          className="px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-800"
+          className="px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-800"
         >
           <option value="ALL">All Branch Codes</option>
           {branches.map((b) => (
@@ -221,7 +221,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-800"
+          className="px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-800"
         >
           <option value="ALL">All System Roles</option>
           <option value="SUPER_ADMIN">Super Admin</option>
@@ -232,7 +232,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-800"
+          className="px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-800"
         >
           <option value="ALL">All Statuses</option>
           <option value="Operating">Operating</option>

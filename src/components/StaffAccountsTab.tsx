@@ -528,7 +528,7 @@ export const StaffAccountsTab: React.FC<{
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 text-slate-800 outline-none focus:border-[#003857] cursor-pointer"
+              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-normal bg-slate-50 text-slate-800 outline-none focus:border-[#003857] cursor-pointer"
             >
               <option value="ALL">All Statuses ({list?.length || 0})</option>
               <option value="ONLINE">Online Now ({(list || []).filter(isStaffOnline).length})</option>

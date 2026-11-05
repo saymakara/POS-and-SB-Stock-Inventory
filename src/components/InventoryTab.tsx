@@ -706,7 +706,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 setRowsPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               title="Select view page (100 Row Max)"
             >
               <option value={50}>View: 50 Rows / Page</option>
@@ -722,7 +722,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 onStageFilterChange(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-8 pr-3 py-2.5 rounded-xl text-xs font-bold border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              className="w-full pl-8 pr-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
             >
               <option value="ALL">All Lifecycle Stages</option>
               {STAGE_ORDER.map((s) => (
@@ -739,7 +739,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               onTypeFilterChange(e.target.value);
               setCurrentPage(1);
             }}
-            className="px-3 py-2.5 rounded-xl text-xs font-bold border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+            className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
           >
             <option value="ALL">All Hardware Types</option>
             <option value="POS Terminal">POS Terminal (Wizar POS Q2 Pro)</option>
@@ -752,7 +752,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               setMidDeviceFilter(e.target.value as 'ALL' | 'SINGLE' | 'MULTIPLE');
               setCurrentPage(1);
             }}
-            className="px-3 py-2.5 rounded-xl text-xs font-bold border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+            className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
             title="Filter by number of devices linked to MID"
           >
             <option value="ALL">All MIDs (Any Count)</option>
@@ -766,7 +766,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               setBatteryFilter(e.target.value as any);
               setCurrentPage(1);
             }}
-            className="px-3 py-2.5 rounded-xl text-xs font-bold border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+            className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
             title="Filter by POS Terminal 24-Month Battery Lifecycle"
           >
             <option value="ALL">All Battery Cycles</option>
@@ -782,7 +782,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 onBranchFilterChange(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2.5 rounded-xl text-xs font-bold border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs sm:col-span-2 md:col-span-3 lg:col-span-6"
+              className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs sm:col-span-2 md:col-span-3 lg:col-span-6"
             >
               <option value="ALL">All Branch Codes</option>
               {branches.map((b) => (
@@ -1193,7 +1193,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className={`text-xs rounded-lg px-2 py-1 border outline-none font-semibold cursor-pointer ${
+                className={`text-xs rounded-lg px-2 py-1 border outline-none font-normal cursor-pointer ${
                   isLight
                     ? 'bg-white border-slate-200 text-zinc-900'
                     : 'bg-slate-800 border-slate-700 text-white'
@@ -1315,7 +1315,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                         value={targetBulkBranch}
                         onChange={(e) => setTargetBulkBranch(e.target.value)}
                         aria-label="Target branch for bulk transfer"
-                        className="bg-transparent text-white text-xs font-semibold px-2 py-1.5 outline-none cursor-pointer max-w-[210px] truncate"
+                        className="bg-transparent text-white text-xs font-normal px-2 py-1.5 outline-none cursor-pointer max-w-[210px] truncate"
                       >
                         <option value="" disabled className="bg-[#003857] text-white">
                           Choose target branch…

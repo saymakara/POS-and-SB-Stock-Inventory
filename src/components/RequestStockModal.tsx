@@ -277,7 +277,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     value={selectedBranchId}
                     aria-label="Requesting branch"
                     onChange={(e) => setSelectedBranchId(e.target.value)}
-                    className={`w-full appearance-none rounded-xl pl-11 pr-10 py-2.5 text-xs font-semibold border transition cursor-pointer shadow-2xs ${
+                    className={`w-full appearance-none rounded-xl pl-11 pr-10 py-2.5 text-xs font-normal border transition cursor-pointer shadow-2xs ${
                       isLight
                         ? 'bg-slate-50/70 hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#1e5b88]/20 focus:border-[#1e5b88]'
                         : 'bg-[#181c26] hover:bg-[#1f2432] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -337,7 +337,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     value={selectedStaff}
                     aria-label="Requesting branch staff officer"
                     onChange={(e) => setSelectedStaff(e.target.value)}
-                    className={`w-full appearance-none rounded-xl pl-11 pr-10 py-2.5 text-xs font-semibold border transition cursor-pointer shadow-2xs ${
+                    className={`w-full appearance-none rounded-xl pl-11 pr-10 py-2.5 text-xs font-normal border transition cursor-pointer shadow-2xs ${
                       isLight
                         ? 'bg-slate-50/70 hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#1e5b88]/20 focus:border-[#1e5b88]'
                         : 'bg-[#181c26] hover:bg-[#1f2432] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'

@@ -1601,7 +1601,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       onChange={(e) =>
                         handleSelectStage(e.target.value as LifecycleStage)
                       }
-                      className={`w-full rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${inputClass}`}
+                      className={`w-full rounded-xl px-3 py-1.5 text-xs font-normal border transition ${inputClass}`}
                     >
                       <option value="HQ_STOCK">Admin HQ Stock (Branch Code 100)</option>
                       <option value="BRANCH_RESERVE">Branch Reserve (Stock-In / Allocation)</option>
@@ -1625,7 +1625,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     <select
                       value={defaultStaff}
                       onChange={(e) => setDefaultStaff(e.target.value)}
-                      className={`w-full rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${inputClass}`}
+                      className={`w-full rounded-xl px-3 py-1.5 text-xs font-normal border transition ${inputClass}`}
                     >
                       <option value="">-- Select Receiving Staff --</option>
                       {branchStaffOptions.map((s: any) => (
@@ -1977,7 +1977,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       <select
                         value={posModel}
                         onChange={(e) => setPosModel(e.target.value)}
-                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border ${inputClass}`}
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-normal border ${inputClass}`}
                       >
                         <option value="Wizar POS Q2 Pro">Wizar POS Q2 Pro</option>
                       </select>
@@ -2093,7 +2093,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                       <select
                         value={sbModel}
                         onChange={(e) => setSbModel(e.target.value)}
-                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-bold border ${inputClass}`}
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-normal border ${inputClass}`}
                       >
                         <option value="Q161 Pro">Q161 Pro</option>
                         <option value="SB-Max">SB-Max</option>

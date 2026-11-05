@@ -430,7 +430,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                 setPageSize(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className={`px-2.5 py-1.5 text-xs font-bold focus:outline-none cursor-pointer ${inputClass}`}
+              className={`px-2.5 py-1.5 text-xs font-normal focus:outline-none cursor-pointer ${inputClass}`}
               title="Rows per page"
               aria-label="Rows per page"
             >

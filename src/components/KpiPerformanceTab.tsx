@@ -1555,7 +1555,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               aria-label="Period"
               value={period}
               onChange={(e) => setPeriod(e.target.value as KpiPeriod)}
-              className="btn-press px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold border bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90 shadow-2xs outline-none focus:border-slate-400 cursor-pointer"
+              className="btn-press px-3.5 py-2 rounded-xl text-xs sm:text-sm font-normal border bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90 shadow-2xs outline-none focus:border-slate-400 cursor-pointer"
             >
               {(Object.keys(KPI_PERIOD_LABEL) as KpiPeriod[]).map((p) => (
                 <option key={p} value={p}>{KPI_PERIOD_LABEL[p]}</option>
@@ -1704,7 +1704,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 aria-label="Region filter"
                 value={regionFilter}
                 onChange={(e) => setRegionFilter(e.target.value as 'ALL' | 'PP' | 'PROV')}
-                className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer text-slate-800 font-medium outline-none focus:border-slate-400 transition"
+                className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer text-slate-800 font-normal outline-none focus:border-slate-400 transition"
               >
                 <option value="ALL">All regions</option>
                 <option value="PP">Phnom Penh</option>
@@ -1715,7 +1715,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 aria-label="Branch filter"
                 value={branchFilter}
                 onChange={(e) => setBranchFilter(e.target.value)}
-                className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer max-w-full sm:max-w-[175px] text-slate-800 font-medium outline-none focus:border-slate-400 transition min-w-[120px] flex-1 sm:flex-initial"
+                className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer max-w-full sm:max-w-[175px] text-slate-800 font-normal outline-none focus:border-slate-400 transition min-w-[120px] flex-1 sm:flex-initial"
               >
                 <option value="">All branches</option>
                 <option value="100">Head Office (100)</option>
@@ -1728,7 +1728,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 aria-label="Category filter"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value as 'ALL' | KpiCategory)}
-                className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer text-slate-800 font-medium outline-none focus:border-slate-400 transition"
+                className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer text-slate-800 font-normal outline-none focus:border-slate-400 transition"
               >
                 <option value="ALL">All KPI types</option>
                 <option value="POS Terminal">POS Terminal</option>
@@ -2696,7 +2696,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <select
                     value={dailyMatrixMonth}
                     onChange={(e) => setDailyMatrixMonth(e.target.value)}
-                    className="bg-transparent text-xs font-semibold text-slate-800 outline-none px-1.5 py-0.5 cursor-pointer"
+                    className="bg-transparent text-xs font-normal text-slate-800 outline-none px-1.5 py-0.5 cursor-pointer"
                   >
                     {availableMonths.map((m) => (
                       <option key={m} value={m}>

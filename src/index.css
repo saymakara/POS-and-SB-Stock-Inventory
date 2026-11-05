@@ -1239,6 +1239,21 @@ b, strong { font-weight: 700; }
 
 select,
 select option,
-select optgroup {
+select optgroup,
+datalist,
+datalist option {
   font-weight: 400 !important;
+  font-family: var(--font-sans);
+}
+
+@supports (appearance: base-select) {
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+  ::picker(select),
+  option {
+    font-weight: 400 !important;
+    font-family: var(--font-sans);
+  }
 }

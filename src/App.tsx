@@ -5108,7 +5108,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     onChange={(e) =>
                       setUserRoleInput(e.target.value as UserRole)
                     }
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold border bg-slate-50 border-slate-200 text-slate-900"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-slate-50 border-slate-200 text-slate-900"
                   >
                     <option value="SUPER_ADMIN">SUPER ADMIN</option>
                     <option value="ADMIN">ADMIN HQ</option>
@@ -5136,7 +5136,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                   <select
                     value={userBranchInput}
                     onChange={(e) => setUserBranchInput(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold border bg-slate-50 border-slate-200 text-slate-900"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-slate-50 border-slate-200 text-slate-900"
                   >
                     {branches.map((b) => (
                       <option key={b.code} value={b.code}>
@@ -5154,7 +5154,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     onChange={(e) =>
                       setUserStatusInput(e.target.value as UserStatus)
                     }
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold border bg-slate-50 border-slate-200 text-slate-900"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-slate-50 border-slate-200 text-slate-900"
                   >
                     <option value="Operating">Operating</option>
                     <option value="Pending">Pending</option>

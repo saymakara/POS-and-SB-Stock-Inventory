@@ -296,7 +296,7 @@ export const KpiDetailBreakdown: React.FC<Props> = ({
               if (e.target.value) setSelectedBranchId('');
             }}
             aria-label="Filter by Staff"
-            className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-2xs outline-none cursor-pointer max-w-[190px] truncate"
+            className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-normal text-slate-800 dark:text-slate-200 shadow-2xs outline-none cursor-pointer max-w-[190px] truncate"
           >
             <option value="">All Staff ({filteredStaff.length})</option>
             {sortedStaff.map((s) => (
@@ -314,7 +314,7 @@ export const KpiDetailBreakdown: React.FC<Props> = ({
               if (e.target.value) setSelectedStaffId('');
             }}
             aria-label="Filter by Branch"
-            className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-2xs outline-none cursor-pointer max-w-[190px] truncate"
+            className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-normal text-slate-800 dark:text-slate-200 shadow-2xs outline-none cursor-pointer max-w-[190px] truncate"
           >
             <option value="">All Branches ({branches.length})</option>
             {sortedBranches.map((b) => (

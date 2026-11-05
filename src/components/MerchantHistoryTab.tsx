@@ -645,7 +645,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               onChange={(e) => setBranchFilter(e.target.value)}
               disabled={role === 'BRANCH'}
               aria-label="Branch filter"
-              className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer disabled:opacity-60"
+              className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer disabled:opacity-60"
             >
               <option value="ALL">All Branch Codes (Nationwide)</option>
               {branches.map((b) => (
@@ -662,7 +662,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
               aria-label="Device type filter"
-              className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer"
             >
               <option value="ALL">All Devices</option>
               <option value="POS Terminal">POS Terminal</option>
@@ -676,7 +676,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               value={reasonFilter}
               onChange={(e) => setReasonFilter(e.target.value)}
               aria-label="Return reason filter"
-              className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer"
             >
               <option value="ALL">All Return Reasons</option>
               <option value="Closed">Merchant Closed</option>
@@ -1414,7 +1414,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       value={formType}
                       onChange={(e) => setFormType(e.target.value as 'POS Terminal' | 'Sound Box')}
                       aria-label="Device type"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                     >
                       <option value="POS Terminal">POS Terminal</option>
                       <option value="Sound Box">Sound Box</option>
@@ -1429,7 +1429,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       onChange={(e) => setFormBranchId(e.target.value)}
                       disabled={role === 'BRANCH'}
                       aria-label="Branch code"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                     >
                       {branches.map((b) => (
                         <option key={b.code} value={b.code}>
@@ -1539,7 +1539,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     value={formReason}
                     onChange={(e) => setFormReason(e.target.value)}
                     aria-label="Return reason"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold border outline-none bg-slate-50 border-slate-200 text-zinc-900"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900"
                   >
                     <option value="Merchant Closed Business">Merchant Closed Business</option>
                     <option value="Contract Ended — Merchant Relocated">Contract Ended — Merchant Relocated</option>
