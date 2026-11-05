@@ -360,6 +360,7 @@ export interface CustomFieldDefinition {
   enabled: boolean;
   isSystem?: boolean;
   targetTab?: 'inventory' | 'merchants' | 'branches' | 'staff' | 'requisitions' | 'all';
+  targetDeviceType?: 'ALL' | 'POS' | 'SOUND_BOX';
   description?: string;
 }
 

@@ -222,9 +222,39 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const merchantLocked = !isAdminLike;
   const showFullPhone = canSeeFullContact(role);
 
+  const isSoundBox = device?.type === 'Sound Box';
   const activeCustomFields = useMemo(() => {
-    return (customFields || []).filter((f) => f.enabled);
-  }, [customFields]);
+    return (customFields || []).filter((f) => {
+      if (!f.enabled) return false;
+      const targetDev = f.targetDeviceType || (f as any).targetDevice;
+      if (isSoundBox) {
+        if (targetDev === 'POS' || targetDev === 'POS_TERMINAL') return false;
+        // Sound Box does not use Charging Dock, POS Stand, or POS-specific hardware
+        const idLower = (f.id || '').toLowerCase();
+        const labelLower = (f.label || '').toLowerCase();
+        if (
+          idLower.includes('dock') || labelLower.includes('dock') ||
+          idLower.includes('stand') || labelLower.includes('stand') ||
+          idLower.includes('pos') || labelLower.startsWith('pos ') ||
+          labelLower.includes('pos terminal') || labelLower.includes('pos ac adaptor')
+        ) {
+          return false;
+        }
+      } else {
+        // POS Terminal: do not show Sound Box specific fields
+        if (targetDev === 'SOUND_BOX' || targetDev === 'SB') return false;
+        const idLower = (f.id || '').toLowerCase();
+        const labelLower = (f.label || '').toLowerCase();
+        if (
+          idLower.includes('soundbox') || labelLower.includes('sound box') ||
+          labelLower.includes('soundbox') || labelLower.includes('sb adaptor')
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [customFields, isSoundBox]);
 
   // Reset the form only when a different unit is opened (or the modal re-opens), not every time the parent
   // re-renders with a new copy of the same device object — that used to wipe what the operator was typing.
@@ -286,7 +316,6 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   }, [device, isAdminLike]);
 
   // selectedBranchObj resolved dynamically
-  const [staffQuery, setStaffQuery] = useState('');
 
   const allStaffOptions = useMemo(() => {
     const list: Array<{
@@ -1192,67 +1221,46 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   </div>
 
                   <div className="space-y-2 pt-2">
-                    {/* Staff Officer with Search and Dropdown side by side */}
+                    {/* Assigned Branch Staff Officer */}
                     <div className="flex flex-col gap-1">
                       <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
                         <User className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                         <span>Assigned Branch Staff Officer</span>
                         <span className="text-rose-500 font-bold">*</span>
                       </label>
-                      <div className="flex gap-1.5">
-                        <div className="relative w-32 sm:w-36 shrink-0">
-                          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="text"
-                            value={staffQuery}
-                            onChange={(e) => setStaffQuery(e.target.value)}
-                            placeholder="Filter..."
-                            className={`w-full pl-6 pr-2 py-1.5 text-xs rounded-lg border outline-none ${
-                              isLight
-                                ? 'bg-white border-slate-200 text-slate-900 focus:border-[#003857]'
-                                : 'bg-[#121620] border-slate-700 text-white focus:border-sky-500'
-                            }`}
-                          />
-                        </div>
-                        <div className="relative flex-1 min-w-0">
-                          <select
-                            value={staff}
-                            aria-label="Assigned branch staff officer"
-                            onChange={(e) => {
-                              setStaff(e.target.value);
-                              setStaffQuery('');
-                            }}
-                            className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
-                              isLight
-                                ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                                : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
-                            }`}
-                          >
-                            <option value="" className={isLight ? 'bg-white text-slate-500' : 'bg-slate-900 text-slate-400'}>
-                              -- Unassigned --
+                      <div className="relative">
+                        <select
+                          value={staff}
+                          aria-label="Assigned branch staff officer"
+                          onChange={(e) => setStaff(e.target.value)}
+                          className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
+                            isLight
+                              ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                              : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                          }`}
+                        >
+                          <option value="" className={isLight ? 'bg-white text-slate-500' : 'bg-slate-900 text-slate-400'}>
+                            -- Unassigned --
+                          </option>
+                          {staff && !availableStaff.includes(staff) && (
+                            <option value={staff}>{staff} (Assigned)</option>
+                          )}
+                          {allStaffOptions.map((st) => (
+                            <option
+                              key={`${st.name}__${st.empId || ''}__${st.branchId}`}
+                              value={st.name}
+                              className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
+                            >
+                              {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''}
                             </option>
-                            {staff && !availableStaff.includes(staff) && (
-                              <option value={staff}>{staff} (Assigned)</option>
-                            )}
-                            {allStaffOptions
-                              .filter((s) => !staffQuery || s.name.toLowerCase().includes(staffQuery.toLowerCase()) || (s.empId && s.empId.includes(staffQuery)) || (s.telegram && s.telegram.toLowerCase().includes(staffQuery.toLowerCase())))
-                              .map((st) => (
-                                <option
-                                  key={`${st.name}__${st.empId || ''}__${st.branchId}`}
-                                  value={st.name}
-                                  className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
-                                >
-                                  {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''}
-                                </option>
-                              ))}
-                            {allStaffOptions.length === 0 && (
-                              <option disabled value="" className="text-slate-400 italic">
-                                No staff assigned to Branch {branchId}
-                              </option>
-                            )}
-                          </select>
-                          <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
-                        </div>
+                          ))}
+                          {allStaffOptions.length === 0 && (
+                            <option disabled value="" className="text-slate-400 italic">
+                              No staff assigned to Branch {branchId}
+                            </option>
+                          )}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
                       </div>
                     </div>
 

@@ -238,6 +238,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [modalFieldRequired, setModalFieldRequired] = useState(false);
   const [modalFieldOptions, setModalFieldOptions] = useState('');
   const [modalFieldTargetTab, setModalFieldTargetTab] = useState<'inventory' | 'merchants' | 'branches' | 'staff' | 'requisitions' | 'all'>('all');
+  const [modalFieldTargetDeviceType, setModalFieldTargetDeviceType] = useState<'ALL' | 'POS' | 'SOUND_BOX'>('ALL');
   const [customFieldPreviewValues, setCustomFieldPreviewValues] = useState<Record<string, string>>({});
 
   const currentCustomFields: CustomFieldDefinition[] =
@@ -285,12 +286,14 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     setModalFieldRequired(preset?.required || false);
     setModalFieldOptions(preset?.options ? preset.options.join(', ') : '');
     setModalFieldTargetTab(preset?.targetTab || 'all');
+    setModalFieldTargetDeviceType(preset?.targetDeviceType || 'ALL');
     setIsFieldModalOpen(true);
   };
 
   const handleOpenEditField = (field: CustomFieldDefinition) => {
     setEditingFieldId(field.id);
     setModalFieldTargetTab(field.targetTab || 'all');
+    setModalFieldTargetDeviceType(field.targetDeviceType || 'ALL');
     setModalFieldLabel(field.label);
     setModalFieldKey(field.id);
     setModalFieldType(field.type);
@@ -330,6 +333,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             required: modalFieldRequired,
             options: optionsArray,
             targetTab: modalFieldTargetTab,
+            targetDeviceType: modalFieldTargetDeviceType,
           };
         }
         return f;
@@ -349,6 +353,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 required: modalFieldRequired,
                 options: optionsArray,
             targetTab: modalFieldTargetTab,
+            targetDeviceType: modalFieldTargetDeviceType,
               }
             : f
         );
@@ -364,6 +369,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           options: optionsArray,
           isSystem: false,
           targetTab: modalFieldTargetTab,
+          targetDeviceType: modalFieldTargetDeviceType,
         };
         nextFields = [...currentCustomFields, newField];
       }
@@ -1527,6 +1533,15 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                 <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-sky-50 text-sky-800 border border-sky-200">
                                   Tab: {field.targetTab || 'all'}
                                 </span>
+                                {field.targetDeviceType && field.targetDeviceType !== 'ALL' && (
+                                  <span className={`font-mono text-[10px] uppercase font-bold px-1.5 py-0.2 rounded border ${
+                                    field.targetDeviceType === 'POS'
+                                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                      : 'bg-purple-50 text-purple-700 border-purple-200'
+                                  }`}>
+                                    {field.targetDeviceType === 'POS' ? 'POS Only' : 'Sound Box Only'}
+                                  </span>
+                                )}
                                 <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
                                   {field.type}
                                 </span>
@@ -1828,9 +1843,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     </div>
 
                     <form onSubmit={handleSaveFieldModal} className="p-6 space-y-4 text-xs">
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1">
-                          Target Table / Tab *
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Target Table / Tab *
                         </label>
                         <select
                           value={modalFieldTargetTab}
@@ -1848,6 +1864,25 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           <option value="staff">Staff Directory Table</option>
                           <option value="requisitions">Stock Requests Table</option>
                         </select>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            Target Hardware Device *
+                          </label>
+                          <select
+                            value={modalFieldTargetDeviceType}
+                            onChange={(e) =>
+                              setModalFieldTargetDeviceType(
+                                e.target.value as 'ALL' | 'POS' | 'SOUND_BOX'
+                              )
+                            }
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 cursor-pointer"
+                          >
+                            <option value="ALL">All Devices (POS &amp; Sound Box)</option>
+                            <option value="POS">POS Terminal Only</option>
+                            <option value="SOUND_BOX">Sound Box Only</option>
+                          </select>
+                        </div>
                       </div>
                       <div>
                         <label className="block font-bold text-slate-700 mb-1">
