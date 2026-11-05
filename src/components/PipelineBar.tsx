@@ -27,6 +27,8 @@ interface PipelineBarProps {
   currentStageFilter: string;
   onSelectStage: (stage: string) => void;
   theme?: ThemeMode;
+  /** (5 Nov 2026) on a product page the first chip names the product ("All POS Terminal") */
+  allLabel?: string;
 }
 
 export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
@@ -35,6 +37,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
   currentStageFilter,
   onSelectStage,
   theme = 'light',
+  allLabel,
 }) => {
   const isLight = theme === 'light';
 
@@ -48,7 +51,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
   }[] = [
     {
       id: 'ALL',
-      title: 'All Stock',
+      title: allLabel || 'All Stock',
       count: counts.all,
       icon: Layers,
       accentColor: isLight ? 'text-zinc-800' : 'text-zinc-200',

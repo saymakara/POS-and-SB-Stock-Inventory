@@ -1956,7 +1956,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return () => clearTimeout(timer);
   }, [deferredSearchQuery, serverDeviceTotal, shownTab, role, selectedBranch, branchFilter, handleFetchInventoryPage]);
 
+  // (5 Nov 2026) on the POS Terminal and Sound Box pages (Stock Inventory and Phone App Review) the stock strip counts
+  // that product only; elsewhere both products together
+  const productType: 'POS Terminal' | 'Sound Box' | null =
+    shownTab === 'inventory_pos' || shownTab === 'mobile_sync' ? 'POS Terminal' : shownTab === 'inventory_sb' || shownTab === 'mobile_sync_sb' ? 'Sound Box' : null;
   const pipelineCounts = useMemo(() => {
+    if (serverStageSummary && productType) {
+      const n = (st: keyof typeof serverStageSummary.byStage) => {
+        const b = serverStageSummary.byStage[st];
+        return b ? (productType === 'POS Terminal' ? b.posCount : b.sbCount) : 0;
+      };
+      const hq = n('HQ_STOCK'), reserve = n('BRANCH_RESERVE'), config = n('CONFIGURING'), complete = n('COMPLETE'), faulty = n('FAULTY'), lost = n('LOST');
+      return { all: hq + reserve + config + complete + faulty + lost, hq, reserve, config, complete, faulty, lost };
+    }
     if (serverStageSummary) {
       return {
         all: serverStageSummary.all,
@@ -1972,7 +1984,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const len = scopedDevices.length;
     for (let i = 0; i < len; i++) {
       const d = scopedDevices[i];
-      if (d.archived) continue;
+      if (d.archived || (productType && d.type !== productType)) continue;
       all++;
       switch (d.stage) {
         case 'HQ_STOCK': hq++; break;
@@ -1984,7 +1996,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       }
     }
     return { all, hq, reserve, config, complete, faulty, lost };
-  }, [scopedDevices, serverStageSummary]);
+  }, [scopedDevices, serverStageSummary, productType]);
+  /** a stage chosen on the stock strip opens the unit list of the same product (all units elsewhere) */
+  const stockTabForStage = productType === 'POS Terminal' ? 'inventory_pos' : productType === 'Sound Box' ? 'inventory_sb' : 'inventory';
 
   // Count of devices in CONFIGURING stage that have NOT yet been pushed (controls sidebar badge pill)
   const unpushedConfiguringCount = useMemo(() => {
@@ -4309,11 +4323,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           <PipelineBar
               role={role}
               counts={pipelineCounts}
+              allLabel={productType ? `All ${productType}` : undefined}
               currentStageFilter={stageFilter}
               onSelectStage={(st) => {
                 setStageFilter(st);
-                if (activeTab !== 'inventory' && st !== 'ALL') {
-                  setActiveTab('inventory');
+                if (activeTab !== stockTabForStage && st !== 'ALL') {
+                  if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                  setActiveTab(stockTabForStage);
                 }
               }}
               theme={theme}
@@ -4327,6 +4343,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               {!HIDE_STAGE_HEADER_TABS.has(shownTab) && !(productView === 'MATERIAL' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb')) && (
               <KpiCards
                 devices={scopedDevices}
+                deviceType={productType || undefined}
                 theme={theme}
                 activeStageFilter={stageFilter}
                 serverStatsByStage={serverStageSummary?.byStage}
@@ -4335,8 +4352,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                 onOpenHistoryTab={() => handleSelectTab('merchant_history')}
                 onSelectStage={(st) => {
                   setStageFilter(st);
-                  if (activeTab !== 'inventory' && st !== 'ALL') {
-                    setActiveTab('inventory');
+                  if (activeTab !== stockTabForStage && st !== 'ALL') {
+                    if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                    setActiveTab(stockTabForStage);
                   }
                 }}
               />

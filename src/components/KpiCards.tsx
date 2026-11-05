@@ -21,6 +21,8 @@ interface KpiCardsProps {
   onOpenHistoryTab?: () => void;
   serverStatsByStage?: Record<LifecycleStage, { count: number; posCount: number; sbCount: number }>;
   serverTotal?: number;
+  /** (5 Nov 2026) on a product page: count this product only (the card footer shows only its figure) */
+  deviceType?: 'POS Terminal' | 'Sound Box';
 }
 
 const STAGE_ICONS: Record<LifecycleStage, React.ReactNode> = {
@@ -84,6 +86,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
   onSelectStage,
   onOpenHistoryTab,
   serverStatsByStage,
+  deviceType,
   serverTotal,
 }) => {
   const { total, statsByStage, replacedCount } = React.useMemo(() => {
@@ -100,7 +103,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
 
     for (let i = 0; i < devices.length; i++) {
       const d = devices[i];
-      if (d.archived) continue;
+      if (d.archived || (deviceType && d.type !== deviceType)) continue;
       activeTotal++;
       if (d.replacedByStaff || d.replacedFromSerial || d.replacementDate) {
         swaps++;
@@ -122,11 +125,24 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
       else histPos++;
     }
     const historyStat = {
-      count: historicalMerchants.length,
+      count: deviceType === 'POS Terminal' ? histPos : deviceType === 'Sound Box' ? histSb : historicalMerchants.length,
       posCount: histPos,
       sbCount: histSb,
     };
 
+    if (serverStatsByStage && typeof serverTotal === 'number' && deviceType) {
+      const one = (x: { count: number; posCount: number; sbCount: number } | undefined) => {
+        const n = x ? (deviceType === 'POS Terminal' ? x.posCount : x.sbCount) : 0;
+        return { count: n, posCount: deviceType === 'POS Terminal' ? n : 0, sbCount: deviceType === 'Sound Box' ? n : 0 };
+      };
+      const byStage = Object.fromEntries((Object.keys(serverStatsByStage) as LifecycleStage[]).map((k) => [k, one(serverStatsByStage[k])])) as Record<LifecycleStage, { count: number; posCount: number; sbCount: number }>;
+      const typeTotal = (Object.keys(byStage) as LifecycleStage[]).reduce((a, k) => a + byStage[k].count, 0);
+      return {
+        total: typeTotal,
+        statsByStage: { ...byStage, FAULTY: { count: historyStat.count, posCount: deviceType === 'POS Terminal' ? histPos : 0, sbCount: deviceType === 'Sound Box' ? histSb : 0 } },
+        replacedCount: swaps,
+      };
+    }
     if (serverStatsByStage && typeof serverTotal === 'number') {
       return {
         total: serverTotal,
@@ -140,7 +156,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
 
     stats.FAULTY = historyStat;
     return { total: activeTotal, statsByStage: stats, replacedCount: swaps };
-  }, [devices, historicalMerchants, serverStatsByStage, serverTotal]);
+  }, [devices, historicalMerchants, serverStatsByStage, serverTotal, deviceType]);
 
   return (
     <div className="kpi-strip grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-5">
@@ -251,12 +267,16 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] font-bold font-figure text-slate-500">
-              <span className="text-slate-600">
-                POS: <strong className="text-[#006BA6]"><Odometer value={posCount} format={posCount >= 1000} duration={340} /></strong>
-              </span>
-              <span className="text-slate-600">
-                SB: <strong className="text-[#4F518C]"><Odometer value={sbCount} format={sbCount >= 1000} duration={340} /></strong>
-              </span>
+              {deviceType !== 'Sound Box' && (
+                <span className="text-slate-600">
+                  {deviceType ? 'POS Terminal' : 'POS'}: <strong className="text-[#006BA6]"><Odometer value={posCount} format={posCount >= 1000} duration={340} /></strong>
+                </span>
+              )}
+              {deviceType !== 'POS Terminal' && (
+                <span className="text-slate-600">
+                  {deviceType ? 'Sound Box' : 'SB'}: <strong className="text-[#4F518C]"><Odometer value={sbCount} format={sbCount >= 1000} duration={340} /></strong>
+                </span>
+              )}
             </div>
           </motion.div>
         );
