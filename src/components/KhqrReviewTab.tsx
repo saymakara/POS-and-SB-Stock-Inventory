@@ -626,7 +626,7 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
         <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
           {(rows || []).map((a, i) => (
             <div key={a.id} className={`${LGRID} px-3.5 py-2.5 text-[13px] text-slate-700 ${pick.sel.has(a.id) ? 'bg-sky-50/80' : 'hover:bg-rose-50/50'}`}>
-              <NoCell className="text-slate-500" box={isSuper && <SelectBox checked={pick.sel.has(a.id)} onChange={() => pick.toggle(a.id, pageItems[i].rec)} label={`Select ${what.slice(0, -1)} ${pageItems[i].rec}`} />}>{pg.start + i + 1}</NoCell>
+              <NoCell className="text-slate-500" onBoxClick={isSuper ? () => pick.toggle(a.id, pageItems[i].rec) : undefined} box={isSuper && <SelectBox checked={pick.sel.has(a.id)} onChange={() => pick.toggle(a.id, pageItems[i].rec)} label={`Select ${what.slice(0, -1)} ${pageItems[i].rec}`} />}>{pg.start + i + 1}</NoCell>
               <span className="tabular-nums whitespace-nowrap" title={a.clientAt ? `On the phone: ${stampSecPP(new Date(a.clientAt))}` : undefined}>{stampSecPP(new Date(a.clientAt || a.receivedAt))}</span>
               <span className="leading-tight min-w-0">
                 <span className="block truncate text-slate-900">{a.staffName || a.staffId}</span>
@@ -795,7 +795,7 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck }: {
         aria-expanded={open}
         className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer relative select-none`}
       >
-        <NoCell className="text-slate-500" box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}>{no}</NoCell>
+        <NoCell className="text-slate-500" onBoxClick={onCheck} box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}>{no}</NoCell>
         <span className="leading-tight min-w-0">
           <span className="block tabular-nums">{fmt(e.submittedAt)}</span>
           <CopyableRecordId id={e.recordId} />

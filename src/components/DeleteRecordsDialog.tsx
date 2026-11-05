@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, CheckSquare, Loader2, Square, Trash2, X } from 'lucide-react';
+import { AlertTriangle, CheckSquare, Loader2, Square, Trash2, X, Check } from 'lucide-react';
 
 /**
  * Phone App Review (4 Nov 2026): confirm a permanent delete. The Super Admin types DELETE; an optional reason goes to the
@@ -120,13 +120,35 @@ export const SelectBox: React.FC<{ checked: boolean; onChange: () => void; label
     type="button"
     aria-pressed={checked}
     aria-label={label}
-    onClick={(ev) => { ev.stopPropagation(); onChange(); }}
-    onKeyDown={(ev) => ev.stopPropagation()}
-    className={`cursor-pointer inline-flex shrink-0 items-center justify-center w-7 h-7 -m-1.5 rounded-lg ${light ? 'hover:bg-white/15' : 'hover:bg-slate-200/70'}`}
+    onClick={(ev) => {
+      ev.stopPropagation();
+      onChange();
+    }}
+    onMouseDown={(ev) => ev.stopPropagation()}
+    onKeyDown={(ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        onChange();
+      }
+    }}
+    className={`cursor-pointer inline-flex shrink-0 items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg transition-all active:scale-95 ${
+      light ? 'hover:bg-white/20' : 'hover:bg-slate-200/75'
+    }`}
   >
-    {checked
-      ? <CheckSquare className={`w-[18px] h-[18px] ${light ? 'text-emerald-300' : 'text-sky-700'}`} />
-      : <Square className={`w-[18px] h-[18px] ${light ? 'text-white/80' : 'text-slate-400'}`} />}
+    <span
+      className={`w-[19px] h-[19px] rounded-md flex items-center justify-center transition-all ${
+        checked
+          ? light
+            ? 'bg-emerald-500 text-white shadow-xs border border-emerald-400'
+            : 'bg-[#003857] text-white shadow-xs border border-[#003857]'
+          : light
+          ? 'border-2 border-white/70 hover:border-white bg-white/10'
+          : 'border-2 border-slate-300 hover:border-slate-400 bg-white shadow-2xs'
+      }`}
+    >
+      {checked && <Check className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />}
+    </span>
   </button>
 );
 
@@ -135,9 +157,36 @@ export const SelectBox: React.FC<{ checked: boolean; onChange: () => void; label
  * so the boxes form one straight column whatever the number of digits (9 → 10 → 100), in the header and every row.
  * The slot is kept even when there is no box, so the numbers stay aligned as well.
  */
-export const NoCell: React.FC<{ box?: React.ReactNode; children: React.ReactNode; className?: string }> = ({ box, children, className = '' }) => (
-  <span className={`flex items-center gap-2 ${className}`}>
-    <span className="inline-flex w-4 shrink-0 items-center justify-center">{box || null}</span>
-    <span className="flex-1 text-right tabular-nums">{children}</span>
-  </span>
-);
+export const NoCell: React.FC<{
+  box?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  onBoxClick?: () => void;
+}> = ({ box, children, className = '', onBoxClick }) => {
+  const handleClick = (ev: React.MouseEvent) => {
+    if (box) {
+      ev.stopPropagation();
+      onBoxClick?.();
+    }
+  };
+
+  return (
+    <span
+      onClick={box ? handleClick : undefined}
+      className={`inline-flex items-center gap-1.5 ${box ? 'cursor-pointer select-none' : ''} ${className}`}
+      title={box ? 'Click to select / unselect' : undefined}
+    >
+      <span
+        className="inline-flex w-7 sm:w-8 shrink-0 items-center justify-center -my-1 -ml-1 cursor-pointer"
+        onClick={(ev) => {
+          ev.stopPropagation();
+          onBoxClick?.();
+        }}
+        onMouseDown={(ev) => ev.stopPropagation()}
+      >
+        {box || null}
+      </span>
+      <span className="flex-1 text-right tabular-nums">{children}</span>
+    </span>
+  );
+};

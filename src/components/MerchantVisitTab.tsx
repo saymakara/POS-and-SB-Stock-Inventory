@@ -299,7 +299,7 @@ const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onChec
         aria-expanded={open}
         className={`${GRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 cursor-pointer relative select-none`}
       >
-        <NoCell className="text-slate-500" box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${v.recordId}`} />}>{no}</NoCell>
+        <NoCell className="text-slate-500" onBoxClick={onCheck} box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${v.recordId}`} />}>{no}</NoCell>
         <span className="leading-tight min-w-0">
           <span className="block tabular-nums">{fmt(v.submittedAt)}</span>
           <CopyableRecordId id={v.recordId} />

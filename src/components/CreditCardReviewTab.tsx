@@ -446,7 +446,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
         aria-expanded={open}
         className={`${GRID} w-full text-left px-4 py-3 text-[13px] text-slate-700 cursor-pointer select-none transition-colors duration-150`}
       >
-        <NoCell className="text-slate-500" box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}>{no}</NoCell>
+        <NoCell className="text-slate-500" onBoxClick={onCheck} box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}>{no}</NoCell>
         <span className="leading-tight min-w-0">
           <span className="block tabular-nums font-medium text-slate-800">{fmt(e.submittedAt)}</span>
           <CopyableRecordId id={e.recordId} onCopied={(id) => toast(`Copied Record ID: ${id}`)} />
