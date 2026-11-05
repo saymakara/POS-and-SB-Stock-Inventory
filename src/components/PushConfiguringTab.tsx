@@ -62,9 +62,12 @@ interface PushConfiguringTabProps {
   pushedSerials?: Set<string>;
   onMarkPushed?: (serials: string[]) => void;
   onRefreshQueue?: () => Promise<void> | void;
+  /** (5 Nov 2026) inside the POS Terminal / Sound Box page: this product only (the type list is hidden) */
+  lockType?: 'POS Terminal' | 'Sound Box';
 }
 
 export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(({
+  lockType,
   devices,
   branches,
   role = 'SUPER_ADMIN',
@@ -103,7 +106,9 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search);                     // typing stays instant; the list follows a moment later
   const [branchFilter, setBranchFilter] = useState('ALL');
-  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [typeFilterState, setTypeFilterState] = useState<string>(lockType || 'ALL');
+  const typeFilter = lockType || typeFilterState;
+  const setTypeFilter: React.Dispatch<React.SetStateAction<string>> = lockType ? () => undefined : setTypeFilterState;
   const [pushStatusFilter, setPushStatusFilter] = useState<'ALL' | 'WAITING' | 'PUSHED'>('ALL');
   const [selectedSns, setSelectedSns] = useState<string[]>([]);
   const tableRef = useRef<HTMLDivElement>(null);
@@ -1027,7 +1032,7 @@ return (
         </div>
 
         {/* KPI Mini-Cards (Clickable to view and filter queue table) */}
-        <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t ${isLight ? 'border-slate-200/90' : 'border-slate-800'}`}>
+        <div className={`grid grid-cols-2 ${lockType ? 'sm:grid-cols-3' : 'sm:grid-cols-4'} gap-3 mt-6 pt-6 border-t ${isLight ? 'border-slate-200/90' : 'border-slate-800'}`}>
           <button
             type="button"
             onClick={() => handleCardClick('WAITING')}
@@ -1054,7 +1059,8 @@ return (
             </div>
           </button>
 
-          <button
+          {/* (5 Nov 2026) inside a product page only that product's card is shown */}
+          {lockType !== 'Sound Box' && <button
             type="button"
             onClick={() => handleCardClick('POS')}
             className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
@@ -1077,9 +1083,9 @@ return (
             </div>
             <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(posCount)}</div>
             <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
-          </button>
+          </button>}
 
-          <button
+          {lockType !== 'POS Terminal' && <button
             type="button"
             onClick={() => handleCardClick('SB')}
             className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
@@ -1102,7 +1108,7 @@ return (
             </div>
             <div className={`text-2xl font-black mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(sbCount)}</div>
             <div className={`text-[10px] font-medium mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Under Configuring</div>
-          </button>
+          </button>}
 
           <button
             type="button"
@@ -1260,7 +1266,7 @@ return (
               </button>
             </div>
 
-            <select
+            {!lockType && <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
               className={`px-3 py-2 rounded-xl text-xs font-bold border outline-none cursor-pointer transition-all duration-150 ${
@@ -1270,7 +1276,7 @@ return (
               <option value="ALL">All Device Types</option>
               <option value="POS Terminal">POS Terminal</option>
               <option value="Sound Box">Sound Box</option>
-            </select>
+            </select>}
 
             <select
               value={branchFilter}
@@ -1287,7 +1293,7 @@ return (
               ))}
             </select>
 
-            {(search || typeFilter !== 'ALL' || branchFilter !== 'ALL' || pushStatusFilter !== 'ALL') && (
+            {(search || (!lockType && typeFilter !== 'ALL') || branchFilter !== 'ALL' || pushStatusFilter !== 'ALL') && (
               <button
                 type="button"
                 onClick={() => {

@@ -97,13 +97,19 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   const g = stockGroup(p);
   ok(await g.count() === 1, 'Stock Inventory is a menu group');
   ok(await g.getByRole('button', { name: /^Monthly Count/ }).count() === 0, 'no Monthly Count page in the menu');
+  ok(await p.locator('aside').first().getByText('Push Configuring', { exact: true }).count() === 0, 'Push Configuring is no longer a menu item');
   for (const t of ['POS Terminal', 'Sound Box', 'SIM Card']) ok(await g.getByRole('button', { name: new RegExp('^' + t) }).isVisible(), `Stock Inventory → ${t}`);
-  ok(/POS Terminal\s*1/.test((await g.textContent()).replace(/\s+/g, ' ')), 'menu shows 1 open lost item on POS Terminal');
+  // (5 Nov 2026) the menu number is the units waiting to be pushed; open lost items show on the Material tab (checked below)
 
   await g.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1500);
   ok(await p.getByRole('tab', { name: 'Units' }).getAttribute('aria-selected') === 'true', 'POS Terminal opens on Units');
+  await p.getByRole('tab', { name: /Push Configuring/ }).click(); await sleep(1500);
+  ok(/Push Configuring Hub/.test(await p.textContent('main')) && await p.locator('option', { hasText: 'All Device Types' }).count() === 0 && !/Sound Box · /.test(await p.locator('main tbody').first().textContent()),
+    'POS Terminal → Push Configuring: the hub with POS units only');
+  await p.getByRole('tab', { name: 'Units' }).click(); await sleep(800);
   ok(await p.locator('option', { hasText: 'All Hardware Types' }).count() === 0, 'Units: the hardware type list is hidden (POS only)');
-  await p.getByRole('tab', { name: 'Material' }).click(); await sleep(1500);
+  ok(/Material\s*1/.test(await p.getByRole('tab', { name: /Material/ }).textContent()), 'Material tab shows 1 open lost item');
+  await p.getByRole('tab', { name: /Material/ }).click(); await sleep(1500);
   const table = p.locator('section[aria-label="Stock per location"]');
   ok(/Head Office/.test(await table.textContent()) && /500/.test(await table.textContent()), 'Material: Head Office row with 500 POS adaptors');
   ok(/2 in transit/.test(await table.textContent()), 'Material: in-transit quantity shown');

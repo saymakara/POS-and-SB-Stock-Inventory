@@ -1385,9 +1385,11 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [stageFilter, setStageFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   // (5 Nov 2026) the product pages show one product: the unit list follows the page; back on the all-units page, all types again
-  const [productView, setProductView] = useState<'UNITS' | 'MATERIAL'>('UNITS');
+  const [productView, setProductView] = useState<'UNITS' | 'PUSH' | 'MATERIAL'>('UNITS');
   const lastStockTab = React.useRef('');
   useEffect(() => {
+    // (5 Nov 2026) Push Configuring lives inside the POS Terminal / Sound Box pages: old links (notifications) open it there
+    if (activeTab === 'push_configuring') { setProductView('PUSH'); setActiveTab('inventory_pos'); return; }
     if (activeTab === 'inventory_pos') setTypeFilter('POS Terminal');
     else if (activeTab === 'inventory_sb') setTypeFilter('Sound Box');
     else if (activeTab === 'inventory' && (lastStockTab.current === 'inventory_pos' || lastStockTab.current === 'inventory_sb')) setTypeFilter('ALL');
@@ -1840,7 +1842,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   // Synchronize Push Configuring Hub devices when entering tab
   useEffect(() => {
-    if (!isSupabaseConfigured || shownTab !== 'push_configuring') return;
+    const onPush = productView === 'PUSH' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb');
+    if (!isSupabaseConfigured || !onPush) return;
     let cancelled = false;
     fetchConfiguringDevicesFromSupabase().then((cDevs) => {
       if (!cancelled && cDevs && cDevs.length > 0) {
@@ -1872,7 +1875,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return () => {
       cancelled = true;
     };
-  }, [shownTab]);
+  }, [shownTab, productView]);
 
   const handleRefreshConfiguringQueue = useCallback(async () => {
     if (!isSupabaseConfigured) return;
@@ -2003,16 +2006,17 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const stockTabForStage = productType === 'POS Terminal' ? 'inventory_pos' : productType === 'Sound Box' ? 'inventory_sb' : 'inventory';
 
   // Count of devices in CONFIGURING stage that have NOT yet been pushed (controls sidebar badge pill)
-  const unpushedConfiguringCount = useMemo(() => {
-    return scopedDevices.filter(
-      (d) =>
-        !d.archived &&
-        d.stage === 'CONFIGURING' &&
-        !d.pushTrackingId &&
-        !d.pushDate &&
-        !pushedConfiguringSerials.has(d.serial)
-    ).length;
+  // waiting to be pushed, per product (the POS Terminal / Sound Box menu numbers and their Push Configuring tabs)
+  const unpushedByType = useMemo(() => {
+    const c = { pos: 0, sb: 0 };
+    scopedDevices.forEach((d) => {
+      if (!d.archived && d.stage === 'CONFIGURING' && !d.pushTrackingId && !d.pushDate && !pushedConfiguringSerials.has(d.serial)) {
+        if (d.type === 'Sound Box') c.sb++; else c.pos++;
+      }
+    });
+    return c;
   }, [scopedDevices, pushedConfiguringSerials]);
+  const unpushedConfiguringCount = unpushedByType.pos + unpushedByType.sb;
 
   const filteredInventory = useMemo(() => {
     const q = deferredSearchQuery.trim().toLowerCase();
@@ -4055,7 +4059,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
         webhookCount={isSupabaseConfigured ? pendingFieldCount + ccPending : outOfSyncWebhooksCount}
-        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb, cc: ccPending, lostPos: lostCounts.pos, lostSb: lostCounts.sb, lostSim: lostCounts.sim } : undefined}
+        reviewCounts={isSupabaseConfigured ? { pos: pendingByType.pos, sb: pendingByType.sb, cc: ccPending, lostPos: lostCounts.pos, lostSb: lostCounts.sb, lostSim: lostCounts.sim, pushPos: unpushedByType.pos, pushSb: unpushedByType.sb } : undefined}
         pendingReqs={pendingReqsCount}
         configuringCount={unpushedConfiguringCount}
         collapsed={sidebarCollapsed}
@@ -4321,7 +4325,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           />
 
           {/* Classic Pipeline Stage Filter Bar (hidden on non-inventory/CRM/History/Push/Request tabs) */}
-          {!HIDE_STAGE_HEADER_TABS.has(shownTab) && !(productView === 'MATERIAL' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb')) && (
+          {!HIDE_STAGE_HEADER_TABS.has(shownTab) && !(productView !== 'UNITS' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb')) && (
           <PipelineBar
               role={role}
               counts={pipelineCounts}
@@ -4342,7 +4346,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             <main className="px-4 sm:px-6 py-5 min-h-[calc(100vh-4rem)]">
               {isSupabaseConfigured && <ConnectionNotice />}
               {/* 6 Elevated KPI Cards with Shadows (hidden on non-inventory/CRM/History/Push/Request tabs) */}
-              {!HIDE_STAGE_HEADER_TABS.has(shownTab) && !(productView === 'MATERIAL' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb')) && (
+              {!HIDE_STAGE_HEADER_TABS.has(shownTab) && !(productView !== 'UNITS' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb')) && (
               <KpiCards
                 devices={scopedDevices}
                 deviceType={productType || undefined}
@@ -4461,23 +4465,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                   )}
 
-                  {shownTab === 'push_configuring' && (
-                    <PushConfiguringTab
-                      devices={scopedDevices}
-                      branches={branches}
-                      role={role}
-                      operatorLabel={operatorLabel || profile?.name || 'System Admin'}
-                      onNotifyConfigReady={handleNotifyConfigReady}
-                      onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
-                      onAssignStaff={handleBulkAssignStaff}
-                      regionalGroups={appSettings.telegramRegionalGroups}
-                      users={users}
-                      pushedSerials={pushedConfiguringSerials}
-                      onMarkPushed={markConfiguringSerialsPushed}
-                      onRefreshQueue={handleRefreshConfiguringQueue}
-                      theme={theme}
-                    />
-                  )}
 
                   {(shownTab === 'inventory' || shownTab === 'inventory_pos' || shownTab === 'inventory_sb') && (() => {
                     const units = (
@@ -4542,6 +4529,26 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                         myBranch={selectedBranch}
                         triggerToast={triggerToast}
                         units={units}
+                        push={
+                    <PushConfiguringTab
+                      devices={scopedDevices.filter((d) => d.type === (shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'))}
+                      lockType={shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'}
+                      branches={branches}
+                      role={role}
+                      operatorLabel={operatorLabel || profile?.name || 'System Admin'}
+                      onNotifyConfigReady={handleNotifyConfigReady}
+                      onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
+                      onAssignStaff={handleBulkAssignStaff}
+                      regionalGroups={appSettings.telegramRegionalGroups}
+                      users={users}
+                      pushedSerials={pushedConfiguringSerials}
+                      onMarkPushed={markConfiguringSerialsPushed}
+                      onRefreshQueue={handleRefreshConfiguringQueue}
+                      theme={theme}
+                    />
+                        }
+                        pushCount={shownTab === 'inventory_pos' ? unpushedByType.pos : unpushedByType.sb}
+                        lostCount={shownTab === 'inventory_pos' ? lostCounts.pos : lostCounts.sb}
                         view={productView}
                         onViewChange={setProductView}
                         onLostChanged={refreshLostCounts}

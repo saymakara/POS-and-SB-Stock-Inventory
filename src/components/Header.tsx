@@ -51,8 +51,8 @@ import { prefetchKpi } from '../services/kpiService';
 
 /** (28 Oct 2026) the sub-menus of Phone App Review */
 /** (5 Nov 2026) the Stock Inventory pages (the phone's "Stock" button stays lit on all of them) */
-const STOCK_TABS = ['inventory', 'inventory_pos', 'inventory_sb', 'sim_cards'];
-export type ReviewCounts = { pos: number; sb: number; cc?: number; lostPos?: number; lostSb?: number; lostSim?: number };
+const STOCK_TABS = ['inventory', 'inventory_pos', 'inventory_sb', 'sim_cards', 'push_configuring'];
+export type ReviewCounts = { pos: number; sb: number; cc?: number; lostPos?: number; lostSb?: number; lostSim?: number; pushPos?: number; pushSb?: number };
 
 interface SidebarProps {
   role?: UserRole;
@@ -77,7 +77,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   webhookCount,
   reviewCounts,
   pendingReqs,
-  configuringCount = 0,
   collapsed,
   onToggleCollapse,
   mobileOpen: mobileOpenProp,
@@ -146,17 +145,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           label: 'Stock Inventory',
           icon: Boxes,
           children: [
-            { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.lostPos || undefined },
-            { id: 'inventory_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-[#a2a5e0]', count: reviewCounts?.lostSb || undefined },
+            // the number: units waiting to be pushed (Push Configuring tab); open lost items show on the Material tab
+            { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.pushPos || undefined },
+            { id: 'inventory_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-[#a2a5e0]', count: reviewCounts?.pushSb || undefined },
             { id: 'sim_cards', label: 'SIM Card', icon: CardSim, iconColor: 'text-emerald-300', count: reviewCounts?.lostSim || undefined },
           ],
-        },
-        {
-          id: 'push_configuring',
-          label: 'Push Configuring',
-          icon: SendHorizontal,
-          count: configuringCount > 0 ? configuringCount : undefined,
-          highlight: configuringCount > 0,
         },
         {
           id: 'requisitions',

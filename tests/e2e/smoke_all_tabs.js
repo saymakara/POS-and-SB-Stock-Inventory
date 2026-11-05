@@ -5,7 +5,8 @@ const { chromium, B, api, sleep } = require('./lib/standin.js');
 let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 // the sandbox cannot open the live-update socket; that message is about the test environment, not the app
 const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_TUNNEL|net::ERR/;
-const TABS = ['Dashboard', 'KPI Performance', 'Merchant Deployment', 'Merchant History', 'Stock Inventory', 'Push Configuring',
+// (5 Nov 2026) Push Configuring is a tab of Stock Inventory → POS Terminal / Sound Box (checked in materials_e2e.js)
+const TABS = ['Dashboard', 'KPI Performance', 'Merchant Deployment', 'Merchant History', 'Stock Inventory',
   'Stock Requests', 'Branch Codes', 'Staff Directory', 'Audit Trail', 'Settings'];
 
 (async () => {
