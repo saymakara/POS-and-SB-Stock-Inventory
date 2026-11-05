@@ -748,7 +748,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   animate={{ x: 0 }}
                   exit={{ x: '100%' }}
                   transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 border-l border-slate-200 bg-white text-slate-900 flex flex-col my-0 overflow-hidden" role="dialog" aria-modal="true" aria-label="Reject request"
+                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 bg-white text-slate-900 flex flex-col my-0 overflow-hidden" role="dialog" aria-modal="true" aria-label="Reject request"
                 >
                   <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white shrink-0">
                     <div>
@@ -793,7 +793,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   animate={{ x: 0 }}
                   exit={{ x: '100%' }}
                   transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 border-l border-slate-200 bg-white text-slate-900 flex flex-col my-0 overflow-hidden"
+                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 bg-white text-slate-900 flex flex-col my-0 overflow-hidden"
                 >
                   <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white shrink-0">
                     <div>
@@ -843,7 +843,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   animate={{ x: 0 }}
                   exit={{ x: '100%' }}
                   transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                  className={`border-l border-slate-200 dark:border-slate-800 w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-gpu gpu-modal-container ${
+                  className={`w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-gpu gpu-modal-container ${
                     isLight
                       ? 'bg-white text-slate-900'
                       : 'bg-[#121622] text-slate-100'
@@ -1275,7 +1275,7 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                   animate={{ x: 0 }}
                   exit={{ x: '100%' }}
                   transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden ${
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden ${
                     isLight ? 'bg-white text-slate-800' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >

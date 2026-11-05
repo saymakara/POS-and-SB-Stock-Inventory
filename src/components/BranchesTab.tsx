@@ -989,7 +989,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                   animate={{ x: 0 }}
                   exit={{ x: '100%' }}
                   transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 border-l border-slate-200 dark:border-slate-800 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
                     isLight ? 'bg-white text-[#002f49]' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >

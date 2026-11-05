@@ -1389,7 +1389,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-        className={`${modalBoxClass} border-l border-slate-200 dark:border-slate-800 w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-gpu gpu-modal-container`}
+        className={`${modalBoxClass} w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-gpu gpu-modal-container`}
       >
         {/* Header (Signature Navy Bar) */}
         <div className="navy-header-bar px-6 py-4 flex items-center shrink-0 justify-between text-white">
