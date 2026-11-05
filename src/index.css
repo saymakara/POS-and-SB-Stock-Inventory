@@ -1235,3 +1235,10 @@ b, strong { font-weight: 700; }
   .kpi-strip::-webkit-scrollbar { display: none; }
   .kpi-strip > * { flex: 0 0 44%; scroll-snap-align: start; }
 }
+
+
+select,
+select option,
+select optgroup {
+  font-weight: 400 !important;
+}

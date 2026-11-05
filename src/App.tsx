@@ -4614,7 +4614,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                   })()}
 
                   {shownTab === 'sim_cards' && (
-                    <SimCardTab role={role} branches={branches} myBranch={selectedBranch} triggerToast={triggerToast} onLostChanged={refreshLostCounts} />
+                    <SimCardTab
+                      role={role}
+                      branches={branches}
+                      myBranch={selectedBranch}
+                      devices={devices}
+                      triggerToast={triggerToast}
+                      onLostChanged={refreshLostCounts}
+                    />
                   )}
 
                   {shownTab === 'branches' && (

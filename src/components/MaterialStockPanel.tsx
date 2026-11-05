@@ -273,23 +273,49 @@ const parseNumbers = (code: MaterialCode, text: string) => {
   return { ok, bad };
 };
 
-export const StockInDialog: React.FC<{ open: boolean; codes: MaterialCode[]; branches: Branch[]; onClose: () => void; onDone: () => void; triggerToast: (m: string) => void }> = ({
-  open, codes, branches, onClose, onDone, triggerToast,
+export const StockInDialog: React.FC<{
+  open: boolean;
+  codes: MaterialCode[];
+  branches: Branch[];
+  initialTarget?: 'ALL' | 'POS' | 'SOUND_BOX';
+  onClose: () => void;
+  onDone: () => void;
+  triggerToast: (m: string) => void;
+}> = ({
+  open, codes, branches, initialTarget = 'ALL', onClose, onDone, triggerToast,
 }) => {
   const [code, setCode] = useState<MaterialCode>(codes[0]);
   const [place, setPlace] = useState('100');
   const [qty, setQty] = useState('');
   const [text, setText] = useState('');
   const [note, setNote] = useState('');
+  const [targetDevice, setTargetDevice] = useState<'ALL' | 'POS' | 'SOUND_BOX'>(initialTarget);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (open) { setCode(codes[0]); setPlace('100'); setQty(''); setText(''); setNote(''); } }, [open, codes]);
+  useEffect(() => {
+    if (open) {
+      setCode(codes[0]);
+      setPlace('100');
+      setQty('');
+      setText('');
+      setNote('');
+      setTargetDevice(initialTarget);
+    }
+  }, [open, codes, initialTarget]);
   const m = materialByCode.get(code)!;
   const nums = m.tracking === 'SERIAL' ? parseNumbers(code, text) : { ok: [], bad: [] };
   const ready = m.tracking === 'QTY' ? Number(qty) > 0 : nums.ok.length > 0;
   const save = async () => {
     setBusy(true);
     try {
-      const r = await materialStockIn(m.tracking === 'QTY' ? { code, branch_id: place, qty: Math.floor(Number(qty)), note } : { code, branch_id: place, serials: nums.ok, note });
+      let finalNote = note.trim();
+      if (code === 'SIM') {
+        if (targetDevice === 'POS') {
+          finalNote = finalNote ? `[Target: POS Terminal] ${finalNote}` : '[Target: POS Terminal]';
+        } else if (targetDevice === 'SOUND_BOX') {
+          finalNote = finalNote ? `[Target: Sound Box] ${finalNote}` : '[Target: Sound Box]';
+        }
+      }
+      const r = await materialStockIn(m.tracking === 'QTY' ? { code, branch_id: place, qty: Math.floor(Number(qty)), note: finalNote } : { code, branch_id: place, serials: nums.ok, note: finalNote });
       triggerToast(`${m.name}: ${r.added} added${r.refused?.length ? `; ${r.refused.length} refused (${r.refused.slice(0, 3).map((x) => `${x.serial}: ${x.why}`).join('; ')})` : ''}.`);
       onDone(); onClose();
     } catch (e) { triggerToast(`Not added: ${cleanMaterialError(e)}`); } finally { setBusy(false); }
@@ -306,6 +332,19 @@ export const StockInDialog: React.FC<{ open: boolean; codes: MaterialCode[]; bra
         </label>
         <label className={labelCls} htmlFor="si-place">Location<PlaceSelect id="si-place" value={place} onChange={setPlace} branches={branches} /></label>
       </div>
+      {code === 'SIM' && (
+        <label className={labelCls}>Target Device Type
+          <select
+            className={inputCls}
+            value={targetDevice}
+            onChange={(e) => setTargetDevice(e.target.value as 'ALL' | 'POS' | 'SOUND_BOX')}
+          >
+            <option value="ALL">All / Shared Pool (Can be used for POS or Sound Box)</option>
+            <option value="POS">POS Terminal Only (Dedicated for POS)</option>
+            <option value="SOUND_BOX">Sound Box Only (Dedicated for Sound Box)</option>
+          </select>
+        </label>
+      )}
       {m.tracking === 'QTY' ? (
         <label className={labelCls}>Quantity<input className={inputCls} type="number" min={1} inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} /></label>
       ) : (

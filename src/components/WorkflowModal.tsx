@@ -1036,7 +1036,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           setReturnMode(false);
                           handleStageChange(e.target.value as LifecycleStage);
                         }}
-                        className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
+                        className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-normal border focus:outline-none transition cursor-pointer pr-8 ${
                           isLight
                             ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1046,14 +1046,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           <option
                             key={s}
                             value={s}
-                            className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
+                            className={isLight ? 'bg-white text-slate-900 font-normal' : 'bg-slate-900 text-white font-normal'}
                           >
                             {STAGE_META[s].label}
                             {s === device.stage ? ' (current)' : ''}
                           </option>
                         ))}
                         {canReturn && (
-                          <option value="__RETURN__" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>
+                          <option value="__RETURN__" className={isLight ? 'bg-white text-slate-900 font-normal' : 'bg-slate-900 text-white font-normal'}>
                             Return (remove merchant, back to stock)
                           </option>
                         )}
@@ -1075,7 +1075,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         onChange={(e) => handleBranchChange(e.target.value)}
                         aria-label="Assigned branch code"
                         disabled={!isAdminLike || stage === 'HQ_STOCK'}
-                        className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 disabled:opacity-60 disabled:cursor-not-allowed ${
+                        className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-normal border focus:outline-none transition cursor-pointer pr-8 disabled:opacity-60 disabled:cursor-not-allowed ${
                           isLight
                             ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
@@ -1085,7 +1085,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           <option
                             key={b.code}
                             value={b.code}
-                            className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
+                            className={isLight ? 'bg-white text-slate-900 font-normal' : 'bg-slate-900 text-white font-normal'}
                           >
                             Branch Code {b.code} — {b.name}
                           </option>
@@ -1122,7 +1122,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
                       Reason for the return *
                       <select value={returnReason} onChange={(e) => setReturnReason(e.target.value)} aria-label="Reason for the return"
-                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none cursor-pointer ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#181c26] border-slate-700/80 text-white'}`}>
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-normal border focus:outline-none cursor-pointer ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#181c26] border-slate-700/80 text-white'}`}>
                         {['Merchant Closed Business', 'Merchant Relocated', 'Merchant Requested Return', 'Upgraded / Replaced Hardware', 'Voluntary KHQR Switch', 'Seasonal End', 'Other'].map((r) => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </label>
@@ -1233,13 +1233,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           value={staff}
                           aria-label="Assigned branch staff officer"
                           onChange={(e) => setStaff(e.target.value)}
-                          className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
+                          className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-normal border focus:outline-none transition cursor-pointer pr-8 ${
                             isLight
                               ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                               : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                           }`}
                         >
-                          <option value="" className={isLight ? 'bg-white text-slate-500' : 'bg-slate-900 text-slate-400'}>
+                          <option value="" className={isLight ? 'bg-white text-slate-500 font-normal' : 'bg-slate-900 text-slate-400 font-normal'}>
                             -- Unassigned --
                           </option>
                           {staff && !availableStaff.includes(staff) && (
@@ -1249,7 +1249,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             <option
                               key={`${st.name}__${st.empId || ''}__${st.branchId}`}
                               value={st.name}
-                              className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}
+                              className={isLight ? 'bg-white text-slate-900 font-normal' : 'bg-slate-900 text-white font-normal'}
                             >
                               {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''}
                             </option>
