@@ -35,6 +35,9 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(8500, '127.0.0.1', () => {
+const PORT = process.env.DIST_PORT || 8500;
+process.on('uncaughtException', e => console.error(e));
+server.listen(PORT, '127.0.0.1', () => {
   console.log('Serving dist on http://127.0.0.1:8500');
 });
+

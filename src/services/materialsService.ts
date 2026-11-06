@@ -128,22 +128,38 @@ const mapSerial = (r: any): MaterialSerial => ({
   code: r.material_code, serial: r.serial, status: r.status, branchId: String(r.branch_id), deviceSerial: r.device_serial ?? null, mid: r.mid ?? null,
   merchantName: r.merchant_name ?? null, reqId: r.req_id ?? null, blocked: !!r.blocked_with_carrier, note: r.note ?? null, updatedAt: r.updated_at, updatedBy: r.updated_by ?? null,
 });
-export interface SerialQuery { code: MaterialCode; status?: SerialStatus | ''; branchId?: string; search?: string; page: number; pageSize: number }
+export interface SerialQuery {
+  code?: MaterialCode;
+  codes?: MaterialCode[];
+  status?: SerialStatus | '';
+  branchId?: string;
+  search?: string;
+  page: number;
+  pageSize: number;
+}
 export async function fetchSerialsPage(q: SerialQuery, force = false): Promise<{ rows: MaterialSerial[]; total: number }> {
   if (!isSupabaseConfigured) return { rows: [], total: 0 };
-  const k = `${q.code}|${q.status || ''}|${q.branchId || ''}|${q.search || ''}|${q.page}|${q.pageSize}`;
+  const codesList = q.codes && q.codes.length > 0 ? q.codes : (q.code ? [q.code] : []);
+  const codeKey = codesList.slice().sort().join(',');
+  const k = `${codeKey}|${q.status || ''}|${q.branchId || ''}|${q.search || ''}|${q.page}|${q.pageSize}`;
   if (!force && cachedSerialsPages.has(k) && isFresh('mat:page:' + k, 35000)) {
     return cachedSerialsPages.get(k)!;
   }
-  let req = supabase.from('material_serials').select('*', { count: 'exact' }).eq('material_code', q.code);
+  let req = supabase.from('material_serials').select('*', { count: 'exact' });
+  if (codesList.length === 1) {
+    req = req.eq('material_code', codesList[0]);
+  } else if (codesList.length > 1) {
+    req = req.in('material_code', codesList);
+  }
   if (q.status) req = req.eq('status', q.status);
   if (q.branchId) req = req.eq('branch_id', q.branchId);
   const term = (q.search || '').trim().replace(/[%,()*]/g, ' ').trim();
   if (term) {
-    const sim = q.code === 'SIM' ? normSim(term) : '';
+    const isSim = q.code === 'SIM' || (codesList.length === 1 && codesList[0] === 'SIM');
+    const sim = isSim ? normSim(term) : '';
     const digits = term.replace(/\D/g, '');
     const parts = [`serial.ilike.%${sim || term}%`, `mid.ilike.%${term}%`, `device_serial.ilike.%${term}%`, `merchant_name.ilike.%${term}%`];
-    if (q.code === 'SIM' && digits.length >= 3 && !sim) parts.push(`serial.ilike.%${digits.slice(-3)}%`);
+    if (isSim && digits.length >= 3 && !sim) parts.push(`serial.ilike.%${digits.slice(-3)}%`);
     req = req.or(parts.join(','));
   }
   const from = (q.page - 1) * q.pageSize;
@@ -155,16 +171,23 @@ export async function fetchSerialsPage(q: SerialQuery, force = false): Promise<{
   return res;
 }
 /** How many numbers of this material are in each status (optionally one branch). */
-export async function fetchSerialStatusCounts(code: MaterialCode, branchId?: string, force = false): Promise<Record<SerialStatus, number>> {
+export async function fetchSerialStatusCounts(code: MaterialCode | MaterialCode[], branchId?: string, force = false): Promise<Record<SerialStatus, number>> {
   const out = { HQ_STOCK: 0, IN_TRANSIT: 0, BRANCH_RESERVE: 0, AT_MERCHANT: 0, LOST: 0, FAULTY: 0, WRITTEN_OFF: 0 } as Record<SerialStatus, number>;
   if (!isSupabaseConfigured) return out;
-  const k = `${code}|${branchId || ''}`;
+  const codes = Array.isArray(code) ? code : [code];
+  const codeKey = codes.slice().sort().join(',');
+  const k = `${codeKey}|${branchId || ''}`;
   if (!force && cachedStatusCounts.has(k) && isFresh('mat:counts:' + k, 45000)) {
     return { ...cachedStatusCounts.get(k)! };
   }
   try {
-    // 1 single efficient request instead of 7 network calls
-    let req = supabase.from('material_serials').select('status').eq('material_code', code);
+    // 1 single efficient request instead of multiple network calls
+    let req = supabase.from('material_serials').select('status');
+    if (codes.length === 1) {
+      req = req.eq('material_code', codes[0]);
+    } else {
+      req = req.in('material_code', codes);
+    }
     if (branchId) req = req.eq('branch_id', branchId);
     const { data, error } = await req.limit(10000);
     if (!error && Array.isArray(data)) {
@@ -181,7 +204,13 @@ export async function fetchSerialStatusCounts(code: MaterialCode, branchId?: str
     // fallback to individual counts if bulk select failed
   }
   await Promise.all((Object.keys(out) as SerialStatus[]).map(async (st) => {
-    let req = supabase.from('material_serials').select('serial', { count: 'exact', head: true }).eq('material_code', code).eq('status', st);
+    let req = supabase.from('material_serials').select('serial', { count: 'exact', head: true });
+    if (codes.length === 1) {
+      req = req.eq('material_code', codes[0]);
+    } else {
+      req = req.in('material_code', codes);
+    }
+    req = req.eq('status', st);
     if (branchId) req = req.eq('branch_id', branchId);
     const { count, error } = await req;
     fail(error);

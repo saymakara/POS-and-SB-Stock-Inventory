@@ -4609,6 +4609,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                         view={productView}
                         onViewChange={setProductView}
                         onLostChanged={refreshLostCounts}
+                        devices={scopedDevices}
                       />
                     );
                   })()}
