@@ -113,16 +113,6 @@ export interface BatteryLifecycleStatus {
   label: string;
 }
 
-export function isValid15DigitMid(mid: string): boolean {
-  return /^\d{15}$/.test(mid.trim());
-}
-
-export function formatTo15DigitMid(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  return digits.slice(0, 15);
-}
-
-
 export function getBatteryLifecycleStatus(
   device: Pick<Device, 'batteryInstalledDate' | 'stockInDate' | 'deployedDate'>,
   referenceDateStr = todayPP()
@@ -422,5 +412,4 @@ export const DEFAULT_CUSTOM_FIELDS: CustomFieldDefinition[] = [
     description: 'Authorized on-site person to receive and sign for hardware handovers.',
   },
 ];
-
 

@@ -2,6 +2,21 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 7 Nov 2026 — Refactor: less code, safety rules on every deployment
+No change to what users see or to the database.
+- **Removed unused code (~1,600 lines):** 5 files never used (SetupAlert, ScanField, KpiDetailBreakdown, useProgressive,
+  useFlip) and 25 functions nothing called (old paged fetchers, unused CSV / MID helpers, IndexedDB loaders, …).
+- **App.tsx split:** the shell setup (lazy page registry, storage keys, tab lists, saved session, helpers) moved unchanged
+  to `src/app/appSetup.tsx`; App.tsx is 260 lines shorter and only the App component remains.
+- **Sign-in screen:** the dashboard code now starts downloading only once the sign-in field is on screen (it could race
+  the sign-in screen on slow phones; the smoke test that caught it now passes every run).
+- **Safety rules, checked on every deployment** (`tests/static_guards.cjs`, `npm run check`, GitHub deploy step): no direct
+  writes to tables that only checked database functions may change (materials, kits, phone records, staff); direct
+  writes only in the service layer; no database call whose error is never read. The error logger now reads its own
+  save result.
+- Tests: type check, static guards, build, 8 browser suites (smoke 16, materials 38, inventory 54, KHQR 26, delta 13,
+  delete 33, visits 15, session lock 9) — all passed.
+
 ## 6 Nov 2026 — Manage SIM checked by the database; Lost Materials back
 Database: migration `20261106_01_sim_card_manage.sql` (to apply in the SQL Editor); self-test
 `supabase/tests/sim_manage_selftest.sql` (16 checks, rolls itself back).

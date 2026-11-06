@@ -77,13 +77,6 @@ let cachedSerialsPages = new Map<string, { rows: MaterialSerial[]; total: number
 
 let owner: string | null | undefined;
 
-export const getCachedMaterialBalances = () => cachedBalances;
-export const getCachedLost = (codes?: MaterialCode[], status?: LostItem['status'] | '') => {
-  const k = (codes ? [...codes].sort().join(',') : '') + '|' + (status || '');
-  return cachedLost.get(k);
-};
-export const getCachedOpenLostCounts = () => cachedOpenLostCounts;
-
 export function clearMaterialsCache(): void {
   cachedBalances = null;
   cachedLost.clear();
@@ -263,7 +256,6 @@ export async function fetchMovements(q: { deviceSerial?: string; code?: Material
   }));
 }
 
-
 async function rpc<T = any>(fn: string, p: unknown): Promise<T> {
   const { data, error } = await supabase.rpc(fn, { p });
   if (error) throw new Error(error.message);
@@ -284,8 +276,6 @@ export const kitReturn = (p: { device_serial: string; items: { code: MaterialCod
 export const kitReplace = (p: { device_serial: string; code: MaterialCode; old_serial?: string; old_result: 'RETURNED' | 'LOST' | 'FAULTY'; remark?: string; new_serial?: string; qty?: number }) =>
   rpc('admin_kit_replace', p);
 export interface MaterialsToSend { qty: Partial<Record<MaterialCode, number>>; serials: Partial<Record<MaterialCode, string[]>> }
-export const dispatchRequestWithMaterials = (p: { req_id: string; serials: string[]; note?: string; materials: MaterialsToSend }) =>
-  rpc<{ arranged?: unknown[]; materials_sent: unknown }>('admin_dispatch_request', p);
 
 export interface AdminSimUpdatePayload {
   serial: string;

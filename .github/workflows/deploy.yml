@@ -35,6 +35,8 @@ jobs:
         run: npm ci --legacy-peer-deps
       - name: Type check (a broken change must never be published)
         run: npm run typecheck
+      - name: Safety rules (no direct writes to stock tables, no ignored database errors)
+        run: node tests/static_guards.cjs
       - name: Build Production
         env:
           SECRET_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
