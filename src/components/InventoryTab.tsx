@@ -65,6 +65,7 @@ interface InventoryTabProps {
   onTypeFilterChange: (t: string) => void;
   /** (5 Nov 2026) on the POS Terminal / Sound Box pages the product is fixed: the type list is hidden */
   lockType?: boolean;
+  viewToggle?: React.ReactNode;
   branchFilter: string;
   onBranchFilterChange: (b: string) => void;
   onSelectDevice: (sn: string) => void;
@@ -107,6 +108,7 @@ interface InventoryTabProps {
 
 export const InventoryTab: React.FC<InventoryTabProps> = ({
   lockType,
+  viewToggle,
   devices,
   allDevices = [],
   branches,
@@ -776,28 +778,38 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             <option value="HEALTHY">🟢 Healthy (&lt;21M)</option>
           </select>
 
-          {isAdminLike ? (
-            <select
-              value={branchFilter}
-              onChange={(e) => {
-                onBranchFilterChange(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs sm:col-span-2 md:col-span-3 lg:col-span-6"
-            >
-              <option value="ALL">All Branch Codes</option>
-              {branches.map((b) => (
-                <option key={b.code} value={b.code}>
-                  Branch Code {b.code} — {b.name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className="px-3 py-2.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900 sm:col-span-2 md:col-span-3 lg:col-span-6">
-              <Building2 className="w-3.5 h-3.5" />
-              <span>Scoped to Branch Code: {selectedBranch}</span>
+          {/* Branch Filter & View Toggle (Red circle area) */}
+          <div className="sm:col-span-2 md:col-span-3 lg:col-span-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex-1 min-w-[220px] max-w-sm">
+              {isAdminLike ? (
+                <select
+                  value={branchFilter}
+                  onChange={(e) => {
+                    onBranchFilterChange(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                >
+                  <option value="ALL">All Branch Codes</option>
+                  {branches.map((b) => (
+                    <option key={b.code} value={b.code}>
+                      Branch Code {b.code} — {b.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full px-3 py-2.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Scoped to Branch Code: {selectedBranch}</span>
+                </div>
+              )}
             </div>
-          )}
+            {viewToggle && (
+              <div className="flex items-center">
+                {viewToggle}
+              </div>
+            )}
+          </div>
           <div className="sm:col-span-2 md:col-span-3 lg:col-span-6 flex justify-end">
             <ClearFiltersButton
               active={!!searchQuery || stageFilter !== 'ALL' || (!lockType && typeFilter !== 'ALL') || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}

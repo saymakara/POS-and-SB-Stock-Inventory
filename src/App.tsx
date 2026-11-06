@@ -42,6 +42,7 @@ import { PipelineBar } from './components/PipelineBar';
 import { KpiCards } from './components/KpiCards';
 import { DashboardTab } from './components/DashboardTab';
 import { InventoryTab } from './components/InventoryTab';
+import { ProductStockPage, ProductViewToggle } from './components/MaterialStockPanel';
 import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -86,7 +87,6 @@ const FieldReviewTab = lazyTab(() => import('./components/FieldReviewTab').then(
 const KhqrReviewTab = lazyTab(() => import('./components/KhqrReviewTab').then((m) => ({ default: m.KhqrReviewTab })));
 const CreditCardReviewTab = lazyTab(() => import('./components/CreditCardReviewTab').then((m) => ({ default: m.CreditCardReviewTab })));
 // (5 Nov 2026) Stock Inventory → POS Terminal / Sound Box (units + materials), SIM Card
-const ProductStockPage = lazyTab(() => import('./components/MaterialStockPanel').then((m) => ({ default: m.ProductStockPage })));
 const SimCardTab = lazyTab(() => import('./components/SimCardTab').then((m) => ({ default: m.SimCardTab })));
 const MerchantVisitTab = lazyTab(() => import('./components/MerchantVisitTab').then((m) => ({ default: m.MerchantVisitTab })));
 const KpiPerformanceTab = lazyTab(() => import('./components/KpiPerformanceTab').then((m) => ({ default: m.KpiPerformanceTab })));
@@ -4559,9 +4559,21 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
 
                   {(shownTab === 'inventory' || shownTab === 'inventory_pos' || shownTab === 'inventory_sb') && (() => {
+                    const viewToggle = shownTab !== 'inventory' ? (
+                      <ProductViewToggle
+                        view={productView}
+                        onViewChange={setProductView}
+                        group={shownTab === 'inventory_pos' ? 'POS' : 'SB'}
+                        pushCount={shownTab === 'inventory_pos' ? unpushedByType.pos : unpushedByType.sb}
+                        lostCount={shownTab === 'inventory_pos' ? lostCounts.pos : lostCounts.sb}
+                        hasPush={true}
+                      />
+                    ) : undefined;
+
                     const units = (
                     <InventoryTab
                       lockType={shownTab !== 'inventory'}
+                      viewToggle={viewToggle}
                       onReturnDevice={(sn) => { setWorkflowPreset('RETURN'); setEditingDeviceSerial(sn); }}
                       devices={filteredInventory}
                       allDevices={scopedDevices}
@@ -4613,43 +4625,45 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     />
                     );
                     if (shownTab === 'inventory') return units;
-                    const productUnits = (
-                      <div className="flex flex-col gap-3.5">
-                        <PipelineBar
-                          role={role}
-                          counts={pipelineCounts}
-                          allLabel={productType ? `All ${productType}` : undefined}
-                          currentStageFilter={stageFilter}
-                          onSelectStage={(st) => {
-                            setStageFilter(st);
-                            if (activeTab !== stockTabForStage && st !== 'ALL') {
-                              if (stockTabForStage !== 'inventory') setProductView('UNITS');
-                              setActiveTab(stockTabForStage);
-                            }
-                          }}
-                          theme={theme}
-                          noPadding
-                        />
-                        <KpiCards
-                          devices={scopedDevices}
-                          deviceType={productType || undefined}
-                          theme={theme}
-                          activeStageFilter={stageFilter}
-                          serverStatsByStage={serverStageSummary?.byStage}
-                          serverTotal={serverStageSummary?.all}
-                          historicalMerchants={historicalMerchants}
-                          onOpenHistoryTab={() => handleSelectTab('merchant_history')}
-                          onSelectStage={(st) => {
-                            setStageFilter(st);
-                            if (activeTab !== stockTabForStage && st !== 'ALL') {
-                              if (stockTabForStage !== 'inventory') setProductView('UNITS');
-                              setActiveTab(stockTabForStage);
-                            }
-                          }}
-                        />
-                        {units}
-                      </div>
+
+                    const pipelineBarNode = (
+                      <PipelineBar
+                        role={role}
+                        counts={pipelineCounts}
+                        allLabel={productType ? `All ${productType}` : undefined}
+                        currentStageFilter={stageFilter}
+                        onSelectStage={(st) => {
+                          setStageFilter(st);
+                          if (activeTab !== stockTabForStage && st !== 'ALL') {
+                            if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                            setActiveTab(stockTabForStage);
+                          }
+                        }}
+                        theme={theme}
+                        noPadding
+                      />
                     );
+
+                    const kpiCardsNode = (
+                      <KpiCards
+                        devices={scopedDevices}
+                        deviceType={productType || undefined}
+                        theme={theme}
+                        activeStageFilter={stageFilter}
+                        serverStatsByStage={serverStageSummary?.byStage}
+                        serverTotal={serverStageSummary?.all}
+                        historicalMerchants={historicalMerchants}
+                        onOpenHistoryTab={() => handleSelectTab('merchant_history')}
+                        onSelectStage={(st) => {
+                          setStageFilter(st);
+                          if (activeTab !== stockTabForStage && st !== 'ALL') {
+                            if (stockTabForStage !== 'inventory') setProductView('UNITS');
+                            setActiveTab(stockTabForStage);
+                          }
+                        }}
+                      />
+                    );
+
                     return (
                       <ProductStockPage
                         group={shownTab === 'inventory_pos' ? 'POS' : 'SB'}
@@ -4657,24 +4671,28 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                         branches={branches}
                         myBranch={selectedBranch}
                         triggerToast={triggerToast}
-                        units={productUnits}
+                        pipelineBar={pipelineBarNode}
+                        kpiCards={kpiCardsNode}
+                        units={units}
                         push={
-                    <PushConfiguringTab
-                      devices={scopedDevices.filter((d) => d.type === (shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'))}
-                      lockType={shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'}
-                      branches={branches}
-                      role={role}
-                      operatorLabel={operatorLabel || profile?.name || 'System Admin'}
-                      onNotifyConfigReady={handleNotifyConfigReady}
-                      onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
-                      onAssignStaff={handleBulkAssignStaff}
-                      regionalGroups={appSettings.telegramRegionalGroups}
-                      users={users}
-                      pushedSerials={pushedConfiguringSerials}
-                      onMarkPushed={markConfiguringSerialsPushed}
-                      onRefreshQueue={handleRefreshConfiguringQueue}
-                      theme={theme}
-                    />
+                          <PushConfiguringTab
+                            hideHero
+                            viewToggle={viewToggle}
+                            devices={scopedDevices.filter((d) => d.type === (shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'))}
+                            lockType={shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'}
+                            branches={branches}
+                            role={role}
+                            operatorLabel={operatorLabel || profile?.name || 'System Admin'}
+                            onNotifyConfigReady={handleNotifyConfigReady}
+                            onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
+                            onAssignStaff={handleBulkAssignStaff}
+                            regionalGroups={appSettings.telegramRegionalGroups}
+                            users={users}
+                            pushedSerials={pushedConfiguringSerials}
+                            onMarkPushed={markConfiguringSerialsPushed}
+                            onRefreshQueue={handleRefreshConfiguringQueue}
+                            theme={theme}
+                          />
                         }
                         pushCount={shownTab === 'inventory_pos' ? unpushedByType.pos : unpushedByType.sb}
                         lostCount={shownTab === 'inventory_pos' ? lostCounts.pos : lostCounts.sb}

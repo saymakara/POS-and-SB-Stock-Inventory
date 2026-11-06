@@ -21,67 +21,135 @@ import { BusyLabel, Kpi, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill,
 import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, CROSSFADE_OVERLAP_VARIANTS, staggerRowStyle } from '../utils/animationRules';
 
 export type ProductView = 'UNITS' | 'PUSH' | 'MATERIAL';
+
+export const ProductViewToggle: React.FC<{
+  view: ProductView;
+  onViewChange: (v: ProductView) => void;
+  group: DeviceGroup;
+  pushCount?: number;
+  lostCount?: number;
+  hasPush?: boolean;
+}> = ({ view, onViewChange, group, pushCount = 0, lostCount = 0, hasPush = true }) => {
+  const views: ProductView[] = hasPush ? ['UNITS', 'PUSH', 'MATERIAL'] : ['UNITS', 'MATERIAL'];
+  return (
+    <div
+      role="tablist"
+      aria-label={`${group} views`}
+      className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs shrink-0"
+    >
+      {views.map((v) => {
+        const n = v === 'PUSH' ? pushCount || 0 : v === 'MATERIAL' ? lostCount || 0 : 0;
+        const isSelected = view === v;
+        return (
+          <motion.button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={isSelected}
+            onClick={() => onViewChange(v)}
+            whileTap={WHILE_TAP_BUTTON}
+            title={
+              v === 'PUSH' && n
+                ? `${n} unit(s) waiting to be pushed`
+                : v === 'MATERIAL' && n
+                ? `${n} open lost item(s)`
+                : undefined
+            }
+            className="relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer select-none"
+          >
+            {isSelected && (
+              <motion.div
+                layoutId={`active-product-view-pill-${group}`}
+                className="absolute inset-0 rounded-lg bg-[#003857] shadow-xs z-0 pointer-events-none"
+                transition={SPRING_NO_BOUNCE}
+              />
+            )}
+            <span
+              className={`relative z-10 transition-colors duration-150 ${
+                isSelected ? 'text-white font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              {v === 'UNITS' ? 'Units' : v === 'PUSH' ? 'Push Configuring' : 'Material'}
+            </span>
+            {n > 0 && (
+              <span
+                className={`relative z-10 text-[10.5px] font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors duration-150 ${
+                  v === 'MATERIAL'
+                    ? 'bg-rose-600 text-white shadow-2xs'
+                    : isSelected
+                    ? 'bg-white/20 text-white'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
+                }`}
+              >
+                {n}
+              </span>
+            )}
+          </motion.button>
+        );
+      })}
+    </div>
+  );
+};
+
 export const ProductStockPage: React.FC<{
-  group: DeviceGroup; role: UserRole; branches: Branch[]; myBranch: string; triggerToast: (m: string) => void;
-  units: React.ReactNode; push?: React.ReactNode; pushCount?: number; lostCount?: number;
-  view: ProductView; onViewChange: (v: ProductView) => void; onLostChanged?: () => void;
+  group: DeviceGroup;
+  role: UserRole;
+  branches: Branch[];
+  myBranch: string;
+  triggerToast: (m: string) => void;
+  units: React.ReactNode;
+  push?: React.ReactNode;
+  pushCount?: number;
+  lostCount?: number;
+  view: ProductView;
+  onViewChange: (v: ProductView) => void;
+  onLostChanged?: () => void;
   devices?: Device[];
-}> = ({ group, role, branches, myBranch, triggerToast, units, push, pushCount, lostCount, view, onViewChange, onLostChanged, devices = [] }) => {
+  pipelineBar?: React.ReactNode;
+  kpiCards?: React.ReactNode;
+}> = ({
+  group,
+  role,
+  branches,
+  myBranch,
+  triggerToast,
+  units,
+  push,
+  pushCount,
+  lostCount,
+  view,
+  onViewChange,
+  onLostChanged,
+  devices = [],
+  pipelineBar,
+  kpiCards,
+}) => {
   const Icon = group === 'POS' ? Cpu : Volume2;
   const title = group === 'POS' ? 'POS Terminal' : 'Sound Box';
+
+  const viewToggle = (
+    <ProductViewToggle
+      view={view}
+      onViewChange={onViewChange}
+      group={group}
+      pushCount={pushCount}
+      lostCount={lostCount}
+      hasPush={Boolean(push)}
+    />
+  );
+
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2.5 text-lg sm:text-xl font-extrabold text-slate-900">
           <Icon className={`w-5 h-5 ${group === 'POS' ? 'text-[#006BA6]' : 'text-[#4F518C]'}`} aria-hidden />{title}
         </h2>
-        <div role="tablist" aria-label={`${title} views`} className="relative inline-flex p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 shadow-2xs">
-          {((push ? ['UNITS', 'PUSH', 'MATERIAL'] : ['UNITS', 'MATERIAL']) as ProductView[]).map((v) => {
-            const n = v === 'PUSH' ? pushCount || 0 : v === 'MATERIAL' ? lostCount || 0 : 0;
-            const isSelected = view === v;
-            return (
-              <motion.button
-                key={v}
-                type="button"
-                role="tab"
-                aria-selected={isSelected}
-                onClick={() => onViewChange(v)}
-                whileTap={WHILE_TAP_BUTTON}
-                title={v === 'PUSH' && n ? `${n} unit(s) waiting to be pushed` : v === 'MATERIAL' && n ? `${n} open lost item(s)` : undefined}
-                className="relative inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer select-none"
-              >
-                {isSelected && (
-                  <motion.div
-                    layoutId={`active-product-view-pill-${group}`}
-                    className="absolute inset-0 rounded-lg bg-[#003857] shadow-xs z-0 pointer-events-none"
-                    transition={SPRING_NO_BOUNCE}
-                  />
-                )}
-                <span
-                  className={`relative z-10 transition-colors duration-150 ${
-                    isSelected ? 'text-white font-bold' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {v === 'UNITS' ? 'Units' : v === 'PUSH' ? 'Push Configuring' : 'Material'}
-                </span>
-                {n > 0 && (
-                  <span
-                    className={`relative z-10 text-[10.5px] font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors duration-150 ${
-                      v === 'MATERIAL'
-                        ? 'bg-rose-600 text-white shadow-2xs'
-                        : isSelected
-                        ? 'bg-white/20 text-white'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {n}
-                  </span>
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
       </div>
+
+      {/* Frame: PipelineBar & KpiCards remain anchored across all views */}
+      {pipelineBar}
+      {kpiCards}
+
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={view}
@@ -104,6 +172,8 @@ export const ProductStockPage: React.FC<{
                 triggerToast={triggerToast}
                 onLostChanged={onLostChanged}
                 devices={devices}
+                hideHero
+                viewToggle={viewToggle}
               />
             )}
         </motion.div>
@@ -122,8 +192,10 @@ const MaterialStockPanel: React.FC<{
   triggerToast: (m: string) => void;
   onLostChanged?: () => void;
   devices?: Device[];
+  hideHero?: boolean;
+  viewToggle?: React.ReactNode;
 }> = ({
-  group, role, branches, myBranch, triggerToast, onLostChanged, devices = [],
+  group, role, branches, myBranch, triggerToast, onLostChanged, devices = [], hideHero, viewToggle,
 }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const mats = useMemo(() => productMaterials(group), [group]);
@@ -461,25 +533,43 @@ const MaterialStockPanel: React.FC<{
     }
   };
 
-  if (err === 'SETUP') return <MaterialsSetupNotice />;
+  if (err === 'SETUP') {
+    return (
+      <div className="space-y-4">
+        {viewToggle && (
+          <div className="flex justify-end">
+            {viewToggle}
+          </div>
+        )}
+        <MaterialsSetupNotice />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
       {/* 1. TOP HERO BANNER & CONTROL HUB (SIM Card Tab Style) */}
-      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-7 border shadow-sm bg-slate-100 border-slate-200/90" aria-label={group === 'POS' ? 'POS Materials Hub' : 'Sound Box Materials Hub'}>
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="space-y-1.5 max-w-3xl">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-3 text-slate-900">
-              <Boxes className="w-7 h-7 text-[#003857]" aria-hidden />
-              <span>{group === 'POS' ? 'POS Terminal Materials Control Hub' : 'Sound Box Materials Control Hub'}</span>
+      <section className={`relative overflow-hidden rounded-3xl ${hideHero ? 'p-4 sm:p-5' : 'p-6 sm:p-7'} border shadow-sm bg-slate-100 border-slate-200/90`} aria-label={group === 'POS' ? 'POS Materials Hub' : 'Sound Box Materials Hub'}>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1 max-w-3xl">
+            <h1 className={`${hideHero ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'} font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900`}>
+              <Boxes className={`${hideHero ? 'w-5 h-5' : 'w-7 h-7'} text-[#003857]`} aria-hidden />
+              <span>{group === 'POS' ? 'POS Terminal Materials Control' : 'Sound Box Materials Control'}</span>
             </h1>
-            <p className="text-sm sm:text-base text-slate-600">
-              {group === 'POS'
-                ? 'Individual inventory tracking, terminal assignments, and branch custody for Batteries, Stand Holders, Charging Docks, and AC Adaptors.'
-                : 'Individual inventory tracking, unit assignments, and branch custody for Batteries and Sound Box AC Adaptors.'}
-            </p>
+            {!hideHero && (
+              <p className="text-sm sm:text-base text-slate-600">
+                {group === 'POS'
+                  ? 'Individual inventory tracking, terminal assignments, and branch custody for Batteries, Stand Holders, Charging Docks, and AC Adaptors.'
+                  : 'Individual inventory tracking, unit assignments, and branch custody for Batteries and Sound Box AC Adaptors.'}
+              </p>
+            )}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {viewToggle && (
+              <div className="mr-1">
+                {viewToggle}
+              </div>
+            )}
             {isAdmin && (
               <button
                 type="button"
