@@ -210,13 +210,11 @@ const MaterialStockPanel: React.FC<{
   const [search, setSearch] = useState('');
   useEffect(() => { const t = setTimeout(() => setSearch(dq.trim()), 350); return () => clearTimeout(t); }, [dq]);
 
-  const [lostFilter, setLostFilter] = useState<'OPEN' | ''>('OPEN');
-  const [bal, setBal] = useState<MaterialBalance[] | null>(() => getCachedMaterialBalances() || null);
+    const [bal, setBal] = useState<MaterialBalance[] | null>(() => getCachedMaterialBalances() || null);
   const [lost, setLost] = useState<LostItem[] | null>(() => getCachedLost(codes, 'OPEN') || null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
-  const [onlyStock, setOnlyStock] = useState(false);
-  const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST' | 'OPENING'>('');
+    const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST' | 'OPENING'>('');
   const [copiedSerial, setCopiedSerial] = useState<string | null>(null);
 
   // Serials from material_serials table
@@ -279,8 +277,8 @@ const MaterialStockPanel: React.FC<{
   // Load balances and lost
   const load = useCallback(async (force = false) => {
     const cachedB = getCachedMaterialBalances();
-    const cachedL = getCachedLost(codes, lostFilter);
-    const kLost = codes.slice().sort().join(',') + '|' + lostFilter;
+    const cachedL = getCachedLost(codes, 'OPEN');
+    const kLost = codes.slice().sort().join(',') + '|OPEN';
     if (!force && cachedB && cachedL && isFresh('mat:balances', 60000) && isFresh('mat:lost:' + kLost, 60000)) {
       setBal(cachedB);
       setLost(cachedL);
@@ -289,12 +287,12 @@ const MaterialStockPanel: React.FC<{
     }
     if (!cachedB || !cachedL) setLoading(true);
     try {
-      const [b, l] = await Promise.all([fetchMaterialBalances(force), fetchLost(codes, lostFilter, force)]);
+      const [b, l] = await Promise.all([fetchMaterialBalances(force), fetchLost(codes, 'OPEN', force)]);
       setBal(b); setLost(l); setErr('');
     } catch (e) {
       const m = cleanMaterialError(e); setErr(isMaterialsMissing(m) ? 'SETUP' : m); setBal((x) => x || []); setLost((x) => x || []);
     } finally { setLoading(false); }
-  }, [codes, lostFilter]);
+  }, [codes]);
 
   // Load serials for this product's materials
   const loadSerials = useCallback(async (force = false) => {
@@ -421,20 +419,9 @@ const MaterialStockPanel: React.FC<{
     transit: (bal || []).filter((b) => b.code === c).reduce((s, b) => s + b.inTransit, 0),
   })), [codes, bal, cell]);
 
-  const places = useMemo(() => {
-    const list = isAdmin ? ['100', ...branches.filter((b) => b.id !== '100').map((b) => b.id)] : [myBranch];
-    return onlyStock ? list.filter((id) => codes.some((c) => (cell.get(`${c}|${id}`)?.onHand || 0) > 0)) : list;
-  }, [isAdmin, branches, myBranch, onlyStock, codes, cell]);
+    const openLost = (lost || []).filter((l) => l.status === 'OPEN').length;
 
-  const openLost = (lost || []).filter((l) => l.status === 'OPEN').length;
-
-  const exportSummaryCsv = () => {
-    downloadCsv(`${group === 'POS' ? 'pos' : 'sound-box'}-material-stock`, ['Location', ...mats.map((m) => m.name)],
-      places.map((id) => [placeName(id, branches), ...codes.map((c) => cell.get(`${c}|${id}`)?.onHand || 0)]));
-    triggerToast(`Saved ${places.length} location(s).`);
-  };
-
-  const exportDetailedInventoryCsv = () => {
+    const exportDetailedInventoryCsv = () => {
     const list = combinedItems;
     downloadCsv(
       `${group === 'POS' ? 'pos' : 'sound-box'}-materials-inventory`,
@@ -892,57 +879,7 @@ const MaterialStockPanel: React.FC<{
         </div>
       </section>
 
-      {/* 4. STOCK BY LOCATION BREAKDOWN (PRESERVED FOR AUDIT & E2E INTEGRITY) */}
-      <section className="fr-table-frame bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden" aria-label="Stock per location">
-        <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2.5 bg-slate-50/70">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-slate-900">Stock per Location Distribution</h3>
-            <span className="text-xs text-slate-400">({places.length} active locations)</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {isAdmin && (
-              <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
-                <input type="checkbox" checked={onlyStock} onChange={(e) => setOnlyStock(e.target.checked)} className="rounded" /> Only locations with stock
-              </label>
-            )}
-            <button type="button" className={btnLight} onClick={exportSummaryCsv}><Download className="w-3.5 h-3.5" />Export Location Matrix</button>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="bg-[#003857] text-white text-[11px] uppercase tracking-wider">
-                <th className="text-left font-medium px-3.5 py-2.5">Location</th>
-                {mats.map((m) => <th key={m.code} className="text-right font-medium px-3.5 py-2.5">{m.name}</th>)}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
-              {bal === null && <tr><td colSpan={mats.length + 1} className="px-3.5 py-6"><div className="skeleton h-4 rounded w-1/2" /></td></tr>}
-              {bal !== null && places.length === 0 && <tr><td colSpan={mats.length + 1} className="px-3.5 py-8 text-center text-slate-500">No location holds {group === 'POS' ? 'POS' : 'Sound Box'} materials yet.</td></tr>}
-              {bal !== null && places.map((id) => (
-                <tr key={id} className={id === '100' ? 'bg-sky-50/40 font-medium' : 'hover:bg-slate-50/70'}>
-                  <td className="px-3.5 py-2.5 font-medium text-slate-800">{placeName(id, branches)}</td>
-                  {codes.map((c) => {
-                    const b = cell.get(`${c}|${id}`);
-                    return (
-                      <td key={c} className="px-3.5 py-2.5 text-right tabular-nums">
-                        <span className={b?.onHand ? 'font-semibold text-slate-900' : 'text-slate-400'}>{(b?.onHand || 0).toLocaleString()}</span>
-                        {b?.inTransit ? <span className="block text-[10.5px] text-indigo-700 font-semibold">{b.inTransit} in transit</span> : null}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* 5. LOST ITEMS TABLE */}
-      <LostTable title={`Lost · ${group === 'POS' ? 'POS Terminal' : 'Sound Box'} material`} rows={lost} branches={branches} isAdmin={isAdmin}
-        filter={lostFilter} onFilter={setLostFilter} onChanged={changed} triggerToast={triggerToast} />
-
-      {/* Dialogs */}
+            {/* Dialogs */}
       <StockInDialog open={dlg === 'IN'} codes={codes} branches={branches} onClose={() => setDlg('')} onDone={changed} triggerToast={triggerToast} />
       <AdjustDialog open={dlg === 'ADJUST'} codes={codes} branches={branches} onClose={() => setDlg('')} onDone={changed} triggerToast={triggerToast} />
       <OpeningDialog open={dlg === 'OPENING'} branches={branches} onClose={() => setDlg('')} onDone={changed} triggerToast={triggerToast} />

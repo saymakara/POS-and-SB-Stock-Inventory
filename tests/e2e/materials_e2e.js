@@ -111,10 +111,11 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   ok(await p.locator('option', { hasText: 'All Hardware Types' }).count() === 0, 'Units: the hardware type list is hidden (POS only)');
   ok(/Material\s*1/.test(await p.getByRole('tab', { name: /Material/ }).textContent()), 'Material tab shows 1 open lost item');
   await p.getByRole('tab', { name: /Material/ }).click(); await sleep(1500);
-  const table = p.locator('section[aria-label="Stock per location"]');
-  ok(/Head Office/.test(await table.textContent()) && /500/.test(await table.textContent()), 'Material: Head Office row with 500 POS adaptors');
-  ok(/2 in transit/.test(await table.textContent()), 'Material: in-transit quantity shown');
-  ok(/Lucky Mart/.test(await p.locator('section[aria-label^="Lost · POS"]').textContent()), 'Material: Lost table lists the lost dock');
+  const kpis = p.locator('section[aria-label="Material totals"]');
+  ok(/512/.test(await kpis.textContent()) || /500/.test(await kpis.textContent()), 'Material: POS adaptors count shown in KPI');
+  ok(/2 in transit/.test(await kpis.textContent()), 'Material: in-transit quantity shown');
+  ok((await p.locator('section[aria-label="Stock per location"]').count()) === 0, 'Stock per location matrix table is removed from POS');
+  ok((await p.locator('section[aria-label^="Lost · POS"]').count()) === 0, 'Lost items table is removed from POS');
 
   await p.getByRole('button', { name: 'Stock In', exact: true }).click(); await sleep(400);
   await p.locator('#si-code').selectOption('POS_ADAPTOR');
@@ -123,17 +124,12 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   const si = last('admin_material_stock_in');
   ok(si && si.p.code === 'POS_ADAPTOR' && si.p.qty === 50 && si.p.branch_id === '100', 'Stock In → admin_material_stock_in ' + JSON.stringify(si && si.p));
 
-  await p.locator('section[aria-label^="Lost · POS"]').getByRole('button', { name: 'Write off' }).click(); await sleep(400);
-  ok(await p.getByRole('button', { name: 'Write off', exact: true }).last().isDisabled(), 'write-off needs a reason');
-  await p.locator('[role=dialog] input').fill('Merchant closed, not reachable');
-  await p.locator('[role=dialog]').getByRole('button', { name: 'Write off' }).click(); await sleep(1200);
-  const wo = last('admin_material_lost_action');
-  ok(wo && wo.p.id === 1 && wo.p.action === 'WRITE_OFF' && /closed/.test(wo.p.reason), 'Write off → admin_material_lost_action ' + JSON.stringify(wo && wo.p));
-
   await g.getByRole('button', { name: /^Sound Box/ }).click(); await sleep(1200);
   if (await p.getByRole('tab', { name: 'Material' }).getAttribute('aria-selected') !== 'true') { await p.getByRole('tab', { name: 'Material' }).click(); await sleep(1200); }
-  const sbt = await p.locator('section[aria-label="Stock per location"]').textContent();
+  const sbt = await p.locator('[aria-label="Select Material Category"]').textContent();
   ok(/Sound Box AC Adaptor/.test(sbt) && !/Charging Dock/.test(sbt), 'Sound Box material: only the Sound Box adaptor');
+  ok((await p.locator('section[aria-label="Stock per location"]').count()) === 0, 'Stock per location matrix table is removed from Sound Box');
+  ok((await p.locator('section[aria-label^="Lost · Sound Box"]').count()) === 0, 'Lost items table is removed from Sound Box');
 
   await g.getByRole('button', { name: /^SIM Card/ }).click(); await sleep(1500);
   ok(/096 555 0142/.test(await p.textContent('body')) && /Branch reserve\s*2/.test((await p.locator('[aria-label="Status"]').textContent()).replace(/\s+/g, ' ')), 'SIM Card: register and status counts');
@@ -181,8 +177,9 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   const q = s2.p; const g2 = stockGroup(q);
   await g2.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1200);
   await q.getByRole('tab', { name: 'Material' }).click(); await sleep(1200);
-  const t2 = await q.locator('section[aria-label="Stock per location"]').textContent();
+  const t2 = await q.locator('section[aria-label="POS Materials Inventory Table"]').textContent();
   ok(!/Head Office/.test(t2) && /105/.test(t2), 'branch staff see only their own branch');
+  ok((await q.locator('section[aria-label="Stock per location"]').count()) === 0, 'Stock per location matrix table is removed for branch');
   ok(await q.getByRole('button', { name: 'Stock In', exact: true }).count() === 0 && await q.getByRole('button', { name: 'Correct', exact: true }).count() === 0, 'branch staff: no Stock In / Correct');
 
   await g2.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1000);
