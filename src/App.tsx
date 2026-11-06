@@ -111,7 +111,7 @@ import {
 
 import { useKeptMemo } from './utils/useKeptMemo';
 import { clearInventoryCache } from './services/inventoryCache';
-import { clearMaterialsCache, fetchOpenLostCounts, adminSimUpdate } from './services/materialsService';
+import { clearMaterialsCache, fetchOpenLostCounts, adminSimUpdate, cleanMaterialError } from './services/materialsService';
 import { SendHorizontal, Lock, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import {
@@ -2299,7 +2299,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           merchant_name: null,
           status: 'BRANCH_RESERVE',
           note: `Unlinked from ${serial}`,
-        }).catch(() => {});
+        }).catch(() => { /* the old SIM may not be in the register: nothing to take back */ });
       }
       adminSimUpdate({
         serial: nextSim,
@@ -2309,7 +2309,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         merchant_name: updates.merchantName || null,
         status: toMerchant ? 'AT_MERCHANT' : 'BRANCH_RESERVE',
         note: `Assigned to ${serial}`,
-      }).catch(() => {});
+      }).catch((e) => { if (role === 'ADMIN' || role === 'SUPER_ADMIN') triggerToast(`Unit ${serial} saved, but SIM ${nextSim} was not updated in the SIM register: ${cleanMaterialError(e)}`); });
     } else if (nextSim && leftMerchant) {
       adminSimUpdate({
         serial: nextSim,
@@ -2318,7 +2318,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         merchant_name: null,
         status: 'BRANCH_RESERVE',
         note: `Device ${serial} returned to ${stageLabel}`,
-      }).catch(() => {});
+      }).catch((e) => { if (role === 'ADMIN' || role === 'SUPER_ADMIN') triggerToast(`Unit ${serial} saved, but SIM ${nextSim} was not updated in the SIM register: ${cleanMaterialError(e)}`); });
     }
 
     addAuditLog('Serial Cycle Updated', `Updated serial ${serial}: ${STAGE_META[d.stage].short} → ${stageLabel} (Branch Code ${updates.branchId})`);
@@ -4713,7 +4713,20 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       users={users}
                       triggerToast={triggerToast}
                       onLostChanged={refreshLostCounts}
-                      onUpdateDevice={(sn, u) => handleSaveWorkflow(sn, u)}
+                      onUpdateDevice={(sn, u) => {
+                        // Manage SIM changes only the unit's SIM number. The unit save needs the full record, so the unit keeps
+                        // its stage, branch and merchant exactly as they are (a MID is changed in the unit editor, not here).
+                        const d = devices.find((x) => x.serial === sn);
+                        const sim = String(u?.customFields?.simCard || '');
+                        if (!d || !sim || (d.customFields?.simCard || '') === sim) return;
+                        handleSaveWorkflow(sn, {
+                          stage: d.stage, branchId: d.branchId, staff: d.staff || '', merchantName: d.merchantName || '', merchantPhone: d.merchantPhone,
+                          location: d.location, address: d.address, mid: d.mid || '', tid: d.tid || '', deployedDate: d.deployedDate,
+                          batteryInstalledDate: d.batteryInstalledDate, deploymentStatus: d.deploymentStatus, stockStatus: d.stockStatus,
+                          customFields: { ...(d.customFields || {}), simCard: sim },
+                          note: `SIM card ${sim} recorded (Manage SIM)`,
+                        });
+                      }}
                     />
                   )}
 

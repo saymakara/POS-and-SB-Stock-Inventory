@@ -14,7 +14,7 @@ import {
   DeviceGroup, LostItem, MaterialCode, MATERIALS, SerialStatus, cleanMaterialError, fetchMaterialBalances,
   isMaterialsMissing, materialAdjust, materialByCode, materialLostAction, materialName, materialOpening, materialStockIn, normMaterialSerial, placeName, productMaterials,
   clearMaterialsCache,
-  MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts,
+  MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts, fetchLost,
 } from '../services/materialsService';
 import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
 import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, staggerRowStyle } from '../utils/animationRules';
@@ -809,11 +809,39 @@ const MaterialStockPanel: React.FC<{
         </div>
       </section>
 
-            {/* Dialogs */}
+      <LostMaterialsSection codes={codes} title={`Lost Materials · ${group === 'POS' ? 'POS Terminal' : 'Sound Box'}`} branches={branches}
+        isAdmin={isAdmin} triggerToast={triggerToast} onChanged={changed} />
+
+      {/* Dialogs */}
       <StockInDialog open={dlg === 'IN'} codes={codes} branches={branches} onClose={() => setDlg('')} onDone={changed} triggerToast={triggerToast} />
       <AdjustDialog open={dlg === 'ADJUST'} codes={codes} branches={branches} onClose={() => setDlg('')} onDone={changed} triggerToast={triggerToast} />
       <OpeningDialog open={dlg === 'OPENING'} branches={branches} onClose={() => setDlg('')} onDone={changed} triggerToast={triggerToast} />
     </div>
+  );
+};
+
+/** (6 Nov 2026) Lost Materials: the items reported lost for these materials, so Admin HQ can Recover or Write off each one
+ *  (and mark a SIM blocked with the carrier). Shown only when something was ever reported lost, so the page stays clean. */
+export const LostMaterialsSection: React.FC<{
+  codes: MaterialCode[]; title: string; branches: Branch[]; isAdmin: boolean; triggerToast: (m: string) => void; onChanged?: () => void;
+}> = ({ codes, title, branches, isAdmin, triggerToast, onChanged }) => {
+  const key = codes.slice().sort().join(',');
+  const [all, setAll] = useState<LostItem[] | null>(null);
+  const [filter, setFilter] = useState<'OPEN' | ''>('OPEN');
+  const load = useCallback(async (force = false) => {
+    try { setAll(await fetchLost(key.split(',') as MaterialCode[], '', force)); } catch { setAll((x) => x || []); }
+  }, [key]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const again = () => load(true);
+    window.addEventListener('materials-updated', again);
+    return () => window.removeEventListener('materials-updated', again);
+  }, [load]);
+  const rows = useMemo(() => (all ? (filter === 'OPEN' ? all.filter((l) => l.status === 'OPEN') : all) : null), [all, filter]);
+  if (!all || all.length === 0) return null;
+  return (
+    <LostTable title={title} rows={rows} branches={branches} isAdmin={isAdmin} filter={filter} onFilter={setFilter}
+      onChanged={() => { load(true); onChanged?.(); }} triggerToast={triggerToast} />
   );
 };
 

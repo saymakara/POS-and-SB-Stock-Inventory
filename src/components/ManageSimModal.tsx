@@ -205,8 +205,12 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
 
   const handleProceedToReview = (e: React.FormEvent) => {
     e.preventDefault();
-    if (status === 'AT_MERCHANT' && !assignedDeviceSerial && !merchantName.trim() && !mid.trim()) {
-      setErrorMsg('A SIM at merchant must have an assigned device or merchant details.');
+    if (status === 'AT_MERCHANT' && !assignedDeviceSerial) {
+      setErrorMsg('Choose the unit (POS Terminal / Sound Box) this SIM is in: a SIM at a merchant goes into that merchant\'s kit.');
+      return;
+    }
+    if ((status === 'LOST' || status === 'WRITTEN_OFF') && status !== sim?.status && note.trim().length < 3) {
+      setErrorMsg(status === 'LOST' ? 'Write a remark for the lost SIM (what happened).' : 'Write the reason for the write-off.');
       return;
     }
     setErrorMsg('');
