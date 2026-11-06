@@ -2,6 +2,21 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 6 Nov 2026 — Manage SIM checked by the database; Lost Materials back
+Database: migration `20261106_01_sim_card_manage.sql` (to apply in the SQL Editor); self-test
+`supabase/tests/sim_manage_selftest.sql` (16 checks, rolls itself back).
+- **Manage SIM never reports "saved" when nothing was saved.** The panel no longer tries a direct table write when the
+  database refuses; the reason is shown in plain words (e.g. "SIM … is lost. Recover it in Lost Materials first.").
+- **Manage SIM follows the stock rules:** SIM numbers are matched the portal's way (012 345 678 = 012345678); a SIM put in a
+  unit at a merchant goes into that merchant's kit (the SIM it replaces goes back to the branch reserve); Branch Reserve /
+  HQ Stock takes it out of the kit; Lost needs a remark and opens a Lost item; Written off only for a lost or faulty SIM;
+  new SIMs for stock go through Stock In. Every change is in the movements ledger and the Audit Trail.
+- **Lost Materials** list is back on POS Terminal → Material, Sound Box → Material and SIM Card, shown only when something
+  was reported lost: Recovered, Write off (reason), Blocked with carrier (SIM).
+- **Battery** can be recorded for a Sound Box as well as a POS Terminal.
+- **SIM status counts** are exact for any number of SIMs (the previous single read stopped at 1,000).
+- After a Manage SIM save, the unit keeps its stage, branch and merchant; only its SIM number is updated.
+
 ## 5 Nov 2026 — Merchant kit & materials (step 1: portal)
 - The Monthly Count page was removed at the user's request (its database table and functions stay, unused).
 Database: migration `20261105_01_materials_and_kits.sql` (applied 5 Nov 2026); self-test

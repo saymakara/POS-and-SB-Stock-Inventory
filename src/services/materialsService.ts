@@ -180,29 +180,7 @@ export async function fetchSerialStatusCounts(code: MaterialCode | MaterialCode[
   if (!force && cachedStatusCounts.has(k) && isFresh('mat:counts:' + k, 45000)) {
     return { ...cachedStatusCounts.get(k)! };
   }
-  try {
-    // 1 single efficient request instead of multiple network calls
-    let req = supabase.from('material_serials').select('status');
-    if (codes.length === 1) {
-      req = req.eq('material_code', codes[0]);
-    } else {
-      req = req.in('material_code', codes);
-    }
-    if (branchId) req = req.eq('branch_id', branchId);
-    const { data, error } = await req.limit(10000);
-    if (!error && Array.isArray(data)) {
-      data.forEach((r: any) => {
-        if (r && r.status && r.status in out) {
-          out[r.status as SerialStatus]++;
-        }
-      });
-      cachedStatusCounts.set(k, out);
-      markFresh('mat:counts:' + k);
-      return out;
-    }
-  } catch {
-    // fallback to individual counts if bulk select failed
-  }
+  // One exact count per status, in parallel: correct however many numbers there are (a plain select stops at 1,000 rows).
   await Promise.all((Object.keys(out) as SerialStatus[]).map(async (st) => {
     let req = supabase.from('material_serials').select('serial', { count: 'exact', head: true });
     if (codes.length === 1) {
@@ -322,33 +300,17 @@ export interface AdminSimUpdatePayload {
 }
 
 export async function adminSimUpdate(p: AdminSimUpdatePayload): Promise<any> {
+  // Every SIM change goes through the checked database function (Admin HQ only, kit and stock rules, audit).
+  // A refusal is shown to the admin as it is: never a silent direct write, never "saved" when nothing was saved.
+  const res = await rpc('admin_sim_update', p);
   clearMaterialsCache();
   try {
-    const res = await rpc('admin_sim_update', p);
-    try {
-      window.dispatchEvent(new CustomEvent('materials-updated', { detail: p }));
-      window.dispatchEvent(new CustomEvent('sim-card-updated', { detail: p }));
-    } catch {}
-    return res;
-  } catch (err) {
-    if (isSupabaseConfigured) {
-      const patch: Record<string, any> = { updated_at: new Date().toISOString() };
-      if (p.new_serial) patch.serial = p.new_serial;
-      if (p.status) patch.status = p.status;
-      if (p.branch_id) patch.branch_id = p.branch_id;
-      if ('device_serial' in p) patch.device_serial = p.device_serial || null;
-      if ('mid' in p) patch.mid = p.mid || null;
-      if ('merchant_name' in p) patch.merchant_name = p.merchant_name || null;
-      if ('blocked_with_carrier' in p) patch.blocked_with_carrier = p.blocked_with_carrier;
-      if ('note' in p) patch.note = p.note || null;
-      await supabase.from('material_serials').update(patch).eq('material_code', 'SIM').eq('serial', p.serial);
-    }
-    try {
-      window.dispatchEvent(new CustomEvent('materials-updated', { detail: p }));
-      window.dispatchEvent(new CustomEvent('sim-card-updated', { detail: p }));
-    } catch {}
-    return { serial: p.new_serial || p.serial, status: p.status };
+    window.dispatchEvent(new CustomEvent('materials-updated', { detail: p }));
+    window.dispatchEvent(new CustomEvent('sim-card-updated', { detail: p }));
+  } catch {
+    /* events are optional */
   }
+  return res;
 }
 
 export const placeName = (branchId: string, branches: { id: string; name: string }[]) =>

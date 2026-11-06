@@ -35,7 +35,7 @@ const M = {
 };
 state.reqs.unshift({ req_id: 'REQ-MAT-0001', date: '2026-11-05 09:00', branch_id: '105', branch_name: 'Branch 105', staff: 'SOK Branch (33105)', pos_qty: 0, sb_qty: 0, reason: 'Materials only',
   status: 'PENDING_ADMIN', arranged_devices: [], type: 'STOCK_REQUEST', return_serials: [], materials: { SIM: 1, POS_ADAPTOR: 2 }, materials_sent: {} });
-const rpcCalls = []; const reqPosts = [];
+const rpcCalls = []; const reqPosts = []; const directWrites = [];
 const json = (route, code, o, h) => route.fulfill({ status: code, contentType: 'application/json', headers: Object.assign({ 'access-control-allow-origin': '*', 'access-control-expose-headers': 'content-range' }, h || {}), body: JSON.stringify(o) });
 const ranged = (route, list) => json(route, 200, list, { 'content-range': (list.length ? '0-' + (list.length - 1) : '*') + '/' + list.length });
 async function api(route) {
@@ -44,6 +44,7 @@ async function api(route) {
   const me = S.getMe(); const branchOnly = (rows) => (me && me.profile.role === 'BRANCH' ? rows.filter((r) => String(r.branch_id) === me.profile.branch_id) : rows);
   const eq = (k) => { const v = url.searchParams.get(k); return v && v.startsWith('eq.') ? v.slice(3) : null; };
   if (path === '/rest/v1/material_balances') return json(route, 200, branchOnly(M.balances));
+  if (path === '/rest/v1/material_serials' && method !== 'GET' && method !== 'HEAD') { directWrites.push(method); return json(route, 403, { code: '42501', message: 'permission denied for table material_serials' }); }
   if (path === '/rest/v1/material_serials') {
     let rows = branchOnly(M.serials).filter((s) => !eq('material_code') || s.material_code === eq('material_code'));
     if (eq('status')) rows = rows.filter((s) => s.status === eq('status'));
@@ -66,6 +67,7 @@ async function api(route) {
   if (rpc) {
     const p = body && body.p; rpcCalls.push({ fn: rpc[1], p });
     if (me && me.profile.role === 'BRANCH' && rpc[1].startsWith('admin_')) return json(route, 403, { code: '42501', message: 'Only Admin HQ can do this.' });
+    if (rpc[1] === 'admin_sim_update' && p.serial === '097 210 8834') return json(route, 400, { code: '22023', message: 'STOCK: SIM 097 210 8834 is lost. Recover it in Lost Materials first.' });
     if (rpc[1] === 'admin_sim_update') { const s = M.serials.find(x => x.serial === p.serial); if (s) { if (p.status) s.status = p.status; if (p.branch_id) s.branch_id = p.branch_id; if (p.device_serial !== undefined) s.device_serial = p.device_serial; if (p.mid !== undefined) s.mid = p.mid; if (p.merchant_name !== undefined) s.merchant_name = p.merchant_name; if (p.blocked !== undefined) s.blocked_with_carrier = p.blocked; if (p.new_serial) s.serial = p.new_serial; } return json(route, 200, s || {}); }
     if (rpc[1] === 'admin_material_stock_in') return json(route, 200, { added: p.qty || (p.serials || []).length, refused: [] });
     if (rpc[1] === 'admin_material_lost_action') { const l = M.lost.find((x) => x.id === p.id); if (p.action === 'BLOCKED') l.blocked_with_carrier = true; else l.status = p.action === 'RECOVER' ? 'RECOVERED' : 'WRITTEN_OFF'; return json(route, 200, { status: l.status }); }
@@ -114,7 +116,15 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   ok((await p.locator('section[aria-label="Material totals"]').count()) === 0, 'Redundant material totals KPI cards are removed');
   ok(await p.locator('[aria-label="Select Material Category"]').isVisible(), 'Material Category filter is visible');
   ok((await p.locator('section[aria-label="Stock per location"]').count()) === 0, 'Stock per location matrix table is removed from POS');
-  ok((await p.locator('section[aria-label^="Lost · POS"]').count()) === 0, 'Lost items table is removed from POS');
+  // (6 Nov 2026) one Lost Materials list per page, shown only when something was reported lost
+  const lostPos = p.locator('section[aria-label="Lost Materials · POS Terminal"]');
+  ok((await lostPos.count()) === 1 && /Lucky Mart/.test(await lostPos.textContent()) && !/015 778 9014/.test(await lostPos.textContent()),
+    'POS Terminal material: Lost Materials list with the lost charging dock (no SIM in it)');
+  await lostPos.getByRole('button', { name: 'Write off' }).first().click(); await sleep(400);
+  await p.locator('[role=dialog] input').last().fill('merchant closed, not reachable');
+  await p.locator('[role=dialog]').getByRole('button', { name: 'Write off' }).click(); await sleep(1200);
+  const wo = last('admin_material_lost_action');
+  ok(wo && wo.p.id === 1 && wo.p.action === 'WRITE_OFF' && /merchant closed/.test(wo.p.reason), 'Lost dock → Write off with reason ' + JSON.stringify(wo && wo.p));
 
   await p.getByRole('button', { name: 'Stock In', exact: true }).click(); await sleep(400);
   await p.locator('#si-code').selectOption('POS_ADAPTOR');
@@ -128,15 +138,26 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   const sbt = await p.locator('[aria-label="Select Material Category"]').textContent();
   ok(/Sound Box AC Adaptor/.test(sbt) && !/Charging Dock/.test(sbt), 'Sound Box material: only the Sound Box adaptor');
   ok((await p.locator('section[aria-label="Stock per location"]').count()) === 0, 'Stock per location matrix table is removed from Sound Box');
-  ok((await p.locator('section[aria-label^="Lost · Sound Box"]').count()) === 0, 'Lost items table is removed from Sound Box');
+  ok((await p.locator('section[aria-label^="Lost Materials · Sound Box"]').count()) === 0, 'Sound Box material: no Lost Materials list (nothing lost)');
 
   await g.getByRole('button', { name: /^SIM Card/ }).click(); await sleep(1500);
   ok(/096 555 0142/.test(await p.textContent('body')) && /Branch reserve\s*2/.test((await p.locator('[aria-label="Status"]').textContent()).replace(/\s+/g, ' ')), 'SIM Card: register and status counts');
-  if (await p.locator('section[aria-label="Lost · SIM Card"]').count() > 0) {
-    await p.locator('section[aria-label="Lost · SIM Card"]').getByRole('button', { name: 'Blocked with carrier' }).click(); await sleep(1200);
-    const bl = last('admin_material_lost_action');
-    ok(bl && bl.p.id === 2 && bl.p.action === 'BLOCKED', 'Lost SIM → Blocked with carrier');
-  }
+  const lostSim = p.locator('section[aria-label="Lost Materials · SIM Card"]');
+  ok((await lostSim.count()) === 1 && /015 778 9014/.test(await lostSim.textContent()), 'SIM Card: Lost Materials list with the lost SIM');
+  await lostSim.getByRole('button', { name: 'Blocked with carrier' }).click(); await sleep(1200);
+  const bl = last('admin_material_lost_action');
+  ok(bl && bl.p.id === 2 && bl.p.action === 'BLOCKED', 'Lost SIM → Blocked with carrier');
+  // (6 Nov 2026) Manage SIM: a refusal from the database is shown in the panel, nothing is reported as saved
+  const row34 = p.locator('tr', { hasText: '097 210 8834' }).first();
+  await row34.getByRole('button', { name: 'Manage' }).click(); await sleep(700);
+  await p.getByRole('button', { name: /Return to HQ Stock/ }).click(); await sleep(200);
+  await p.getByRole('button', { name: /Review Impact/ }).click(); await sleep(400);
+  await p.getByRole('button', { name: /Confirm & Synchronize All/ }).click(); await sleep(1200);
+  const panelTxt = await p.textContent('body');
+  ok(/is lost\. Recover it in Lost Materials first/.test(panelTxt) && !/STOCK:/.test(panelTxt) && !/097 210 8834 updated successfully/.test(panelTxt),
+    'Manage SIM: the refusal is shown in plain words, no "updated successfully"');
+  ok(directWrites.length === 0 && last('admin_sim_update').p.serial === '097 210 8834', 'Manage SIM: only the checked function was called (no direct table write)');
+  await p.getByRole('button', { name: 'Close', exact: true }).first().click(); await sleep(500);
 
   // Merchant 360 → Kit → Record kit
   await p.locator('aside').first().getByText('Merchant Deployment', { exact: true }).click(); await sleep(1800);

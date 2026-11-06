@@ -15,7 +15,7 @@ import {
   adminSimUpdate,
 } from '../services/materialsService';
 import { MaterialsSetupNotice, StatusPill, btnLight, btnPrimary, fmtDay } from './MaterialsUi';
-import { AdjustDialog, StockInDialog } from './MaterialStockPanel';
+import { AdjustDialog, LostMaterialsSection, StockInDialog } from './MaterialStockPanel';
 import { ManageSimModal } from './ManageSimModal';
 import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, staggerRowStyle, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 
@@ -25,6 +25,7 @@ import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, staggerRowStyle, SHARED_LAYOUT_IDS 
  * Hardware types (POS Terminal vs Sound Box) are selectable via intuitive type filters,
  * eliminating redundant empty product columns from the table.
  */
+const SIM_CODES: ['SIM'] = ['SIM'];
 const STATUSES: SerialStatus[] = ['HQ_STOCK', 'IN_TRANSIT', 'BRANCH_RESERVE', 'AT_MERCHANT', 'LOST', 'WRITTEN_OFF'];
 export type HardwareFilter = 'ALL' | 'POS' | 'SOUND_BOX' | 'UNASSIGNED';
 
@@ -171,7 +172,8 @@ export const SimCardTab: React.FC<{
     blockedWithCarrier: boolean;
     note: string | null;
   }) => {
-    await adminSimUpdate({
+    try {
+      await adminSimUpdate({
       serial: payload.serial,
       new_serial: payload.newSerial,
       status: payload.status,
@@ -182,6 +184,9 @@ export const SimCardTab: React.FC<{
       blocked_with_carrier: payload.blockedWithCarrier,
       note: payload.note,
     });
+    } catch (e) {
+      throw new Error(cleanMaterialError(e));   // shown in the panel; nothing was saved
+    }
 
     if (onUpdateDevice && payload.deviceSerial) {
       onUpdateDevice(payload.deviceSerial, {
@@ -666,6 +671,9 @@ export const SimCardTab: React.FC<{
         onDone={changed}
         triggerToast={triggerToast}
       />
+
+      <LostMaterialsSection codes={SIM_CODES} title="Lost Materials · SIM Card" branches={branches} isAdmin={isAdmin}
+        triggerToast={triggerToast} onChanged={changed} />
 
       {/* Adjust Dialog */}
       <AdjustDialog

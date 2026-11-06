@@ -129,8 +129,9 @@ begin
   if k.connection <> 'SIM' or jsonb_array_length(k.items) <> 4
      or (select status || coalesce(device_serial, '') from public.material_serials where material_code = 'SIM' and serial = '090 000 0001') <> 'AT_MERCHANTTST-POS-1'
      or (select qty from public.material_qty where material_code = 'POS_ADAPTOR' and branch_id = '905') <> 15 then raise exception 'FAIL 7d kit issued: %', k; end if;
-  e := pg_temp.err($$select public.admin_kit_add('{"device_serial":"TST-SB-1","items":[{"code":"BATTERY","serial":"TBAT-1"}]}')$$);
-  if e not like '%does not go with a Sound Box%' then raise exception 'FAIL 7e battery on a Sound Box: %', e; end if;
+  -- (since 20261106_01 a Battery also goes with a Sound Box; a POS AC Adaptor still does not)
+  e := pg_temp.err($$select public.admin_kit_add('{"device_serial":"TST-SB-1","items":[{"code":"POS_ADAPTOR","qty":1}]}')$$);
+  if e not like '%does not go with a Sound Box%' then raise exception 'FAIL 7e POS adaptor on a Sound Box: %', e; end if;
   e := pg_temp.err($$select public.admin_kit_add('{"device_serial":"TST-POS-2","from_stock":false,"items":[{"code":"SIM","serial":"090 000 0001"}]}')$$);
   if e not like '%already at another merchant%' then raise exception 'FAIL 7f SIM on two merchants: %', e; end if;
   e := pg_temp.err($$select public.admin_kit_add('{"device_serial":"TST-POS-2","connection":"WIFI","items":[{"code":"SIM","serial":"099 999 9999"}]}')$$);
