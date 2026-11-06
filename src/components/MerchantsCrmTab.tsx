@@ -28,6 +28,8 @@ BarChart3,
 ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Phone,
+  User,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -1325,34 +1327,36 @@ return (
               <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
                 <motion.div
                   initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  animate={{ opacity: 1, transition: { duration: 0.24, ease: 'easeOut' } }}
+                  exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
                   onClick={() => setSelectedMid(null)}
                   className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
                 />
                 <motion.div
                   initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden ${
+                  animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
+                  exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
+                  className={`relative w-full sm:max-w-[580px] md:max-w-[640px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-transform ${
                     isLight
                       ? 'bg-white text-slate-800'
                       : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
-              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white shrink-0">
-                <div>
-                  <div className="flex items-center gap-2 text-xs text-cyan-400 font-mono">
-                    <span>MERCHANT 360 PROFILE</span>
-                    <span>&bull;</span>
-                    <span>{selectedMerchantProfile.mid}</span>
+              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white shrink-0 border-b border-white/10">
+                <div className="min-w-0 pr-4">
+                  <div className="flex items-center gap-2 text-xs flex-wrap">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/10 text-cyan-300 border border-white/15">
+                      Merchant 360 Profile
+                    </span>
+                    <span className="font-mono text-xs text-slate-300 font-medium">
+                      MID: {selectedMerchantProfile.mid}
+                    </span>
                   </div>
-                  <h3 className="text-lg font-extrabold tracking-tight mt-0.5">
+                  <h3 className="text-xl font-bold tracking-tight text-white mt-1 truncate" title={selectedMerchantProfile.merchantName}>
                     {dash(selectedMerchantProfile.merchantName)}
                   </h3>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {role !== 'BRANCH' && (
                     <button
                       type="button"
@@ -1361,7 +1365,7 @@ return (
                         setSelectedMid(null);
                         handleOpenBindModal(target);
                       }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#004953] hover:bg-[#003840] text-emerald-200 border border-emerald-500/30 flex items-center gap-1.5 transition cursor-pointer shadow-sm hover:scale-[1.02]"
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs"
                       title="Bind an additional POS Terminal or Sound Box to this merchant store"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -1376,7 +1380,7 @@ return (
                         setSelectedMid(null);
                         handleOpenTerminateModal(m);
                       }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs"
                       title="Return assigned hardware units back to branch reserve or HQ stock"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -1388,63 +1392,69 @@ return (
                     onClick={() => setSelectedMid(null)}
                     aria-label="Close merchant profile"
                     title="Close"
-                    className="p-1.5 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                    className="p-1.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer ml-1"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
               </div>
 
-              <div className="p-6 flex flex-col gap-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+              <div className="p-6 flex-1 flex flex-col gap-5 overflow-y-auto custom-scrollbar">
                 {/* Merchant Metadata Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div
-                    className={`p-3.5 rounded-2xl border ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#091729] border-[#1a355a]'
+                    className={`p-3.5 rounded-2xl border transition-all ${
+                      isLight ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50 shadow-2xs' : 'bg-[#091729] border-[#1a355a]'
                     }`}
                   >
-                    <div className="text-[11px] text-slate-400 font-semibold uppercase">
-                      Contact
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+                      <Phone className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Contact</span>
                     </div>
-                    <div className="font-mono font-bold text-xs mt-1 text-cyan-400">
-                      {phoneFor(role, selectedMerchantProfile.merchantPhone)}
+                    {(() => {
+                      const ph = phoneFor(role, selectedMerchantProfile.merchantPhone);
+                      const hasPh = ph && ph !== '—';
+                      return (
+                        <div className={`font-mono text-xs mt-1.5 font-bold ${hasPh ? (isLight ? 'text-sky-700' : 'text-cyan-300') : 'text-slate-400 font-normal'}`}>
+                          {ph}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div
+                    className={`p-3.5 rounded-2xl border transition-all ${
+                      isLight ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50 shadow-2xs' : 'bg-[#091729] border-[#1a355a]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+                      <Building2 className={`w-3.5 h-3.5 ${isLight ? 'text-sky-600' : 'text-cyan-400'}`} />
+                      <span>Servicing Branch</span>
+                    </div>
+                    <div className="font-bold text-xs mt-1.5 text-slate-800 dark:text-slate-100 truncate" title={`Code ${selectedMerchantProfile.branchId} — ${selectedMerchantProfile.branchName}`}>
+                      Code {selectedMerchantProfile.branchId} — {selectedMerchantProfile.branchName}
+                    </div>
+                    <div className="text-[11px] mt-0.5 text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
+                      <User className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span>Staff: {dash(selectedMerchantProfile.accountOfficer)}</span>
                     </div>
                   </div>
 
                   <div
-                    className={`p-3.5 rounded-2xl border ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#091729] border-[#1a355a]'
+                    className={`p-3.5 rounded-2xl border transition-all ${
+                      isLight ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50 shadow-2xs' : 'bg-[#091729] border-[#1a355a]'
                     }`}
                   >
-                    <div className="text-[11px] text-slate-400 font-semibold uppercase">
-                      Servicing Branch
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+                      <Layers className={`w-3.5 h-3.5 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
+                      <span>Hardware Summary</span>
                     </div>
-                    <div className="font-bold text-xs mt-1 flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>
-                        Code {selectedMerchantProfile.branchId} —{' '}
-                        {selectedMerchantProfile.branchName}
-                      </span>
+                    <div className="font-mono font-bold text-xs mt-1.5 text-slate-800 dark:text-slate-100">
+                      {selectedMerchantProfile.posCount} POS &bull; {selectedMerchantProfile.sbCount} Sound Box
                     </div>
-                    <div className="text-xs mt-0.5 opacity-85">
-                      Staff Name: {dash(selectedMerchantProfile.accountOfficer)}
-                    </div>
-                  </div>
-
-                  <div
-                    className={`p-3.5 rounded-2xl border ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#091729] border-[#1a355a]'
-                    }`}
-                  >
-                    <div className="text-[11px] text-slate-400 font-semibold uppercase">
-                      Hardware Summary
-                    </div>
-                    <div className="font-mono font-bold text-xs mt-1">
-                      {selectedMerchantProfile.posCount} POS &bull;{' '}
-                      {selectedMerchantProfile.sbCount} Sound Box
-                    </div>
-                    <div className="text-xs mt-0.5 text-emerald-400 font-semibold">
-                      {selectedMerchantProfile.liveCount} Units Live at Store
+                    <div className={`text-[11px] mt-0.5 font-semibold flex items-center gap-1.5 ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                      <span>{selectedMerchantProfile.liveCount} Units Live at Store</span>
                     </div>
                   </div>
                 </div>
@@ -1452,7 +1462,7 @@ return (
                 {/* Assigned Hardware Units List */}
                 <div>
                   <div className="flex items-center justify-between mb-2.5">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Assigned Hardware Serials &amp; Terminal IDs (TID)
                     </h4>
                     <div className="flex items-center gap-3 flex-wrap">
@@ -1473,13 +1483,12 @@ return (
                             setReplaceStaffName(activeStaff || dev.staff || selectedMerchantProfile.accountOfficer || '');
                             setReplaceReason('Broken / Hardware Malfunction');
                           }}
-                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100/90 text-amber-900 border border-amber-300/80 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-2xs"
                         >
-                          <RefreshCw className="w-3.5 h-3.5" />
+                          <RefreshCw className="w-3.5 h-3.5 text-amber-700" />
                           <span>Record Device Replacement (Broken / Swap)</span>
                         </button>
                       )}
-
                     </div>
                   </div>
                   {replaceModalDevice && onReplaceMerchantDevice && (
@@ -1592,34 +1601,42 @@ return (
                     {selectedMerchantProfile.devices.map((dev) => {
                       const st = STAGE_META[dev.stage] || STAGE_META.BRANCH_RESERVE;
                       const badge = isLight ? st.badgeClassLight : st.badgeClassDark;
+                      const isSoundBox = dev.type === 'Sound Box';
                       return (
                         <div
                           key={dev.serial}
-                          className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
                             isLight
-                              ? 'bg-slate-50 border-slate-200'
+                              ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50 shadow-2xs'
                               : 'bg-[#091729] border-[#1a355a]'
                           }`}
                         >
-                          <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                              <Cpu className="w-4 h-4" />
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className={`p-2 rounded-xl shrink-0 border ${
+                              isSoundBox
+                                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20'
+                                : 'bg-sky-500/10 text-sky-600 dark:text-cyan-400 border-sky-500/20'
+                            }`}>
+                              {isSoundBox ? <Volume2 className="w-4 h-4" /> : <Cpu className="w-4 h-4" />}
                             </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs text-slate-700">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-100">
                                   {dev.serial}
                                 </span>
-                                <span className="text-xs text-slate-600">{dev.model}</span>
+                                <span className="text-xs text-slate-500 font-medium">{dev.model}</span>
                                 <span
                                   className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${badge}`}
                                 >
                                   {st.short}
                                 </span>
                               </div>
-                              <div className="text-[11px] text-slate-400 mt-1 font-mono">
-                                MID: {dash(dev.mid)} &bull; TID: {dash(dev.tid)} &bull;
-                                Updated: {dash(dev.updatedAt)}
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-mono flex items-center gap-1.5 flex-wrap">
+                                <span>MID: <span className="text-slate-700 dark:text-slate-200">{dash(dev.mid)}</span></span>
+                                <span>&bull;</span>
+                                <span>TID: <span className="text-slate-700 dark:text-slate-200">{dash(dev.tid)}</span></span>
+                                <span>&bull;</span>
+                                <span>Updated: <span className="text-slate-700 dark:text-slate-200">{showDateTime(dev.updatedAt)}</span></span>
                               </div>
                               <div className="flex items-center gap-2 mt-1.5 text-[11px] flex-wrap">
                                 <span className="text-slate-500">
@@ -1692,7 +1709,7 @@ return (
                               setSelectedMid(null);
                               onOpenWorkflow(dev.serial);
                             }}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition shrink-0 cursor-pointer shadow-xs"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#003857] hover:bg-[#002a42] text-white transition-all active:scale-95 shrink-0 cursor-pointer shadow-xs"
                           >
                             Update Lifecycle
                           </button>
@@ -1717,12 +1734,18 @@ return (
         createPortal(
           <AnimatePresence>
             {bindModalMerchant && (
-              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setBindModalMerchant(null); }}>
+              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1, transition: { duration: 0.24, ease: 'easeOut' } }}
+                  exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
+                  onClick={() => setBindModalMerchant(null)}
+                  className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+                />
                 <motion.form
                   initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
+                  exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
                   onSubmit={handleConfirmBindDevice}
                   className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
                     isLight
@@ -1835,12 +1858,18 @@ return (
           <>
             <AnimatePresence>
         {terminateModalMerchant && (
-          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setTerminateModalMerchant(null); }}>
+          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 0.24, ease: 'easeOut' } }}
+              exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
+              onClick={() => setTerminateModalMerchant(null)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+            />
             <motion.form
               initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+              animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
+              exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
               onSubmit={handleConfirmTerminate}
               className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
                 isLight
@@ -2101,12 +2130,18 @@ return (
       {/* Assign Hardware to Merchant Modal (with Real-Time MID/TID Validator) */}
       <AnimatePresence>
         {newMerchantModalOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setNewMerchantModalOpen(false); }}>
+          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 0.24, ease: 'easeOut' } }}
+              exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
+              onClick={() => setNewMerchantModalOpen(false)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+            />
             <motion.form
               initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+              animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
+              exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
               onSubmit={handleCreateNewMerchant}
               className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
                 isLight

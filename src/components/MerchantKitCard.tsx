@@ -41,7 +41,7 @@ export const MerchantKitCard: React.FC<{ devices: Device[]; role: UserRole }> = 
   return (
     <div>
       <div className="flex items-center justify-between mb-2.5">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><Package className="w-3.5 h-3.5" />Kit held by the merchant</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-slate-400" />Kit held by the merchant</h4>
       </div>
       {msg && <div role="status" className="mb-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs text-emerald-900">{msg}</div>}
       {err && <div role="alert" className="mb-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs text-rose-800">Could not load the kit: {err}</div>}
@@ -50,7 +50,7 @@ export const MerchantKitCard: React.FC<{ devices: Device[]; role: UserRole }> = 
           const k = kits?.get(dev.serial);
           const items = k?.items || [];
           return (
-            <div key={dev.serial} className="p-3.5 rounded-2xl border bg-white border-slate-200">
+            <div key={dev.serial} className="p-3.5 rounded-2xl border bg-slate-50/80 border-slate-200/90 shadow-2xs hover:bg-slate-50 transition-all">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-sm font-bold text-slate-900">{dev.type} · <span className="font-mono">{dev.serial}</span></div>
