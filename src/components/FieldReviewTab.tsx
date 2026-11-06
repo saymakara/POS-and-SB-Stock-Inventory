@@ -61,7 +61,7 @@ const DOT = { 'POS Terminal': 'bg-[#006BA6]', 'Sound Box': 'bg-[#4F518C]' } as c
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-2.5 grid-cols-[28px_28px_96px_104px_140px_minmax(125px,1.2fr)_minmax(120px,1.1fr)_minmax(120px,1.15fr)_84px_156px]';
+  'grid items-center gap-x-2.5 grid-cols-[34px_30px_96px_104px_140px_minmax(125px,1.2fr)_minmax(120px,1.1fr)_minmax(120px,1.15fr)_84px_156px]';
 const CACHE_KEY = 'fe_review_cache_v5';
 
 /** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */

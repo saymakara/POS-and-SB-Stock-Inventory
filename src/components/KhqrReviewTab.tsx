@@ -36,9 +36,9 @@ const PERIOD_LABEL: Record<Period, string> = {
 };
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-3 grid-cols-[64px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
-const LGRID = 'grid items-center gap-x-3 grid-cols-[60px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
-const SMGRID = 'grid items-center gap-x-3 grid-cols-[60px_96px_150px_minmax(160px,1fr)_70px_minmax(220px,1.6fr)_70px_minmax(140px,1fr)_120px_20px]';
+  'grid items-center gap-x-3 grid-cols-[68px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
+const LGRID = 'grid items-center gap-x-3 grid-cols-[68px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
+const SMGRID = 'grid items-center gap-x-3 grid-cols-[68px_96px_150px_minmax(160px,1fr)_70px_minmax(220px,1.6fr)_70px_minmax(140px,1fr)_120px_20px]';
 const HGRID = 'grid items-center gap-x-3 grid-cols-[minmax(150px,1.2fr)_90px_120px_120px_110px_110px_110px_110px]';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -478,11 +478,20 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KHQR entries">
         <div className="min-w-[1080px]">
           <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-            <NoCell box={isSuper && (rows || []).length > 0 && (() => {
-              const items = (rows || []).map((x) => ({ id: x.id, rec: x.recordId }));
-              const all = items.every((i) => pick.sel.has(i.id));
-              return <SelectBox light checked={all} onChange={() => pick.setMany(items, !all)} label={all ? 'Unselect this page' : 'Select this page'} />;
-            })()}>No.</NoCell>
+            {(() => {
+              const headerItems = isSuper && (rows || []).length > 0 ? (rows || []).map((x) => ({ id: x.id, rec: x.recordId })) : [];
+              const allHeader = headerItems.length > 0 && headerItems.every((i) => pick.sel.has(i.id));
+              const toggleHeader = () => pick.setMany(headerItems, !allHeader);
+              return (
+                <NoCell
+                  header
+                  box={headerItems.length > 0 && <SelectBox light checked={allHeader} onChange={toggleHeader} label={allHeader ? 'Unselect this page' : 'Select this page'} />}
+                  onBoxClick={headerItems.length > 0 ? toggleHeader : undefined}
+                >
+                  No.
+                </NoCell>
+              );
+            })()}
             <span>Date Sent</span>
             <span>Activity</span>
             <span>Merchant / MID</span>
@@ -597,9 +606,15 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
       </div>
       <div className="min-w-[1080px]">
         <div className={`${LGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-          <NoCell box={isSuper && pageItems.length > 0 && (
-            <SelectBox light checked={pageAll} onChange={() => pick.setMany(pageItems, !pageAll)} label={pageAll ? 'Unselect this page' : 'Select this page'} />
-          )}>No.</NoCell>
+          <NoCell
+            header
+            box={isSuper && pageItems.length > 0 && (
+              <SelectBox light checked={pageAll} onChange={() => pick.setMany(pageItems, !pageAll)} label={pageAll ? 'Unselect this page' : 'Select this page'} />
+            )}
+            onBoxClick={isSuper && pageItems.length > 0 ? () => pick.setMany(pageItems, !pageAll) : undefined}
+          >
+            No.
+          </NoCell>
           <span>Time</span>
           <span>Staff</span>
           <span>Branch</span>
@@ -697,7 +712,7 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
       </div>
       <div className="min-w-[1160px]">
         <div className={`${SMGRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-          <NoCell>No.</NoCell>
+          <NoCell header>No.</NoCell>
           <span>Date</span>
           <span>MID</span>
           <span>Merchant</span>
@@ -729,10 +744,20 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
                 <div role="button" tabIndex={0} onClick={() => setOpen(isOpen ? null : key)} aria-expanded={isOpen}
                   onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setOpen(isOpen ? null : key); } }}
                   className={`${SMGRID} w-full text-left px-3.5 py-2.5 text-[13px] text-slate-700 hover:bg-violet-50/50 cursor-pointer select-none`}>
-                  <NoCell className="text-slate-500" box={isSuper && (() => {
-                    const ids = r.items.map((x) => x.recordId), all = ids.every((x) => sel.has(x));
-                    return <SelectBox checked={all} onChange={() => flip(ids, !all)} label={`Select all entries of MID ${r.mid} on ${r.day}`} />;
-                  })()}>{i + 1}</NoCell>
+                  {(() => {
+                    const ids = r.items.map((x) => x.recordId);
+                    const all = ids.every((x) => sel.has(x));
+                    const toggleGroup = () => flip(ids, !all);
+                    return (
+                      <NoCell
+                        className="text-slate-500"
+                        box={isSuper && <SelectBox checked={all} onChange={toggleGroup} label={`Select all entries of MID ${r.mid} on ${r.day}`} />}
+                        onBoxClick={isSuper ? toggleGroup : undefined}
+                      >
+                        {i + 1}
+                      </NoCell>
+                    );
+                  })()}
                   <span className="tabular-nums">{r.day}</span>
                   <span className="font-mono tabular-nums text-slate-900">{r.mid}</span>
                   <span className="truncate">{r.merchantName || '—'}</span>

@@ -41,7 +41,7 @@ const REVIEW_TABS: {
 ];
 export const CC_REJECT_REASONS = ['Adverse CBC record', 'Incorrect account number', 'Customer details do not match ID',
   'Missing or unclear documents', 'Credit limit not approved', 'Other'];
-const GRID = 'grid items-center gap-x-4 grid-cols-[62px_145px_minmax(185px,1fr)_110px_120px_minmax(205px,1.25fr)_145px_24px]';
+const GRID = 'grid items-center gap-x-4 grid-cols-[68px_145px_minmax(185px,1fr)_110px_120px_minmax(205px,1.25fr)_145px_24px]';
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
 const NF_USD = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const usd = (n: number | null) => (n === null ? '—' : `USD ${NF_USD.format(n)}`);
@@ -311,11 +311,22 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Credit Card entries">
           <div className="min-w-[1060px]">
             <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2`} role="row">
-              <NoCell className="font-bold" box={isSuper && (rows || []).length > 0 && (() => {
-                const items = (rows || []).map((x) => ({ id: x.id, rec: x.recordId }));
-                const all = items.every((i) => pick.sel.has(i.id));
-                return <SelectBox light checked={all} onChange={() => pick.setMany(items, !all)} label={all ? 'Unselect this page' : 'Select this page'} />;
-              })()}>No.</NoCell>
+              {(() => {
+                const headerItems = isSuper && (rows || []).length > 0 ? (rows || []).map((x) => ({ id: x.id, rec: x.recordId })) : [];
+                const allHeader = headerItems.length > 0 && headerItems.every((i) => pick.sel.has(i.id));
+                const toggleHeader = () => pick.setMany(headerItems, !allHeader);
+                return (
+                  <NoCell
+                    header
+                    pad="wide"
+                    className="font-bold"
+                    box={headerItems.length > 0 && <SelectBox light checked={allHeader} onChange={toggleHeader} label={allHeader ? 'Unselect this page' : 'Select this page'} />}
+                    onBoxClick={headerItems.length > 0 ? toggleHeader : undefined}
+                  >
+                    No.
+                  </NoCell>
+                );
+              })()}
               <span>Date Sent</span>
               <span>Customer / Request</span>
               <span className="text-right">Limit</span>
@@ -446,7 +457,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
         aria-expanded={open}
         className={`${GRID} w-full text-left px-4 py-3 text-[13px] text-slate-700 cursor-pointer select-none transition-colors duration-150`}
       >
-        <NoCell className="text-slate-500" onBoxClick={onCheck} box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}>{no}</NoCell>
+        <NoCell className="text-slate-500" pad="wide" onBoxClick={onCheck} box={onCheck && <SelectBox checked={!!checked} onChange={onCheck} label={`Select ${e.recordId}`} />}>{no}</NoCell>
         <span className="leading-tight min-w-0">
           <span className="block tabular-nums font-medium text-slate-800">{fmt(e.submittedAt)}</span>
           <CopyableRecordId id={e.recordId} onCopied={(id) => toast(`Copied Record ID: ${id}`)} />

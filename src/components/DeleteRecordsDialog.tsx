@@ -125,6 +125,8 @@ export const SelectBox: React.FC<{ checked: boolean; onChange: () => void; label
       onChange();
     }}
     onMouseDown={(ev) => ev.stopPropagation()}
+    onPointerDown={(ev) => ev.stopPropagation()}
+    onDoubleClick={(ev) => ev.stopPropagation()}
     onKeyDown={(ev) => {
       ev.stopPropagation();
       if (ev.key === 'Enter' || ev.key === ' ') {
@@ -132,19 +134,19 @@ export const SelectBox: React.FC<{ checked: boolean; onChange: () => void; label
         onChange();
       }
     }}
-    className={`cursor-pointer inline-flex shrink-0 items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg transition-all active:scale-95 ${
+    className={`group/btn cursor-pointer inline-flex shrink-0 items-center justify-center w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-lg transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
       light ? 'hover:bg-white/20' : 'hover:bg-slate-200/75'
     }`}
   >
     <span
-      className={`w-[19px] h-[19px] rounded-md flex items-center justify-center transition-all ${
+      className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
         checked
           ? light
             ? 'bg-emerald-500 text-white shadow-xs border border-emerald-400'
             : 'bg-[#003857] text-white shadow-xs border border-[#003857]'
           : light
-          ? 'border-2 border-white/70 hover:border-white bg-white/10'
-          : 'border-2 border-slate-300 hover:border-slate-400 bg-white shadow-2xs'
+          ? 'border-2 border-white/80 group-hover/btn:border-white group-hover/nocell:border-white bg-white/10'
+          : 'border-2 border-slate-300 group-hover/btn:border-[#003857] group-hover/nocell:border-[#003857] bg-white shadow-2xs'
       }`}
     >
       {checked && <Check className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />}
@@ -156,13 +158,18 @@ export const SelectBox: React.FC<{ checked: boolean; onChange: () => void; label
  * The "No." cell of a selectable table: the tick box in a fixed slot on the left, the number right-aligned beside it,
  * so the boxes form one straight column whatever the number of digits (9 → 10 → 100), in the header and every row.
  * The slot is kept even when there is no box, so the numbers stay aligned as well.
+ * Clicking anywhere in this cell (or on the number) toggles selection and NEVER triggers row accordion expansion.
  */
 export const NoCell: React.FC<{
   box?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   onBoxClick?: () => void;
-}> = ({ box, children, className = '', onBoxClick }) => {
+  header?: boolean;
+  pad?: 'normal' | 'wide';
+}> = ({ box, children, className = '', onBoxClick, header, pad = 'normal' }) => {
+  const isClickable = Boolean(box && onBoxClick);
+
   const handleClick = (ev: React.MouseEvent) => {
     if (box) {
       ev.stopPropagation();
@@ -170,23 +177,47 @@ export const NoCell: React.FC<{
     }
   };
 
+  const stopProp = (ev: React.SyntheticEvent) => {
+    if (box) {
+      ev.stopPropagation();
+    }
+  };
+
+  const padClasses = box
+    ? header
+      ? pad === 'wide'
+        ? '-my-2 -ml-4 py-2 pl-4 pr-1 rounded-l-lg hover:bg-white/10 transition-colors'
+        : '-my-2 -ml-3.5 py-2 pl-3.5 pr-1 rounded-l-lg hover:bg-white/10 transition-colors'
+      : pad === 'wide'
+      ? '-my-3 -ml-4 py-3 pl-4 pr-1 rounded-l-lg hover:bg-slate-200/50 transition-colors'
+      : '-my-2.5 -ml-3.5 py-2.5 pl-3.5 pr-1 rounded-l-lg hover:bg-slate-200/50 transition-colors'
+    : '';
+
   return (
-    <span
+    <div
       onClick={box ? handleClick : undefined}
-      className={`inline-flex items-center gap-1.5 ${box ? 'cursor-pointer select-none' : ''} ${className}`}
-      title={box ? 'Click to select / unselect' : undefined}
+      onMouseDown={stopProp}
+      onPointerDown={stopProp}
+      onDoubleClick={stopProp}
+      className={`group/nocell flex items-center justify-between w-full h-full min-h-[36px] select-none ${
+        isClickable ? 'cursor-pointer' : ''
+      } ${padClasses} ${className}`}
+      title={isClickable ? 'Click to select / unselect' : undefined}
     >
-      <span
-        className="inline-flex w-7 sm:w-8 shrink-0 items-center justify-center -my-1 -ml-1 cursor-pointer"
+      <div
+        className="inline-flex shrink-0 items-center justify-center -my-1 -ml-1"
         onClick={(ev) => {
-          ev.stopPropagation();
-          onBoxClick?.();
+          if (box) {
+            ev.stopPropagation();
+            onBoxClick?.();
+          }
         }}
-        onMouseDown={(ev) => ev.stopPropagation()}
+        onMouseDown={stopProp}
+        onPointerDown={stopProp}
       >
         {box || null}
-      </span>
-      <span className="flex-1 text-right tabular-nums">{children}</span>
-    </span>
+      </div>
+      <span className="flex-1 text-right tabular-nums pr-1 font-mono">{children}</span>
+    </div>
   );
 };

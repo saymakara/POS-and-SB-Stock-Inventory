@@ -29,7 +29,7 @@ const PERIOD_LABEL: Record<Period, string> = {
   ALL: 'All time', TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months',
 };
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
-const GRID = 'grid items-center gap-x-3 grid-cols-[64px_150px_minmax(150px,1fr)_minmax(200px,1.4fr)_minmax(160px,1fr)_minmax(140px,1fr)_20px]';
+const GRID = 'grid items-center gap-x-3 grid-cols-[68px_150px_minmax(150px,1fr)_minmax(200px,1.4fr)_minmax(160px,1fr)_minmax(140px,1fr)_20px]';
 const isMissingTable = (msg: string) => /mv_visits|mv_visit_summary|PGRST20[25]|does not exist|schema cache/i.test(msg);
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
 // answers already shown in their own line of the details
@@ -232,9 +232,15 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Merchant visits">
         <div className="min-w-[1000px]">
           <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
-            <NoCell box={isSuper && pageItems.length > 0 && (
-              <SelectBox light checked={pageAll} onChange={() => pick.setMany(pageItems, !pageAll)} label={pageAll ? 'Unselect this page' : 'Select this page'} />
-            )}>No.</NoCell>
+            <NoCell
+              header
+              box={isSuper && pageItems.length > 0 && (
+                <SelectBox light checked={pageAll} onChange={() => pick.setMany(pageItems, !pageAll)} label={pageAll ? 'Unselect this page' : 'Select this page'} />
+              )}
+              onBoxClick={isSuper && pageItems.length > 0 ? () => pick.setMany(pageItems, !pageAll) : undefined}
+            >
+              No.
+            </NoCell>
             <span>Date Sent</span>
             <span>Activity</span>
             <span>Merchant / MID</span>
