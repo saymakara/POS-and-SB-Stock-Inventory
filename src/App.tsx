@@ -4898,21 +4898,23 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
       {/* Modals */}
         {/* Classic Batch Upload & Stock Intake Modal */}
-        {isBatchModalOpen && (
-          <Suspense fallback={null}>
-            <BatchUploadModal
-              isOpen={isBatchModalOpen}
-              onClose={() => setIsBatchModalOpen(false)}
-              branches={branches}
-              users={users}
-              existingDevices={devices}
-              onCommitBatch={handleCommitBatch}
-              activeBranchId={selectedBranch}
-              theme={theme}
-              operatorLabel={operatorLabel}
-            />
-          </Suspense>
-        )}
+        <AnimatePresence>
+          {isBatchModalOpen && (
+            <Suspense fallback={null}>
+              <BatchUploadModal
+                isOpen={isBatchModalOpen}
+                onClose={() => setIsBatchModalOpen(false)}
+                branches={branches}
+                users={users}
+                existingDevices={devices}
+                onCommitBatch={handleCommitBatch}
+                activeBranchId={selectedBranch}
+                theme={theme}
+                operatorLabel={operatorLabel}
+              />
+            </Suspense>
+          )}
+        </AnimatePresence>
 
         {/* Classic Request Stock Modal (Triggers Alert Notification) */}
         {isReqModalOpen && (
