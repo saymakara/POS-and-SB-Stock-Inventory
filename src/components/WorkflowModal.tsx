@@ -44,9 +44,12 @@ import {
   Phone,
   AlertCircle,
   Hash,
-  Type,
-  Send,
+    Send,
   Pencil,
+  CreditCard,
+  Activity,
+  Tag,
+  ListFilter,
 } from 'lucide-react';
 
 interface WorkflowModalProps {
@@ -884,7 +887,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             : 'Submit a return request to Admin HQ for approval'
                         }
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
+                        <RotateCcw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                         <span>
                           {isAdminLike
                             ? 'Return to Admin Stock'
@@ -948,7 +951,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               }`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md bg-sky-100 text-[#003857] dark:bg-sky-950/60 dark:text-sky-300 flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-md bg-sky-100 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400 border border-sky-200/80 flex items-center justify-center shrink-0 shadow-2xs">
                       <Pencil className="w-3 h-3" />
                     </div>
                     <div>
@@ -1011,8 +1014,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
               }`}>
                 <div className="flex items-center gap-1.5 pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
-                  <div className="w-5 h-5 rounded-md bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
-                    <Layers className="w-3 h-3" />
+                  <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/70 flex items-center justify-center shrink-0 shadow-2xs">
+                    <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                     1. Lifecycle &amp; Branch Custody
@@ -1023,6 +1026,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   {/* Lifecycle Status Stage */}
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                      <Activity className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
                       <span>Lifecycle Status Stage</span>
                       <span className="text-rose-500 font-bold">*</span>
                     </label>
@@ -1064,7 +1068,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   {/* Assigned Branch Code */}
                   <div className="flex flex-col gap-1">
                     <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      <Building2 className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                      <Building2 className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 shrink-0" />
                       <span>Assigned Branch Code</span>
                       <span className="text-rose-500 font-bold">*</span>
                     </label>
@@ -1201,8 +1205,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 }`}>
                   <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-md bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
-                        <UserCheck className="w-3 h-3" />
+                      <div className="w-6 h-6 rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/60 dark:text-violet-400 border border-violet-200/70 flex items-center justify-center shrink-0 shadow-2xs">
+                        <UserCheck className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
                       </div>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                         2. Field Staff &amp; Deployment Schedule
@@ -1223,7 +1227,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     {/* Assigned Branch Staff Officer */}
                     <div className="flex flex-col gap-1">
                       <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <User className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                        <User className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400 shrink-0" />
                         <span>Assigned Branch Staff Officer</span>
                         <span className="text-rose-500 font-bold">*</span>
                       </label>
@@ -1266,7 +1270,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     {/* Installation / Deployment Date */}
                     <div className="flex flex-col gap-1">
                       <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <Calendar className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                        <Calendar className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
                         <span>Installation / Deployment Date</span>
                         <span className="text-rose-500 font-bold">*</span>
                       </label>
@@ -1294,8 +1298,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               }`}>
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-5 h-5 rounded-md bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
-                      <Store className="w-3 h-3" />
+                    <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/70 flex items-center justify-center shrink-0 shadow-2xs">
+                      <Store className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                       3. Merchant &amp; Terminal Setup
@@ -1315,7 +1319,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     {/* Merchant Name */}
                     <div className="flex flex-col gap-1 sm:col-span-2">
                       <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <Store className="w-3 h-3 text-zinc-500 dark:text-zinc-400" />
+                        <Store className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
                         <span>Merchant Name</span>
                         <span className="text-rose-500 font-bold">*</span>
                       </label>
@@ -1341,7 +1345,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     {/* MID */}
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          <CreditCard className="w-3.5 h-3.5 text-teal-500 dark:text-teal-400 shrink-0" />
                           <span>MID</span>
                           <span className="text-rose-500 font-bold">*</span>
                         </label>
@@ -1378,7 +1383,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
                     {/* TID */}
                     <div className="flex flex-col gap-1">
-                      <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <Cpu className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 shrink-0" />
                         <span>Terminal ID (TID)</span>
                         <span className="text-rose-500 font-bold">*</span>
                       </label>
@@ -1410,8 +1416,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 >
                   <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60 dark:border-white/[0.06]">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-md bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
-                        <SlidersHorizontal className="w-3 h-3" />
+                      <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200/70 flex items-center justify-center shrink-0 shadow-2xs">
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                       </div>
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                         Additional Custom Attributes ({activeCustomFields.length})
@@ -1426,11 +1432,18 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     {activeCustomFields.map((field) => {
                       const val = customFieldValues[field.id] ?? '';
                       const getFieldIcon = () => {
-                        if (field.id === 'location') return <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
-                        if (field.id === 'merchantPhone' || field.type === 'phone') return <Phone className="w-3.5 h-3.5 text-sky-500 shrink-0" />;
-                        if (field.id === 'address') return <Building2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
+                        const lowerId = (field.id || '').toLowerCase();
+                        const lowerLabel = (field.label || '').toLowerCase();
+                        if (lowerId.includes('sim') || lowerLabel.includes('sim')) {
+                          return <CreditCard className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
+                        }
+                        if (field.id === 'location' || lowerId.includes('location')) return <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
+                        if (field.id === 'merchantPhone' || field.type === 'phone' || lowerId.includes('phone')) return <Phone className="w-3.5 h-3.5 text-sky-500 shrink-0" />;
+                        if (field.id === 'address' || lowerId.includes('address')) return <Building2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
                         if (field.type === 'number') return <Hash className="w-3.5 h-3.5 text-indigo-500 shrink-0" />;
-                        return <Type className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+                        if (field.type === 'select') return <ListFilter className="w-3.5 h-3.5 text-purple-500 shrink-0" />;
+                        if (field.type === 'date') return <Calendar className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
+                        return <Tag className="w-3.5 h-3.5 text-indigo-500 shrink-0" />;
                       };
 
                       return (
@@ -1516,14 +1529,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 >
                   <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1.5 border-b border-slate-200/60 dark:border-white/[0.06]">
                     <div className="flex items-center gap-1.5">
-                      <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-2xs border ${
                         previewBatteryInfo.state === 'EXPIRED'
-                          ? 'bg-rose-100 text-rose-700'
+                          ? 'bg-rose-100 text-rose-700 border-rose-300'
                           : previewBatteryInfo.state === 'DUE_SOON'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-amber-100 text-amber-700 border-amber-300'
+                          : 'bg-emerald-100 text-emerald-700 border-emerald-300'
                       }`}>
-                        <BatteryCharging className="w-3 h-3" />
+                        <BatteryCharging className="w-3.5 h-3.5" />
                       </div>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                         4. POS Battery Lifecycle (24-Month Standard)
@@ -1549,7 +1562,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   {/* Battery Fields */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                     <div className="flex flex-col gap-1">
-                      <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <BatteryCharging className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
                         <span>Battery Serial Number</span>
                         <span className="text-rose-500 font-bold">*</span>
                       </label>
@@ -1570,7 +1584,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          <Calendar className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
                           <span>Commissioned Date</span>
                           <span className="text-rose-500 font-bold">*</span>
                         </label>
@@ -1623,7 +1638,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
             }`}>
               <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                <FileText className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
+                <FileText className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
                 <span>Remark</span>
                 <span className="text-[11px] font-normal text-slate-400">(Optional)</span>
               </label>
