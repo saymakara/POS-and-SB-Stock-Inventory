@@ -141,7 +141,7 @@ export const SimCardTab: React.FC<{
   const exportCsv = async () => {
     const list = filteredRows || rows || [];
     downloadCsv('sim-cards', [
-      'SIM number', 'Status', 'Hardware Type', 'Assigned Device (Serial)', 'Merchant Name', 'MID', 'Deployment Date', 'Branch Staff', 'Branch Name', 'Updated At', 'Updated By'
+      'SIM number', 'Status', 'Type of Sim Card', 'Assigned Device (Serial)', 'Merchant Name', 'MID', 'Deployment Date', 'Branch Staff', 'Branch Name', 'Updated At', 'Updated By'
     ], list.map((s) => {
       const dev = s.deviceSerial ? deviceMap.get(s.deviceSerial.toUpperCase()) : undefined;
       const hw = getHardwareInfo(s);
@@ -406,6 +406,7 @@ export const SimCardTab: React.FC<{
                 <th className="text-center font-semibold px-2.5 py-2.5 w-10">No.</th>
                 <th className="text-left font-semibold px-2.5 py-2.5">SIM Number</th>
                 <th className="text-left font-semibold px-2.5 py-2.5">Status</th>
+                <th className="text-left font-semibold px-2.5 py-2.5">Type of Sim Card</th>
                 <th className="text-left font-semibold px-2.5 py-2.5">Assigned Device (Serial)</th>
                 <th className="text-left font-semibold px-2.5 py-2.5">Merchant Name / MID</th>
                 <th className="text-left font-semibold px-2.5 py-2.5">Date of Deployment</th>
@@ -416,14 +417,14 @@ export const SimCardTab: React.FC<{
             <tbody data-page-content className={`divide-y divide-slate-100 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
               {rows === null && [0, 1, 2, 3].map((i) => (
                 <tr key={i}>
-                  <td colSpan={8} className="px-3.5 py-3.5">
+                  <td colSpan={9} className="px-3.5 py-3.5">
                     <div className="skeleton h-4 rounded w-3/4" />
                   </td>
                 </tr>
               ))}
               {rows && (filteredRows?.length ?? 0) === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-3.5 py-10 text-center text-slate-500">
+                  <td colSpan={9} className="px-3.5 py-10 text-center text-slate-500">
                     {totalAll === 0 ? 'No SIM card registered yet. Add SIMs or load opening stock.' : 'No SIM card matches the current filters.'}
                   </td>
                 </tr>
@@ -458,19 +459,27 @@ export const SimCardTab: React.FC<{
                         )}
                       </div>
                     </td>
+                    <td className="px-2.5 py-2.5 whitespace-nowrap">
+                      {hw.type === 'SOUND_BOX' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-800 border border-purple-200/90">
+                          <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" aria-hidden />
+                          <span>Sound Box</span>
+                        </span>
+                      ) : hw.type === 'POS' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-sky-50 text-sky-800 border border-sky-200/90">
+                          <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />
+                          <span>POS Terminal</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/90">
+                          <Layers className="w-3.5 h-3.5 text-emerald-600 shrink-0" aria-hidden />
+                          <span>Available (Both)</span>
+                        </span>
+                      )}
+                    </td>
                     <td className="px-2.5 py-2.5 font-mono whitespace-nowrap">
                       {hw.serial ? (
-                        hw.type === 'SOUND_BOX' ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-800 border border-purple-200/90">
-                            <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" aria-hidden />
-                            <span>Sound Box · {hw.serial}</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-sky-50 text-sky-800 border border-sky-200/90">
-                            <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" aria-hidden />
-                            <span>POS · {hw.serial}</span>
-                          </span>
-                        )
+                        <span className="font-semibold text-slate-800">{hw.serial}</span>
                       ) : (
                         <span className="text-slate-300 select-none">—</span>
                       )}
