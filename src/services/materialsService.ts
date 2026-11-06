@@ -72,6 +72,9 @@ const fail = (error: { message?: string } | null) => { if (error) throw new Erro
 let cachedBalances: MaterialBalance[] | null = null;
 const cachedLost = new Map<string, LostItem[]>();
 let cachedOpenLostCounts: { pos: number; sb: number; sim: number } | null = null;
+let cachedStatusCounts = new Map<string, Record<SerialStatus, number>>();
+let cachedSerialsPages = new Map<string, { rows: MaterialSerial[]; total: number }>();
+
 let owner: string | null | undefined;
 
 export const getCachedMaterialBalances = () => cachedBalances;
@@ -85,6 +88,8 @@ export function clearMaterialsCache(): void {
   cachedBalances = null;
   cachedLost.clear();
   cachedOpenLostCounts = null;
+  cachedStatusCounts.clear();
+  cachedSerialsPages.clear();
   clearFresh('mat:');
 }
 
@@ -124,8 +129,12 @@ const mapSerial = (r: any): MaterialSerial => ({
   merchantName: r.merchant_name ?? null, reqId: r.req_id ?? null, blocked: !!r.blocked_with_carrier, note: r.note ?? null, updatedAt: r.updated_at, updatedBy: r.updated_by ?? null,
 });
 export interface SerialQuery { code: MaterialCode; status?: SerialStatus | ''; branchId?: string; search?: string; page: number; pageSize: number }
-export async function fetchSerialsPage(q: SerialQuery): Promise<{ rows: MaterialSerial[]; total: number }> {
+export async function fetchSerialsPage(q: SerialQuery, force = false): Promise<{ rows: MaterialSerial[]; total: number }> {
   if (!isSupabaseConfigured) return { rows: [], total: 0 };
+  const k = `${q.code}|${q.status || ''}|${q.branchId || ''}|${q.search || ''}|${q.page}|${q.pageSize}`;
+  if (!force && cachedSerialsPages.has(k) && isFresh('mat:page:' + k, 35000)) {
+    return cachedSerialsPages.get(k)!;
+  }
   let req = supabase.from('material_serials').select('*', { count: 'exact' }).eq('material_code', q.code);
   if (q.status) req = req.eq('status', q.status);
   if (q.branchId) req = req.eq('branch_id', q.branchId);
@@ -140,12 +149,37 @@ export async function fetchSerialsPage(q: SerialQuery): Promise<{ rows: Material
   const from = (q.page - 1) * q.pageSize;
   const { data, error, count } = await req.order('updated_at', { ascending: false }).order('serial').range(from, from + q.pageSize - 1);
   fail(error);
-  return { rows: (data || []).map(mapSerial), total: count || 0 };
+  const res = { rows: (data || []).map(mapSerial), total: count || 0 };
+  cachedSerialsPages.set(k, res);
+  markFresh('mat:page:' + k);
+  return res;
 }
 /** How many numbers of this material are in each status (optionally one branch). */
-export async function fetchSerialStatusCounts(code: MaterialCode, branchId?: string): Promise<Record<SerialStatus, number>> {
+export async function fetchSerialStatusCounts(code: MaterialCode, branchId?: string, force = false): Promise<Record<SerialStatus, number>> {
   const out = { HQ_STOCK: 0, IN_TRANSIT: 0, BRANCH_RESERVE: 0, AT_MERCHANT: 0, LOST: 0, FAULTY: 0, WRITTEN_OFF: 0 } as Record<SerialStatus, number>;
   if (!isSupabaseConfigured) return out;
+  const k = `${code}|${branchId || ''}`;
+  if (!force && cachedStatusCounts.has(k) && isFresh('mat:counts:' + k, 45000)) {
+    return { ...cachedStatusCounts.get(k)! };
+  }
+  try {
+    // 1 single efficient request instead of 7 network calls
+    let req = supabase.from('material_serials').select('status').eq('material_code', code);
+    if (branchId) req = req.eq('branch_id', branchId);
+    const { data, error } = await req.limit(10000);
+    if (!error && Array.isArray(data)) {
+      data.forEach((r: any) => {
+        if (r && r.status && r.status in out) {
+          out[r.status as SerialStatus]++;
+        }
+      });
+      cachedStatusCounts.set(k, out);
+      markFresh('mat:counts:' + k);
+      return out;
+    }
+  } catch {
+    // fallback to individual counts if bulk select failed
+  }
   await Promise.all((Object.keys(out) as SerialStatus[]).map(async (st) => {
     let req = supabase.from('material_serials').select('serial', { count: 'exact', head: true }).eq('material_code', code).eq('status', st);
     if (branchId) req = req.eq('branch_id', branchId);
@@ -153,6 +187,8 @@ export async function fetchSerialStatusCounts(code: MaterialCode, branchId?: str
     fail(error);
     out[st] = count || 0;
   }));
+  cachedStatusCounts.set(k, out);
+  markFresh('mat:counts:' + k);
   return out;
 }
 

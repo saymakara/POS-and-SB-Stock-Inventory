@@ -331,7 +331,10 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                 if (isMobileView) onCloseMobile?.();
                               }}
                               aria-current={on ? 'page' : undefined}
-                              onMouseEnter={() => { if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc()); }}
+                              onMouseEnter={() => {
+                                if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
+                                if (c.id === 'sim_cards') import('./SimCardTab');
+                              }}
                               className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-all duration-150 ease-out border ${
                                 on
                                   ? 'font-medium text-white bg-white/12 border-white/15 shadow-xs'
