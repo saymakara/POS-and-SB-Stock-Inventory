@@ -1,6 +1,8 @@
 -- Migration 20261106_01_sim_card_manage.sql
 -- Manage SIM cards dynamically with device linkage, status transitions, and audit logging.
 
+update public.material_types set device_type = 'BOTH' where code = 'BATTERY';
+
 create or replace function public.admin_sim_update(p jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare

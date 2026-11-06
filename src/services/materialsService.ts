@@ -14,7 +14,7 @@ export interface MaterialType { code: MaterialCode; name: string; short: string;
 /** The catalogue (the same six rows as public.material_types). */
 export const MATERIALS: MaterialType[] = [
   { code: 'SIM', name: 'SIM Card', short: 'SIM', deviceType: 'BOTH', tracking: 'SERIAL', kitRule: 'CONNECTION' },
-  { code: 'BATTERY', name: 'Battery', short: 'Battery', deviceType: 'POS', tracking: 'SERIAL', kitRule: 'DEFAULT' },
+  { code: 'BATTERY', name: 'Battery', short: 'Battery', deviceType: 'BOTH', tracking: 'SERIAL', kitRule: 'DEFAULT' },
   { code: 'POS_ADAPTOR', name: 'POS AC Adaptor', short: 'AC Adaptor', deviceType: 'POS', tracking: 'QTY', kitRule: 'DEFAULT' },
   { code: 'STAND', name: 'POS Stand Holder', short: 'Stand', deviceType: 'POS', tracking: 'QTY', kitRule: 'OPTIONAL' },
   { code: 'DOCK', name: 'Charging Dock', short: 'Dock', deviceType: 'POS', tracking: 'QTY', kitRule: 'OPTIONAL' },
@@ -23,7 +23,7 @@ export const MATERIALS: MaterialType[] = [
 export const materialByCode = new Map(MATERIALS.map((m) => [m.code, m]));
 export const materialName = (code: string) => materialByCode.get(code as MaterialCode)?.name || code;
 /** Materials shown on a product page (the SIM has its own page). */
-export const productMaterials = (g: DeviceGroup) => MATERIALS.filter((m) => m.code !== 'SIM' && m.deviceType === g);
+export const productMaterials = (g: DeviceGroup) => MATERIALS.filter((m) => m.code !== 'SIM' && (m.deviceType === g || m.deviceType === 'BOTH'));
 /** Materials that can go into the kit of a device of this group. */
 export const kitMaterials = (g: DeviceGroup) => MATERIALS.filter((m) => m.deviceType === 'BOTH' || m.deviceType === g);
 export const deviceGroup = (type: string): DeviceGroup => (type === 'Sound Box' ? 'SB' : 'POS');
