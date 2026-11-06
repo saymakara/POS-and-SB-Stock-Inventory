@@ -9,11 +9,11 @@ import { usePager } from '../utils/usePager';
 import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import {
-  LostItem, MaterialSerial, SERIAL_STATUS_LABEL, SerialStatus, cleanMaterialError,
-  fetchLost, fetchSerialStatusCounts, fetchSerialsPage, isMaterialsMissing, placeName,
+  MaterialSerial, SERIAL_STATUS_LABEL, SerialStatus, cleanMaterialError,
+  fetchSerialStatusCounts, fetchSerialsPage, isMaterialsMissing, placeName,
 } from '../services/materialsService';
 import { MaterialsSetupNotice, StatusPill, btnLight, btnPrimary, fmtDay } from './MaterialsUi';
-import { AdjustDialog, LostTable, StockInDialog } from './MaterialStockPanel';
+import { AdjustDialog, StockInDialog } from './MaterialStockPanel';
 
 /**
  * (5 Nov 2026) Stock Inventory → SIM Card.
@@ -43,8 +43,6 @@ export const SimCardTab: React.FC<{
   const [rows, setRows] = useState<MaterialSerial[] | null>(null);
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState<Record<SerialStatus, number> | null>(null);
-  const [lost, setLost] = useState<LostItem[] | null>(null);
-  const [lostFilter, setLostFilter] = useState<'OPEN' | ''>('OPEN');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST'>('');
@@ -68,10 +66,6 @@ export const SimCardTab: React.FC<{
     } finally { setLoading(false); }
   }, [status, branchId, search, pg.page, pg.pageSize]);
 
-  const loadLost = useCallback(async () => {
-    try { setLost(await fetchLost(['SIM'], lostFilter)); } catch { setLost((x) => x || []); }
-  }, [lostFilter]);
-
   const [countsKey, setCountsKey] = useState(0);
   useEffect(() => {
     let alive = true;
@@ -79,8 +73,7 @@ export const SimCardTab: React.FC<{
     return () => { alive = false; };
   }, [branchId, countsKey]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { loadLost(); }, [loadLost]);
-  const changed = () => { load(); loadLost(); setCountsKey((k) => k + 1); onLostChanged?.(); };
+  const changed = () => { load(); setCountsKey((k) => k + 1); onLostChanged?.(); };
 
   const exportCsv = async () => {
     const all = await collectAll((page) => fetchSerialsPage({ code: 'SIM', status, branchId: branchId || undefined, search, page, pageSize: 1000 }), 1000);
@@ -409,21 +402,7 @@ export const SimCardTab: React.FC<{
         <Pager pg={pg} label="SIM cards" />
       </section>
 
-      {/* Lost Table */}
-      <LostTable
-        title="Lost · SIM Card"
-        rows={lost}
-        branches={branches}
-        isAdmin={isAdmin}
-        filter={lostFilter}
-        onFilter={setLostFilter}
-        onChanged={changed}
-        triggerToast={triggerToast}
-      />
-
-      <p className="text-xs text-slate-500 px-1">
-        SIM numbers are saved in one form: 096 555 0142, 0965550142 and +855 96 555 0142 are the same SIM. A SIM already at a merchant cannot be given to another one.
-      </p>
+      
 
       {/* Stock In Dialog */}
       <StockInDialog
