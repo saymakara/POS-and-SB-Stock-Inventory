@@ -61,7 +61,7 @@ const DOT = { 'POS Terminal': 'bg-[#006BA6]', 'Sound Box': 'bg-[#4F518C]' } as c
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-2.5 grid-cols-[34px_30px_96px_104px_140px_minmax(125px,1.2fr)_minmax(120px,1.1fr)_minmax(120px,1.15fr)_84px_156px]';
+  'grid items-center gap-x-2.5 grid-cols-[34px_38px_98px_104px_140px_minmax(125px,1.2fr)_minmax(120px,1.1fr)_minmax(120px,1.15fr)_84px_156px]';
 const CACHE_KEY = 'fe_review_cache_v5';
 
 /** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */
@@ -1041,7 +1041,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                 />
               )}
             </span>
-            <span className="text-right">No.</span>
+            <span className="text-center font-medium">No.</span>
             <SortBtn k="type" sort={sort} onSort={toggleSort}>
               Device Type
             </SortBtn>
@@ -1235,12 +1235,8 @@ const ReviewRow = memo(function ReviewRow({
         <span className="flex justify-center">
           {selectable && <SelectBox checked={checked} onChange={() => onCheck(e.id)} label={`Select ${e.serial}`} />}
         </span>
-        <span className="text-right text-slate-500 font-mono font-normal tabular-nums">{no}</span>
+        <span className="text-center text-slate-500 font-mono font-normal tabular-nums">{no}</span>
         <span className={`inline-flex items-center gap-1.5 whitespace-nowrap font-semibold ${type === 'Sound Box' ? 'text-[#4F518C]' : 'text-[#006BA6]'}`}>
-          <span
-            className={`w-2 h-2 rounded-full ${type === 'Sound Box' ? 'bg-[#4F518C]' : 'bg-[#006BA6]'}`}
-            aria-hidden
-          />
           {type === 'Sound Box' ? (
             <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
           ) : (
