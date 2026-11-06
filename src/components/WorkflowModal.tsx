@@ -18,6 +18,7 @@ import { phoneFor, canSeeFullContact } from '../utils/privacy';
 import { isValidMidForType, midRuleError } from '../utils/display';
 import { ALLOWED_NEXT, canMove, moveError, onMove } from '../utils/stages';
 import { motion, AnimatePresence } from 'motion/react';
+import { DRAWER_VARIANTS, BACKDROP_VARIANTS, WHILE_TAP_BUTTON } from '../utils/animationRules';
 import {
   Layers,
   UserCheck,
@@ -701,19 +702,20 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
         {/* Backdrop */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          variants={BACKDROP_VARIANTS}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           onClick={onClose}
           className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
         />
 
         {/* Slide-over Drawer Window */}
         <motion.div
-          initial={{ x: '100%' }}
-          animate={{ x: 0 }}
-          exit={{ x: '100%' }}
-          transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+          variants={DRAWER_VARIANTS}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden ${
             isLight
               ? 'bg-white text-slate-800'
@@ -1677,7 +1679,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </button>
               )}
               <motion.button
-                whileTap={{ scale: 0.96 }}
+                whileTap={WHILE_TAP_BUTTON}
                 type="button"
                 onClick={onClose}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
@@ -1689,7 +1691,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 Cancel
               </motion.button>
               <motion.button
-                whileTap={{ scale: 0.96 }}
+                whileTap={WHILE_TAP_BUTTON}
                 type="submit"
                 className="px-4 py-1.5 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-xs transition cursor-pointer flex items-center gap-1.5"
               >
@@ -2077,7 +2079,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               }`}
             >
               <motion.button
-                whileTap={{ scale: 0.96 }}
+                whileTap={WHILE_TAP_BUTTON}
                 type="button"
                 onClick={() => setModalStep('EDIT')}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
@@ -2091,7 +2093,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               </motion.button>
 
               <motion.button
-                whileTap={{ scale: 0.96 }}
+                whileTap={WHILE_TAP_BUTTON}
                 type="button"
                 onClick={handleFinalCommit}
                 className="px-5 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-semibold tracking-wide shadow-md transition cursor-pointer flex items-center gap-2"

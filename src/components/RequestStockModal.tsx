@@ -22,6 +22,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { DRAWER_VARIANTS, BACKDROP_VARIANTS } from '../utils/animationRules';
 
 interface RequestStockModalProps {
   isOpen: boolean;
@@ -142,19 +143,20 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
       <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
         {/* Backdrop */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          variants={BACKDROP_VARIANTS}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           onClick={onClose}
           className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
         />
 
         {/* Modal Box */}
         <motion.div
-          initial={{ x: '100%' }}
-          animate={{ x: 0 }}
-          exit={{ x: '100%' }}
-          transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+          variants={DRAWER_VARIANTS}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden ${
             isLight
               ? 'bg-white text-slate-800'

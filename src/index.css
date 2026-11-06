@@ -98,18 +98,24 @@
   --duration-dropdown: 200ms;        /* Rule 2: Dropdowns at 150–250ms */
   --duration-dropdown-exit: 160ms;   /* Rule 15: Make exits 20% shorter */
   --duration-fast: 140ms;            /* hover states, focus rings, tooltips */
+  --duration-fast-exit: 112ms;       /* Rule 15: 20% shorter exit */
   --duration-normal: 220ms;          /* modals, drawers, expandables */
   --duration-normal-exit: 176ms;     /* Rule 15: 20% shorter exit */
+  --duration-drawer: 260ms;          /* drawers */
+  --duration-drawer-exit: 208ms;     /* Rule 15: 20% shorter exit */
   --duration-smooth: 280ms;          /* view-transitions, page glides, list transitions */
 
   --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1); /* Rule 1: Ease-out for entrances */
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);  /* Rule 13: zero-overshoot everyday spring */
   --ease-move: cubic-bezier(0.4, 0, 0.2, 1);       /* Rule 9: Ease-in-out for moves */
+  --ease-arc: cubic-bezier(0.25, 0.1, 0.25, 1);    /* Rule 7: Natural curved movement */
   --ease-press: cubic-bezier(0, 0, 0.2, 1);        /* instant physical press */
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);    /* Rule 13: restrained, zero-overshoot spring */
   --ease-out: cubic-bezier(0, 0, 0.2, 1);          /* Rule 1: calm enter */
   --ease-in: cubic-bezier(0.4, 0, 1, 1);           /* subtle exit */
   --stagger-row: 30ms;                            /* Rule 3: Stagger list rows by 30ms */
+  --press-scale: 0.97;                            /* Rule 4: Scale to 0.97 on press */
+  --popover-scale: 0.95;                          /* Rule 10: Start popovers at 0.95 */
 
   --ease-snappy: var(--ease-standard);
   --ease-apple-spring: var(--ease-standard);
@@ -734,10 +740,10 @@ button:hover:not(:disabled),
 
 /* Modals and drawers open with the same glide */
 @keyframes modalGlideIn {
-  from { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.988); }
+  from { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.96); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
-.modal-glide { animation: modalGlideIn var(--duration-normal) var(--ease-standard) both; }
+.modal-glide { animation: modalGlideIn var(--duration-normal) var(--ease-entrance) both; }
 
 /* Whoever asked the device for less motion gets none */
 @media (prefers-reduced-motion: reduce) {
@@ -1270,12 +1276,24 @@ datalist option {
    20 WAYS TO MAKE BEAUTIFUL ANIMATIONS - SYSTEM UTILITIES
    ========================================================================== */
 
+/* Rule 3: Stagger list rows by 30ms */
+.row-stagger {
+  animation: rowGlideIn var(--duration-fast) var(--ease-entrance) both;
+}
+
 /* Rule 5: Stretch moving knobs 12% */
 .toggle-knob-stretch:active,
 .toggle-switch:active .toggle-knob,
 input[type="checkbox"].switch-toggle:active::after {
   transform: scaleX(1.12);
 }
+
+/* Rule 6: Stagger secondary details as content settles */
+.stagger-settle > *:nth-child(1) { animation-delay: 20ms; }
+.stagger-settle > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-settle > *:nth-child(3) { animation-delay: 80ms; }
+.stagger-settle > *:nth-child(4) { animation-delay: 110ms; }
+.stagger-settle > *:nth-child(n+5) { animation-delay: 140ms; }
 
 /* Rule 8: Pulse to confirm success */
 @keyframes confirmSuccessPulse {
@@ -1306,6 +1324,12 @@ input[type="checkbox"].switch-toggle:active::after {
 @keyframes popoverScaleOut {
   0% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(0.95); }
+}
+
+/* Rule 17: Clipping masks for selected reveal effects */
+.clip-mask-reveal {
+  overflow: hidden;
+  contain: paint;
 }
 
 /* Rule 18: Crossfade icons + blur (2px blur) */

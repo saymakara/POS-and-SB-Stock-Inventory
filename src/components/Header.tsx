@@ -12,6 +12,7 @@ import { useDrawerOpen, setDrawerOpen } from '../utils/drawerStore';
 import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
+import { WHILE_TAP_BUTTON, WHILE_TAP_ICON, SPRING_NO_BOUNCE, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 
 import {
   Building2,
@@ -1082,23 +1083,25 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           </div>
 
           {/* Utility Icons (Export, Lock Session, Sign Out) */}
-          <button
+          <motion.button
+            whileTap={WHILE_TAP_ICON}
             type="button"
             onClick={onOpenExportModal}
             title="Export Reports & Audit Log"
             className="p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/80 hover:bg-slate-200 text-zinc-700 border-zinc-200 backdrop-blur-md"
           >
             <Download className="w-3.5 h-3.5" />
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileTap={WHILE_TAP_ICON}
             type="button"
             onClick={onLockSession}
             title="Lock Operator Session"
             className="p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/80 hover:bg-slate-200 text-zinc-700 border-zinc-200 backdrop-blur-md"
           >
             <Lock className="w-3.5 h-3.5" />
-          </button>
+          </motion.button>
 
           {/* User Profile & Sign Out */}
           <div className="hidden lg:flex items-center gap-2.5 pl-3 border-l border-zinc-200 shrink-0">
@@ -1119,14 +1122,15 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             </div>
           </div>
 
-          <button
+          <motion.button
+            whileTap={WHILE_TAP_ICON}
             type="button"
             onClick={onSignOut}
             title="Sign Out to Login Page"
             className="p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/80 hover:bg-slate-200 text-zinc-700 border-zinc-200 backdrop-blur-md"
           >
             <LogOut className="w-3.5 h-3.5" />
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -1134,20 +1138,28 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     {/* (31 Oct 2026, native-like) bottom tab bar on phones (replaces the dark sliding tab strip under the header) */}
     <nav className="mobile-tabbar md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-5" aria-label="Main pages">
       {bottomTabs.map((t) => (
-        <button
+        <motion.button
+          whileTap={WHILE_TAP_BUTTON}
           key={t.id}
           type="button"
           onClick={t.onTap}
           aria-current={t.active ? 'page' : undefined}
           className={`relative flex flex-col items-center justify-center gap-0.5 h-14 text-[11px] font-semibold cursor-pointer ${t.active ? 'text-[#003857]' : 'text-slate-500'}`}
         >
-          {t.active && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-[#003857]" aria-hidden />}
+          {t.active && (
+            <motion.span
+              layoutId={SHARED_LAYOUT_IDS.MOBILE_TAB_PILL}
+              transition={SPRING_NO_BOUNCE}
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-[#003857]"
+              aria-hidden
+            />
+          )}
           <span className="relative">
             <t.icon className="w-5 h-5" aria-hidden />
             {t.dot && <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" aria-label="new" />}
           </span>
           <span>{t.label}</span>
-        </button>
+        </motion.button>
       ))}
     </nav>
     </>

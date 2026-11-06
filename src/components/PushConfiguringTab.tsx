@@ -11,6 +11,7 @@ import { hasKhmer } from '../utils/display';
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
 import { todayPP, stampSecPP, clockPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
+import { DRAWER_VARIANTS, BACKDROP_VARIANTS } from '../utils/animationRules';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   Minus,
@@ -2005,9 +2006,10 @@ return (
               <div className="fixed inset-0 z-[9999] flex justify-end overflow-hidden">
                 {/* Backdrop with true background blur covering entire viewport */}
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  variants={BACKDROP_VARIANTS}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
                   onClick={() => {
                     setIsPushAllModalOpen(false);
                     setPusherPassword('');
@@ -2018,10 +2020,10 @@ return (
 
                 {/* Clean, Modern Slide-over Drawer */}
                 <motion.div
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  variants={DRAWER_VARIANTS}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
                   className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
                     isLight ? 'bg-white text-slate-900' : 'bg-[#12151e] text-slate-100'
                   }`}

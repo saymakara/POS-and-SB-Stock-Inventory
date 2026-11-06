@@ -9,6 +9,7 @@ import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '..
 import { csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
+import { DRAWER_VARIANTS, BACKDROP_VARIANTS, staggerRowStyle } from '../utils/animationRules';
 import {
   SendHorizontal,
   RotateCcw,
@@ -615,7 +616,8 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
                 return (
                   <tr
                     key={req.reqId}
-                    className="interactive-row"
+                    style={staggerRowStyle(rowIdx)}
+                    className="interactive-row row-stagger"
                   >
                     <td className="col-no">
                       {pg.start + rowIdx + 1}
@@ -744,10 +746,10 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
             {rejectingReq && (
               <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onMouseDown={(e) => { if (e.target === e.currentTarget) setRejectingReq(null); }}>
                 <motion.div
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  variants={DRAWER_VARIANTS}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
                   className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 bg-white text-slate-900 flex flex-col my-0 overflow-hidden" role="dialog" aria-modal="true" aria-label="Reject request"
                 >
                   <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white shrink-0">
@@ -789,10 +791,10 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
             {editingReq && (
               <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setEditingReq(null); }}>
                 <motion.div
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  variants={DRAWER_VARIANTS}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
                   className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 bg-white text-slate-900 flex flex-col my-0 overflow-hidden"
                 >
                   <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white shrink-0">
@@ -839,10 +841,10 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
             {arrangingReq && isAdmin && (
               <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs">
                 <motion.div
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  variants={DRAWER_VARIANTS}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
                   className={`w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-gpu gpu-modal-container ${
                     isLight
                       ? 'bg-white text-slate-900'
@@ -1264,17 +1266,18 @@ export const RequisitionsTab: React.FC<RequisitionsTabProps> = ({
             {selectedRequisition && (
               <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  variants={BACKDROP_VARIANTS}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
                   onClick={() => setSelectedRequisition(null)}
                   className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
                 />
                 <motion.div
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+                  variants={DRAWER_VARIANTS}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
                   className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden ${
                     isLight ? 'bg-white text-slate-800' : 'bg-[#12151e] text-slate-100'
                   }`}

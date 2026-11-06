@@ -6,6 +6,7 @@ import { todayPP, stampPP } from '../utils/time';
 import { phoneFor } from '../utils/privacy';
 import { formatBranchName } from '../utils/format';
 import { motion } from 'motion/react';
+import { DRAWER_VARIANTS } from '../utils/animationRules';
 import {
   Download,
   X,
@@ -333,10 +334,10 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <motion.div
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+        variants={DRAWER_VARIANTS}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
         className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden ${
           isLight
             ? 'bg-white text-zinc-900'

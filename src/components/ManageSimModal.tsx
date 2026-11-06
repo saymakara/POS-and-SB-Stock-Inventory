@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { DRAWER_VARIANTS, BACKDROP_VARIANTS, WHILE_TAP_BUTTON } from '../utils/animationRules';
 import {
   CreditCard, X, Check, Copy, ArrowRight, ArrowLeft, RefreshCw,
   Cpu, Volume2, ShieldCheck, AlertTriangle, Layers, Building2,
@@ -244,15 +245,23 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-xs flex justify-end">
+      <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
         {/* Backdrop dismiss */}
-        <div className="absolute inset-0" onClick={onClose} aria-hidden />
+        <motion.div
+          variants={BACKDROP_VARIANTS}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
+          onClick={onClose}
+          aria-hidden
+        />
 
         <motion.div
-          initial={{ x: '100%', opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+          variants={DRAWER_VARIANTS}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           className="relative w-full max-w-2xl bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full border-l border-slate-200 dark:border-slate-800"
         >
           {/* 1. NAVY HEADER BAR */}
@@ -867,25 +876,28 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
           <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
             {step === 'CONFIG' ? (
               <>
-                <button
+                <motion.button
+                  whileTap={WHILE_TAP_BUTTON}
                   type="button"
                   onClick={onClose}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={WHILE_TAP_BUTTON}
                   type="submit"
                   form="sim-manage-form"
                   className="px-5 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002b43] text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>Review Impact</span>
                   <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                </motion.button>
               </>
             ) : (
               <>
-                <button
+                <motion.button
+                  whileTap={WHILE_TAP_BUTTON}
                   type="button"
                   onClick={() => setStep('CONFIG')}
                   disabled={saving}
@@ -893,8 +905,9 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back to Edit</span>
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={WHILE_TAP_BUTTON}
                   type="button"
                   onClick={handleConfirmSave}
                   disabled={saving}
@@ -911,7 +924,7 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
                       <span>Confirm & Synchronize All</span>
                     </>
                   )}
-                </button>
+                </motion.button>
               </>
             )}
           </div>

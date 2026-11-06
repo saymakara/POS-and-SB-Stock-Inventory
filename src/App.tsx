@@ -4244,7 +4244,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                     : 'bg-[#003857]/95 dark:bg-[#002840]/95 border-white/20'
                 }`}
               >
-                <div
+                <motion.div
+                  initial={{ scale: 0.85, opacity: 0 }}
+                  animate={!isError ? { scale: [0.85, 1.15, 1], opacity: 1 } : { scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
                   className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${
                     isError
                       ? 'bg-rose-500/20 text-rose-300 border-rose-400/30'
@@ -4260,7 +4263,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                   ) : (
                     <CheckCircle2 className="w-4 h-4" />
                   )}
-                </div>
+                </motion.div>
 
                 <div className="flex-1 min-w-0 pt-0.5 leading-relaxed">
                   {match ? (

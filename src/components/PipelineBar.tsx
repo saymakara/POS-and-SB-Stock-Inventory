@@ -3,6 +3,7 @@ import { LifecycleStage, UserRole, ThemeMode } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { Odometer } from './Odometer';
 import { motion, AnimatePresence } from 'motion/react';
+import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import {
   Layers,
   Warehouse,
@@ -113,7 +114,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
               <motion.button
                 key={s.id}
                 type="button"
-                whileTap={{ scale: 0.96 }}
+                whileTap={WHILE_TAP_BUTTON}
                 onClick={() => onSelectStage(s.id)}
                 className={`relative px-3 py-1.5 rounded-md border text-left flex items-center gap-2 cursor-pointer transition-colors duration-200 ${
                   isSelected
@@ -125,8 +126,8 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
               >
                 {isSelected && (
                   <motion.div
-                    layoutId="activePipelineStagePill"
-                    transition={{ type: 'spring', stiffness: 480, damping: 30, mass: 0.55 }}
+                    layoutId={SHARED_LAYOUT_IDS.PIPELINE_STAGE_PILL}
+                    transition={SPRING_NO_BOUNCE}
                     className="absolute -inset-[1px] rounded-md tab-active-blue border border-sky-400/40 shadow-xs z-0 pointer-events-none"
                   />
                 )}

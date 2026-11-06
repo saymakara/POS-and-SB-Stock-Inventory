@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Boxes, Cpu, Volume2, RefreshCw, Loader2, PackagePlus, PencilLine, Upload,
   AlertTriangle, Download, Package, Battery, Dock, Smartphone, Plug, Search, Copy, Check
@@ -18,6 +18,7 @@ import {
 } from '../services/materialsService';
 import { isFresh } from '../utils/freshness';
 import { BusyLabel, Kpi, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
+import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, CROSSFADE_OVERLAP_VARIANTS, staggerRowStyle } from '../utils/animationRules';
 
 export type ProductView = 'UNITS' | 'PUSH' | 'MATERIAL';
 export const ProductStockPage: React.FC<{
@@ -45,7 +46,7 @@ export const ProductStockPage: React.FC<{
                 role="tab"
                 aria-selected={isSelected}
                 onClick={() => onViewChange(v)}
-                whileTap={{ scale: 0.97 }}
+                whileTap={WHILE_TAP_BUTTON}
                 title={v === 'PUSH' && n ? `${n} unit(s) waiting to be pushed` : v === 'MATERIAL' && n ? `${n} open lost item(s)` : undefined}
                 className="relative inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer select-none"
               >
@@ -53,12 +54,7 @@ export const ProductStockPage: React.FC<{
                   <motion.div
                     layoutId={`active-product-view-pill-${group}`}
                     className="absolute inset-0 rounded-lg bg-[#003857] shadow-xs z-0 pointer-events-none"
-                    transition={{
-                      type: 'spring',
-                      stiffness: 500,
-                      damping: 35,
-                      mass: 0.55,
-                    }}
+                    transition={SPRING_NO_BOUNCE}
                   />
                 )}
                 <span
@@ -86,29 +82,32 @@ export const ProductStockPage: React.FC<{
           })}
         </div>
       </div>
-      <motion.div
-        key={view}
-        initial={{ opacity: 0, y: 5 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full"
-      >
-        {view === 'UNITS'
-          ? units
-          : view === 'PUSH' && push
-          ? push
-          : (
-            <MaterialStockPanel
-              group={group}
-              role={role}
-              branches={branches}
-              myBranch={myBranch}
-              triggerToast={triggerToast}
-              onLostChanged={onLostChanged}
-              devices={devices}
-            />
-          )}
-      </motion.div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={view}
+          variants={CROSSFADE_OVERLAP_VARIANTS}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          className="w-full"
+        >
+          {view === 'UNITS'
+            ? units
+            : view === 'PUSH' && push
+            ? push
+            : (
+              <MaterialStockPanel
+                group={group}
+                role={role}
+                branches={branches}
+                myBranch={myBranch}
+                triggerToast={triggerToast}
+                onLostChanged={onLostChanged}
+                devices={devices}
+              />
+            )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 };
@@ -728,7 +727,7 @@ const MaterialStockPanel: React.FC<{
                 const branchName = dev?.branchName || placeName(s.branchId, branches);
 
                 return (
-                  <tr key={`${s.code}-${s.serial}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={`${s.code}-${s.serial}-${idx}`} style={staggerRowStyle(idx)} className="row-stagger hover:bg-slate-50/80 transition-colors">
                     <td className="px-4 py-2.5 text-center font-mono text-slate-400 font-semibold">
                       {pg.start + idx + 1}
                     </td>
