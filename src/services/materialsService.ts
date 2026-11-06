@@ -309,5 +309,47 @@ export interface MaterialsToSend { qty: Partial<Record<MaterialCode, number>>; s
 export const dispatchRequestWithMaterials = (p: { req_id: string; serials: string[]; note?: string; materials: MaterialsToSend }) =>
   rpc<{ arranged?: unknown[]; materials_sent: unknown }>('admin_dispatch_request', p);
 
+export interface AdminSimUpdatePayload {
+  serial: string;
+  new_serial?: string;
+  status?: SerialStatus;
+  branch_id?: string;
+  device_serial?: string | null;
+  mid?: string | null;
+  merchant_name?: string | null;
+  blocked_with_carrier?: boolean;
+  note?: string | null;
+}
+
+export async function adminSimUpdate(p: AdminSimUpdatePayload): Promise<any> {
+  clearMaterialsCache();
+  try {
+    const res = await rpc('admin_sim_update', p);
+    try {
+      window.dispatchEvent(new CustomEvent('materials-updated', { detail: p }));
+      window.dispatchEvent(new CustomEvent('sim-card-updated', { detail: p }));
+    } catch {}
+    return res;
+  } catch (err) {
+    if (isSupabaseConfigured) {
+      const patch: Record<string, any> = { updated_at: new Date().toISOString() };
+      if (p.new_serial) patch.serial = p.new_serial;
+      if (p.status) patch.status = p.status;
+      if (p.branch_id) patch.branch_id = p.branch_id;
+      if ('device_serial' in p) patch.device_serial = p.device_serial || null;
+      if ('mid' in p) patch.mid = p.mid || null;
+      if ('merchant_name' in p) patch.merchant_name = p.merchant_name || null;
+      if ('blocked_with_carrier' in p) patch.blocked_with_carrier = p.blocked_with_carrier;
+      if ('note' in p) patch.note = p.note || null;
+      await supabase.from('material_serials').update(patch).eq('material_code', 'SIM').eq('serial', p.serial);
+    }
+    try {
+      window.dispatchEvent(new CustomEvent('materials-updated', { detail: p }));
+      window.dispatchEvent(new CustomEvent('sim-card-updated', { detail: p }));
+    } catch {}
+    return { serial: p.new_serial || p.serial, status: p.status };
+  }
+}
+
 export const placeName = (branchId: string, branches: { id: string; name: string }[]) =>
   branchId === '100' ? 'Head Office' : `${branchId} · ${branches.find((b) => b.id === branchId)?.name || 'Branch ' + branchId}`;

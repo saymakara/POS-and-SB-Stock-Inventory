@@ -62,10 +62,11 @@ async function api(route) {
   if (path === '/rest/v1/device_kits') return json(route, 200, M.kits);
   if (path === '/rest/v1/material_movements') return json(route, 200, []);
   if (path === '/rest/v1/requisitions' && method === 'POST') { reqPosts.push(body); state.reqs.unshift(Object.assign({ materials_sent: {} }, body)); return json(route, 201, []); }
-  const rpc = path.match(/^\/rest\/v1\/rpc\/((admin_material|admin_kit|material_count|admin_dispatch_request)\w*)$/);
+  const rpc = path.match(/^\/rest\/v1\/rpc\/((admin_material|admin_kit|material_count|admin_dispatch_request|admin_sim)\w*)$/);
   if (rpc) {
     const p = body && body.p; rpcCalls.push({ fn: rpc[1], p });
     if (me && me.profile.role === 'BRANCH' && rpc[1].startsWith('admin_')) return json(route, 403, { code: '42501', message: 'Only Admin HQ can do this.' });
+    if (rpc[1] === 'admin_sim_update') { const s = M.serials.find(x => x.serial === p.serial); if (s) { if (p.status) s.status = p.status; if (p.branch_id) s.branch_id = p.branch_id; if (p.device_serial !== undefined) s.device_serial = p.device_serial; if (p.mid !== undefined) s.mid = p.mid; if (p.merchant_name !== undefined) s.merchant_name = p.merchant_name; if (p.blocked !== undefined) s.blocked_with_carrier = p.blocked; if (p.new_serial) s.serial = p.new_serial; } return json(route, 200, s || {}); }
     if (rpc[1] === 'admin_material_stock_in') return json(route, 200, { added: p.qty || (p.serials || []).length, refused: [] });
     if (rpc[1] === 'admin_material_lost_action') { const l = M.lost.find((x) => x.id === p.id); if (p.action === 'BLOCKED') l.blocked_with_carrier = true; else l.status = p.action === 'RECOVER' ? 'RECOVERED' : 'WRITTEN_OFF'; return json(route, 200, { status: l.status }); }
     if (rpc[1] === 'admin_material_count_review') { M.counts.find((c) => c.id === p.id).status = p.action === 'APPROVE' ? 'APPROVED' : 'REJECTED'; return json(route, 200, { status: 'APPROVED' }); }
@@ -199,3 +200,5 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });
+
+

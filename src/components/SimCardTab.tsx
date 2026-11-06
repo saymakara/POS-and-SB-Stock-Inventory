@@ -3,7 +3,7 @@ import {
   Search, RefreshCw, Loader2, PackagePlus, PencilLine, CreditCard, Download,
   Cpu, Volume2, Layers
 } from 'lucide-react';
-import { Branch, UserRole, Device } from '../types';
+import { Branch, UserRole, Device, User } from '../types';
 import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
@@ -11,9 +11,11 @@ import { ClearFiltersButton } from './ClearFiltersButton';
 import {
   MaterialSerial, SERIAL_STATUS_LABEL, SerialStatus, cleanMaterialError,
   fetchSerialStatusCounts, fetchSerialsPage, isMaterialsMissing, placeName,
+  adminSimUpdate,
 } from '../services/materialsService';
 import { MaterialsSetupNotice, StatusPill, btnLight, btnPrimary, fmtDay } from './MaterialsUi';
 import { AdjustDialog, StockInDialog } from './MaterialStockPanel';
+import { ManageSimModal } from './ManageSimModal';
 
 /**
  * (6 Nov 2026) Stock Inventory → SIM Card.
@@ -29,10 +31,12 @@ export const SimCardTab: React.FC<{
   branches: Branch[];
   myBranch: string;
   devices?: Device[];
+  users?: User[];
   triggerToast: (m: string) => void;
   onLostChanged?: () => void;
+  onUpdateDevice?: (sn: string, updates: any) => void;
 }> = ({
-  role, branches, myBranch, devices = [], triggerToast, onLostChanged,
+  role, branches, myBranch, devices = [], users = [], triggerToast, onLostChanged, onUpdateDevice,
 }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [hardwareFilter, setHardwareFilter] = useState<HardwareFilter>('ALL');
@@ -49,6 +53,7 @@ export const SimCardTab: React.FC<{
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST'>('');
+  const [managingSim, setManagingSim] = useState<MaterialSerial | null>(null);
 
   const deviceMap = useMemo(() => {
     const map = new Map<string, Device>();
@@ -137,6 +142,58 @@ export const SimCardTab: React.FC<{
 
   useEffect(() => { load(countsKey > 0); }, [load, countsKey]);
   const changed = () => { setCountsKey((k) => k + 1); onLostChanged?.(); };
+
+  useEffect(() => {
+    const handleSync = () => {
+      load(true);
+      setCountsKey((k) => k + 1);
+    };
+    window.addEventListener('materials-updated', handleSync);
+    window.addEventListener('sim-card-updated', handleSync);
+    return () => {
+      window.removeEventListener('materials-updated', handleSync);
+      window.removeEventListener('sim-card-updated', handleSync);
+    };
+  }, [load]);
+
+  const handleSaveSim = async (payload: {
+    serial: string;
+    newSerial?: string;
+    status: SerialStatus;
+    branchId: string;
+    deviceSerial: string | null;
+    mid: string | null;
+    merchantName: string | null;
+    staff: string | null;
+    deployedDate: string | null;
+    blockedWithCarrier: boolean;
+    note: string | null;
+  }) => {
+    await adminSimUpdate({
+      serial: payload.serial,
+      new_serial: payload.newSerial,
+      status: payload.status,
+      branch_id: payload.branchId,
+      device_serial: payload.deviceSerial,
+      mid: payload.mid,
+      merchant_name: payload.merchantName,
+      blocked_with_carrier: payload.blockedWithCarrier,
+      note: payload.note,
+    });
+
+    if (onUpdateDevice && payload.deviceSerial) {
+      onUpdateDevice(payload.deviceSerial, {
+        customFields: { simCard: payload.newSerial || payload.serial },
+        ...(payload.mid ? { mid: payload.mid } : {}),
+        ...(payload.merchantName ? { merchantName: payload.merchantName } : {}),
+        ...(payload.staff ? { staff: payload.staff } : {}),
+        ...(payload.deployedDate ? { deployedDate: payload.deployedDate } : {}),
+      });
+    }
+
+    triggerToast(`SIM ${payload.newSerial || payload.serial} updated successfully.`);
+    changed();
+  };
 
   const exportCsv = async () => {
     const list = filteredRows || rows || [];
@@ -412,19 +469,20 @@ export const SimCardTab: React.FC<{
                 <th className="text-left font-semibold px-2.5 py-2.5">Date of Deployment</th>
                 <th className="text-left font-semibold px-2.5 py-2.5">Branch Staff</th>
                 <th className="text-left font-semibold px-2.5 py-2.5">Branch Name</th>
+                <th className="text-right font-semibold px-2.5 py-2.5">Action</th>
               </tr>
             </thead>
             <tbody data-page-content className={`divide-y divide-slate-100 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
               {rows === null && [0, 1, 2, 3].map((i) => (
                 <tr key={i}>
-                  <td colSpan={9} className="px-3.5 py-3.5">
+                  <td colSpan={10} className="px-3.5 py-3.5">
                     <div className="skeleton h-4 rounded w-3/4" />
                   </td>
                 </tr>
               ))}
               {rows && (filteredRows?.length ?? 0) === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-3.5 py-10 text-center text-slate-500">
+                  <td colSpan={10} className="px-3.5 py-10 text-center text-slate-500">
                     {totalAll === 0 ? 'No SIM card registered yet. Add SIMs or load opening stock.' : 'No SIM card matches the current filters.'}
                   </td>
                 </tr>
@@ -525,6 +583,16 @@ export const SimCardTab: React.FC<{
                         <span className="text-slate-300 select-none">—</span>
                       )}
                     </td>
+                    <td className="px-2.5 py-2.5 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setManagingSim(s)}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-[#003857] hover:text-white text-slate-700 transition cursor-pointer border border-slate-200"
+                        title="Manage SIM Card Lifecycle & Device Assignment"
+                      >
+                        Manage
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -533,6 +601,21 @@ export const SimCardTab: React.FC<{
         </div>
         <Pager pg={pg} label="SIM cards" />
       </section>
+
+      {/* Manage SIM Modal */}
+      {managingSim && (
+        <ManageSimModal
+          sim={managingSim}
+          isOpen={Boolean(managingSim)}
+          onClose={() => setManagingSim(null)}
+          branches={branches}
+          users={users}
+          devices={devices}
+          role={role}
+          myBranch={myBranch}
+          onSave={handleSaveSim}
+        />
+      )}
 
       {/* Stock In Dialog */}
       <StockInDialog

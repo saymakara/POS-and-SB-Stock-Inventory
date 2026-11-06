@@ -111,7 +111,7 @@ import {
 
 import { useKeptMemo } from './utils/useKeptMemo';
 import { clearInventoryCache } from './services/inventoryCache';
-import { clearMaterialsCache, fetchOpenLostCounts } from './services/materialsService';
+import { clearMaterialsCache, fetchOpenLostCounts, adminSimUpdate } from './services/materialsService';
 import { SendHorizontal, Lock, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import {
@@ -1388,6 +1388,41 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  // Relative dynamic device updates when a SIM card changes
+  useEffect(() => {
+    const handleSimUpdated = (e: any) => {
+      const p = e.detail;
+      if (!p || !p.serial) return;
+      const targetDevSerial = p.device_serial ? String(p.device_serial).toUpperCase() : null;
+      setDevices((prev) =>
+        prev.map((d) => {
+          if (targetDevSerial && d.serial.toUpperCase() === targetDevSerial) {
+            return {
+              ...d,
+              customFields: { ...(d.customFields || {}), simCard: p.new_serial || p.serial },
+              ...(p.mid && !d.mid ? { mid: p.mid } : {}),
+              ...(p.merchant_name && !d.merchantName ? { merchantName: p.merchant_name } : {}),
+            };
+          }
+          if (
+            (d.customFields?.simCard === p.serial || d.customFields?.simCard === p.new_serial) &&
+            (!targetDevSerial || d.serial.toUpperCase() !== targetDevSerial)
+          ) {
+            return {
+              ...d,
+              customFields: { ...(d.customFields || {}), simCard: '' },
+            };
+          }
+          return d;
+        })
+      );
+    };
+
+    window.addEventListener('sim-card-updated', handleSimUpdated);
+    return () => window.removeEventListener('sim-card-updated', handleSimUpdated);
+  }, []);
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeAlertNotif, setActiveAlertNotif] = useState<SystemNotification | null>(null);
 
@@ -2250,6 +2285,40 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       } catch (e) {
         // ignore
       }
+    }
+
+    // Relative Dynamic SIM Card Synchronization
+    const prevSim = d.customFields?.simCard || d.customFields?.sim;
+    const nextSim = updates.customFields?.simCard ?? updates.customFields?.sim ?? prevSim;
+    if (nextSim && nextSim !== prevSim) {
+      if (prevSim) {
+        adminSimUpdate({
+          serial: prevSim,
+          device_serial: null,
+          mid: null,
+          merchant_name: null,
+          status: 'BRANCH_RESERVE',
+          note: `Unlinked from ${serial}`,
+        }).catch(() => {});
+      }
+      adminSimUpdate({
+        serial: nextSim,
+        device_serial: serial,
+        branch_id: updates.branchId,
+        mid: updates.mid || null,
+        merchant_name: updates.merchantName || null,
+        status: toMerchant ? 'AT_MERCHANT' : 'BRANCH_RESERVE',
+        note: `Assigned to ${serial}`,
+      }).catch(() => {});
+    } else if (nextSim && leftMerchant) {
+      adminSimUpdate({
+        serial: nextSim,
+        device_serial: null,
+        mid: null,
+        merchant_name: null,
+        status: 'BRANCH_RESERVE',
+        note: `Device ${serial} returned to ${stageLabel}`,
+      }).catch(() => {});
     }
 
     addAuditLog('Serial Cycle Updated', `Updated serial ${serial}: ${STAGE_META[d.stage].short} → ${stageLabel} (Branch Code ${updates.branchId})`);
@@ -4620,8 +4689,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       branches={branches}
                       myBranch={selectedBranch}
                       devices={devices}
+                      users={users}
                       triggerToast={triggerToast}
                       onLostChanged={refreshLostCounts}
+                      onUpdateDevice={(sn, u) => handleSaveWorkflow(sn, u)}
                     />
                   )}
 
