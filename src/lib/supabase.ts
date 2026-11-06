@@ -55,32 +55,3 @@ if (isSupabaseConfigured && typeof document !== 'undefined') {
     // ignore URL parse errors
   }
 }
-
-export async function checkSupabaseConnection(): Promise<{
-  connected: boolean;
-  latencyMs?: number;
-  error?: string;
-}> {
-  if (!isSupabaseConfigured) {
-    return {
-      connected: false,
-      error: 'Supabase credentials not configured in .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)',
-    };
-  }
-
-  const start = performance.now();
-  try {
-    const { error } = await supabase.from('branches').select('id', { head: true, count: 'estimated' }).limit(1);
-    const latencyMs = Math.max(1, Math.round(performance.now() - start));
-
-    if (error) {
-      return { connected: false, error: error.message, latencyMs };
-    }
-    return { connected: true, latencyMs };
-  } catch (err) {
-    return {
-      connected: false,
-      error: err instanceof Error ? err.message : 'Unknown connection error',
-    };
-  }
-}

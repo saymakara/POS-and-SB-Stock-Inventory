@@ -688,8 +688,6 @@ export async function countDevicesOnServer(): Promise<number | null> {
   }
 }
 
-
-
 // -----------------------------------------------------------------------------
 // REQUISITIONS API (Strict Server-Side Pagination)
 // -----------------------------------------------------------------------------
@@ -701,42 +699,6 @@ export interface RequisitionQueryParams {
   type?: string;
   branchId?: string;
   search?: string;
-}
-
-export async function fetchRequisitionsPageFromSupabase(
-  params: RequisitionQueryParams = {}
-): Promise<PaginatedResult<Requisition> | null> {
-  if (!isSupabaseConfigured) return null;
-  const pageSize = params.pageSize === 100 ? 100 : 50;
-  const page = Math.max(1, params.page || 1);
-  const offset = (page - 1) * pageSize;
-
-  const res = await fetchPaginatedRows('requisitions', 'req_id', {
-    limit: pageSize,
-    offset,
-    ascending: false,
-    filters: (q) => {
-      let query = q;
-      if (params.status && params.status !== 'ALL') query = query.eq('status', params.status);
-      if (params.type && params.type !== 'ALL') query = query.eq('type', params.type);
-      if (params.branchId && params.branchId !== 'ALL') query = query.eq('branch_id', params.branchId);
-      const term = cleanSearchTerm(params.search);
-      if (term) {
-        query = query.or(`req_id.ilike.%${term}%,branch_name.ilike.%${term}%,staff.ilike.%${term}%,reason.ilike.%${term}%`);
-      }
-      return query;
-    },
-  });
-
-  if (!res) return null;
-  return {
-    rows: res.rows
-      .map(mapRowToRequisition)
-      .sort((x, y) => String(y.date).localeCompare(String(x.date)) || y.reqId.localeCompare(x.reqId)),
-    total: res.count,
-    page,
-    pageSize,
-  };
 }
 
 export async function fetchRequisitionsFromSupabase(limit = 1000, offset = 0): Promise<Requisition[] | null> {
@@ -765,8 +727,6 @@ export async function fetchRequisitionsFromSupabase(limit = 1000, offset = 0): P
     return null;
   }
 }
-
-
 
 // -----------------------------------------------------------------------------
 // HISTORICAL MERCHANTS API (Strict Server-Side Pagination)
@@ -807,42 +767,6 @@ export interface HistoricalMerchantsQueryParams {
   deviceType?: string;
   reason?: string;
   search?: string;
-}
-
-export async function fetchHistoricalMerchantsPageFromSupabase(
-  params: HistoricalMerchantsQueryParams = {}
-): Promise<PaginatedResult<HistoricalMerchantRecord> | null> {
-  if (!isSupabaseConfigured) return null;
-  const pageSize = params.pageSize === 100 ? 100 : 50;
-  const page = Math.max(1, params.page || 1);
-  const offset = (page - 1) * pageSize;
-
-  const res = await fetchPaginatedRows('historical_merchants', 'returned_date', {
-    limit: pageSize,
-    offset,
-    ascending: false,
-    filters: (q) => {
-      let query = q;
-      if (params.branchId && params.branchId !== 'ALL') query = query.eq('branch_id', params.branchId);
-      if (params.deviceType && params.deviceType !== 'ALL') query = query.eq('device_type', params.deviceType);
-      if (params.reason && params.reason !== 'ALL') query = query.ilike('return_reason', `%${params.reason.slice(0, 15)}%`);
-      const term = cleanSearchTerm(params.search);
-      if (term) {
-        query = query.or(
-          `merchant_name.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,serial.ilike.%${term}%,battery_serial.ilike.%${term}%,return_reason.ilike.%${term}%`
-        );
-      }
-      return query;
-    },
-  });
-
-  if (!res) return null;
-  return {
-    rows: res.rows.map(mapRowToHistory),
-    total: res.count,
-    page,
-    pageSize,
-  };
 }
 
 export async function fetchHistoricalMerchantsFromSupabase(
@@ -1386,56 +1310,6 @@ export async function fetchAuditLogs(limit = 50, offset = 0): Promise<ServerAudi
   }
 }
 
-export async function fetchAuditLogsPageFromSupabase(params: {
-  page?: number;
-  pageSize?: number;
-  role?: string;
-  search?: string;
-}): Promise<PaginatedResult<ServerAuditEntry> | null> {
-  if (!isSupabaseConfigured) return null;
-  const pageSize = params.pageSize === 100 ? 100 : 50;
-  const page = Math.max(1, params.page || 1);
-  const offset = (page - 1) * pageSize;
-
-  const res = await fetchPaginatedRows('audit_logs', 'created_at', {
-    limit: pageSize,
-    offset,
-    ascending: false,
-    filters: (q) => {
-      let query = q;
-      if (params.role && params.role !== 'ALL') {
-        query = query.eq('role', params.role);
-      }
-      const term = cleanSearchTerm(params.search);
-      if (term) {
-        query = query.or(
-          `title.ilike.%${term}%,detail.ilike.%${term}%,actor_name.ilike.%${term}%,actor_emp.ilike.%${term}%,branch_id.ilike.%${term}%,target.ilike.%${term}%`
-        );
-      }
-      return query;
-    },
-  });
-
-  if (!res) return null;
-  return {
-    rows: res.rows.map((r: any) => ({
-      id: r.id,
-      title: r.title,
-      detail: r.detail,
-      role: r.role,
-      branchId: r.branch_id,
-      createdAt: r.created_at,
-      actorEmp: r.actor_emp,
-      actorName: r.actor_name,
-      action: r.action,
-      target: r.target,
-    })),
-    total: res.count,
-    page,
-    pageSize,
-  };
-}
-
 export type FieldEventStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUPERSEDED' | 'CANCELLED';
 export interface FieldIssue {
   code: string;
@@ -1580,47 +1454,6 @@ export async function fetchReviewedFieldEvents(limit = 1000, offset = 0): Promis
     await reportCaughtError('fetchReviewedFieldEvents', err, { showPopup: false });
     return null;
   }
-}
-
-
-
-export async function fetchFieldEventsPageFromSupabase(params: {
-  page?: number;
-  pageSize?: number;
-  status?: string;
-  deviceType?: string;
-  search?: string;
-}): Promise<PaginatedResult<FieldEvent> | null> {
-  if (!isSupabaseConfigured) return null;
-  const pageSize = params.pageSize === 100 ? 100 : 50;
-  const page = Math.max(1, params.page || 1);
-  const offset = (page - 1) * pageSize;
-
-  const res = await fetchPaginatedRows('field_events', 'received_at', {
-    limit: pageSize,
-    offset,
-    ascending: false,
-    filters: (q) => {
-      let query = q;
-      if (params.status && params.status !== 'ALL') query = query.eq('status', params.status);
-      if (params.deviceType && params.deviceType !== 'ALL') query = query.eq('device_type', params.deviceType);
-      const term = cleanSearchTerm(params.search);
-      if (term) {
-        query = query.or(
-          `serial.ilike.%${term}%,old_serial.ilike.%${term}%,source_record_id.ilike.%${term}%,mid.ilike.%${term}%,tid.ilike.%${term}%,outlet_name.ilike.%${term}%,terminal_name.ilike.%${term}%,staff_name.ilike.%${term}%,staff_id.ilike.%${term}%`
-        );
-      }
-      return query;
-    },
-  });
-
-  if (!res) return null;
-  return {
-    rows: res.rows.map(mapFieldEvent),
-    total: res.count,
-    page,
-    pageSize,
-  };
 }
 
 export async function countPendingFieldEvents(): Promise<number | null> {
@@ -2233,41 +2066,6 @@ export async function fetchStaffAccounts(limit = 100, offset = 0): Promise<Staff
     await reportCaughtError('fetchStaffAccounts', err, { showPopup: false });
     return null;
   }
-}
-
-
-
-export async function fetchStaffAccountsPageFromSupabase(params: {
-  page?: number;
-  pageSize?: number;
-  search?: string;
-}): Promise<PaginatedResult<StaffAccount> | null> {
-  if (!isSupabaseConfigured) return null;
-  const pageSize = params.pageSize === 100 ? 100 : 50;
-  const page = Math.max(1, params.page || 1);
-  const offset = (page - 1) * pageSize;
-
-  const res = await fetchPaginatedRows('staff_profiles', 'emp_id', {
-    limit: pageSize,
-    offset,
-    ascending: true,
-    filters: (q) => {
-      let query = q;
-      const term = cleanSearchTerm(params.search);
-      if (term) {
-        query = query.or(`emp_id.ilike.%${term}%,name.ilike.%${term}%,branch_id.ilike.%${term}%,role.ilike.%${term}%`);
-      }
-      return query;
-    },
-  });
-
-  if (!res) return null;
-  return {
-    rows: res.rows.map(mapStaff),
-    total: res.count,
-    page,
-    pageSize,
-  };
 }
 
 export async function saveStaffAccount(p: {

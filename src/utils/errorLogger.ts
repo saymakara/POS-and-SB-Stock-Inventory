@@ -44,10 +44,6 @@ export function setErrorLoggerContext(ctx: Partial<ErrorLoggerContext>): void {
   };
 }
 
-export function getErrorLoggerContext(): ErrorLoggerContext {
-  return currentContext;
-}
-
 export function subscribeTechnicalErrorPopup(listener: PopupListener): () => void {
   popupListeners.add(listener);
   return () => {
@@ -100,14 +96,6 @@ export function extractTechnicalError(
 }
 
 /**
- * Sends the exact error message, technical error code, and staff ID to the configured Telegram webhook.
- */
-export async function sendTelegramErrorAlert(_payload: TechnicalErrorPopupPayload): Promise<boolean> {
-  // System error alerts to Telegram disabled per user policy: alerts reserved strictly for POS and Sound Box Under Configuring
-  return false;
-}
-
-/**
  * Error-Only Logger + Mobile UI Technical Error Popup.
  * Called ONLY inside catch blocks when an API call or database operation fails.
  * Successful operations MUST NOT call this function.
@@ -150,12 +138,14 @@ export async function reportCaughtError(
   // 2. Error-Only Database Audit Log (only write to Supabase on actual failure, with circuit guard against recursion)
   if (isSupabaseConfigured && !options?.skipDbLog && operation !== 'writeErrorAuditLog') {
     try {
-      await supabase.from('audit_logs').insert({
+      // (07 Nov 2026) supabase-js returns its error instead of throwing it: read it (never re-thrown - see below)
+      const { error: logErr } = await supabase.from('audit_logs').insert({
         title: `[ERROR] ${operation}`.slice(0, 160),
         detail: `[${code}] Staff ${staffId}: ${message}`.slice(0, 1000),
         action: 'ERROR',
         target: options?.target || code,
       });
+      if (logErr) console.warn('[errorLogger] error not saved to the Audit Trail: ' + logErr.message);
     } catch {
       // Do not re-throw if the database log quota or connection is down; Telegram & UI popup already captured it
     }

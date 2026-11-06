@@ -42,9 +42,6 @@ export const midRuleError = (
   return '';
 };
 
-/** "1.00001E+14" and similar: a number Excel shortened, the real digits are lost. */
-export const isExcelNumber = (v: string | null | undefined): boolean => /^\d+(\.\d+)?e\+\d+$/i.test(String(v || '').trim());
-
 const parse = (d?: string) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '');
   return m ? { y: +m[1], mo: +m[2], d: +m[3] } : null;

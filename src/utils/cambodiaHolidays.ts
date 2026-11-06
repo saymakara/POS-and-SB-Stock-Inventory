@@ -137,22 +137,6 @@ export function isWeekendDay(dateOrIso: Date | string): boolean {
 }
 
 /**
- * Checks whether the given date is an official working day in Cambodia
- * (Monday through Friday, excluding official Cambodian Public Holidays).
- */
-export function isCambodiaWorkDay(dateOrIso: Date | string): boolean {
-  let iso = '';
-  if (typeof dateOrIso === 'string') {
-    iso = dateOrIso.substring(0, 10);
-  } else {
-    iso = `${dateOrIso.getFullYear()}-${String(dateOrIso.getMonth() + 1).padStart(2, '0')}-${String(dateOrIso.getDate()).padStart(2, '0')}`;
-  }
-  if (isWeekendDay(dateOrIso)) return false;
-  if (getCambodiaHoliday(iso) !== null) return false;
-  return true;
-}
-
-/**
  * Computes exact working days, weekends, and holidays for any given month.
  */
 export function getMonthWorkDaysSummary(year: number, month: number) {

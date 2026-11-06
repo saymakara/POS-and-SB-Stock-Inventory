@@ -18,7 +18,23 @@ startPerfMonitor();
 startClickGuard();
 startFilterMarks();
 const warmApp = () => { loadApp().catch(() => {}); };
-if ('requestIdleCallback' in window) (window as any).requestIdleCallback(warmApp, { timeout: 1500 }); else setTimeout(warmApp, 600);
+// (07 Nov 2026) the background download starts only once the sign-in field is on screen (it used to race the sign-in
+// screen on slow phones), or after 4 s for someone already signed in (whose app then loads directly anyway).
+const warmSoon = () => {
+  let started = false;
+  const go = () => {
+    if (started) return;
+    started = true;
+    setTimeout(() => {
+      if ('requestIdleCallback' in window) (window as any).requestIdleCallback(warmApp, { timeout: 1500 }); else warmApp();
+    }, 300);
+  };
+  if (document.getElementById('empId')) { go(); return; }
+  const seen = new MutationObserver(() => { if (document.getElementById('empId')) { seen.disconnect(); go(); } });
+  seen.observe(document.body, { childList: true, subtree: true });
+  setTimeout(() => { seen.disconnect(); go(); }, 4000);
+};
+warmSoon();
 
 // Register Browser Cache Service Worker for lightning-fast loading
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {

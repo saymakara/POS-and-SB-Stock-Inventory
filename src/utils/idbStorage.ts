@@ -262,34 +262,6 @@ export function persistDevicesIncremental(devices: Device[]): Promise<boolean> {
 }
 
 /**
- * Loads all devices from IndexedDB. Returns null if empty or uninitialized.
- */
-export async function loadDevicesFromIdb(): Promise<Device[] | null> {
-  try {
-    const db = await getDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction([STORE_DEVICES], 'readonly');
-      const store = tx.objectStore(STORE_DEVICES);
-      const request = store.getAll();
-
-      request.onsuccess = () => {
-        const result = request.result as Device[];
-        if (result && result.length > 0) {
-          resolve(result);
-        } else {
-          resolve(null);
-        }
-      };
-
-      request.onerror = () => reject(request.error);
-    });
-  } catch (err) {
-    console.warn('[IndexedDB] Error loading devices from IDB:', err);
-    return null;
-  }
-}
-
-/**
  * Persists requisitions to IndexedDB for fast browser caching.
  */
 export async function saveRequisitionsToIdb(requisitions: Requisition[]): Promise<boolean> {
@@ -309,29 +281,6 @@ export async function saveRequisitionsToIdb(requisitions: Requisition[]): Promis
   } catch (err) {
     console.warn('[IndexedDB] Error saving requisitions to IDB:', err);
     return false;
-  }
-}
-
-/**
- * Loads requisitions from IndexedDB.
- */
-export async function loadRequisitionsFromIdb(): Promise<Requisition[] | null> {
-  try {
-    const db = await getDb();
-    if (!db.objectStoreNames.contains(STORE_REQUISITIONS)) return null;
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction([STORE_REQUISITIONS], 'readonly');
-      const store = tx.objectStore(STORE_REQUISITIONS);
-      const request = store.getAll();
-      request.onsuccess = () => {
-        const result = request.result as Requisition[];
-        resolve(result && result.length > 0 ? result : null);
-      };
-      request.onerror = () => reject(request.error);
-    });
-  } catch (err) {
-    console.warn('[IndexedDB] Error loading requisitions from IDB:', err);
-    return null;
   }
 }
 
@@ -359,29 +308,6 @@ export async function saveHistoricalMerchantsToIdb(records: HistoricalMerchantRe
 }
 
 /**
- * Loads historical merchants from IndexedDB.
- */
-export async function loadHistoricalMerchantsFromIdb(): Promise<HistoricalMerchantRecord[] | null> {
-  try {
-    const db = await getDb();
-    if (!db.objectStoreNames.contains(STORE_HISTORICAL)) return null;
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction([STORE_HISTORICAL], 'readonly');
-      const store = tx.objectStore(STORE_HISTORICAL);
-      const request = store.getAll();
-      request.onsuccess = () => {
-        const result = request.result as HistoricalMerchantRecord[];
-        resolve(result && result.length > 0 ? result : null);
-      };
-      request.onerror = () => reject(request.error);
-    });
-  } catch (err) {
-    console.warn('[IndexedDB] Error loading historical merchants from IDB:', err);
-    return null;
-  }
-}
-
-/**
  * Persists branches to IndexedDB.
  */
 export async function saveBranchesToIdb(branches: Branch[]): Promise<boolean> {
@@ -401,29 +327,6 @@ export async function saveBranchesToIdb(branches: Branch[]): Promise<boolean> {
   } catch (err) {
     console.warn('[IndexedDB] Error saving branches to IDB:', err);
     return false;
-  }
-}
-
-/**
- * Loads branches from IndexedDB.
- */
-export async function loadBranchesFromIdb(): Promise<Branch[] | null> {
-  try {
-    const db = await getDb();
-    if (!db.objectStoreNames.contains(STORE_BRANCHES)) return null;
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction([STORE_BRANCHES], 'readonly');
-      const store = tx.objectStore(STORE_BRANCHES);
-      const request = store.getAll();
-      request.onsuccess = () => {
-        const result = request.result as Branch[];
-        resolve(result && result.length > 0 ? result : null);
-      };
-      request.onerror = () => reject(request.error);
-    });
-  } catch (err) {
-    console.warn('[IndexedDB] Error loading branches from IDB:', err);
-    return null;
   }
 }
 
@@ -475,46 +378,5 @@ export async function clearDevicesFromIdb(): Promise<boolean> {
   } catch (err) {
     console.warn('[IndexedDB] Error clearing devices from IDB:', err);
     return false;
-  }
-}
-
-/**
- * Clears all cached inventory stores in IndexedDB.
- */
-export async function clearAllIdb(): Promise<boolean> {
-  try {
-    const db = await getDb();
-    const stores = [STORE_DEVICES, STORE_REQUISITIONS, STORE_HISTORICAL, STORE_BRANCHES, STORE_META].filter((s) =>
-      db.objectStoreNames.contains(s)
-    );
-    if (!stores.length) return true;
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(stores, 'readwrite');
-      stores.forEach((s) => tx.objectStore(s).clear());
-      persistedDevices.clear();
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch (err) {
-    console.warn('[IndexedDB] Error clearing all IDB:', err);
-    return false;
-  }
-}
-
-/**
- * Returns cache metadata such as last save timestamp and device count.
- */
-export async function getIdbCacheMetadata(): Promise<{ timestamp?: string; count?: number } | null> {
-  try {
-    const db = await getDb();
-    if (!db.objectStoreNames.contains(STORE_META)) return null;
-    return new Promise((resolve) => {
-      const tx = db.transaction([STORE_META], 'readonly');
-      const req = tx.objectStore(STORE_META).get('last_device_save');
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => resolve(null);
-    });
-  } catch {
-    return null;
   }
 }

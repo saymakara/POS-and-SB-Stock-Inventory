@@ -43,21 +43,3 @@ export function formatBranchName(name?: string | null): string {
   return `${clean} Branch`;
 }
 
-import { isStaffManagementExempt } from './kpiManagementUtils';
-
-/**
- * Detects if a staff account belongs to the management level (Exempt from mandatory field KPIs).
- * Strictly follows explicit user definition in KPI Settings.
- */
-export function isManagementRole(
-  _position?: string | null,
-  role?: string | null,
-  staffId?: string | null,
-  staffName?: string | null
-): boolean {
-  if (role === 'SUPER_ADMIN' || role === 'ADMIN') return true;
-  if (staffId || staffName) {
-    return isStaffManagementExempt(staffId, staffName);
-  }
-  return false;
-}
