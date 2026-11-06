@@ -262,7 +262,7 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="relative w-full max-w-2xl bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full border-l border-slate-200 dark:border-slate-800"
+          className="relative w-full sm:max-w-[460px] md:max-w-[480px] bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full border-l border-slate-200 dark:border-slate-800"
         >
           {/* 1. NAVY HEADER BAR */}
           <div className="bg-[#003857] text-white px-5 py-4 flex items-center justify-between shrink-0 shadow-sm border-b border-white/10">
@@ -307,7 +307,7 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
           </div>
 
           {/* 2. SUBHEADER STEPPER & SAFEGUARD */}
-          <div className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0 text-xs">
+          <div className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0 text-xs gap-2 flex-wrap">
             <div className="flex items-center gap-2 font-semibold">
               <button
                 type="button"
@@ -455,7 +455,7 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
                     </h3>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Lifecycle Status Stage <span className="text-rose-500">*</span>
@@ -652,7 +652,7 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
                     </h3>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Assigned Branch Staff Officer
