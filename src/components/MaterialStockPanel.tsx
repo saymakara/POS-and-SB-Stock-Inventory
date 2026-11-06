@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import { Boxes, Cpu, Volume2, RefreshCw, Loader2, PackagePlus, PencilLine, Upload, AlertTriangle, Download, Package } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { downloadCsv } from '../utils/exportCsv';
@@ -29,21 +30,80 @@ export const ProductStockPage: React.FC<{
         <h2 className="flex items-center gap-2.5 text-lg sm:text-xl font-extrabold text-slate-900">
           <Icon className={`w-5 h-5 ${group === 'POS' ? 'text-[#006BA6]' : 'text-[#4F518C]'}`} aria-hidden />{title}
         </h2>
-        <div role="tablist" aria-label={`${title} views`} className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200">
+        <div role="tablist" aria-label={`${title} views`} className="relative inline-flex p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 shadow-2xs">
           {((push ? ['UNITS', 'PUSH', 'MATERIAL'] : ['UNITS', 'MATERIAL']) as ProductView[]).map((v) => {
             const n = v === 'PUSH' ? pushCount || 0 : v === 'MATERIAL' ? lostCount || 0 : 0;
+            const isSelected = view === v;
             return (
-              <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => onViewChange(v)}
+              <motion.button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                onClick={() => onViewChange(v)}
+                whileTap={{ scale: 0.97 }}
                 title={v === 'PUSH' && n ? `${n} unit(s) waiting to be pushed` : v === 'MATERIAL' && n ? `${n} open lost item(s)` : undefined}
-                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer transition ${view === v ? 'bg-[#003857] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
-                {v === 'UNITS' ? 'Units' : v === 'PUSH' ? 'Push Configuring' : 'Material'}
-                {n > 0 && <span className={`text-[10.5px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ${v === 'MATERIAL' ? 'bg-rose-600 text-white' : view === v ? 'bg-white text-[#003857]' : 'bg-amber-100 text-amber-800'}`}>{n}</span>}
-              </button>
+                className="relative inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold cursor-pointer select-none"
+              >
+                {isSelected && (
+                  <motion.div
+                    layoutId={`active-product-view-pill-${group}`}
+                    className="absolute inset-0 rounded-lg bg-[#003857] shadow-xs z-0 pointer-events-none"
+                    transition={{
+                      type: 'spring',
+                      stiffness: 500,
+                      damping: 35,
+                      mass: 0.55,
+                    }}
+                  />
+                )}
+                <span
+                  className={`relative z-10 transition-colors duration-150 ${
+                    isSelected ? 'text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {v === 'UNITS' ? 'Units' : v === 'PUSH' ? 'Push Configuring' : 'Material'}
+                </span>
+                {n > 0 && (
+                  <span
+                    className={`relative z-10 text-[10.5px] font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors duration-150 ${
+                      v === 'MATERIAL'
+                        ? 'bg-rose-600 text-white shadow-2xs'
+                        : isSelected
+                        ? 'bg-white/20 text-white'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {n}
+                  </span>
+                )}
+              </motion.button>
             );
           })}
         </div>
       </div>
-      {view === 'UNITS' ? units : view === 'PUSH' && push ? push : <MaterialStockPanel group={group} role={role} branches={branches} myBranch={myBranch} triggerToast={triggerToast} onLostChanged={onLostChanged} />}
+      <motion.div
+        key={view}
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full"
+      >
+        {view === 'UNITS'
+          ? units
+          : view === 'PUSH' && push
+          ? push
+          : (
+            <MaterialStockPanel
+              group={group}
+              role={role}
+              branches={branches}
+              myBranch={myBranch}
+              triggerToast={triggerToast}
+              onLostChanged={onLostChanged}
+            />
+          )}
+      </motion.div>
     </div>
   );
 };
@@ -197,11 +257,31 @@ export const LostTable: React.FC<{
     <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden" aria-label={title}>
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-slate-100">
         <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-rose-600" />{title}</h3>
-        <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold">
-          {([['OPEN', 'Open'], ['', 'All']] as const).map(([v, l]) => (
-            <button key={l} type="button" onClick={() => onFilter(v)} aria-pressed={filter === v}
-              className={`px-3 py-1 rounded-md cursor-pointer ${filter === v ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'}`}>{l}</button>
-          ))}
+        <div className="relative inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold">
+          {([['OPEN', 'Open'], ['', 'All']] as const).map(([v, l]) => {
+            const isSelected = filter === v;
+            return (
+              <motion.button
+                key={l}
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                onClick={() => onFilter(v)}
+                aria-pressed={isSelected}
+                className="relative px-3 py-1 rounded-md cursor-pointer select-none transition-colors duration-150"
+              >
+                {isSelected && (
+                  <motion.div
+                    layoutId="active-lost-filter-pill"
+                    className="absolute inset-0 rounded-md bg-white shadow-2xs z-0 pointer-events-none"
+                    transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.55 }}
+                  />
+                )}
+                <span className={`relative z-10 ${isSelected ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'}`}>
+                  {l}
+                </span>
+              </motion.button>
+            );
+          })}
         </div>
       </div>
       <div className="overflow-x-auto">
