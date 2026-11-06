@@ -2,7 +2,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } fr
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Boxes, Cpu, Volume2, RefreshCw, Loader2, PackagePlus, PencilLine, Upload,
-  AlertTriangle, Download, Package, Battery, Dock, Smartphone, Plug, Search, Copy, Check
+  Download, Package, Battery, Dock, Smartphone, Plug, Search, Copy, Check, Building2, AlertTriangle
 } from 'lucide-react';
 import { Branch, UserRole, Device } from '../types';
 import { Pager } from './Pager';
@@ -11,14 +11,13 @@ import { downloadCsv, csvTime } from '../utils/exportCsv';
 import { parseCsv } from '../utils/csv';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import {
-  DeviceGroup, LostItem, MaterialBalance, MaterialCode, MATERIALS, SerialStatus, cleanMaterialError, fetchLost, fetchMaterialBalances,
+  DeviceGroup, LostItem, MaterialCode, MATERIALS, SerialStatus, cleanMaterialError, fetchMaterialBalances,
   isMaterialsMissing, materialAdjust, materialByCode, materialLostAction, materialName, materialOpening, materialStockIn, normMaterialSerial, placeName, productMaterials,
-  getCachedMaterialBalances, getCachedLost, clearMaterialsCache,
+  clearMaterialsCache,
   MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts,
 } from '../services/materialsService';
-import { isFresh } from '../utils/freshness';
-import { BusyLabel, Kpi, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
-import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, CROSSFADE_OVERLAP_VARIANTS, staggerRowStyle } from '../utils/animationRules';
+import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
+import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, staggerRowStyle } from '../utils/animationRules';
 
 export type ProductView = 'UNITS' | 'PUSH' | 'MATERIAL';
 
@@ -153,10 +152,10 @@ export const ProductStockPage: React.FC<{
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={view}
-          variants={CROSSFADE_OVERLAP_VARIANTS}
-          initial="initial"
-          animate="animate"
-          exit="exit"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.12, ease: 'easeOut' }}
           className="w-full"
         >
           {view === 'UNITS'
@@ -172,7 +171,6 @@ export const ProductStockPage: React.FC<{
                 triggerToast={triggerToast}
                 onLostChanged={onLostChanged}
                 devices={devices}
-                hideHero
                 viewToggle={viewToggle}
               />
             )}
@@ -195,7 +193,7 @@ const MaterialStockPanel: React.FC<{
   hideHero?: boolean;
   viewToggle?: React.ReactNode;
 }> = ({
-  group, role, branches, myBranch, triggerToast, onLostChanged, devices = [], hideHero, viewToggle,
+  group, role, branches, myBranch, triggerToast, onLostChanged, devices = [], viewToggle,
 }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const mats = useMemo(() => productMaterials(group), [group]);
@@ -210,11 +208,9 @@ const MaterialStockPanel: React.FC<{
   const [search, setSearch] = useState('');
   useEffect(() => { const t = setTimeout(() => setSearch(dq.trim()), 350); return () => clearTimeout(t); }, [dq]);
 
-    const [bal, setBal] = useState<MaterialBalance[] | null>(() => getCachedMaterialBalances() || null);
-  const [lost, setLost] = useState<LostItem[] | null>(() => getCachedLost(codes, 'OPEN') || null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
-    const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST' | 'OPENING'>('');
+  const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST' | 'OPENING'>('');
   const [copiedSerial, setCopiedSerial] = useState<string | null>(null);
 
   // Serials from material_serials table
@@ -274,25 +270,18 @@ const MaterialStockPanel: React.FC<{
     return items;
   }, [devices, group]);
 
-  // Load balances and lost
+  // Load balances to verify setup
   const load = useCallback(async (force = false) => {
-    const cachedB = getCachedMaterialBalances();
-    const cachedL = getCachedLost(codes, 'OPEN');
-    const kLost = codes.slice().sort().join(',') + '|OPEN';
-    if (!force && cachedB && cachedL && isFresh('mat:balances', 60000) && isFresh('mat:lost:' + kLost, 60000)) {
-      setBal(cachedB);
-      setLost(cachedL);
-      setLoading(false);
-      return;
-    }
-    if (!cachedB || !cachedL) setLoading(true);
     try {
-      const [b, l] = await Promise.all([fetchMaterialBalances(force), fetchLost(codes, 'OPEN', force)]);
-      setBal(b); setLost(l); setErr('');
+      await fetchMaterialBalances(force);
+      setErr('');
     } catch (e) {
-      const m = cleanMaterialError(e); setErr(isMaterialsMissing(m) ? 'SETUP' : m); setBal((x) => x || []); setLost((x) => x || []);
-    } finally { setLoading(false); }
-  }, [codes]);
+      const m = cleanMaterialError(e);
+      setErr(isMaterialsMissing(m) ? 'SETUP' : m);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Load serials for this product's materials
   const loadSerials = useCallback(async (force = false) => {
@@ -405,23 +394,7 @@ const MaterialStockPanel: React.FC<{
     [combinedItems, pg.start, pg.end]
   );
 
-  // Location cell mapping for the location summary table
-  const cell = useMemo(() => {
-    const m = new Map<string, MaterialBalance>();
-    (bal || []).forEach((b) => m.set(`${b.code}|${b.branchId}`, b));
-    return m;
-  }, [bal]);
-
-  const totals = useMemo(() => codes.map((c) => ({
-    code: c,
-    hq: cell.get(`${c}|100`)?.onHand || 0,
-    branches: (bal || []).filter((b) => b.code === c && b.branchId !== '100').reduce((s, b) => s + b.onHand, 0),
-    transit: (bal || []).filter((b) => b.code === c).reduce((s, b) => s + b.inTransit, 0),
-  })), [codes, bal, cell]);
-
-    const openLost = (lost || []).filter((l) => l.status === 'OPEN').length;
-
-    const exportDetailedInventoryCsv = () => {
+  const exportDetailedInventoryCsv = () => {
     const list = combinedItems;
     downloadCsv(
       `${group === 'POS' ? 'pos' : 'sound-box'}-materials-inventory`,
@@ -459,17 +432,6 @@ const MaterialStockPanel: React.FC<{
     navigator.clipboard?.writeText(text);
     setCopiedSerial(text);
     setTimeout(() => setCopiedSerial(null), 1800);
-  };
-
-  const getMaterialIcon = (code: MaterialCode) => {
-    switch (code) {
-      case 'BATTERY': return <Battery className="w-3.5 h-3.5 text-amber-600 shrink-0" />;
-      case 'STAND': return <Smartphone className="w-3.5 h-3.5 text-indigo-600 shrink-0" />;
-      case 'DOCK': return <Dock className="w-3.5 h-3.5 text-sky-600 shrink-0" />;
-      case 'POS_ADAPTOR': return <Plug className="w-3.5 h-3.5 text-slate-600 shrink-0" />;
-      case 'SB_ADAPTOR': return <Plug className="w-3.5 h-3.5 text-purple-600 shrink-0" />;
-      default: return <Package className="w-3.5 h-3.5 text-slate-600 shrink-0" />;
-    }
   };
 
   const getMaterialBadge = (code: MaterialCode) => {
@@ -534,212 +496,186 @@ const MaterialStockPanel: React.FC<{
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* 1. TOP HERO BANNER & CONTROL HUB (SIM Card Tab Style) */}
-      <section className={`relative overflow-hidden rounded-3xl ${hideHero ? 'p-4 sm:p-5' : 'p-6 sm:p-7'} border shadow-sm bg-slate-100 border-slate-200/90`} aria-label={group === 'POS' ? 'POS Materials Hub' : 'Sound Box Materials Hub'}>
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1 max-w-3xl">
-            <h1 className={`${hideHero ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'} font-extrabold tracking-tight flex items-center gap-2.5 text-slate-900`}>
-              <Boxes className={`${hideHero ? 'w-5 h-5' : 'w-7 h-7'} text-[#003857]`} aria-hidden />
-              <span>{group === 'POS' ? 'POS Terminal Materials Control' : 'Sound Box Materials Control'}</span>
-            </h1>
-            {!hideHero && (
-              <p className="text-sm sm:text-base text-slate-600">
-                {group === 'POS'
-                  ? 'Individual inventory tracking, terminal assignments, and branch custody for Batteries, Stand Holders, Charging Docks, and AC Adaptors.'
-                  : 'Individual inventory tracking, unit assignments, and branch custody for Batteries and Sound Box AC Adaptors.'}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {viewToggle && (
-              <div className="mr-1">
-                {viewToggle}
+    <div className="space-y-4">
+      {/* Executive Material Inventory Command Card */}
+      <section
+        className="surface-card rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm"
+        aria-label={group === 'POS' ? 'POS Materials Inventory Table' : 'Sound Box Materials Inventory Table'}
+      >
+        {/* Top Header Strip - System Grey Palette matching InventoryTab & PushConfiguringTab */}
+        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
+              <Boxes className="w-5 h-5 text-slate-700 dark:text-slate-200" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
+                  {group === 'POS' ? 'POS Terminal Materials Ledger' : 'Sound Box Materials Ledger'}
+                </h2>
+                <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                  {totalAllItems?.toLocaleString() ?? combinedItems.length} Items
+                </span>
               </div>
-            )}
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {group === 'POS'
+                  ? 'Multi-branch materials tracking for Batteries, Stand Holders, Charging Docks, and AC Adaptors'
+                  : 'Multi-branch materials tracking for Batteries and Sound Box AC Adaptors'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             {isAdmin && (
-              <button
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
                 type="button"
-                className={btnPrimary}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition cursor-pointer shadow-2xs"
                 onClick={() => setDlg('IN')}
               >
-                <PackagePlus className="w-4 h-4" />
-                Stock In
-              </button>
+                <PackagePlus className="w-3.5 h-3.5" />
+                <span>Stock In</span>
+              </motion.button>
             )}
             {isAdmin && (
-              <button type="button" className={btnLight} onClick={() => setDlg('ADJUST')}>
-                <PencilLine className="w-4 h-4" />
-                Correct
-              </button>
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
+                onClick={() => setDlg('ADJUST')}
+              >
+                <PencilLine className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                <span>Correct</span>
+              </motion.button>
             )}
             {isAdmin && (
-              <button type="button" className={btnLight} onClick={() => setDlg('OPENING')}>
-                <Upload className="w-4 h-4" />
-                Opening stock
-              </button>
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
+                onClick={() => setDlg('OPENING')}
+              >
+                <Upload className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+                <span>Opening stock</span>
+              </motion.button>
             )}
-            <button
+            <motion.button
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.97 }}
               type="button"
-              className={btnLight}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
               onClick={exportDetailedInventoryCsv}
             >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
-            <button type="button" className={btnLight} onClick={changed} aria-label="Refresh">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              Refresh
-            </button>
+              <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Export CSV</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.97 }}
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
+              onClick={changed}
+              aria-label="Refresh"
+            >
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />}
+              <span>Refresh</span>
+            </motion.button>
           </div>
         </div>
 
-        {/* Status Filter Pills (Sim Card Tab Style) */}
-        <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-slate-200/90" role="group" aria-label="Status">
-          <button
-            type="button"
-            onClick={() => setStatusFilter('')}
-            aria-pressed={statusFilter === ''}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition ${
-              statusFilter === '' ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            All <span className="tabular-nums opacity-80 ml-1">{totalAllItems?.toLocaleString() ?? '—'}</span>
-          </button>
-          {STATUS_OPTIONS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setStatusFilter(s)}
-              aria-pressed={statusFilter === s}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition ${
-                statusFilter === s ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {SERIAL_STATUS_LABEL[s]}{' '}
-              <span className="tabular-nums opacity-80 ml-1">
-                {dynamicStatusCounts[s]?.toLocaleString() ?? '0'}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Material Type Selector Tabs (Sim Card Tab Style) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mt-3.5 pt-3.5 border-t border-slate-200/90">
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-200/80 rounded-2xl" role="group" aria-label="Select Material Category">
-            <button
-              type="button"
-              aria-pressed={selectedCode === 'ALL'}
-              onClick={() => setSelectedCode('ALL')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                selectedCode === 'ALL'
-                  ? 'bg-[#003857] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
-              }`}
-            >
-              <Boxes className="w-3.5 h-3.5" />
-              <span>All Items</span>
-              <span className={`text-[10.5px] px-1.5 py-0.2 rounded-full tabular-nums ${selectedCode === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-700'}`}>
-                {combinedItems.length}
-              </span>
-            </button>
-
-            {codes.map((c) => {
-              const isSelected = selectedCode === c;
-              const count = combinedItems.filter((i) => i.code === c).length;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedCode(c)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-[#003857] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
-                  }`}
-                >
-                  {getMaterialIcon(c)}
-                  <span>{materialName(c)}</span>
-                  <span className={`text-[10.5px] px-1.5 py-0.2 rounded-full tabular-nums ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-700'}`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <span className="text-xs text-slate-500 font-medium">
-            Showing <strong className="text-slate-800">{combinedItems.length}</strong> {selectedCode === 'ALL' ? 'total items' : materialName(selectedCode)}
-          </span>
-        </div>
-      </section>
-
-      {/* 2. KPI METRIC SUMMARY CARDS */}
-      <section className={`grid grid-cols-2 gap-3.5 ${codes.length >= 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-3'}`} aria-label="Material totals">
-        {totals.map((t) => {
-          const isSelected = selectedCode === t.code;
-          return (
-            <div
-              key={t.code}
-              onClick={() => setSelectedCode(isSelected ? 'ALL' : t.code)}
-              className={`cursor-pointer transition-all active:scale-[0.98] rounded-2xl ${isSelected ? 'ring-2 ring-[#003857] shadow-sm' : ''}`}
-            >
-              <Kpi
-                icon={t.code === 'BATTERY' ? Battery : t.code === 'STAND' ? Smartphone : t.code === 'DOCK' ? Dock : Plug}
-                label={materialName(t.code)}
-                value={bal ? t.hq + t.branches : undefined}
-                sub={`HQ ${t.hq.toLocaleString()} · branches ${t.branches.toLocaleString()}${t.transit ? ` · ${t.transit} in transit` : ''}`}
-              />
-            </div>
-          );
-        })}
-        <div
-          onClick={() => setStatusFilter(statusFilter === 'LOST' ? '' : 'LOST')}
-          className={`cursor-pointer transition-all active:scale-[0.98] rounded-2xl ${statusFilter === 'LOST' ? 'ring-2 ring-rose-600 shadow-sm' : ''}`}
-        >
-          <Kpi
-            icon={AlertTriangle}
-            label="Lost, open"
-            value={lost ? openLost : undefined}
-            tone={openLost ? 'bad' : undefined}
-            sub="reported at returns and replacements"
-          />
-        </div>
-      </section>
-
-      {/* 3. DEDICATED MATERIALS TABLE CONTROL (SIM Card Tab Style) */}
-      <section className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden" aria-label={group === 'POS' ? 'POS Materials Inventory Table' : 'Sound Box Materials Inventory Table'}>
-        {/* Table Toolbar: Search & Location Filter */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
-          <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
-            <div className="relative flex-1 min-w-[220px] max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        {/* Filter Toolbar matching InventoryTab & PushConfiguringTab */}
+        <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-3">
+          {/* Row 1: Search + Material Category selector + Status selector */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            <div className="relative sm:col-span-2 md:col-span-2 lg:col-span-3">
+              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={group === 'POS' ? 'Search serial, POS terminal, MID, merchant or staff...' : 'Search serial, Sound Box, MID, merchant or staff...'}
-                className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
               />
             </div>
 
-            {isAdmin && (
-              <div className="min-w-[160px]">
+            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-2">
+              <select
+                aria-label="Select Material Category"
+                value={selectedCode}
+                onChange={(e) => setSelectedCode(e.target.value as MaterialCode | 'ALL')}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">All Material Types ({combinedItems.length})</option>
+                {codes.map((c) => {
+                  const count = combinedItems.filter((i) => i.code === c).length;
+                  return (
+                    <option key={c} value={c}>
+                      {materialName(c)} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
+              <select
+                aria-label="Status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as SerialStatus | '')}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="">All Statuses ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {SERIAL_STATUS_LABEL[s]} ({dynamicStatusCounts[s] ?? 0})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 2: Branch Filter on left, viewToggle in exact same location on right */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex-1 min-w-[220px] max-w-sm">
+              {isAdmin ? (
                 <select
                   value={branchFilter}
                   onChange={(e) => setBranchFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-800 outline-none focus:border-[#003857] transition"
+                  className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
                 >
-                  <option value="">All locations</option>
-                  <option value="100">Head Office</option>
-                  {branches.filter((b) => b.id !== '100').map((b) => (
-                    <option key={b.id} value={b.id}>{b.id} · {b.name}</option>
-                  ))}
+                  <option value="">All Branch Codes</option>
+                  <option value="100">Head Office (Code 100)</option>
+                  {branches
+                    .filter((b) => b.id !== '100' && b.code !== '100')
+                    .map((b) => (
+                      <option key={b.code || b.id} value={b.code || b.id}>
+                        Branch Code {b.code || b.id} — {b.name}
+                      </option>
+                    ))}
                 </select>
+              ) : (
+                <div className="w-full px-3 py-2.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Scoped to Branch Code: {myBranch}</span>
+                </div>
+              )}
+            </div>
+
+            {viewToggle && (
+              <div className="flex items-center">
+                {viewToggle}
               </div>
             )}
+          </div>
 
+          {/* Row 3: Filter Info & Clear Filters */}
+          <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
+            <span className="text-xs font-semibold text-slate-500">
+              {displayedItems.length} of {combinedItems.length} items shown
+            </span>
             <ClearFiltersButton
               active={Boolean(query.trim() || statusFilter || (isAdmin && branchFilter) || selectedCode !== 'ALL')}
               onClear={() => {
@@ -749,12 +685,6 @@ const MaterialStockPanel: React.FC<{
                 setSelectedCode('ALL');
               }}
             />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500">
-              {displayedItems.length} of {combinedItems.length} items shown
-            </span>
           </div>
         </div>
 

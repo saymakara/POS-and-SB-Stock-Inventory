@@ -111,9 +111,8 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   ok(await p.locator('option', { hasText: 'All Hardware Types' }).count() === 0, 'Units: the hardware type list is hidden (POS only)');
   ok(/Material\s*1/.test(await p.getByRole('tab', { name: /Material/ }).textContent()), 'Material tab shows 1 open lost item');
   await p.getByRole('tab', { name: /Material/ }).click(); await sleep(1500);
-  const kpis = p.locator('section[aria-label="Material totals"]');
-  ok(/512/.test(await kpis.textContent()) || /500/.test(await kpis.textContent()), 'Material: POS adaptors count shown in KPI');
-  ok(/2 in transit/.test(await kpis.textContent()), 'Material: in-transit quantity shown');
+  ok((await p.locator('section[aria-label="Material totals"]').count()) === 0, 'Redundant material totals KPI cards are removed');
+  ok(await p.locator('[aria-label="Select Material Category"]').isVisible(), 'Material Category filter is visible');
   ok((await p.locator('section[aria-label="Stock per location"]').count()) === 0, 'Stock per location matrix table is removed from POS');
   ok((await p.locator('section[aria-label^="Lost · POS"]').count()) === 0, 'Lost items table is removed from POS');
 
