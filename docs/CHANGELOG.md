@@ -2,6 +2,11 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 8 Nov 2026 — "POS Active Maintenance" is now "POS Operational Support"
+Merchant Visit 3.86 renames the request. In the portal: the POS Terminal review page shows the new name, and
+`20261108_01_pos_operational_support_label.sql` (run in the SQL Editor; safe to run again) renames the KPI rule. The kind
+stays `POS_MAINT`, so records, KPI points and history are unchanged; a rule name an admin edited is kept.
+
 ## 7 Nov 2026 — Merchant Visit Request: POS / Sound Box materials
 Database only (`20261107_02_mv_request_materials.sql`, run in the SQL Editor; self-test `supabase/tests/mv_request_materials_selftest.sql`).
 - `mv_req_submit` takes the materials a branch asks for from the Merchant Visit app (`materials {CODE: qty}`: active catalogue
