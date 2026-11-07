@@ -100,7 +100,7 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
           <Section icon={<ClipboardList className="w-3.5 h-3.5 text-slate-600" />} title="Stock Requests and Returns" count={reqs.length}>
             {reqs.map((r) => (
               <div key={r.reqId} className="rounded-lg border border-slate-100 p-2.5">
-                <div className="flex items-center justify-between gap-2"><div><span className="font-mono">{r.reqId}</span> · {r.type === 'STOCK_RETURN' ? 'Return' : 'Request'} · {r.status.replace('_', ' ')}</div><CopyableRecordId id={r.reqId} /></div>
+                <div className="flex items-center justify-between gap-2"><div>{r.type === 'STOCK_RETURN' ? 'Return' : 'Request'} · {r.status.replace('_', ' ')}</div><CopyableRecordId id={r.reqId} /></div>
                 <div className="text-slate-500">{r.date} · Branch {r.branchId} · {r.staff}</div>
               </div>
             ))}
