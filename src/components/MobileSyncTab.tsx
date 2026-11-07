@@ -1173,7 +1173,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                       </div>
                       <div>
                         <div className="text-sm font-black leading-tight tracking-tight">
-                          POS &amp; Sound Box Install
+                          POS Terminal / Sound Box Install
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">

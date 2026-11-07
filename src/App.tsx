@@ -4736,7 +4736,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           {/* Mandatory Copyright Footer at Bottom */}
           <footer className="mx-4 sm:mx-6 mt-8 pt-5 pb-4 border-t border-slate-200/90 text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <div className="text-[11px] font-mono text-slate-500">
-              Copyright © POS &amp; Sound Box Stock Management System 2026
+              Copyright © In-Store Management Portal 2026
             </div>
             <div className="flex items-center gap-4 text-[11px] font-mono text-slate-500">
               <span className="inline-flex items-center gap-1.5">
