@@ -298,7 +298,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
     const payload = {
       exportMetadata: {
         exportedAt: `${stampPP()} (Phnom Penh)`,
-        system: 'POS and Sound Box Stock Inventory',
+        system: 'In-Store Management Portal',
         totalDevices: counts.active,
         archivedDevices: counts.archived,
         uniqueMerchants: counts.uniqueMerchants,

@@ -891,10 +891,10 @@ export async function detectTelegramGroupChats(botTokenInput: string): Promise<D
     if (chats.length) {
       const target = chats[0];
       const confirm = [
-        `✅ *POS & Sound Box Inventory Connected!*`,
+        `✅ *In-Store Management Portal Connected!*`,
         `• *Bot:* @${botUsername}`,
         `• *Linked Chat:* ${target.title} (\`${target.id}\`)`,
-        `• *Active Alerts:* POS & Sound Box Under Configuring (App Push Alerts)`,
+        `• *Active Alerts:* POS Terminal and Sound Box units Under Configuring (App Push Alerts)`,
       ].join('\n');
       await fetch(`${api}/sendMessage`, {
         method: 'POST',
