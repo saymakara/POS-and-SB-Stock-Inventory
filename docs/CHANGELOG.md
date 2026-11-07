@@ -2,6 +2,14 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 7 Nov 2026 — Merchant Visit Request: POS / Sound Box materials
+Database only (`20261107_02_mv_request_materials.sql`, run in the SQL Editor; self-test `supabase/tests/mv_request_materials_selftest.sql`).
+- `mv_req_submit` takes the materials a branch asks for from the Merchant Visit app (`materials {CODE: qty}`: active catalogue
+  items only, 1–100 each). A request may be units only, materials only, or both; a call without materials works as before.
+- `mv_req_list` returns each request's materials and what was dispatched, plus the catalogue the app offers.
+- Nothing else changes: Stock Requests already shows requested materials, Dispatch sends them and Confirm Receipt moves them
+  into the branch reserve. Both functions stay service-key only.
+
 ## 7 Nov 2026 — Phone App Review: Edit details (Admin / Super Admin)
 Database: migration `20261107_01_phone_record_edit.sql` (to apply in the SQL Editor); self-test
 `supabase/tests/phone_edit_selftest.sql` (27 checks, rolls itself back). Needs Merchant Visit 3.81 for the Google Sheet.
