@@ -174,11 +174,14 @@ export function fieldEditFields(e: FieldEvent): EditField[] {
   const sb = e.deviceType === 'Sound Box';
   const serialLabel = e.kind === 'BATTERY' ? 'Terminal Serial' : e.kind === 'SB_MAINT' || e.kind === 'SB_RETURN' ? 'Sound Box SN'
     : e.kind.startsWith('POS_') ? 'Terminal SN' : sb ? 'Sound Box SN' : 'Terminal Serial';
+  const sec = e.unitNo > 1 || e.kind === 'INSTALL' || e.kind === 'REPLACE' ? `Device ${e.unitNo}` : 'Device';
+  // (7 Nov 2026) a Sound Box has no TID (Merchant Visit 3.85): identified by its MID only
+  const noTid = sb || e.kind === 'SB_MAINT' || e.kind === 'SB_RETURN';
   const out: EditField[] = [
-    { key: 'terminal_name', label: 'Terminal Name', value: e.terminalName, section: e.unitNo > 1 || e.kind === 'INSTALL' || e.kind === 'REPLACE' ? `Device ${e.unitNo}` : 'Device' },
-    { key: 'mid', label: 'MID', value: e.mid, locked: lock, numeric: true, section: e.unitNo > 1 || e.kind === 'INSTALL' || e.kind === 'REPLACE' ? `Device ${e.unitNo}` : 'Device' },
-    { key: 'tid', label: 'TID', value: e.tid, locked: lock, numeric: true, hint: lock ? undefined : '8 digits', section: e.unitNo > 1 || e.kind === 'INSTALL' || e.kind === 'REPLACE' ? `Device ${e.unitNo}` : 'Device' },
-    { key: 'serial', label: serialLabel, value: e.serial, locked: lock, section: e.unitNo > 1 || e.kind === 'INSTALL' || e.kind === 'REPLACE' ? `Device ${e.unitNo}` : 'Device' },
+    { key: 'terminal_name', label: 'Terminal Name', value: e.terminalName, section: sec },
+    { key: 'mid', label: 'MID', value: e.mid, locked: lock, numeric: true, section: sec },
+    ...(noTid ? [] : [{ key: 'tid', label: 'TID', value: e.tid, locked: lock, numeric: true, hint: lock ? undefined : '8 digits', section: sec }]),
+    { key: 'serial', label: serialLabel, value: e.serial, locked: lock, section: sec },
   ];
   const dev = out[0].section;
   if (e.kind === 'REPLACE') out.push({ key: 'old_serial', label: sb ? 'Old Sound Box SN' : 'Old Terminal Serial', value: e.oldSerial, locked: lock, section: dev });
