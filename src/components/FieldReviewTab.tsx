@@ -2,7 +2,7 @@ import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { isFresh, markFresh } from '../utils/freshness';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Users, Check, X } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Users, Check, X, PencilLine } from 'lucide-react';
 import { BigKpiCard } from './BigKpiCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
@@ -27,6 +27,7 @@ import { getCachedFieldEvents, setCachedFieldEvents } from '../services/fieldCac
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
 import { CopyableRecordId } from './CopyableRecordId';
+import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 
 /**
  * Phone App Review.
@@ -164,6 +165,44 @@ const InputMethodBadge: React.FC<{
   return null;
 };
 
+/* (7 Nov 2026) Edit: the fields of a record for the edit window. An approved record changed the stock: its serials, MID,
+   TID and batteries are shown locked. */
+const STOCK_LOCK = 'Approved: this already changed the stock. Reject and redo the entry, or fix the unit in Stock Inventory.';
+export function fieldEditFields(e: FieldEvent): EditField[] {
+  const lock = e.status === 'APPROVED' ? STOCK_LOCK : undefined;
+  const entryP = (e.payload && e.payload.entry) || {};
+  const sb = e.deviceType === 'Sound Box';
+  const serialLabel = e.kind === 'BATTERY' ? 'Terminal Serial' : e.kind === 'SB_MAINT' || e.kind === 'SB_RETURN' ? 'Sound Box SN'
+    : e.kind.startsWith('POS_') ? 'Terminal SN' : sb ? 'Sound Box SN' : 'Terminal Serial';
+  const sec = e.unitNo > 1 || e.kind === 'INSTALL' || e.kind === 'REPLACE' ? `Device ${e.unitNo}` : 'Device';
+  // (7 Nov 2026) a Sound Box has no TID (Merchant Visit 3.85): identified by its MID only
+  const noTid = sb || e.kind === 'SB_MAINT' || e.kind === 'SB_RETURN';
+  const out: EditField[] = [
+    { key: 'terminal_name', label: 'Terminal Name', value: e.terminalName, section: sec },
+    { key: 'mid', label: 'MID', value: e.mid, locked: lock, numeric: true, section: sec },
+    ...(noTid ? [] : [{ key: 'tid', label: 'TID', value: e.tid, locked: lock, numeric: true, hint: lock ? undefined : '8 digits', section: sec }]),
+    { key: 'serial', label: serialLabel, value: e.serial, locked: lock, section: sec },
+  ];
+  const dev = out[0].section;
+  if (e.kind === 'REPLACE') out.push({ key: 'old_serial', label: sb ? 'Old Sound Box SN' : 'Old Terminal Serial', value: e.oldSerial, locked: lock, section: dev });
+  if (e.kind === 'BATTERY') out.push({ key: 'old_battery', label: 'Old Battery', value: e.oldBattery, locked: lock, section: dev },
+    { key: 'new_battery', label: 'New Battery', value: e.newBattery, locked: lock, section: dev });
+  const ent = 'Whole entry' + (e.unitNo > 1 || (e.kind === 'INSTALL' || e.kind === 'REPLACE') ? ' (all its devices)' : '');
+  if (e.kind === 'INSTALL' || e.kind === 'REPLACE') out.push({ key: 'outlet_name', label: 'Outlet Name', value: e.outletName, section: ent });
+  (Array.isArray(entryP.details) ? entryP.details : []).forEach((d: any) => {
+    if (!d || !d.k) return;
+    const item = /^(POS Terminal|AC Power Adaptor|AC Power Cable|Charging Dock|SIM Card|POS Stand Holder)$/.test(d.k);
+    out.push({ key: 'details.' + d.k, label: d.k, value: d.v, section: ent, options: item ? ['1', 'N/a', 'Lost'] : undefined });
+  });
+  const checks = entryP.checks && typeof entryP.checks === 'object' ? entryP.checks : null;
+  if (checks) Object.keys(checks).forEach((k) => out.push({ key: 'checks.' + k, label: k.charAt(0).toUpperCase() + k.slice(1), value: checks[k], section: ent,
+    options: Object.values(checks).every((v) => /^(OK|Issue)$/i.test(String(v))) ? ['OK', 'Issue'] : undefined }));
+  if (e.kind === 'SB_MAINT' || e.kind === 'SB_RETURN') out.push({ key: 'feedback', label: 'Merchant Feedback', value: entryP.feedback, multiline: true, section: ent });
+  if (e.latitude != null || e.longitude != null) out.push({ key: 'latitude', label: 'Latitude', value: e.latitude, section: ent }, { key: 'longitude', label: 'Longitude', value: e.longitude, section: ent });
+  out.push({ key: 'remarks', label: 'Remarks', value: e.remarks, multiline: true, section: ent });
+  return out;
+}
+
 export const FieldReviewTab: React.FC<Props> = ({
   role,
   branches,
@@ -207,6 +246,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   const deferredQuery = useDeferredValue(query);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [open, setOpen] = useState<number | null>(null);
+  const [editing, setEditing] = useState<FieldEvent | null>(null);   // (7 Nov 2026) Edit details
   const [opts, setOpts] = useState<Record<number, RowOpt>>({});
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
   const [rowErr, setRowErr] = useState<Record<number, string>>({});
@@ -1113,15 +1153,32 @@ export const FieldReviewTab: React.FC<Props> = ({
                   onApprove={approveRow}
                   onReject={rejectRow}
                   onOpenWorkflow={onOpenWorkflow}
+                  onEdit={isAdmin ? setEditing : undefined}
                 />
               ))}
           </div>
           <Pager pg={pg} label="records" />
         </div>
       </section>
+      {editing && (
+        <PhoneRecordEditDialog
+          open={!!editing}
+          source="FIELD"
+          rowId={editing.id}
+          title={`Edit ${editing.sourceRecordId}${editing.unitNo > 1 ? ' · device ' + editing.unitNo : ''}`}
+          sub={`${editing.deviceType} · ${KIND_LABEL_EDIT[editing.kind] || editing.kind} · ${editing.status === 'APPROVED' ? 'Approved' : editing.status === 'PENDING' ? 'Pending' : editing.status.charAt(0) + editing.status.slice(1).toLowerCase()}`}
+          fields={fieldEditFields(editing)}
+          note="Saved in the portal at once, and written to the same row of the Merchant Visit Google Sheet within a few minutes."
+          onClose={() => setEditing(null)}
+          onSaved={() => { load(); }}
+          triggerToast={triggerToast}
+        />
+      )}
     </div>
   );
 };
+const KIND_LABEL_EDIT: Record<string, string> = { INSTALL: 'New Installation', REPLACE: 'Replacement', BATTERY: 'Battery Replacement', SB_MAINT: 'Maintenance',
+  SB_RETURN: 'Return', POS_MAINT: 'Active Maintenance', POS_INACTIVE: 'In-Active Maintenance', POS_RETURN: 'Return & Terminate' };
 
 const SortBtn: React.FC<{
   k: string;
@@ -1184,6 +1241,7 @@ interface RowProps {
   onApprove: (e: FieldEvent) => void;
   onReject: (e: FieldEvent) => void;
   onOpenWorkflow?: (serial: string) => void;
+  onEdit?: (e: FieldEvent) => void;
 }
 
 const ReviewRow = memo(function ReviewRow({
@@ -1206,6 +1264,7 @@ const ReviewRow = memo(function ReviewRow({
   onApprove,
   onReject,
   onOpenWorkflow,
+  onEdit,
 }: RowProps) {
   const pending = e.status === 'PENDING';
   const type = e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal';
@@ -1413,6 +1472,14 @@ const ReviewRow = memo(function ReviewRow({
             transition={SPRING}
             className="px-5 pb-4 pt-3 grid gap-x-10 gap-y-4 md:grid-cols-2 border-t border-slate-200 bg-slate-50/90"
           >
+            {onEdit && (e.status === 'PENDING' || e.status === 'APPROVED' || e.status === 'REJECTED') && (
+              <div className="md:col-span-2 flex justify-end -mb-2">
+                <button type="button" onClick={() => onEdit(e)} data-testid="edit-record"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs">
+                  <PencilLine className="w-3.5 h-3.5" aria-hidden="true" />Edit details
+                </button>
+              </div>
+            )}
             <Section title="Field Submission Details">
               <Line k="Record">
                 <span className="inline-flex items-center gap-1.5 flex-wrap">

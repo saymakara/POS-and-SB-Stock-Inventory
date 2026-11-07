@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil } from 'lucide-react';
+import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil, PencilLine } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { Pager } from './Pager';
 import { ClearFiltersButton } from './ClearFiltersButton';
@@ -13,6 +13,7 @@ import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccLi
 import { deletePhoneRecords } from '../services/supabaseService';
 import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
 import { CopyableRecordId } from './CopyableRecordId';
+import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -78,6 +79,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [open, setOpen] = useState<number | null>(null);
+  const [editing, setEditing] = useState<CcEntry | null>(null);   // (7 Nov 2026) Edit details
 
   const range = useMemo(() => ccPeriodRange(period), [period]);
   const pg = usePager(total, [range.from, range.to, review, branchId, search]);
@@ -355,16 +357,51 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
               {(rows || []).map((e, i) => (
                 <CcRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))}
                   canReview={isAdmin} onReviewed={onReviewed} toast={triggerToast}
-                  checked={pick.sel.has(e.id)} onCheck={isSuper ? () => pick.toggle(e.id, e.recordId) : undefined} />
+                  checked={pick.sel.has(e.id)} onCheck={isSuper ? () => pick.toggle(e.id, e.recordId) : undefined} onEdit={isAdmin ? () => setEditing(e) : undefined} />
               ))}
             </div>
           </div>
           <Pager pg={pg} label="entries" />
         </section>
       </>)}
+      {editing && (
+        <PhoneRecordEditDialog open={!!editing} source="CC" rowId={editing.id} title={`Edit ${editing.recordId}`}
+          sub={`Credit Card · ${editing.requestType} · ${editing.staffName || editing.staffId}`}
+          fields={ccEditFields(editing)}
+          note="Saved in the portal at once, and written to the same rows of the Merchant Visit Google Sheet (Credit Card tab) within a few minutes. The review decision does not change."
+          onClose={() => setEditing(null)} onSaved={() => { clearCcCache(); refresh(); }} triggerToast={triggerToast} />
+      )}
     </div>
   );
 };
+
+/* (7 Nov 2026) Edit: the customer's details and each supplementary card (cards are corrected, not added or removed). */
+export function ccEditFields(e: CcEntry): EditField[] {
+  const suppOnly = e.requestType === 'Add Supplementary Only';
+  const out: EditField[] = [];
+  if (!suppOnly) out.push({ key: 'card_status', label: 'Card status', value: e.cardStatus, options: ['Onboarded Successfully', 'Onboarding Failed'], section: 'Customer' });
+  if (!suppOnly && e.cardStatus === 'Onboarding Failed') out.push({ key: 'fail_reason', label: 'Onboarding failure reason', value: e.failReason, section: 'Customer' });
+  out.push(
+    { key: 'full_name', label: suppOnly ? 'Primary cardholder name' : 'Full name', value: e.fullName, section: 'Customer' },
+    { key: 'contact', label: 'Contact number', value: e.contact, numeric: true, section: 'Customer' },
+    { key: 'marital', label: 'Status of marriage', value: e.marital, options: ['', 'Single', 'Married', 'Divorced', 'Widowed'], section: 'Customer' },
+    { key: 'primary_acc', label: 'Account number', value: e.primaryAcc, numeric: true, section: 'Customer' },
+    { key: 'mid_or_acc', label: 'MID or Acc Number', value: e.midOrAcc, numeric: true, section: 'Customer' },
+  );
+  if (!suppOnly) out.push(
+    { key: 'limit_usd', label: 'Limit (USD)', value: e.limitUsd, numeric: true, section: 'Customer' },
+    { key: 'repayment', label: 'Repayment', value: e.repayment, options: ['', 'Full Payment 100%', 'Minimum Payment 20%'], section: 'Customer' },
+    { key: 'email', label: 'Email', value: e.email, section: 'Customer' },
+  );
+  e.supplementary.forEach((c, i) => out.push(
+    { key: `supp.${i}.full_name`, label: 'Full name', value: c.full_name, section: `Supplementary card ${i + 1}` },
+    { key: `supp.${i}.marital`, label: 'Status of marriage', value: c.marital, options: ['', 'Single', 'Married', 'Divorced', 'Widowed'], section: `Supplementary card ${i + 1}` },
+    { key: `supp.${i}.account`, label: 'Account number', value: c.account, numeric: true, section: `Supplementary card ${i + 1}` },
+    { key: `supp.${i}.email`, label: 'Email', value: c.email, section: `Supplementary card ${i + 1}` },
+  ));
+  out.push({ key: 'remarks', label: 'Remarks', value: e.remarks, multiline: true, section: 'Remarks' });
+  return out;
+}
 
 const TONES = {
   amber: 'bg-amber-50 text-amber-600 border-amber-100', emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
@@ -412,9 +449,9 @@ const CardCountCell: React.FC<{
   );
 };
 
-const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed, toast, checked, onCheck }: {
+const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed, toast, checked, onCheck, onEdit }: {
   e: CcEntry; no: number; open: boolean; onToggle: () => void; canReview: boolean;
-  onReviewed: (recordId: string, next: Partial<CcEntry>) => void; toast: (m: string) => void; checked?: boolean; onCheck?: () => void;
+  onReviewed: (recordId: string, next: Partial<CcEntry>) => void; toast: (m: string) => void; checked?: boolean; onCheck?: () => void; onEdit?: () => void;
 }) {
   const supp = e.requestType === 'Add Supplementary Only';
   const cards = (supp ? 0 : e.cardStatus === 'Onboarded Successfully' ? 1 : 0) + e.supplementary.length;
@@ -514,6 +551,14 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
           transition={SPRING}
           className="px-4 pb-4 pt-1 bg-slate-50/60 border-t border-slate-100"
         >
+          {onEdit && (
+            <div className="flex justify-end pt-2 -mb-1">
+              <button type="button" onClick={onEdit} data-testid="edit-record"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs">
+                <PencilLine className="w-3.5 h-3.5" aria-hidden="true" />Edit details
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3 py-3">
             <Field k="Record ID" v={<CopyableRecordId id={e.recordId} onCopied={(id) => toast(`Copied Record ID: ${id}`)} variant="badge" />} />
             <Field k="Request type" v={e.requestType} />

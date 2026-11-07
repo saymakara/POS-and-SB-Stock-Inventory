@@ -2,6 +2,25 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 7 Nov 2026 — Phone App Review: Edit details (Admin / Super Admin)
+Database: migration `20261107_01_phone_record_edit.sql` (to apply in the SQL Editor); self-test
+`supabase/tests/phone_edit_selftest.sql` (27 checks, rolls itself back). Needs Merchant Visit 3.81 for the Google Sheet.
+- **Edit details** in every Phone App Review page (POS Terminal, Sound Box, KHQR, Merchant Visit, Credit Card): open a record,
+  tap *Edit details*, correct any field, save. Only the fields that changed are sent; an optional reason goes to the Audit Trail
+  with old → new for each field.
+- **Approved POS Terminal / Sound Box records:** serial numbers, MID, TID and batteries are shown locked (they already changed
+  the stock); every other field can be corrected. To change a locked field: reject and redo the entry, or fix the unit in Stock Inventory.
+- **POS Terminal / Sound Box:** Terminal Name, MID, TID and serials belong to the one device; Outlet Name, Remarks, location,
+  returned items, checks and feedback belong to the whole entry (all its devices). **Merchant Visit:** every answer (Tag, Activity
+  Type, …). **Credit Card:** customer fields and each supplementary card (corrected, not added or removed). **KHQR:** merchant,
+  MID, type, place.
+- **Google Sheet:** each change is queued (`phone_record_edits`); Merchant Visit 3.81 writes it into the same row(s) of its
+  Sheet within 5 minutes and reports back. The edit window lists earlier changes with *Waiting for the Google Sheet / In the
+  Google Sheet / Not written (why)*. KHQR entries are portal only.
+- Only an active Admin or Super Admin can edit (checked in the database); branch users see no Edit.
+- Tests: new browser check `tests/e2e/edit_e2e.js` (16 checks); type check, static guards (the edit queue is database-function
+  only), build and the 8 other browser suites passed.
+
 ## 7 Nov 2026 — Smooth Units / Push Configuring / Material switching
 No change to the database or to what each view shows.
 - **POS Terminal and Sound Box pages:** switching between Units, Push Configuring and Material no longer flickers.

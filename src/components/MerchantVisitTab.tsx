@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { isFresh, markFresh } from '../utils/freshness';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, RefreshCw, ChevronDown, MapPin, Loader2, Send, ClipboardList, Users, Building2, Navigation } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, MapPin, Loader2, Send, ClipboardList, Users, Building2, Navigation, PencilLine } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
@@ -14,6 +14,7 @@ import { getMvPage, setMvPage, getMvSummary, setMvSummary, clearMvCache } from '
 const mvKey = (r: { from: string | null; to: string | null }, activity: string, branchId: string, search: string, page: number, pageSize: number) =>
   JSON.stringify([r.from, r.to, activity, branchId, search, page, pageSize]);
 import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
+import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { Period, periodRange } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
 
@@ -66,6 +67,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [open, setOpen] = useState<number | null>(null);
+  const [editing, setEditing] = useState<MvVisit | null>(null);   // (7 Nov 2026) Edit details
   const seq = useRef(0);
 
   const range = useMemo(() => periodRange(period), [period]);
@@ -269,12 +271,19 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
           <div className="divide-y divide-slate-100">
             {(rows || []).map((v, i) => (
               <VisitRow key={v.id} v={v} no={(page - 1) * pageSize + i + 1} open={open === v.id} onToggle={() => setOpen((o) => (o === v.id ? null : v.id))}
-                checked={pick.sel.has(v.id)} onCheck={isSuper ? () => pick.toggle(v.id, v.recordId) : undefined} />
+                checked={pick.sel.has(v.id)} onCheck={isSuper ? () => pick.toggle(v.id, v.recordId) : undefined} onEdit={isAdmin ? () => setEditing(v) : undefined} />
             ))}
           </div>
         </div>
       </section>
       {total > 0 && <Pager pg={pg} label="visits" />}
+      {editing && (
+        <PhoneRecordEditDialog open={!!editing} source="VISIT" rowId={editing.id} title={`Edit ${editing.recordId}`}
+          sub={`Merchant Visit · ${editing.activity || '—'} · ${editing.staffName || editing.staffId}`}
+          fields={visitEditFields(editing)}
+          note="Saved in the portal at once, and written to the same row of the Merchant Visit Google Sheet within a few minutes."
+          onClose={() => setEditing(null)} onSaved={() => { clearMvCache(); load(true); }} triggerToast={triggerToast} />
+      )}
     </div>
   );
 };
@@ -289,8 +298,21 @@ const Kpi: React.FC<{ icon: React.ElementType; label: string; value: number | un
   </div>
 );
 
-const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onCheck }: {
-  v: MvVisit; no: number; open: boolean; onToggle: () => void; checked?: boolean; onCheck?: () => void;
+/* (7 Nov 2026) Edit: every answer of the visit, in the form's order (the Merchant Visit app's Sheet columns). */
+const VISIT_ORDER = ['Activity Type', 'Tag', 'Merchant Name', 'MID or Acc Number', 'Phone Number', 'Business Type', 'Location', 'Khan', 'Latitude', 'Longitude', 'Address', 'Product Types', 'Remarks'];
+const VISIT_ACTIVITIES = ['Account Opening', 'QR Merchant Onboarding', 'Declined – Cash Only (No QR)', 'KHQR Issue', 'ABA Mobile Support', "Other Bank's Promo",
+  'ABA QR in Good Condition', 'Key Merchant Visit', 'PaySound / Alert Telegram', 'On-site ATM Location', 'Bring Document to Merchant',
+  'Market Coverage', 'Review Giant QR', 'ABA Gasoline Logo', 'Payway Inspection'];
+export function visitEditFields(v: MvVisit): EditField[] {
+  const a: Record<string, string> = { ...v.answers };
+  if (!('Remarks' in a)) a.Remarks = v.remarks || '';
+  const keys = Object.keys(a).sort((x, y) => { const i = VISIT_ORDER.indexOf(x), j = VISIT_ORDER.indexOf(y); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
+  return keys.map((k) => ({ key: 'answers.' + k, label: k, value: a[k], multiline: /^(remarks|address)$/i.test(k),
+    options: k === 'Activity Type' ? VISIT_ACTIVITIES : undefined }));
+}
+
+const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onCheck, onEdit }: {
+  v: MvVisit; no: number; open: boolean; onToggle: () => void; checked?: boolean; onCheck?: () => void; onEdit?: () => void;
 }) {
   const mapUrl = v.latitude !== null && v.longitude !== null ? `https://www.google.com/maps?q=${v.latitude},${v.longitude}` : '';
   const place = [v.location, v.khan].filter(Boolean).join(' · ');
@@ -326,6 +348,14 @@ const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onChec
         {open && (
           <motion.div key="d" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={SPRING} className="overflow-hidden">
             <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[13px] text-slate-700">
+              {onEdit && (
+                <div className="md:col-span-2 flex justify-end -mb-2">
+                  <button type="button" onClick={onEdit} data-testid="edit-record"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs">
+                    <PencilLine className="w-3.5 h-3.5" aria-hidden="true" />Edit details
+                  </button>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Detail k="Record ID" v={<CopyableRecordId id={v.recordId} variant="badge" />} />
                 <Detail k="Activity" v={v.activity || '—'} />

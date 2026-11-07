@@ -2,7 +2,8 @@ import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef,
 import { isFresh, markFresh } from '../utils/freshness';
 import { BigKpiCard } from './BigKpiCard';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, RefreshCw, ChevronDown, MapPin, ScanLine, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users, Copy } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, MapPin, ScanLine, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users, Copy, PencilLine } from 'lucide-react';
+import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
@@ -85,6 +86,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
   const [loadError, setLoadError] = useState('');
   const [newCount, setNewCount] = useState(0);
   const [open, setOpen] = useState<number | null>(null);
+  const [editing, setEditing] = useState<QrEntry | null>(null);   // (7 Nov 2026) Edit details
   // (30 Oct 2026) four views side by side: saved entries, failed attempts, wrong scans, same MID by 2+ staff
   const [view, setView] = useState<'entries' | 'failed' | 'wrong' | 'shared'>('entries');
   const showView = (v: 'failed' | 'wrong' | 'shared') => {
@@ -521,13 +523,20 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
           <div data-page-content className={`divide-y divide-slate-200/90 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
             {(rows || []).map((e, i) => (
               <QrRow key={e.id} e={e} no={pg.start + i + 1} open={open === e.id} onToggle={() => setOpen((o) => (o === e.id ? null : e.id))}
-                checked={pick.sel.has(e.id)} onCheck={isSuper ? () => pick.toggle(e.id, e.recordId) : undefined} />
+                checked={pick.sel.has(e.id)} onCheck={isSuper ? () => pick.toggle(e.id, e.recordId) : undefined} onEdit={isAdmin ? () => setEditing(e) : undefined} />
             ))}
           </div>
         </div>
         <Pager pg={pg} label="entries" />
       </section>
       </>)}
+      {editing && (
+        <PhoneRecordEditDialog open={!!editing} source="KHQR" rowId={editing.id} title={`Edit ${editing.recordId || 'KHQR entry'}`}
+          sub={`KHQR · ${editing.activity === 'QR_REPLACEMENT' ? 'QR Replacement' : 'New Installation'} · ${editing.staffName || editing.staffId}`}
+          fields={qrEditFields(editing)}
+          note="KHQR entries are kept only in the portal: the change is saved here at once (no Google Sheet row)."
+          onClose={() => setEditing(null)} onSaved={() => { clearKhqrCache(); load(true); }} triggerToast={triggerToast} />
+      )}
     </div>
   );
 };
@@ -800,8 +809,23 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
   </>);
 };
 
-const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck }: {
-  e: QrEntry; no: number; open: boolean; onToggle: () => void; checked?: boolean; onCheck?: () => void;
+/* (7 Nov 2026) Edit: the merchant, MID, type and place of a KHQR entry (the scanned QR themselves stay as scanned). */
+export function qrEditFields(e: QrEntry): EditField[] {
+  return [
+    { key: 'activity', label: 'Type', value: e.activity, options: ['NEW_INSTALLATION', 'QR_REPLACEMENT'], hint: 'NEW_INSTALLATION = New Installation · QR_REPLACEMENT = QR Replacement' },
+    { key: 'merchant_name', label: 'Merchant name', value: e.merchantName },
+    { key: 'merchant_name_kh', label: 'Merchant name (Khmer)', value: e.merchantNameKh },
+    { key: 'mid', label: 'MID', value: e.mid, numeric: true, hint: '15 digits' },
+    { key: 'location', label: 'Location', value: e.location },
+    { key: 'khan', label: 'Khan', value: e.khan },
+    { key: 'latitude', label: 'Latitude', value: e.latitude },
+    { key: 'longitude', label: 'Longitude', value: e.longitude },
+    { key: 'remark', label: 'Remark', value: e.remark, multiline: true },
+  ];
+}
+
+const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck, onEdit }: {
+  e: QrEntry; no: number; open: boolean; onToggle: () => void; checked?: boolean; onCheck?: () => void; onEdit?: () => void;
 }) {
   const mapUrl = e.latitude !== null && e.longitude !== null ? `https://www.google.com/maps?q=${e.latitude},${e.longitude}` : '';
   const place = [e.location, e.khan].filter(Boolean).join(' · ');
@@ -843,6 +867,14 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck }: {
         {open && (
           <motion.div key="d" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={SPRING} className="overflow-hidden">
             <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[13px] text-slate-700">
+              {onEdit && (
+                <div className="md:col-span-2 flex justify-end -mb-2">
+                  <button type="button" onClick={onEdit} data-testid="edit-record"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs">
+                    <PencilLine className="w-3.5 h-3.5" aria-hidden="true" />Edit details
+                  </button>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Detail k="Record ID" v={<CopyableRecordId id={e.recordId} variant="badge" />} />
                 <Detail k="Merchant" v={<>{e.merchantName}{e.merchantNameKh && <span className="block text-slate-500">{e.merchantNameKh}</span>}</>} />
