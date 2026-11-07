@@ -22,8 +22,15 @@ export const isNetworkFailure = (err?: string): boolean =>
 export const tabLoaders: Array<() => Promise<unknown>> = [];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function lazyTab<C extends React.ComponentType<any>>(load: () => Promise<{ default: C }>) {
-  tabLoaders.push(load);
-  return React.lazy(load);
+  // (7 Nov 2026) one download shared by the background fetch and the screen; once it is here the screen is drawn at once
+  // (React.lazy alone showed its loading placeholder for a frame the first time, even when already downloaded - a flicker)
+  let loaded: C | null = null;
+  let pending: Promise<{ default: C }> | null = null;
+  const once = () => (pending ??= load().then((m) => { loaded = m.default; return m; }, (e) => { pending = null; throw e; }));
+  tabLoaders.push(once);
+  const Lazy = React.lazy(once);
+  const Tab = (props: React.ComponentProps<C>) => React.createElement((loaded || Lazy) as React.ComponentType<any>, props);
+  return Tab as unknown as C;
 }
 export function prefetchTabs(): void {
   tabLoaders.forEach((load) => { load().catch(() => { /* loaded again when opened */ }); });

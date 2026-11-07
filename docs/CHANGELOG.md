@@ -2,6 +2,19 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 7 Nov 2026 — Smooth Units / Push Configuring / Material switching
+No change to the database or to what each view shows.
+- **POS Terminal and Sound Box pages:** switching between Units, Push Configuring and Material no longer flickers.
+  Before, the old view faded out and was removed (the page collapsed and jumped), then the new view was built from scratch
+  and its own Units / Push / Material switch appeared again. Now each view is built the first time it is opened and kept;
+  the chosen view fades in at once, the highlight glides from the previous tab, and the page keeps its scroll position
+  (a short view such as Material no longer pulls the page up). Opening a view again is instant.
+- **Every screen that loads on first use** (Branch Codes, Stock Requests, Push Configuring, …): once its code has been fetched
+  in the background, it is drawn at once - no more one-frame loading placeholder the first time it opens.
+- Tests: new browser check `tests/e2e/view_switch_e2e.js` (65 checks, every animation frame: one view on screen, switch
+  always visible, no page jump, highlight glides, views reopen without rebuilding, POS Terminal and Sound Box); type check,
+  static guards, build and all 9 browser suites passed.
+
 ## 7 Nov 2026 — Refactor: less code, safety rules on every deployment
 No change to what users see or to the database.
 - **Removed unused code (~1,600 lines):** 5 files never used (SetupAlert, ScanField, KpiDetailBreakdown, useProgressive,
