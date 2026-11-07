@@ -6,7 +6,7 @@
 //     or `await supabase.rpc(...)` as a bare statement).
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..', 'src');
-const RPC_ONLY = ['material_types', 'material_serials', 'material_qty', 'material_movements', 'device_kits', 'material_lost', 'material_counts',
+const RPC_ONLY = ['phone_record_edits', 'material_types', 'material_serials', 'material_qty', 'material_movements', 'device_kits', 'material_lost', 'material_counts',
   'cc_entries', 'qr_installations', 'qr_attempts', 'field_events', 'mv_visits', 'staff_profiles'];
 const WRITE_OK_FILES = ['services/supabaseService.ts', 'utils/errorLogger.ts'];
 const files = []; (function walk(d) { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) walk(p); else if (/\.(ts|tsx)$/.test(f)) files.push(p); } })(ROOT);
