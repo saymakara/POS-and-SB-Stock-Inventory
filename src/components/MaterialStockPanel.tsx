@@ -1,5 +1,5 @@
-import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'motion/react';
 import {
   Boxes, Cpu, Volume2, RefreshCw, Loader2, PackagePlus, PencilLine, Upload,
   Download, Package, Battery, Dock, Smartphone, Plug, Search, Copy, Check, Building2, AlertTriangle
@@ -17,9 +17,15 @@ import {
   MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts, fetchLost,
 } from '../services/materialsService';
 import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
-import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, staggerRowStyle } from '../utils/animationRules';
+import { WHILE_TAP_BUTTON, staggerRowStyle } from '../utils/animationRules';
 
 export type ProductView = 'UNITS' | 'PUSH' | 'MATERIAL';
+
+/* (7 Nov 2026) Smooth switching. Each view (Units, Push Configuring, Material) shows its own copy of this switch, so the
+   highlight remembers where it last stood (per product) and glides from there to the tab just chosen - one continuous
+   motion, even though the switch itself belongs to the view that just appeared. */
+const lastPill: Partial<Record<DeviceGroup, { x: number; w: number }>> = {};
+const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export const ProductViewToggle: React.FC<{
   view: ProductView;
@@ -30,12 +36,51 @@ export const ProductViewToggle: React.FC<{
   hasPush?: boolean;
 }> = ({ view, onViewChange, group, pushCount = 0, lostCount = 0, hasPush = true }) => {
   const views: ProductView[] = hasPush ? ['UNITS', 'PUSH', 'MATERIAL'] : ['UNITS', 'MATERIAL'];
+  const listRef = useRef<HTMLDivElement>(null);
+  const pillRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const list = listRef.current, pill = pillRef.current;
+    if (!list || !pill || !list.offsetParent) return;                  // a hidden view's copy: the shown one moves the pill
+    const btn = list.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!btn) return;
+    const to = { x: btn.offsetLeft, w: btn.offsetWidth };
+    const from = lastPill[group];
+    pill.style.width = to.w + 'px';
+    pill.style.transform = `translate3d(${to.x}px,0,0)`;
+    pill.style.opacity = '1';
+    if (from && (from.x !== to.x || from.w !== to.w) && pill.animate && !reducedMotion()) {
+      pill.animate(
+        [{ transform: `translate3d(${from.x}px,0,0)`, width: from.w + 'px' }, { transform: `translate3d(${to.x}px,0,0)`, width: to.w + 'px' }],
+        { duration: 280, easing: 'cubic-bezier(.32,.72,0,1)' },
+      );
+    }
+    lastPill[group] = to;
+  });
+  useEffect(() => {                                                      // window resized / fonts loaded: the pill follows (no glide)
+    const list = listRef.current, pill = pillRef.current;
+    if (!list || !pill || typeof ResizeObserver !== 'function') return;
+    const ro = new ResizeObserver(() => {
+      const btn = list.querySelector<HTMLElement>('[aria-selected="true"]');
+      if (!btn || !list.offsetParent) return;
+      pill.style.width = btn.offsetWidth + 'px';
+      pill.style.transform = `translate3d(${btn.offsetLeft}px,0,0)`;
+      lastPill[group] = { x: btn.offsetLeft, w: btn.offsetWidth };
+    });
+    ro.observe(list);
+    return () => ro.disconnect();
+  }, [group]);
   return (
     <div
+      ref={listRef}
       role="tablist"
       aria-label={`${group} views`}
       className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs shrink-0"
     >
+      <div
+        ref={pillRef}
+        aria-hidden
+        className="absolute left-0 top-1 bottom-1 rounded-lg bg-[#003857] shadow-xs z-0 pointer-events-none opacity-0 will-change-transform"
+      />
       {views.map((v) => {
         const n = v === 'PUSH' ? pushCount || 0 : v === 'MATERIAL' ? lostCount || 0 : 0;
         const isSelected = view === v;
@@ -56,13 +101,6 @@ export const ProductViewToggle: React.FC<{
             }
             className="relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer select-none"
           >
-            {isSelected && (
-              <motion.div
-                layoutId={`active-product-view-pill-${group}`}
-                className="absolute inset-0 rounded-lg bg-[#003857] shadow-xs z-0 pointer-events-none"
-                transition={SPRING_NO_BOUNCE}
-              />
-            )}
             <span
               className={`relative z-10 transition-colors duration-150 ${
                 isSelected ? 'text-white font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -137,6 +175,38 @@ export const ProductStockPage: React.FC<{
     />
   );
 
+  // views opened so far on this product page (a new product page starts again)
+  const seenRef = useRef<{ group: DeviceGroup; set: Set<ProductView> }>({ group, set: new Set() });
+  if (seenRef.current.group !== group) seenRef.current = { group, set: new Set() };
+  const seen = seenRef.current.set;
+  seen.add(view);
+  const panes: [ProductView, React.ReactNode][] = [
+    ['UNITS', units],
+    ['PUSH', push || null],
+    ['MATERIAL', (
+      <MaterialStockPanel
+        group={group}
+        role={role}
+        branches={branches}
+        myBranch={myBranch}
+        triggerToast={triggerToast}
+        onLostChanged={onLostChanged}
+        devices={devices}
+        viewToggle={viewToggle}
+      />
+    )],
+  ];
+  const activeRef = useRef<HTMLDivElement>(null);
+  const shownView = useRef<ProductView>(view);
+  useLayoutEffect(() => {
+    if (shownView.current === view) return;
+    shownView.current = view;
+    const el = activeRef.current;
+    if (!el || !el.animate || reducedMotion()) return;
+    el.animate([{ opacity: 0, transform: 'translate3d(0,6px,0)' }, { opacity: 1, transform: 'translate3d(0,0,0)' }],
+      { duration: 220, easing: 'cubic-bezier(.25,1,.5,1)' });
+  }, [view]);
+
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -149,33 +219,19 @@ export const ProductStockPage: React.FC<{
       {pipelineBar}
       {kpiCards}
 
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={view}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.12, ease: 'easeOut' }}
-          className="w-full"
-        >
-          {view === 'UNITS'
-            ? units
-            : view === 'PUSH' && push
-            ? push
-            : (
-              <MaterialStockPanel
-                group={group}
-                role={role}
-                branches={branches}
-                myBranch={myBranch}
-                triggerToast={triggerToast}
-                onLostChanged={onLostChanged}
-                devices={devices}
-                viewToggle={viewToggle}
-              />
-            )}
-        </motion.div>
-      </AnimatePresence>
+      {/* (7 Nov 2026) Each view is built the first time it is opened and then kept (hidden while another view shows):
+          switching back is instant, the page never collapses or jumps, and nothing is built twice. The view just
+          chosen fades in gently - no blank moment between the two. */}
+      {/* at least one screen high: a short view (Material) never pulls the page up under the pointer */}
+      <div className="w-full min-h-screen">
+        {panes.map(([k, node]) =>
+          seen.has(k) && node ? (
+            <div key={k} ref={k === view ? activeRef : undefined} hidden={k !== view} className="w-full" role="tabpanel" aria-label={k}>
+              <React.Suspense fallback={<div className="w-full min-h-screen" aria-busy="true" />}>{node}</React.Suspense>
+            </div>
+          ) : null,
+        )}
+      </div>
     </div>
   );
 };
