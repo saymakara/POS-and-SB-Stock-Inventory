@@ -2,6 +2,14 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 8 Nov 2026 — Merchant Visit Request: correct a waiting stock request
+
+- New database function `mv_req_edit` (service key only, used by the Merchant Visit app 3.95): branch staff can change the
+  POS / Sound Box quantities, materials and note of their branch's stock request while it is still **Waiting for Admin HQ**.
+  Same rules as a new request. Dispatched / rejected requests, returns and other branches' requests cannot be changed.
+  Every change is written to the audit log with the old and new numbers.
+- Apply: run `supabase/migrations/20261108_02_mv_request_edit.sql` in the SQL Editor (safe to run again). No table change.
+
 ## 8 Nov 2026 — "POS Active Maintenance" is now "POS Operational Support"
 Merchant Visit 3.86 renames the request. In the portal: the POS Terminal review page shows the new name, and
 `20261108_01_pos_operational_support_label.sql` (run in the SQL Editor; safe to run again) renames the KPI rule. The kind
