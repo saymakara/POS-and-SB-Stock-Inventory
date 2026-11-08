@@ -1614,34 +1614,41 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                   </motion.button>
                 </form>
 
-                {/* Mobile UI Technical Error Code Popup for Field Staff Screenshot */}
+                {/* Mobile UI Alert Popup */}
                 {mobileTechError && (
                   <div
                     role="alertdialog"
                     aria-label="Technical Error Code Popup"
-                    className="mx-3 mb-2 p-3 rounded-2xl border-2 border-rose-500 bg-rose-950/95 text-white shadow-2xl relative z-30 flex flex-col gap-1.5"
+                    className={`mx-3 mb-2 p-3.5 rounded-2xl border bg-slate-950/95 text-white shadow-2xl relative z-30 flex flex-col gap-2 ${
+                      mobileTechError.kind === 'notice' ? 'border-amber-500/80' : 'border-rose-500/80'
+                    }`}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-300 flex items-center gap-1">
-                        <AlertOctagon className="w-3.5 h-3.5 text-rose-400" />
-                        Technical Error — Screenshot for Support
-                      </span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className={`text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 ${
+                          mobileTechError.kind === 'notice' ? 'text-amber-400' : 'text-rose-400'
+                        }`}>
+                          <AlertOctagon className="w-3.5 h-3.5 shrink-0" />
+                          {mobileTechError.badge || (mobileTechError.kind === 'notice' ? 'Validation Notice' : `System Alert · ${mobileTechError.code}`)}
+                        </span>
+                        <div className="text-xs font-bold text-white mt-0.5">
+                          {mobileTechError.title || (mobileTechError.kind === 'notice' ? 'Action Could Not Be Completed' : 'System Operation Alert')}
+                        </div>
+                      </div>
                       <button
                         type="button"
                         onClick={() => setMobileTechError(null)}
-                        className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+                        className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white cursor-pointer shrink-0"
                       >
                         Dismiss
                       </button>
                     </div>
-                    <div className="font-mono text-xs font-black text-amber-300 bg-black/40 px-2.5 py-1.5 rounded-lg border border-rose-500/40">
-                      CODE: {mobileTechError.code}
+                    <div className="text-xs leading-relaxed text-slate-100 bg-white/5 px-3 py-2 rounded-xl border border-white/10 break-words">
+                      {mobileTechError.message}
                     </div>
-                    <div className="text-[11px] font-mono text-rose-100 space-y-0.5">
-                      <div>Op: {mobileTechError.operation}</div>
-                      <div>Staff ID: {mobileTechError.staffId} · Br.{mobileTechError.branchId}</div>
-                      <div>Time: {mobileTechError.timestamp}</div>
-                      <div className="text-rose-200 font-sans pt-0.5 break-words">{mobileTechError.message}</div>
+                    <div className="text-[10px] text-slate-400 flex flex-wrap items-center justify-between gap-2">
+                      <span>{mobileTechError.operationLabel || mobileTechError.operation}</span>
+                      <span className="font-mono">Staff {mobileTechError.staffId} · Br.{mobileTechError.branchId} · {mobileTechError.timestamp}</span>
                     </div>
                   </div>
                 )}

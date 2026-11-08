@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { isFresh, markFresh, clearFresh } from '../utils/freshness';
+import { formatProfessionalError } from '../utils/errorLogger';
 
 /**
  * (5 Nov 2026) Merchant kit & materials: SIM cards, batteries, adaptors, stands and docks.
@@ -63,8 +64,7 @@ export const isMaterialsMissing = (msg: string) => /material_|device_kits|admin_
 /** The database's message without its internal prefix ("STOCK: not enough …" → "Not enough …"). */
 export const cleanMaterialError = (e: unknown): string => {
   const msg = e instanceof Error ? e.message : String((e as { message?: string })?.message || e || 'Network error');
-  const m = msg.replace(/^(INPUT|STOCK|KIT): /, '');
-  return m.charAt(0).toUpperCase() + m.slice(1);
+  return formatProfessionalError(msg).message;
 };
 
 const fail = (error: { message?: string } | null) => { if (error) throw new Error(error.message || 'Request failed'); };

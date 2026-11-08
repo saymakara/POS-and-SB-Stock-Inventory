@@ -4057,33 +4057,44 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         </div>
       )}
 
-      {/* Mobile & Workstation Technical Error Code Popup for Field Staff Screenshot */}
+      {/* System & Inventory Alert Popup */}
       {techErrorPopup && (
         <div
           role="region"
           aria-label="Technical Error Code Popup"
-          className="fixed bottom-16 right-4 z-[65] w-[min(92vw,380px)] rounded-2xl border-2 border-rose-500 bg-slate-950/95 text-white p-4 shadow-2xl pointer-events-auto"
+          className={`fixed bottom-16 right-4 z-[65] w-[min(92vw,420px)] rounded-2xl border bg-slate-950/95 text-white p-4 shadow-2xl pointer-events-auto ${
+            techErrorPopup.kind === 'notice' ? 'border-amber-500/80' : 'border-rose-500/80'
+          }`}
         >
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-[11px] font-black uppercase tracking-wider text-rose-400">
-              Technical Error — Screenshot for Support
-            </span>
+          <div className="flex items-start justify-between gap-3 mb-2.5">
+            <div>
+              <span className={`text-[10px] font-extrabold uppercase tracking-wider block ${
+                techErrorPopup.kind === 'notice' ? 'text-amber-400' : 'text-rose-400'
+              }`}>
+                {techErrorPopup.badge || (techErrorPopup.kind === 'notice' ? 'Inventory & Dispatch Notice' : `System Alert · ${techErrorPopup.code}`)}
+              </span>
+              <h4 className="text-sm font-bold text-white mt-0.5">
+                {techErrorPopup.title || (techErrorPopup.kind === 'notice' ? 'Action Could Not Be Completed' : 'System Operation Alert')}
+              </h4>
+            </div>
             <button
               type="button"
               onClick={() => setTechErrorPopup(null)}
-              className="text-[11px] font-bold px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer shrink-0 transition"
             >
               Dismiss
             </button>
           </div>
-          <div className="font-mono text-xs font-black text-amber-300 bg-rose-950/70 px-3 py-1.5 rounded-lg border border-rose-500/40 mb-2">
-            ERROR CODE: {techErrorPopup.code}
+          <div className={`text-xs leading-relaxed px-3.5 py-2.5 rounded-xl border mb-2.5 break-words ${
+            techErrorPopup.kind === 'notice'
+              ? 'bg-amber-950/40 border-amber-500/30 text-amber-100'
+              : 'bg-rose-950/50 border-rose-500/35 text-rose-100'
+          }`}>
+            {techErrorPopup.message}
           </div>
-          <div className="text-[11px] font-mono text-slate-200 space-y-0.5">
-            <div>Operation: {techErrorPopup.operation}</div>
-            <div>Staff ID: {techErrorPopup.staffId} · Branch: {techErrorPopup.branchId}</div>
-            <div>Time: {techErrorPopup.timestamp}</div>
-            <div className="text-rose-200 font-sans pt-1 break-words">{techErrorPopup.message}</div>
+          <div className="text-[11px] text-slate-400 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pt-1 border-t border-white/10">
+            <span>Action: <strong className="text-slate-200 font-medium">{techErrorPopup.operationLabel || techErrorPopup.operation}</strong>{techErrorPopup.target ? ` (${techErrorPopup.target})` : ''}</span>
+            <span className="font-mono text-[10px] text-slate-400">Staff {techErrorPopup.staffId} · Br.{techErrorPopup.branchId} · {techErrorPopup.timestamp}</span>
           </div>
         </div>
       )}

@@ -1196,8 +1196,8 @@ export async function dispatchRequestWithMaterialsOnServer(
     if (error) throw error;
     return (data && data.arranged) || [];
   } catch (err) {
-    await reportCaughtError('dispatchRequestWithMaterialsOnServer', err, { target: reqId });
-    throw new Error(String((err as any)?.message || err).replace(/^(INPUT|STOCK|KIT): /, ''));
+    const payload = await reportCaughtError('dispatchRequestWithMaterialsOnServer', err, { target: reqId });
+    throw new Error(payload.message);
   }
 }
 
