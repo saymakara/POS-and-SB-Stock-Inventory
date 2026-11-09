@@ -9,7 +9,7 @@ interface BigKpiCardProps {
   accentColor: 'blue' | 'emerald' | 'rose' | 'amber' | 'violet' | 'orange';
   badge?: string;
   onClick?: () => void;
-  /** the link text of a clickable card (KHQR: "View log") */
+  /** @deprecated No longer rendered (clean look) */
   actionLabel?: string;
 }
 
@@ -21,7 +21,6 @@ export const BigKpiCard: React.FC<BigKpiCardProps> = ({
   accentColor,
   badge,
   onClick,
-  actionLabel = 'View log',
 }) => {
   const isClickable = !!onClick;
   const Tag: any = isClickable ? 'button' : 'div';
@@ -55,7 +54,7 @@ export const BigKpiCard: React.FC<BigKpiCardProps> = ({
 
   return (
     <Tag
-      {...(isClickable ? { type: 'button', onClick, title: `${actionLabel}: ${label.toLowerCase()}` } : {})}
+      {...(isClickable ? { type: 'button', onClick, title: label } : {})}
       className={`relative flex flex-col justify-between p-5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all duration-200 text-left ${
         isClickable ? 'cursor-pointer hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 group' : 'hover:border-slate-300 hover:shadow-xs'
       }`}
@@ -82,11 +81,7 @@ export const BigKpiCard: React.FC<BigKpiCardProps> = ({
         <span className="truncate" title={sub}>
           {sub || '—'}
         </span>
-        {isClickable ? (
-          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-rose-600 group-hover:text-rose-700 shrink-0">
-            {actionLabel} <span className="transition-transform group-hover:translate-x-0.5">→</span>
-          </span>
-        ) : badge ? (
+        {badge ? (
           <span className="text-[11px] font-medium text-slate-400 shrink-0">
             {badge}
           </span>

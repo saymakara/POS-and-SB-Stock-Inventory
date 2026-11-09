@@ -836,11 +836,11 @@ export const FieldReviewTab: React.FC<Props> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3.5 mt-6 pt-6 border-t border-slate-200/90">
           <BigKpiCard label="Waiting review" value={events ? counts.PENDING : undefined} icon={Clock}
             sub={hero.block ? `${hero.block.toLocaleString()} blocked · ${hero.warn.toLocaleString()} with warnings` : hero.warn ? `${hero.warn.toLocaleString()} with warnings to check` : 'Approve or reject each record'}
-            accentColor="amber" onClick={() => setFilter('PENDING')} actionLabel="Show" />
-          <BigKpiCard label="Approved" value={events ? counts.APPROVED : undefined} icon={CheckCircle2} sub="Stock updated from the record" accentColor="emerald" onClick={() => setFilter('APPROVED')} actionLabel="Show" />
-          <BigKpiCard label="Rejected" value={events ? counts.REJECTED : undefined} icon={XCircle} sub="Sent back with a reason" accentColor="rose" onClick={() => setFilter('REJECTED')} actionLabel="Show" />
+            accentColor="amber" onClick={() => setFilter('PENDING')} />
+          <BigKpiCard label="Approved" value={events ? counts.APPROVED : undefined} icon={CheckCircle2} sub="Stock updated from the record" accentColor="emerald" onClick={() => setFilter('APPROVED')} />
+          <BigKpiCard label="Rejected" value={events ? counts.REJECTED : undefined} icon={XCircle} sub="Sent back with a reason" accentColor="rose" onClick={() => setFilter('REJECTED')} />
           <BigKpiCard label="All records" value={events ? counts.ALL : undefined} icon={deviceType === 'Sound Box' ? Volume2 : Cpu}
-            sub={hero.top.length ? hero.top.join(' · ') : 'Every record received'} accentColor="blue" onClick={() => setFilter('ALL')} actionLabel="Show" />
+            sub={hero.top.length ? hero.top.join(' · ') : 'Every record received'} accentColor="blue" onClick={() => setFilter('ALL')} />
           <BigKpiCard label="With warnings" value={events ? hero.warn + hero.block : undefined} icon={AlertTriangle}
             sub="Waiting records the system flagged" accentColor="orange" badge={hero.block ? `${hero.block} blocked` : undefined} />
           <BigKpiCard label="Staff" value={events ? hero.staff : undefined} icon={Users} sub="Sent at least one record" accentColor="violet" />
