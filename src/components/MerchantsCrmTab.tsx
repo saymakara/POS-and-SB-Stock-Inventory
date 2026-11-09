@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, MerchantProfile } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
+import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import {
   Store,
   Search,
@@ -854,61 +855,101 @@ return (
 
             {/* Chart Mode Toggle */}
             <div
-              className={`flex items-center p-0.5 rounded-lg border text-xs ${
-                isLight ? 'bg-slate-100 border-slate-200' : 'bg-[#001d2e] border-[#003857]'
-              }`}
+              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs text-xs font-semibold gap-1 select-none"
+              role="tablist"
+              aria-label="Chart mode"
             >
               <button
                 type="button"
+                role="tab"
+                aria-selected={trendChartMode === 'POS_VS_SB'}
                 onClick={() => setTrendChartMode('POS_VS_SB')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition ${
+                className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none ${
                   trendChartMode === 'POS_VS_SB'
-                    ? 'tab-active-blue text-white shadow-2xs'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'text-white'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                POS vs. Sound Box
+                {trendChartMode === 'POS_VS_SB' && (
+                  <motion.div
+                    layoutId={SHARED_LAYOUT_IDS.CRM_TREND_MODE_PILL}
+                    aria-hidden
+                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    transition={SPRING_TAB_PILL}
+                  />
+                )}
+                <span className="relative z-10">POS vs. Sound Box</span>
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={trendChartMode === 'BY_MID_STACKED'}
                 onClick={() => setTrendChartMode('BY_MID_STACKED')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition ${
+                className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none ${
                   trendChartMode === 'BY_MID_STACKED'
-                    ? 'tab-active-blue text-white shadow-2xs'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'text-white'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Per-MID Comparison
+                {trendChartMode === 'BY_MID_STACKED' && (
+                  <motion.div
+                    layoutId={SHARED_LAYOUT_IDS.CRM_TREND_MODE_PILL}
+                    aria-hidden
+                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    transition={SPRING_TAB_PILL}
+                  />
+                )}
+                <span className="relative z-10">Per-MID Comparison</span>
               </button>
             </div>
 
             {/* Time Horizon Toggle */}
             <div
-              className={`flex items-center p-0.5 rounded-lg border text-xs font-mono ${
-                isLight ? 'bg-slate-100 border-slate-200' : 'bg-[#001d2e] border-[#003857]'
-              }`}
+              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs text-xs font-mono gap-1 select-none"
+              role="tablist"
+              aria-label="Time horizon"
             >
               <button
                 type="button"
+                role="tab"
+                aria-selected={trendHorizon === '6M'}
                 onClick={() => setTrendHorizon('6M')}
-                className={`px-2.5 py-1 rounded-md font-bold transition ${
+                className={`relative px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer select-none outline-none ${
                   trendHorizon === '6M'
-                    ? 'tab-active-blue text-white shadow-2xs'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'text-white'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                6M
+                {trendHorizon === '6M' && (
+                  <motion.div
+                    layoutId={SHARED_LAYOUT_IDS.CRM_TREND_HORIZON_PILL}
+                    aria-hidden
+                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    transition={SPRING_TAB_PILL}
+                  />
+                )}
+                <span className="relative z-10">6M</span>
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={trendHorizon === '12M'}
                 onClick={() => setTrendHorizon('12M')}
-                className={`px-2.5 py-1 rounded-md font-bold transition ${
+                className={`relative px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer select-none outline-none ${
                   trendHorizon === '12M'
-                    ? 'tab-active-blue text-white shadow-2xs'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'text-white'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                12M
+                {trendHorizon === '12M' && (
+                  <motion.div
+                    layoutId={SHARED_LAYOUT_IDS.CRM_TREND_HORIZON_PILL}
+                    aria-hidden
+                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    transition={SPRING_TAB_PILL}
+                  />
+                )}
+                <span className="relative z-10">12M</span>
               </button>
             </div>
           </div>

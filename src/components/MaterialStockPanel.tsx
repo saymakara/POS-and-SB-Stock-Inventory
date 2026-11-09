@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
+import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import {
   Boxes, Cpu, Volume2, RefreshCw, Loader2, PackagePlus, PencilLine, Upload,
   Download, Package, Battery, Dock, Smartphone, Plug, Search, Copy, Check, Building2, AlertTriangle
@@ -1039,28 +1040,52 @@ const MaterialStockPanelComponent: React.FC<{
           {/* Row 3: Ledger View Switcher & Clear Filters */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-200/60 min-h-[36px]">
             <div className="flex items-center gap-2.5">
-              <div className="inline-flex p-0.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs select-none">
+              <div
+                className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs select-none gap-1"
+                role="tablist"
+                aria-label="Ledger views"
+              >
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeLedgerView === 'DEPLOYMENTS'}
                   onClick={() => setActiveLedgerView('DEPLOYMENTS')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                  className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
                     activeLedgerView === 'DEPLOYMENTS'
-                      ? 'bg-[#003857] text-white shadow-xs'
+                      ? 'text-white'
                       : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  Merchant Deployments ({combinedItems.length})
+                  {activeLedgerView === 'DEPLOYMENTS' && (
+                    <motion.div
+                      layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
+                      aria-hidden
+                      className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                      transition={SPRING_TAB_PILL}
+                    />
+                  )}
+                  <span className="relative z-10">Merchant Deployments ({combinedItems.length})</span>
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeLedgerView === 'BALANCES'}
                   onClick={() => setActiveLedgerView('BALANCES')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                  className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
                     activeLedgerView === 'BALANCES'
-                      ? 'bg-[#003857] text-white shadow-xs'
+                      ? 'text-white'
                       : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  Multi-Branch Balances ({branchBalanceRows.length})
+                  {activeLedgerView === 'BALANCES' && (
+                    <motion.div
+                      layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
+                      aria-hidden
+                      className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                      transition={SPRING_TAB_PILL}
+                    />
+                  )}
+                  <span className="relative z-10">Multi-Branch Balances ({branchBalanceRows.length})</span>
                 </button>
               </div>
               <span className="text-xs font-semibold text-slate-500 hidden sm:inline">
@@ -1448,29 +1473,31 @@ export const LostTable: React.FC<{
     <section className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden" aria-label={title}>
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-slate-100">
         <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-rose-600" />{title}</h3>
-        <div className="relative inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold">
+        <div className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs text-xs font-semibold select-none gap-1" role="tablist">
           {([['OPEN', 'Open'], ['', 'All']] as const).map(([v, l]) => {
             const isSelected = filter === v;
             return (
-              <motion.button
+              <button
                 key={l}
                 type="button"
-                whileTap={{ scale: 0.97 }}
+                role="tab"
+                aria-selected={isSelected}
                 onClick={() => onFilter(v)}
-                aria-pressed={isSelected}
-                className="relative px-3 py-1 rounded-md cursor-pointer select-none transition-colors duration-150"
+                className={`relative px-3 py-1 rounded-lg cursor-pointer select-none transition-colors duration-150 outline-none ${
+                  isSelected
+                    ? 'text-white font-bold'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
               >
                 {isSelected && (
                   <motion.div
                     layoutId="active-lost-filter-pill"
-                    className="absolute inset-0 rounded-md bg-white shadow-2xs z-0 pointer-events-none"
-                    transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.55 }}
+                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    transition={SPRING_TAB_PILL}
                   />
                 )}
-                <span className={`relative z-10 ${isSelected ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'}`}>
-                  {l}
-                </span>
-              </motion.button>
+                <span className="relative z-10">{l}</span>
+              </button>
             );
           })}
         </div>

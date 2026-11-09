@@ -17,10 +17,10 @@ import {
 import { MaterialsSetupNotice, StatusPill, btnLight, btnPrimary, fmtDay } from './MaterialsUi';
 import { AdjustDialog, LostMaterialsSection, StockInDialog } from './MaterialStockPanel';
 import { ManageSimModal } from './ManageSimModal';
-import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import { WHILE_TAP_BUTTON, SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 
 /**
- * (6 Nov 2026) Stock Inventory → SIM Card.
+ * (6 Nov 2026) Stock Inventory â†’ SIM Card.
  * Clean, fast unified enterprise table showing cellular connectivity SIM cards.
  * Hardware types (POS Terminal vs Sound Box) are selectable via intuitive type filters,
  * eliminating redundant empty product columns from the table.
@@ -290,7 +290,7 @@ const SimCardTabComponent: React.FC<{
               status === '' ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            All <span className="tabular-nums opacity-80 ml-1">{totalAll?.toLocaleString() ?? '—'}</span>
+            All <span className="tabular-nums opacity-80 ml-1">{totalAll?.toLocaleString() ?? 'â€”'}</span>
           </motion.button>
           {STATUSES.map((s) => (
             <motion.button
@@ -305,7 +305,7 @@ const SimCardTabComponent: React.FC<{
             >
               {SERIAL_STATUS_LABEL[s]}{' '}
               <span className="tabular-nums opacity-80 ml-1">
-                {counts ? counts[s].toLocaleString() : '—'}
+                {counts ? counts[s].toLocaleString() : 'â€”'}
               </span>
             </motion.button>
           ))}
@@ -313,107 +313,52 @@ const SimCardTabComponent: React.FC<{
 
         {/* Hardware Type Selector Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-3.5 pt-3.5 border-t border-slate-200/90">
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-200/80 rounded-2xl" role="tablist" aria-label="Select Device Type">
-            <motion.button
-              whileTap={WHILE_TAP_BUTTON}
-              type="button"
-              role="tab"
-              aria-selected={hardwareFilter === 'ALL'}
-              onClick={() => setHardwareFilter('ALL')}
-              className={`relative px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                hardwareFilter === 'ALL'
-                  ? 'text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
-              }`}
-            >
-              {hardwareFilter === 'ALL' && (
-                <motion.div
-                  layoutId={SHARED_LAYOUT_IDS.SIM_HARDWARE_PILL}
-                  transition={SPRING_NO_BOUNCE}
-                  className="absolute inset-0 rounded-xl bg-[#003857] z-0 pointer-events-none"
-                />
-              )}
-              <CreditCard className="w-3.5 h-3.5 relative z-10" />
-              <span className="relative z-10">All Types</span>
-              <span className={`relative z-10 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-normal ${hardwareFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-700'}`}>
-                {typeCounts.ALL}
-              </span>
-            </motion.button>
-            <motion.button
-              whileTap={WHILE_TAP_BUTTON}
-              type="button"
-              role="tab"
-              aria-selected={hardwareFilter === 'POS'}
-              onClick={() => setHardwareFilter('POS')}
-              className={`relative px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                hardwareFilter === 'POS'
-                  ? 'text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
-              }`}
-            >
-              {hardwareFilter === 'POS' && (
-                <motion.div
-                  layoutId={SHARED_LAYOUT_IDS.SIM_HARDWARE_PILL}
-                  transition={SPRING_NO_BOUNCE}
-                  className="absolute inset-0 rounded-xl bg-sky-700 z-0 pointer-events-none"
-                />
-              )}
-              <Cpu className={`w-3.5 h-3.5 relative z-10 ${hardwareFilter === 'POS' ? 'text-sky-200' : 'text-sky-600'}`} />
-              <span className="relative z-10">POS Terminal</span>
-              <span className={`relative z-10 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-normal ${hardwareFilter === 'POS' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-700'}`}>
-                {typeCounts.POS}
-              </span>
-            </motion.button>
-            <motion.button
-              whileTap={WHILE_TAP_BUTTON}
-              type="button"
-              role="tab"
-              aria-selected={hardwareFilter === 'SOUND_BOX'}
-              onClick={() => setHardwareFilter('SOUND_BOX')}
-              className={`relative px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                hardwareFilter === 'SOUND_BOX'
-                  ? 'text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
-              }`}
-            >
-              {hardwareFilter === 'SOUND_BOX' && (
-                <motion.div
-                  layoutId={SHARED_LAYOUT_IDS.SIM_HARDWARE_PILL}
-                  transition={SPRING_NO_BOUNCE}
-                  className="absolute inset-0 rounded-xl bg-purple-700 z-0 pointer-events-none"
-                />
-              )}
-              <Volume2 className={`w-3.5 h-3.5 relative z-10 ${hardwareFilter === 'SOUND_BOX' ? 'text-purple-200' : 'text-purple-600'}`} />
-              <span className="relative z-10">Sound Box</span>
-              <span className={`relative z-10 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-normal ${hardwareFilter === 'SOUND_BOX' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-700'}`}>
-                {typeCounts.SOUND_BOX}
-              </span>
-            </motion.button>
-            <motion.button
-              whileTap={WHILE_TAP_BUTTON}
-              type="button"
-              role="tab"
-              aria-selected={hardwareFilter === 'UNASSIGNED'}
-              onClick={() => setHardwareFilter('UNASSIGNED')}
-              className={`relative px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                hardwareFilter === 'UNASSIGNED'
-                  ? 'text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
-              }`}
-            >
-              {hardwareFilter === 'UNASSIGNED' && (
-                <motion.div
-                  layoutId={SHARED_LAYOUT_IDS.SIM_HARDWARE_PILL}
-                  transition={SPRING_NO_BOUNCE}
-                  className="absolute inset-0 rounded-xl bg-emerald-700 z-0 pointer-events-none"
-                />
-              )}
-              <Layers className={`w-3.5 h-3.5 relative z-10 ${hardwareFilter === 'UNASSIGNED' ? 'text-emerald-200' : 'text-emerald-600'}`} />
-              <span className="relative z-10">Available Pool</span>
-              <span className={`relative z-10 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-normal ${hardwareFilter === 'UNASSIGNED' ? 'bg-white/20 text-white' : 'bg-slate-300 text-slate-700'}`}>
-                {typeCounts.UNASSIGNED}
-              </span>
-            </motion.button>
+          <div
+            className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs gap-1 select-none flex-wrap"
+            role="tablist"
+            aria-label="Select Device Type"
+          >
+            {([
+              { id: 'ALL' as const, label: 'All Types', icon: CreditCard, count: typeCounts.ALL },
+              { id: 'POS' as const, label: 'POS Terminal', icon: Cpu, count: typeCounts.POS },
+              { id: 'SOUND_BOX' as const, label: 'Sound Box', icon: Volume2, count: typeCounts.SOUND_BOX },
+              { id: 'UNASSIGNED' as const, label: 'Available Pool', icon: Layers, count: typeCounts.UNASSIGNED },
+            ]).map(({ id, label, icon: Icon, count }) => {
+              const active = hardwareFilter === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setHardwareFilter(id)}
+                  className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none flex items-center gap-1.5 ${
+                    active
+                      ? 'text-white'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {active && (
+                    <motion.div
+                      layoutId={SHARED_LAYOUT_IDS.SIM_HARDWARE_PILL}
+                      transition={SPRING_TAB_PILL}
+                      className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    />
+                  )}
+                  <Icon className={`w-3.5 h-3.5 relative z-10 ${active ? 'text-white' : 'text-slate-500'}`} />
+                  <span className="relative z-10">{label}</span>
+                  <span
+                    className={`relative z-10 text-[10px] px-1.5 py-0.5 rounded-md font-mono font-normal ${
+                      active
+                        ? 'bg-white/20 text-white font-bold'
+                        : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <p className="text-xs text-slate-500 italic hidden sm:block">
             SIM cards provide cellular service to either POS or Sound Box depending on merchant requirement
@@ -454,7 +399,7 @@ const SimCardTabComponent: React.FC<{
             <option value="">All locations</option>
             <option value="100">Head Office</option>
             {branches.filter((b) => b.id !== '100').map((b) => (
-              <option key={b.id} value={b.id}>{b.id} · {b.name}</option>
+              <option key={b.id} value={b.id}>{b.id} Â· {b.name}</option>
             ))}
           </select>
         )}
@@ -589,14 +534,14 @@ const SimCardTabComponent: React.FC<{
                       {hw.serial ? (
                         <span className="font-semibold text-slate-800">{hw.serial}</span>
                       ) : (
-                        <span className="text-slate-300 select-none">—</span>
+                        <span className="text-slate-300 select-none">â€”</span>
                       )}
                     </td>
                     <td className="px-2.5 py-2.5">
                       {hasMerchant ? (
                         <div className="min-w-0 max-w-[200px]">
                           <span className="block font-medium text-slate-900 truncate" title={merchantName}>
-                            {merchantName || '—'}
+                            {merchantName || 'â€”'}
                           </span>
                           {mid && (
                             <span className="block text-[11px] font-mono text-slate-500 truncate">
@@ -605,14 +550,14 @@ const SimCardTabComponent: React.FC<{
                           )}
                         </div>
                       ) : (
-                        <span className="text-slate-300 select-none">—</span>
+                        <span className="text-slate-300 select-none">â€”</span>
                       )}
                     </td>
                     <td className="px-2.5 py-2.5 tabular-nums whitespace-nowrap">
                       {deployedDate ? (
                         <span className="text-slate-700 font-medium">{deployedDate}</span>
                       ) : (
-                        <span className="text-slate-300 select-none">—</span>
+                        <span className="text-slate-300 select-none">â€”</span>
                       )}
                     </td>
                     <td className="px-2.5 py-2.5">
@@ -621,7 +566,7 @@ const SimCardTabComponent: React.FC<{
                           {branchStaff}
                         </span>
                       ) : (
-                        <span className="text-slate-300 select-none">—</span>
+                        <span className="text-slate-300 select-none">â€”</span>
                       )}
                     </td>
                     <td className="px-2.5 py-2.5">
@@ -630,7 +575,7 @@ const SimCardTabComponent: React.FC<{
                           {branchName}
                         </span>
                       ) : (
-                        <span className="text-slate-300 select-none">—</span>
+                        <span className="text-slate-300 select-none">â€”</span>
                       )}
                     </td>
                     <td className="px-2.5 py-2.5 text-right whitespace-nowrap">
@@ -679,7 +624,7 @@ const SimCardTabComponent: React.FC<{
         triggerToast={triggerToast}
       />
 
-      <LostMaterialsSection codes={SIM_CODES} title="Lost Materials · SIM Card" branches={branches} isAdmin={isAdmin}
+      <LostMaterialsSection codes={SIM_CODES} title="Lost Materials Â· SIM Card" branches={branches} isAdmin={isAdmin}
         triggerToast={triggerToast} onChanged={changed} />
 
       {/* Adjust Dialog */}

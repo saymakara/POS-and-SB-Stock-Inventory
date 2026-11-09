@@ -27,6 +27,7 @@ import {
   clearTelegramConnection,
 } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
+import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import {
   Settings,
   BatteryCharging,
@@ -574,143 +575,71 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         className="bg-white rounded-2xl border border-slate-200/90 p-2 shadow-2xs"
         aria-label="Settings Sub Navigation"
       >
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-        <button
-          type="button"
-          onClick={() => handleSubTabSelect('policy')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'policy'
-              ? 'tab-active-blue text-white shadow-xs'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-          }`}
+        <div
+          className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 gap-1 overflow-x-auto no-scrollbar w-full sm:w-auto max-w-full select-none"
+          role="tablist"
         >
-          <ShieldCheck className="w-4 h-4" />
-          <span>MID &amp; Battery Policy</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSubTabSelect('kpi')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'kpi'
-              ? 'tab-active-blue text-white shadow-xs'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-          }`}
-        >
-          <Target className="w-4 h-4 text-[#003857]" />
-          <span>KPI Points &amp; Rules</span>
-          {kpiRules.length > 0 && (
-            <span
-              className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                activeSubTab === 'kpi'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-[#003857]/10 text-[#003857]'
-              }`}
-            >
-              {kpiRules.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSubTabSelect('brand_logo')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'brand_logo'
-              ? 'tab-active-blue text-white shadow-xs'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-          }`}
-        >
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          <span>Brand &amp; Logo</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSubTabSelect('hardware')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'hardware'
-              ? 'tab-active-blue text-white shadow-xs'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>Serial Standards &amp; Allocation</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSubTabSelect('sla')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'sla'
-              ? 'tab-active-blue text-white shadow-xs'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-          }`}
-        >
-          <Clock className="w-4 h-4 text-sky-500" />
-          <span>SLA &amp; Turnaround</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSubTabSelect('customFields')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'customFields'
-              ? 'tab-active-blue text-white shadow-xs'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-          }`}
-        >
-          <SlidersHorizontal className="w-4 h-4 text-emerald-500" />
-          <span>Custom &amp; Dynamic Fields</span>
-          <span
-            className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-              activeSubTab === 'customFields'
-                ? 'bg-white/20 text-white'
-                : 'bg-emerald-500/15 text-emerald-600'
-            }`}
-          >
-            {currentCustomFields.filter((f) => f.enabled).length} Active
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSubTabSelect('data')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'data'
-              ? 'tab-active-blue text-white shadow-xs'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-          }`}
-        >
-          <Database className="w-4 h-4" />
-          <span>Data Backup, Export &amp; Reset</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSubTabSelect('security')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'security'
-              ? 'tab-active-blue text-white shadow-xs'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-          }`}
-        >
-          <Lock className="w-4 h-4" />
-          <span>Security, Branding &amp; Telegram</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSubTabSelect('health')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeSubTab === 'health'
-              ? 'tab-active-blue text-white shadow-xs'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-          }`}
-        >
-          <Activity className="w-4 h-4" />
-          <span>System Health</span>
-        </button>
+          {([
+            { id: 'policy' as const, label: 'MID & Battery Policy', icon: ShieldCheck },
+            {
+              id: 'kpi' as const,
+              label: 'KPI Points & Rules',
+              icon: Target,
+              badge: kpiRules.length > 0 ? kpiRules.length : undefined,
+            },
+            { id: 'brand_logo' as const, label: 'Brand & Logo', icon: Sparkles },
+            { id: 'hardware' as const, label: 'Serial Standards & Allocation', icon: Layers },
+            { id: 'sla' as const, label: 'SLA & Turnaround', icon: Clock },
+            {
+              id: 'customFields' as const,
+              label: 'Custom & Dynamic Fields',
+              icon: SlidersHorizontal,
+              badge: `${currentCustomFields.filter((f) => f.enabled).length} Active`,
+            },
+            { id: 'data' as const, label: 'Data Backup, Export & Reset', icon: Database },
+            { id: 'security' as const, label: 'Security, Branding & Telegram', icon: Lock },
+            { id: 'health' as const, label: 'System Health', icon: Activity },
+          ]).map(({ id, label, icon: Icon, badge }) => {
+            const isActive = activeSubTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => handleSubTabSelect(id)}
+                className={`relative px-3.5 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer select-none outline-none ${
+                  isActive
+                    ? 'text-white'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId={SHARED_LAYOUT_IDS.SETTINGS_SUBTAB_PILL}
+                    aria-hidden
+                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    transition={SPRING_TAB_PILL}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-2">
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                  <span>{label}</span>
+                  {badge !== undefined && (
+                    <span
+                      className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                        isActive
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      {badge}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </nav>
 

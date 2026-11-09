@@ -26,6 +26,7 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { SPRING_TAB_PILL } from '../utils/animationRules';
 import { normalizeMid, isValidMidForType, midRuleError } from '../utils/display';
 import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
@@ -58,7 +59,7 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
     cycle: 'HQ_STOCK',
     name: 'Admin HQ Stock Intake',
     tag: 'Admin Stock',
-    badge: 'No Staff or Merchant required · Stock-In captured dynamically',
+    badge: 'No Staff or Merchant required Â· Stock-In captured dynamically',
     description: 'Bulk intake into central warehouse (Branch 100). Stock-In date is auto-captured dynamically to upload date.',
     filename: 'template_admin_hq_stock.csv',
     columns: [
@@ -79,7 +80,7 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
     cycle: 'BRANCH_RESERVE',
     name: 'Branch Staff Reserve Intake',
     tag: 'Branch Staff Reserve',
-    badge: 'Staff Assignment REQUIRED · Stock-In captured dynamically',
+    badge: 'Staff Assignment REQUIRED Â· Stock-In captured dynamically',
     description: 'Stock allocated to branch inventory assigned to a staff custodian officer. Stock-In date is auto-captured dynamically to upload date.',
     filename: 'template_branch_staff_reserve.csv',
     columns: [
@@ -101,7 +102,7 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
     cycle: 'CONFIGURING',
     name: 'Under Configuring Intake',
     tag: 'Under Configuring',
-    badge: 'Staff & Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In & TID captured dynamically',
+    badge: 'Staff & Merchant Info (Name + 15-digit MID) REQUIRED Â· Stock-In & TID captured dynamically',
     description: 'Hardware undergoing merchant technical setup. Staff & Branch Code are validated with Staff Directory. Stock-In date and TID are auto-captured dynamically.',
     filename: 'template_under_configuring.csv',
     columns: [
@@ -125,7 +126,7 @@ export const CYCLE_SCHEMAS: Record<IntakeCycle, CycleSchemaInfo> = {
     cycle: 'COMPLETE',
     name: 'Installed Live Intake',
     tag: 'Live Merchant',
-    badge: 'Staff & Merchant Info (Name + 15-digit MID) REQUIRED · Stock-In & TID captured dynamically',
+    badge: 'Staff & Merchant Info (Name + 15-digit MID) REQUIRED Â· Stock-In & TID captured dynamically',
     description: 'Active hardware live at merchant store. Staff & Branch Code are validated with Staff Directory. Stock-In date and TID are auto-captured dynamically.',
     filename: 'template_installed_live.csv',
     columns: [
@@ -188,7 +189,7 @@ export interface StagedItem {
   isAlreadyInDb?: boolean;
   alreadyInDbMessage?: string;
   stockOrigin?: 'EXISTING_HQ_STOCK' | 'NEW_SERIAL';
-  /** Why this row cannot be imported (unknown branch, bad stage/date, column count…); any error halts the upload. */
+  /** Why this row cannot be imported (unknown branch, bad stage/date, column countâ€¦); any error halts the upload. */
   error?: string;
   cellErrors?: CsvCellValidationError[];
 }
@@ -263,7 +264,7 @@ const BranchSearch: React.FC<{
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const current = branches.find((b) => b.id === value);
-  const label = current ? `${current.id} · ${current.name}` : '';
+  const label = current ? `${current.id} Â· ${current.name}` : '';
   const list = useMemo(() => {
     const t = q.trim().toLowerCase();
     return branches.filter((b) => !t || b.id.toLowerCase().includes(t) || b.name.toLowerCase().includes(t)).slice(0, 60);
@@ -276,7 +277,7 @@ const BranchSearch: React.FC<{
         aria-expanded={open}
         aria-label="Fallback branch"
         value={open ? q : label}
-        placeholder="Search branch code or name…"
+        placeholder="Search branch code or nameâ€¦"
         onFocus={() => { setQ(''); setOpen(true); }}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
@@ -293,7 +294,7 @@ const BranchSearch: React.FC<{
             <li key={b.id} role="option" aria-selected={b.id === value}
               onMouseDown={(e) => { e.preventDefault(); onChange(b.id); setOpen(false); }}
               className={`px-3 py-1.5 cursor-pointer hover:bg-slate-100 ${b.id === value ? 'bg-sky-50 font-semibold' : ''}`}>
-              <span className="font-mono">{b.id}</span> · {b.name}
+              <span className="font-mono">{b.id}</span> Â· {b.name}
             </li>
           ))}
         </ul>
@@ -671,7 +672,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           colNumber('serial', 2),
           colLabel('serial', 'Serial_SN'),
           'INVALID_TYPE',
-          `Invalid Serial_SN format "${rawSerial}" (expected 3–40 alphanumeric characters)`
+          `Invalid Serial_SN format "${rawSerial}" (expected 3â€“40 alphanumeric characters)`
         );
       }
 
@@ -794,7 +795,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
           colNumber('tid', 12),
           colLabel('tid', 'TID'),
           'INVALID_TYPE',
-          `Invalid TID "${rawTidInput}" (must be 4–16 alphanumeric characters)`
+          `Invalid TID "${rawTidInput}" (must be 4â€“16 alphanumeric characters)`
         );
       }
 
@@ -1561,7 +1562,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     ))}
                     {haltingValidationIssues.length > 50 && (
                       <div className="text-rose-600 font-bold pt-1">
-                        …and {haltingValidationIssues.length - 50} more validation error(s).
+                        â€¦and {haltingValidationIssues.length - 50} more validation error(s).
                       </div>
                     )}
                   </div>
@@ -2166,12 +2167,12 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                         <span className="opacity-60">({validPosCount} POS, {validSbCount} SB)</span>
                         {activeStagedBatch.some((i) => i.stockOrigin === 'EXISTING_HQ_STOCK') && (
                           <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                            · {activeStagedBatch.filter((i) => i.stockOrigin === 'EXISTING_HQ_STOCK').length} in HQ
+                            Â· {activeStagedBatch.filter((i) => i.stockOrigin === 'EXISTING_HQ_STOCK').length} in HQ
                           </span>
                         )}
                         {activeStagedBatch.some((i) => i.stockOrigin === 'NEW_SERIAL') && (
                           <span className="text-sky-600 dark:text-sky-400 font-bold">
-                            · {activeStagedBatch.filter((i) => i.stockOrigin === 'NEW_SERIAL').length} new
+                            Â· {activeStagedBatch.filter((i) => i.stockOrigin === 'NEW_SERIAL').length} new
                           </span>
                         )}
                       </span>
@@ -2184,19 +2185,31 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
 
                   <div className="flex items-center gap-2">
                     {activeStagedBatch.length > 0 && (
-                      <div className="flex items-center gap-1 text-[11px]">
+                      <div
+                        className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs text-[11px] font-semibold gap-1 select-none overflow-x-auto no-scrollbar"
+                        role="tablist"
+                        aria-label="Stage filter"
+                      >
                         <button
                           type="button"
+                          role="tab"
+                          aria-selected={stageFilter === 'ALL'}
                           onClick={() => setStageFilter('ALL')}
-                          className={`px-2 py-0.5 rounded-md font-semibold transition cursor-pointer ${
+                          className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none ${
                             stageFilter === 'ALL'
-                              ? 'tab-active-blue text-white'
-                              : isLight
-                              ? 'bg-slate-200/70 hover:bg-slate-200 text-slate-700'
-                              : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                              ? 'text-white'
+                              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                           }`}
                         >
-                          All ({activeStagedBatch.length})
+                          {stageFilter === 'ALL' && (
+                            <motion.div
+                              layoutId="batch-stage-filter-pill"
+                              aria-hidden
+                              className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                              transition={SPRING_TAB_PILL}
+                            />
+                          )}
+                          <span className="relative z-10">All ({activeStagedBatch.length})</span>
                         </button>
                         {(['HQ_STOCK', 'BRANCH_RESERVE', 'CONFIGURING', 'COMPLETE'] as IntakeCycle[]).map((cKey) => {
                           const count = activeStagedBatch.filter((i) => i.stage === cKey).length;
@@ -2207,16 +2220,24 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                             <button
                               key={cKey}
                               type="button"
+                              role="tab"
+                              aria-selected={isActive}
                               onClick={() => setStageFilter(cKey)}
-                              className={`px-2 py-0.5 rounded-md font-semibold transition cursor-pointer ${
+                              className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none ${
                                 isActive
-                                  ? 'tab-active-blue text-white'
-                                  : isLight
-                                  ? 'bg-slate-200/70 hover:bg-slate-200 text-slate-700'
-                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                  ? 'text-white'
+                                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                               }`}
                             >
-                              {cDef.tag} ({count})
+                              {isActive && (
+                                <motion.div
+                                  layoutId="batch-stage-filter-pill"
+                                  aria-hidden
+                                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                  transition={SPRING_TAB_PILL}
+                                />
+                              )}
+                              <span className="relative z-10">{cDef.tag} ({count})</span>
                             </button>
                           );
                         })}
@@ -2290,7 +2311,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               <span>{item.serial}</span>
                               {item.stockOrigin === 'EXISTING_HQ_STOCK' && (
                                 <span className="text-[9px] px-1.5 py-0.2 rounded font-sans font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
-                                  ✓ In HQ Stock
+                                  âœ“ In HQ Stock
                                 </span>
                               )}
                               {item.stockOrigin === 'NEW_SERIAL' && (
@@ -2324,7 +2345,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                             {item.model}
                           </td>
                           <td className="py-1.5 px-3 font-mono font-semibold text-[#003857] dark:text-sky-300 whitespace-nowrap">
-                            {item.batterySerial || '—'}
+                            {item.batterySerial || 'â€”'}
                           </td>
                           <td
                             className={`py-1.5 px-3 whitespace-nowrap ${
@@ -2397,7 +2418,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               >
                                 <AlertCircle className="w-3 h-3 shrink-0" />
                                 <span className="truncate">
-                                  Validation: Not OK — {item.alreadyInDbMessage || 'Already in Branch Reserve'}
+                                  Validation: Not OK â€” {item.alreadyInDbMessage || 'Already in Branch Reserve'}
                                 </span>
                               </span>
                             ) : item.isDuplicateInFile ? (
@@ -2406,7 +2427,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                                 className="text-rose-600 dark:text-rose-400 font-bold text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 inline-flex items-center gap-1"
                               >
                                 <AlertCircle className="w-3 h-3 shrink-0" />
-                                <span>Validation: Not OK — Duplicate in batch</span>
+                                <span>Validation: Not OK â€” Duplicate in batch</span>
                               </span>
                             ) : item.error ? (
                               <span
@@ -2414,7 +2435,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                                 className="text-rose-600 dark:text-rose-400 font-bold text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/25 inline-flex items-center gap-1 max-w-[340px] truncate align-middle"
                               >
                                 <AlertCircle className="w-3 h-3 shrink-0" />
-                                <span className="truncate">Validation: Not OK — {item.error}</span>
+                                <span className="truncate">Validation: Not OK â€” {item.error}</span>
                               </span>
                             ) : (
                               <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 inline-flex items-center gap-1">
@@ -2576,7 +2597,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     Hardware Breakdown
                   </span>
                   <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400 mt-0.5 block">
-                    {validPosCount} POS · {validSbCount} Sound Box
+                    {validPosCount} POS Â· {validSbCount} Sound Box
                   </span>
                 </div>
 
@@ -2602,7 +2623,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     Batch Schedule
                   </span>
                   <span className="font-bold text-xs text-slate-600 dark:text-slate-300 mt-0.5 block">
-                    {Math.ceil(validItems.length / CSV_BATCH_SIZE)} × {CSV_BATCH_SIZE} rows ({CSV_BATCH_DELAY_MS}ms)
+                    {Math.ceil(validItems.length / CSV_BATCH_SIZE)} Ã— {CSV_BATCH_SIZE} rows ({CSV_BATCH_DELAY_MS}ms)
                   </span>
                 </div>
               </div>
@@ -2655,7 +2676,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <td className="py-1.5 px-3 font-semibold">{item.type}</td>
                           <td className="py-1.5 px-3 text-slate-500">{item.model}</td>
                           <td className="py-1.5 px-3 font-mono text-slate-600 dark:text-slate-300">
-                            {item.batterySerial || '—'}
+                            {item.batterySerial || 'â€”'}
                           </td>
                           <td className="py-1.5 px-3 font-medium text-slate-600 dark:text-slate-300">
                             Code {item.branchId} ({item.branchName})

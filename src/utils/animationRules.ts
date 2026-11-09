@@ -220,6 +220,14 @@ export const SPRING_NO_BOUNCE: Transition = {
   bounce: 0,
 };
 
+/** Signature Spring Physics for Sliding Tab Navigation Pills across the portal */
+export const SPRING_TAB_PILL: Transition = {
+  type: 'spring',
+  stiffness: 500,
+  damping: 32,
+  mass: 0.55,
+};
+
 // ============================================================================
 // 14. DRAGGING RESPONSIVENESS WITHOUT ANIMATION LAG & 19. RUBBER BAND PAST BOUNDS
 // ============================================================================
@@ -364,5 +372,9 @@ export const SHARED_LAYOUT_IDS = {
   PRODUCT_VIEW_PILL: 'activeProductViewPill',
   SIM_HARDWARE_PILL: 'simHardwareFilterPill',
   SIM_STATUS_PILL: 'simStatusPill',
+  SETTINGS_SUBTAB_PILL: 'settings-subtab-pill',
+  MATERIAL_LEDGER_PILL: 'material-ledger-view-pill',
+  CRM_TREND_MODE_PILL: 'crm-trend-mode-pill',
+  CRM_TREND_HORIZON_PILL: 'crm-trend-horizon-pill',
   MOBILE_TAB_PILL: 'mobileTabIndicator',
 } as const;

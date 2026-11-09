@@ -17,6 +17,7 @@ import {
   saveTelegramWebhookConfig,
 } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
+import { SPRING_TAB_PILL } from '../utils/animationRules';
 import {
   Smartphone,
   Wifi,
@@ -208,7 +209,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
     );
     setMerchantPhone(dev.merchantPhone || '012 990 315');
     setAddress(dev.address || 'St 51, Boeung Keng Kang 1, Phnom Penh');
-    setGpsLocation(dev.location || '11.5540° N, 104.9282° E · Phnom Penh');
+    setGpsLocation(dev.location || '11.5540Â° N, 104.9282Â° E Â· Phnom Penh');
 
     if (dev.stage === 'BRANCH_RESERVE') {
       setStage('CONFIGURING');
@@ -250,7 +251,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
           severity: 'CRITICAL',
           title: 'Unregistered Hardware Serial',
           summary: `Webhook ${evt.eventId} reported serial ${evt.serial}, which is missing from the local registry.`,
-          webhookValue: `${evt.newStage} · ${evt.merchantName} (${evt.mid})`,
+          webhookValue: `${evt.newStage} Â· ${evt.merchantName} (${evt.mid})`,
           registryValue: 'Not Registered',
           latestEvent: evt,
           canAutoResolve: true,
@@ -291,7 +292,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
           severity: 'WARNING',
           title: 'MID / TID Binding Mismatch',
           summary: `Webhook MID/TID binding differs from local hardware registry.`,
-          webhookValue: `${evt.mid || '—'} / ${evt.tid || '—'}`,
+          webhookValue: `${evt.mid || 'â€”'} / ${evt.tid || 'â€”'}`,
           registryValue: `${localDev.mid || 'Unbound'} / ${localDev.tid || 'Unbound'}`,
           latestEvent: evt,
           localDevice: localDev,
@@ -364,7 +365,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
         title: 'Missing Field Check-In',
         summary: `Serial ${d.serial} is in Branch Config for Branch ${d.branchId} with no webhook check-in.`,
         webhookValue: 'No Webhook Event',
-        registryValue: `${STAGE_META[d.stage]?.short || d.stage} · Br.${d.branchId}`,
+        registryValue: `${STAGE_META[d.stage]?.short || d.stage} Â· Br.${d.branchId}`,
         localDevice: d,
         syntheticEvent: synthEvent,
         canAutoResolve: true,
@@ -523,7 +524,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
         onReplaceDevice(
           selectedSerial,
           replacementSerial,
-          notes.trim() || 'Error after deploy — Replaced via Mobile App',
+          notes.trim() || 'Error after deploy â€” Replaced via Mobile App',
           replaceStaffOfficer || activeStaff
         );
       } else {
@@ -756,7 +757,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
               </span>
             </div>
             <span className={`text-[11px] font-semibold mt-1 block ${navyTitleClass}`}>
-              {reconciliationOpen ? 'Hide Audit Drawer ▴' : 'Inspect Cross-Check ▾'}
+              {reconciliationOpen ? 'Hide Audit Drawer â–´' : 'Inspect Cross-Check â–¾'}
             </span>
           </div>
           <div
@@ -791,8 +792,8 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     Serial Registry vs. Mobile Sync Cross-Check
                   </h3>
                   <p className={`text-xs ${subtextClass}`}>
-                    Last checked: <span className="font-mono font-semibold">{lastAuditTimestamp}</span> ·{' '}
-                    <strong className="text-amber-400">{reconciliationReport.totalDiscrepancies}</strong> flagged ·{' '}
+                    Last checked: <span className="font-mono font-semibold">{lastAuditTimestamp}</span> Â·{' '}
+                    <strong className="text-amber-400">{reconciliationReport.totalDiscrepancies}</strong> flagged Â·{' '}
                     <strong className="text-emerald-400">{reconciliationReport.verifiedMatches.length}</strong> aligned
                   </p>
                 </div>
@@ -842,7 +843,11 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
             </div>
 
             {/* Filter Tabs */}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div
+              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs gap-1 select-none flex-wrap"
+              role="tablist"
+              aria-label="Reconciliation filter"
+            >
               {[
                 {
                   id: 'ALL',
@@ -860,22 +865,33 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                   id: 'VERIFIED',
                   label: `Aligned (${reconciliationReport.verifiedMatches.length})`,
                 },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setReconciliationFilter(tab.id as any)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                    reconciliationFilter === tab.id
-                      ? 'bg-[#003857] text-white border-[#003857] shadow-sm'
-                      : isLight
-                      ? 'bg-slate-100 hover:bg-slate-200 text-zinc-700 border-slate-200'
-                      : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10 hover:text-white'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              ].map((tab) => {
+                const isActive = reconciliationFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setReconciliationFilter(tab.id as any)}
+                    className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none ${
+                      isActive
+                        ? 'text-white'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="sync-reconciliation-filter-pill"
+                        aria-hidden
+                        className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                        transition={SPRING_TAB_PILL}
+                      />
+                    )}
+                    <span className="relative z-10">{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Discrepancy Items */}
@@ -901,7 +917,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         </span>
                       </div>
                       <div className={`text-[11px] ${subtextClass} truncate mt-1`}>
-                        {device.merchantName} ({device.mid}) · Event {event.eventId}
+                        {device.merchantName} ({device.mid}) Â· Event {event.eventId}
                       </div>
                     </div>
                     <button
@@ -952,7 +968,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                                 isCrit ? 'text-rose-400' : 'text-amber-400'
                               }`}
                             >
-                              · {disc.title}
+                              Â· {disc.title}
                             </span>
                           </div>
                           <p className={`text-xs ${subtextClass}`}>{disc.summary}</p>
@@ -1012,10 +1028,10 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
           {/* iPhone 18 Pro Max Spec Badge */}
           <div className="mb-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] font-mono font-bold border bg-[#141518]/90 text-zinc-200 border-zinc-700/80 shadow-sm backdrop-blur-md">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>iPhone 18 Pro Max • 6.9&quot; Super Retina XDR • Space Black Titanium</span>
+            <span>iPhone 18 Pro Max â€¢ 6.9&quot; Super Retina XDR â€¢ Space Black Titanium</span>
           </div>
 
-          {/* Authentic Real iPhone 18 Pro Max Form Factor: 163.0mm × 77.6mm (1 : 2.1 Physical Aspect Ratio) */}
+          {/* Authentic Real iPhone 18 Pro Max Form Factor: 163.0mm Ã— 77.6mm (1 : 2.1 Physical Aspect Ratio) */}
           <div className="relative w-full max-w-[380px] h-[798px]">
             {/* Precision Space Black Titanium Side Physical Buttons & Antenna Bands */}
             {/* Antenna Band Top Left */}
@@ -1181,7 +1197,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                           </span>
                           <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-                            iPhone 18 Pro Max · Space Black Titanium
+                            iPhone 18 Pro Max Â· Space Black Titanium
                           </span>
                         </div>
                       </div>
@@ -1235,7 +1251,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     >
                       {installableDevices.map((d) => (
                         <option key={d.serial} value={d.serial} className="bg-zinc-900 text-white">
-                          {d.serial} · {d.model} ({STAGE_META[d.stage]?.short})
+                          {d.serial} Â· {d.model} ({STAGE_META[d.stage]?.short})
                         </option>
                       ))}
                     </select>
@@ -1629,7 +1645,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                           mobileTechError.kind === 'notice' ? 'text-amber-400' : 'text-rose-400'
                         }`}>
                           <AlertOctagon className="w-3.5 h-3.5 shrink-0" />
-                          {mobileTechError.badge || (mobileTechError.kind === 'notice' ? 'Validation Notice' : `System Alert · ${mobileTechError.code}`)}
+                          {mobileTechError.badge || (mobileTechError.kind === 'notice' ? 'Validation Notice' : `System Alert Â· ${mobileTechError.code}`)}
                         </span>
                         <div className="text-xs font-bold text-white mt-0.5">
                           {mobileTechError.title || (mobileTechError.kind === 'notice' ? 'Action Could Not Be Completed' : 'System Operation Alert')}
@@ -1648,7 +1664,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     </div>
                     <div className="text-[10px] text-slate-400 flex flex-wrap items-center justify-between gap-2">
                       <span>{mobileTechError.operationLabel || mobileTechError.operation}</span>
-                      <span className="font-mono">Staff {mobileTechError.staffId} · Br.{mobileTechError.branchId} · {mobileTechError.timestamp}</span>
+                      <span className="font-mono">Staff {mobileTechError.staffId} Â· Br.{mobileTechError.branchId} Â· {mobileTechError.timestamp}</span>
                     </div>
                   </div>
                 )}
@@ -1718,8 +1734,12 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
               </div>
             </div>
 
-            {/* Apple Segmented Filter Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+            {/* Segmented Filter Tabs */}
+            <div
+              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs gap-1 select-none overflow-x-auto no-scrollbar"
+              role="tablist"
+              aria-label="Feed filter"
+            >
               {[
                 { id: 'ALL', label: 'All Events', count: feedCounts.all },
                 { id: 'POS', label: 'POS Terminals', count: feedCounts.pos },
@@ -1731,23 +1751,31 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                   <button
                     key={tab.id}
                     type="button"
+                    role="tab"
+                    aria-selected={active}
                     onClick={() => setFeedFilter(tab.id as any)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                    className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
                       active
-                        ? 'bg-[#003857] text-white border-[#003857] shadow-sm'
-                        : isLight
-                        ? 'bg-slate-100/80 hover:bg-slate-200 text-slate-700 border-slate-200'
-                        : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10 hover:text-white'
+                        ? 'text-white'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
-                    <span>{tab.label}</span>
+                    {active && (
+                      <motion.div
+                        layoutId="sync-feed-filter-pill"
+                        aria-hidden
+                        className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                        transition={SPRING_TAB_PILL}
+                      />
+                    )}
+                    <span className="relative z-10">{tab.label}</span>
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                      className={`relative z-10 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
                         active
                           ? 'bg-white/20 text-white'
                           : tab.id === 'DRIFT' && tab.count > 0
-                          ? 'bg-amber-500/20 text-amber-400'
-                          : 'bg-black/10 dark:bg-white/10 text-slate-400'
+                          ? 'bg-amber-500/20 text-amber-500'
+                          : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400'
                       }`}
                     >
                       {tab.count}
@@ -1824,7 +1852,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                               <span className={`font-mono font-bold text-xs ${headingClass}`}>
                                 {evt.serial}
                               </span>
-                              <span className="text-slate-400 text-xs">·</span>
+                              <span className="text-slate-400 text-xs">Â·</span>
                               <span className={`text-xs font-bold ${navyTitleClass}`}>
                                 {evt.merchantName}
                               </span>
@@ -1851,7 +1879,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                               <span>{evt.mid}</span>
                               <span className="opacity-40">/</span>
                               <span>{evt.tid}</span>
-                              <span className="opacity-40">·</span>
+                              <span className="opacity-40">Â·</span>
                               <span>Branch {evt.branchId}</span>
                             </div>
                           </div>
@@ -1872,7 +1900,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                           <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                             {newMeta?.short || evt.newStage || 'Installed Live'}
                           </span>
-                          <span className="text-slate-400">·</span>
+                          <span className="text-slate-400">Â·</span>
                           <span className={`text-xs flex items-center gap-1 ${subtextClass}`}>
                             <UserCheck className="w-3 h-3 opacity-70" />
                             <span>{evt.installerStaff}</span>
@@ -1931,7 +1959,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                   }}
                   className="px-3 py-1 rounded-xl text-[11px] font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer"
                 >
-                  {tgSavedNotice ? 'Webhook Saved ✓' : 'Save Webhook'}
+                  {tgSavedNotice ? 'Webhook Saved âœ“' : 'Save Webhook'}
                 </button>
                 <button
                   type="button"
