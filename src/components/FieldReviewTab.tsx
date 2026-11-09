@@ -197,6 +197,8 @@ export function fieldEditFields(e: FieldEvent): EditField[] {
   const checks = entryP.checks && typeof entryP.checks === 'object' ? entryP.checks : null;
   if (checks) Object.keys(checks).forEach((k) => out.push({ key: 'checks.' + k, label: k.charAt(0).toUpperCase() + k.slice(1), value: checks[k], section: ent,
     options: Object.values(checks).every((v) => /^(OK|Issue)$/i.test(String(v))) ? ['OK', 'Issue'] : undefined }));
+  if (e.kind === 'POS_MAINT') out.push({ key: 'request_type', label: 'Request Type', value: entryP.request_type || e.payload?.request_type || 'POS Terminal Inspection', options: ['POS Terminal Inspection', 'Refreshment Training', 'Request Paper Roll', 'Request Add Material', 'Request Return Materials', 'Others'], section: ent });
+  if (e.kind === 'SB_MAINT') out.push({ key: 'request_type', label: 'Request Type', value: entryP.request_type || e.payload?.request_type || 'SB Inspection', options: ['SB Inspection', 'SB Refresh Training', 'Battery Replacement', 'Add Material', 'Returns Material', 'Others'], section: ent });
   if (e.kind === 'SB_MAINT' || e.kind === 'SB_RETURN') out.push({ key: 'feedback', label: 'Merchant Feedback', value: entryP.feedback, multiline: true, section: ent });
   if (e.latitude != null || e.longitude != null) out.push({ key: 'latitude', label: 'Latitude', value: e.latitude, section: ent }, { key: 'longitude', label: 'Longitude', value: e.longitude, section: ent });
   out.push({ key: 'remarks', label: 'Remarks', value: e.remarks, multiline: true, section: ent });
