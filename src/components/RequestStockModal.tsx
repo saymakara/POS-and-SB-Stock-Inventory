@@ -397,8 +397,11 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         <Cpu className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white block">
                           POS Terminal
+                        </span>
+                        <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-normal">
+                          Includes bundled battery &amp; adaptor
                         </span>
                       </div>
                     </div>
@@ -453,8 +456,11 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         <Volume2 className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white block">
                           Sound Box
+                        </span>
+                        <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-normal">
+                          Includes bundled AC adaptor
                         </span>
                       </div>
                     </div>
@@ -504,12 +510,15 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 </div>
               </div>
 
-              {/* (5 Nov 2026) Materials kept at the branch for installations, replacements and add-ons */}
+              {/* Additional Support Materials (Spare Stock) */}
               <div className="flex flex-col gap-1.5">
                 <span className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-                  <span>Materials for branch reserve</span>
+                  <span>Additional Support Materials (Spare Stock)</span>
                   <span className="text-[10px] text-slate-400 font-medium">optional · quantities</span>
                 </span>
+                <p className="text-[11px] text-slate-500 leading-tight">
+                  Request extra standalone materials for branch shelf reserve (for replacement swaps or merchant add-on accessories).
+                </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {MATERIALS.map((m) => (
                     <label key={m.code} className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 ${isLight ? 'bg-slate-50/70 border-slate-200/90' : 'bg-[#181c26] border-slate-700/80'}`}>
@@ -660,19 +669,28 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 </div>
                 <div className="p-3 flex items-center justify-between">
                   <span className="text-slate-500 font-medium">POS Terminal Units:</span>
-                  <span className="font-mono font-bold text-[#1e5b88] dark:text-sky-400">
-                    {posQty} unit(s)
-                  </span>
+                  <div className="text-right">
+                    <span className="font-mono font-bold text-[#1e5b88] dark:text-sky-400">
+                      {posQty} unit(s)
+                    </span>
+                    {posQty > 0 && <span className="block text-[10.5px] text-slate-500 font-normal">Includes {posQty} bundled battery &amp; adaptor</span>}
+                  </div>
                 </div>
                 <div className="p-3 flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Sound Box Units:</span>
-                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
-                    {sbQty} unit(s)
-                  </span>
+                  <div className="text-right">
+                    <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                      {sbQty} unit(s)
+                    </span>
+                    {sbQty > 0 && <span className="block text-[10.5px] text-slate-500 font-normal">Includes {sbQty} bundled adaptor</span>}
+                  </div>
                 </div>
                 {matList.length > 0 && (
                   <div className="p-3 flex items-start justify-between gap-3">
-                    <span className="text-slate-500 font-medium">Materials:</span>
+                    <div>
+                      <span className="text-slate-500 font-medium block">Additional Support Stock:</span>
+                      <span className="text-[10px] text-slate-400">Spare shelf inventory</span>
+                    </div>
                     <span className="font-bold text-right">{matList.map((m) => `${m.name} × ${m.n}`).join(' · ')}</span>
                   </div>
                 )}

@@ -1008,9 +1008,9 @@ const MaterialStockPanelComponent: React.FC<{
                 className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
                 title="Filter by assignment to terminal or in reserve stock"
               >
-                <option value="ALL">All Assignments</option>
-                <option value="ASSIGNED">{group === 'POS' ? 'Assigned to POS Terminal' : 'Assigned to Sound Box'}</option>
-                <option value="UNASSIGNED">Unassigned / Reserve</option>
+                <option value="ALL">All Items (Bundled &amp; Spare)</option>
+                <option value="ASSIGNED">{group === 'POS' ? 'Bundled with POS Terminal' : 'Bundled with Sound Box'}</option>
+                <option value="UNASSIGNED">Standalone Support Materials</option>
               </select>
             </div>
 
