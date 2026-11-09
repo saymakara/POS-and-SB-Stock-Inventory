@@ -1330,18 +1330,11 @@ const MaterialStockPanelComponent: React.FC<{
                         {getMaterialBadge(s.code)}
                       </td>
 
-                      <td className="px-4 py-2.5 font-mono font-normal">
+                      <td className="px-4 py-2.5 font-mono font-normal text-slate-800">
                         {s.deviceSerial ? (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${
-                            group === 'POS'
-                              ? 'text-[#006BA6] bg-[#006BA6]/10 border-[#006BA6]/20'
-                              : 'text-purple-700 bg-purple-50 border-purple-200'
-                          }`}>
-                            {group === 'POS' ? <Cpu className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
-                            <span>{s.deviceSerial}</span>
-                          </span>
+                          <span>{s.deviceSerial}</span>
                         ) : (
-                          <span className="text-slate-400 italic">Unassigned Pool</span>
+                          <span className="text-slate-400 select-none">—</span>
                         )}
                       </td>
 
