@@ -1831,7 +1831,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     animate={{ x: 0 }}
                     exit={{ x: '100%' }}
                     transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                    className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 bg-white flex flex-col my-0 overflow-hidden text-slate-900"
+                    className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 bg-white flex flex-col my-0 overflow-hidden text-slate-900 rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80"
                   >
                     <div className="px-6 py-4 bg-[#003857] border-b border-white/10 flex items-center justify-between text-white">
                       <div>
@@ -2847,7 +2847,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       {/* Modal to Add / Edit Regional Group */}
       {isRegionalModalOpen && (
         <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setIsRegionalModalOpen(false); }}>
-          <div className="relative w-full sm:max-w-[500px] h-full shadow-2xl p-6 bg-white text-slate-900 space-y-4 flex flex-col overflow-y-auto">
+          <div className="relative w-full sm:max-w-[500px] h-full shadow-2xl p-6 bg-white text-slate-900 space-y-4 flex flex-col overflow-y-auto rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2 text-[#003857]">
                 <Users className="w-5 h-5 text-emerald-600" />

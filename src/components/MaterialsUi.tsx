@@ -51,7 +51,7 @@ export const MaterialDialog: React.FC<{
   return createPortal(
     <div className="fixed inset-0 z-[95] flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby={id}
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}>
-      <div ref={box} className={`drawer-glide w-full ${wide ? 'sm:max-w-xl md:max-w-2xl' : 'sm:max-w-[560px] md:max-w-[580px]'} h-full flex flex-col bg-white shadow-2xl `}>
+      <div ref={box} className={`drawer-glide w-full ${wide ? 'sm:max-w-xl md:max-w-2xl' : 'sm:max-w-[560px] md:max-w-[580px]'} h-full flex flex-col bg-white shadow-2xl rounded-l-2xl sm:rounded-l-3xl overflow-hidden border-l border-slate-200/80 `}>
         <div className="navy-header-bar flex items-start justify-between gap-3 px-5 py-4 border-b border-white/15 text-white shrink-0">
           <div className="min-w-0">
             <h2 id={id} className="text-base font-bold text-white">{title}</h2>

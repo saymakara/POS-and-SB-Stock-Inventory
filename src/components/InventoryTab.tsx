@@ -1438,7 +1438,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden bg-white text-slate-800"
+              className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden bg-white text-slate-800 rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10"
             >
               {/* Navy Header */}
               <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white border-b border-white/10">

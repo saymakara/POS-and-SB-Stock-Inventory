@@ -304,7 +304,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="relative w-full sm:max-w-[460px] md:max-w-[480px] bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full border-l border-slate-200 dark:border-slate-800"
+          className="relative w-full sm:max-w-[460px] md:max-w-[480px] bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full border-l border-slate-200 dark:border-slate-800 rounded-l-2xl sm:rounded-l-3xl overflow-hidden"
         >
           {/* 1. NAVY HEADER BAR */}
           <div className="bg-[#003857] text-white px-5 py-4 flex items-center justify-between shrink-0 shadow-sm border-b border-white/10">

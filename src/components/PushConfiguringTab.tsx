@@ -2251,7 +2251,7 @@ return (
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container ${
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
                     isLight ? 'bg-white text-slate-900' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >

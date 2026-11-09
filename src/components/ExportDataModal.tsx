@@ -338,7 +338,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
         initial="hidden"
         animate="visible"
         exit="exit"
-        className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden ${
+        className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
           isLight
             ? 'bg-white text-zinc-900'
             : 'bg-[#18191e] text-slate-100'
