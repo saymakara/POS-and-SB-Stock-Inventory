@@ -65,14 +65,12 @@ import {
 import { useKeptMemo } from './utils/useKeptMemo';
 import { clearInventoryCache } from './services/inventoryCache';
 import { clearMaterialsCache, fetchOpenLostCounts, adminSimUpdate, cleanMaterialError } from './services/materialsService';
-import { SendHorizontal, Lock, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { SendHorizontal, Lock, CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
 import { fetchDevicesFromSupabase, fetchDevicesChangedSince, countDevicesOnServer, fetchConfiguringDevicesFromSupabase, fetchDevicesPageFromSupabase, fetchDeviceStageCountsFromSupabase, type DeviceStageSummary, type DeviceQueryParams, fetchRequisitionsFromSupabase, subscribeToRealtimeChanges, saveDevicesStrict, saveRequisitionStrict, deleteDevicesOnServer, confirmReceiptOnServer, writeAuditLog, fetchHistoricalMerchantsFromSupabase, insertHistoricalMerchantToSupabase, deleteAllHistoricalMerchantsOnServer, countPendingFieldEventsByType, subscribeToFieldEvents, dispatchRequisitionOnServer, dispatchRequestWithMaterialsOnServer, rejectRequisitionOnServer, receiveReturnOnServer, fetchBranchesFromSupabase, saveBranchOnServer, StaffAccount, renameDeviceSerialOnServer, subscribeToOnlinePresence, OnlineOperatorPresence } from './services/supabaseService';
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
 import {
   setErrorLoggerContext,
-  subscribeTechnicalErrorPopup,
-  TechnicalErrorPayload,
   sendDeviceConfigTelegramAlert,
   sendBatchDeviceConfigTelegramAlert,
   generatePushTrackingId,
@@ -1220,11 +1218,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [userStatusInput, setUserStatusInput] = useState<UserStatus>('Operating');
   const [userPasswordInput, setUserPasswordInput] = useState('');
 
+  const toastTimerRef = React.useRef<any>(null);
   const triggerToast = useCallback((msg: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToastMessage(msg);
-    setTimeout(() => {
+    const duration = Math.min(9000, Math.max(4500, (msg || '').length * 55));
+    toastTimerRef.current = setTimeout(() => {
       setToastMessage((prev) => (prev === msg ? null : prev));
-    }, 4000);
+    }, duration);
   }, []);
 
   const addNotification = useCallback(
@@ -1261,7 +1262,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   // (22 Oct 2026) the signed-in person, and what a branch account may act on (its own branch only)
   const operatorLabel = role === 'BRANCH' ? selectedStaffUser : activeAdminStaff || authUsername;
-  const [techErrorPopup, setTechErrorPopup] = useState<TechnicalErrorPayload | null>(null);
 
   useEffect(() => {
     setErrorLoggerContext({
@@ -1271,12 +1271,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       branchId: selectedBranch,
     });
   }, [profile?.emp_id, profile?.name, operatorLabel, authUsername, role, selectedBranch]);
-
-  useEffect(() => {
-    return subscribeTechnicalErrorPopup((payload) => {
-      setTechErrorPopup(payload);
-    });
-  }, []);
   const inScope = useCallback((d: Device | undefined) => Boolean(d) && (role !== 'BRANCH' || d!.branchId === selectedBranch), [role, selectedBranch]);
 
   const addAuditLog = useCallback(
@@ -3971,61 +3965,99 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         )}
       </AnimatePresence>
 
-      {/* Toast Notification with Smooth Motion & Corporate Navy System Styling */}
+      {/* Toast Notification with Smooth Motion & Refined Design */}
       <div
         aria-live="polite"
         role="status"
-        className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] w-[min(92vw,580px)] pointer-events-none"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[75] w-[min(94vw,560px)] pointer-events-none"
       >
         <AnimatePresence>
           {toastMessage && (() => {
-            const isError = /error|failed|denied|restricted|cannot|refused|problem/i.test(toastMessage);
-            const isPush = /\[PUSH-|telegram|push/i.test(toastMessage);
-            const match = toastMessage.match(/^(\[[A-Z0-9_-]+\])\s*(.*)$/);
+            const raw = toastMessage.trim();
+            const tagMatch = raw.match(/^(\[[A-Z0-9_-]+\])\s*(.*)$/);
+            const tag = tagMatch ? tagMatch[1].replace(/[\[\]]/g, '') : null;
+            const content = tagMatch ? tagMatch[2] : raw;
+
+            const isError = /error|failed|failure|denied|restricted|refused|problem|invalid|not saved|exception/i.test(raw);
+            const isWarning = !isError && /unable|insufficient|not enough|warning|caution|not dispatched|not assigned|not moved|not replaced|not bound|not requested|cannot|already exists|already approved|already rejected|already dispatched|already received|rejected/i.test(raw);
+            const isPush = /\[PUSH-|telegram|push|sync/i.test(raw);
+            const isSuccess = !isError && !isWarning && !isPush && /success|completed|saved|updated|dispatched|confirmed|approved|restored|bound|created|welcome|downloaded|cleared|synchronized/i.test(raw);
+
+            // Clean title and body separation
+            let title: string | null = null;
+            let body = content;
+            const sepMatch = content.match(/^([^—:\n]{3,45}?)\s*(?:—|:\s+)\s*(.+)$/s);
+            if (sepMatch && sepMatch[1] && sepMatch[2]) {
+              title = sepMatch[1].trim();
+              body = sepMatch[2].trim();
+              body = body.charAt(0).toUpperCase() + body.slice(1);
+            }
+
+            const theme = isError
+              ? {
+                  container: 'bg-slate-950/95 border-rose-500/40 shadow-[0_20px_45px_-10px_rgba(244,63,94,0.3),0_8px_20px_-6px_rgba(0,0,0,0.6)]',
+                  iconBox: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+                  title: 'text-rose-300',
+                  Icon: AlertCircle,
+                }
+              : isWarning
+              ? {
+                  container: 'bg-slate-950/95 border-amber-500/40 shadow-[0_20px_45px_-10px_rgba(245,158,11,0.25),0_8px_20px_-6px_rgba(0,0,0,0.6)]',
+                  iconBox: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+                  title: 'text-amber-300',
+                  Icon: AlertTriangle,
+                }
+              : isPush
+              ? {
+                  container: 'bg-slate-950/95 border-sky-500/35 shadow-[0_20px_45px_-10px_rgba(14,165,233,0.22),0_8px_20px_-6px_rgba(0,0,0,0.6)]',
+                  iconBox: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+                  title: 'text-sky-300',
+                  Icon: SendHorizontal,
+                }
+              : isSuccess
+              ? {
+                  container: 'bg-slate-950/95 border-emerald-500/35 shadow-[0_20px_45px_-10px_rgba(16,185,129,0.2),0_8px_20px_-6px_rgba(0,0,0,0.6)]',
+                  iconBox: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+                  title: 'text-emerald-300',
+                  Icon: CheckCircle2,
+                }
+              : {
+                  container: 'bg-slate-950/95 border-sky-500/30 shadow-[0_20px_45px_-10px_rgba(14,165,233,0.2),0_8px_20px_-6px_rgba(0,0,0,0.6)]',
+                  iconBox: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+                  title: 'text-sky-300',
+                  Icon: Info,
+                };
+            const { container, iconBox, title: titleColor, Icon } = theme;
 
             return (
               <motion.div
                 initial={{ opacity: 0, y: 16, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 12, scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
-                className={`pointer-events-auto flex items-start gap-3 rounded-2xl p-3.5 sm:p-4 text-xs font-medium text-white backdrop-blur-md border shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65),0_6px_16px_-4px_rgba(0,0,0,0.35),inset_0_1px_0_0_rgba(255,255,255,0.22)] ${
-                  isError
-                    ? 'bg-gradient-to-r from-rose-950/95 via-rose-900/95 to-slate-950/95 border-rose-500/30'
-                    : 'bg-[#003857]/95 dark:bg-[#002840]/95 border-white/20'
-                }`}
+                transition={{ type: 'spring', stiffness: 450, damping: 30, mass: 0.6 }}
+                className={`pointer-events-auto flex items-start gap-3 rounded-2xl p-3.5 sm:p-4 text-xs font-medium text-white backdrop-blur-xl border ${container}`}
               >
-                <motion.div
-                  initial={{ scale: 0.85, opacity: 0 }}
-                  animate={!isError ? { scale: [0.85, 1.15, 1], opacity: 1 } : { scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-                  className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${
-                    isError
-                      ? 'bg-rose-500/20 text-rose-300 border-rose-400/30'
-                      : isPush
-                      ? 'bg-sky-400/20 text-sky-300 border-sky-300/30'
-                      : 'bg-emerald-400/20 text-emerald-300 border-emerald-300/30'
-                  }`}
-                >
-                  {isError ? (
-                    <AlertCircle className="w-4 h-4" />
-                  ) : isPush ? (
-                    <SendHorizontal className="w-3.5 h-3.5" />
-                  ) : (
-                    <CheckCircle2 className="w-4 h-4" />
-                  )}
-                </motion.div>
+                <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${iconBox}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
 
                 <div className="flex-1 min-w-0 pt-0.5 leading-relaxed">
-                  {match ? (
-                    <>
-                      <span className="inline-block font-mono text-[11px] font-bold text-sky-200 bg-white/10 border border-white/20 px-2 py-0.5 rounded-md mr-1.5 align-baseline shadow-2xs">
-                        {match[1].replace(/[\[\]]/g, '')}
-                      </span>
-                      <span className="text-white/95">{match[2]}</span>
-                    </>
+                  {tag && (
+                    <span className="inline-block font-mono text-[10px] font-bold text-sky-200 bg-sky-500/15 border border-sky-400/25 px-2 py-0.5 rounded-md mr-1.5 align-baseline uppercase">
+                      {tag}
+                    </span>
+                  )}
+                  {title ? (
+                    <div>
+                      <div className={`text-[13px] font-bold ${titleColor} mb-0.5 tracking-tight`}>
+                        {title}
+                      </div>
+                      <div className="text-[12px] text-slate-200/95 leading-relaxed font-normal">
+                        {body}
+                      </div>
+                    </div>
                   ) : (
-                    <span className="text-white/95">{toastMessage}</span>
+                    <span className="text-[12px] text-slate-100 font-medium leading-relaxed">{body}</span>
                   )}
                 </div>
 
@@ -4035,7 +4067,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                   type="button"
                   onClick={() => setToastMessage(null)}
                   aria-label="Dismiss message"
-                  className="p-1.5 -mr-1 -mt-1 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                  className="p-1.5 -mr-1 -mt-1 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </motion.button>
@@ -4054,48 +4086,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         <div role="alert" className={`fixed top-0 inset-x-0 z-[70] text-white text-xs font-bold px-4 py-2.5 flex items-center justify-center gap-3 ${savePaused ? 'bg-rose-700' : 'bg-[#003857]'}`}>
           <span>{savePaused ? 'Saving is paused because several saves failed. Your last change may not be saved – please reload the page.' : 'A new version of this system is available. Please reload to use it.'}</span>
           <button type="button" onClick={() => window.location.reload()} className="underline cursor-pointer">Reload now</button>
-        </div>
-      )}
-
-      {/* System & Inventory Alert Popup */}
-      {techErrorPopup && (
-        <div
-          role="region"
-          aria-label="Technical Error Code Popup"
-          className={`fixed bottom-16 right-4 z-[65] w-[min(92vw,420px)] rounded-2xl border bg-slate-950/95 text-white p-4 shadow-2xl pointer-events-auto ${
-            techErrorPopup.kind === 'notice' ? 'border-amber-500/80' : 'border-rose-500/80'
-          }`}
-        >
-          <div className="flex items-start justify-between gap-3 mb-2.5">
-            <div>
-              <span className={`text-[10px] font-extrabold uppercase tracking-wider block ${
-                techErrorPopup.kind === 'notice' ? 'text-amber-400' : 'text-rose-400'
-              }`}>
-                {techErrorPopup.badge || (techErrorPopup.kind === 'notice' ? 'Inventory & Dispatch Notice' : `System Alert · ${techErrorPopup.code}`)}
-              </span>
-              <h4 className="text-sm font-bold text-white mt-0.5">
-                {techErrorPopup.title || (techErrorPopup.kind === 'notice' ? 'Action Could Not Be Completed' : 'System Operation Alert')}
-              </h4>
-            </div>
-            <button
-              type="button"
-              onClick={() => setTechErrorPopup(null)}
-              className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer shrink-0 transition"
-            >
-              Dismiss
-            </button>
-          </div>
-          <div className={`text-xs leading-relaxed px-3.5 py-2.5 rounded-xl border mb-2.5 break-words ${
-            techErrorPopup.kind === 'notice'
-              ? 'bg-amber-950/40 border-amber-500/30 text-amber-100'
-              : 'bg-rose-950/50 border-rose-500/35 text-rose-100'
-          }`}>
-            {techErrorPopup.message}
-          </div>
-          <div className="text-[11px] text-slate-400 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pt-1 border-t border-white/10">
-            <span>Action: <strong className="text-slate-200 font-medium">{techErrorPopup.operationLabel || techErrorPopup.operation}</strong>{techErrorPopup.target ? ` (${techErrorPopup.target})` : ''}</span>
-            <span className="font-mono text-[10px] text-slate-400">Staff {techErrorPopup.staffId} · Br.{techErrorPopup.branchId} · {techErrorPopup.timestamp}</span>
-          </div>
         </div>
       )}
 
