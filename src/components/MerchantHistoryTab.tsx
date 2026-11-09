@@ -729,11 +729,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                           <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
                           <span>{dash(rec.returnedDate)}</span>
                         </span>
-                        {rec.recordId && (
-                          <div className="mt-0.5">
-                            <CopyableRecordId id={rec.recordId} onCopied={(id) => onToast?.(`Copied Record ID: ${id}`)} />
-                          </div>
-                        )}
                       </td>
                       <td>
                         <div className={`cell-main max-w-[160px] truncate ${hasKhmer(rec.merchantName) ? 'khmer' : ''}`} title={rec.merchantName}>
