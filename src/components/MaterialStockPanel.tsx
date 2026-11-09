@@ -793,50 +793,19 @@ const MaterialStockPanelComponent: React.FC<{
 
   const getMaterialBadge = (code: MaterialCode) => {
     const name = materialName(code);
-    switch (code) {
-      case 'BATTERY':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-amber-50 text-amber-900 border border-amber-200 shadow-2xs">
-            <Battery className="w-3.5 h-3.5 text-amber-600" />
-            <span>{name}</span>
-          </span>
-        );
-      case 'STAND':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-indigo-50 text-indigo-900 border border-indigo-200 shadow-2xs">
-            <Smartphone className="w-3.5 h-3.5 text-indigo-600" />
-            <span>{name}</span>
-          </span>
-        );
-      case 'DOCK':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-sky-50 text-sky-900 border border-sky-200 shadow-2xs">
-            <Dock className="w-3.5 h-3.5 text-sky-600" />
-            <span>{name}</span>
-          </span>
-        );
-      case 'POS_ADAPTOR':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
-            <Plug className="w-3.5 h-3.5 text-slate-600" />
-            <span>{name}</span>
-          </span>
-        );
-      case 'SB_ADAPTOR':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-purple-50 text-purple-900 border border-purple-200 shadow-2xs">
-            <Plug className="w-3.5 h-3.5 text-purple-600" />
-            <span>{name}</span>
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
-            <Package className="w-3.5 h-3.5 text-slate-600" />
-            <span>{name}</span>
-          </span>
-        );
-    }
+    const IconComp =
+      code === 'BATTERY' ? Battery :
+      code === 'STAND' ? Smartphone :
+      code === 'DOCK' ? Dock :
+      code === 'POS_ADAPTOR' || code === 'SB_ADAPTOR' ? Plug :
+      Package;
+
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
+        <IconComp className="w-3.5 h-3.5 text-slate-600" />
+        <span>{name}</span>
+      </span>
+    );
   };
 
   if (err === 'SETUP') {
