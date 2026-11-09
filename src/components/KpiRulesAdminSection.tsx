@@ -646,7 +646,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                     <button
                       type="button"
                       onClick={() => setTForm((prev) => ({ ...prev, excludeHolidays: true }))}
-                      className={`px-2 py-0.5 rounded cursor-pointer transition ${tForm.excludeHolidays ? 'bg-rose-600 text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+                      className={`px-2 py-0.5 rounded cursor-pointer transition ${tForm.excludeHolidays ? 'bg-[#003857] text-white font-medium shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
                     >
                       Exclude Holidays
                     </button>
@@ -659,7 +659,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                     </button>
                   </div>
                 ) : (
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${tForm.excludeHolidays ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-700'}`}>
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                     {tForm.excludeHolidays ? 'Excluded' : 'Included'}
                   </span>
                 )}

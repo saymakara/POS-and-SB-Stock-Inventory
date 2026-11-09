@@ -1492,11 +1492,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   onClick={() => setMethod('tableCsv')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     method === 'tableCsv'
-                      ? 'bg-white dark:bg-slate-900 text-[#1e5b88] dark:text-sky-300 shadow-xs'
+                      ? 'bg-white dark:bg-slate-900 text-[#003857] dark:text-sky-300 shadow-xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
                   <span>Method A: Table CSV Import</span>
                 </button>
                 <button
@@ -1504,7 +1504,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   onClick={() => setMethod('paste')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     method === 'paste'
-                      ? 'bg-white dark:bg-slate-900 text-[#1e5b88] dark:text-sky-300 shadow-xs'
+                      ? 'bg-white dark:bg-slate-900 text-[#003857] dark:text-sky-300 shadow-xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >

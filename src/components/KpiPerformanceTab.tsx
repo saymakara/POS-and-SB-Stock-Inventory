@@ -1828,7 +1828,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           <motion.div
                             layoutId="kpi-chart-granularity-pill"
                             transition={SPRING}
-                            className="absolute inset-0 rounded-lg bg-[#1e5b88] shadow-2xs"
+                            className="absolute inset-0 rounded-lg bg-[#003857] shadow-2xs"
                           />
                         )}
                         <span className="relative z-10">{label}</span>
@@ -2534,7 +2534,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   type="button"
                   onClick={() => setGranularity(g)}
                   className={`px-3 py-1 rounded-lg cursor-pointer transition font-semibold ${
-                    granularity === g ? 'bg-[#1e5b88] text-white shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    granularity === g ? 'bg-[#003857] text-white shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-medium'
                   }`}
                 >
                   {label}
@@ -2783,7 +2783,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         type="button"
                         onClick={() => setStaffLevelFilter('all')}
                         className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                          staffLevelFilter === 'all' ? 'bg-[#1e5b88] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                          staffLevelFilter === 'all' ? 'bg-[#003857] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
                         All ({enrichedStaff.length})
@@ -2792,7 +2792,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         type="button"
                         onClick={() => setStaffLevelFilter('field')}
                         className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                          staffLevelFilter === 'field' ? 'bg-[#1e5b88] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                          staffLevelFilter === 'field' ? 'bg-[#003857] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
                         Field Officers ({enrichedStaff.filter((s) => !s.isManagement).length})
@@ -2801,7 +2801,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         type="button"
                         onClick={() => setStaffLevelFilter('management')}
                         className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                          staffLevelFilter === 'management' ? 'bg-[#1e5b88] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                          staffLevelFilter === 'management' ? 'bg-[#003857] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                         }`}
                         title="Management level staff (Branch Managers, Supervisors, Team Leads, Admins) who oversee operations and are exempt from field KPIs"
                       >

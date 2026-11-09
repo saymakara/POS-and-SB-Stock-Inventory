@@ -204,7 +204,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 onClick={() => setModalStep('FORM')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
                   modalStep === 'FORM'
-                    ? 'bg-[#004953] text-white shadow-xs'
+                    ? 'bg-[#003857] text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
@@ -224,7 +224,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 disabled={!!formError}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
                   modalStep === 'PREVIEW'
-                    ? 'bg-[#004953] text-white shadow-xs'
+                    ? 'bg-[#003857] text-white shadow-xs'
                     : !formError
                     ? 'text-slate-600 hover:text-slate-900 dark:hover:text-white cursor-pointer'
                     : 'text-slate-400 opacity-60 cursor-not-allowed'

@@ -144,7 +144,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               onClick={() => setStep('FORM')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
                 step === 'FORM'
-                  ? 'bg-[#004953] text-white shadow-xs'
+                  ? 'bg-[#003857] text-white shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -163,7 +163,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
                 step === 'PREVIEW'
-                  ? 'bg-[#004953] text-white shadow-xs'
+                  ? 'bg-[#003857] text-white shadow-xs'
                   : 'text-slate-400 opacity-70'
               }`}
             >
@@ -294,7 +294,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
                     onClick={() => setReason(r)}
                     className={`p-2 rounded-xl border text-left text-[11px] font-semibold transition cursor-pointer ${
                       reason === r
-                        ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                        ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                     }`}
                   >

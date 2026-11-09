@@ -566,7 +566,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         onClick={() => setDeviceFilterType('ALL')}
                         className={`px-2 py-1 rounded-md transition font-medium cursor-pointer ${
                           deviceFilterType === 'ALL'
-                            ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-2xs font-bold'
+                            ? 'bg-[#003857] text-white shadow-2xs font-bold'
                             : 'text-slate-500 hover:text-slate-800'
                         }`}
                       >
@@ -577,7 +577,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         onClick={() => setDeviceFilterType('POS')}
                         className={`px-2 py-1 rounded-md transition font-medium cursor-pointer flex items-center gap-1 ${
                           deviceFilterType === 'POS'
-                            ? 'bg-sky-600 text-white shadow-2xs font-bold'
+                            ? 'bg-[#003857] text-white shadow-2xs font-bold'
                             : 'text-slate-500 hover:text-slate-800'
                         }`}
                       >
@@ -589,7 +589,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         onClick={() => setDeviceFilterType('SOUND_BOX')}
                         className={`px-2 py-1 rounded-md transition font-medium cursor-pointer flex items-center gap-1 ${
                           deviceFilterType === 'SOUND_BOX'
-                            ? 'bg-purple-600 text-white shadow-2xs font-bold'
+                            ? 'bg-[#003857] text-white shadow-2xs font-bold'
                             : 'text-slate-500 hover:text-slate-800'
                         }`}
                       >
@@ -814,7 +814,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         onChange={(e) => setBlockedWithCarrier(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
+                      <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#003857]"></div>
                     </label>
                   </div>
 

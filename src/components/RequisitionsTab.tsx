@@ -917,7 +917,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     onClick={() => setArrangeStep('ARRANGE')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
                       arrangeStep === 'ARRANGE'
-                        ? 'bg-[#004953] text-white shadow-xs'
+                        ? 'bg-[#003857] text-white shadow-xs'
                         : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
@@ -938,7 +938,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
                       arrangeStep === 'PREVIEW'
-                        ? 'bg-[#004953] text-white shadow-xs'
+                        ? 'bg-[#003857] text-white shadow-xs'
                         : 'text-slate-400 opacity-70'
                     }`}
                   >

@@ -1561,7 +1561,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       onClick={() => setFormReturnDestination('BRANCH_RESERVE')}
                       className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
                         formReturnDestination === 'BRANCH_RESERVE'
-                          ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                          ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
                           : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                       }`}
                     >
@@ -1573,7 +1573,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       onClick={() => setFormReturnDestination('HQ_STOCK')}
                       className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
                         formReturnDestination === 'HQ_STOCK'
-                          ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                          ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
                           : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                       }`}
                     >

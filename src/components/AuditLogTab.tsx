@@ -581,7 +581,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
                   aria-pressed={pageSize === num}
                   className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition ${
                     pageSize === num
-                      ? 'bg-[#004953] text-white shadow-2xs'
+                      ? 'bg-[#003857] text-white shadow-2xs'
                       : isLight
                       ? 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
                       : 'bg-[#1e293b] hover:bg-slate-700 text-slate-200 border border-slate-700'

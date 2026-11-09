@@ -772,7 +772,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 onClick={() => setModalStep('EDIT')}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold tracking-wide transition cursor-pointer text-xs ${
                   modalStep === 'EDIT'
-                    ? 'bg-[#004953] text-white shadow-xs'
+                    ? 'bg-[#003857] text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
@@ -792,7 +792,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 disabled={!pendingPayload}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold tracking-wide transition text-xs ${
                   modalStep === 'PREVIEW'
-                    ? 'bg-[#004953] text-white shadow-xs'
+                    ? 'bg-[#003857] text-white shadow-xs'
                     : pendingPayload
                     ? 'text-slate-600 hover:text-slate-900 dark:hover:text-white cursor-pointer'
                     : 'text-slate-400 opacity-60 cursor-not-allowed'
@@ -1112,12 +1112,12 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <button type="button" onClick={() => setReturnTo('BRANCH_RESERVE')} aria-pressed={returnTo === 'BRANCH_RESERVE'}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#003857] text-white border-[#003857] shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
                         <Building2 className="w-3 h-3" /><span>Branch Code {branchId && branchId !== '100' ? branchId : device.branchId} reserve</span>
                       </button>
                       {isAdminLike ? (
                         <button type="button" onClick={() => setReturnTo('HQ_STOCK')} aria-pressed={returnTo === 'HQ_STOCK'}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'HQ_STOCK' ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'HQ_STOCK' ? 'bg-[#003857] text-white border-[#003857] shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
                           <RotateCcw className="w-3 h-3" /><span>Admin HQ stock (Code 100)</span>
                         </button>
                       ) : (
@@ -1148,7 +1148,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         onClick={() => setTerminateDestination('BRANCH_RESERVE')}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
                           terminateDestination === 'BRANCH_RESERVE'
-                            ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                            ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
                             : isLight
                             ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                             : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
@@ -1163,7 +1163,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           onClick={() => setTerminateDestination('HQ_STOCK')}
                           className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
                             terminateDestination === 'HQ_STOCK'
-                              ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                              ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
                               : isLight
                               ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                               : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'

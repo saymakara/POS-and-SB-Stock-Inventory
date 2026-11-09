@@ -635,7 +635,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
       label: 'Return Device',
       sub: 'Return to Bank',
       icon: RefreshCw,
-      activeClass: 'bg-[#004953] text-white border-emerald-500/30 shadow-sm',
+      activeClass: 'bg-[#003857] text-white border-[#003857] shadow-sm',
     },
     {
       id: 'LOST',
@@ -867,7 +867,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                   onClick={() => setReconciliationFilter(tab.id as any)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
                     reconciliationFilter === tab.id
-                      ? 'bg-[#004953] text-white border-emerald-500/30 shadow-sm'
+                      ? 'bg-[#003857] text-white border-[#003857] shadow-sm'
                       : isLight
                       ? 'bg-slate-100 hover:bg-slate-200 text-zinc-700 border-slate-200'
                       : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10 hover:text-white'
@@ -1378,7 +1378,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                           onClick={() => setMobileTerminateDestination('BRANCH_RESERVE')}
                           className={`px-2 py-1.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
                             mobileTerminateDestination === 'BRANCH_RESERVE'
-                              ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                              ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
                               : isLight
                               ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                               : 'bg-black/40 hover:bg-black/60 text-slate-300 border-white/10'
@@ -1393,7 +1393,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                           onClick={() => setMobileTerminateDestination('HQ_STOCK')}
                           className={`px-2 py-1.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
                             mobileTerminateDestination === 'HQ_STOCK'
-                              ? 'bg-[#004953] text-white border-emerald-500/30 shadow-xs'
+                              ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
                               : isLight
                               ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                               : 'bg-black/40 hover:bg-black/60 text-slate-300 border-white/10'
@@ -1734,7 +1734,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     onClick={() => setFeedFilter(tab.id as any)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                       active
-                        ? 'bg-[#004953] text-white border-emerald-500/30 shadow-sm'
+                        ? 'bg-[#003857] text-white border-[#003857] shadow-sm'
                         : isLight
                         ? 'bg-slate-100/80 hover:bg-slate-200 text-slate-700 border-slate-200'
                         : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10 hover:text-white'

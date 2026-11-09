@@ -413,7 +413,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                 onClick={() => setStatusFilter('ALL')}
                 className={`px-2.5 py-1.5 rounded-md font-bold transition cursor-pointer text-[11px] ${
                   statusFilter === 'ALL'
-                    ? 'bg-[#004953] text-white shadow-2xs'
+                    ? 'bg-[#003857] text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -455,7 +455,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                 onClick={() => setDisplayLayout('TABLE')}
                 className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   displayLayout === 'TABLE'
-                    ? 'bg-[#004953] text-white shadow-2xs'
+                    ? 'bg-[#003857] text-white shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
                 title="Table View (by Branch)"
@@ -468,7 +468,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                 onClick={() => setDisplayLayout('GRID')}
                 className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   displayLayout === 'GRID'
-                    ? 'bg-[#004953] text-white shadow-2xs'
+                    ? 'bg-[#003857] text-white shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
                 title="Cards Grid"

@@ -152,11 +152,9 @@ export const ProductViewToggle: React.FC<{
             {n > 0 && (
               <span
                 className={`relative z-10 text-[10.5px] font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors duration-200 ease-out ${
-                  v === 'MATERIAL'
-                    ? 'bg-rose-600 text-white shadow-2xs'
-                    : isSelected
+                  isSelected
                     ? 'bg-white/20 text-white'
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
+                    : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
                 }`}
               >
                 {n}

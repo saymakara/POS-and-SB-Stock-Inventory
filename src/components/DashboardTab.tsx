@@ -496,7 +496,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       <motion.div
                         layoutId="dashboardPerfViewPill"
                         transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-                        className="absolute inset-0 rounded-md bg-[#004953] shadow-xs"
+                        className="absolute inset-0 rounded-md bg-[#003857] shadow-xs"
                       />
                     )}
                     <span className="relative z-10">{mode.label}</span>

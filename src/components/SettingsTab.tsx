@@ -796,7 +796,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     onChange={(e) =>
                       setFormState({ ...formState, midValidationStrict: e.target.checked })
                     }
-                    className="w-5 h-5 accent-zinc-900 cursor-pointer"
+                    className="w-5 h-5 accent-[#003857] cursor-pointer"
                   />
                 </div>
 
@@ -910,7 +910,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         autoAlertOnBatteryExpiry: e.target.checked,
                       })
                     }
-                    className="w-5 h-5 accent-zinc-900 cursor-pointer"
+                    className="w-5 h-5 accent-[#003857] cursor-pointer"
                   />
                 </div>
 
@@ -1046,7 +1046,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     onChange={(e) =>
                       setFormState({ ...formState, requireStaffSignature: e.target.checked })
                     }
-                    className="w-5 h-5 accent-zinc-900 cursor-pointer"
+                    className="w-5 h-5 accent-[#003857] cursor-pointer"
                   />
                 </div>
               </div>
@@ -1253,7 +1253,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           slaEnforceStrictBreachAlerts: e.target.checked,
                         })
                       }
-                      className="w-5 h-5 accent-zinc-900 cursor-pointer"
+                      className="w-5 h-5 accent-[#003857] cursor-pointer"
                     />
                   </div>
                 </div>
@@ -1641,7 +1641,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               type="button"
                               onClick={() => handleToggleField(field.id)}
                               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                field.enabled ? 'bg-[#004953]' : 'bg-slate-300'
+                                field.enabled ? 'bg-[#003857]' : 'bg-slate-300'
                               }`}
                               title={field.enabled ? 'Click to disable' : 'Click to enable'}
                             >
@@ -2010,7 +2010,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           id="modal-field-required"
                           checked={modalFieldRequired}
                           onChange={(e) => setModalFieldRequired(e.target.checked)}
-                          className="w-4 h-4 accent-zinc-900 cursor-pointer"
+                          className="w-4 h-4 accent-[#003857] cursor-pointer"
                         />
                         <label
                           htmlFor="modal-field-required"
@@ -2946,7 +2946,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               setRgBranchCodes((prev) => prev.filter((c) => c !== b.code));
                             }
                           }}
-                          className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+                          className="w-4 h-4 accent-[#003857] rounded cursor-pointer"
                         />
                         <span className="truncate">
                           Code <strong>{b.code}</strong> — {b.name}
