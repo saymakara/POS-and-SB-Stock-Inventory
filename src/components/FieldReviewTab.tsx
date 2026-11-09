@@ -1066,7 +1066,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto"
         aria-label="Records"
       >
-        <div className="min-w-[1100px]">
+        <div className="min-w-[1140px]">
           <div
             className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`}
             role="row"
@@ -1091,10 +1091,10 @@ export const FieldReviewTab: React.FC<Props> = ({
             <SortBtn k="date" sort={sort} onSort={toggleSort} className="pl-3">
               Date Sent
             </SortBtn>
-            <SortBtn k="serial" sort={sort} onSort={toggleSort} className="pl-3">
+            <SortBtn k="serial" sort={sort} onSort={toggleSort} className="pl-6">
               Serial Number
             </SortBtn>
-            <SortBtn k="merchant" sort={sort} onSort={toggleSort}>
+            <SortBtn k="merchant" sort={sort} onSort={toggleSort} className="pl-6">
               Terminal / MID
             </SortBtn>
             <SortBtn k="branch" sort={sort} onSort={toggleSort}>
@@ -1317,7 +1317,7 @@ const ReviewRow = memo(function ReviewRow({
           </span>
           {e.sourceRecordId && <CopyableRecordId id={e.sourceRecordId} />}
         </span>
-        <div className="flex flex-col min-w-0 pl-3 pr-1">
+        <div className="flex flex-col min-w-0 pl-6 pr-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
@@ -1368,7 +1368,7 @@ const ReviewRow = memo(function ReviewRow({
             </div>
           )}
         </div>
-        <span className="min-w-0 leading-snug" title={merchant}>
+        <span className="min-w-0 leading-snug pl-6" title={merchant}>
           <span className="block truncate khmer font-normal text-slate-800">
             {e.terminalName || e.outletName || '—'}
           </span>
