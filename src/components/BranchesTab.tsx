@@ -989,12 +989,12 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                   animate={{ x: 0 }}
                   exit={{ x: '100%' }}
                   transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
                     isLight ? 'bg-white text-[#002f49]' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
                   {/* Signature Navy Header Bar */}
-                  <div className="navy-header-bar px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+                  <div className="navy-header-bar rounded-tl-lg px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-sky-300">
                         <Building2 className="w-5 h-5" />

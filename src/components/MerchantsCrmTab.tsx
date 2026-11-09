@@ -1336,13 +1336,13 @@ return (
                   initial={{ x: '100%' }}
                   animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
                   exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
-                  className={`relative w-full sm:max-w-[580px] md:max-w-[640px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-transform rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+                  className={`relative w-full sm:max-w-[580px] md:max-w-[640px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-transform rounded-l-lg ${
                     isLight
                       ? 'bg-white text-slate-800'
                       : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
-              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white shrink-0 border-b border-white/10">
+              <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white shrink-0 border-b border-white/10">
                 <div className="min-w-0 pr-4">
                   <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/10 text-cyan-300 border border-white/15">
@@ -1747,13 +1747,13 @@ return (
                   animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
                   exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
                   onSubmit={handleConfirmBindDevice}
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
                     isLight
                       ? 'bg-white border-slate-200 text-slate-800'
                       : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
                   }`}
                 >
-                  <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
+                  <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white">
                     <div>
                       <h3 className="text-sm font-bold">Bind Hardware Serial to Merchant</h3>
                       <p className="text-[11px] text-cyan-300 font-mono">
@@ -1871,13 +1871,13 @@ return (
               animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
               exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
               onSubmit={handleConfirmTerminate}
-              className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+              className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-800'
                   : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
               }`}
             >
-              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
+              <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-white/10 text-cyan-300 border border-white/20 flex items-center justify-center shrink-0">
                     <RotateCcw className="w-4 h-4" />
@@ -2143,13 +2143,13 @@ return (
               animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
               exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
               onSubmit={handleCreateNewMerchant}
-              className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+              className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-800'
                   : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
               }`}
             >
-              <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white">
+              <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white">
                 <div>
                   <h3 className="text-sm font-bold">Assign Hardware to Merchant (Support &amp; Setup)</h3>
                   <p className="text-[11px] text-slate-300">

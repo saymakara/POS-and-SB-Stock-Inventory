@@ -109,10 +109,10 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
         initial="hidden"
         animate="visible"
         exit="exit"
-        className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden bg-white text-[#002f49] rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80"
+        className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden bg-white text-[#002f49] rounded-l-lg"
       >
         {/* Navy Header */}
-        <div className="px-6 py-4.5 bg-[#002f49] text-white flex items-center shrink-0 justify-between">
+        <div className="px-6 py-4.5 bg-[#002f49] rounded-tl-lg text-white flex items-center shrink-0 justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-emerald-300 shadow-xs">
               <BatteryCharging className="w-5 h-5" />

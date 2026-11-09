@@ -780,9 +780,9 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 bg-white text-slate-900 flex flex-col my-0 overflow-hidden rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80" role="dialog" aria-modal="true" aria-label="Reject request"
+                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 bg-white text-slate-900 flex flex-col my-0 overflow-hidden rounded-l-lg" role="dialog" aria-modal="true" aria-label="Reject request"
                 >
-                  <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white shrink-0">
+                  <div className="navy-header-bar rounded-tl-lg px-5 py-3.5 flex items-center justify-between text-white shrink-0">
                     <div>
                       <div className="text-sm font-semibold">Reject {rejectingReq.type === 'STOCK_RETURN' ? 'stock return' : 'stock request'}</div>
                       <div className="text-xs text-white/75 font-mono">{rejectingReq.reqId} · Code {rejectingReq.branchId}</div>
@@ -825,9 +825,9 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 bg-white text-slate-900 flex flex-col my-0 overflow-hidden rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80"
+                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 bg-white text-slate-900 flex flex-col my-0 overflow-hidden rounded-l-lg"
                 >
-                  <div className="navy-header-bar px-5 py-3.5 flex items-center justify-between text-white shrink-0">
+                  <div className="navy-header-bar rounded-tl-lg px-5 py-3.5 flex items-center justify-between text-white shrink-0">
                     <div>
                       <div className="text-sm font-semibold">Edit stock request</div>
                       <div className="text-xs text-white/75 font-mono">{editingReq.reqId} · Code {editingReq.branchId}</div>
@@ -875,13 +875,13 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  className={`w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-gpu gpu-modal-container rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+                  className={`w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
                     isLight
                       ? 'bg-white text-slate-900'
                       : 'bg-[#121622] text-slate-100'
                   }`}
                 >
-              <div className="navy-header-bar px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+              <div className="navy-header-bar rounded-tl-lg px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
                 <div>
                   <h3 className="text-base font-bold flex items-center gap-2">
                     <BatteryCharging className="w-5 h-5 text-sky-400" />
@@ -1308,12 +1308,12 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg ${
                     isLight ? 'bg-white text-slate-800' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
                   {/* Prestigious Navy Header Bar */}
-                  <div className="navy-header-bar px-6 py-4 text-white flex items-center justify-between border-b border-white/10 shrink-0">
+                  <div className="navy-header-bar rounded-tl-lg px-6 py-4 text-white flex items-center justify-between border-b border-white/10 shrink-0">
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-white shrink-0 shadow-xs">
                         <ScrollText className="w-5 h-5 text-white" />

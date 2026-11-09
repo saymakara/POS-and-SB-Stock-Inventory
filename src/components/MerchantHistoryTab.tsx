@@ -803,14 +803,14 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     animate={{ x: 0 }}
                     exit={{ x: '100%' }}
                     transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                    className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+                    className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg ${
                       isLight
                         ? 'bg-white text-slate-800'
                         : 'bg-[#12151e] text-slate-100'
                     }`}
                   >
               {/* Prestigious Navy Header Bar */}
-              <div className="navy-header-bar px-6 py-4.5 shrink-0 text-white flex items-center justify-between border-b border-white/10">
+              <div className="navy-header-bar rounded-tl-lg px-6 py-4.5 shrink-0 text-white flex items-center justify-between border-b border-white/10">
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-white shrink-0 shadow-xs">
                     <Store className="w-5 h-5 text-white" />
@@ -1320,9 +1320,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-              className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden bg-white text-zinc-900 rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80"
+              className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden bg-white text-zinc-900 rounded-l-lg"
             >
-              <div className="px-6 py-4.5 bg-[#003857] border-b border-white/10 text-white flex items-center justify-between shrink-0">
+              <div className="px-6 py-4.5 bg-[#003857] rounded-tl-lg border-b border-white/10 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2.5">
                   <RotateCcw className="w-5 h-5 text-white" />
                   <h3 className="text-base font-extrabold text-white">

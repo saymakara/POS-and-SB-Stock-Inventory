@@ -338,14 +338,14 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
         initial="hidden"
         animate="visible"
         exit="exit"
-        className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+        className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg ${
           isLight
             ? 'bg-white text-zinc-900'
             : 'bg-[#18191e] text-slate-100'
         }`}
       >
         {/* Header */}
-        <div className="navy-header-bar px-6 py-4 flex items-center shrink-0 justify-between text-white">
+        <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center shrink-0 justify-between text-white">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-white/10 text-[#7cc4ed] border border-white/15 flex items-center justify-center">
               <Download className="w-4 h-4" />

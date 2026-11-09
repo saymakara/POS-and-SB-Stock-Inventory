@@ -157,14 +157,14 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
           initial="hidden"
           animate="visible"
           exit="exit"
-          className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+          className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg ${
             isLight
               ? 'bg-white text-slate-800'
               : 'bg-[#11141e] text-slate-100'
           }`}
         >
           {/* Header */}
-          <div className="navy-header-bar px-6 py-4 flex items-center justify-between text-white border-b border-white/20 shrink-0">
+          <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white border-b border-white/20 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-white">
                 <SendHorizontal className="w-5 h-5 text-white" />

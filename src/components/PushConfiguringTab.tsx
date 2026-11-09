@@ -2251,12 +2251,12 @@ return (
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-2xl sm:rounded-l-3xl border-l border-slate-200/80 dark:border-white/10 ${
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
                     isLight ? 'bg-white text-slate-900' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
                   {/* Clean Signature Navy Header Bar */}
-                  <div className="navy-header-bar px-6 py-4 flex items-center shrink-0 justify-between text-white border-b border-white/10 shrink-0">
+                  <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center shrink-0 justify-between text-white border-b border-white/10 shrink-0">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-sky-300">
                         <Lock className="w-4.5 h-4.5" />
