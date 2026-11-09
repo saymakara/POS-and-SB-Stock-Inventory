@@ -13,10 +13,10 @@ export const inputCls = 'w-full px-3 py-2 rounded-xl border border-slate-200 bg-
 export const labelCls = 'flex flex-col gap-1 text-xs font-semibold text-slate-600';
 
 const STATUS_TONE: Record<SerialStatus, string> = {
-  HQ_STOCK: 'bg-sky-50 text-sky-800 border-sky-100',
+  HQ_STOCK: 'bg-blue-50 text-[#003857] border-blue-200/90 font-semibold',
   IN_TRANSIT: 'bg-indigo-50 text-indigo-800 border-indigo-100',
-  BRANCH_RESERVE: 'bg-sky-50 text-sky-800 border-sky-100',
-  AT_MERCHANT: 'bg-emerald-50 text-emerald-800 border-emerald-100',
+  BRANCH_RESERVE: 'bg-sky-50 text-sky-800 border-sky-200/90 font-semibold',
+  AT_MERCHANT: 'bg-emerald-50 text-emerald-800 border-emerald-200/90 font-semibold',
   LOST: 'bg-rose-50 text-rose-700 border-rose-100',
   FAULTY: 'bg-amber-50 text-amber-800 border-amber-100',
   WRITTEN_OFF: 'bg-slate-100 text-slate-600 border-slate-200',

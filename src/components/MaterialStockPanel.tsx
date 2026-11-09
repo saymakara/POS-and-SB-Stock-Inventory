@@ -587,23 +587,25 @@ const MaterialStockPanelComponent: React.FC<{
     });
   }, [dbSerials, deviceDerivedItems, selectedCode, statusFilter, branchFilter, assignmentFilter, search, deviceMap, branches, branchNameMap]);
 
-  // Executive summary metrics per controlled material
+  // Executive summary metrics per controlled material (Admin Stock, Branch Reserve, At Merchant)
   const materialSummaries = useMemo(() => {
     const map: Record<MaterialCode, {
       code: MaterialCode;
       name: string;
+      adminStock: number;
+      branchReserve: number;
       onHand: number;
       deployed: number;
       inTransit: number;
       lost: number;
       total: number;
     }> = {
-      POS_ADAPTOR: { code: 'POS_ADAPTOR', name: 'POS AC Adaptor', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
-      STAND: { code: 'STAND', name: 'POS Stand Holder', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
-      DOCK: { code: 'DOCK', name: 'Charging Dock', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
-      BATTERY: { code: 'BATTERY', name: 'Battery', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
-      SB_ADAPTOR: { code: 'SB_ADAPTOR', name: 'Sound Box AC Adaptor', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
-      SIM: { code: 'SIM', name: 'SIM Card', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      POS_ADAPTOR: { code: 'POS_ADAPTOR', name: 'POS AC Adaptor', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      STAND: { code: 'STAND', name: 'POS Stand Holder', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      DOCK: { code: 'DOCK', name: 'Charging Dock', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      BATTERY: { code: 'BATTERY', name: 'Battery', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      SB_ADAPTOR: { code: 'SB_ADAPTOR', name: 'Sound Box AC Adaptor', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      SIM: { code: 'SIM', name: 'SIM Card', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
     };
 
     // 1. Accumulate balances from DB material_balances
@@ -611,6 +613,11 @@ const MaterialStockPanelComponent: React.FC<{
       const b = balances[i];
       if (map[b.code]) {
         if (!branchFilter || b.branchId === branchFilter) {
+          if (b.branchId === '100') {
+            map[b.code].adminStock += b.onHand || 0;
+          } else {
+            map[b.code].branchReserve += b.onHand || 0;
+          }
           map[b.code].onHand += b.onHand || 0;
           map[b.code].inTransit += b.inTransit || 0;
           map[b.code].deployed += b.atMerchant || 0;
@@ -618,24 +625,30 @@ const MaterialStockPanelComponent: React.FC<{
       }
     }
 
-    // 2. Count real deployed units from deviceDerivedItems
-    const deployedCounts: Partial<Record<MaterialCode, number>> = {};
+    // 2. Accumulate bundled materials from deviceDerivedItems
     for (let i = 0; i < deviceDerivedItems.length; i++) {
       const it = deviceDerivedItems[i];
       if (branchFilter && it.branchId !== branchFilter) continue;
-      if (it.status === 'AT_MERCHANT') {
-        deployedCounts[it.code] = (deployedCounts[it.code] || 0) + 1;
-      }
-    }
-    for (const c of Object.keys(deployedCounts) as MaterialCode[]) {
-      if (map[c]) {
-        map[c].deployed = Math.max(map[c].deployed, deployedCounts[c] || 0);
+      if (map[it.code]) {
+        if (it.status === 'AT_MERCHANT') {
+          map[it.code].deployed += 1;
+        } else if (it.status === 'HQ_STOCK') {
+          map[it.code].adminStock += 1;
+          map[it.code].onHand += 1;
+        } else if (it.status === 'BRANCH_RESERVE') {
+          map[it.code].branchReserve += 1;
+          map[it.code].onHand += 1;
+        } else if (it.status === 'IN_TRANSIT') {
+          map[it.code].inTransit += 1;
+        } else if (it.status === 'LOST') {
+          map[it.code].lost += 1;
+        }
       }
     }
 
-    // 3. Totals
+    // 3. Compute total controlled
     for (const c of Object.keys(map) as MaterialCode[]) {
-      map[c].total = map[c].onHand + map[c].deployed + map[c].inTransit;
+      map[c].total = map[c].adminStock + map[c].branchReserve + map[c].deployed + map[c].inTransit;
     }
 
     return map;
@@ -675,8 +688,12 @@ const MaterialStockPanelComponent: React.FC<{
       for (let j = 0; j < targetCodes.length; j++) {
         const c = targetCodes[j];
         const bal = balances.find((x) => x.code === c && x.branchId === bId);
-        const onHand = bal?.onHand || 0;
         const inTransit = bal?.inTransit || 0;
+
+        const onHandInBranch = deviceDerivedItems.filter(
+          (it) => it.code === c && it.branchId === bId && (it.status === 'HQ_STOCK' || it.status === 'BRANCH_RESERVE')
+        ).length;
+        const onHand = (bal?.onHand || 0) + onHandInBranch;
 
         const deployedInBranch = deviceDerivedItems.filter(
           (it) => it.code === c && it.branchId === bId && it.status === 'AT_MERCHANT'
@@ -1161,18 +1178,16 @@ const MaterialStockPanelComponent: React.FC<{
                     <span className="text-[11px] text-slate-500 font-normal">Controlled</span>
                   </div>
 
-                  <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600 font-normal">
-                    <span title="In branch or HQ shelf reserves">
-                      Reserve: <span className="font-semibold text-slate-800">{summary.onHand.toLocaleString()}</span>
+                  <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-3 gap-1 text-[10.5px] text-slate-600 font-normal">
+                    <span title="In Central Head Office Warehouse (Admin Stock)" className="truncate">
+                      Admin: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
                     </span>
-                    <span title="Deployed with active units at merchants">
-                      Deployed: <span className="font-semibold text-slate-800">{summary.deployed.toLocaleString()}</span>
+                    <span title="In Branch Reserve Shelves" className="truncate text-center">
+                      Reserve: <span className="font-semibold text-sky-700">{summary.branchReserve.toLocaleString()}</span>
                     </span>
-                    {summary.inTransit > 0 && (
-                      <span title="En route to branches" className="text-amber-700 font-medium">
-                        Transit: {summary.inTransit}
-                      </span>
-                    )}
+                    <span title="Deployed with active units at merchants" className="truncate text-right">
+                      Merchant: <span className="font-semibold text-emerald-700">{summary.deployed.toLocaleString()}</span>
+                    </span>
                   </div>
                 </button>
               );
@@ -1367,9 +1382,14 @@ const MaterialStockPanelComponent: React.FC<{
 
                       <td className="px-4 py-2.5 font-mono font-normal text-slate-800">
                         {s.deviceSerial ? (
-                          <span>{s.deviceSerial}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span>{s.deviceSerial}</span>
+                            <span className="text-[10px] font-sans px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium select-none">
+                              Bundled
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-slate-400 select-none">—</span>
+                          <span className="text-slate-400 font-sans text-xs italic select-none">Standalone Spare</span>
                         )}
                       </td>
 

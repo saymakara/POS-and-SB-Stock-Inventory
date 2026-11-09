@@ -41,8 +41,8 @@ export const normMaterialSerial = (code: string, raw: string) =>
 
 export type SerialStatus = 'HQ_STOCK' | 'IN_TRANSIT' | 'BRANCH_RESERVE' | 'AT_MERCHANT' | 'LOST' | 'FAULTY' | 'WRITTEN_OFF';
 export const SERIAL_STATUS_LABEL: Record<SerialStatus, string> = {
-  HQ_STOCK: 'HQ stock', IN_TRANSIT: 'In transit', BRANCH_RESERVE: 'Branch reserve', AT_MERCHANT: 'At merchant',
-  LOST: 'Lost', FAULTY: 'Faulty', WRITTEN_OFF: 'Written off',
+  HQ_STOCK: 'In Admin Stock', IN_TRANSIT: 'In Transit', BRANCH_RESERVE: 'In Branch Reserve', AT_MERCHANT: 'At Merchant',
+  LOST: 'Lost', FAULTY: 'Faulty', WRITTEN_OFF: 'Written Off',
 };
 
 export interface MaterialBalance { code: MaterialCode; branchId: string; onHand: number; inTransit: number; atMerchant: number }
