@@ -1823,7 +1823,7 @@ return (
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-hidden">
           <table className="data-table min-w-[960px]">
             <thead className="glass-table-thead">
               <tr>

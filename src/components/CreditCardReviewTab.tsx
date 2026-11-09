@@ -334,7 +334,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
               triggerToast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
             } finally { setDelBusy(false); }
           }} />
-        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Credit Card entries">
+        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label="Credit Card entries">
           <div className="min-w-[1080px]">
             <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2`} role="row">
               {(() => {

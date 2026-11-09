@@ -2299,7 +2299,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <span className="text-slate-500 font-medium normal-case text-xs">ranked by total KPI points</span>
             </div>
 
-            <div className="overflow-x-auto w-full overscroll-x-contain">
+            <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
               <table className="w-full text-left border-separate border-spacing-0 text-[13px]">
                 {leaderboardMode === 'staff' ? (
                   <>
@@ -2575,7 +2575,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             </div>
           </div>
 
-          <div className="overflow-x-auto w-full overscroll-x-contain">
+          <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
             <div className="min-w-[1080px] w-full">
               <div className="grid items-center gap-x-4 grid-cols-[minmax(110px,1.2fr)_minmax(68px,0.75fr)_minmax(65px,0.7fr)_minmax(100px,1.1fr)_minmax(100px,1.1fr)_minmax(110px,1.2fr)_minmax(100px,1.1fr)_minmax(100px,1.1fr)_minmax(72px,0.8fr)_minmax(76px,0.85fr)_minmax(100px,1.1fr)_minmax(76px,0.85fr)] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
               <SortableHeader label="Period" sortKey="period" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
@@ -2865,7 +2865,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 {tableMode === 'branch' ? (
                   branchSubView === 'daily' ? (
                     <>
-                      <div className="overflow-x-auto w-full overscroll-x-contain">
+                      <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
                         <table className="kpi-matrix-table w-full text-left border-separate border-spacing-0 text-[13px]">
                           <thead>
                             <tr className="navy-header-bar bg-[#003857] text-white text-xs font-medium normal-case tracking-normal select-none">
@@ -3145,7 +3145,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     </>
                   ) : (
             <>
-              <div className="overflow-x-auto w-full overscroll-x-contain">
+              <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
                 <div className="min-w-[1360px] w-full">
                 <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(160px,1.3fr)_85px_minmax(50px,0.5fr)_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(104px,1fr)_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(68px,0.65fr)_minmax(68px,0.65fr)_minmax(96px,0.95fr)_minmax(105px,1fr)_135px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
                   <span className="text-right">No.</span>
@@ -3255,7 +3255,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           )
         ) : staffSubView === 'daily' ? (
           <>
-            <div className="overflow-x-auto w-full overscroll-x-contain">
+            <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
               <table className="kpi-matrix-table w-full text-left border-separate border-spacing-0 text-[13px]">
                 <thead>
                   <tr className="navy-header-bar bg-[#003857] text-white text-xs font-medium normal-case tracking-normal select-none">
@@ -3574,7 +3574,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </>
         ) : (
           <>
-            <div className="overflow-x-auto w-full overscroll-x-contain">
+            <div className="overflow-x-auto overflow-y-hidden w-full overscroll-x-contain">
               <div className="min-w-[1380px] w-full">
                 <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(150px,1.2fr)_68px_minmax(130px,1.05fr)_72px_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(104px,1fr)_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_135px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
                   <span className="text-right">No.</span>

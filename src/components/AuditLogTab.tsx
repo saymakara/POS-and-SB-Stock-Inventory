@@ -440,7 +440,7 @@ export const AuditLogTab: React.FC<AuditLogTabProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto border-t border-slate-200/80 dark:border-[#182c49]">
+        <div className="overflow-x-auto overflow-y-hidden border-t border-slate-200/80 dark:border-[#182c49]">
           <table
             className={`w-full text-left text-xs min-w-[980px] ${
               isLight ? 'bg-white' : 'bg-[#11141e]'

@@ -857,7 +857,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                     Configuration Change Summary
                   </h4>
 
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto overflow-y-hidden">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="text-left text-[10.5px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700">

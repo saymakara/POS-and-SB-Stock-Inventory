@@ -1170,7 +1170,7 @@ return (
             <span>Export CSV</span>
           </button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-hidden">
           <table className="data-table min-w-[900px]">
             <thead className="glass-table-thead">
               <tr>

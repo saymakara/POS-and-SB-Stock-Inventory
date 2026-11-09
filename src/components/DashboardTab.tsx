@@ -845,7 +845,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             )}
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-hidden">
             <table className="w-full text-left text-xs">
               <thead className="glass-table-thead text-[11px] font-extrabold uppercase text-white">
                 <tr>

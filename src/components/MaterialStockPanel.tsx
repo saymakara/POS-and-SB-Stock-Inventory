@@ -1185,7 +1185,7 @@ const MaterialStockPanelComponent: React.FC<{
         {/* Dynamic Table: View 1 (Merchant Deployments) OR View 2 (Multi-Branch Balances) */}
         {activeLedgerView === 'BALANCES' ? (
           /* Multi-Branch Balances Matrix Ledger */
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-hidden">
             <table className="w-full min-w-[900px] text-sm text-left">
               <thead>
                 <tr className="bg-[#003857] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
@@ -1293,7 +1293,7 @@ const MaterialStockPanelComponent: React.FC<{
           </div>
         ) : (
           /* Merchant Deployments & Itemized Units Ledger */
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-hidden">
             <table className="w-full min-w-[900px] text-sm text-left">
               <thead>
                 <tr className="bg-[#003857] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
@@ -1509,7 +1509,7 @@ export const LostTable: React.FC<{
           })}
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-hidden">
         <table className="w-full min-w-[820px] text-sm">
           <thead>
             <tr className="text-[11px] uppercase tracking-wider text-slate-500 bg-slate-50">

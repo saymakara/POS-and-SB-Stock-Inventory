@@ -514,7 +514,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
         {/* View Mode 1: Table by Branch (Default) */}
         {displayLayout === 'TABLE' ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-hidden">
             <table className="data-table min-w-[980px]">
               <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
                 <tr>

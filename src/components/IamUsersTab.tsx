@@ -279,7 +279,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
       )}
 
       <div className="surface-card rounded-2xl border overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-hidden">
           <table className="w-full text-left">
             <thead className="glass-table-thead text-[11px] font-extrabold uppercase tracking-wider text-white">
               <tr>

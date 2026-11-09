@@ -118,7 +118,7 @@ export const SystemHealthPanel: React.FC = () => {
         <Kpi title="Errors" value={String(snap.errors.length)} lv={snap.errors.length === 0 ? 'good' : snap.errors.length <= 3 ? 'fair' : 'poor'} hint={`${failed} failed request(s) · ${snap.longTasks} busy moment(s)`} />
       </div>
 
-      <div className="surface-card rounded-2xl border border-slate-200 overflow-x-auto">
+      <div className="surface-card rounded-2xl border border-slate-200 overflow-x-auto overflow-y-hidden">
         <div className="px-4 py-2.5 border-b border-slate-200 text-[13px] font-medium text-slate-900">Database requests by table / function <span className="text-slate-500 text-[12px]">· slowest first</span></div>
         <table className="data-table w-full text-xs">
           <thead className="glass-table-thead">
@@ -140,7 +140,7 @@ export const SystemHealthPanel: React.FC = () => {
         </table>
       </div>
 
-      <div className="surface-card rounded-2xl border border-slate-200 overflow-x-auto">
+      <div className="surface-card rounded-2xl border border-slate-200 overflow-x-auto overflow-y-hidden">
         <div className="px-4 py-2.5 border-b border-slate-200 text-[13px] font-medium text-slate-900">Recent errors <span className="text-slate-500 text-[12px]">· newest first, up to 60</span></div>
         {snap.errors.length === 0 ? (
           <p className="px-4 py-5 text-xs text-slate-500">No errors in this measurement.</p>

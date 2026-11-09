@@ -276,7 +276,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
         busy={delBusy} onCancel={() => setDelOpen(false)} onConfirm={runDelete} />
 
       {/* Visits */}
-      <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Merchant visits">
+      <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label="Merchant visits">
         <div className="min-w-[1000px]">
           <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
             <NoCell

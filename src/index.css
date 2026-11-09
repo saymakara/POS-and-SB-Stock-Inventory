@@ -917,7 +917,6 @@ details[open] > *:not(summary) {
 .data-table-container,
 .table-responsive {
   contain: paint;
-  scrollbar-gutter: stable;
 }
 
 /* Tooltip transition */
@@ -1143,6 +1142,32 @@ img { height: auto; }
 
 /* the thin, quiet scroll bar of tables and lists */
 .overflow-x-auto, .overflow-y-auto, .overflow-auto { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+/* (9 Nov 2026) Table wrappers: completely eliminate inner vertical scrollbars
+   across all tables in the entire system, as the window / main page scrollbar handles vertical scrolling */
+.overflow-x-auto:not([class*="max-h-"]):not([class*="overflow-y-auto"]),
+.data-table-container,
+.table-responsive,
+.fr-table-frame,
+div:has(> table.data-table),
+div:has(> table):not([class*="max-h-"]):not([class*="overflow-y-auto"]),
+section:has(> table):not([class*="max-h-"]):not([class*="overflow-y-auto"]) {
+  overflow-y: hidden !important;
+}
+
+/* Ensure no vertical scrollbar track/thumb is ever rendered by WebKit / Blink for table containers */
+.overflow-x-auto:not([class*="max-h-"]):not([class*="overflow-y-auto"])::-webkit-scrollbar:vertical,
+.data-table-container::-webkit-scrollbar:vertical,
+.table-responsive::-webkit-scrollbar:vertical,
+.fr-table-frame::-webkit-scrollbar:vertical,
+div:has(> table.data-table)::-webkit-scrollbar:vertical,
+div:has(> table):not([class*="max-h-"]):not([class*="overflow-y-auto"])::-webkit-scrollbar:vertical,
+section:has(> table):not([class*="max-h-"]):not([class*="overflow-y-auto"])::-webkit-scrollbar:vertical {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
 
 /* (29 Oct 2026) the menu was tapped and the next screen is being prepared: the current one softens at once so the tap is
    felt, then the new screen rises in */

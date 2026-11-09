@@ -550,7 +550,7 @@ export const StaffAccountsTab: React.FC<{
             ))}
           </div>
         )}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-hidden">
           <table className="w-full text-xs">
             <thead className="glass-table-thead">
               <tr>

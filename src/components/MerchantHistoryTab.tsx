@@ -692,7 +692,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
 
       {/* Main Historical Merchants Table (22 Oct 2026: one clean style, Khmer in Battambang, figures from real dates) */}
       <div className="surface-card shadow-md rounded-2xl overflow-hidden border border-slate-200/80">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-hidden">
           <table className="data-table min-w-[900px]">
             <thead className="glass-table-thead">
               <tr>

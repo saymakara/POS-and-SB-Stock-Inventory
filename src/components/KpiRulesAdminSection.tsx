@@ -942,7 +942,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
                 No exempt staff matching &quot;{exemptFilter}&quot;.
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto overflow-y-hidden">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 text-[11px] font-semibold uppercase tracking-wider">
@@ -1001,7 +1001,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 overflow-x-auto min-h-[380px] transition-all">
+        <div className="rounded-xl border border-slate-200 overflow-x-auto overflow-y-hidden min-h-[380px] transition-all">
           <table className="w-full text-left border-collapse min-w-[820px]">
             <thead>
               <tr className="glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider">

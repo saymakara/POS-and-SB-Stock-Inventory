@@ -538,7 +538,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto no-scrollbar">
+        <div className="overflow-x-auto overflow-y-hidden no-scrollbar">
           <table className="data-table min-w-[960px]">
             <thead className="glass-table-thead">
               <tr>

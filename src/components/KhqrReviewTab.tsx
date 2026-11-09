@@ -312,7 +312,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
 
       {/* (29 Oct 2026) Monthly history: latest month only */}
       {loadError !== 'SETUP' && history && history.length > 0 && (
-        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Monthly history">
+        <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label="Monthly history">
           <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200">
             <h3 className="text-[13px] font-medium text-slate-900">Monthly history</h3>
             <span className="text-[12px] text-slate-500">· latest month only</span>
@@ -503,7 +503,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
           } finally { setDelBusy(false); }
         }} />
       {/* Entries */}
-      <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="KHQR entries">
+      <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label="KHQR entries">
         <div className="min-w-[1080px]">
           <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
             {(() => {
@@ -631,7 +631,7 @@ const QrAttemptLog: React.FC<{ from: string | null; to: string | null; activity:
           toast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
         } finally { setDelBusy(false); }
       }} />
-    <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label={kind === 'WRONG_SCAN' ? 'Wrong scans' : 'Failed attempts'}>
+    <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label={kind === 'WRONG_SCAN' ? 'Wrong scans' : 'Failed attempts'}>
       <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200">
         <span className={`w-2 h-2 rounded-full ${kind === 'WRONG_SCAN' ? 'bg-orange-500' : 'bg-rose-500'}`} aria-hidden />
         <h3 className="text-[13px] font-medium text-slate-900">{kind === 'WRONG_SCAN' ? 'Wrong scans' : 'Failed attempts'}</h3>
@@ -739,7 +739,7 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
           toast(`Not deleted: ${err instanceof Error ? err.message : String(err)}`);
         } finally { setDelBusy(false); }
       }} />
-    <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Same MID by two or more staff">
+    <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label="Same MID by two or more staff">
       <div className="px-4 py-2.5 flex flex-wrap items-center gap-2 border-b border-slate-200">
         <Copy className="w-4 h-4 text-violet-600" />
         <h3 className="text-[13px] font-medium text-slate-900">Same MID by 2+ staff</h3>

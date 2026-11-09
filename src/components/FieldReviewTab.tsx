@@ -1054,7 +1054,7 @@ export const FieldReviewTab: React.FC<Props> = ({
 
       {/* Section 3 — Clean Table Frame */}
       <section
-        className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto"
+        className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden"
         aria-label="Records"
       >
         <div className="min-w-[1185px]">
