@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { isFresh, markFresh } from '../utils/freshness';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, RefreshCw, ChevronDown, MapPin, Loader2, Send, ClipboardList, Users, Building2, Navigation, PencilLine } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, MapPin, Loader2, Send, ClipboardList, Users, Building2, Navigation, PencilLine, Trash2 } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
@@ -13,7 +13,7 @@ import { MvVisit, MvVisitQuery, MvVisitSummary, fetchMvVisitsPage, fetchMvVisitS
 import { getMvPage, setMvPage, getMvSummary, setMvSummary, clearMvCache } from '../services/mvCache';
 const mvKey = (r: { from: string | null; to: string | null }, activity: string, branchId: string, search: string, page: number, pageSize: number) =>
   JSON.stringify([r.from, r.to, activity, branchId, search, page, pageSize]);
-import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
+import { DeleteRecordsDialog, NoCell, SelectBox, useRecordSelection } from './DeleteRecordsDialog';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { Period, periodRange } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
@@ -196,37 +196,82 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
         )}
       </section>
 
-      {/* Filters */}
-      <section className="flex flex-wrap items-center gap-2.5 bg-white rounded-2xl border border-slate-200 shadow-2xs px-3.5 py-3" aria-label="Filters">
-        <label className="relative flex-1 min-w-[220px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search merchant, MID, Record ID or staff"
-            aria-label="Search"
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-slate-400"
-          />
-        </label>
-        <select value={activity} onChange={(e) => setActivity(e.target.value)} aria-label="Activity"
-          className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 cursor-pointer">
-          <option value="">All activities</option>
-          {activities.map((a) => <option key={a} value={a}>{a}</option>)}
-        </select>
-        {isAdmin && (
-          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} aria-label="Branch"
-            className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 cursor-pointer max-w-[260px]">
-            <option value="">All branches</option>
-            <option value="NONE">No matched branch</option>
-            {branches.map((b) => <option key={b.id} value={b.id}>{b.id} · {b.name}</option>)}
+      {/* Filters & Inline Selection Toolbar */}
+      <section
+        className="flex flex-wrap items-center justify-between gap-2.5 bg-white rounded-2xl border border-slate-200 shadow-2xs px-3.5 py-2.5 min-h-[52px]"
+        aria-label="Filters"
+      >
+        <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
+          <label className="relative w-64 sm:w-72 lg:w-80 shrink-0">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search merchant, MID, Record ID or staff"
+              aria-label="Search"
+              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs sm:text-sm outline-none focus:border-slate-400 bg-white placeholder:text-slate-400 shadow-2xs transition-colors"
+            />
+          </label>
+          <select
+            value={activity}
+            onChange={(e) => setActivity(e.target.value)}
+            aria-label="Activity"
+            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-700 cursor-pointer shadow-2xs outline-none"
+          >
+            <option value="">All activities</option>
+            {activities.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
           </select>
-        )}
-        <ClearFiltersButton active={filtered} onClear={() => { setActivity(''); setBranchId(''); setQuery(''); }} />
-      </section>
+          {isAdmin && (
+            <select
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+              aria-label="Branch"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-700 cursor-pointer max-w-[260px] shadow-2xs outline-none"
+            >
+              <option value="">All branches</option>
+              <option value="NONE">No matched branch</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.id} · {b.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <ClearFiltersButton active={filtered} onClear={() => { setActivity(''); setBranchId(''); setQuery(''); }} />
+        </div>
 
-      {isSuper && pick.sel.size > 0 && (
-        <SelectionBar count={pick.sel.size} onClear={pick.clear} onDelete={() => setDelOpen(true)} />
-      )}
+        {/* Inline Selection Actions — Keeps table frame completely stable with 0px layout shift */}
+        {isSuper && pick.sel.size > 0 && (
+          <div
+            className="flex items-center gap-2.5 shrink-0 bg-rose-50/70 border border-rose-200/80 px-3 py-1 rounded-xl transition-all"
+            aria-label="Selected records"
+          >
+            <span className="font-mono text-xs font-semibold text-rose-900">
+              {pick.sel.size.toLocaleString()} Selected
+            </span>
+            <span className="text-slate-300 text-xs">|</span>
+            <button
+              type="button"
+              onClick={pick.clear}
+              className="text-xs text-slate-600 hover:text-slate-900 underline cursor-pointer"
+            >
+              Clear selection
+            </button>
+            <button
+              type="button"
+              onClick={() => setDelOpen(true)}
+              className="px-3 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-[0.98] transition-all"
+            >
+              <Trash2 className="w-3.5 h-3.5" aria-hidden />
+              Delete {pick.sel.size.toLocaleString()} permanently
+            </button>
+          </div>
+        )}
+      </section>
       <DeleteRecordsDialog open={delOpen} count={pick.sel.size} what="merchant visits" sample={Array.from(pick.sel.values())}
         busy={delBusy} onCancel={() => setDelOpen(false)} onConfirm={runDelete} />
 
