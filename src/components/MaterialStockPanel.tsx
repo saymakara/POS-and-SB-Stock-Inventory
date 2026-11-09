@@ -1,4 +1,4 @@
-import React, { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Boxes, Cpu, Volume2, RefreshCw, Loader2, PackagePlus, PencilLine, Upload,
@@ -17,13 +17,13 @@ import {
   MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts, fetchLost,
 } from '../services/materialsService';
 import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
-import { WHILE_TAP_BUTTON, staggerRowStyle } from '../utils/animationRules';
 
 export type ProductView = 'UNITS' | 'PUSH' | 'MATERIAL';
 
-/* (7 Nov 2026) Smooth switching. Each view (Units, Push Configuring, Material) shows its own copy of this switch, so the
-   highlight remembers where it last stood (per product) and glides from there to the tab just chosen - one continuous
-   motion, even though the switch itself belongs to the view that just appeared. */
+/* (7 Nov 2026 / updated 9 Nov 2026) Ultra-smooth switching without flicker or jump.
+   Each view (Units, Push Configuring, Material) shows this switch. The active pill
+   remembers where it was across views and glides smoothly using GPU-accelerated WAAPI
+   without destination flashes or layout jumps. */
 const lastPill: Partial<Record<DeviceGroup, { x: number; w: number }>> = {};
 const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -38,25 +38,56 @@ export const ProductViewToggle: React.FC<{
   const views: ProductView[] = hasPush ? ['UNITS', 'PUSH', 'MATERIAL'] : ['UNITS', 'MATERIAL'];
   const listRef = useRef<HTMLDivElement>(null);
   const pillRef = useRef<HTMLDivElement>(null);
+  const animRef = useRef<Animation | null>(null);
+
   useLayoutEffect(() => {
     const list = listRef.current, pill = pillRef.current;
-    if (!list || !pill || !list.offsetParent) return;                  // a hidden view's copy: the shown one moves the pill
+    if (!list || !pill || !list.offsetParent) return; // a hidden view's copy: the shown one moves the pill
     const btn = list.querySelector<HTMLElement>('[aria-selected="true"]');
     if (!btn) return;
+
     const to = { x: btn.offsetLeft, w: btn.offsetWidth };
     const from = lastPill[group];
-    pill.style.width = to.w + 'px';
-    pill.style.transform = `translate3d(${to.x}px,0,0)`;
-    pill.style.opacity = '1';
+
+    // Cancel any active animation so rapid clicks never collide
+    if (animRef.current) {
+      animRef.current.cancel();
+      animRef.current = null;
+    }
+
     if (from && (from.x !== to.x || from.w !== to.w) && pill.animate && !reducedMotion()) {
-      pill.animate(
-        [{ transform: `translate3d(${from.x}px,0,0)`, width: from.w + 'px' }, { transform: `translate3d(${to.x}px,0,0)`, width: to.w + 'px' }],
-        { duration: 280, easing: 'cubic-bezier(.32,.72,0,1)' },
+      // Start immediately from 'from' position to prevent destination frame flash
+      pill.style.width = from.w + 'px';
+      pill.style.transform = `translate3d(${from.x}px,0,0)`;
+      pill.style.opacity = '1';
+
+      const anim = pill.animate(
+        [
+          { transform: `translate3d(${from.x}px,0,0)`, width: `${from.w}px` },
+          { transform: `translate3d(${to.x}px,0,0)`, width: `${to.w}px` },
+        ],
+        {
+          duration: 200,
+          easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          fill: 'forwards',
+        },
       );
+      animRef.current = anim;
+      anim.onfinish = () => {
+        pill.style.width = to.w + 'px';
+        pill.style.transform = `translate3d(${to.x}px,0,0)`;
+        anim.cancel();
+        animRef.current = null;
+      };
+    } else {
+      pill.style.width = to.w + 'px';
+      pill.style.transform = `translate3d(${to.x}px,0,0)`;
+      pill.style.opacity = '1';
     }
     lastPill[group] = to;
   });
-  useEffect(() => {                                                      // window resized / fonts loaded: the pill follows (no glide)
+
+  useEffect(() => {
     const list = listRef.current, pill = pillRef.current;
     if (!list || !pill || typeof ResizeObserver !== 'function') return;
     const ro = new ResizeObserver(() => {
@@ -69,6 +100,7 @@ export const ProductViewToggle: React.FC<{
     ro.observe(list);
     return () => ro.disconnect();
   }, [group]);
+
   return (
     <div
       ref={listRef}
@@ -79,19 +111,18 @@ export const ProductViewToggle: React.FC<{
       <div
         ref={pillRef}
         aria-hidden
-        className="absolute left-0 top-1 bottom-1 rounded-lg bg-[#003857] shadow-xs z-0 pointer-events-none opacity-0 will-change-transform"
+        className="absolute left-0 top-1 bottom-1 rounded-lg bg-[#003857] shadow-xs z-0 pointer-events-none will-change-transform"
       />
       {views.map((v) => {
         const n = v === 'PUSH' ? pushCount || 0 : v === 'MATERIAL' ? lostCount || 0 : 0;
         const isSelected = view === v;
         return (
-          <motion.button
+          <button
             key={v}
             type="button"
             role="tab"
             aria-selected={isSelected}
             onClick={() => onViewChange(v)}
-            whileTap={WHILE_TAP_BUTTON}
             title={
               v === 'PUSH' && n
                 ? `${n} unit(s) waiting to be pushed`
@@ -99,11 +130,11 @@ export const ProductViewToggle: React.FC<{
                 ? `${n} open lost item(s)`
                 : undefined
             }
-            className="relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer select-none"
+            className="relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer select-none transition-colors"
           >
             <span
-              className={`relative z-10 transition-colors duration-150 ${
-                isSelected ? 'text-white font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              className={`relative z-10 transition-colors duration-150 font-semibold ${
+                isSelected ? 'text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {v === 'UNITS' ? 'Units' : v === 'PUSH' ? 'Push Configuring' : 'Material'}
@@ -121,14 +152,14 @@ export const ProductViewToggle: React.FC<{
                 {n}
               </span>
             )}
-          </motion.button>
+          </button>
         );
       })}
     </div>
   );
 };
 
-export const ProductStockPage: React.FC<{
+const ProductStockPageComponent: React.FC<{
   group: DeviceGroup;
   role: UserRole;
   branches: Branch[];
@@ -203,8 +234,8 @@ export const ProductStockPage: React.FC<{
     shownView.current = view;
     const el = activeRef.current;
     if (!el || !el.animate || reducedMotion()) return;
-    el.animate([{ opacity: 0, transform: 'translate3d(0,6px,0)' }, { opacity: 1, transform: 'translate3d(0,0,0)' }],
-      { duration: 220, easing: 'cubic-bezier(.25,1,.5,1)' });
+    // Pure subtle opacity crossfade without vertical translate jump
+    el.animate([{ opacity: 0.8 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
   }, [view]);
 
   return (
@@ -238,7 +269,7 @@ export const ProductStockPage: React.FC<{
 
 const STATUS_OPTIONS: SerialStatus[] = ['HQ_STOCK', 'IN_TRANSIT', 'BRANCH_RESERVE', 'AT_MERCHANT', 'LOST', 'WRITTEN_OFF'];
 
-const MaterialStockPanel: React.FC<{
+const MaterialStockPanelComponent: React.FC<{
   group: DeviceGroup;
   role: UserRole;
   branches: Branch[];
@@ -260,9 +291,11 @@ const MaterialStockPanel: React.FC<{
   const [statusFilter, setStatusFilter] = useState<SerialStatus | ''>('');
   const [branchFilter, setBranchFilter] = useState(isAdmin ? '' : myBranch);
   const [query, setQuery] = useState('');
-  const dq = useDeferredValue(query);
   const [search, setSearch] = useState('');
-  useEffect(() => { const t = setTimeout(() => setSearch(dq.trim()), 350); return () => clearTimeout(t); }, [dq]);
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(query.trim()), 180);
+    return () => clearTimeout(t);
+  }, [query]);
 
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
@@ -273,6 +306,17 @@ const MaterialStockPanel: React.FC<{
   const [dbSerials, setDbSerials] = useState<MaterialSerial[] | null>(null);
   const [counts, setCounts] = useState<Record<SerialStatus, number> | null>(null);
   const [countsKey, setCountsKey] = useState(0);
+
+  // O(1) branch lookup map to prevent 13k array searches on every keystroke
+  const branchNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    map.set('100', 'Head Office');
+    for (let i = 0; i < branches.length; i++) {
+      const b = branches[i];
+      map.set(b.id, b.id === '100' ? 'Head Office' : `${b.id} · ${b.name}`);
+    }
+    return map;
+  }, [branches]);
 
   // Fast device lookup map
   const deviceMap = useMemo(() => {
@@ -409,7 +453,7 @@ const MaterialStockPanel: React.FC<{
         (r.merchantName && r.merchantName.toLowerCase().includes(sLow)) ||
         (dev?.merchantName && dev.merchantName.toLowerCase().includes(sLow)) ||
         (r.updatedBy && r.updatedBy.toLowerCase().includes(sLow)) ||
-        placeName(r.branchId, branches).toLowerCase().includes(sLow)
+        (branchNameMap.get(r.branchId) || placeName(r.branchId, branches)).toLowerCase().includes(sLow)
       );
     });
   }, [dbSerials, deviceDerivedItems, selectedCode, statusFilter, branchFilter, search, deviceMap, branches]);
@@ -495,42 +539,42 @@ const MaterialStockPanel: React.FC<{
     switch (code) {
       case 'BATTERY':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200 shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-amber-50 text-amber-900 border border-amber-200 shadow-2xs">
             <Battery className="w-3.5 h-3.5 text-amber-600" />
             <span>{name}</span>
           </span>
         );
       case 'STAND':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-900 border border-indigo-200 shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-indigo-50 text-indigo-900 border border-indigo-200 shadow-2xs">
             <Smartphone className="w-3.5 h-3.5 text-indigo-600" />
             <span>{name}</span>
           </span>
         );
       case 'DOCK':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-sky-50 text-sky-900 border border-sky-200 shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-sky-50 text-sky-900 border border-sky-200 shadow-2xs">
             <Dock className="w-3.5 h-3.5 text-sky-600" />
             <span>{name}</span>
           </span>
         );
       case 'POS_ADAPTOR':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
             <Plug className="w-3.5 h-3.5 text-slate-600" />
             <span>{name}</span>
           </span>
         );
       case 'SB_ADAPTOR':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-900 border border-purple-200 shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-purple-50 text-purple-900 border border-purple-200 shadow-2xs">
             <Plug className="w-3.5 h-3.5 text-purple-600" />
             <span>{name}</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-normal bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs">
             <Package className="w-3.5 h-3.5 text-slate-600" />
             <span>{name}</span>
           </span>
@@ -748,7 +792,7 @@ const MaterialStockPanel: React.FC<{
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm text-left">
             <thead>
-              <tr className="bg-[#003857] text-white text-[10.5px] uppercase tracking-wider font-extrabold select-none">
+              <tr className="bg-[#003857] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
                 <th className="px-4 py-3 text-center w-12">No.</th>
                 <th className="px-4 py-3">Item / Serial Number</th>
                 <th className="px-4 py-3">Status</th>
@@ -790,12 +834,12 @@ const MaterialStockPanel: React.FC<{
                 const branchName = dev?.branchName || placeName(s.branchId, branches);
 
                 return (
-                  <tr key={`${s.code}-${s.serial}-${idx}`} style={staggerRowStyle(idx)} className="row-stagger hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-2.5 text-center font-mono text-slate-400 font-semibold">
+                  <tr key={`${s.code}-${s.serial}-${idx}`} style={{ animationDelay: `${Math.min(idx, 8) * 12}ms` }} className="row-stagger hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-2.5 text-center font-mono text-slate-400 font-normal">
                       {pg.start + idx + 1}
                     </td>
 
-                    <td className="px-4 py-2.5 font-mono font-bold text-slate-800">
+                    <td className="px-4 py-2.5 font-mono font-normal text-slate-800">
                       <div className="flex items-center gap-1.5">
                         <span className="select-all">{s.serial}</span>
                         <button
@@ -817,7 +861,7 @@ const MaterialStockPanel: React.FC<{
                       {getMaterialBadge(s.code)}
                     </td>
 
-                    <td className="px-4 py-2.5 font-mono font-semibold">
+                    <td className="px-4 py-2.5 font-mono font-normal">
                       {s.deviceSerial ? (
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${
                           group === 'POS'
@@ -834,7 +878,7 @@ const MaterialStockPanel: React.FC<{
 
                     <td className="px-4 py-2.5">
                       <div className="flex flex-col">
-                        <span className="font-bold text-slate-800 truncate max-w-[170px]" title={merchantName}>
+                        <span className="font-normal text-slate-800 truncate max-w-[170px]" title={merchantName}>
                           {merchantName}
                         </span>
                         {mid && <span className="font-mono text-[10.5px] text-slate-400">MID: {mid}</span>}
@@ -845,7 +889,7 @@ const MaterialStockPanel: React.FC<{
                       {deployedDate}
                     </td>
 
-                    <td className="px-4 py-2.5 font-medium text-slate-700">
+                    <td className="px-4 py-2.5 font-normal text-slate-700">
                       {branchStaff}
                     </td>
 
@@ -1236,3 +1280,7 @@ const OpeningDialog: React.FC<{ open: boolean; branches: Branch[]; onClose: () =
     </MaterialDialog>
   );
 };
+
+
+export const MaterialStockPanel = React.memo(MaterialStockPanelComponent);
+export const ProductStockPage = React.memo(ProductStockPageComponent);

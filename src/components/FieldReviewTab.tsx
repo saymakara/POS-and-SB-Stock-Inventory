@@ -62,7 +62,7 @@ const DOT = { 'POS Terminal': 'bg-[#006BA6]', 'Sound Box': 'bg-[#4F518C]' } as c
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-2.5 grid-cols-[34px_38px_98px_104px_140px_minmax(125px,1.2fr)_minmax(120px,1.1fr)_minmax(120px,1.15fr)_84px_156px]';
+  'grid items-center gap-x-2.5 grid-cols-[34px_38px_98px_180px_140px_minmax(125px,1.2fr)_minmax(120px,1.1fr)_minmax(120px,1.15fr)_84px_156px]';
 const CACHE_KEY = 'fe_review_cache_v5';
 
 /** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */
@@ -1066,7 +1066,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto"
         aria-label="Records"
       >
-        <div className="min-w-[1020px]">
+        <div className="min-w-[1100px]">
           <div
             className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`}
             role="row"
@@ -1088,7 +1088,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             <SortBtn k="kind" sort={sort} onSort={toggleSort}>
               Record Type
             </SortBtn>
-            <SortBtn k="date" sort={sort} onSort={toggleSort}>
+            <SortBtn k="date" sort={sort} onSort={toggleSort} className="pl-3">
               Date Sent
             </SortBtn>
             <SortBtn k="serial" sort={sort} onSort={toggleSort} className="pl-3">
@@ -1303,7 +1303,7 @@ const ReviewRow = memo(function ReviewRow({
           )}
           <span>{type}</span>
         </span>
-        <span className="truncate leading-snug font-normal text-slate-700" title={KIND_LABEL[e.kind]}>
+        <span className="whitespace-nowrap leading-snug font-normal text-slate-700" title={KIND_LABEL[e.kind]}>
           {KIND_LABEL[e.kind]}
           {units > 1 && (
             <span className="block text-[11px] font-normal text-slate-500">
@@ -1311,7 +1311,7 @@ const ReviewRow = memo(function ReviewRow({
             </span>
           )}
         </span>
-        <span className="leading-tight min-w-0">
+        <span className="leading-tight min-w-0 pl-3">
           <span className="tabular-nums font-normal text-slate-600 whitespace-nowrap block" title={fmtTime(e.receivedAt)}>
             {fmtTime(e.receivedAt)}
           </span>

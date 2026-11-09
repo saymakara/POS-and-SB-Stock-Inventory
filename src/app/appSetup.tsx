@@ -8,6 +8,7 @@ import type { SettingsSubTab } from '../components/SettingsTab';
 import { prefetchKhqr } from '../services/khqrCache';
 import { prefetchCc } from '../services/ccService';
 import { prefetchKpi } from '../services/kpiService';
+import { prefetchSims } from '../services/materialsService';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchAuditLogs, StaffAccount } from '../services/supabaseService';
 
@@ -36,7 +37,8 @@ export function prefetchTabs(): void {
   tabLoaders.forEach((load) => { load().catch(() => { /* loaded again when opened */ }); });
   prefetchKhqr();                                                   // (29 Oct 2026) the KHQR screen opens with its data already here
   prefetchCc();                                                     // (1 Nov 2026) the Credit Card screen opens with its data already here
-  prefetchKpi();                                                    // (1 Nov 2026) the KPI Performance screen opens with its data already here
+  prefetchKpi();
+  prefetchSims();                                                    // (1 Nov 2026) the KPI Performance screen opens with its data already here
 }
 export const BranchesTab = lazyTab(() => import('../components/BranchesTab').then((m) => ({ default: m.BranchesTab })));
 export const IamUsersTab = lazyTab(() => import('../components/IamUsersTab').then((m) => ({ default: m.IamUsersTab })));

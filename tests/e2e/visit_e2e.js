@@ -93,7 +93,7 @@ async function api(route) {
   // ---- POS maintenance / return in Phone App Review > POS Terminal
   await side.getByText('POS Terminal', { exact: true }).first().click(); await sleep(2200);
   t = await main();
-  ok(/POS returned & terminated/.test(t) && /POS active maintenance/.test(t) && /POS in-active maintenance/.test(t), 'POS review lists the three new kinds with their names');
+  ok(/POS returned & terminated/.test(t) && /POS (operational support|active maintenance)/.test(t) && /POS in-active maintenance/.test(t), 'POS review lists the three new kinds with their names');
   const row = p.locator('span[title="POS returned & terminated"]').first().locator('xpath=ancestor::div[.//button[@aria-expanded]][1]');
   await row.locator('button[aria-expanded]').first().click(); await sleep(900);
   t = await main();

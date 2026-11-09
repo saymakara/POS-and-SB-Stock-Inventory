@@ -305,3 +305,9 @@ export async function adminSimUpdate(p: AdminSimUpdatePayload): Promise<any> {
 
 export const placeName = (branchId: string, branches: { id: string; name: string }[]) =>
   branchId === '100' ? 'Head Office' : `${branchId} · ${branches.find((b) => b.id === branchId)?.name || 'Branch ' + branchId}`;
+
+export function prefetchSims(): void {
+  if (!isSupabaseConfigured) return;
+  void fetchSerialsPage({ code: 'SIM', status: '', page: 1, pageSize: 1000 }).catch(() => {});
+  void fetchSerialStatusCounts('SIM').catch(() => {});
+}

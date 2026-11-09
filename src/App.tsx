@@ -3965,7 +3965,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         )}
       </AnimatePresence>
 
-      {/* Toast Notification with Smooth Motion & Refined Design */}
+      {/* Toast Notification with Smooth Motion & Corporate Navy System Styling */}
       <div
         aria-live="polite"
         role="status"
@@ -3995,39 +3995,34 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
             const theme = isError
               ? {
-                  container: 'bg-slate-950/95 border-rose-500/40 shadow-[0_20px_45px_-10px_rgba(244,63,94,0.3),0_8px_20px_-6px_rgba(0,0,0,0.6)]',
-                  iconBox: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
-                  title: 'text-rose-300',
+                  iconBox: 'bg-rose-500/25 text-rose-200 border-rose-400/35',
+                  titleColor: 'text-rose-200',
                   Icon: AlertCircle,
                 }
               : isWarning
               ? {
-                  container: 'bg-slate-950/95 border-amber-500/40 shadow-[0_20px_45px_-10px_rgba(245,158,11,0.25),0_8px_20px_-6px_rgba(0,0,0,0.6)]',
-                  iconBox: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-                  title: 'text-amber-300',
+                  iconBox: 'bg-amber-400/20 text-amber-300 border-amber-300/35',
+                  titleColor: 'text-amber-200',
                   Icon: AlertTriangle,
                 }
               : isPush
               ? {
-                  container: 'bg-slate-950/95 border-sky-500/35 shadow-[0_20px_45px_-10px_rgba(14,165,233,0.22),0_8px_20px_-6px_rgba(0,0,0,0.6)]',
-                  iconBox: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
-                  title: 'text-sky-300',
+                  iconBox: 'bg-sky-400/20 text-sky-200 border-sky-300/35',
+                  titleColor: 'text-sky-200',
                   Icon: SendHorizontal,
                 }
               : isSuccess
               ? {
-                  container: 'bg-slate-950/95 border-emerald-500/35 shadow-[0_20px_45px_-10px_rgba(16,185,129,0.2),0_8px_20px_-6px_rgba(0,0,0,0.6)]',
-                  iconBox: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-                  title: 'text-emerald-300',
+                  iconBox: 'bg-emerald-400/20 text-emerald-300 border-emerald-300/35',
+                  titleColor: 'text-emerald-200',
                   Icon: CheckCircle2,
                 }
               : {
-                  container: 'bg-slate-950/95 border-sky-500/30 shadow-[0_20px_45px_-10px_rgba(14,165,233,0.2),0_8px_20px_-6px_rgba(0,0,0,0.6)]',
-                  iconBox: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
-                  title: 'text-sky-300',
+                  iconBox: 'bg-sky-400/20 text-sky-200 border-sky-300/35',
+                  titleColor: 'text-sky-200',
                   Icon: Info,
                 };
-            const { container, iconBox, title: titleColor, Icon } = theme;
+            const { iconBox, titleColor, Icon } = theme;
 
             return (
               <motion.div
@@ -4035,7 +4030,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 12, scale: 0.95 }}
                 transition={{ type: 'spring', stiffness: 450, damping: 30, mass: 0.6 }}
-                className={`pointer-events-auto flex items-start gap-3 rounded-2xl p-3.5 sm:p-4 text-xs font-medium text-white backdrop-blur-xl border ${container}`}
+                className="pointer-events-auto flex items-start gap-3 rounded-2xl p-3.5 sm:p-4 text-xs font-medium text-white backdrop-blur-md border border-white/20 bg-[#003857]/95 dark:bg-[#002840]/95 shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65),0_6px_16px_-4px_rgba(0,0,0,0.35),inset_0_1px_0_0_rgba(255,255,255,0.22)]"
               >
                 <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${iconBox}`}>
                   <Icon className="w-4 h-4" />
@@ -4043,7 +4038,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
                 <div className="flex-1 min-w-0 pt-0.5 leading-relaxed">
                   {tag && (
-                    <span className="inline-block font-mono text-[10px] font-bold text-sky-200 bg-sky-500/15 border border-sky-400/25 px-2 py-0.5 rounded-md mr-1.5 align-baseline uppercase">
+                    <span className="inline-block font-mono text-[10px] font-bold text-sky-200 bg-white/10 border border-white/20 px-2 py-0.5 rounded-md mr-1.5 align-baseline uppercase shadow-2xs">
                       {tag}
                     </span>
                   )}
@@ -4052,12 +4047,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                       <div className={`text-[13px] font-bold ${titleColor} mb-0.5 tracking-tight`}>
                         {title}
                       </div>
-                      <div className="text-[12px] text-slate-200/95 leading-relaxed font-normal">
+                      <div className="text-[12px] text-white/95 leading-relaxed font-normal">
                         {body}
                       </div>
                     </div>
                   ) : (
-                    <span className="text-[12px] text-slate-100 font-medium leading-relaxed">{body}</span>
+                    <span className="text-[12px] text-white/95 font-medium leading-relaxed">{body}</span>
                   )}
                 </div>
 
@@ -4067,7 +4062,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
                   type="button"
                   onClick={() => setToastMessage(null)}
                   aria-label="Dismiss message"
-                  className="p-1.5 -mr-1 -mt-1 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                  className="p-1.5 -mr-1 -mt-1 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </motion.button>

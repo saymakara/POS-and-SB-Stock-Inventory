@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DRAWER_VARIANTS, BACKDROP_VARIANTS, WHILE_TAP_BUTTON } from '../utils/animationRules';
 import {
@@ -43,7 +43,7 @@ const LIFECYCLE_OPTIONS: { value: SerialStatus; label: string; desc: string }[] 
   { value: 'WRITTEN_OFF', label: 'Written Off', desc: 'Permanently decommissioned or retired' },
 ];
 
-export const ManageSimModal: React.FC<ManageSimModalProps> = ({
+const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
   sim,
   isOpen,
   onClose,
@@ -82,28 +82,68 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
   const [note, setNote] = useState('');
 
   // Find assigned device in devices pool
+    // Fast O(1) Serial Map for instant lookups across 10,000+ devices
+  const deviceBySerialMap = useMemo(() => {
+    const map = new Map<string, Device>();
+    for (let i = 0; i < devices.length; i++) {
+      const d = devices[i];
+      if (d && d.serial) {
+        map.set(d.serial.toUpperCase(), d);
+      }
+    }
+    return map;
+  }, [devices]);
+
+  // Find assigned device in devices pool in O(1)
   const assignedDevice = useMemo(() => {
     if (!assignedDeviceSerial) return null;
-    return devices.find((d) => d.serial.toUpperCase() === assignedDeviceSerial.toUpperCase()) || null;
-  }, [assignedDeviceSerial, devices]);
+    return deviceBySerialMap.get(assignedDeviceSerial.toUpperCase()) || null;
+  }, [assignedDeviceSerial, deviceBySerialMap]);
 
-  // Available devices in branch/fleet
+  // Deferred search term to keep keyboard input at crisp 120fps
+  const deferredSearch = useDeferredValue(deviceSearch);
+
+  // Available devices in branch/fleet (Optimized with early exit to keep render instant)
   const eligibleDevices = useMemo(() => {
-    return devices.filter((d) => {
-      if (deviceFilterType === 'POS' && d.type !== 'POS Terminal') return false;
-      if (deviceFilterType === 'SOUND_BOX' && d.type !== 'Sound Box') return false;
-      if (deviceSearch.trim()) {
-        const q = deviceSearch.toLowerCase().trim();
+    const q = deferredSearch.trim().toLowerCase();
+    const results: Device[] = [];
+    const maxMatches = 60;
+
+    for (let i = 0; i < devices.length; i++) {
+      const d = devices[i];
+      if (deviceFilterType === 'POS' && d.type !== 'POS Terminal') continue;
+      if (deviceFilterType === 'SOUND_BOX' && d.type !== 'Sound Box') continue;
+      if (q) {
         const match =
           d.serial.toLowerCase().includes(q) ||
           (d.merchantName || '').toLowerCase().includes(q) ||
           (d.mid || '').toLowerCase().includes(q) ||
           (d.staff || '').toLowerCase().includes(q);
-        if (!match) return false;
+        if (!match) continue;
       }
-      return true;
-    });
-  }, [devices, deviceFilterType, deviceSearch]);
+      results.push(d);
+      if (q && results.length >= maxMatches) break;
+      if (!q && results.length >= 100) break;
+    }
+    return results;
+  }, [devices, deviceFilterType, deferredSearch]);
+
+  // Display devices ensuring current assignedDevice is always present
+  const displayDevices = useMemo(() => {
+    const maxShow = 60;
+    const list = eligibleDevices.slice(0, maxShow);
+    if (assignedDevice && !list.some((d) => d.serial.toUpperCase() === assignedDevice.serial.toUpperCase())) {
+      list.unshift(assignedDevice);
+    }
+    return list;
+  }, [eligibleDevices, assignedDevice]);
+
+  // Filter branch users for datalist
+  const branchUsers = useMemo(() => {
+    return users
+      .filter((u) => !branchId || branchId === '100' || u.branchId === branchId)
+      .slice(0, 100);
+  }, [users, branchId]);
 
   // Initialize state when modal opens with a SIM
   useEffect(() => {
@@ -118,9 +158,7 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
       setBranchId(sim.branchId || (isAdmin ? '100' : myBranch));
       setAssignedDeviceSerial(sim.deviceSerial || '');
 
-      const dev = sim.deviceSerial
-        ? devices.find((d) => d.serial.toUpperCase() === sim.deviceSerial?.toUpperCase())
-        : null;
+      const dev = sim.deviceSerial ? deviceBySerialMap.get(sim.deviceSerial.toUpperCase()) : null;
 
       setMerchantName(sim.merchantName || dev?.merchantName || '');
       setMid(sim.mid || dev?.mid || '');
@@ -130,7 +168,7 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
       setBlockedWithCarrier(Boolean(sim.blocked));
       setNote(sim.note || '');
     }
-  }, [sim, isOpen, devices, isAdmin, myBranch]);
+  }, [sim, isOpen, deviceBySerialMap, isAdmin, myBranch]);
 
   // When a user selects a device from dropdown, dynamically populate merchant and branch details
   const handleSelectDevice = (devSerial: string) => {
@@ -143,7 +181,7 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
       return;
     }
 
-    const dev = devices.find((d) => d.serial.toUpperCase() === devSerial.toUpperCase());
+    const dev = deviceBySerialMap.get(devSerial.toUpperCase());
     if (dev) {
       if (dev.branchId) setBranchId(dev.branchId);
       if (dev.merchantName) setMerchantName(dev.merchantName);
@@ -571,16 +609,23 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
 
                   {/* Device Dropdown Selector */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Choose Device to Assign
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Choose Device to Assign
+                      </label>
+                      {eligibleDevices.length > 0 && (
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {eligibleDevices.length >= 60 ? 'Showing top 60 matches' : `${eligibleDevices.length} available`}
+                        </span>
+                      )}
+                    </div>
                     <select
                       value={assignedDeviceSerial}
                       onChange={(e) => handleSelectDevice(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857]"
                     >
                       <option value="">-- Unassigned (Available Pool / No Device) --</option>
-                      {eligibleDevices.map((d) => (
+                      {displayDevices.map((d) => (
                         <option key={d.serial} value={d.serial}>
                           [{d.type === 'Sound Box' ? 'SB' : 'POS'}] {d.serial} {d.merchantName ? `· ${d.merchantName}` : ''} {d.mid ? `(MID: ${d.mid})` : ''} · {d.branchName || 'Branch ' + d.branchId}
                         </option>
@@ -670,11 +715,9 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857]"
                       />
                       <datalist id="sim-branch-staff-list">
-                        {users
-                          .filter((u) => !branchId || branchId === '100' || u.branchId === branchId)
-                          .map((u) => (
-                            <option key={u.empId || u.name} value={`${u.name} (${u.empId})`} />
-                          ))}
+                        {branchUsers.map((u) => (
+                          <option key={u.empId || u.name} value={`${u.name} (${u.empId})`} />
+                        ))}
                       </datalist>
                     </div>
 
@@ -937,3 +980,6 @@ export const ManageSimModal: React.FC<ManageSimModalProps> = ({
     </AnimatePresence>
   );
 };
+
+
+export const ManageSimModal = React.memo(ManageSimModalComponent);

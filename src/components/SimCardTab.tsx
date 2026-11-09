@@ -1,4 +1,4 @@
-import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Search, RefreshCw, Loader2, PackagePlus, PencilLine, CreditCard, Download,
@@ -17,7 +17,7 @@ import {
 import { MaterialsSetupNotice, StatusPill, btnLight, btnPrimary, fmtDay } from './MaterialsUi';
 import { AdjustDialog, LostMaterialsSection, StockInDialog } from './MaterialStockPanel';
 import { ManageSimModal } from './ManageSimModal';
-import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, staggerRowStyle, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 
 /**
  * (6 Nov 2026) Stock Inventory → SIM Card.
@@ -29,7 +29,11 @@ const SIM_CODES: ['SIM'] = ['SIM'];
 const STATUSES: SerialStatus[] = ['HQ_STOCK', 'IN_TRANSIT', 'BRANCH_RESERVE', 'AT_MERCHANT', 'LOST', 'WRITTEN_OFF'];
 export type HardwareFilter = 'ALL' | 'POS' | 'SOUND_BOX' | 'UNASSIGNED';
 
-export const SimCardTab: React.FC<{
+// Module-level caches for instant 0ms tab mounting without skeleton flicker
+let simCache: { rows: MaterialSerial[]; total: number } | null = null;
+let simCountsCache: Record<SerialStatus, number> | null = null;
+
+const SimCardTabComponent: React.FC<{
   role: UserRole;
   branches: Branch[];
   myBranch: string;
@@ -46,13 +50,15 @@ export const SimCardTab: React.FC<{
   const [status, setStatus] = useState<SerialStatus | ''>('');
   const [branchId, setBranchId] = useState(isAdmin ? '' : myBranch);
   const [query, setQuery] = useState('');
-  const dq = useDeferredValue(query);
   const [search, setSearch] = useState('');
-  useEffect(() => { const t = setTimeout(() => setSearch(dq.trim()), 350); return () => clearTimeout(t); }, [dq]);
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(query.trim()), 200);
+    return () => clearTimeout(t);
+  }, [query]);
 
-  const [rows, setRows] = useState<MaterialSerial[] | null>(null);
-  const [, setTotal] = useState(0);
-  const [counts, setCounts] = useState<Record<SerialStatus, number> | null>(null);
+  const [rows, setRows] = useState<MaterialSerial[] | null>(() => simCache?.rows || null);
+  const [, setTotal] = useState(() => simCache?.total || 0);
+  const [counts, setCounts] = useState<Record<SerialStatus, number> | null>(() => simCountsCache || null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST'>('');
@@ -131,6 +137,7 @@ export const SimCardTab: React.FC<{
     setLoading(true);
     try {
       const p = await fetchSerialsPage({ code: 'SIM', status, branchId: branchId || undefined, search, page: 1, pageSize: 1000 }, force);
+      if (!status && !branchId && !search) { simCache = { rows: p.rows, total: p.total }; }
       setRows(p.rows); setTotal(p.total); setErr('');
     } catch (e) {
       const m = cleanMaterialError(e); setErr(isMaterialsMissing(m) ? 'SETUP' : m); setRows((r) => r || []);
@@ -139,7 +146,7 @@ export const SimCardTab: React.FC<{
 
   useEffect(() => {
     let alive = true;
-    fetchSerialStatusCounts('SIM', branchId || undefined, countsKey > 0).then((c) => { if (alive) setCounts(c); }).catch(() => {});
+    fetchSerialStatusCounts('SIM', branchId || undefined, countsKey > 0).then((c) => { if (alive) { if (!branchId) simCountsCache = c; setCounts(c); } }).catch(() => {});
     return () => { alive = false; };
   }, [branchId, countsKey]);
 
@@ -543,7 +550,7 @@ export const SimCardTab: React.FC<{
                 const branchName = dev?.branchName || (s.branchId && s.branchId !== '100' ? placeName(s.branchId, branches) : (s.branchId === '100' ? 'Head Office' : ''));
 
                 return (
-                  <tr key={s.serial} style={staggerRowStyle(i)} className="row-stagger hover:bg-slate-50/70 transition-colors">
+                  <tr key={s.serial} style={{ animationDelay: `${Math.min(i, 8) * 15}ms` }} className="row-stagger hover:bg-slate-50/70 transition-colors">
                     <td className="px-2.5 py-2.5 text-center tabular-nums text-slate-500 font-mono">
                       {pg.start + i + 1}
                     </td>
@@ -687,3 +694,5 @@ export const SimCardTab: React.FC<{
     </div>
   );
 };
+
+export const SimCardTab = React.memo(SimCardTabComponent);

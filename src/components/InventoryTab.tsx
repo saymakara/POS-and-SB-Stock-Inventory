@@ -686,100 +686,105 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           )}
         </AnimatePresence>
 
-        {/* Filter & Search Bar in Neutral Slate & Charcoal */}
-        <div className="p-4 bg-slate-50/70 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                onSearchChange(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search Serial SN, Merchant, TID, Branch Code..."
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
-            />
-          </div>
+        {/* Filter & Search Bar in Neutral Slate & Charcoal (Consistent 3-row layout with PushConfiguringTab & MaterialStockPanel) */}
+        <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-3">
+          {/* Row 1: Search + Dropdown Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  onSearchChange(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search Serial SN, Merchant, TID, Branch Code..."
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
+              />
+            </div>
 
-          <div className="relative">
+            <div className="relative">
+              <select
+                value={rowsPerPage}
+                onChange={(e) => {
+                  setRowsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                title="Select view page (100 Row Max)"
+              >
+                <option value={50}>View: 50 Rows / Page</option>
+                <option value={100}>View: 100 Rows / Page (Max)</option>
+              </select>
+            </div>
+
+            <div className="relative">
+              <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <select
+                value={stageFilter}
+                onChange={(e) => {
+                  onStageFilterChange(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-8 pr-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">All Lifecycle Stages</option>
+                {STAGE_ORDER.map((s) => (
+                  <option key={s} value={s}>
+                    {STAGE_META[s].label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {!lockType && (
+              <select
+                value={typeFilter}
+                onChange={(e) => {
+                  onTypeFilterChange(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">All Hardware Types</option>
+                <option value="POS Terminal">POS Terminal (Wizar POS Q2 Pro)</option>
+                <option value="Sound Box">Sound Box (QR Audio)</option>
+              </select>
+            )}
+
             <select
-              value={rowsPerPage}
+              value={midDeviceFilter}
               onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
+                setMidDeviceFilter(e.target.value as 'ALL' | 'SINGLE' | 'MULTIPLE');
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-              title="Select view page (100 Row Max)"
+              className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              title="Filter by number of devices linked to MID"
             >
-              <option value={50}>View: 50 Rows / Page</option>
-              <option value={100}>View: 100 Rows / Page (Max)</option>
+              <option value="ALL">All MIDs (Any Count)</option>
+              <option value="SINGLE">1 Device per MID (Standard)</option>
+              <option value="MULTIPLE">2+ Devices per MID (In Swap/Change)</option>
+            </select>
+
+            <select
+              value={batteryFilter}
+              onChange={(e) => {
+                setBatteryFilter(e.target.value as any);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              title="Filter by POS Terminal 24-Month Battery Lifecycle"
+            >
+              <option value="ALL">All Battery Cycles</option>
+              <option value="EXPIRED">🔴 Expired (&ge;24M Change Required)</option>
+              <option value="DUE_SOON">🟡 Due Soon (21-23M)</option>
+              <option value="HEALTHY">🟢 Healthy (&lt;21M)</option>
             </select>
           </div>
 
-          <div className="relative">
-            <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <select
-              value={stageFilter}
-              onChange={(e) => {
-                onStageFilterChange(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-8 pr-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-            >
-              <option value="ALL">All Lifecycle Stages</option>
-              {STAGE_ORDER.map((s) => (
-                <option key={s} value={s}>
-                  {STAGE_META[s].label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {!lockType && <select
-            value={typeFilter}
-            onChange={(e) => {
-              onTypeFilterChange(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-          >
-            <option value="ALL">All Hardware Types</option>
-            <option value="POS Terminal">POS Terminal (Wizar POS Q2 Pro)</option>
-            <option value="Sound Box">Sound Box (QR Audio)</option>
-          </select>}
-
-          <select
-            value={midDeviceFilter}
-            onChange={(e) => {
-              setMidDeviceFilter(e.target.value as 'ALL' | 'SINGLE' | 'MULTIPLE');
-              setCurrentPage(1);
-            }}
-            className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-            title="Filter by number of devices linked to MID"
-          >
-            <option value="ALL">All MIDs (Any Count)</option>
-            <option value="SINGLE">1 Device per MID (Standard)</option>
-            <option value="MULTIPLE">2+ Devices per MID (In Swap/Change)</option>
-          </select>
-
-          <select
-            value={batteryFilter}
-            onChange={(e) => {
-              setBatteryFilter(e.target.value as any);
-              setCurrentPage(1);
-            }}
-            className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-            title="Filter by POS Terminal 24-Month Battery Lifecycle"
-          >
-            <option value="ALL">All Battery Cycles</option>
-            <option value="EXPIRED">🔴 Expired (&ge;24M Change Required)</option>
-            <option value="DUE_SOON">🟡 Due Soon (21-23M)</option>
-            <option value="HEALTHY">🟢 Healthy (&lt;21M)</option>
-          </select>
-
-          {/* Branch Filter & View Toggle (Red circle area) */}
-          <div className="sm:col-span-2 md:col-span-3 lg:col-span-6 flex flex-wrap items-center justify-between gap-3">
+          {/* Row 2: Branch Filter on left, viewToggle in exact same location on right */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex-1 min-w-[220px] max-w-sm">
               {isAdminLike ? (
                 <select
@@ -810,7 +815,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               </div>
             )}
           </div>
-          <div className="sm:col-span-2 md:col-span-3 lg:col-span-6 flex justify-end">
+
+          {/* Row 3: Clear Filters */}
+          <div className="flex justify-end items-center pt-1 border-t border-slate-200/60">
             <ClearFiltersButton
               active={!!searchQuery || stageFilter !== 'ALL' || (!lockType && typeFilter !== 'ALL') || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}
               onClear={() => {

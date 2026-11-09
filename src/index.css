@@ -1279,6 +1279,7 @@ datalist option {
 /* Rule 3: Stagger list rows by 30ms */
 .row-stagger {
   animation: rowGlideIn var(--duration-fast) var(--ease-entrance) both;
+  will-change: transform, opacity;
 }
 
 /* Rule 5: Stretch moving knobs 12% */
