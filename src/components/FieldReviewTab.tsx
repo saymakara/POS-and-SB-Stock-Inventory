@@ -938,14 +938,14 @@ export const FieldReviewTab: React.FC<Props> = ({
             </select>
           </div>
 
-          <div className="relative ml-auto w-full sm:w-60">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative w-48 sm:w-56 shrink-0">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search Serial, MID, Staff, Branch…"
               aria-label="Search records"
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs font-normal text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400 transition-all"
+              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs font-normal text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400 shadow-2xs transition-all"
             />
           </div>
           <ClearFiltersButton
@@ -958,89 +958,78 @@ export const FieldReviewTab: React.FC<Props> = ({
               setRecordTypeFilter('ALL');
             }}
           />
+
+          {/* Inline Bulk Decision Actions — Keeps table frame completely stable with 0px layout shift */}
+          {isAdmin && selectedAll.length > 0 && (
+            <div
+              className="flex items-center gap-2 shrink-0 bg-slate-50 border border-slate-200/90 rounded-xl px-2.5 py-1 ml-auto flex-wrap"
+              aria-label="Decide the selected records"
+            >
+              <span className="px-2 py-0.5 rounded-md bg-white text-slate-700 border border-slate-200 text-xs font-normal font-mono">
+                {selectedAll.length} Selected
+              </span>
+              {selectedShown.length > 0 && (
+                <>
+                  <input
+                    value={bulkNote}
+                    onChange={(e) => setBulkNote(e.target.value)}
+                    maxLength={500}
+                    placeholder="Reason (to reject)"
+                    aria-label="Reason for the selected records"
+                    className="w-36 sm:w-44 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-normal text-slate-800 outline-none focus:border-slate-400 bg-white"
+                  />
+                  {selectedShown.some(hasWarn) && (
+                    <label className="flex items-center gap-1 text-[11px] font-normal text-slate-700 cursor-pointer">
+                      <input type="checkbox" checked={bulkAck} onChange={(e) => setBulkAck(e.target.checked)} /> Checked
+                    </label>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => runBulk('reject')}
+                    disabled={!!bulkBusy}
+                    className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold border border-rose-200/90 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 flex items-center gap-1 cursor-pointer shadow-2xs transition-all active:scale-[0.97]"
+                  >
+                    {bulkBusy === 'reject' ? (
+                      <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <XCircle className="w-3 h-3 text-rose-600" aria-hidden="true" />
+                    )}{' '}
+                    Reject {selectedShown.length}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => runBulk('approve')}
+                    disabled={!!bulkBusy}
+                    className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow border border-emerald-600/30 disabled:opacity-50 flex items-center gap-1 cursor-pointer transition-all active:scale-[0.97]"
+                  >
+                    {bulkBusy === 'approve' ? (
+                      <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <CheckCircle2 className="w-3 h-3 text-white" aria-hidden="true" />
+                    )}{' '}
+                    Approve {selectedShown.length}
+                  </button>
+                </>
+              )}
+              {isSuper && (
+                <button
+                  type="button"
+                  onClick={() => setDelOpen(true)}
+                  disabled={!!bulkBusy || delBusy}
+                  className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60 flex items-center gap-1 cursor-pointer shadow-2xs active:scale-[0.98]"
+                >
+                  <Trash2 className="w-3 h-3" /> Delete {selectedAll.length}
+                </button>
+              )}
+            </div>
+          )}
+          {bulkReport.length > 0 && (
+            <div role="status" className="basis-full text-xs text-rose-600 font-medium pt-1">
+              {bulkReport[0]}
+            </div>
+          )}
         </div>
       </section>
-
-      {/* Section 2 — Bulk Decision Bar */}
-      <AnimatePresence initial={false}>
-        {isAdmin && selectedAll.length > 0 && (
-          <motion.section
-            key="bulk"
-            initial={{ opacity: 0, y: -10, scale: 0.99 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.99 }}
-            transition={SPRING}
-            className="sticky top-2 z-10 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-sm px-4 py-3 flex flex-wrap items-center gap-3"
-            aria-label="Decide the selected records"
-          >
-            <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-normal font-mono">
-              {selectedAll.length} Selected
-            </span>
-            {selectedShown.length > 0 && (<>
-            <input
-              value={bulkNote}
-              onChange={(e) => setBulkNote(e.target.value)}
-              maxLength={500}
-              placeholder="Reason (required to reject selected records)"
-              aria-label="Reason for the selected records"
-              className="flex-1 min-w-[180px] px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-normal text-slate-800 outline-none focus:border-slate-400"
-            />
-            {selectedShown.some(hasWarn) && (
-              <label className="flex items-center gap-1.5 text-xs font-normal text-slate-700 cursor-pointer">
-                <input type="checkbox" checked={bulkAck} onChange={(e) => setBulkAck(e.target.checked)} /> I checked
-                the warnings
-              </label>
-            )}
-            <button
-              type="button"
-              onClick={() => runBulk('reject')}
-              disabled={!!bulkBusy}
-              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-rose-200/90 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all active:scale-[0.97]"
-            >
-              {bulkBusy === 'reject' ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
-              ) : (
-                <XCircle className="w-3.5 h-3.5 text-rose-600" aria-hidden="true" />
-              )}{' '}
-              Reject {selectedShown.length}
-            </button>
-            <button
-              type="button"
-              onClick={() => runBulk('approve')}
-              disabled={!!bulkBusy}
-              className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow border border-emerald-600/30 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer transition-all active:scale-[0.97]"
-            >
-              {bulkBusy === 'approve' ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
-              ) : (
-                <CheckCircle2 className="w-3.5 h-3.5 text-white" aria-hidden="true" />
-              )}{' '}
-              Approve {selectedShown.length}
-            </button>
-            </>)}
-            {isSuper && (
-              <button
-                type="button"
-                onClick={() => setDelOpen(true)}
-                disabled={!!bulkBusy || delBusy}
-                className="btn-press px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Delete {selectedAll.length}
-              </button>
-            )}
-            {bulkReport.length > 0 && (
-              <ul role="status" className="basis-full text-[11px] space-y-0.5 pt-1 border-t border-slate-100">
-                {bulkReport.slice(0, 8).map((l, i) => (
-                  <li key={i} className={i === 0 ? 'font-bold text-slate-800' : 'text-rose-700 font-medium'}>
-                    {l}
-                  </li>
-                ))}
-                {bulkReport.length > 8 && <li className="text-rose-700 font-bold">…and {bulkReport.length - 8} more.</li>}
-              </ul>
-            )}
-          </motion.section>
-        )}
-      </AnimatePresence>
       <DeleteRecordsDialog
         open={delOpen}
         count={selectedAll.length}

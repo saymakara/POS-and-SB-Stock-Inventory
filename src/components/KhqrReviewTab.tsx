@@ -2,7 +2,7 @@ import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef,
 import { isFresh, markFresh } from '../utils/freshness';
 import { BigKpiCard } from './BigKpiCard';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, RefreshCw, ChevronDown, MapPin, ScanLine, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users, Copy, PencilLine } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, MapPin, ScanLine, CheckCircle2, Loader2, Send, QrCode, Sparkles, Layers, AlertTriangle, Users, Copy, PencilLine, Trash2 } from 'lucide-react';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { Branch, UserRole } from '../types';
 import { ClearFiltersButton } from './ClearFiltersButton';
@@ -415,17 +415,45 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
               Staff: {staffSel.name} <span aria-hidden>×</span>
             </button>
           )}
-          <div className="relative ml-auto w-full sm:w-60">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative w-56 sm:w-64 shrink-0">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={view === 'failed' || view === 'wrong' ? 'Search MID, Staff, Branch…' : view === 'shared' ? 'Search MID, Merchant, Staff, Branch…' : 'Search MID, Merchant, Staff, Record ID…'}
               aria-label={view === 'failed' ? 'Search failed attempts' : view === 'wrong' ? 'Search wrong scans' : view === 'shared' ? 'Search same MID by 2+ staff' : 'Search KHQR entries'}
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400"
+              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400 shadow-2xs"
             />
           </div>
           <ClearFiltersButton className="!py-1.5" active={filtersActive} onClear={clearAll} />
+
+          {/* Inline Selection Actions — Keeps table frame completely stable with 0px layout shift */}
+          {isSuper && pick.sel.size > 0 && view === 'entries' && (
+            <div
+              className="flex items-center gap-2.5 shrink-0 bg-rose-50/70 border border-rose-200/80 px-3 py-1 rounded-xl transition-all ml-auto"
+              aria-label="Selected records"
+            >
+              <span className="font-mono text-xs font-semibold text-rose-900">
+                {pick.sel.size.toLocaleString()} Selected
+              </span>
+              <span className="text-slate-300 text-xs">|</span>
+              <button
+                type="button"
+                onClick={pick.clear}
+                className="text-xs text-slate-600 hover:text-slate-900 underline cursor-pointer"
+              >
+                Clear selection
+              </button>
+              <button
+                type="button"
+                onClick={() => setDelOpen(true)}
+                className="px-3 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-[0.98] transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" aria-hidden />
+                Delete {pick.sel.size.toLocaleString()} permanently
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -459,9 +487,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
         )}
       </AnimatePresence>
 
-      {isSuper && pick.sel.size > 0 && (
-        <SelectionBar count={pick.sel.size} onClear={pick.clear} onDelete={() => setDelOpen(true)} />
-      )}
+
       <DeleteRecordsDialog open={delOpen} count={pick.sel.size} what="KHQR entries" sample={Array.from(pick.sel.values())}
         note="The failed-attempt log of these entries is kept (it is the audit of wrong scans)."
         busy={delBusy} onCancel={() => setDelOpen(false)}

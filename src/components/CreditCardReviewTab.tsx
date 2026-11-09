@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil, PencilLine } from 'lucide-react';
+import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil, PencilLine, Trash2 } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { Pager } from './Pager';
 import { ClearFiltersButton } from './ClearFiltersButton';
@@ -11,7 +11,7 @@ import { stampPP } from '../utils/time';
 import { Period, periodRange } from '../services/khqrCache';
 import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccListKey, getCachedCcList, setCachedCcList, getCachedCcCounts, setCachedCcCounts, patchCachedCcEntry, clearCcCache } from '../services/ccService';
 import { deletePhoneRecords } from '../services/supabaseService';
-import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
+import { DeleteRecordsDialog, NoCell, SelectBox, useRecordSelection } from './DeleteRecordsDialog';
 import { CopyableRecordId } from './CopyableRecordId';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 
@@ -282,20 +282,44 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                 {branchOptions.map((b) => <option key={b.id} value={b.id}>Code {b.id} · {b.name}</option>)}
               </select>
             )}
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
+            <div className="relative w-64 sm:w-72 lg:w-80 shrink-0">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden />
               <input aria-label="Search credit card entries" value={query} onChange={(e) => setQuery(e.target.value)}
                 placeholder={isAdmin ? 'Search Record ID, customer, staff, phone or account' : 'Search Record ID, customer, staff or phone'}
-                className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white" />
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white placeholder:text-slate-400 outline-none focus:border-slate-400 shadow-2xs" />
             </div>
             <ClearFiltersButton active={filtersActive} onClear={clearAll} />
+
+            {/* Inline Selection Actions — Keeps table frame completely stable with 0px layout shift */}
+            {isSuper && pick.sel.size > 0 && (
+              <div
+                className="flex items-center gap-2.5 shrink-0 bg-rose-50/70 border border-rose-200/80 px-3 py-1 rounded-xl transition-all ml-auto"
+                aria-label="Selected records"
+              >
+                <span className="font-mono text-xs font-semibold text-rose-900">
+                  {pick.sel.size.toLocaleString()} Selected
+                </span>
+                <span className="text-slate-300 text-xs">|</span>
+                <button
+                  type="button"
+                  onClick={pick.clear}
+                  className="text-xs text-slate-600 hover:text-slate-900 underline cursor-pointer"
+                >
+                  Clear selection
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDelOpen(true)}
+                  className="px-3 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-[0.98] transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" aria-hidden />
+                  Delete {pick.sel.size.toLocaleString()} permanently
+                </button>
+              </div>
+            )}
           </div>
           {masked && <p className="mt-2 text-[11px] text-slate-500">Account numbers are shown masked (last 4 digits). Head Office sees the full numbers.</p>}
         </section>
-
-        {isSuper && pick.sel.size > 0 && (
-          <SelectionBar count={pick.sel.size} onClear={pick.clear} onDelete={() => setDelOpen(true)} />
-        )}
         <DeleteRecordsDialog open={delOpen} count={pick.sel.size} what="Credit Card entries" sample={Array.from(pick.sel.values())}
           note="Any review reply still waiting to be posted in the staff group is cancelled."
           busy={delBusy} onCancel={() => setDelOpen(false)}
