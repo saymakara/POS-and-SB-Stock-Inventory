@@ -949,6 +949,138 @@ const MaterialStockPanelComponent: React.FC<{
           </div>
         </div>
 
+        {/* Filter Toolbar matching InventoryTab & PushConfiguringTab */}
+        <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-3">
+          {/* Row 1: Search + Material Category selector + Status selector */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            <div className="relative sm:col-span-2 md:col-span-2 lg:col-span-3">
+              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={group === 'POS' ? 'Search serial, POS terminal, MID, merchant or staff...' : 'Search serial, Sound Box, MID, merchant or staff...'}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
+              />
+            </div>
+
+            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-2">
+              <select
+                aria-label="Select Material Category"
+                value={selectedCode}
+                onChange={(e) => setSelectedCode(e.target.value as MaterialCode | 'ALL')}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">All Material Types ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
+                {codes.map((c) => {
+                  const summary = materialSummaries[c];
+                  const count = summary?.total ?? combinedItems.filter((i) => i.code === c).length;
+                  return (
+                    <option key={c} value={c}>
+                      {materialName(c)} ({count.toLocaleString()})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
+              <select
+                aria-label="Status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as SerialStatus | '')}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="">All Statuses ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {SERIAL_STATUS_LABEL[s]} ({dynamicStatusCounts[s] ?? 0})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 2: Branch Filter on left, viewToggle in exact same location on right */}
+          <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
+            <div className="flex-1 min-w-[220px] max-w-sm">
+              {isAdmin ? (
+                <select
+                  value={branchFilter}
+                  onChange={(e) => setBranchFilter(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                >
+                  <option value="">All Branch Codes</option>
+                  <option value="100">Head Office (Code 100)</option>
+                  {branches
+                    .filter((b) => b.id !== '100' && b.code !== '100')
+                    .map((b) => (
+                      <option key={b.code || b.id} value={b.code || b.id}>
+                        Branch Code {b.code || b.id} — {b.name}
+                      </option>
+                    ))}
+                </select>
+              ) : (
+                <div className="w-full px-3 py-2.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Scoped to Branch Code: {myBranch}</span>
+                </div>
+              )}
+            </div>
+
+            {viewToggle && (
+              <div className="flex items-center">
+                {viewToggle}
+              </div>
+            )}
+          </div>
+
+          {/* Row 3: Ledger View Switcher & Clear Filters */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-200/60 min-h-[36px]">
+            <div className="flex items-center gap-2.5">
+              <div className="inline-flex p-0.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs select-none">
+                <button
+                  type="button"
+                  onClick={() => setActiveLedgerView('DEPLOYMENTS')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                    activeLedgerView === 'DEPLOYMENTS'
+                      ? 'bg-[#003857] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Merchant Deployments ({combinedItems.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveLedgerView('BALANCES')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                    activeLedgerView === 'BALANCES'
+                      ? 'bg-[#003857] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Multi-Branch Balances ({branchBalanceRows.length})
+                </button>
+              </div>
+              <span className="text-xs font-semibold text-slate-500 hidden sm:inline">
+                {activeLedgerView === 'BALANCES'
+                  ? `${branchBalanceRows.length} branch balance record(s)`
+                  : `${displayedItems.length} of ${combinedItems.length} items`}
+              </span>
+            </div>
+
+            <ClearFiltersButton
+              active={Boolean(query.trim() || statusFilter || (isAdmin && branchFilter) || selectedCode !== 'ALL')}
+              onClear={() => {
+                setQuery('');
+                setStatusFilter('');
+                if (isAdmin) setBranchFilter('');
+                setSelectedCode('ALL');
+              }}
+            />
+          </div>
+        </div>
+
         {/* Executive Controlled Materials Summary Cards */}
         <div className="p-4 bg-slate-50/70 border-b border-slate-200/90">
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${group === 'POS' ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-3`}>
@@ -1014,138 +1146,7 @@ const MaterialStockPanelComponent: React.FC<{
           </div>
         </div>
 
-        {/* Filter Toolbar matching InventoryTab & PushConfiguringTab */}
-        <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-3">
-          {/* Row 1: Search + Material Category selector + Status selector */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-            <div className="relative sm:col-span-2 md:col-span-2 lg:col-span-3">
-              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={group === 'POS' ? 'Search serial, POS terminal, MID, merchant or staff...' : 'Search serial, Sound Box, MID, merchant or staff...'}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
-              />
-            </div>
 
-            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-2">
-              <select
-                aria-label="Select Material Category"
-                value={selectedCode}
-                onChange={(e) => setSelectedCode(e.target.value as MaterialCode | 'ALL')}
-                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">All Material Types ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
-                {codes.map((c) => {
-                  const summary = materialSummaries[c];
-                  const count = summary?.total ?? combinedItems.filter((i) => i.code === c).length;
-                  return (
-                    <option key={c} value={c}>
-                      {materialName(c)} ({count.toLocaleString()})
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
-              <select
-                aria-label="Status"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as SerialStatus | '')}
-                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-              >
-                <option value="">All Statuses ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {SERIAL_STATUS_LABEL[s]} ({dynamicStatusCounts[s] ?? 0})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Row 2: Branch Filter on left, View Switcher & viewToggle on right */}
-          <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
-            <div className="flex-1 min-w-[220px] max-w-sm">
-              {isAdmin ? (
-                <select
-                  value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-                >
-                  <option value="">All Branch Codes</option>
-                  <option value="100">Head Office (Code 100)</option>
-                  {branches
-                    .filter((b) => b.id !== '100' && b.code !== '100')
-                    .map((b) => (
-                      <option key={b.code || b.id} value={b.code || b.id}>
-                        Branch Code {b.code || b.id} — {b.name}
-                      </option>
-                    ))}
-                </select>
-              ) : (
-                <div className="w-full px-3 py-2.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Scoped to Branch Code: {myBranch}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Ledger View Switcher: Merchant Deployments vs Multi-Branch Balances */}
-              <div className="inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs select-none">
-                <button
-                  type="button"
-                  onClick={() => setActiveLedgerView('DEPLOYMENTS')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                    activeLedgerView === 'DEPLOYMENTS'
-                      ? 'bg-[#003857] text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Merchant Deployments ({combinedItems.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveLedgerView('BALANCES')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                    activeLedgerView === 'BALANCES'
-                      ? 'bg-[#003857] text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Multi-Branch Balances ({branchBalanceRows.length})
-                </button>
-              </div>
-
-              {viewToggle && (
-                <div className="flex items-center">
-                  {viewToggle}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Row 3: Filter Info & Clear Filters */}
-          <div className="flex justify-between items-center pt-1 border-t border-slate-200/60 min-h-[36px]">
-            <span className="text-xs font-semibold text-slate-500">
-              {activeLedgerView === 'BALANCES'
-                ? `${branchBalanceRows.length} branch balance record(s) listed`
-                : `${displayedItems.length} of ${combinedItems.length} items shown`}
-            </span>
-            <ClearFiltersButton
-              active={Boolean(query.trim() || statusFilter || (isAdmin && branchFilter) || selectedCode !== 'ALL')}
-              onClear={() => {
-                setQuery('');
-                setStatusFilter('');
-                if (isAdmin) setBranchFilter('');
-                setSelectedCode('ALL');
-              }}
-            />
-          </div>
-        </div>
 
         {/* Dynamic Table: View 1 (Merchant Deployments) OR View 2 (Multi-Branch Balances) */}
         {activeLedgerView === 'BALANCES' ? (
