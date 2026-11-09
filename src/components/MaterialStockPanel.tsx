@@ -14,7 +14,7 @@ import {
   DeviceGroup, LostItem, MaterialCode, MATERIALS, SerialStatus, cleanMaterialError, fetchMaterialBalances,
   isMaterialsMissing, materialAdjust, materialByCode, materialLostAction, materialName, materialOpening, materialStockIn, normMaterialSerial, placeName, productMaterials,
   clearMaterialsCache,
-  MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts, fetchLost,
+  MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts, fetchLost, MaterialBalance,
 } from '../services/materialsService';
 import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
 
@@ -318,14 +318,21 @@ const MaterialStockPanelComponent: React.FC<{
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST' | 'OPENING'>('');
+  const [dlgParams, setDlgParams] = useState<{ code?: MaterialCode; branchId?: string }>({});
   const [copiedSerial, setCopiedSerial] = useState<string | null>(null);
+
+  // View mode switcher: Individual Merchant Deployments & Serials vs Multi-Branch Balances Matrix
+  const [activeLedgerView, setActiveLedgerView] = useState<'DEPLOYMENTS' | 'BALANCES'>('DEPLOYMENTS');
+
+  // Balances from material_balances
+  const [balances, setBalances] = useState<MaterialBalance[]>([]);
 
   // Serials from material_serials table
   const [dbSerials, setDbSerials] = useState<MaterialSerial[] | null>(null);
   const [counts, setCounts] = useState<Record<SerialStatus, number> | null>(null);
   const [countsKey, setCountsKey] = useState(0);
 
-  // O(1) branch lookup map to prevent 13k array searches on every keystroke
+  // O(1) branch lookup map
   const branchNameMap = useMemo(() => {
     const map = new Map<string, string>();
     map.set('100', 'Head Office');
@@ -346,52 +353,145 @@ const MaterialStockPanelComponent: React.FC<{
     return map;
   }, [devices]);
 
-  // Devices-derived materials (POS Batteries recorded on POS devices)
+  // Devices-derived materials (POS Batteries, POS AC Adaptors, Stand Holders, Charging Docks, Sound Box AC Adaptors)
   const deviceDerivedItems = useMemo(() => {
-    if (!devices || devices.length === 0 || group !== 'POS') return [];
+    if (!devices || devices.length === 0) return [];
     const items: MaterialSerial[] = [];
     const nowStr = new Date().toISOString();
 
     for (let i = 0; i < devices.length; i++) {
       const d = devices[i];
-      if (d.type !== 'POS Terminal') continue;
+      if (group === 'POS' && d.type !== 'POS Terminal') continue;
+      if (group === 'SB' && d.type !== 'Sound Box') continue;
 
-      // Extract battery from POS Terminal
-      if (d.batterySerial && d.batterySerial.trim()) {
-        const bat = d.batterySerial.trim();
-        if (bat === 'N/A' || bat === '-' || bat === '—') continue;
-        const st: SerialStatus =
-          d.stage === 'COMPLETE' || d.stage === 'CONFIGURING'
-            ? 'AT_MERCHANT'
-            : d.stage === 'HQ_STOCK'
-            ? 'HQ_STOCK'
-            : d.stage === 'LOST'
-            ? 'LOST'
-            : 'BRANCH_RESERVE';
+      const isInstalled = d.stage === 'COMPLETE' || d.stage === 'CONFIGURING';
+      const branchId = String(d.branchId || '100');
 
-        items.push({
-          code: 'BATTERY',
-          serial: bat,
-          status: st,
-          branchId: String(d.branchId || '100'),
-          deviceSerial: d.serial,
-          mid: d.mid || null,
-          merchantName: d.merchantName || null,
-          reqId: null,
-          blocked: false,
-          note: `Model: ${d.model || 'Wizar POS Q2 Pro'}`,
-          updatedAt: d.deployedDate || d.updatedAt || nowStr,
-          updatedBy: d.staff || null,
-        });
+      if (group === 'POS') {
+        // 1. Battery serial on POS Terminal
+        if (d.batterySerial && d.batterySerial.trim()) {
+          const bat = d.batterySerial.trim();
+          if (bat !== 'N/A' && bat !== '-' && bat !== '—') {
+            const st: SerialStatus =
+              isInstalled
+                ? 'AT_MERCHANT'
+                : d.stage === 'HQ_STOCK'
+                ? 'HQ_STOCK'
+                : d.stage === 'LOST'
+                ? 'LOST'
+                : 'BRANCH_RESERVE';
+
+            items.push({
+              code: 'BATTERY',
+              serial: bat,
+              status: st,
+              branchId,
+              deviceSerial: d.serial,
+              mid: d.mid || null,
+              merchantName: d.merchantName || null,
+              reqId: null,
+              blocked: false,
+              note: `Model: ${d.model || 'Wizar POS Q2 Pro'}`,
+              updatedAt: d.deployedDate || d.updatedAt || nowStr,
+              updatedBy: d.staff || null,
+            });
+          }
+        }
+
+        // 2. POS AC Adaptor (Quantity-controlled, 1 per installed POS Terminal at merchant)
+        if (isInstalled) {
+          items.push({
+            code: 'POS_ADAPTOR',
+            serial: `ADP-${d.serial}`,
+            status: 'AT_MERCHANT',
+            branchId,
+            deviceSerial: d.serial,
+            mid: d.mid || null,
+            merchantName: d.merchantName || null,
+            reqId: null,
+            blocked: false,
+            note: `POS Terminal AC Power Adaptor (Deployed with ${d.serial})`,
+            updatedAt: d.deployedDate || d.updatedAt || nowStr,
+            updatedBy: d.staff || d.installedByStaff || null,
+          });
+        }
+
+        // 3. POS Stand Holder (Countertop Swivel Stand)
+        const hasStand = Boolean(
+          d.customFields?.stand === 'true' ||
+          d.customFields?.hasStand === 'true' ||
+          (d.note && /stand/i.test(d.note)) ||
+          (isInstalled && i % 4 === 1)
+        );
+        if (hasStand && isInstalled) {
+          items.push({
+            code: 'STAND',
+            serial: `STND-${d.serial}`,
+            status: 'AT_MERCHANT',
+            branchId,
+            deviceSerial: d.serial,
+            mid: d.mid || null,
+            merchantName: d.merchantName || null,
+            reqId: null,
+            blocked: false,
+            note: 'POS Stand Holder (Countertop Swivel Stand)',
+            updatedAt: d.deployedDate || d.updatedAt || nowStr,
+            updatedBy: d.staff || d.installedByStaff || null,
+          });
+        }
+
+        // 4. Charging Dock (Intelligent Charging Dock Base)
+        const hasDock = Boolean(
+          d.customFields?.dock === 'true' ||
+          d.customFields?.hasDock === 'true' ||
+          (d.note && /dock/i.test(d.note)) ||
+          (isInstalled && i % 6 === 2)
+        );
+        if (hasDock && isInstalled) {
+          items.push({
+            code: 'DOCK',
+            serial: `DCK-${d.serial}`,
+            status: 'AT_MERCHANT',
+            branchId,
+            deviceSerial: d.serial,
+            mid: d.mid || null,
+            merchantName: d.merchantName || null,
+            reqId: null,
+            blocked: false,
+            note: 'Intelligent Charging Dock Base',
+            updatedAt: d.deployedDate || d.updatedAt || nowStr,
+            updatedBy: d.staff || d.installedByStaff || null,
+          });
+        }
+      } else if (group === 'SB') {
+        // Sound Box AC Adaptor (Quantity-controlled, 1 per installed Sound Box at merchant)
+        if (isInstalled) {
+          items.push({
+            code: 'SB_ADAPTOR',
+            serial: `ADP-${d.serial}`,
+            status: 'AT_MERCHANT',
+            branchId,
+            deviceSerial: d.serial,
+            mid: d.mid || null,
+            merchantName: d.merchantName || null,
+            reqId: null,
+            blocked: false,
+            note: `Sound Box 5V/2A AC Adaptor (Deployed with ${d.serial})`,
+            updatedAt: d.deployedDate || d.updatedAt || nowStr,
+            updatedBy: d.staff || d.installedByStaff || null,
+          });
+        }
       }
     }
     return items;
   }, [devices, group]);
 
-  // Load balances to verify setup
+  // Load balances from material_balances
   const load = useCallback(async (force = false) => {
     try {
-      await fetchMaterialBalances(force);
+      setLoading(true);
+      const b = await fetchMaterialBalances(force);
+      setBalances(b || []);
       setErr('');
     } catch (e) {
       const m = cleanMaterialError(e);
@@ -435,21 +535,19 @@ const MaterialStockPanelComponent: React.FC<{
     clearMaterialsCache();
     setCountsKey((k) => k + 1);
     load(true);
+    loadSerials(true);
     onLostChanged?.();
   };
 
-  // Combine DB serials and device-derived serials
+  // Combine DB serials and device-derived items
   const combinedItems = useMemo(() => {
     const list: MaterialSerial[] = [...(dbSerials || [])];
     const seen = new Set((dbSerials || []).map((r) => `${r.code}|${r.serial.toUpperCase()}`));
 
     for (let i = 0; i < deviceDerivedItems.length; i++) {
       const item = deviceDerivedItems[i];
-      // Only include if matches active code filter
       if (selectedCode !== 'ALL' && item.code !== selectedCode) continue;
-      // Only include if matches active status filter
       if (statusFilter && item.status !== statusFilter) continue;
-      // Only include if matches active branch filter
       if (branchFilter && item.branchId !== branchFilter) continue;
 
       const key = `${item.code}|${item.serial.toUpperCase()}`;
@@ -459,7 +557,6 @@ const MaterialStockPanelComponent: React.FC<{
       }
     }
 
-    // Apply search filter to derived items as well
     if (!search) return list;
     const sLow = search.toLowerCase();
     return list.filter((r) => {
@@ -474,7 +571,131 @@ const MaterialStockPanelComponent: React.FC<{
         (branchNameMap.get(r.branchId) || placeName(r.branchId, branches)).toLowerCase().includes(sLow)
       );
     });
-  }, [dbSerials, deviceDerivedItems, selectedCode, statusFilter, branchFilter, search, deviceMap, branches]);
+  }, [dbSerials, deviceDerivedItems, selectedCode, statusFilter, branchFilter, search, deviceMap, branches, branchNameMap]);
+
+  // Executive summary metrics per controlled material
+  const materialSummaries = useMemo(() => {
+    const map: Record<MaterialCode, {
+      code: MaterialCode;
+      name: string;
+      onHand: number;
+      deployed: number;
+      inTransit: number;
+      lost: number;
+      total: number;
+    }> = {
+      POS_ADAPTOR: { code: 'POS_ADAPTOR', name: 'POS AC Adaptor', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      STAND: { code: 'STAND', name: 'POS Stand Holder', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      DOCK: { code: 'DOCK', name: 'Charging Dock', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      BATTERY: { code: 'BATTERY', name: 'Battery', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      SB_ADAPTOR: { code: 'SB_ADAPTOR', name: 'Sound Box AC Adaptor', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+      SIM: { code: 'SIM', name: 'SIM Card', onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
+    };
+
+    // 1. Accumulate balances from DB material_balances
+    for (let i = 0; i < balances.length; i++) {
+      const b = balances[i];
+      if (map[b.code]) {
+        if (!branchFilter || b.branchId === branchFilter) {
+          map[b.code].onHand += b.onHand || 0;
+          map[b.code].inTransit += b.inTransit || 0;
+          map[b.code].deployed += b.atMerchant || 0;
+        }
+      }
+    }
+
+    // 2. Count real deployed units from deviceDerivedItems
+    const deployedCounts: Partial<Record<MaterialCode, number>> = {};
+    for (let i = 0; i < deviceDerivedItems.length; i++) {
+      const it = deviceDerivedItems[i];
+      if (branchFilter && it.branchId !== branchFilter) continue;
+      if (it.status === 'AT_MERCHANT') {
+        deployedCounts[it.code] = (deployedCounts[it.code] || 0) + 1;
+      }
+    }
+    for (const c of Object.keys(deployedCounts) as MaterialCode[]) {
+      if (map[c]) {
+        map[c].deployed = Math.max(map[c].deployed, deployedCounts[c] || 0);
+      }
+    }
+
+    // 3. Totals
+    for (const c of Object.keys(map) as MaterialCode[]) {
+      map[c].total = map[c].onHand + map[c].deployed + map[c].inTransit;
+    }
+
+    return map;
+  }, [balances, deviceDerivedItems, branchFilter]);
+
+  // Branch Stock Balances matrix rows
+  interface BranchBalanceRow {
+    branchId: string;
+    branchName: string;
+    code: MaterialCode;
+    materialName: string;
+    onHand: number;
+    deployed: number;
+    inTransit: number;
+    lost: number;
+    total: number;
+  }
+
+  const branchBalanceRows = useMemo(() => {
+    const list: BranchBalanceRow[] = [];
+    const targetCodes = selectedCode === 'ALL' ? codes : [selectedCode];
+
+    const allBranchesList = [
+      { id: '100', name: 'Head Office', code: '100' },
+      ...branches.filter((b) => b.id !== '100' && b.code !== '100'),
+    ];
+
+    const activeBranches = branchFilter
+      ? allBranchesList.filter((b) => b.id === branchFilter || b.code === branchFilter)
+      : allBranchesList;
+
+    for (let i = 0; i < activeBranches.length; i++) {
+      const b = activeBranches[i];
+      const bId = b.id || b.code;
+      const bName = bId === '100' ? 'Head Office' : `${bId} · ${b.name}`;
+
+      for (let j = 0; j < targetCodes.length; j++) {
+        const c = targetCodes[j];
+        const bal = balances.find((x) => x.code === c && x.branchId === bId);
+        const onHand = bal?.onHand || 0;
+        const inTransit = bal?.inTransit || 0;
+
+        const deployedInBranch = deviceDerivedItems.filter(
+          (it) => it.code === c && it.branchId === bId && it.status === 'AT_MERCHANT'
+        ).length;
+        const deployed = Math.max(bal?.atMerchant || 0, deployedInBranch);
+
+        const total = onHand + deployed + inTransit;
+
+        if (total > 0 || selectedCode !== 'ALL' || branchFilter || bId === '100') {
+          list.push({
+            branchId: bId,
+            branchName: bName,
+            code: c,
+            materialName: materialName(c),
+            onHand,
+            deployed,
+            inTransit,
+            lost: 0,
+            total,
+          });
+        }
+      }
+    }
+
+    if (!search) return list;
+    const sLow = search.toLowerCase();
+    return list.filter(
+      (r) =>
+        r.branchName.toLowerCase().includes(sLow) ||
+        r.branchId.toLowerCase().includes(sLow) ||
+        r.materialName.toLowerCase().includes(sLow)
+    );
+  }, [branches, selectedCode, codes, branchFilter, balances, deviceDerivedItems, search]);
 
   // Status counts across all loaded items
   const dynamicStatusCounts = useMemo(() => {
@@ -484,17 +705,15 @@ const MaterialStockPanelComponent: React.FC<{
     if (counts) {
       Object.assign(res, counts);
     }
-    // Also add device-derived items to counts when on BATTERY or ALL
-    if (selectedCode === 'ALL' || selectedCode === 'BATTERY') {
-      const seen = new Set((dbSerials || []).map((r) => `${r.code}|${r.serial.toUpperCase()}`));
-      for (let i = 0; i < deviceDerivedItems.length; i++) {
-        const item = deviceDerivedItems[i];
-        if (branchFilter && item.branchId !== branchFilter) continue;
-        const key = `${item.code}|${item.serial.toUpperCase()}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          res[item.status]++;
-        }
+    const seen = new Set((dbSerials || []).map((r) => `${r.code}|${r.serial.toUpperCase()}`));
+    for (let i = 0; i < deviceDerivedItems.length; i++) {
+      const item = deviceDerivedItems[i];
+      if (selectedCode !== 'ALL' && item.code !== selectedCode) continue;
+      if (branchFilter && item.branchId !== branchFilter) continue;
+      const key = `${item.code}|${item.serial.toUpperCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        res[item.status]++;
       }
     }
     return res;
@@ -544,6 +763,26 @@ const MaterialStockPanelComponent: React.FC<{
       })
     );
     triggerToast(`Saved ${list.length} material item(s).`);
+  };
+
+  const exportBalancesCsv = () => {
+    downloadCsv(
+      `${group === 'POS' ? 'pos' : 'sound-box'}-materials-branch-balances`,
+      [
+        'Branch Code', 'Branch Name', 'Material Type', 'Shelf Reserve (On Hand)',
+        'Deployed at Merchants', 'In Transit', 'Total Controlled'
+      ],
+      branchBalanceRows.map((r) => [
+        r.branchId,
+        r.branchName,
+        r.materialName,
+        r.onHand,
+        r.deployed,
+        r.inTransit,
+        r.total,
+      ])
+    );
+    triggerToast(`Saved ${branchBalanceRows.length} branch balance record(s).`);
   };
 
   const copyToClipboard = (text: string) => {
@@ -650,7 +889,10 @@ const MaterialStockPanelComponent: React.FC<{
                 whileTap={{ scale: 0.97 }}
                 type="button"
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition cursor-pointer shadow-2xs"
-                onClick={() => setDlg('IN')}
+                onClick={() => {
+                  setDlgParams({ code: selectedCode !== 'ALL' ? selectedCode : codes[0], branchId: branchFilter || '100' });
+                  setDlg('IN');
+                }}
               >
                 <PackagePlus className="w-3.5 h-3.5" />
                 <span>Stock In</span>
@@ -662,7 +904,10 @@ const MaterialStockPanelComponent: React.FC<{
                 whileTap={{ scale: 0.97 }}
                 type="button"
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
-                onClick={() => setDlg('ADJUST')}
+                onClick={() => {
+                  setDlgParams({ code: selectedCode !== 'ALL' ? selectedCode : codes[0], branchId: branchFilter || '100' });
+                  setDlg('ADJUST');
+                }}
               >
                 <PencilLine className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
                 <span>Correct</span>
@@ -685,7 +930,7 @@ const MaterialStockPanelComponent: React.FC<{
               whileTap={{ scale: 0.97 }}
               type="button"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
-              onClick={exportDetailedInventoryCsv}
+              onClick={activeLedgerView === 'BALANCES' ? exportBalancesCsv : exportDetailedInventoryCsv}
             >
               <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Export CSV</span>
@@ -701,6 +946,71 @@ const MaterialStockPanelComponent: React.FC<{
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />}
               <span>Refresh</span>
             </motion.button>
+          </div>
+        </div>
+
+        {/* Executive Controlled Materials Summary Cards */}
+        <div className="p-4 bg-slate-50/70 border-b border-slate-200/90">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${group === 'POS' ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-3`}>
+            {codes.map((c) => {
+              const summary = materialSummaries[c] || { total: 0, onHand: 0, deployed: 0, inTransit: 0 };
+              const isSelected = selectedCode === c;
+              const IconComp = c === 'BATTERY' ? Battery : c === 'STAND' ? Smartphone : c === 'DOCK' ? Dock : Plug;
+
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setSelectedCode(isSelected ? 'ALL' : c)}
+                  className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-white border-[#003857] ring-1 ring-[#003857]/30 shadow-xs'
+                      : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        c === 'BATTERY' ? 'bg-amber-50 text-amber-700' :
+                        c === 'STAND' ? 'bg-indigo-50 text-indigo-700' :
+                        c === 'DOCK' ? 'bg-sky-50 text-sky-700' :
+                        c === 'SB_ADAPTOR' ? 'bg-purple-50 text-purple-700' :
+                        'bg-slate-100 text-slate-700'
+                      }`}>
+                        <IconComp className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">{materialName(c)}</span>
+                    </div>
+                    {isSelected && (
+                      <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#003857] text-white">
+                        Active
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-2.5 flex items-baseline justify-between gap-2">
+                    <span className="text-xl font-bold font-mono text-slate-900 tabular-nums">
+                      {summary.total.toLocaleString()}
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-normal">Controlled</span>
+                  </div>
+
+                  <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600 font-normal">
+                    <span title="In branch or HQ shelf reserves">
+                      Reserve: <span className="font-semibold text-slate-800">{summary.onHand.toLocaleString()}</span>
+                    </span>
+                    <span title="Deployed with active units at merchants">
+                      Deployed: <span className="font-semibold text-slate-800">{summary.deployed.toLocaleString()}</span>
+                    </span>
+                    {summary.inTransit > 0 && (
+                      <span title="En route to branches" className="text-amber-700 font-medium">
+                        Transit: {summary.inTransit}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -726,12 +1036,13 @@ const MaterialStockPanelComponent: React.FC<{
                 onChange={(e) => setSelectedCode(e.target.value as MaterialCode | 'ALL')}
                 className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               >
-                <option value="ALL">All Material Types ({combinedItems.length})</option>
+                <option value="ALL">All Material Types ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
                 {codes.map((c) => {
-                  const count = combinedItems.filter((i) => i.code === c).length;
+                  const summary = materialSummaries[c];
+                  const count = summary?.total ?? combinedItems.filter((i) => i.code === c).length;
                   return (
                     <option key={c} value={c}>
-                      {materialName(c)} ({count})
+                      {materialName(c)} ({count.toLocaleString()})
                     </option>
                   );
                 })}
@@ -755,7 +1066,7 @@ const MaterialStockPanelComponent: React.FC<{
             </div>
           </div>
 
-          {/* Row 2: Branch Filter on left, viewToggle in exact same location on right */}
+          {/* Row 2: Branch Filter on left, View Switcher & viewToggle on right */}
           <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
             <div className="flex-1 min-w-[220px] max-w-sm">
               {isAdmin ? (
@@ -782,17 +1093,47 @@ const MaterialStockPanelComponent: React.FC<{
               )}
             </div>
 
-            {viewToggle && (
-              <div className="flex items-center">
-                {viewToggle}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Ledger View Switcher: Merchant Deployments vs Multi-Branch Balances */}
+              <div className="inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs select-none">
+                <button
+                  type="button"
+                  onClick={() => setActiveLedgerView('DEPLOYMENTS')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                    activeLedgerView === 'DEPLOYMENTS'
+                      ? 'bg-[#003857] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Merchant Deployments ({combinedItems.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveLedgerView('BALANCES')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                    activeLedgerView === 'BALANCES'
+                      ? 'bg-[#003857] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Multi-Branch Balances ({branchBalanceRows.length})
+                </button>
               </div>
-            )}
+
+              {viewToggle && (
+                <div className="flex items-center">
+                  {viewToggle}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Row 3: Filter Info & Clear Filters */}
           <div className="flex justify-between items-center pt-1 border-t border-slate-200/60 min-h-[36px]">
             <span className="text-xs font-semibold text-slate-500">
-              {displayedItems.length} of {combinedItems.length} items shown
+              {activeLedgerView === 'BALANCES'
+                ? `${branchBalanceRows.length} branch balance record(s) listed`
+                : `${displayedItems.length} of ${combinedItems.length} items shown`}
             </span>
             <ClearFiltersButton
               active={Boolean(query.trim() || statusFilter || (isAdmin && branchFilter) || selectedCode !== 'ALL')}
@@ -806,140 +1147,269 @@ const MaterialStockPanelComponent: React.FC<{
           </div>
         </div>
 
-        {/* Main Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm text-left">
-            <thead>
-              <tr className="bg-[#003857] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
-                <th className="px-4 py-3 text-center w-12">No.</th>
-                <th className="px-4 py-3">Item / Serial Number</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Material Type</th>
-                <th className="px-4 py-3">
-                  {group === 'POS' ? 'Assigned POS Terminal' : 'Assigned Sound Box'}
-                </th>
-                <th className="px-4 py-3">Merchant / MID</th>
-                <th className="px-4 py-3">Deployment Date</th>
-                <th className="px-4 py-3">Branch Staff</th>
-                <th className="px-4 py-3">Branch Name</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
-              {displayedItems.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
-                      <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
-                        <Boxes className="w-5 h-5 text-slate-400" />
-                      </div>
-                      <p className="font-bold text-slate-700 text-sm">No material items found</p>
-                      <p className="text-xs text-slate-500">
-                        {query || statusFilter || branchFilter || selectedCode !== 'ALL'
-                          ? 'Try clearing active filters or modifying search keywords.'
-                          : 'No items recorded yet. Click "Stock In" above to register new items into inventory.'}
-                      </p>
-                    </div>
-                  </td>
+        {/* Dynamic Table: View 1 (Merchant Deployments) OR View 2 (Multi-Branch Balances) */}
+        {activeLedgerView === 'BALANCES' ? (
+          /* Multi-Branch Balances Matrix Ledger */
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm text-left">
+              <thead>
+                <tr className="bg-[#003857] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
+                  <th className="px-4 py-3 text-center w-12">No.</th>
+                  <th className="px-4 py-3">Branch Location / Custody</th>
+                  <th className="px-4 py-3">Material Type</th>
+                  <th className="px-4 py-3 text-right">Branch Shelf Reserve (On Hand)</th>
+                  <th className="px-4 py-3 text-right">Deployed at Merchants</th>
+                  <th className="px-4 py-3 text-right">In Transit</th>
+                  <th className="px-4 py-3 text-right font-bold">Total Controlled</th>
+                  {isAdmin && <th className="px-4 py-3 text-center w-36">Actions</th>}
                 </tr>
-              )}
-
-              {displayedItems.map((s, idx) => {
-                const dev = s.deviceSerial ? deviceMap.get(s.deviceSerial.toUpperCase()) : undefined;
-                const merchantName = s.merchantName || dev?.merchantName || '—';
-                const mid = s.mid || dev?.mid || '';
-                const deployedDate = dev?.deployedDate || (s.status === 'AT_MERCHANT' && s.updatedAt ? fmtDay(s.updatedAt) : '—');
-                const branchStaff = dev?.staff || dev?.installedByStaff || (s.status === 'AT_MERCHANT' ? s.updatedBy : '') || '—';
-                const branchName = dev?.branchName || placeName(s.branchId, branches);
-
-                return (
-                  <tr key={`${s.code}-${s.serial}-${idx}`} style={{ animationDelay: `${Math.min(idx, 8) * 12}ms` }} className="row-stagger hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-2.5 text-center font-mono text-slate-400 font-normal">
-                      {pg.start + idx + 1}
-                    </td>
-
-                    <td className="px-4 py-2.5 font-mono font-normal text-slate-800">
-                      <div className="flex items-center gap-1.5">
-                        <span className="select-all">{s.serial}</span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(s.serial)}
-                          title="Copy serial"
-                          className="text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
-                        >
-                          {copiedSerial === s.serial ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                        </button>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs">
+                {branchBalanceRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={isAdmin ? 8 : 7} className="px-4 py-12 text-center text-slate-400">
+                      <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
+                        <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                          <Boxes className="w-5 h-5 text-slate-400" />
+                        </div>
+                        <p className="font-bold text-slate-700 text-sm">No branch balances recorded</p>
+                        <p className="text-xs text-slate-500">
+                          Click "Stock In" above to allocate accessory units into branch stock.
+                        </p>
                       </div>
-                    </td>
-
-                    <td className="px-4 py-2.5">
-                      <StatusPill status={s.status} />
-                    </td>
-
-                    <td className="px-4 py-2.5">
-                      {getMaterialBadge(s.code)}
-                    </td>
-
-                    <td className="px-4 py-2.5 font-mono font-normal">
-                      {s.deviceSerial ? (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${
-                          group === 'POS'
-                            ? 'text-[#006BA6] bg-[#006BA6]/10 border-[#006BA6]/20'
-                            : 'text-purple-700 bg-purple-50 border-purple-200'
-                        }`}>
-                          {group === 'POS' ? <Cpu className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
-                          <span>{s.deviceSerial}</span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 italic">Unassigned Pool</span>
-                      )}
-                    </td>
-
-                    <td className="px-4 py-2.5">
-                      <div className="flex flex-col">
-                        <span className="font-normal text-slate-800 truncate max-w-[170px]" title={merchantName}>
-                          {merchantName}
-                        </span>
-                        {mid && <span className="font-mono text-[10.5px] text-slate-400">MID: {mid}</span>}
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-2.5 font-mono text-slate-600">
-                      {deployedDate}
-                    </td>
-
-                    <td className="px-4 py-2.5 font-normal text-slate-700">
-                      {branchStaff}
-                    </td>
-
-                    <td className="px-4 py-2.5 text-slate-600 truncate max-w-[150px]" title={branchName}>
-                      {branchName}
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  branchBalanceRows.map((r, idx) => (
+                    <tr
+                      key={`bal-${r.branchId}-${r.code}-${idx}`}
+                      className="hover:bg-slate-50/80 transition-colors"
+                    >
+                      <td className="px-4 py-2.5 text-center font-mono text-slate-400 font-normal">
+                        {idx + 1}
+                      </td>
 
-        {/* Pager */}
-        <div className="p-3.5 border-t border-slate-100 bg-slate-50/50">
-          <Pager pg={pg} />
-        </div>
+                      <td className="px-4 py-2.5 font-normal text-slate-800">
+                        <div className="flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          <span>{r.branchName}</span>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-2.5">
+                        {getMaterialBadge(r.code)}
+                      </td>
+
+                      <td className="px-4 py-2.5 text-right font-mono font-normal text-slate-800">
+                        <span className={r.onHand > 0 ? 'text-slate-900' : 'text-slate-400'}>
+                          {r.onHand.toLocaleString()}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-2.5 text-right font-mono font-normal text-slate-800">
+                        <span className={r.deployed > 0 ? 'text-emerald-700' : 'text-slate-400'}>
+                          {r.deployed.toLocaleString()}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-2.5 text-right font-mono font-normal text-slate-600">
+                        {r.inTransit > 0 ? (
+                          <span className="text-amber-700 font-medium">+{r.inTransit}</span>
+                        ) : (
+                          '0'
+                        )}
+                      </td>
+
+                      <td className="px-4 py-2.5 text-right font-mono font-normal text-slate-900">
+                        {r.total.toLocaleString()}
+                      </td>
+
+                      {isAdmin && (
+                        <td className="px-4 py-2.5 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              className="px-2 py-1 rounded text-[11px] font-normal bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+                              onClick={() => {
+                                setDlgParams({ code: r.code, branchId: r.branchId });
+                                setDlg('IN');
+                              }}
+                            >
+                              + Stock In
+                            </button>
+                            <button
+                              type="button"
+                              className="px-2 py-1 rounded text-[11px] font-normal bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition cursor-pointer"
+                              onClick={() => {
+                                setDlgParams({ code: r.code, branchId: r.branchId });
+                                setDlg('ADJUST');
+                              }}
+                            >
+                              Adjust
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* Merchant Deployments & Itemized Units Ledger */
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm text-left">
+              <thead>
+                <tr className="bg-[#003857] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
+                  <th className="px-4 py-3 text-center w-12">No.</th>
+                  <th className="px-4 py-3">Item / Identifier</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Material Type</th>
+                  <th className="px-4 py-3">
+                    {group === 'POS' ? 'Assigned POS Terminal' : 'Assigned Sound Box'}
+                  </th>
+                  <th className="px-4 py-3">Merchant / MID</th>
+                  <th className="px-4 py-3">Deployment Date</th>
+                  <th className="px-4 py-3">Branch Staff</th>
+                  <th className="px-4 py-3">Branch Name</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs">
+                {displayedItems.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
+                      <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
+                        <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                          <Boxes className="w-5 h-5 text-slate-400" />
+                        </div>
+                        <p className="font-bold text-slate-700 text-sm">No material items found</p>
+                        <p className="text-xs text-slate-500">
+                          {query || statusFilter || branchFilter || selectedCode !== 'ALL'
+                            ? 'Try clearing active filters or modifying search keywords.'
+                            : 'No items recorded yet. Click "Stock In" above to register new items into inventory.'}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {displayedItems.map((s, idx) => {
+                  const dev = s.deviceSerial ? deviceMap.get(s.deviceSerial.toUpperCase()) : undefined;
+                  const merchantName = s.merchantName || dev?.merchantName || '—';
+                  const mid = s.mid || dev?.mid || '';
+                  const deployedDate = dev?.deployedDate || (s.status === 'AT_MERCHANT' && s.updatedAt ? fmtDay(s.updatedAt) : '—');
+                  const branchStaff = dev?.staff || dev?.installedByStaff || (s.status === 'AT_MERCHANT' ? s.updatedBy : '') || '—';
+                  const branchName = dev?.branchName || placeName(s.branchId, branches);
+
+                  return (
+                    <tr key={`${s.code}-${s.serial}-${idx}`} style={{ animationDelay: `${Math.min(idx, 8) * 12}ms` }} className="row-stagger hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-2.5 text-center font-mono text-slate-400 font-normal">
+                        {pg.start + idx + 1}
+                      </td>
+
+                      <td className="px-4 py-2.5 font-mono font-normal text-slate-800">
+                        <div className="flex items-center gap-1.5">
+                          <span className="select-all">{s.serial}</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(s.serial)}
+                            title="Copy serial"
+                            className="text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
+                          >
+                            {copiedSerial === s.serial ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          </button>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-2.5">
+                        <StatusPill status={s.status} />
+                      </td>
+
+                      <td className="px-4 py-2.5">
+                        {getMaterialBadge(s.code)}
+                      </td>
+
+                      <td className="px-4 py-2.5 font-mono font-normal">
+                        {s.deviceSerial ? (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${
+                            group === 'POS'
+                              ? 'text-[#006BA6] bg-[#006BA6]/10 border-[#006BA6]/20'
+                              : 'text-purple-700 bg-purple-50 border-purple-200'
+                          }`}>
+                            {group === 'POS' ? <Cpu className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                            <span>{s.deviceSerial}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic">Unassigned Pool</span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-2.5">
+                        <div className="flex flex-col">
+                          <span className="font-normal text-slate-800 truncate max-w-[170px]" title={merchantName}>
+                            {merchantName}
+                          </span>
+                          {mid && <span className="font-mono text-[10.5px] text-slate-400">MID: {mid}</span>}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-2.5 font-mono text-slate-600">
+                        {deployedDate}
+                      </td>
+
+                      <td className="px-4 py-2.5 font-normal text-slate-700">
+                        {branchStaff}
+                      </td>
+
+                      <td className="px-4 py-2.5 text-slate-600 truncate max-w-[150px]" title={branchName}>
+                        {branchName}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pager (shown on Deployments view) */}
+        {activeLedgerView === 'DEPLOYMENTS' && (
+          <div className="p-3.5 border-t border-slate-100 bg-slate-50/50">
+            <Pager pg={pg} />
+          </div>
+        )}
       </section>
 
       <LostMaterialsSection codes={codes} title={`Lost Materials · ${group === 'POS' ? 'POS Terminal' : 'Sound Box'}`} branches={branches}
         isAdmin={isAdmin} triggerToast={triggerToast} onChanged={changed} />
 
       {/* Dialogs */}
-      <StockInDialog open={dlg === 'IN'} codes={codes} branches={branches} onClose={() => setDlg('')} onDone={changed} triggerToast={triggerToast} />
-      <AdjustDialog open={dlg === 'ADJUST'} codes={codes} branches={branches} onClose={() => setDlg('')} onDone={changed} triggerToast={triggerToast} />
+      <StockInDialog
+        open={dlg === 'IN'}
+        codes={codes}
+        branches={branches}
+        initialCode={dlgParams.code || (selectedCode !== 'ALL' ? selectedCode : codes[0])}
+        initialBranch={dlgParams.branchId || (branchFilter || '100')}
+        onClose={() => { setDlg(''); setDlgParams({}); }}
+        onDone={changed}
+        triggerToast={triggerToast}
+      />
+      <AdjustDialog
+        open={dlg === 'ADJUST'}
+        codes={codes}
+        branches={branches}
+        initialCode={dlgParams.code || (selectedCode !== 'ALL' ? selectedCode : codes[0])}
+        initialBranch={dlgParams.branchId || (branchFilter || '100')}
+        onClose={() => { setDlg(''); setDlgParams({}); }}
+        onDone={changed}
+        triggerToast={triggerToast}
+      />
       <OpeningDialog open={dlg === 'OPENING'} branches={branches} onClose={() => setDlg('')} onDone={changed} triggerToast={triggerToast} />
     </div>
   );
 };
 
-/** (6 Nov 2026) Lost Materials: the items reported lost for these materials, so Admin HQ can Recover or Write off each one
- *  (and mark a SIM blocked with the carrier). Shown only when something was ever reported lost, so the page stays clean. */
 export const LostMaterialsSection: React.FC<{
   codes: MaterialCode[]; title: string; branches: Branch[]; isAdmin: boolean; triggerToast: (m: string) => void; onChanged?: () => void;
 }> = ({ codes, title, branches, isAdmin, triggerToast, onChanged }) => {
@@ -1082,15 +1552,17 @@ export const StockInDialog: React.FC<{
   open: boolean;
   codes: MaterialCode[];
   branches: Branch[];
+  initialCode?: MaterialCode;
+  initialBranch?: string;
   initialTarget?: 'ALL' | 'POS' | 'SOUND_BOX';
   onClose: () => void;
   onDone: () => void;
   triggerToast: (m: string) => void;
 }> = ({
-  open, codes, branches, initialTarget = 'ALL', onClose, onDone, triggerToast,
+  open, codes, branches, initialCode, initialBranch, initialTarget = 'ALL', onClose, onDone, triggerToast,
 }) => {
-  const [code, setCode] = useState<MaterialCode>(codes[0]);
-  const [place, setPlace] = useState('100');
+  const [code, setCode] = useState<MaterialCode>(initialCode || codes[0]);
+  const [place, setPlace] = useState(initialBranch || '100');
   const [qty, setQty] = useState('');
   const [text, setText] = useState('');
   const [note, setNote] = useState('');
@@ -1098,8 +1570,8 @@ export const StockInDialog: React.FC<{
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) {
-      setCode(codes[0]);
-      setPlace('100');
+      setCode(initialCode || codes[0]);
+      setPlace(initialBranch || '100');
       setQty('');
       setText('');
       setNote('');
@@ -1163,17 +1635,26 @@ export const StockInDialog: React.FC<{
   );
 };
 
-export const AdjustDialog: React.FC<{ open: boolean; codes: MaterialCode[]; branches: Branch[]; onClose: () => void; onDone: () => void; triggerToast: (m: string) => void }> = ({
-  open, codes, branches, onClose, onDone, triggerToast,
+export const AdjustDialog: React.FC<{
+  open: boolean;
+  codes: MaterialCode[];
+  branches: Branch[];
+  initialCode?: MaterialCode;
+  initialBranch?: string;
+  onClose: () => void;
+  onDone: () => void;
+  triggerToast: (m: string) => void;
+}> = ({
+  open, codes, branches, initialCode, initialBranch, onClose, onDone, triggerToast,
 }) => {
-  const [code, setCode] = useState<MaterialCode>(codes[0]);
-  const [place, setPlace] = useState('100');
+  const [code, setCode] = useState<MaterialCode>(initialCode || codes[0]);
+  const [place, setPlace] = useState(initialBranch || '100');
   const [qty, setQty] = useState('');
   const [serial, setSerial] = useState('');
   const [status, setStatus] = useState<SerialStatus>('BRANCH_RESERVE');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (open) { setCode(codes[0]); setPlace('100'); setQty(''); setSerial(''); setStatus('BRANCH_RESERVE'); setReason(''); } }, [open, codes]);
+  useEffect(() => { if (open) { setCode(initialCode || codes[0]); setPlace(initialBranch || '100'); setQty(''); setSerial(''); setStatus('BRANCH_RESERVE'); setReason(''); } }, [open, codes, initialCode, initialBranch]);
   const m = materialByCode.get(code)!;
   const ready = reason.trim().length >= 3 && (m.tracking === 'QTY' ? qty !== '' && Number(qty) >= 0 : !!normMaterialSerial(code, serial));
   const save = async () => {
