@@ -230,30 +230,37 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
     c.ccPrimary * rulePts(ruleMap, 'CC_PRIMARY') +
     c.ccSupp * rulePts(ruleMap, 'CC_SUPP');
 
-  // (4 Nov 2026) the rules added for the Merchant Visit app: counted per rule code, points from Settings
-  let xPosTasks = 0, xPosPoints = 0, mvTasks = 0, mvPoints = 0, xOtherTasks = 0, xOtherPoints = 0;
+  // (4 Nov 2026) the rules added for the Merchant Visit app & new tasks: counted per rule code, points from Settings
+  let xPosTasks = 0, xPosPoints = 0, xSbTasks = 0, xSbPoints = 0, mvTasks = 0, mvPoints = 0, xOtherTasks = 0, xOtherPoints = 0;
   for (const [code, raw] of Object.entries(c.extra || {})) {
     const n = Number(raw) || 0, rule = ruleMap.get(code);
     if (!n) continue;
     if (rule && rule.active) {
       const pts = n * rule.points;
       if (rule.category === 'POS Terminal') { xPosTasks += n; xPosPoints += pts; }
+      else if (rule.category === 'Sound Box') { xSbTasks += n; xSbPoints += pts; }
       else if (rule.category === 'Merchant Visit') { mvTasks += n; mvPoints += pts; }
       else { xOtherTasks += n; xOtherPoints += pts; }
     } else if (code.startsWith('MV_')) {
       mvTasks += n;
       if (rule && rule.points > 0) mvPoints += n * rule.points;
+    } else if (code.startsWith('POS_')) {
+      xPosTasks += n;
+      if (rule && rule.points > 0) xPosPoints += n * rule.points;
+    } else if (code.startsWith('SB_')) {
+      xSbTasks += n;
+      if (rule && rule.points > 0) xSbPoints += n * rule.points;
     }
   }
 
-  const totalTasks = posTasks + xPosTasks + sbTasks + khqrTasks + ccTasks + mvTasks + xOtherTasks;
-  const totalPoints = Math.round((posPoints + xPosPoints + sbPoints + khqrPoints + ccPoints + mvPoints + xOtherPoints) * 100) / 100;
+  const totalTasks = posTasks + xPosTasks + sbTasks + xSbTasks + khqrTasks + ccTasks + mvTasks + xOtherTasks;
+  const totalPoints = Math.round((posPoints + xPosPoints + sbPoints + xSbPoints + khqrPoints + ccPoints + mvPoints + xOtherPoints) * 100) / 100;
 
   return {
     posTasks: posTasks + xPosTasks,
     posPoints: Math.round((posPoints + xPosPoints) * 100) / 100,
-    sbTasks,
-    sbPoints: Math.round(sbPoints * 100) / 100,
+    sbTasks: sbTasks + xSbTasks,
+    sbPoints: Math.round((sbPoints + xSbPoints) * 100) / 100,
     khqrTasks,
     khqrMaterials: c.khqrMaterials,
     khqrPoints: Math.round(khqrPoints * 100) / 100,
@@ -271,7 +278,79 @@ const summaryCache = new Map<string, KpiDashboardData>();
 const SESSION_CACHE_PREFIX = 'kpi_summary_cache_v2_';
 let owner: string | null | undefined;
 
+export interface KpiSettingsData {
+  rules: KpiPointRule[];
+  targets: KpiTargets;
+}
+
+export const DEFAULT_KPI_RULES: KpiPointRule[] = [
+  { code: 'POS_INSTALL', category: 'POS Terminal', subCategory: 'POS New Installation', description: 'Approved new POS Terminal installation at merchant', points: 5, unit: 'per terminal', active: true, isSystem: true, sortOrder: 10, updatedBy: null, updatedAt: null },
+  { code: 'POS_REPLACE', category: 'POS Terminal', subCategory: 'POS Replacement / Swap', description: 'Approved POS Terminal replacement or hardware swap', points: 5, unit: 'per swap', active: true, isSystem: true, sortOrder: 20, updatedBy: null, updatedAt: null },
+  { code: 'POS_BATTERY', category: 'POS Terminal', subCategory: 'POS Battery Replacement', description: 'Approved POS Terminal battery replacement in the field', points: 3, unit: 'per battery', active: true, isSystem: true, sortOrder: 30, updatedBy: null, updatedAt: null },
+  { code: 'POS_MAINT', category: 'POS Terminal', subCategory: 'POS Operational Support', description: 'Merchant Visit app: POS Operational Support (inspection, paperroll, materials...)', points: 2, unit: 'per visit', active: true, isSystem: true, sortOrder: 32, updatedBy: null, updatedAt: null },
+  { code: 'POS_INACTIVE', category: 'POS Terminal', subCategory: 'POS In-Active Maintenance', description: 'Merchant Visit app: POS In-Active Maintenance at dormant merchant', points: 2, unit: 'per visit', active: true, isSystem: true, sortOrder: 34, updatedBy: null, updatedAt: null },
+  { code: 'POS_RETURN', category: 'POS Terminal', subCategory: 'POS Return & Terminate', description: 'Merchant Visit app: POS Return & Terminate (terminal de-installed & taken back)', points: 3, unit: 'per terminal', active: true, isSystem: true, sortOrder: 36, updatedBy: null, updatedAt: null },
+  { code: 'POS_ADAPTOR', category: 'POS Terminal', subCategory: 'POS AC Adaptor Delivery', description: 'Delivery or replacement of POS AC Adaptor in the field', points: 1, unit: 'per adaptor', active: true, isSystem: true, sortOrder: 37, updatedBy: null, updatedAt: null },
+  { code: 'POS_STAND', category: 'POS Terminal', subCategory: 'POS Stand Holder Setup', description: 'Setup or replacement of POS Stand Holder at merchant counter', points: 1, unit: 'per stand', active: true, isSystem: true, sortOrder: 38, updatedBy: null, updatedAt: null },
+  { code: 'POS_DOCK', category: 'POS Terminal', subCategory: 'Charging Dock Installation', description: 'Installation or replacement of POS Charging Dock', points: 1, unit: 'per dock', active: true, isSystem: true, sortOrder: 39, updatedBy: null, updatedAt: null },
+  { code: 'SB_INSTALL', category: 'Sound Box', subCategory: 'Sound Box New Installation', description: 'Approved new Sound Box installation at merchant', points: 5, unit: 'per unit', active: true, isSystem: true, sortOrder: 40, updatedBy: null, updatedAt: null },
+  { code: 'SB_REPLACE', category: 'Sound Box', subCategory: 'Sound Box Replacement / Swap', description: 'Approved Sound Box replacement or swap', points: 4, unit: 'per swap', active: true, isSystem: true, sortOrder: 50, updatedBy: null, updatedAt: null },
+  { code: 'SB_MAINT', category: 'Sound Box', subCategory: 'Sound Box Maintenance', description: 'Sound Box maintenance, sound check & QR stand inspection', points: 2, unit: 'per visit', active: true, isSystem: true, sortOrder: 60, updatedBy: null, updatedAt: null },
+  { code: 'SB_RETURN', category: 'Sound Box', subCategory: 'Sound Box Return / Recovery', description: 'Approved Sound Box retrieval and recovery', points: 3, unit: 'per unit', active: true, isSystem: true, sortOrder: 70, updatedBy: null, updatedAt: null },
+  { code: 'SB_ADAPTOR', category: 'Sound Box', subCategory: 'Sound Box AC Adaptor Delivery', description: 'Delivery or replacement of Sound Box AC Adaptor', points: 1, unit: 'per adaptor', active: true, isSystem: true, sortOrder: 75, updatedBy: null, updatedAt: null },
+  { code: 'KHQR_INSTALL', category: 'KHQR', subCategory: 'KHQR New Installation', description: 'Merchant onboarded with new ABA KHQR kit', points: 1, unit: 'per merchant', active: true, isSystem: true, sortOrder: 80, updatedBy: null, updatedAt: null },
+  { code: 'KHQR_REPLACE', category: 'KHQR', subCategory: 'KHQR Replacement', description: 'Damaged or old KHQR stand replaced', points: 1, unit: 'per merchant', active: true, isSystem: true, sortOrder: 90, updatedBy: null, updatedAt: null },
+  { code: 'KHQR_MATERIAL', category: 'KHQR', subCategory: 'QR Material Scanned (Bonus)', description: 'Additional collateral or decals scanned during setup', points: 0, unit: 'per QR item', active: true, isSystem: true, sortOrder: 100, updatedBy: null, updatedAt: null },
+  { code: 'CC_PRIMARY', category: 'Credit Card', subCategory: 'Primary Credit Card Onboarded', description: 'Approved primary credit card application', points: 15, unit: 'per card', active: true, isSystem: true, sortOrder: 110, updatedBy: null, updatedAt: null },
+  { code: 'CC_SUPP', category: 'Credit Card', subCategory: 'Supplementary Card Onboarded', description: 'Approved supplementary credit card application', points: 5, unit: 'per supp. card', active: true, isSystem: true, sortOrder: 120, updatedBy: null, updatedAt: null },
+  { code: 'MV_ACCOUNT_OPENING', category: 'Merchant Visit', subCategory: 'Account Opening', description: 'Merchant Visit app: Account Opening', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 131, updatedBy: null, updatedAt: null },
+  { code: 'MV_QR_MERCHANT_ONBOARDING', category: 'Merchant Visit', subCategory: 'QR Merchant Onboarding', description: 'Merchant Visit app: QR Merchant Onboarding', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 132, updatedBy: null, updatedAt: null },
+  { code: 'MV_DECLINED_CASH_ONLY_NO_QR', category: 'Merchant Visit', subCategory: 'Declined – Cash Only (No QR)', description: 'Merchant Visit app: Declined – Cash Only (No QR)', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 133, updatedBy: null, updatedAt: null },
+  { code: 'MV_KHQR_ISSUE', category: 'Merchant Visit', subCategory: 'KHQR Issue', description: 'Merchant Visit app: KHQR Issue', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 134, updatedBy: null, updatedAt: null },
+  { code: 'MV_ABA_MOBILE_SUPPORT', category: 'Merchant Visit', subCategory: 'ABA Mobile Support', description: 'Merchant Visit app: ABA Mobile Support', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 135, updatedBy: null, updatedAt: null },
+  { code: 'MV_OTHER_BANK_S_PROMO', category: 'Merchant Visit', subCategory: "Other Bank's Promo", description: "Merchant Visit app: Other Bank's Promo", points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 136, updatedBy: null, updatedAt: null },
+  { code: 'MV_ABA_QR_IN_GOOD_CONDITION', category: 'Merchant Visit', subCategory: 'ABA QR in Good Condition', description: 'Merchant Visit app: ABA QR in Good Condition', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 137, updatedBy: null, updatedAt: null },
+  { code: 'MV_KEY_MERCHANT_VISIT', category: 'Merchant Visit', subCategory: 'Key Merchant Visit', description: 'Merchant Visit app: Key Merchant Visit', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 138, updatedBy: null, updatedAt: null },
+  { code: 'MV_PAYSOUND_ALERT_TELEGRAM', category: 'Merchant Visit', subCategory: 'PaySound / Alert Telegram', description: 'Merchant Visit app: PaySound / Alert Telegram', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 139, updatedBy: null, updatedAt: null },
+  { code: 'MV_ON_SITE_ATM_LOCATION', category: 'Merchant Visit', subCategory: 'On-site ATM Location', description: 'Merchant Visit app: On-site ATM Location', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 140, updatedBy: null, updatedAt: null },
+  { code: 'MV_BRING_DOCUMENT_TO_MERCHANT', category: 'Merchant Visit', subCategory: 'Bring Document to Merchant', description: 'Merchant Visit app: Bring Document to Merchant', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 141, updatedBy: null, updatedAt: null },
+  { code: 'MV_MARKET_COVERAGE', category: 'Merchant Visit', subCategory: 'Market Coverage', description: 'Merchant Visit app: Market Coverage', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 142, updatedBy: null, updatedAt: null },
+  { code: 'MV_REVIEW_GIANT_QR', category: 'Merchant Visit', subCategory: 'Review Giant QR', description: 'Merchant Visit app: Review Giant QR', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 143, updatedBy: null, updatedAt: null },
+  { code: 'MV_ABA_GASOLINE_LOGO', category: 'Merchant Visit', subCategory: 'ABA Gasoline Logo', description: 'Merchant Visit app: ABA Gasoline Logo', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 144, updatedBy: null, updatedAt: null },
+  { code: 'MV_PAYWAY_INSPECTION', category: 'Merchant Visit', subCategory: 'Payway Inspection', description: 'Merchant Visit app: Payway Inspection', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 145, updatedBy: null, updatedAt: null },
+];
+
+export const DEFAULT_KPI_TARGETS: KpiTargets = {
+  branchDailyTarget: 125,
+  branchWeeklyTarget: 625,
+  branchMonthlyTarget: 2250,
+  branchQuarterlyTarget: 6750,
+  staffDailyTarget: 25,
+  staffWeeklyTarget: 125,
+  staffMonthlyTarget: 450,
+  staffQuarterlyTarget: 1350,
+  workDaysInMonth: 22,
+  excludeHolidays: true,
+  holidayDaysCount: 4,
+  workingDaysMode: 'mon_fri',
+  updatedBy: null,
+  updatedAt: null,
+};
+
+let cachedSettings: KpiSettingsData | null = null;
+
+export function getCachedKpiSettings(): KpiSettingsData {
+  if (cachedSettings) return cachedSettings;
+  const summary = getCachedKpiSummary(null, null);
+  if (summary && summary.rules && summary.rules.length > 0) {
+    cachedSettings = { rules: summary.rules, targets: summary.targets };
+    return cachedSettings;
+  }
+  return { rules: DEFAULT_KPI_RULES, targets: DEFAULT_KPI_TARGETS };
+}
+
 export function clearKpiCache(): void {
+  cachedSettings = null;
   summaryCache.clear();
   try {
     for (let i = sessionStorage.length - 1; i >= 0; i--) {
@@ -319,6 +398,13 @@ export const setCachedKpiSummary = (from: string | null, to: string | null, d: K
 };
 
 export function patchCachedKpiRule(rule: KpiPointRule): void {
+  if (cachedSettings) {
+    const exists = cachedSettings.rules.some((r) => r.code === rule.code);
+    const rules = exists
+      ? cachedSettings.rules.map((r) => (r.code === rule.code ? rule : r))
+      : [...cachedSettings.rules, rule].sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
+    cachedSettings = { ...cachedSettings, rules };
+  }
   summaryCache.forEach((v, k) => {
     const exists = v.rules.some((r) => r.code === rule.code);
     const rules = exists
@@ -329,9 +415,72 @@ export function patchCachedKpiRule(rule: KpiPointRule): void {
 }
 
 export function patchCachedKpiTargets(targets: KpiTargets): void {
+  if (cachedSettings) {
+    cachedSettings = { ...cachedSettings, targets };
+  }
   summaryCache.forEach((v, k) => {
     summaryCache.set(k, { ...v, targets });
   });
+}
+
+/**
+ * Ultra-fast settings fetcher for Settings -> Management KPI tab (0-15ms vs 2500ms).
+ * Checks memory cache first, then calls the dedicated RPC or table queries.
+ */
+export async function fetchFastKpiSettings(): Promise<KpiSettingsData> {
+  const existing = getCachedKpiSettings();
+  if (cachedSettings && cachedSettings.rules.length > 0) {
+    return cachedSettings;
+  }
+
+  if (!isSupabaseConfigured) {
+    cachedSettings = { rules: DEFAULT_KPI_RULES, targets: DEFAULT_KPI_TARGETS };
+    return cachedSettings;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('kpi_get_settings_fast');
+    if (!error && data) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d: any = data;
+      const res: KpiSettingsData = {
+        rules: Array.isArray(d.rules) ? d.rules.map(mapRule) : DEFAULT_KPI_RULES,
+        targets: mapTargets(d.targets),
+      };
+      cachedSettings = res;
+      summaryCache.forEach((v, k) => {
+        summaryCache.set(k, { ...v, rules: res.rules, targets: res.targets });
+      });
+      return res;
+    }
+  } catch {
+    // fall through
+  }
+
+  try {
+    const [rulesRes, targetsRes] = await Promise.all([
+      supabase.from('kpi_point_rules').select('*').order('sort_order', { ascending: true }),
+      supabase.from('kpi_settings').select('*').limit(1).maybeSingle(),
+    ]);
+
+    if (!rulesRes.error && rulesRes.data && rulesRes.data.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res: KpiSettingsData = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        rules: (rulesRes.data as any[]).map(mapRule),
+        targets: mapTargets(targetsRes.data),
+      };
+      cachedSettings = res;
+      summaryCache.forEach((v, k) => {
+        summaryCache.set(k, { ...v, rules: res.rules, targets: res.targets });
+      });
+      return res;
+    }
+  } catch {
+    // fallback
+  }
+
+  return existing;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

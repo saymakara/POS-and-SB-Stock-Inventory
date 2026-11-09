@@ -62,6 +62,106 @@ export interface KpiRulesAdminSectionProps {
   branches?: Branch[];
 }
 
+interface KpiRuleRowProps {
+  rule: KpiPointRule;
+  index: number;
+  isAdmin: boolean;
+  onSaveRule: (r: KpiPointRule, nextPoints?: number, nextActive?: boolean) => Promise<void>;
+  savingCode: string | null;
+}
+
+const KpiRuleRow = memo(function KpiRuleRow({
+  rule,
+  index,
+  isAdmin,
+  onSaveRule,
+  savingCode,
+}: KpiRuleRowProps) {
+  const [draft, setDraft] = useState(String(rule.points));
+  useEffect(() => {
+    setDraft(String(rule.points));
+  }, [rule.points]);
+
+  const catStyle = CAT_COLORS[rule.category] || CAT_COLORS.Other;
+  const CatIcon = catStyle.Icon;
+  const changed = Number(draft) !== rule.points && !isNaN(Number(draft));
+  const busy = savingCode === rule.code;
+
+  return (
+    <tr className={`hover:bg-slate-50/70 transition-colors ${!rule.active ? 'opacity-60' : ''}`}>
+      <td className="py-2.5 px-3.5 text-right tabular-nums text-slate-500">{index + 1}</td>
+      <td className="py-2.5 px-3.5">
+        <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-lg border ${catStyle.badge}`}>
+          <CatIcon className="w-3.5 h-3.5" /> {rule.category}
+        </span>
+      </td>
+      <td className="py-2.5 px-3.5 leading-tight">
+        <div className="text-slate-900" title={rule.code}>{rule.subCategory}</div>
+      </td>
+      <td className="py-2.5 px-3.5 text-xs text-slate-600">
+        <span className="inline-flex items-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          {rule.description || 'Verified system record'}
+        </span>
+      </td>
+      <td className="py-2.5 px-3.5 text-xs text-slate-500">{rule.unit}</td>
+      <td className="py-2.5 px-3.5 text-right">
+        {isAdmin ? (
+          <div className="inline-flex items-center justify-end gap-1">
+            <input
+              type="number"
+              step="0.5"
+              min="0"
+              max="10000"
+              aria-label={`Points for ${rule.subCategory}`}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              className="w-20 px-2 py-1 text-right font-figure font-medium text-slate-900 rounded-lg border border-slate-200 bg-white tabular-nums focus:ring-1 focus:ring-[#003857] outline-none"
+            />
+            <span className="text-xs text-slate-500">pts</span>
+          </div>
+        ) : (
+          <span className="font-figure font-medium text-slate-900 tabular-nums">{fmtPts(rule.points)} pts</span>
+        )}
+      </td>
+      <td className="py-2.5 px-3.5 text-center">
+        {isAdmin ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onSaveRule(rule, undefined, !rule.active)}
+            className={`px-2.5 py-0.5 rounded-full text-[11px] border cursor-pointer transition ${
+              rule.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+            }`}
+          >
+            {rule.active ? 'Active' : 'Inactive'}
+          </button>
+        ) : (
+          <span className={`px-2.5 py-0.5 rounded-full text-[11px] border ${
+            rule.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+          }`}>
+            {rule.active ? 'Active' : 'Inactive'}
+          </span>
+        )}
+      </td>
+      {isAdmin && (
+        <td className="py-2.5 px-3.5 text-right">
+          <button
+            type="button"
+            disabled={busy || !changed}
+            onClick={() => onSaveRule(rule, Math.max(0, Number(draft) || 0))}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition ${
+              changed ? 'bg-[#003857] text-white hover:bg-[#002b44]' : 'bg-slate-100 text-slate-400 cursor-default'
+            }`}
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Save
+          </button>
+        </td>
+      )}
+    </tr>
+  );
+});
+
 export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   isAdmin,
   rules,
@@ -72,7 +172,6 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
   branches = [],
 }: KpiRulesAdminSectionProps) {
   const [catFilter, setCatFilter] = useState<'ALL' | KpiCategory>('ALL');
-  const [draftPts, setDraftPts] = useState<Record<string, string>>({});
   const [savingCode, setSavingCode] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newCode, setNewCode] = useState('');
@@ -902,7 +1001,7 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 overflow-x-auto">
+        <div className="rounded-xl border border-slate-200 overflow-x-auto min-h-[380px] transition-all">
           <table className="w-full text-left border-collapse min-w-[820px]">
             <thead>
               <tr className="glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-medium uppercase tracking-wider">
@@ -917,86 +1016,16 @@ export const KpiRulesAdminSection = memo(function KpiRulesAdminSection({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/90 text-[13px] text-slate-700">
-              {filteredRules.map((r, i) => {
-                const catStyle = CAT_COLORS[r.category] || CAT_COLORS.Other;
-                const CatIcon = catStyle.Icon;
-                const curDraft = draftPts[r.code] !== undefined ? draftPts[r.code] : String(r.points);
-                const changed = Number(curDraft) !== r.points && !isNaN(Number(curDraft));
-                const busy = savingCode === r.code;
-                return (
-                  <tr key={r.code} className={`hover:bg-slate-50/70 ${!r.active ? 'opacity-60' : ''}`}>
-                    <td className="py-2.5 px-3.5 text-right tabular-nums text-slate-500">{i + 1}</td>
-                    <td className="py-2.5 px-3.5">
-                      <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-lg border ${catStyle.badge}`}>
-                        <CatIcon className="w-3.5 h-3.5" /> {r.category}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3.5 leading-tight">
-                      <div className="text-slate-900" title={r.code}>{r.subCategory}</div>
-                    </td>
-                    <td className="py-2.5 px-3.5 text-xs text-slate-600">
-                      <span className="inline-flex items-center gap-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        {r.description || 'Verified system record'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3.5 text-xs text-slate-500">{r.unit}</td>
-                    <td className="py-2.5 px-3.5 text-right">
-                      {isAdmin ? (
-                        <div className="inline-flex items-center justify-end gap-1">
-                          <input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            max="10000"
-                            aria-label={`Points for ${r.subCategory}`}
-                            value={curDraft}
-                            onChange={(e) => setDraftPts((prev) => ({ ...prev, [r.code]: e.target.value }))}
-                            className="w-20 px-2 py-1 text-right font-figure font-medium text-slate-900 rounded-lg border border-slate-200 bg-white tabular-nums"
-                          />
-                          <span className="text-xs text-slate-500">pts</span>
-                        </div>
-                      ) : (
-                        <span className="font-figure font-medium text-slate-900 tabular-nums">{fmtPts(r.points)} pts</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3.5 text-center">
-                      {isAdmin ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => saveRule(r, undefined, !r.active)}
-                          className={`px-2.5 py-0.5 rounded-full text-[11px] border cursor-pointer ${
-                            r.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
-                          }`}
-                        >
-                          {r.active ? 'Active' : 'Inactive'}
-                        </button>
-                      ) : (
-                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] border ${
-                          r.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}>
-                          {r.active ? 'Active' : 'Inactive'}
-                        </span>
-                      )}
-                    </td>
-                    {isAdmin && (
-                      <td className="py-2.5 px-3.5 text-right">
-                        <button
-                          type="button"
-                          disabled={busy || !changed}
-                          onClick={() => saveRule(r, Math.max(0, Number(curDraft) || 0))}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition ${
-                            changed ? 'bg-[#003857] text-white hover:bg-[#002b44]' : 'bg-slate-100 text-slate-400 cursor-default'
-                          }`}
-                        >
-                          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Save
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
+              {filteredRules.map((r, i) => (
+                <KpiRuleRow
+                  key={r.code}
+                  rule={r}
+                  index={i}
+                  isAdmin={isAdmin}
+                  onSaveRule={saveRule}
+                  savingCode={savingCode}
+                />
+              ))}
             </tbody>
           </table>
         </div>

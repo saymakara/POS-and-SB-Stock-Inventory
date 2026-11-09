@@ -11,7 +11,7 @@ import {
 } from '../types';
 import { LogoPageTab } from './LogoPageTab';
 import { KpiRulesAdminSection } from './KpiRulesAdminSection';
-import { KpiPointRule, KpiTargets, fetchKpiSummary } from '../services/kpiService';
+import { KpiPointRule, KpiTargets, fetchFastKpiSettings, getCachedKpiSettings } from '../services/kpiService';
 // (31 Oct 2026) System Health: loaded only when that section is opened
 const SystemHealthPanel = React.lazy(() => import('./SystemHealthPanel'));
 import {
@@ -141,27 +141,36 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   );
   const [isDeleteConnectionModalOpen, setIsDeleteConnectionModalOpen] = useState(false);
 
-  const [kpiRules, setKpiRules] = useState<KpiPointRule[]>([]);
-  const [kpiTargets, setKpiTargets] = useState<KpiTargets | null>(null);
+  const [kpiRules, setKpiRules] = useState<KpiPointRule[]>(() => {
+    const cached = getCachedKpiSettings();
+    return cached.rules;
+  });
+  const [kpiTargets, setKpiTargets] = useState<KpiTargets | null>(() => {
+    const cached = getCachedKpiSettings();
+    return cached.targets;
+  });
   const [loadingKpi, setLoadingKpi] = useState(false);
 
   useEffect(() => {
-    if (activeSubTab === 'kpi' && !kpiTargets) {
-      setLoadingKpi(true);
-      fetchKpiSummary(null, null)
+    if (activeSubTab === 'kpi') {
+      const cached = getCachedKpiSettings();
+      if (!kpiTargets || kpiRules.length === 0) {
+        setKpiRules(cached.rules);
+        setKpiTargets(cached.targets);
+      }
+      fetchFastKpiSettings()
         .then((data) => {
           setKpiRules(data.rules || []);
           setKpiTargets(data.targets);
         })
         .catch((err) => {
           console.error('Failed to load KPI settings', err);
-          onToast?.('Failed to load KPI settings');
         })
         .finally(() => {
           setLoadingKpi(false);
         });
     }
-  }, [activeSubTab, kpiTargets, onToast]);
+  }, [activeSubTab]);
 
   const handleRuleSaved = (updated: KpiPointRule) => {
     setKpiRules((prev) => {
@@ -710,12 +719,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         {/* SUBTAB: KPI Points & Rules */}
         {activeSubTab === 'kpi' && (
           <div className="space-y-6">
-            {loadingKpi && !kpiTargets ? (
-              <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#003857] mb-2" />
-                <p className="text-xs text-slate-500 font-medium">Loading KPI point rules and target settings...</p>
-              </div>
-            ) : kpiTargets ? (
+            {kpiTargets ? (
               <KpiRulesAdminSection
                 isAdmin={role === 'SUPER_ADMIN'}
                 rules={kpiRules}
@@ -725,6 +729,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 toast={(msg) => onToast?.(msg)}
                 branches={branches}
               />
+            ) : loadingKpi ? (
+              <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#003857] mb-2" />
+                <p className="text-xs text-slate-500 font-medium">Loading KPI point rules and target settings...</p>
+              </div>
             ) : (
               <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
                 <p className="text-xs text-rose-500">Could not load KPI settings. Please try again.</p>
