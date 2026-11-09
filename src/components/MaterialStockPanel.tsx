@@ -346,20 +346,20 @@ const MaterialStockPanelComponent: React.FC<{
     return map;
   }, [devices]);
 
-  // Devices-derived materials (e.g. POS Batteries, Stand Holders, Charging Docks, Adaptors recorded on POS devices)
+  // Devices-derived materials (POS Batteries recorded on POS devices)
   const deviceDerivedItems = useMemo(() => {
-    if (!devices || devices.length === 0) return [];
+    if (!devices || devices.length === 0 || group !== 'POS') return [];
     const items: MaterialSerial[] = [];
     const nowStr = new Date().toISOString();
 
     for (let i = 0; i < devices.length; i++) {
       const d = devices[i];
-      if (group === 'POS' && d.type !== 'POS Terminal') continue;
-      if (group === 'SB' && d.type !== 'Sound Box') continue;
+      if (d.type !== 'POS Terminal') continue;
 
       // Extract battery from POS Terminal
       if (d.batterySerial && d.batterySerial.trim()) {
         const bat = d.batterySerial.trim();
+        if (bat === 'N/A' || bat === '-' || bat === '—') continue;
         const st: SerialStatus =
           d.stage === 'COMPLETE' || d.stage === 'CONFIGURING'
             ? 'AT_MERCHANT'
@@ -638,7 +638,7 @@ const MaterialStockPanelComponent: React.FC<{
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 {group === 'POS'
                   ? 'Multi-branch materials tracking for Batteries, Stand Holders, Charging Docks, and AC Adaptors'
-                  : 'Multi-branch materials tracking for Batteries and Sound Box AC Adaptors'}
+                  : 'Multi-branch materials tracking for Sound Box AC Adaptors'}
               </p>
             </div>
           </div>

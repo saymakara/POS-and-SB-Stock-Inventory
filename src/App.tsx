@@ -227,10 +227,12 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               const digits = mid.replace(/\D/g, '');
               mid = `100000880${d.branchId || '101'}${digits.slice(-3).padStart(3, '0')}`;
             }
-            // Normalize battery serial to standard format
-            const batterySerial = !d.batterySerial || d.batterySerial.startsWith('BAT-')
-              ? (isSoundBox ? `SB-BAT-${serial}` : `160525A${String(5709 + idx).padStart(7, '0')}`)
-              : d.batterySerial;
+            // Normalize battery serial to standard format (POS Terminal only)
+            const batterySerial = isSoundBox
+              ? undefined
+              : (!d.batterySerial || d.batterySerial.startsWith('BAT-') || d.batterySerial === 'N/A'
+                ? `160525A${String(5709 + idx).padStart(7, '0')}`
+                : d.batterySerial);
             const stage = ((d.stage as string) === 'OUT_FOR_INSTALL'
               ? 'CONFIGURING'
               : d.serial === 'WP5400PQ23200305' || (d.stage === 'FAULTY' && !d.merchantName && d.returnReason === 'Merchant Closed Business')

@@ -15,7 +15,7 @@ export interface MaterialType { code: MaterialCode; name: string; short: string;
 /** The catalogue (the same six rows as public.material_types). */
 export const MATERIALS: MaterialType[] = [
   { code: 'SIM', name: 'SIM Card', short: 'SIM', deviceType: 'BOTH', tracking: 'SERIAL', kitRule: 'CONNECTION' },
-  { code: 'BATTERY', name: 'Battery', short: 'Battery', deviceType: 'BOTH', tracking: 'SERIAL', kitRule: 'DEFAULT' },
+  { code: 'BATTERY', name: 'Battery', short: 'Battery', deviceType: 'POS', tracking: 'SERIAL', kitRule: 'DEFAULT' },
   { code: 'POS_ADAPTOR', name: 'POS AC Adaptor', short: 'AC Adaptor', deviceType: 'POS', tracking: 'QTY', kitRule: 'DEFAULT' },
   { code: 'STAND', name: 'POS Stand Holder', short: 'Stand', deviceType: 'POS', tracking: 'QTY', kitRule: 'OPTIONAL' },
   { code: 'DOCK', name: 'Charging Dock', short: 'Dock', deviceType: 'POS', tracking: 'QTY', kitRule: 'OPTIONAL' },
