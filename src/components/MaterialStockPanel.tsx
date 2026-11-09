@@ -306,6 +306,7 @@ const MaterialStockPanelComponent: React.FC<{
   const [selectedCode, setSelectedCode] = useState<MaterialCode | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<SerialStatus | ''>('');
   const [branchFilter, setBranchFilter] = useState(isAdmin ? '' : myBranch);
+  const [assignmentFilter, setAssignmentFilter] = useState<'ALL' | 'ASSIGNED' | 'UNASSIGNED'>('ALL');
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   useEffect(() => {
@@ -555,9 +556,16 @@ const MaterialStockPanelComponent: React.FC<{
       }
     }
 
-    if (!search) return list;
+    let filtered = list;
+    if (assignmentFilter === 'ASSIGNED') {
+      filtered = filtered.filter((r) => Boolean(r.deviceSerial || r.status === 'AT_MERCHANT'));
+    } else if (assignmentFilter === 'UNASSIGNED') {
+      filtered = filtered.filter((r) => !r.deviceSerial && r.status !== 'AT_MERCHANT');
+    }
+
+    if (!search) return filtered;
     const sLow = search.toLowerCase();
-    return list.filter((r) => {
+    return filtered.filter((r) => {
       const dev = r.deviceSerial ? deviceMap.get(r.deviceSerial.toUpperCase()) : undefined;
       return (
         r.serial.toLowerCase().includes(sLow) ||
@@ -569,7 +577,7 @@ const MaterialStockPanelComponent: React.FC<{
         (branchNameMap.get(r.branchId) || placeName(r.branchId, branches)).toLowerCase().includes(sLow)
       );
     });
-  }, [dbSerials, deviceDerivedItems, selectedCode, statusFilter, branchFilter, search, deviceMap, branches, branchNameMap]);
+  }, [dbSerials, deviceDerivedItems, selectedCode, statusFilter, branchFilter, assignmentFilter, search, deviceMap, branches, branchNameMap]);
 
   // Executive summary metrics per controlled material
   const materialSummaries = useMemo(() => {
@@ -723,7 +731,7 @@ const MaterialStockPanelComponent: React.FC<{
   );
 
   // Pagination for the detailed table
-  const pg = usePager(combinedItems.length, [selectedCode, statusFilter, branchFilter, search]);
+  const pg = usePager(combinedItems.length, [selectedCode, statusFilter, branchFilter, assignmentFilter, search]);
   const displayedItems = useMemo(
     () => combinedItems.slice(pg.start, pg.end),
     [combinedItems, pg.start, pg.end]
@@ -918,20 +926,20 @@ const MaterialStockPanelComponent: React.FC<{
 
         {/* Filter Toolbar matching InventoryTab & PushConfiguringTab */}
         <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-3">
-          {/* Row 1: Search + Material Category selector + Status selector */}
+          {/* Row 1: Search + Material Category selector + Status selector + Assignment selector + Page size */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-            <div className="relative sm:col-span-2 md:col-span-2 lg:col-span-3">
+            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
               <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={group === 'POS' ? 'Search serial, POS terminal, MID, merchant or staff...' : 'Search serial, Sound Box, MID, merchant or staff...'}
+                placeholder={group === 'POS' ? 'Search serial, POS, MID...' : 'Search serial, Sound Box, MID...'}
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
               />
             </div>
 
-            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-2">
+            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
               <select
                 aria-label="Select Material Category"
                 value={selectedCode}
@@ -964,6 +972,32 @@ const MaterialStockPanelComponent: React.FC<{
                     {SERIAL_STATUS_LABEL[s]} ({dynamicStatusCounts[s] ?? 0})
                   </option>
                 ))}
+              </select>
+            </div>
+
+            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
+              <select
+                aria-label="Assignment Filter"
+                value={assignmentFilter}
+                onChange={(e) => setAssignmentFilter(e.target.value as 'ALL' | 'ASSIGNED' | 'UNASSIGNED')}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                title="Filter by assignment to terminal or in reserve stock"
+              >
+                <option value="ALL">All Assignments</option>
+                <option value="ASSIGNED">{group === 'POS' ? 'Assigned to POS Terminal' : 'Assigned to Sound Box'}</option>
+                <option value="UNASSIGNED">Unassigned / Reserve</option>
+              </select>
+            </div>
+
+            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
+              <select
+                value={pg.pageSize}
+                onChange={(e) => pg.setPageSize(Number(e.target.value))}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                title="Select view page (100 Row Max)"
+              >
+                <option value={50}>View: 50 Rows / Page</option>
+                <option value={100}>View: 100 Rows / Page (Max)</option>
               </select>
             </div>
           </div>
@@ -1037,12 +1071,13 @@ const MaterialStockPanelComponent: React.FC<{
             </div>
 
             <ClearFiltersButton
-              active={Boolean(query.trim() || statusFilter || (isAdmin && branchFilter) || selectedCode !== 'ALL')}
+              active={Boolean(query.trim() || statusFilter || (isAdmin && branchFilter) || selectedCode !== 'ALL' || assignmentFilter !== 'ALL')}
               onClear={() => {
                 setQuery('');
                 setStatusFilter('');
                 if (isAdmin) setBranchFilter('');
                 setSelectedCode('ALL');
+                setAssignmentFilter('ALL');
               }}
             />
           </div>
