@@ -96,10 +96,17 @@ export interface KpiRawCounts {
   posInstall: number;
   posReplace: number;
   posBattery: number;
+  posMaint?: number;
+  posInactive?: number;
+  posReturn?: number;
+  posAdaptor?: number;
+  posStand?: number;
+  posDock?: number;
   sbInstall: number;
   sbReplace: number;
   sbMaint: number;
   sbReturn: number;
+  sbAdaptor?: number;
   khqrInstall: number;
   khqrReplace: number;
   khqrMaterials: number;
@@ -232,6 +239,37 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
 
   // (4 Nov 2026) the rules added for the Merchant Visit app & new tasks: counted per rule code, points from Settings
   let xPosTasks = 0, xPosPoints = 0, xSbTasks = 0, xSbPoints = 0, mvTasks = 0, mvPoints = 0, xOtherTasks = 0, xOtherPoints = 0;
+  
+  // Count direct task properties if provided and not already in c.extra
+  if (c.posMaint && !c.extra?.['POS_MAINT']) {
+    xPosTasks += c.posMaint;
+    xPosPoints += c.posMaint * rulePts(ruleMap, 'POS_MAINT');
+  }
+  if (c.posInactive && !c.extra?.['POS_INACTIVE']) {
+    xPosTasks += c.posInactive;
+    xPosPoints += c.posInactive * rulePts(ruleMap, 'POS_INACTIVE');
+  }
+  if (c.posReturn && !c.extra?.['POS_RETURN']) {
+    xPosTasks += c.posReturn;
+    xPosPoints += c.posReturn * rulePts(ruleMap, 'POS_RETURN');
+  }
+  if (c.posAdaptor && !c.extra?.['POS_ADAPTOR']) {
+    xPosTasks += c.posAdaptor;
+    xPosPoints += c.posAdaptor * rulePts(ruleMap, 'POS_ADAPTOR');
+  }
+  if (c.posStand && !c.extra?.['POS_STAND']) {
+    xPosTasks += c.posStand;
+    xPosPoints += c.posStand * rulePts(ruleMap, 'POS_STAND');
+  }
+  if (c.posDock && !c.extra?.['POS_DOCK']) {
+    xPosTasks += c.posDock;
+    xPosPoints += c.posDock * rulePts(ruleMap, 'POS_DOCK');
+  }
+  if (c.sbAdaptor && !c.extra?.['SB_ADAPTOR']) {
+    xSbTasks += c.sbAdaptor;
+    xSbPoints += c.sbAdaptor * rulePts(ruleMap, 'SB_ADAPTOR');
+  }
+
   for (const [code, raw] of Object.entries(c.extra || {})) {
     const n = Number(raw) || 0, rule = ruleMap.get(code);
     if (!n) continue;
@@ -295,7 +333,7 @@ export const DEFAULT_KPI_RULES: KpiPointRule[] = [
   { code: 'POS_DOCK', category: 'POS Terminal', subCategory: 'Charging Dock Installation', description: 'Installation or replacement of POS Charging Dock', points: 1, unit: 'per dock', active: true, isSystem: true, sortOrder: 39, updatedBy: null, updatedAt: null },
   { code: 'SB_INSTALL', category: 'Sound Box', subCategory: 'Sound Box New Installation', description: 'Approved new Sound Box installation at merchant', points: 5, unit: 'per unit', active: true, isSystem: true, sortOrder: 40, updatedBy: null, updatedAt: null },
   { code: 'SB_REPLACE', category: 'Sound Box', subCategory: 'Sound Box Replacement / Swap', description: 'Approved Sound Box replacement or swap', points: 4, unit: 'per swap', active: true, isSystem: true, sortOrder: 50, updatedBy: null, updatedAt: null },
-  { code: 'SB_MAINT', category: 'Sound Box', subCategory: 'Sound Box Maintenance', description: 'Sound Box maintenance, sound check & QR stand inspection', points: 2, unit: 'per visit', active: true, isSystem: true, sortOrder: 60, updatedBy: null, updatedAt: null },
+  { code: 'SB_MAINT', category: 'Sound Box', subCategory: 'Sound Box Operational Support', description: 'Sound Box operational support, sound check & QR stand inspection', points: 2, unit: 'per visit', active: true, isSystem: true, sortOrder: 60, updatedBy: null, updatedAt: null },
   { code: 'SB_RETURN', category: 'Sound Box', subCategory: 'Sound Box Return / Recovery', description: 'Approved Sound Box retrieval and recovery', points: 3, unit: 'per unit', active: true, isSystem: true, sortOrder: 70, updatedBy: null, updatedAt: null },
   { code: 'SB_ADAPTOR', category: 'Sound Box', subCategory: 'Sound Box AC Adaptor Delivery', description: 'Delivery or replacement of Sound Box AC Adaptor', points: 1, unit: 'per adaptor', active: true, isSystem: true, sortOrder: 75, updatedBy: null, updatedAt: null },
   { code: 'KHQR_INSTALL', category: 'KHQR', subCategory: 'KHQR New Installation', description: 'Merchant onboarded with new ABA KHQR kit', points: 1, unit: 'per merchant', active: true, isSystem: true, sortOrder: 80, updatedBy: null, updatedAt: null },

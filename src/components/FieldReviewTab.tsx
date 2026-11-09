@@ -41,7 +41,7 @@ const KIND_LABEL: Record<FieldEvent['kind'], string> = {
   INSTALL: 'Installation',
   REPLACE: 'Replacement',
   BATTERY: 'Battery replacement',
-  SB_MAINT: 'Sound Box maintenance',
+  SB_MAINT: 'Sound Box operational support',
   SB_RETURN: 'Sound Box returned',
   POS_MAINT: 'POS operational support',
   POS_INACTIVE: 'POS in-active maintenance',
@@ -1166,7 +1166,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     </div>
   );
 };
-const KIND_LABEL_EDIT: Record<string, string> = { INSTALL: 'New Installation', REPLACE: 'Replacement', BATTERY: 'Battery Replacement', SB_MAINT: 'Maintenance',
+const KIND_LABEL_EDIT: Record<string, string> = { INSTALL: 'New Installation', REPLACE: 'Replacement', BATTERY: 'Battery Replacement', SB_MAINT: 'Sound Box Operational Support',
   SB_RETURN: 'Return', POS_MAINT: 'POS Operational Support', POS_INACTIVE: 'In-Active Maintenance', POS_RETURN: 'Return & Terminate' };
 
 const SortBtn: React.FC<{

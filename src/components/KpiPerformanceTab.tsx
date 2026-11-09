@@ -983,21 +983,37 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       { code: 'POS_INSTALL', category: 'POS Terminal', label: ruleMap.get('POS_INSTALL')?.subCategory || 'POS New Installation', count: r.posInstall, unitPts: rulePts(ruleMap, 'POS_INSTALL'), points: r.posInstall * rulePts(ruleMap, 'POS_INSTALL'), unit: 'terminals' },
       { code: 'POS_REPLACE', category: 'POS Terminal', label: ruleMap.get('POS_REPLACE')?.subCategory || 'POS Replacement / Swap', count: r.posReplace, unitPts: rulePts(ruleMap, 'POS_REPLACE'), points: r.posReplace * rulePts(ruleMap, 'POS_REPLACE'), unit: 'swaps' },
       { code: 'POS_BATTERY', category: 'POS Terminal', label: ruleMap.get('POS_BATTERY')?.subCategory || 'POS Battery Replacement', count: r.posBattery, unitPts: rulePts(ruleMap, 'POS_BATTERY'), points: r.posBattery * rulePts(ruleMap, 'POS_BATTERY'), unit: 'batteries' },
+      { code: 'POS_MAINT', category: 'POS Terminal', label: ruleMap.get('POS_MAINT')?.subCategory || 'POS Operational Support', count: Number(r.extra?.['POS_MAINT']) || Number(r.posMaint) || 0, unitPts: rulePts(ruleMap, 'POS_MAINT'), points: (Number(r.extra?.['POS_MAINT']) || Number(r.posMaint) || 0) * rulePts(ruleMap, 'POS_MAINT'), unit: 'visits' },
+      { code: 'POS_INACTIVE', category: 'POS Terminal', label: ruleMap.get('POS_INACTIVE')?.subCategory || 'POS In-Active Maintenance', count: Number(r.extra?.['POS_INACTIVE']) || Number(r.posInactive) || 0, unitPts: rulePts(ruleMap, 'POS_INACTIVE'), points: (Number(r.extra?.['POS_INACTIVE']) || Number(r.posInactive) || 0) * rulePts(ruleMap, 'POS_INACTIVE'), unit: 'visits' },
+      { code: 'POS_RETURN', category: 'POS Terminal', label: ruleMap.get('POS_RETURN')?.subCategory || 'POS Return & Terminate', count: Number(r.extra?.['POS_RETURN']) || Number(r.posReturn) || 0, unitPts: rulePts(ruleMap, 'POS_RETURN'), points: (Number(r.extra?.['POS_RETURN']) || Number(r.posReturn) || 0) * rulePts(ruleMap, 'POS_RETURN'), unit: 'terminals' },
+      { code: 'POS_ADAPTOR', category: 'POS Terminal', label: ruleMap.get('POS_ADAPTOR')?.subCategory || 'POS AC Adaptor Delivery', count: Number(r.extra?.['POS_ADAPTOR']) || Number(r.posAdaptor) || 0, unitPts: rulePts(ruleMap, 'POS_ADAPTOR'), points: (Number(r.extra?.['POS_ADAPTOR']) || Number(r.posAdaptor) || 0) * rulePts(ruleMap, 'POS_ADAPTOR'), unit: 'adaptors' },
+      { code: 'POS_STAND', category: 'POS Terminal', label: ruleMap.get('POS_STAND')?.subCategory || 'POS Stand Holder Setup', count: Number(r.extra?.['POS_STAND']) || Number(r.posStand) || 0, unitPts: rulePts(ruleMap, 'POS_STAND'), points: (Number(r.extra?.['POS_STAND']) || Number(r.posStand) || 0) * rulePts(ruleMap, 'POS_STAND'), unit: 'stands' },
+      { code: 'POS_DOCK', category: 'POS Terminal', label: ruleMap.get('POS_DOCK')?.subCategory || 'Charging Dock Installation', count: Number(r.extra?.['POS_DOCK']) || Number(r.posDock) || 0, unitPts: rulePts(ruleMap, 'POS_DOCK'), points: (Number(r.extra?.['POS_DOCK']) || Number(r.posDock) || 0) * rulePts(ruleMap, 'POS_DOCK'), unit: 'docks' },
       { code: 'SB_INSTALL', category: 'Sound Box', label: ruleMap.get('SB_INSTALL')?.subCategory || 'Sound Box New Installation', count: r.sbInstall, unitPts: rulePts(ruleMap, 'SB_INSTALL'), points: r.sbInstall * rulePts(ruleMap, 'SB_INSTALL'), unit: 'units' },
       { code: 'SB_REPLACE', category: 'Sound Box', label: ruleMap.get('SB_REPLACE')?.subCategory || 'Sound Box Replacement / Swap', count: r.sbReplace, unitPts: rulePts(ruleMap, 'SB_REPLACE'), points: r.sbReplace * rulePts(ruleMap, 'SB_REPLACE'), unit: 'swaps' },
-      { code: 'SB_MAINT', category: 'Sound Box', label: ruleMap.get('SB_MAINT')?.subCategory || 'Sound Box Maintenance', count: r.sbMaint, unitPts: rulePts(ruleMap, 'SB_MAINT'), points: r.sbMaint * rulePts(ruleMap, 'SB_MAINT'), unit: 'visits' },
+      { code: 'SB_MAINT', category: 'Sound Box', label: ruleMap.get('SB_MAINT')?.subCategory || 'Sound Box Operational Support', count: r.sbMaint, unitPts: rulePts(ruleMap, 'SB_MAINT'), points: r.sbMaint * rulePts(ruleMap, 'SB_MAINT'), unit: 'visits' },
       { code: 'SB_RETURN', category: 'Sound Box', label: ruleMap.get('SB_RETURN')?.subCategory || 'Sound Box Return / Recovery', count: r.sbReturn, unitPts: rulePts(ruleMap, 'SB_RETURN'), points: r.sbReturn * rulePts(ruleMap, 'SB_RETURN'), unit: 'units' },
+      { code: 'SB_ADAPTOR', category: 'Sound Box', label: ruleMap.get('SB_ADAPTOR')?.subCategory || 'Sound Box AC Adaptor Delivery', count: Number(r.extra?.['SB_ADAPTOR']) || Number(r.sbAdaptor) || 0, unitPts: rulePts(ruleMap, 'SB_ADAPTOR'), points: (Number(r.extra?.['SB_ADAPTOR']) || Number(r.sbAdaptor) || 0) * rulePts(ruleMap, 'SB_ADAPTOR'), unit: 'adaptors' },
       { code: 'KHQR_INSTALL', category: 'KHQR', label: ruleMap.get('KHQR_INSTALL')?.subCategory || 'KHQR New Installation', count: r.khqrInstall, unitPts: rulePts(ruleMap, 'KHQR_INSTALL'), points: r.khqrInstall * rulePts(ruleMap, 'KHQR_INSTALL'), unit: 'merchants' },
       { code: 'KHQR_REPLACE', category: 'KHQR', label: ruleMap.get('KHQR_REPLACE')?.subCategory || 'KHQR Replacement', count: r.khqrReplace, unitPts: rulePts(ruleMap, 'KHQR_REPLACE'), points: r.khqrReplace * rulePts(ruleMap, 'KHQR_REPLACE'), unit: 'merchants' },
       { code: 'KHQR_MATERIAL', category: 'KHQR', label: ruleMap.get('KHQR_MATERIAL')?.subCategory || 'QR Material Scanned (Bonus)', count: r.khqrMaterials, unitPts: rulePts(ruleMap, 'KHQR_MATERIAL'), points: r.khqrMaterials * rulePts(ruleMap, 'KHQR_MATERIAL'), unit: 'QR items' },
       { code: 'CC_PRIMARY', category: 'Credit Card', label: ruleMap.get('CC_PRIMARY')?.subCategory || 'Primary Credit Card Onboarded', count: r.ccPrimary, unitPts: rulePts(ruleMap, 'CC_PRIMARY'), points: r.ccPrimary * rulePts(ruleMap, 'CC_PRIMARY'), unit: 'cards' },
       { code: 'CC_SUPP', category: 'Credit Card', label: ruleMap.get('CC_SUPP')?.subCategory || 'Supplementary Card Onboarded', count: r.ccSupp, unitPts: rulePts(ruleMap, 'CC_SUPP'), points: r.ccSupp * rulePts(ruleMap, 'CC_SUPP'), unit: 'supp. cards' },
     ];
+    const seenCodes = new Set(items.map((it) => it.code));
     for (const [code, count] of Object.entries(r.extra || {})) {
-      if (!count) continue;
+      if (!count || seenCodes.has(code)) continue;
       const rule = ruleMap.get(code);
-      const category: KpiCategory = rule?.category || (code.startsWith('MV_') ? 'Merchant Visit' : 'Other');
-      const label = rule?.subCategory || code.replace(/^MV_/, '').replace(/_/g, ' ');
+      const category: KpiCategory =
+        rule?.category ||
+        (code.startsWith('MV_')
+          ? 'Merchant Visit'
+          : code.startsWith('POS_')
+          ? 'POS Terminal'
+          : code.startsWith('SB_')
+          ? 'Sound Box'
+          : 'Other');
+      const label = rule?.subCategory || code.replace(/^MV_|^POS_|^SB_/, '').replace(/_/g, ' ');
       const unitPts = rulePts(ruleMap, code) || (rule?.points ?? 1);
       const points = count * unitPts;
       const unit = rule?.unit || 'visits';
@@ -1501,11 +1517,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const pTag = KPI_PERIOD_LABEL[period].replace(/[^A-Za-z0-9]+/g, '_');
     downloadCsv(
       `KPI_Individual_Staff_${pTag}`,
-      ['Rank', 'Staff Name', 'Staff ID', 'Position', 'Role / Level', 'Branch Name', 'Branch Code', 'POS Install', 'POS Replace', 'POS Battery', 'POS Points',
-        'SB Install', 'SB Replace', 'SB Maint', 'SB Return', 'Sound Box Points', 'KHQR Install', 'KHQR Replace', 'QR Materials', 'KHQR Points',
+      ['Rank', 'Staff Name', 'Staff ID', 'Position', 'Role / Level', 'Branch Name', 'Branch Code', 'POS Install', 'POS Replace', 'POS Battery', 'POS Operational Support', 'POS Points',
+        'SB Install', 'SB Replace', 'SB Operational Support', 'SB Return', 'Sound Box Points', 'KHQR Install', 'KHQR Replace', 'QR Materials', 'KHQR Points',
         'CC Primary', 'CC Supplementary', 'Credit Card Points', 'Merchant Visit Tasks', 'Merchant Visit Points', 'Total Tasks', 'Total KPI Points', 'Achievement %', 'Performance'],
       filteredStaff.map((s, i) => [
-        i + 1, s.staffName, s.staffId, s.position || (s.isManagement ? 'Management' : 'MS Officer'), s.isManagement ? 'Management (Exempt)' : 'Field Officer', cleanBranchName(s.branchName), s.branchId, s.posInstall, s.posReplace, s.posBattery, s.posPoints,
+        i + 1, s.staffName, s.staffId, s.position || (s.isManagement ? 'Management' : 'MS Officer'), s.isManagement ? 'Management (Exempt)' : 'Field Officer', cleanBranchName(s.branchName), s.branchId,
+        s.posInstall, s.posReplace, s.posBattery, Number(s.extra?.['POS_MAINT']) || Number(s.posMaint) || 0, s.posPoints,
         s.sbInstall, s.sbReplace, s.sbMaint, s.sbReturn, s.sbPoints, s.khqrInstall, s.khqrReplace, s.khqrMaterials, s.khqrPoints,
         s.ccPrimary, s.ccSupp, s.ccPoints, s.mvTasks, s.mvPoints, s.totalTasks, s.totalPoints, s.isManagement ? 'Exempt' : `${s.targetPct}%`, s.rating,
       ])
@@ -2068,9 +2085,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
               {([
                 { cat: 'KHQR' as KpiCategory, tasks: totals.khqrTasks, pts: totals.khqrPoints, extra: `${fmtInt(totals.raw.khqrInstall)} new · ${fmtInt(totals.raw.khqrReplace)} replaced · ${fmtInt(totals.khqrMaterials)} QR items` },
-                { cat: 'Sound Box' as KpiCategory, tasks: totals.sbTasks, pts: totals.sbPoints, extra: `${fmtInt(totals.raw.sbInstall)} install · ${fmtInt(totals.raw.sbReplace)} swap · ${fmtInt(totals.raw.sbMaint)} maint` },
+                { cat: 'Sound Box' as KpiCategory, tasks: totals.sbTasks, pts: totals.sbPoints, extra: `${fmtInt(totals.raw.sbInstall)} install · ${fmtInt(totals.raw.sbReplace)} swap · ${fmtInt(totals.raw.sbMaint)} op. support` },
                 { cat: 'Credit Card' as KpiCategory, tasks: totals.ccTasks, pts: totals.ccPoints, extra: `${fmtInt(totals.raw.ccPrimary)} primary · ${fmtInt(totals.raw.ccSupp)} supplementary` },
-                { cat: 'POS Terminal' as KpiCategory, tasks: totals.posTasks, pts: totals.posPoints, extra: `${fmtInt(totals.raw.posInstall)} install · ${fmtInt(totals.raw.posReplace)} swap · ${fmtInt(totals.raw.posBattery)} battery` },
+                { cat: 'POS Terminal' as KpiCategory, tasks: totals.posTasks, pts: totals.posPoints, extra: `${fmtInt(totals.raw.posInstall)} install · ${fmtInt(totals.raw.posReplace)} swap · ${fmtInt(Number(totals.raw.extra?.['POS_MAINT']) || Number(totals.raw.posMaint) || 0)} op. support` },
                 { cat: 'Merchant Visit' as KpiCategory, tasks: totals.mvTasks, pts: totals.mvPoints, extra: `${fmtInt(totals.mvTasks)} field visits logged` },
               ]).map((item) => {
                 const volShare = totals.totalTasks > 0 ? Math.round((item.tasks / totals.totalTasks) * 100) : 0;
@@ -4092,13 +4109,15 @@ const RatingBadge: React.FC<{ rating: KpiRating; pacingPct?: number; title?: str
 RatingBadge.displayName = 'RatingBadge';
 
 const SubCategoryMiniGrid: React.FC<{ raw: KpiRawCounts; ruleMap: Map<string, KpiPointRule> }> = ({ raw, ruleMap }) => {
+  const posOpMaint = Number(raw.extra?.['POS_MAINT']) || Number(raw.posMaint) || 0;
   const cells = [
     { label: 'POS Install', n: raw.posInstall, pts: raw.posInstall * rulePts(ruleMap, 'POS_INSTALL') },
     { label: 'POS Replace', n: raw.posReplace, pts: raw.posReplace * rulePts(ruleMap, 'POS_REPLACE') },
     { label: 'POS Battery', n: raw.posBattery, pts: raw.posBattery * rulePts(ruleMap, 'POS_BATTERY') },
+    { label: 'POS Op. Support', n: posOpMaint, pts: posOpMaint * rulePts(ruleMap, 'POS_MAINT') },
     { label: 'SB Install', n: raw.sbInstall, pts: raw.sbInstall * rulePts(ruleMap, 'SB_INSTALL') },
     { label: 'SB Replace', n: raw.sbReplace, pts: raw.sbReplace * rulePts(ruleMap, 'SB_REPLACE') },
-    { label: 'SB Maint', n: raw.sbMaint, pts: raw.sbMaint * rulePts(ruleMap, 'SB_MAINT') },
+    { label: 'SB Op. Support', n: raw.sbMaint, pts: raw.sbMaint * rulePts(ruleMap, 'SB_MAINT') },
     { label: 'SB Return', n: raw.sbReturn, pts: raw.sbReturn * rulePts(ruleMap, 'SB_RETURN') },
     { label: 'KHQR Install', n: raw.khqrInstall, pts: raw.khqrInstall * rulePts(ruleMap, 'KHQR_INSTALL') },
     { label: 'KHQR Replace', n: raw.khqrReplace, pts: raw.khqrReplace * rulePts(ruleMap, 'KHQR_REPLACE') },
@@ -4107,9 +4126,9 @@ const SubCategoryMiniGrid: React.FC<{ raw: KpiRawCounts; ruleMap: Map<string, Kp
     { label: 'CC Supp.', n: raw.ccSupp, pts: raw.ccSupp * rulePts(ruleMap, 'CC_SUPP') },
   ];
   for (const [code, n] of Object.entries(raw.extra || {})) {
-    if (!n) continue;
+    if (!n || code === 'POS_MAINT') continue;
     const rule = ruleMap.get(code);
-    const label = rule?.subCategory || code.replace(/^MV_/, '').replace(/_/g, ' ');
+    const label = rule?.subCategory || code.replace(/^MV_|^POS_|^SB_/, '').replace(/_/g, ' ');
     const pts = n * (rulePts(ruleMap, code) || (rule?.points ?? 1));
     cells.push({ label, n, pts });
   }
