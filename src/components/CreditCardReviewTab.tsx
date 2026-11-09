@@ -42,7 +42,7 @@ const REVIEW_TABS: {
 ];
 export const CC_REJECT_REASONS = ['Adverse CBC record', 'Incorrect account number', 'Customer details do not match ID',
   'Missing or unclear documents', 'Credit limit not approved', 'Other'];
-const GRID = 'grid items-center gap-x-4 grid-cols-[68px_145px_minmax(185px,1fr)_110px_120px_minmax(205px,1.25fr)_145px_24px]';
+const GRID = 'grid items-center gap-x-4 grid-cols-[68px_165px_minmax(185px,1fr)_110px_120px_minmax(205px,1.25fr)_145px_24px]';
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
 const NF_USD = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const usd = (n: number | null) => (n === null ? '—' : `USD ${NF_USD.format(n)}`);
@@ -335,7 +335,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
             } finally { setDelBusy(false); }
           }} />
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto" aria-label="Credit Card entries">
-          <div className="min-w-[1060px]">
+          <div className="min-w-[1080px]">
             <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2`} role="row">
               {(() => {
                 const headerItems = isSuper && (rows || []).length > 0 ? (rows || []).map((x) => ({ id: x.id, rec: x.recordId })) : [];
