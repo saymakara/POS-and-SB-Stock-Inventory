@@ -9,6 +9,7 @@ import React, { useState, useMemo, useDeferredValue } from 'react';
 import { Branch, Device, User, UserRole, ThemeMode } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
+import { SPRING_TAB_PILL } from '../utils/animationRules';
 import {
   Building2,
   MapPin,
@@ -406,76 +407,96 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               />
             </div>
 
-            {/* Filter Pill */}
-            <div className="inline-flex rounded-lg border bg-slate-100 p-0.5 border-slate-200 text-xs">
-              <button
-                type="button"
-                onClick={() => setStatusFilter('ALL')}
-                className={`px-2.5 py-1.5 rounded-md font-bold transition cursor-pointer text-[11px] ${
-                  statusFilter === 'ALL'
-                    ? 'bg-[#003857] text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('HEALTHY')}
-                className={`px-2.5 py-1.5 rounded-md font-bold transition cursor-pointer text-[11px] ${
-                  statusFilter === 'HEALTHY'
-                    ? 'bg-white text-emerald-700 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Healthy
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('LOW_RESERVE')}
-                className={`px-2.5 py-1.5 rounded-md font-bold transition cursor-pointer text-[11px] flex items-center gap-1 ${
-                  statusFilter === 'LOW_RESERVE'
-                    ? 'bg-white text-amber-700 shadow-2xs'
-                    : 'text-amber-700 hover:text-amber-800'
-                }`}
-              >
-                <span>Low Reserve</span>
-                {metrics.lowReserveCount > 0 && (
-                  <span className="font-mono font-bold text-[11px]">
-                    {metrics.lowReserveCount}
-                  </span>
-                )}
-              </button>
+            {/* Status Filter */}
+            <div
+              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs gap-1 select-none"
+              role="tablist"
+              aria-label="Branch status filter"
+            >
+              {[
+                { id: 'ALL' as const, label: 'All', count: undefined },
+                { id: 'HEALTHY' as const, label: 'Healthy', count: undefined },
+                { id: 'LOW_RESERVE' as const, label: 'Low Reserve', count: metrics.lowReserveCount },
+              ].map(({ id, label, count }) => {
+                const isActive = statusFilter === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setStatusFilter(id)}
+                    className={`relative px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer select-none outline-none flex items-center gap-1.5 ${
+                      isActive
+                        ? 'text-white'
+                        : id === 'LOW_RESERVE'
+                        ? 'text-amber-700 dark:text-amber-400 hover:text-amber-800'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="branch-status-filter-pill"
+                        aria-hidden
+                        className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                        transition={SPRING_TAB_PILL}
+                      />
+                    )}
+                    <span className="relative z-10">{label}</span>
+                    {count !== undefined && count > 0 && (
+                      <span
+                        className={`relative z-10 font-mono text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                          isActive
+                            ? 'bg-white/20 text-white'
+                            : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* View Switcher: Table (default) vs Cards */}
-            <div className="inline-flex p-0.5 rounded-lg border bg-slate-100 border-slate-200">
-              <button
-                type="button"
-                onClick={() => setDisplayLayout('TABLE')}
-                className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                  displayLayout === 'TABLE'
-                    ? 'bg-[#003857] text-white shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="Table View (by Branch)"
-              >
-                <List className="w-3.5 h-3.5" />
-                <span>Table</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDisplayLayout('GRID')}
-                className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                  displayLayout === 'GRID'
-                    ? 'bg-[#003857] text-white shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="Cards Grid"
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span>Cards</span>
-              </button>
+            <div
+              className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs gap-1 select-none"
+              role="tablist"
+              aria-label="View switcher"
+            >
+              {[
+                { id: 'TABLE' as const, label: 'Table', icon: List },
+                { id: 'GRID' as const, label: 'Cards', icon: LayoutGrid },
+              ].map(({ id, label, icon: Icon }) => {
+                const isActive = displayLayout === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setDisplayLayout(id)}
+                    className={`relative px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer select-none outline-none ${
+                      isActive
+                        ? 'text-white'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                    title={id === 'TABLE' ? 'Table View (by Branch)' : 'Cards Grid'}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="branch-layout-view-pill"
+                        aria-hidden
+                        className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                        transition={SPRING_TAB_PILL}
+                      />
+                    )}
+                    <Icon className="w-3.5 h-3.5 relative z-10" />
+                    <span className="relative z-10">{label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* CSV Export */}

@@ -78,7 +78,7 @@ export const ProductViewToggle: React.FC<{
           { transform: `translate3d(${to.x}px,0,0)`, width: `${to.w}px` },
         ],
         {
-          duration: 220,
+          duration: 250,
           easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
           fill: 'forwards',
         },
@@ -102,6 +102,7 @@ export const ProductViewToggle: React.FC<{
     const list = listRef.current, pill = pillRef.current;
     if (!list || !pill || typeof ResizeObserver !== 'function') return;
     const ro = new ResizeObserver(() => {
+      if (animRef.current) return;
       const btn = list.querySelector<HTMLElement>('[aria-selected="true"]');
       if (!btn || !list.offsetParent) return;
       pill.style.width = btn.offsetWidth + 'px';
@@ -122,7 +123,7 @@ export const ProductViewToggle: React.FC<{
       <div
         ref={pillRef}
         aria-hidden
-        className="absolute left-0 top-1 bottom-1 rounded-lg bg-[#003857] shadow-xs z-0 pointer-events-none will-change-transform"
+        className="absolute left-0 top-1 bottom-1 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none will-change-transform"
       />
       {views.map((v) => {
         const n = v === 'PUSH' ? pushCount || 0 : v === 'MATERIAL' ? lostCount || 0 : 0;
@@ -133,7 +134,13 @@ export const ProductViewToggle: React.FC<{
             type="button"
             role="tab"
             aria-selected={isSelected}
-            onClick={() => onViewChange(v)}
+            onClick={() => {
+              const cur = listRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+              if (cur) {
+                lastPill[group] = { x: cur.offsetLeft, w: cur.offsetWidth };
+              }
+              onViewChange(v);
+            }}
             title={
               v === 'PUSH' && n
                 ? `${n} unit(s) waiting to be pushed`
