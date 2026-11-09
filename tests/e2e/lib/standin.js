@@ -133,6 +133,15 @@ async function api(route) {
   if (path === '/rest/v1/qr_attempts') return json(200, []);
   if (path === '/rest/v1/rpc/qr_summary') return json(200, { total: 0, completed: 0, failed: 0, install: 0, replace: 0, qr: 0, attempts: 0, staff_failed: 0 });
   if (path === '/rest/v1/rpc/qr_month_history') return json(200, []);
+    if (path === '/rest/v1/material_balances') return json(200, [
+    { material_code: 'BATTERY', branch_id: '100', on_hand: 50, in_transit: 0, at_merchant: 0 },
+    { material_code: 'BATTERY', branch_id: '105', on_hand: 10, in_transit: 0, at_merchant: 0 },
+    { material_code: 'SB_ADAPTOR', branch_id: '100', on_hand: 30, in_transit: 0, at_merchant: 0 },
+  ]);
+  if (path === '/rest/v1/material_serials') return json(200, []);
+  if (path === '/rest/v1/material_lost') return json(200, []);
+  if (path === '/rest/v1/material_counts') return json(200, []);
+  if (path === '/rest/v1/material_movements') return json(200, []);
   if (path === '/rest/v1/rpc/device_page_bounds') return json(200, []);
   if (path === '/rest/v1/rpc/cc_counts') return json(200, { pending: 0, confirmed: 0, rejected: 0, no_review: 0, total: 0 });
   if (path === '/rest/v1/rpc/cc_list') return json(200, []);

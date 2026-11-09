@@ -944,7 +944,7 @@ return (
       {hideHero ? (
         <div className="surface-card rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm">
           {/* Header */}
-          <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 min-h-[72px] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex items-start sm:items-center gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
                 <SendHorizontal className="w-5 h-5 text-sky-600 dark:text-sky-400" />
@@ -1028,7 +1028,7 @@ return (
             </div>
 
             {/* Row 2: Branch Filter on left, viewToggle in RED RECTANGLE on right! */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
               <div className="flex-1 min-w-[220px] max-w-sm">
                 <select
                   value={branchFilter}
@@ -1051,7 +1051,7 @@ return (
             </div>
 
             {/* Row 3: CSV File Selection Modes Strip */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-200/80">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1 border-t border-slate-200/80 min-h-[36px]">
               <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl border bg-white border-slate-200/90 shadow-2xs">
                 <span className="text-xs font-bold text-slate-500 px-2 flex items-center gap-1">
                   <FileSpreadsheet className="w-3.5 h-3.5 text-slate-600" />

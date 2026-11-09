@@ -548,7 +548,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       {/* Executive Serial Inventory Command Card */}
       <div className="surface-card rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm">
         {/* Top Header Strip - System Grey Palette */}
-        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 min-h-[72px] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
               <Boxes className="w-5 h-5 text-slate-700 dark:text-slate-200" />
@@ -784,7 +784,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           </div>
 
           {/* Row 2: Branch Filter on left, viewToggle in exact same location on right */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
             <div className="flex-1 min-w-[220px] max-w-sm">
               {isAdminLike ? (
                 <select
@@ -817,7 +817,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           </div>
 
           {/* Row 3: Clear Filters */}
-          <div className="flex justify-end items-center pt-1 border-t border-slate-200/60">
+          <div className="flex justify-end items-center pt-1 border-t border-slate-200/60 min-h-[36px]">
             <ClearFiltersButton
               active={!!searchQuery || stageFilter !== 'ALL' || (!lockType && typeFilter !== 'ALL') || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}
               onClear={() => {

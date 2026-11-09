@@ -49,25 +49,35 @@ export const ProductViewToggle: React.FC<{
     const to = { x: btn.offsetLeft, w: btn.offsetWidth };
     const from = lastPill[group];
 
-    // Cancel any active animation so rapid clicks never collide
+    let startX = from ? from.x : to.x;
+    let startW = from ? from.w : to.w;
+
+    // If an animation is currently running, seamlessly catch its live mid-glide position
     if (animRef.current) {
+      try {
+        const listRect = list.getBoundingClientRect();
+        const pillRect = pill.getBoundingClientRect();
+        if (listRect.width > 0 && pillRect.width > 0) {
+          startX = pillRect.left - listRect.left;
+          startW = pillRect.width;
+        }
+      } catch {}
       animRef.current.cancel();
       animRef.current = null;
     }
 
-    if (from && (from.x !== to.x || from.w !== to.w) && pill.animate && !reducedMotion()) {
-      // Start immediately from 'from' position to prevent destination frame flash
-      pill.style.width = from.w + 'px';
-      pill.style.transform = `translate3d(${from.x}px,0,0)`;
+    if (to.w > 0 && (Math.abs(startX - to.x) > 0.5 || Math.abs(startW - to.w) > 0.5) && pill.animate && !reducedMotion()) {
+      pill.style.width = startW + 'px';
+      pill.style.transform = `translate3d(${startX}px,0,0)`;
       pill.style.opacity = '1';
 
       const anim = pill.animate(
         [
-          { transform: `translate3d(${from.x}px,0,0)`, width: `${from.w}px` },
+          { transform: `translate3d(${startX}px,0,0)`, width: `${startW}px` },
           { transform: `translate3d(${to.x}px,0,0)`, width: `${to.w}px` },
         ],
         {
-          duration: 200,
+          duration: 220,
           easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
           fill: 'forwards',
         },
@@ -79,7 +89,7 @@ export const ProductViewToggle: React.FC<{
         anim.cancel();
         animRef.current = null;
       };
-    } else {
+    } else if (to.w > 0) {
       pill.style.width = to.w + 'px';
       pill.style.transform = `translate3d(${to.x}px,0,0)`;
       pill.style.opacity = '1';
@@ -106,7 +116,7 @@ export const ProductViewToggle: React.FC<{
       ref={listRef}
       role="tablist"
       aria-label={`${group} views`}
-      className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs shrink-0"
+      className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs shrink-0 select-none"
     >
       <div
         ref={pillRef}
@@ -130,10 +140,10 @@ export const ProductViewToggle: React.FC<{
                 ? `${n} open lost item(s)`
                 : undefined
             }
-            className="relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer select-none transition-colors"
+            className="relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer select-none"
           >
             <span
-              className={`relative z-10 transition-colors duration-150 font-semibold ${
+              className={`relative z-10 font-semibold transition-colors duration-200 ease-out ${
                 isSelected ? 'text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -141,7 +151,7 @@ export const ProductViewToggle: React.FC<{
             </span>
             {n > 0 && (
               <span
-                className={`relative z-10 text-[10.5px] font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors duration-150 ${
+                className={`relative z-10 text-[10.5px] font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors duration-200 ease-out ${
                   v === 'MATERIAL'
                     ? 'bg-rose-600 text-white shadow-2xs'
                     : isSelected
@@ -211,6 +221,19 @@ const ProductStockPageComponent: React.FC<{
   if (seenRef.current.group !== group) seenRef.current = { group, set: new Set() };
   const seen = seenRef.current.set;
   seen.add(view);
+
+  // Eagerly pre-warm all views so switching is 100% instant with zero delay or flicker
+  const [, setPrewarmed] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      seen.add('UNITS');
+      seen.add('PUSH');
+      seen.add('MATERIAL');
+      setPrewarmed(true);
+    }, 60);
+    return () => clearTimeout(t);
+  }, [group]);
+
   const panes: [ProductView, React.ReactNode][] = [
     ['UNITS', units],
     ['PUSH', push || null],
@@ -227,15 +250,10 @@ const ProductStockPageComponent: React.FC<{
       />
     )],
   ];
-  const activeRef = useRef<HTMLDivElement>(null);
   const shownView = useRef<ProductView>(view);
   useLayoutEffect(() => {
     if (shownView.current === view) return;
     shownView.current = view;
-    const el = activeRef.current;
-    if (!el || !el.animate || reducedMotion()) return;
-    // Pure subtle opacity crossfade without vertical translate jump
-    el.animate([{ opacity: 0.8 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
   }, [view]);
 
   return (
@@ -257,7 +275,7 @@ const ProductStockPageComponent: React.FC<{
       <div className="w-full min-h-screen">
         {panes.map(([k, node]) =>
           seen.has(k) && node ? (
-            <div key={k} ref={k === view ? activeRef : undefined} hidden={k !== view} className="w-full" role="tabpanel" aria-label={k}>
+            <div key={k} hidden={k !== view} className="w-full" role="tabpanel" aria-label={k}>
               <React.Suspense fallback={<div className="w-full min-h-screen" aria-busy="true" />}>{node}</React.Suspense>
             </div>
           ) : null,
@@ -603,7 +621,7 @@ const MaterialStockPanelComponent: React.FC<{
         aria-label={group === 'POS' ? 'POS Materials Inventory Table' : 'Sound Box Materials Inventory Table'}
       >
         {/* Top Header Strip - System Grey Palette matching InventoryTab & PushConfiguringTab */}
-        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 min-h-[72px] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
               <Boxes className="w-5 h-5 text-slate-700 dark:text-slate-200" />
@@ -738,7 +756,7 @@ const MaterialStockPanelComponent: React.FC<{
           </div>
 
           {/* Row 2: Branch Filter on left, viewToggle in exact same location on right */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
             <div className="flex-1 min-w-[220px] max-w-sm">
               {isAdmin ? (
                 <select
@@ -772,7 +790,7 @@ const MaterialStockPanelComponent: React.FC<{
           </div>
 
           {/* Row 3: Filter Info & Clear Filters */}
-          <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
+          <div className="flex justify-between items-center pt-1 border-t border-slate-200/60 min-h-[36px]">
             <span className="text-xs font-semibold text-slate-500">
               {displayedItems.length} of {combinedItems.length} items shown
             </span>
