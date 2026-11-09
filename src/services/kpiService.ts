@@ -168,6 +168,7 @@ export interface KpiDailyStaffRaw {
   sbTasks: number;
   khqrTasks: number;
   ccTasks: number;
+  mvTasks?: number;
 }
 
 export interface KpiDashboardData {
@@ -233,11 +234,16 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
   let xPosTasks = 0, xPosPoints = 0, mvTasks = 0, mvPoints = 0, xOtherTasks = 0, xOtherPoints = 0;
   for (const [code, raw] of Object.entries(c.extra || {})) {
     const n = Number(raw) || 0, rule = ruleMap.get(code);
-    if (!n || !rule || !rule.active) continue;
-    const pts = n * rule.points;
-    if (rule.category === 'POS Terminal') { xPosTasks += n; xPosPoints += pts; }
-    else if (rule.category === 'Merchant Visit') { mvTasks += n; mvPoints += pts; }
-    else { xOtherTasks += n; xOtherPoints += pts; }
+    if (!n) continue;
+    if (rule && rule.active) {
+      const pts = n * rule.points;
+      if (rule.category === 'POS Terminal') { xPosTasks += n; xPosPoints += pts; }
+      else if (rule.category === 'Merchant Visit') { mvTasks += n; mvPoints += pts; }
+      else { xOtherTasks += n; xOtherPoints += pts; }
+    } else if (code.startsWith('MV_')) {
+      mvTasks += n;
+      if (rule && rule.points > 0) mvPoints += n * rule.points;
+    }
   }
 
   const totalTasks = posTasks + xPosTasks + sbTasks + khqrTasks + ccTasks + mvTasks + xOtherTasks;
@@ -483,6 +489,7 @@ export async function fetchKpiSummary(from: string | null, to: string | null): P
       sbTasks: Number(r.sb_tasks) || 0,
       khqrTasks: Number(r.khqr_tasks) || 0,
       ccTasks: Number(r.cc_tasks) || 0,
+      mvTasks: Number(r.mv_tasks) || 0,
     })) : [],
   };
   setCachedKpiSummary(from, to, out);

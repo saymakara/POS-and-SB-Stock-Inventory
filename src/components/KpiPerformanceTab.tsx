@@ -669,6 +669,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       if (categoryFilter === 'Sound Box' && b.sbTasks === 0) return false;
       if (categoryFilter === 'KHQR' && b.khqrTasks === 0) return false;
       if (categoryFilter === 'Credit Card' && b.ccTasks === 0) return false;
+      if (categoryFilter === 'Merchant Visit' && b.mvTasks === 0) return false;
       if (q && !`${b.branchId} ${b.branchName}`.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -704,6 +705,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         case 'ccPoints':
           av = a.ccPoints;
           bv = b.ccPoints;
+          break;
+        case 'mvPoints':
+          av = a.mvPoints;
+          bv = b.mvPoints;
           break;
         case 'ptsPerStaff':
           av = a.ptsPerStaff;
@@ -746,6 +751,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       if (categoryFilter === 'Sound Box' && s.sbTasks === 0) return false;
       if (categoryFilter === 'KHQR' && s.khqrTasks === 0) return false;
       if (categoryFilter === 'Credit Card' && s.ccTasks === 0) return false;
+      if (categoryFilter === 'Merchant Visit' && s.mvTasks === 0) return false;
       if (q && !`${s.staffId} ${s.staffName} ${s.branchId} ${s.branchName} ${s.position || ''}`.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -785,6 +791,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         case 'ccPoints':
           av = a.ccPoints;
           bv = b.ccPoints;
+          break;
+        case 'mvPoints':
+          av = a.mvPoints;
+          bv = b.mvPoints;
           break;
         case 'qualityPct':
           av = a.qualityPct;
@@ -931,6 +941,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           av = a.ccPoints;
           bv = b.ccPoints;
           break;
+        case 'mvPoints':
+          av = a.mvPoints;
+          bv = b.mvPoints;
+          break;
         case 'totalTasks':
           av = a.totalTasks;
           bv = b.totalTasks;
@@ -979,6 +993,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       { code: 'CC_PRIMARY', category: 'Credit Card', label: ruleMap.get('CC_PRIMARY')?.subCategory || 'Primary Credit Card Onboarded', count: r.ccPrimary, unitPts: rulePts(ruleMap, 'CC_PRIMARY'), points: r.ccPrimary * rulePts(ruleMap, 'CC_PRIMARY'), unit: 'cards' },
       { code: 'CC_SUPP', category: 'Credit Card', label: ruleMap.get('CC_SUPP')?.subCategory || 'Supplementary Card Onboarded', count: r.ccSupp, unitPts: rulePts(ruleMap, 'CC_SUPP'), points: r.ccSupp * rulePts(ruleMap, 'CC_SUPP'), unit: 'supp. cards' },
     ];
+    for (const [code, count] of Object.entries(r.extra || {})) {
+      if (!count) continue;
+      const rule = ruleMap.get(code);
+      const category: KpiCategory = rule?.category || (code.startsWith('MV_') ? 'Merchant Visit' : 'Other');
+      const label = rule?.subCategory || code.replace(/^MV_/, '').replace(/_/g, ' ');
+      const unitPts = rulePts(ruleMap, code) || (rule?.points ?? 1);
+      const points = count * unitPts;
+      const unit = rule?.unit || 'visits';
+      items.push({ code, category, label, count, unitPts, points, unit });
+    }
     return items
       .map((it) => ({ ...it, points: Math.round(it.points * 100) / 100 }))
       .sort((a, b) => b.points - a.points || b.count - a.count);
@@ -1463,10 +1487,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     downloadCsv(
       `KPI_Branch_Performance_${pTag}`,
       ['Rank', 'Branch Name', 'Branch Code', 'Active Staff', 'POS Tasks', 'POS Points', 'Sound Box Tasks', 'Sound Box Points',
-        'KHQR Tasks', 'QR Materials', 'KHQR Points', 'Credit Card Tasks', 'Credit Card Points', 'Total Tasks', 'Pts / Staff', 'Total KPI Points', 'Achievement %', 'Performance'],
+        'KHQR Tasks', 'QR Materials', 'KHQR Points', 'Credit Card Tasks', 'Credit Card Points', 'Merchant Visit Tasks', 'Merchant Visit Points', 'Total Tasks', 'Pts / Staff', 'Total KPI Points', 'Achievement %', 'Performance'],
       filteredBranches.map((b, i) => [
         i + 1, cleanBranchName(b.branchName), b.branchId, b.staffCount, b.posTasks, b.posPoints, b.sbTasks, b.sbPoints,
-        b.khqrTasks, b.khqrMaterials, b.khqrPoints, b.ccTasks, b.ccPoints, b.totalTasks, b.ptsPerStaff, b.totalPoints, `${b.targetPct}%`, b.rating,
+        b.khqrTasks, b.khqrMaterials, b.khqrPoints, b.ccTasks, b.ccPoints, b.mvTasks, b.mvPoints, b.totalTasks, b.ptsPerStaff, b.totalPoints, `${b.targetPct}%`, b.rating,
       ])
     );
     return filteredBranches.length;
@@ -1479,11 +1503,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       `KPI_Individual_Staff_${pTag}`,
       ['Rank', 'Staff Name', 'Staff ID', 'Position', 'Role / Level', 'Branch Name', 'Branch Code', 'POS Install', 'POS Replace', 'POS Battery', 'POS Points',
         'SB Install', 'SB Replace', 'SB Maint', 'SB Return', 'Sound Box Points', 'KHQR Install', 'KHQR Replace', 'QR Materials', 'KHQR Points',
-        'CC Primary', 'CC Supplementary', 'Credit Card Points', 'Total Tasks', 'Total KPI Points', 'Achievement %', 'Performance'],
+        'CC Primary', 'CC Supplementary', 'Credit Card Points', 'Merchant Visit Tasks', 'Merchant Visit Points', 'Total Tasks', 'Total KPI Points', 'Achievement %', 'Performance'],
       filteredStaff.map((s, i) => [
         i + 1, s.staffName, s.staffId, s.position || (s.isManagement ? 'Management' : 'MS Officer'), s.isManagement ? 'Management (Exempt)' : 'Field Officer', cleanBranchName(s.branchName), s.branchId, s.posInstall, s.posReplace, s.posBattery, s.posPoints,
         s.sbInstall, s.sbReplace, s.sbMaint, s.sbReturn, s.sbPoints, s.khqrInstall, s.khqrReplace, s.khqrMaterials, s.khqrPoints,
-        s.ccPrimary, s.ccSupp, s.ccPoints, s.totalTasks, s.totalPoints, s.isManagement ? 'Exempt' : `${s.targetPct}%`, s.rating,
+        s.ccPrimary, s.ccSupp, s.ccPoints, s.mvTasks, s.mvPoints, s.totalTasks, s.totalPoints, s.isManagement ? 'Exempt' : `${s.targetPct}%`, s.rating,
       ])
     );
     return filteredStaff.length;
@@ -1735,6 +1759,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 <option value="Sound Box">Sound Box</option>
                 <option value="KHQR">KHQR</option>
                 <option value="Credit Card">Credit Card</option>
+                <option value="Merchant Visit">Merchant Visit</option>
               </select>
 
               <div className="relative flex-1 min-w-[170px] max-w-[240px]">
@@ -2033,19 +2058,20 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 onClick={() => setShowSubCategories((v) => !v)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs border shadow-2xs cursor-pointer bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200/90 transition"
               >
-                <span>{showSubCategories ? 'Hide' : 'Show'} 12 sub-category tasks</span>
+                <span>{showSubCategories ? 'Hide' : 'Show'} {subCategoryBreakdown.length} sub-category tasks</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showSubCategories ? 'rotate-180' : ''}`} />
               </button>
             </div>
           </div>
 
           <div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
               {([
                 { cat: 'KHQR' as KpiCategory, tasks: totals.khqrTasks, pts: totals.khqrPoints, extra: `${fmtInt(totals.raw.khqrInstall)} new · ${fmtInt(totals.raw.khqrReplace)} replaced · ${fmtInt(totals.khqrMaterials)} QR items` },
                 { cat: 'Sound Box' as KpiCategory, tasks: totals.sbTasks, pts: totals.sbPoints, extra: `${fmtInt(totals.raw.sbInstall)} install · ${fmtInt(totals.raw.sbReplace)} swap · ${fmtInt(totals.raw.sbMaint)} maint` },
                 { cat: 'Credit Card' as KpiCategory, tasks: totals.ccTasks, pts: totals.ccPoints, extra: `${fmtInt(totals.raw.ccPrimary)} primary · ${fmtInt(totals.raw.ccSupp)} supplementary` },
                 { cat: 'POS Terminal' as KpiCategory, tasks: totals.posTasks, pts: totals.posPoints, extra: `${fmtInt(totals.raw.posInstall)} install · ${fmtInt(totals.raw.posReplace)} swap · ${fmtInt(totals.raw.posBattery)} battery` },
+                { cat: 'Merchant Visit' as KpiCategory, tasks: totals.mvTasks, pts: totals.mvPoints, extra: `${fmtInt(totals.mvTasks)} field visits logged` },
               ]).map((item) => {
                 const volShare = totals.totalTasks > 0 ? Math.round((item.tasks / totals.totalTasks) * 100) : 0;
                 const ptShare = totals.totalPoints > 0 ? Math.round((item.pts / totals.totalPoints) * 100) : 0;
@@ -2097,7 +2123,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 >
                   <div className="mt-3.5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
                     <div className="bg-slate-50 px-3.5 py-2 border-b border-slate-200 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                      <span>Sub-category task breakdown (12 tasks)</span>
+                      <span>Sub-category task breakdown ({subCategoryBreakdown.length} tasks)</span>
                       <span>Volume · Weight · Total points</span>
                     </div>
                     <div className="divide-y divide-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 text-[13px] text-slate-700">
@@ -2276,6 +2302,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span>CC Pts</span>
                           </span>
                         </th>
+                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <ClipboardList className="w-3.5 h-3.5 text-sky-300" />
+                            <span>MV Pts</span>
+                          </span>
+                        </th>
                         <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Category Mix</th>
                         <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">Total Tasks</th>
                         <th className="py-2.5 px-4 text-right w-32 border-b border-white/20">Total Points</th>
@@ -2284,7 +2316,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700">
                       {top10Data.staff.length === 0 ? (
                         <tr>
-                          <td colSpan={12} className="py-12 text-center text-xs text-slate-400">
+                          <td colSpan={13} className="py-12 text-center text-xs text-slate-400">
                             No staff records in this period.
                           </td>
                         </tr>
@@ -2331,9 +2363,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
                               {fmtPts(s.ccPoints)} <span className="text-[11px] text-slate-400">pts</span>
                             </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(s.mvPoints)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
                             <td className="py-2.5 px-3">
                               <div className="flex justify-center items-center">
-                                <MiniMixBar pos={s.posPoints} sb={s.sbPoints} khqr={s.khqrPoints} cc={s.ccPoints} total={s.totalPoints} />
+                                <MiniMixBar pos={s.posPoints} sb={s.sbPoints} khqr={s.khqrPoints} cc={s.ccPoints} mv={s.mvPoints} total={s.totalPoints} />
                               </div>
                             </td>
                             <td className="py-2.5 px-3 text-right tabular-nums text-slate-600 font-medium">
@@ -2381,6 +2416,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span>CC Pts</span>
                           </span>
                         </th>
+                        <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            <ClipboardList className="w-3.5 h-3.5 text-sky-300" />
+                            <span>MV Pts</span>
+                          </span>
+                        </th>
                         <th className="py-2.5 px-3 text-center w-28 border-b border-white/20">Category Mix</th>
                         <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">Pts / Staff</th>
                         <th className="py-2.5 px-3 text-right w-24 border-b border-white/20">Total Tasks</th>
@@ -2390,7 +2431,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <tbody className="divide-y divide-slate-100 text-[13px] text-slate-700">
                       {top10Data.branches.length === 0 ? (
                         <tr>
-                          <td colSpan={12} className="py-12 text-center text-xs text-slate-400">
+                          <td colSpan={13} className="py-12 text-center text-xs text-slate-400">
                             No branch records in this period.
                           </td>
                         </tr>
@@ -2432,9 +2473,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
                               {fmtPts(b.ccPoints)} <span className="text-[11px] text-slate-400">pts</span>
                             </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
+                              {fmtPts(b.mvPoints)} <span className="text-[11px] text-slate-400">pts</span>
+                            </td>
                             <td className="py-2.5 px-3">
                               <div className="flex justify-center items-center">
-                                <MiniMixBar pos={b.posPoints} sb={b.sbPoints} khqr={b.khqrPoints} cc={b.ccPoints} total={b.totalPoints} />
+                                <MiniMixBar pos={b.posPoints} sb={b.sbPoints} khqr={b.khqrPoints} cc={b.ccPoints} mv={b.mvPoints} total={b.totalPoints} />
                               </div>
                             </td>
                             <td className="py-2.5 px-3 text-right tabular-nums text-slate-700 font-medium">
@@ -2500,8 +2544,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
 
           <div className="overflow-x-auto w-full overscroll-x-contain">
-            <div className="min-w-[980px] w-full">
-              <div className="grid items-center gap-x-4 grid-cols-[minmax(115px,1.25fr)_minmax(72px,0.8fr)_minmax(68px,0.75fr)_minmax(110px,1.15fr)_minmax(110px,1.15fr)_minmax(124px,1.25fr)_minmax(110px,1.15fr)_minmax(76px,0.85fr)_minmax(80px,0.9fr)_minmax(105px,1.1fr)_minmax(80px,0.9fr)] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
+            <div className="min-w-[1080px] w-full">
+              <div className="grid items-center gap-x-4 grid-cols-[minmax(110px,1.2fr)_minmax(68px,0.75fr)_minmax(65px,0.7fr)_minmax(100px,1.1fr)_minmax(100px,1.1fr)_minmax(110px,1.2fr)_minmax(100px,1.1fr)_minmax(100px,1.1fr)_minmax(72px,0.8fr)_minmax(76px,0.85fr)_minmax(100px,1.1fr)_minmax(76px,0.85fr)] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
               <SortableHeader label="Period" sortKey="period" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
               <SortableHeader label="Branches" sortKey="activeBranches" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Staff" sortKey="activeStaff" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
@@ -2509,6 +2553,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-[#a2a5e0] shrink-0" aria-hidden />} label="SB Points" sortKey="sbPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader icon={<QrCode className="w-3.5 h-3.5 text-teal-300 shrink-0" aria-hidden />} label="KHQR Points" sortKey="khqrPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC Points" sortKey="ccPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+              <SortableHeader icon={<ClipboardList className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="MV Points" sortKey="mvPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader label="Tasks" sortKey="totalTasks" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
               <SortableHeader label="Pts/Staff" sortKey="ptsPerStaff" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
               <SortableHeader label="Total Points" sortKey="totalPoints" activeKey={timelineSortKey} dir={timelineSortDir} onSort={(k) => { setTimelineSortKey(k); setTimelineSortDir((d) => (timelineSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
@@ -2521,7 +2566,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 timeSeries.map((t) => (
                   <div
                     key={t.period}
-                    className="grid items-center gap-x-4 grid-cols-[minmax(115px,1.25fr)_minmax(72px,0.8fr)_minmax(68px,0.75fr)_minmax(110px,1.15fr)_minmax(110px,1.15fr)_minmax(124px,1.25fr)_minmax(110px,1.15fr)_minmax(76px,0.85fr)_minmax(80px,0.9fr)_minmax(105px,1.1fr)_minmax(80px,0.9fr)] px-4 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors"
+                    className="grid items-center gap-x-4 grid-cols-[minmax(110px,1.2fr)_minmax(68px,0.75fr)_minmax(65px,0.7fr)_minmax(100px,1.1fr)_minmax(100px,1.1fr)_minmax(110px,1.2fr)_minmax(100px,1.1fr)_minmax(100px,1.1fr)_minmax(72px,0.8fr)_minmax(76px,0.85fr)_minmax(100px,1.1fr)_minmax(76px,0.85fr)] px-4 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50/80 transition-colors"
                   >
                     <span className="font-normal text-slate-900 tabular-nums">{t.label}</span>
                     <span className="text-right tabular-nums font-normal text-slate-800">{fmtInt(t.activeBranches)}</span>
@@ -2530,6 +2575,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <span className="text-center tabular-nums"><TaskPtsCell tasks={t.sbTasks} pts={t.sbPoints} /></span>
                     <span className="text-center tabular-nums"><TaskPtsCell tasks={t.khqrTasks} pts={t.khqrPoints} /></span>
                     <span className="text-center tabular-nums"><TaskPtsCell tasks={t.ccTasks} pts={t.ccPoints} /></span>
+                    <span className="text-center tabular-nums"><TaskPtsCell tasks={t.mvTasks} pts={t.mvPoints} /></span>
                     <span className="text-center tabular-nums font-normal text-slate-800">{fmtInt(t.totalTasks)}</span>
                     <span className="text-right tabular-nums font-normal text-slate-800">{fmtPts(t.ptsPerStaff)}</span>
                     <span className="text-right tabular-nums font-figure font-normal text-[#003857]">{fmtPts(t.totalPoints)} pts</span>
@@ -2946,15 +2992,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                       let tooltip = '';
                                       if (isHol) {
                                         tooltip = hasTasks
-                                          ? `🎉 ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}`
+                                          ? `🎉 ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${(d.raw?.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw?.mvTasks}` : ''}`
                                           : `🎉 0 tasks · 🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday)`;
                                       } else if (isWk) {
                                         tooltip = hasTasks
-                                          ? `⚠️ ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}`
+                                          ? `⚠️ ${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${(d.raw?.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw?.mvTasks}` : ''}`
                                           : `Weekend (${dayMeta?.dayOfWeek} · Excluded from KPI)`;
                                       } else {
                                         tooltip = d.raw
-                                          ? `${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}\nActive Staff: ${d.raw.activeStaff}`
+                                          ? `${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}${(d.raw.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw.mvTasks}` : ''}\nActive Staff: ${d.raw.activeStaff}`
                                           : `${cleanBranchName(row.branchName)} · ${d.isoDay} (${dayMeta?.dayOfWeek}): 0 tasks`;
                                       }
 
@@ -3068,8 +3114,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   ) : (
             <>
               <div className="overflow-x-auto w-full overscroll-x-contain">
-                <div className="min-w-[1240px] w-full">
-                <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(160px,1.4fr)_90px_minmax(55px,0.55fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(72px,0.7fr)_minmax(72px,0.7fr)_minmax(96px,0.95fr)_minmax(105px,1fr)_140px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
+                <div className="min-w-[1360px] w-full">
+                <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(160px,1.3fr)_85px_minmax(50px,0.5fr)_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(104px,1fr)_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(68px,0.65fr)_minmax(68px,0.65fr)_minmax(96px,0.95fr)_minmax(105px,1fr)_135px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
                   <span className="text-right">No.</span>
                   <SortableHeader label="Branch Name" sortKey="branchName" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Branch Code" sortKey="branchId" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
@@ -3078,6 +3124,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-[#a2a5e0] shrink-0" aria-hidden />} label="SB Points" sortKey="sbPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader icon={<QrCode className="w-3.5 h-3.5 text-teal-300 shrink-0" aria-hidden />} label="KHQR Points" sortKey="khqrPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC Points" sortKey="ccPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader icon={<ClipboardList className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="MV Points" sortKey="mvPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Pts/Staff" sortKey="ptsPerStaff" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" title="Average KPI points per active staff member in the branch" />
                   <SortableHeader label="Total Tasks" sortKey="totalTasks" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Total Points" sortKey="totalPoints" activeKey={branchSortKey} dir={branchSortDir} onSort={(k) => { setBranchSortKey(k); setBranchSortDir((d) => (branchSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
@@ -3099,7 +3146,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             type="button"
                             onClick={() => setOpenBranch((o) => (o === b.branchId ? null : b.branchId))}
                             aria-expanded={isOpen}
-                            className="grid items-center gap-x-4 grid-cols-[40px_minmax(160px,1.4fr)_90px_minmax(55px,0.55fr)_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(72px,0.7fr)_minmax(72px,0.7fr)_minmax(96px,0.95fr)_minmax(105px,1fr)_140px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
+                            className="grid items-center gap-x-4 grid-cols-[40px_minmax(160px,1.3fr)_85px_minmax(50px,0.5fr)_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(104px,1fr)_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(68px,0.65fr)_minmax(68px,0.65fr)_minmax(96px,0.95fr)_minmax(105px,1fr)_135px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
                           >
                             <span className="text-right tabular-nums text-slate-500">{rank}</span>
                             <span className="flex items-center gap-2 min-w-0">
@@ -3118,6 +3165,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={b.sbTasks} pts={b.sbPoints} /></span>
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={b.khqrTasks} pts={b.khqrPoints} /></span>
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={b.ccTasks} pts={b.ccPoints} /></span>
+                            <span className="text-center tabular-nums"><TaskPtsCell tasks={b.mvTasks} pts={b.mvPoints} /></span>
                             <span className="text-center tabular-nums text-slate-800">{fmtPts(b.ptsPerStaff)}</span>
                             <span className="text-center tabular-nums text-slate-800">{fmtInt(b.totalTasks)}</span>
                             <span className="text-right tabular-nums font-figure text-[#003857]">{fmtPts(b.totalPoints)} pts</span>
@@ -3153,6 +3201,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                           <span className="text-slate-500">SB: {fmtPts(s.sbPoints)}</span>
                                           <span className="text-slate-500">KHQR: {fmtPts(s.khqrPoints)}</span>
                                           <span className="text-slate-500">CC: {fmtPts(s.ccPoints)}</span>
+                                          <span className="text-slate-500">MV: {fmtPts(s.mvPoints)}</span>
                                           <span className="font-medium text-slate-900">{fmtPts(s.totalPoints)} pts</span>
                                         </div>
                                       </div>
@@ -3356,15 +3405,15 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             let tooltip = '';
                             if (isHol) {
                               tooltip = hasTasks
-                                ? `🎉 ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}`
+                                ? `🎉 ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\n🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${(d.raw?.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw?.mvTasks}` : ''}`
                                 : `🎉 0 tasks · 🇰🇭 ${dayMeta?.holidayName} (Cambodian Public Holiday)`;
                             } else if (isWk) {
                               tooltip = hasTasks
-                                ? `⚠️ ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}`
+                                ? `⚠️ ${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks completed\nWeekend (${dayMeta?.dayOfWeek} · Excluded from KPI count)\nPOS: ${d.raw?.posTasks || 0} · SB: ${d.raw?.sbTasks || 0} · KHQR: ${d.raw?.khqrTasks || 0} · CC: ${d.raw?.ccTasks || 0}${(d.raw?.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw?.mvTasks}` : ''}`
                                 : `Weekend (${dayMeta?.dayOfWeek} · Excluded from KPI)`;
                             } else {
                               tooltip = d.raw
-                                ? `${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}`
+                                ? `${row.staffName} (ID: ${row.staffId}) · Branch ${row.branchId}\n${d.isoDay} (${dayMeta?.dayOfWeek}): ${d.count} tasks\nPOS: ${d.raw.posTasks} · SB: ${d.raw.sbTasks} · KHQR: ${d.raw.khqrTasks} · CC: ${d.raw.ccTasks}${(d.raw.mvTasks ?? 0) > 0 ? ` · MV: ${d.raw.mvTasks}` : ''}`
                                 : `${row.staffName} · ${d.isoDay} (${dayMeta?.dayOfWeek}): 0 tasks`;
                             }
 
@@ -3494,8 +3543,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         ) : (
           <>
             <div className="overflow-x-auto w-full overscroll-x-contain">
-              <div className="min-w-[1280px] w-full">
-                <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(160px,1.2fr)_70px_minmax(140px,1.1fr)_75px_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_140px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
+              <div className="min-w-[1380px] w-full">
+                <div className="grid items-center gap-x-4 grid-cols-[40px_minmax(150px,1.2fr)_68px_minmax(130px,1.05fr)_72px_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(104px,1fr)_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_135px_24px] glass-table-thead navy-header-bar bg-[#003857] text-white text-xs font-semibold normal-case tracking-normal px-4 py-2.5">
                   <span className="text-right">No.</span>
                   <SortableHeader label="Staff Name" sortKey="staffName" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
                   <SortableHeader label="Staff ID" sortKey="staffId" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
@@ -3505,6 +3554,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <SortableHeader icon={<Volume2 className="w-3.5 h-3.5 text-[#a2a5e0] shrink-0" aria-hidden />} label="SB Points" sortKey="sbPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader icon={<QrCode className="w-3.5 h-3.5 text-teal-300 shrink-0" aria-hidden />} label="KHQR Points" sortKey="khqrPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader icon={<CreditCard className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden />} label="CC Points" sortKey="ccPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
+                  <SortableHeader icon={<ClipboardList className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-hidden />} label="MV Points" sortKey="mvPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Total Tasks" sortKey="totalTasks" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="center" />
                   <SortableHeader label="Total Points" sortKey="totalPoints" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} align="right" />
                   <SortableHeader label={activeTargets.label} sortKey="targetPct" activeKey={staffSortKey} dir={staffSortDir} onSort={(k) => { setStaffSortKey(k); setStaffSortDir((d) => (staffSortKey === k ? (d === 'asc' ? 'desc' : 'asc') : 'desc')); }} />
@@ -3525,7 +3575,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             type="button"
                             onClick={() => setOpenStaff((o) => (o === s.staffId ? null : s.staffId))}
                             aria-expanded={isOpen}
-                            className="grid items-center gap-x-4 grid-cols-[40px_minmax(160px,1.2fr)_70px_minmax(140px,1.1fr)_75px_minmax(104px,1fr)_minmax(104px,1fr)_minmax(114px,1.1fr)_minmax(104px,1fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_140px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
+                            className="grid items-center gap-x-4 grid-cols-[40px_minmax(150px,1.2fr)_68px_minmax(130px,1.05fr)_72px_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(104px,1fr)_minmax(96px,0.95fr)_minmax(96px,0.95fr)_minmax(68px,0.65fr)_minmax(92px,0.9fr)_minmax(105px,1fr)_135px_24px] w-full text-left px-4 py-2.5 text-[13px] text-slate-700 cursor-pointer"
                           >
                             <span className="text-right tabular-nums text-slate-500">{rank}</span>
                             <span className="flex items-center gap-2 min-w-0">
@@ -3554,6 +3604,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={s.sbTasks} pts={s.sbPoints} /></span>
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={s.khqrTasks} pts={s.khqrPoints} /></span>
                             <span className="text-center tabular-nums"><TaskPtsCell tasks={s.ccTasks} pts={s.ccPoints} /></span>
+                            <span className="text-center tabular-nums"><TaskPtsCell tasks={s.mvTasks} pts={s.mvPoints} /></span>
                             <span className="text-center tabular-nums text-slate-800">{fmtInt(s.totalTasks)}</span>
                             <span className="text-right tabular-nums font-figure font-normal text-[#003857]">{fmtPts(s.totalPoints)} pts</span>
                             <span><TargetBar pct={s.targetPct} points={s.totalPoints} target={s.effectiveTarget} pacingPct={s.pacingPct} pacingTarget={s.pacingTarget} isManagement={s.isManagement} /></span>
@@ -3887,21 +3938,23 @@ const RankBadge: React.FC<{ rank: number }> = ({ rank }) => {
   return <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-medium text-slate-500 tabular-nums shrink-0">{rank}</span>;
 };
 
-const MiniMixBar: React.FC<{ pos: number; sb: number; khqr: number; cc: number; total: number }> = ({ pos, sb, khqr, cc, total }) => {
+const MiniMixBar: React.FC<{ pos: number; sb: number; khqr: number; cc: number; mv?: number; total: number }> = ({ pos, sb, khqr, cc, mv = 0, total }) => {
   if (total <= 0) return null;
   const pPos = (pos / total) * 100;
   const pSb = (sb / total) * 100;
   const pKhqr = (khqr / total) * 100;
   const pCc = (cc / total) * 100;
+  const pMv = (mv / total) * 100;
   return (
     <div
       className="w-20 h-2 rounded-full bg-slate-100 overflow-hidden flex gap-[1px]"
-      title={`POS: ${fmtPts(pos)} pts · Sound Box: ${fmtPts(sb)} pts · KHQR: ${fmtPts(khqr)} pts · Credit Card: ${fmtPts(cc)} pts`}
+      title={`POS: ${fmtPts(pos)} pts · Sound Box: ${fmtPts(sb)} pts · KHQR: ${fmtPts(khqr)} pts · Credit Card: ${fmtPts(cc)} pts${mv > 0 ? ` · MV: ${fmtPts(mv)} pts` : ''}`}
     >
       {pPos > 0 && <div className="bg-sky-400 h-full" style={{ width: `${pPos}%` }} />}
-      {pSb > 0 && <div className="bg-[#003857] h-full" style={{ width: `${pSb}%` }} />}
+      {pSb > 0 && <div className="bg-[#4F518C] h-full" style={{ width: `${pSb}%` }} />}
       {pKhqr > 0 && <div className="bg-teal-600 h-full" style={{ width: `${pKhqr}%` }} />}
       {pCc > 0 && <div className="bg-amber-500 h-full" style={{ width: `${pCc}%` }} />}
+      {pMv > 0 && <div className="bg-[#0284c7] h-full" style={{ width: `${pMv}%` }} />}
     </div>
   );
 };
@@ -4053,6 +4106,13 @@ const SubCategoryMiniGrid: React.FC<{ raw: KpiRawCounts; ruleMap: Map<string, Kp
     { label: 'CC Primary', n: raw.ccPrimary, pts: raw.ccPrimary * rulePts(ruleMap, 'CC_PRIMARY') },
     { label: 'CC Supp.', n: raw.ccSupp, pts: raw.ccSupp * rulePts(ruleMap, 'CC_SUPP') },
   ];
+  for (const [code, n] of Object.entries(raw.extra || {})) {
+    if (!n) continue;
+    const rule = ruleMap.get(code);
+    const label = rule?.subCategory || code.replace(/^MV_/, '').replace(/_/g, ' ');
+    const pts = n * (rulePts(ruleMap, code) || (rule?.points ?? 1));
+    cells.push({ label, n, pts });
+  }
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
       {cells.map((c) => (
