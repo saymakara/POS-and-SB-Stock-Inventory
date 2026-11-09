@@ -30,6 +30,8 @@ import {
   FileSpreadsheet,
   Calendar,
   User,
+  Boxes,
+  Package,
 } from 'lucide-react';
 import { formatBranchName, fmtNum, showDateTime } from '../utils/format';
 import { CopyableRecordId } from './CopyableRecordId';
@@ -541,13 +543,13 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
-                <SortTh k="date" sort={reqSort} onSort={reqToggle}>Date</SortTh>
-                <SortTh k="request" sort={reqSort} onSort={reqToggle}>Request ID</SortTh>
-                <SortTh k="type" sort={reqSort} onSort={reqToggle}>Request Type</SortTh>
-                <SortTh k="staff" sort={reqSort} onSort={reqToggle}>Staff / Branch</SortTh>
-                <SortTh k="qty" sort={reqSort} onSort={reqToggle}>Quantity</SortTh>
-                <SortTh k="reason" sort={reqSort} onSort={reqToggle}>Reason</SortTh>
-                <SortTh k="status" sort={reqSort} onSort={reqToggle}>Status</SortTh>
+                <SortTh k="date" sort={reqSort} onSort={reqToggle} className="w-36 whitespace-nowrap">Date</SortTh>
+                <SortTh k="request" sort={reqSort} onSort={reqToggle} className="w-44 whitespace-nowrap">Request ID</SortTh>
+                <SortTh k="type" sort={reqSort} onSort={reqToggle} className="w-32 whitespace-nowrap">Request Type</SortTh>
+                <SortTh k="staff" sort={reqSort} onSort={reqToggle} className="w-48">Staff / Branch</SortTh>
+                <SortTh k="qty" sort={reqSort} onSort={reqToggle} className="w-44 whitespace-nowrap">Quantity</SortTh>
+                <SortTh k="reason" sort={reqSort} onSort={reqToggle} className="min-w-[180px]">Reason</SortTh>
+                <SortTh k="status" sort={reqSort} onSort={reqToggle} className="w-28 whitespace-nowrap">Status</SortTh>
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
@@ -694,31 +696,71 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                       </div>
                     </td>
                     <td className="whitespace-nowrap">
-                      <div className="flex flex-col gap-1">
-                        {req.posQty > 0 && (
-                          <div className="cell-main flex items-center gap-1.5">
-                            <Cpu className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
-                            <span>POS Terminal</span>
-                            <span className="chip chip-slate font-mono text-[11px] px-1.5 py-0">
-                              ×{req.posQty}
-                            </span>
+                      {(() => {
+                        const matEntries = Object.entries(req.materials || {}).filter(([, n]) => Number(n) > 0);
+                        const totalMat = matEntries.reduce((s, [, n]) => s + Number(n), 0);
+                        const hasDevices = (req.posQty || 0) > 0 || (req.sbQty || 0) > 0;
+                        const matSummaryText = matEntries.map(([c, n]) => `${materialName(c)} ×${n}`).join(' · ');
+
+                        return (
+                          <div
+                            className="flex flex-col gap-0.5 justify-center py-0.5 cursor-pointer group"
+                            title={`Click to view details\n${[
+                              req.posQty > 0 ? `POS Terminal: ×${req.posQty}` : '',
+                              req.sbQty > 0 ? `Sound Box: ×${req.sbQty}` : '',
+                              totalMat > 0 ? `Materials (${totalMat}): ${matSummaryText}` : '',
+                            ].filter(Boolean).join('\n')}`}
+                            onClick={() => setSelectedRequisition(req)}
+                          >
+                            {/* Line 1: Primary Hardware Units or Total Materials */}
+                            <div className="cell-main flex items-center gap-2 whitespace-nowrap">
+                              {req.posQty > 0 && (
+                                <span className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
+                                  <Cpu className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
+                                  <span>{req.posQty} POS</span>
+                                </span>
+                              )}
+                              {req.posQty > 0 && req.sbQty > 0 && (
+                                <span className="text-slate-300 dark:text-slate-600 font-bold">·</span>
+                              )}
+                              {req.sbQty > 0 && (
+                                <span className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
+                                  <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
+                                  <span>{req.sbQty} SB</span>
+                                </span>
+                              )}
+                              {!hasDevices && totalMat > 0 && (
+                                <span className="inline-flex items-center gap-1 font-semibold text-amber-700 dark:text-amber-400">
+                                  <Boxes className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                                  <span>{totalMat} Materials</span>
+                                </span>
+                              )}
+                              {!hasDevices && totalMat === 0 && (
+                                <span className="cell-sub font-mono">—</span>
+                              )}
+                            </div>
+
+                            {/* Line 2: Materials Count / Hardware Only subtext */}
+                            <div className="cell-sub text-[11px] text-slate-500 truncate whitespace-nowrap max-w-[190px]">
+                              {totalMat > 0 && hasDevices ? (
+                                <span className="text-sky-700 dark:text-sky-400 font-medium group-hover:underline">
+                                  + {totalMat} Material{totalMat > 1 ? 's' : ''} ({matEntries.length} {matEntries.length === 1 ? 'item' : 'items'})
+                                </span>
+                              ) : hasDevices ? (
+                                <span className="text-slate-400 dark:text-slate-500 font-mono">Hardware only</span>
+                              ) : totalMat > 0 ? (
+                                <span className="text-slate-500 dark:text-slate-400 font-medium group-hover:underline">
+                                  {matEntries.length} Material {matEntries.length === 1 ? 'type' : 'types'}
+                                </span>
+                              ) : (
+                                <span className="font-mono">—</span>
+                              )}
+                              {/* Keep exact text accessible for tests & search */}
+                              <span className="sr-only">{matSummaryText}</span>
+                            </div>
                           </div>
-                        )}
-                        {req.sbQty > 0 && (
-                          <div className="cell-main flex items-center gap-1.5">
-                            <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
-                            <span>Sound Box</span>
-                            <span className="chip chip-slate font-mono text-[11px] px-1.5 py-0">
-                              ×{req.sbQty}
-                            </span>
-                          </div>
-                        )}
-                        {Object.entries(req.materials || {}).filter(([, n]) => Number(n) > 0).length > 0 && (
-                          <div className="cell-sub max-w-[240px] whitespace-normal leading-snug" title="Materials requested">
-                            + {Object.entries(req.materials || {}).filter(([, n]) => Number(n) > 0).map(([c, n]) => `${materialName(c)} ×${n}`).join(' · ')}
-                          </div>
-                        )}
-                      </div>
+                        );
+                      })()}
                     </td>
                     <td>
                       <div
@@ -1359,13 +1401,15 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                       </div>
                       <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                         <span className="text-[10px] uppercase font-bold text-slate-400 block">Requested Qty</span>
-                        <span className="text-xs font-semibold mt-0.5 block">{selectedRequisition.posQty} POS · {selectedRequisition.sbQty} Sound Box</span>
-                        {Object.keys(selectedRequisition.materials || {}).length > 0 && (
-                          <span className="text-[11px] mt-0.5 block text-slate-600">Materials: {Object.entries(selectedRequisition.materials || {}).map(([c, n]) => `${materialName(c)} ×${n}`).join(' · ')}</span>
-                        )}
-                        {selectedRequisition.materialsSent && (Object.keys(selectedRequisition.materialsSent.qty || {}).length > 0 || Object.keys(selectedRequisition.materialsSent.serials || {}).length > 0) && (
-                          <span className="text-[11px] mt-0.5 block text-sky-800">Sent: {[...Object.entries(selectedRequisition.materialsSent.qty || {}).map(([c, n]) => `${materialName(c)} ×${n}`), ...Object.entries(selectedRequisition.materialsSent.serials || {}).map(([c, l]) => `${materialName(c)}: ${l.join(', ')}`)].join(' · ')}{selectedRequisition.materialsSent.received ? ' · received' : ''}</span>
-                        )}
+                        <span className="text-xs font-semibold mt-0.5 block">
+                          {(selectedRequisition.posQty || 0) + (selectedRequisition.sbQty || 0)} Hardware Units
+                          {Object.keys(selectedRequisition.materials || {}).length > 0 && (
+                            <> · {Object.values(selectedRequisition.materials || {}).reduce((s, n) => s + Number(n), 0)} Materials</>
+                          )}
+                        </span>
+                        <span className="text-[11px] text-slate-500 mt-0.5 block">
+                          {selectedRequisition.posQty || 0} POS · {selectedRequisition.sbQty || 0} Sound Box
+                        </span>
                       </div>
                     </div>
 
@@ -1379,6 +1423,129 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                           {selectedRequisition.rejectedBy && ` (by ${selectedRequisition.rejectedBy})`}
                         </div>
                       )}
+                    </div>
+
+                    {/* Detailed Requested Quantities & Materials Breakdown */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                          <Package className="w-4 h-4 text-[#006BA6]" />
+                          <span>Detailed Requested Quantities</span>
+                        </span>
+                        <span className="font-mono text-[11px] font-semibold text-slate-500">
+                          {(selectedRequisition.posQty || 0) + (selectedRequisition.sbQty || 0)} Units · {Object.values(selectedRequisition.materials || {}).reduce((s, n) => s + Number(n), 0)} Materials
+                        </span>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden bg-white dark:bg-slate-800/60 shadow-2xs">
+                        <table className="w-full text-left text-xs">
+                          <thead className="glass-table-thead text-[11px] uppercase text-white font-extrabold">
+                            <tr>
+                              <th className="py-2 px-3 w-10 text-center">No.</th>
+                              <th className="py-2 px-3">Item Description</th>
+                              <th className="py-2 px-3">Category</th>
+                              <th className="py-2 px-3 text-right">Requested Qty</th>
+                              <th className="py-2 px-3">Fulfillment / Sent Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                            {selectedRequisition.posQty > 0 && (
+                              <tr className="hover:bg-slate-50 dark:hover:bg-white/5">
+                                <td className="py-2.5 px-3 text-center font-mono text-slate-400">1</td>
+                                <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                                  <Cpu className="w-4 h-4 text-[#006BA6]" />
+                                  <span>POS Terminal</span>
+                                </td>
+                                <td className="py-2.5 px-3 text-slate-500">Hardware Unit</td>
+                                <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                  {selectedRequisition.posQty} Units
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  {selectedRequisition.arrangedDevices?.filter((d) => d.type === 'POS Terminal').length ? (
+                                    <span className="chip chip-green font-mono text-[11px]">
+                                      {selectedRequisition.arrangedDevices.filter((d) => d.type === 'POS Terminal').length} allocated
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 italic">Pending Allocation</span>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                            {selectedRequisition.sbQty > 0 && (
+                              <tr className="hover:bg-slate-50 dark:hover:bg-white/5">
+                                <td className="py-2.5 px-3 text-center font-mono text-slate-400">
+                                  {selectedRequisition.posQty > 0 ? 2 : 1}
+                                </td>
+                                <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                                  <Volume2 className="w-4 h-4 text-[#4F518C]" />
+                                  <span>Sound Box</span>
+                                </td>
+                                <td className="py-2.5 px-3 text-slate-500">Hardware Unit</td>
+                                <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                  {selectedRequisition.sbQty} Units
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  {selectedRequisition.arrangedDevices?.filter((d) => d.type === 'Sound Box').length ? (
+                                    <span className="chip chip-green font-mono text-[11px]">
+                                      {selectedRequisition.arrangedDevices.filter((d) => d.type === 'Sound Box').length} allocated
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 italic">Pending Allocation</span>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                            {Object.entries(selectedRequisition.materials || {})
+                              .filter(([, n]) => Number(n) > 0)
+                              .map(([code, qty], idx) => {
+                                const baseIdx = (selectedRequisition.posQty > 0 ? 1 : 0) + (selectedRequisition.sbQty > 0 ? 1 : 0);
+                                const sentQty = selectedRequisition.materialsSent?.qty?.[code];
+                                const sentSerials = selectedRequisition.materialsSent?.serials?.[code];
+                                return (
+                                  <tr key={code} className="hover:bg-slate-50 dark:hover:bg-white/5">
+                                    <td className="py-2.5 px-3 text-center font-mono text-slate-400">{baseIdx + idx + 1}</td>
+                                    <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                      <Boxes className="w-3.5 h-3.5 text-amber-600" />
+                                      <span>{materialName(code)}</span>
+                                    </td>
+                                    <td className="py-2.5 px-3 text-slate-500">
+                                      {code === 'SIM' ? 'SIM Card' : code === 'BATTERY' ? 'Battery' : 'Accessory'}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                                      {qty} pcs
+                                    </td>
+                                    <td className="py-2.5 px-3">
+                                      {sentSerials && sentSerials.length > 0 ? (
+                                        <div className="flex flex-col gap-0.5">
+                                          <span className="chip chip-sky font-mono text-[11px] w-fit">
+                                            {sentSerials.length} sent
+                                          </span>
+                                          <span className="text-[10px] text-slate-500 font-mono truncate max-w-[200px]" title={sentSerials.join(', ')}>
+                                            {sentSerials.join(', ')}
+                                          </span>
+                                        </div>
+                                      ) : sentQty !== undefined && sentQty > 0 ? (
+                                        <span className="chip chip-sky font-mono text-[11px]">
+                                          {sentQty} dispatched
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 italic">Pending Dispatch</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            {selectedRequisition.posQty === 0 &&
+                              selectedRequisition.sbQty === 0 &&
+                              Object.entries(selectedRequisition.materials || {}).filter(([, n]) => Number(n) > 0).length === 0 && (
+                                <tr>
+                                  <td colSpan={5} className="py-6 text-center text-slate-400 text-xs">
+                                    No hardware or materials requested.
+                                  </td>
+                                </tr>
+                              )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
 
                     {/* Hardware Items Table */}
