@@ -2,6 +2,15 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 10 Nov 2026 — Merchant Visit Request: each staff member sees only their own requests
+
+- `mv_req_list` takes the staff ID and returns only that staff member's requests (Merchant Visit 3.97). Without it
+  (older app) it still lists the branch.
+- `mv_req_edit` and `mv_req_confirm` refuse another staff member's request (`OTHER_STAFF`). Admin HQ can still mark any
+  request as received in Stock Requests.
+- New helper `app.mv_req_is_own(staff, staff_id)`: matches the "NAME (STAFF_ID)" stored by `mv_req_submit`.
+- Apply: run `supabase/migrations/20261110_01_mv_request_own.sql` in the SQL Editor (safe to run again). No table change.
+
 ## 8 Nov 2026 — Merchant Visit Request: correct a waiting stock request
 
 - New database function `mv_req_edit` (service key only, used by the Merchant Visit app 3.95): branch staff can change the
