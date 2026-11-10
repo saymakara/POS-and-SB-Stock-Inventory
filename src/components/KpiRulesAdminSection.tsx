@@ -41,7 +41,7 @@ export const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: 
   'Sound Box': { hex: '#4F518C', badge: 'bg-[#4F518C]/10 text-[#4F518C] border-[#4F518C]/20', bar: 'bg-[#4F518C]', dot: 'bg-[#4F518C]', Icon: Volume2 },
   KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', bar: 'bg-teal-600', dot: 'bg-teal-600', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-amber-500', dot: 'bg-amber-500', Icon: CreditCard },
-  'Merchant Visit': { hex: '#A4133C', badge: 'bg-[#A4133C]/10 text-[#A4133C] border-[#A4133C]/20 font-semibold', bar: 'bg-[#A4133C]', dot: 'bg-[#A4133C]', Icon: ClipboardList },
+  'Merchant Visit': { hex: '#168AAD', badge: 'bg-[#168AAD]/10 text-[#168AAD] border-[#168AAD]/20 font-semibold', bar: 'bg-[#168AAD]', dot: 'bg-[#168AAD]', Icon: ClipboardList },
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },
 };
 
