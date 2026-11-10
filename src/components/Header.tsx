@@ -260,7 +260,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
                   return (
                     <React.Fragment key={item.id}>
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
                       type="button"
                       onClick={() => {
                         onSelectTab(item.id);
@@ -317,15 +319,17 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                           {fmtNum(item.count)}
                         </span>
                       )}
-                    </button>
+                    </motion.button>
                     {showChildren && (
                       <div className="relative ml-[22px] pl-2.5 flex flex-col gap-0.5 border-l border-white/12" role="group" aria-label={`${item.label} sections`}>
                         {item.children!.map((c) => {
                           const CI = c.icon;
                           const on = activeTab === c.id;
                           return (
-                            <button
+                            <motion.button
                               key={c.id}
+                              whileTap={{ scale: 0.98 }}
+                              transition={{ type: 'spring', stiffness: 500, damping: 28 }}
                               type="button"
                               onClick={() => {
                                 onSelectTab(c.id);
@@ -358,7 +362,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                   {fmtNum(c.count)}
                                 </span>
                               )}
-                            </button>
+                            </motion.button>
                           );
                         })}
                       </div>
@@ -912,7 +916,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
 
           {/* Live Alert Notification Bell */}
           <div ref={notifRef} className="relative shrink-0">
-            <button
+            <motion.button
+              whileTap={WHILE_TAP_ICON}
               type="button"
               onClick={() => setNotifOpen((o) => !o)}
               title="Alerts: Branch Staff Stock Requests"
@@ -930,7 +935,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                   {unreadCount}
                 </span>
               )}
-            </button>
+            </motion.button>
 
             <AnimatePresence>
               {notifOpen && (
