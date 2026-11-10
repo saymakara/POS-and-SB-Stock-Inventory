@@ -24,6 +24,7 @@ import {
 } from '../services/kpiService';
 import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHolidays';
 import { todayPP } from '../utils/time';
+import { SPRING_TAB_PILL, WHILE_TAP_BUTTON, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -2261,74 +2262,114 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           </button>
 
                           {/* View Mode Switcher */}
-                          <div className="inline-flex rounded-lg border border-slate-200/90 p-0.5 bg-slate-100">
-                            <button
+                          <div className="relative inline-flex rounded-xl border border-slate-200/90 p-1 bg-slate-100/90 shadow-2xs gap-0.5" role="tablist" aria-label="View mode">
+                            <motion.button
+                              whileTap={WHILE_TAP_BUTTON}
                               type="button"
+                              role="tab"
+                              aria-selected={subCatViewMode === 'cards'}
                               onClick={() => setSubCatViewMode('cards')}
-                              className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 cursor-pointer transition ${
+                              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
                                 subCatViewMode === 'cards'
-                                  ? 'bg-white shadow-2xs text-slate-900 font-semibold'
-                                  : 'text-slate-500 hover:text-slate-800'
+                                  ? 'text-white font-semibold'
+                                  : 'text-slate-600 hover:text-slate-900'
                               }`}
                               title="Card Grid View"
                             >
-                              <LayoutGrid className="w-3.5 h-3.5" />
-                              <span className="hidden sm:inline">Cards</span>
-                            </button>
-                            <button
+                              {subCatViewMode === 'cards' && (
+                                <motion.div
+                                  layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_VIEW_PILL}
+                                  transition={SPRING_TAB_PILL}
+                                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                />
+                              )}
+                              <LayoutGrid className="w-3.5 h-3.5 relative z-10" />
+                              <span className="hidden sm:inline relative z-10">Cards</span>
+                            </motion.button>
+                            <motion.button
+                              whileTap={WHILE_TAP_BUTTON}
                               type="button"
+                              role="tab"
+                              aria-selected={subCatViewMode === 'table'}
                               onClick={() => setSubCatViewMode('table')}
-                              className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 cursor-pointer transition ${
+                              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
                                 subCatViewMode === 'table'
-                                  ? 'bg-white shadow-2xs text-slate-900 font-semibold'
-                                  : 'text-slate-500 hover:text-slate-800'
+                                  ? 'text-white font-semibold'
+                                  : 'text-slate-600 hover:text-slate-900'
                               }`}
                               title="Detailed Table View"
                             >
-                              <List className="w-3.5 h-3.5" />
-                              <span className="hidden sm:inline">Table</span>
-                            </button>
+                              {subCatViewMode === 'table' && (
+                                <motion.div
+                                  layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_VIEW_PILL}
+                                  transition={SPRING_TAB_PILL}
+                                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                />
+                              )}
+                              <List className="w-3.5 h-3.5 relative z-10" />
+                              <span className="hidden sm:inline relative z-10">Table</span>
+                            </motion.button>
                           </div>
                         </div>
                       </div>
 
                       {/* Second Row: Category Pills + Search Filter */}
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-200/60">
-                        {/* Category Pills */}
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setCategoryFilter('ALL')}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
-                              categoryFilter === 'ALL'
-                                ? 'bg-slate-900 text-white shadow-2xs'
-                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/90'
-                            }`}
-                          >
-                            All ({subCategoryBreakdown.length})
-                          </button>
-                          {(['KHQR', 'Sound Box', 'Credit Card', 'POS Terminal', 'Merchant Visit'] as KpiCategory[]).map((cat) => {
-                            const active = categoryFilter === cat;
-                            const catStyle = CAT_COLORS[cat];
-                            const count = subCategoryBreakdown.filter((sc) => sc.category === cat).length;
-                            const activeCount = subCategoryBreakdown.filter((sc) => sc.category === cat && (sc.points > 0 || sc.count > 0)).length;
+                        {/* Segmented Category Filter Tabs */}
+                        <div
+                          role="tablist"
+                          aria-label="Filter tasks by category"
+                          className="relative inline-flex flex-wrap items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 shadow-2xs gap-0.5 select-none"
+                        >
+                          {([
+                            { id: 'ALL' as const, label: 'All', catStyle: null, count: subCategoryBreakdown.length },
+                            ...(['KHQR', 'Sound Box', 'Credit Card', 'POS Terminal', 'Merchant Visit'] as KpiCategory[]).map((cat) => ({
+                              id: cat,
+                              label: cat,
+                              catStyle: CAT_COLORS[cat],
+                              count: subCatActiveOnly
+                                ? subCategoryBreakdown.filter((sc) => sc.category === cat && (sc.points > 0 || sc.count > 0)).length
+                                : subCategoryBreakdown.filter((sc) => sc.category === cat).length,
+                            })),
+                          ]).map(({ id, label, catStyle, count }) => {
+                            const active = categoryFilter === id;
                             return (
-                              <button
-                                key={cat}
+                              <motion.button
+                                key={id}
+                                whileTap={WHILE_TAP_BUTTON}
                                 type="button"
-                                onClick={() => setCategoryFilter(active ? 'ALL' : cat)}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition ${
+                                role="tab"
+                                aria-selected={active}
+                                onClick={() => setCategoryFilter(active && id !== 'ALL' ? 'ALL' : id)}
+                                className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
                                   active
-                                    ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200/90'
+                                    ? 'text-white'
+                                    : 'text-slate-600 hover:text-slate-900'
                                 }`}
                               >
-                                <span className={`w-2 h-2 rounded-full ${catStyle.dot}`} />
-                                <span>{cat}</span>
-                                <span className={`text-[10.5px] px-1.5 py-0.2 rounded-full tabular-nums ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                  {subCatActiveOnly ? activeCount : count}
+                                {active && (
+                                  <motion.div
+                                    layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_CATEGORY_PILL}
+                                    transition={SPRING_TAB_PILL}
+                                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                  />
+                                )}
+                                <span
+                                  className={`w-2 h-2 rounded-full relative z-10 shrink-0 transition-colors ${
+                                    active ? 'bg-white' : (catStyle ? catStyle.dot : 'bg-slate-400')
+                                  }`}
+                                />
+                                <span className="relative z-10">{label}</span>
+                                <span
+                                  className={`relative z-10 text-[10.5px] px-1.5 py-0.2 rounded-md font-mono font-medium transition-colors ${
+                                    active
+                                      ? 'bg-white/20 text-white font-bold'
+                                      : 'bg-white text-slate-600 border border-slate-200/80 shadow-2xs'
+                                  }`}
+                                >
+                                  {count}
                                 </span>
-                              </button>
+                              </motion.button>
                             );
                           })}
                         </div>

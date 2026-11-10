@@ -367,6 +367,8 @@ export const SHARED_LAYOUT_IDS = {
   FR_TYPE_PILL: 'fr-type-pill',
   FR_STATUS_PILL: 'fr-status-pill',
   KPI_VIEW_PILL: 'kpi-view-pill',
+  KPI_SUBCAT_CATEGORY_PILL: 'kpi-subcat-category-pill',
+  KPI_SUBCAT_VIEW_PILL: 'kpi-subcat-view-pill',
   PIPELINE_STAGE_PILL: 'activePipelineStagePill',
   PUSH_MODE_PILL: 'activePushModeIndicator',
   PRODUCT_VIEW_PILL: 'activeProductViewPill',
