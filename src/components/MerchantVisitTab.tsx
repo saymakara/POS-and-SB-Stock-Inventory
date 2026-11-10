@@ -151,7 +151,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
-              <ClipboardList className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#1B365D]" aria-hidden />
+              <ClipboardList className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#004953]" aria-hidden />
               <span>Merchant Visit</span>
             </h1>
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">
@@ -247,10 +247,10 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
         {/* Inline Selection Actions — Keeps table frame completely stable with 0px layout shift */}
         {isSuper && pick.sel.size > 0 && (
           <div
-            className="flex items-center gap-2.5 shrink-0 bg-[#1B365D]/10 border border-[#1B365D]/20 px-3 py-1 rounded-xl transition-all"
+            className="flex items-center gap-2.5 shrink-0 bg-[#004953]/10 border border-[#004953]/20 px-3 py-1 rounded-xl transition-all"
             aria-label="Selected records"
           >
-            <span className="font-mono text-xs font-semibold text-[#1B365D]">
+            <span className="font-mono text-xs font-semibold text-[#004953]">
               {pick.sel.size.toLocaleString()} Selected
             </span>
             <span className="text-slate-300 text-xs">|</span>
@@ -336,7 +336,7 @@ export const MerchantVisitTab: React.FC<Props> = ({ role, branches, triggerToast
 const Kpi: React.FC<{ icon: React.ElementType; label: string; value: number | undefined; sub: string }> = ({ icon: Icon, label, value, sub }) => (
   <div className="rounded-2xl bg-white border border-slate-200/90 px-4 py-3.5 shadow-2xs min-w-0">
     <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
-      <Icon className="w-4 h-4 text-[#1B365D]" aria-hidden />{label}
+      <Icon className="w-4 h-4 text-[#004953]" aria-hidden />{label}
     </div>
     <div className="mt-1.5 text-2xl font-extrabold tabular-nums text-slate-900">{value === undefined ? '—' : value.toLocaleString()}</div>
     <div className="mt-0.5 text-xs text-slate-500 truncate" title={sub}>{sub}</div>
@@ -363,7 +363,7 @@ const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onChec
   const place = [v.location, v.khan].filter(Boolean).join(' · ');
   const others = Object.entries(v.answers).filter(([k]) => !SHOWN.has(k.toLowerCase()));
   return (
-    <div className={checked ? 'bg-[#1B365D]/10' : 'hover:bg-slate-50'}>
+    <div className={checked ? 'bg-[#004953]/10' : 'hover:bg-slate-50'}>
       <div
         role="button"
         tabIndex={0}
@@ -418,7 +418,7 @@ const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onChec
                 <Detail
                   k="GPS"
                   v={mapUrl ? (
-                    <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#1B365D] hover:text-[#3b6b9e] hover:underline">
+                    <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#004953] hover:text-[#006978] hover:underline">
                       <MapPin className="w-3 h-3" /> {v.latitude!.toFixed(6)}, {v.longitude!.toFixed(6)}
                     </a>
                   ) : '—'}
@@ -426,7 +426,7 @@ const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onChec
                 <Detail
                   k="Photos"
                   v={v.photoLink ? (
-                    <a href={v.photoLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#1B365D] hover:text-[#3b6b9e] hover:underline">
+                    <a href={v.photoLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#004953] hover:text-[#006978] hover:underline">
                       <Send className="w-3 h-3" /> View on Telegram
                     </a>
                   ) : '—'}
