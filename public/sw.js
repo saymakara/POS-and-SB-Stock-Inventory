@@ -1,5 +1,5 @@
 // High-Performance Browser Caching Service Worker for POS & Sound Box Stock Inventory
-const CACHE_NAME = 'pos-sb-stock-v2';
+const CACHE_NAME = 'pos-sb-stock-v3';
 const PRECACHE_ASSETS = [
   './',
   './index.html',
