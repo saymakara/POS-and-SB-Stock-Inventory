@@ -399,7 +399,7 @@ const SimCardTabComponent: React.FC<{
             <option value="">All locations</option>
             <option value="100">Head Office</option>
             {branches.filter((b) => b.id !== '100').map((b) => (
-              <option key={b.id} value={b.id}>{b.id} Â· {b.name}</option>
+              <option key={b.id} value={b.id}>{b.id} · {b.name}</option>
             ))}
           </select>
         )}
@@ -624,7 +624,7 @@ const SimCardTabComponent: React.FC<{
         triggerToast={triggerToast}
       />
 
-      <LostMaterialsSection codes={SIM_CODES} title="Lost Materials Â· SIM Card" branches={branches} isAdmin={isAdmin}
+      <LostMaterialsSection codes={SIM_CODES} title="Lost Materials · SIM Card" branches={branches} isAdmin={isAdmin}
         triggerToast={triggerToast} onChanged={changed} />
 
       {/* Adjust Dialog */}

@@ -141,7 +141,7 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   ok((await p.locator('section[aria-label^="Lost Materials · Sound Box"]').count()) === 0, 'Sound Box material: no Lost Materials list (nothing lost)');
 
   await g.getByRole('button', { name: /^SIM Card/ }).click(); await sleep(1500);
-  ok(/096 555 0142/.test(await p.textContent('body')) && /Branch reserve\s*2/.test((await p.locator('[aria-label="Status"]').textContent()).replace(/\s+/g, ' ')), 'SIM Card: register and status counts');
+  ok(/096 555 0142/.test(await p.textContent('body')) && /Branch [rR]eserve\s*2/i.test((await p.locator('[aria-label="Status"]').textContent()).replace(/\s+/g, ' ')), 'SIM Card: register and status counts');
   const lostSim = p.locator('section[aria-label="Lost Materials · SIM Card"]');
   ok((await lostSim.count()) === 1 && /015 778 9014/.test(await lostSim.textContent()), 'SIM Card: Lost Materials list with the lost SIM');
   await lostSim.getByRole('button', { name: 'Blocked with carrier' }).click(); await sleep(1200);

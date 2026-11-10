@@ -501,58 +501,63 @@ export const FieldReviewTab: React.FC<Props> = ({
       POS_INACTIVE: 0,
       POS_RETURN: 0,
     };
-    scoped
-      .filter((e) => filter === 'ALL' || e.status === filter)
-      .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
-      .forEach((e) => {
-        c.ALL++;
-        if (c[e.kind] !== undefined) c[e.kind]++;
-        else c[e.kind] = 1;
-      });
+    const len = scoped.length;
+    for (let i = 0; i < len; i++) {
+      const e = scoped[i];
+      if (filter !== 'ALL' && e.status !== filter) continue;
+      if (typeFilter !== 'ALL' && devType(e) !== typeFilter) continue;
+      c.ALL++;
+      if (c[e.kind] !== undefined) c[e.kind]++;
+      else c[e.kind] = 1;
+    }
     return c;
   }, [scoped, filter, typeFilter]);
 
   const typeCounts = useMemo(() => {
     const c = { pos: 0, sb: 0 };
-    scoped
-      .filter((e) => filter === 'ALL' || e.status === filter)
-      .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
-      .forEach((e) => {
-        if (e.deviceType === 'Sound Box') c.sb++;
-        else c.pos++;
-      });
+    const len = scoped.length;
+    for (let i = 0; i < len; i++) {
+      const e = scoped[i];
+      if (filter !== 'ALL' && e.status !== filter) continue;
+      if (recordTypeFilter !== 'ALL' && e.kind !== recordTypeFilter) continue;
+      if (e.deviceType === 'Sound Box') c.sb++;
+      else c.pos++;
+    }
     return c;
   }, [scoped, filter, recordTypeFilter]);
 
-
   const shownBase = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
-    return scoped
-      .filter((e) => filter === 'ALL' || e.status === filter)
-      .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
-      .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
-      .filter(
-        (e) =>
-          !q ||
-          [
-            e.serial,
-            e.oldSerial,
-            e.sourceRecordId,
-            e.mid,
-            e.tid,
-            e.outletName,
-            e.terminalName,
-            e.staffName,
-            e.staffId,
-            e.branchText,
-          ].some((v) => String(v || '').toLowerCase().includes(q))
-      )
-      .sort(
-        (a, b) =>
-          b.receivedAt.localeCompare(a.receivedAt) ||
-          b.sourceRecordId.localeCompare(a.sourceRecordId) ||
-          a.unitNo - b.unitNo
-      );
+    const hasQ = Boolean(q);
+    const result: FieldEvent[] = [];
+    const len = scoped.length;
+    for (let i = 0; i < len; i++) {
+      const e = scoped[i];
+      if (filter !== 'ALL' && e.status !== filter) continue;
+      if (recordTypeFilter !== 'ALL' && e.kind !== recordTypeFilter) continue;
+      if (typeFilter !== 'ALL' && devType(e) !== typeFilter) continue;
+      if (hasQ) {
+        const match =
+          (e.serial && e.serial.toLowerCase().includes(q)) ||
+          (e.mid && e.mid.toLowerCase().includes(q)) ||
+          (e.tid && e.tid.toLowerCase().includes(q)) ||
+          (e.outletName && e.outletName.toLowerCase().includes(q)) ||
+          (e.staffName && e.staffName.toLowerCase().includes(q)) ||
+          (e.staffId && e.staffId.toLowerCase().includes(q)) ||
+          (e.branchText && e.branchText.toLowerCase().includes(q)) ||
+          (e.oldSerial && e.oldSerial.toLowerCase().includes(q)) ||
+          (e.sourceRecordId && e.sourceRecordId.toLowerCase().includes(q)) ||
+          (e.terminalName && e.terminalName.toLowerCase().includes(q));
+        if (!match) continue;
+      }
+      result.push(e);
+    }
+    return result.sort(
+      (a, b) =>
+        b.receivedAt.localeCompare(a.receivedAt) ||
+        b.sourceRecordId.localeCompare(a.sourceRecordId) ||
+        a.unitNo - b.unitNo
+    );
   }, [scoped, filter, typeFilter, recordTypeFilter, deferredQuery]);
 
   const { sorted: shown, sort, toggle: toggleSort } = useSort(shownBase, {

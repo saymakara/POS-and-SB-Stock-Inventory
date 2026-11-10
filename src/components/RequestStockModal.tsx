@@ -688,8 +688,8 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 {matList.length > 0 && (
                   <div className="p-3 flex items-start justify-between gap-3">
                     <div>
-                      <span className="text-slate-500 font-medium block">Additional Support Stock:</span>
-                      <span className="text-[10px] text-slate-400">Spare shelf inventory</span>
+                      <span className="text-slate-500 font-medium block">Materials:</span>
+                      <span className="text-[10px] text-slate-400">Additional support &amp; spare shelf inventory</span>
                     </div>
                     <span className="font-bold text-right">{matList.map((m) => `${m.name} × ${m.n}`).join(' · ')}</span>
                   </div>

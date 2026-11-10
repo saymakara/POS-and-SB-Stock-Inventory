@@ -1379,3 +1379,25 @@ input[type="checkbox"].switch-toggle:active::after {
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
 }
+
+/* ==========================================================================
+   Low-Spec PC Performance Acceleration & Layout Containment
+   Optimized for budget dual-core CPUs and integrated graphics (Intel HD/UHD).
+   ========================================================================== */
+.hardware-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Skip layout calculation and paint passes for offscreen rows */
+tbody > tr {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 44px;
+}
+
+/* Isolate paint boundaries for data tables so scrolling never triggers full-page reflow */
+.fr-table-frame {
+  contain: paint;
+  transform: translateZ(0);
+}
+
