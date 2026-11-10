@@ -4,7 +4,7 @@ import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
   ChevronDown, ChevronLeft, ChevronRight, Cpu, Volume2, QrCode, CreditCard, TrendingUp, TrendingDown, Target,
   Sun, CheckSquare, Diamond, X, ArrowUpDown, ArrowUp, ArrowDown, ShieldCheck,
-  ClipboardList,
+  ClipboardList, LayoutGrid, List,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
@@ -217,6 +217,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [openBranch, setOpenBranch] = useState<string | null>(null);
   const [openStaff, setOpenStaff] = useState<string | null>(null);
   const [showSubCategories, setShowSubCategories] = useState(false);
+  const [subCatSearch, setSubCatSearch] = useState('');
+  const [subCatActiveOnly, setSubCatActiveOnly] = useState(true);
+  const [subCatViewMode, setSubCatViewMode] = useState<'cards' | 'table'>('cards');
   const [tableMode, setTableMode] = useState<'branch' | 'staff'>('staff');
   const [branchSubView, setBranchSubView] = useState<'summary' | 'daily'>('summary');
   const [staffSubView, setStaffSubView] = useState<'summary' | 'daily'>('summary');
@@ -1038,6 +1041,44 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       .map((it) => ({ ...it, points: Math.round(it.points * 100) / 100 }))
       .sort((a, b) => b.points - a.points || b.count - a.count);
   }, [totals.raw, ruleMap]);
+
+  const activeSubCategoryCount = useMemo(() => {
+    const list = categoryFilter === 'ALL'
+      ? subCategoryBreakdown
+      : subCategoryBreakdown.filter((sc) => sc.category === categoryFilter);
+    return list.filter((sc) => sc.points > 0 || sc.count > 0).length;
+  }, [subCategoryBreakdown, categoryFilter]);
+
+  const totalInSelectedCategory = useMemo(() => {
+    return categoryFilter === 'ALL'
+      ? subCategoryBreakdown.length
+      : subCategoryBreakdown.filter((sc) => sc.category === categoryFilter).length;
+  }, [subCategoryBreakdown, categoryFilter]);
+
+  const displayedSubCategories = useMemo(() => {
+    let list = subCategoryBreakdown;
+    if (categoryFilter !== 'ALL') {
+      list = list.filter((sc) => sc.category === categoryFilter);
+    }
+    if (subCatActiveOnly) {
+      list = list.filter((sc) => sc.points > 0 || sc.count > 0);
+    }
+    const q = subCatSearch.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (sc) =>
+          sc.label.toLowerCase().includes(q) ||
+          sc.category.toLowerCase().includes(q) ||
+          sc.code.toLowerCase().includes(q) ||
+          sc.unit.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [subCategoryBreakdown, categoryFilter, subCatActiveOnly, subCatSearch]);
+
+  const displayedSubCategoryPoints = useMemo(() => {
+    return displayedSubCategories.reduce((acc, sc) => acc + sc.points, 0);
+  }, [displayedSubCategories]);
 
   const availableMonths = useMemo(() => {
     const set = new Set<string>();
@@ -2109,7 +2150,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 onClick={() => setShowSubCategories((v) => !v)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs border shadow-2xs cursor-pointer bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200/90 transition"
               >
-                <span>{showSubCategories ? 'Hide' : 'Show'} {subCategoryBreakdown.length} sub-category tasks</span>
+                <span>{showSubCategories ? 'Hide sub-category tasks' : `Show ${subCategoryBreakdown.length} sub-category tasks (${activeSubCategoryCount} active)`}</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showSubCategories ? 'rotate-180' : ''}`} />
               </button>
             </div>
@@ -2133,7 +2174,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <button
                     key={item.cat}
                     type="button"
-                    onClick={() => setCategoryFilter((c) => (c === item.cat ? 'ALL' : item.cat))}
+                    onClick={() => {
+                      setCategoryFilter((c) => (c === item.cat ? 'ALL' : item.cat));
+                      setShowSubCategories(true);
+                    }}
                     className={`text-left rounded-2xl border p-4 transition-all cursor-pointer shadow-2xs hover:shadow-md hover:-translate-y-0.5 bg-white ${
                       activeFilter ? 'border-[#1e5b88] ring-2 ring-sky-100' : 'border-slate-200/90 hover:border-slate-300'
                     }`}
@@ -2172,34 +2216,351 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="mt-3.5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
-                    <div className="bg-slate-50 px-3.5 py-2 border-b border-slate-200 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                      <span>Sub-category task breakdown ({subCategoryBreakdown.length} tasks)</span>
-                      <span>Volume · Weight · Total points</span>
-                    </div>
-                    <div className="divide-y divide-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 text-[13px] text-slate-700">
-                      {subCategoryBreakdown.map((sc, i) => {
-                        const pct = totals.totalPoints > 0 ? Math.round((sc.points / totals.totalPoints) * 100) : 0;
-                        const catStyle = CAT_COLORS[sc.category];
-                        return (
-                          <div key={sc.code} className="px-3.5 py-2.5 flex items-center justify-between gap-3 border-r border-slate-100 last:border-r-0">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] font-mono text-slate-400">{i + 1}.</span>
-                                <span className="text-slate-900 truncate">{sc.label}</span>
-                              </div>
-                              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
-                                <span className={`px-1.5 py-0.2 rounded border text-[10px] ${catStyle.badge}`}>{sc.category}</span>
-                                <span>{fmtInt(sc.count)} {sc.unit} × {sc.unitPts} pt</span>
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0 tabular-nums">
-                              <div className="text-slate-900 font-medium">{fmtPts(sc.points)} pts</div>
-                              <div className="text-[11px] text-slate-500">{pct}% share</div>
-                            </div>
+                  <div className="mt-4 rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+                    {/* Header Toolbar */}
+                    <div className="bg-slate-50/90 border-b border-slate-200/90 p-3 sm:p-4 space-y-3">
+                      {/* Top Row: Title, badges, and controls */}
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                            Sub-Category Task Breakdown
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200/80 text-slate-700">
+                            {displayedSubCategories.length} {displayedSubCategories.length === 1 ? 'task' : 'tasks'}
+                          </span>
+                          {categoryFilter !== 'ALL' && (
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${CAT_COLORS[categoryFilter].badge}`}>
+                              <span>{categoryFilter}</span>
+                              <button
+                                type="button"
+                                onClick={() => setCategoryFilter('ALL')}
+                                className="hover:opacity-75 cursor-pointer ml-0.5 inline-flex items-center"
+                                title="Clear category filter"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* View Options & Active Filter */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Active Only Filter */}
+                          <button
+                            type="button"
+                            onClick={() => setSubCatActiveOnly((v) => !v)}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border shadow-2xs cursor-pointer transition ${
+                              subCatActiveOnly
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100/80'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            }`}
+                            title={subCatActiveOnly ? 'Click to show all rules (including 0 pts)' : 'Click to hide 0-pt standby rules'}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${subCatActiveOnly ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                            <span>{subCatActiveOnly ? `Active Only (${activeSubCategoryCount})` : `All Rules (${totalInSelectedCategory})`}</span>
+                          </button>
+
+                          {/* View Mode Switcher */}
+                          <div className="inline-flex rounded-lg border border-slate-200/90 p-0.5 bg-slate-100">
+                            <button
+                              type="button"
+                              onClick={() => setSubCatViewMode('cards')}
+                              className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 cursor-pointer transition ${
+                                subCatViewMode === 'cards'
+                                  ? 'bg-white shadow-2xs text-slate-900 font-semibold'
+                                  : 'text-slate-500 hover:text-slate-800'
+                              }`}
+                              title="Card Grid View"
+                            >
+                              <LayoutGrid className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Cards</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSubCatViewMode('table')}
+                              className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 cursor-pointer transition ${
+                                subCatViewMode === 'table'
+                                  ? 'bg-white shadow-2xs text-slate-900 font-semibold'
+                                  : 'text-slate-500 hover:text-slate-800'
+                              }`}
+                              title="Detailed Table View"
+                            >
+                              <List className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Table</span>
+                            </button>
                           </div>
-                        );
-                      })}
+                        </div>
+                      </div>
+
+                      {/* Second Row: Category Pills + Search Filter */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-200/60">
+                        {/* Category Pills */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setCategoryFilter('ALL')}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                              categoryFilter === 'ALL'
+                                ? 'bg-slate-900 text-white shadow-2xs'
+                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/90'
+                            }`}
+                          >
+                            All ({subCategoryBreakdown.length})
+                          </button>
+                          {(['KHQR', 'Sound Box', 'Credit Card', 'POS Terminal', 'Merchant Visit'] as KpiCategory[]).map((cat) => {
+                            const active = categoryFilter === cat;
+                            const catStyle = CAT_COLORS[cat];
+                            const count = subCategoryBreakdown.filter((sc) => sc.category === cat).length;
+                            const activeCount = subCategoryBreakdown.filter((sc) => sc.category === cat && (sc.points > 0 || sc.count > 0)).length;
+                            return (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => setCategoryFilter(active ? 'ALL' : cat)}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition ${
+                                  active
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200/90'
+                                }`}
+                              >
+                                <span className={`w-2 h-2 rounded-full ${catStyle.dot}`} />
+                                <span>{cat}</span>
+                                <span className={`text-[10.5px] px-1.5 py-0.2 rounded-full tabular-nums ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                  {subCatActiveOnly ? activeCount : count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Search Input */}
+                        <div className="relative min-w-[200px] sm:w-64">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={subCatSearch}
+                            onChange={(e) => setSubCatSearch(e.target.value)}
+                            placeholder="Filter tasks (e.g. roll, swap)..."
+                            className="w-full pl-8 pr-7 py-1 text-xs rounded-lg border border-slate-200/90 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                          />
+                          {subCatSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setSubCatSearch('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                              title="Clear search"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Content: Empty State, Cards, or Table */}
+                    {displayedSubCategories.length === 0 ? (
+                      <div className="p-8 text-center bg-white">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                          <Search className="w-5 h-5" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700">No sub-category tasks found</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          No tasks match your active filters {subCatActiveOnly ? '(0-pt standby rules are currently hidden)' : ''}.
+                        </p>
+                        <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2">
+                          {subCatSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setSubCatSearch('')}
+                              className="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+                            >
+                              Clear search query
+                            </button>
+                          )}
+                          {categoryFilter !== 'ALL' && (
+                            <button
+                              type="button"
+                              onClick={() => setCategoryFilter('ALL')}
+                              className="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+                            >
+                              Show all categories
+                            </button>
+                          )}
+                          {subCatActiveOnly && (
+                            <button
+                              type="button"
+                              onClick={() => setSubCatActiveOnly(false)}
+                              className="px-3 py-1 rounded-lg text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition cursor-pointer"
+                            >
+                              Show all {totalInSelectedCategory} rules
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : subCatViewMode === 'cards' ? (
+                      <div className="p-3.5 sm:p-4 bg-slate-50/50">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                          {displayedSubCategories.map((sc, i) => {
+                            const pct = totals.totalPoints > 0 ? (sc.points / totals.totalPoints) * 100 : 0;
+                            const pctDisplay = pct >= 1 ? `${Math.round(pct)}%` : pct > 0 ? `${pct.toFixed(1)}%` : '0%';
+                            const catStyle = CAT_COLORS[sc.category];
+                            const Icon = catStyle.Icon;
+                            const isZero = sc.points === 0;
+
+                            const rankBadge =
+                              i === 0 && !isZero
+                                ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold shadow-2xs'
+                                : i === 1 && !isZero
+                                ? 'bg-slate-200 text-slate-800 border-slate-300 font-bold'
+                                : i === 2 && !isZero
+                                ? 'bg-amber-50 text-amber-900 border-amber-200 font-bold'
+                                : 'bg-slate-100 text-slate-500 border-slate-200';
+
+                            return (
+                              <div
+                                key={sc.code}
+                                className={`group rounded-xl border p-3.5 transition-all duration-150 flex flex-col justify-between ${
+                                  isZero
+                                    ? 'bg-white/80 border-slate-200/60 opacity-60 hover:opacity-100 hover:shadow-xs'
+                                    : 'bg-white border-slate-200/90 shadow-2xs hover:shadow-md hover:border-slate-300'
+                                }`}
+                              >
+                                <div>
+                                  {/* Top Row: Rank + Category Badge + Points */}
+                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-md text-[10.5px] border ${rankBadge} shrink-0`}>
+                                        {i + 1}
+                                      </span>
+                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold border ${catStyle.badge} truncate`}>
+                                        <Icon className="w-3 h-3 shrink-0" />
+                                        <span className="truncate">{sc.category}</span>
+                                      </span>
+                                    </div>
+                                    <div className="text-right shrink-0 tabular-nums">
+                                      <span className={`font-figure font-bold text-sm ${isZero ? 'text-slate-400' : 'text-slate-900'}`}>
+                                        {fmtPts(sc.points)} <span className="text-[11px] font-normal text-slate-500">pts</span>
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Task Label */}
+                                  <h4 className="text-[13px] font-semibold text-slate-900 leading-snug group-hover:text-sky-800 transition-colors line-clamp-1" title={sc.label}>
+                                    {sc.label}
+                                  </h4>
+
+                                  {/* Metrics & Share */}
+                                  <div className="mt-1.5 flex items-center justify-between text-[11.5px] text-slate-500">
+                                    <span className="truncate">
+                                      <span className="font-semibold text-slate-700">{fmtInt(sc.count)}</span> {sc.unit} × {sc.unitPts} pt
+                                    </span>
+                                    <span className="shrink-0 font-medium text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded text-[10.5px] tabular-nums">
+                                      {pctDisplay} share
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Mini Progress Bar */}
+                                <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-300 ${catStyle.bar}`}
+                                    style={{ width: `${Math.min(100, Math.max(isZero ? 0 : 3, pct))}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto bg-white">
+                        <table className="w-full text-left text-xs text-slate-700">
+                          <thead className="bg-slate-50/90 text-[11px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                            <tr>
+                              <th className="py-2.5 px-3.5 w-12 text-center">#</th>
+                              <th className="py-2.5 px-3.5">Sub-Category Task</th>
+                              <th className="py-2.5 px-3.5">Category</th>
+                              <th className="py-2.5 px-3.5 text-right">Recorded Volume</th>
+                              <th className="py-2.5 px-3.5 text-right">Weight (Rate)</th>
+                              <th className="py-2.5 px-3.5 text-right">Total Points</th>
+                              <th className="py-2.5 px-3.5 text-right w-28">Point Share</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {displayedSubCategories.map((sc, i) => {
+                              const pct = totals.totalPoints > 0 ? (sc.points / totals.totalPoints) * 100 : 0;
+                              const pctDisplay = pct >= 1 ? `${Math.round(pct)}%` : pct > 0 ? `${pct.toFixed(1)}%` : '0%';
+                              const catStyle = CAT_COLORS[sc.category];
+                              const Icon = catStyle.Icon;
+                              const isZero = sc.points === 0;
+
+                              return (
+                                <tr key={sc.code} className={`hover:bg-slate-50/80 transition-colors ${isZero ? 'opacity-50' : ''}`}>
+                                  <td className="py-2.5 px-3.5 text-center font-mono text-[11px] text-slate-400">
+                                    {i + 1}
+                                  </td>
+                                  <td className="py-2.5 px-3.5 font-semibold text-slate-900">
+                                    {sc.label}
+                                  </td>
+                                  <td className="py-2.5 px-3.5">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold border ${catStyle.badge}`}>
+                                      <Icon className="w-3 h-3 shrink-0" />
+                                      {sc.category}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-3.5 text-right font-medium text-slate-700 tabular-nums">
+                                    {fmtInt(sc.count)} <span className="text-slate-400 font-normal">{sc.unit}</span>
+                                  </td>
+                                  <td className="py-2.5 px-3.5 text-right text-slate-600 tabular-nums">
+                                    {sc.unitPts} pt
+                                  </td>
+                                  <td className="py-2.5 px-3.5 text-right font-bold text-slate-900 tabular-nums">
+                                    {fmtPts(sc.points)} pts
+                                  </td>
+                                  <td className="py-2.5 px-3.5 text-right tabular-nums">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <span className="font-semibold text-slate-700 text-[11px]">{pctDisplay}</span>
+                                      <div className="w-12 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                        <div
+                                          className={`h-full rounded-full ${catStyle.bar}`}
+                                          style={{ width: `${Math.min(100, Math.max(isZero ? 0 : 5, pct))}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Footer Summary Bar */}
+                    <div className="bg-slate-50 px-4 py-2.5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                      <div>
+                        {subCatActiveOnly ? (
+                          <span>
+                            Showing <strong>{displayedSubCategories.length}</strong> active tasks ({fmtPts(displayedSubCategoryPoints)} pts).
+                            {totalInSelectedCategory - activeSubCategoryCount > 0 && (
+                              <span className="text-slate-400"> · {totalInSelectedCategory - activeSubCategoryCount} standby rules with 0 pts hidden</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span>
+                            Showing all <strong>{displayedSubCategories.length}</strong> rules ({fmtPts(displayedSubCategoryPoints)} pts).
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 font-medium">
+                        <button
+                          type="button"
+                          onClick={() => setSubCatActiveOnly((v) => !v)}
+                          className="text-sky-700 hover:text-sky-800 hover:underline cursor-pointer"
+                        >
+                          {subCatActiveOnly ? `Show all ${totalInSelectedCategory} rules` : `Show active tasks only (${activeSubCategoryCount})`}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
