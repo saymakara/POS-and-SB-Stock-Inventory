@@ -393,7 +393,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   {/* POS Terminal Row */}
                   <div className="p-3 sm:px-4 sm:py-3 flex items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-[#006BA6]/10 text-[#006BA6] dark:text-[#5cc8ff] border border-[#006BA6]/20 flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-[#22577A]/10 text-[#22577A] dark:text-[#5cc8ff] border border-[#22577A]/20 flex items-center justify-center shrink-0">
                         <Cpu className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">

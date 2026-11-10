@@ -269,7 +269,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] font-bold font-figure text-slate-500">
               {deviceType !== 'Sound Box' && (
                 <span className="text-slate-600">
-                  {deviceType ? 'POS Terminal' : 'POS'}: <strong className="text-[#006BA6]"><Odometer value={posCount} format={posCount >= 1000} duration={340} /></strong>
+                  {deviceType ? 'POS Terminal' : 'POS'}: <strong className="text-[#22577A]"><Odometer value={posCount} format={posCount >= 1000} duration={340} /></strong>
                 </span>
               )}
               {deviceType !== 'POS Terminal' && (

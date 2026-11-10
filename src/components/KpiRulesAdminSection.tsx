@@ -37,7 +37,7 @@ import { getCachedStaff } from '../services/staffCache';
 import { RAW_BRANCHES } from '../data/initialData';
 
 export const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string; dot: string; Icon: React.ElementType }> = {
-  'POS Terminal': { hex: '#006BA6', badge: 'bg-[#006BA6]/10 text-[#006BA6] border-[#006BA6]/20', bar: 'bg-[#006BA6]', dot: 'bg-[#006BA6]', Icon: Cpu },
+  'POS Terminal': { hex: '#22577A', badge: 'bg-[#22577A]/10 text-[#22577A] border-[#22577A]/20 font-semibold', bar: 'bg-[#22577A]', dot: 'bg-[#22577A]', Icon: Cpu },
   'Sound Box': { hex: '#4F518C', badge: 'bg-[#4F518C]/10 text-[#4F518C] border-[#4F518C]/20', bar: 'bg-[#4F518C]', dot: 'bg-[#4F518C]', Icon: Volume2 },
   KHQR: { hex: '#0d9488', badge: 'bg-teal-50 text-teal-700 border-teal-200/90', bar: 'bg-teal-600', dot: 'bg-teal-600', Icon: QrCode },
   'Credit Card': { hex: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200/90', bar: 'bg-amber-500', dot: 'bg-amber-500', Icon: CreditCard },

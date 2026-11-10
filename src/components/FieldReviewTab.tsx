@@ -57,7 +57,7 @@ const STATUS_LABEL: Record<string, string> = {
 type Filter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
 type RecordTypeFilter = 'ALL' | FieldEvent['kind'];
-const DOT = { 'POS Terminal': 'bg-[#006BA6]', 'Sound Box': 'bg-[#4F518C]' } as const;
+const DOT = { 'POS Terminal': 'bg-[#22577A]', 'Sound Box': 'bg-[#4F518C]' } as const;
 /** POS Terminal unless the record says Sound Box (the same rule as the row label) */
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
@@ -805,7 +805,7 @@ export const FieldReviewTab: React.FC<Props> = ({
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex flex-wrap items-center gap-3 text-slate-900 leading-tight">
               {deviceType === 'Sound Box'
                 ? <Volume2 className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#4F518C]" aria-hidden />
-                : <Cpu className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#006BA6]" aria-hidden />}
+                : <Cpu className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#22577A]" aria-hidden />}
               <span>{deviceType || 'Review'}</span>
               <span className="inline-flex items-center gap-1.5 text-[11px] font-normal px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/90 tracking-normal"
                 title="New records from the phone app appear here as they are saved">
@@ -1286,11 +1286,11 @@ const ReviewRow = memo(function ReviewRow({
           {selectable && <SelectBox checked={checked} onChange={() => onCheck(e.id)} label={`Select ${e.serial}`} />}
         </span>
         <span className="text-center text-slate-500 font-mono font-normal tabular-nums">{no}</span>
-        <span className={`inline-flex items-center gap-1.5 whitespace-nowrap font-semibold ${type === 'Sound Box' ? 'text-[#4F518C]' : 'text-[#006BA6]'}`}>
+        <span className={`inline-flex items-center gap-1.5 whitespace-nowrap font-semibold ${type === 'Sound Box' ? 'text-[#4F518C]' : 'text-[#22577A]'}`}>
           {type === 'Sound Box' ? (
             <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
           ) : (
-            <Cpu className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
+            <Cpu className="w-3.5 h-3.5 text-[#22577A] shrink-0" aria-hidden />
           )}
           <span>{type}</span>
         </span>

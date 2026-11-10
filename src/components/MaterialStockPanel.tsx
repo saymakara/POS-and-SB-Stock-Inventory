@@ -266,7 +266,7 @@ const ProductStockPageComponent: React.FC<{
     <div className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2.5 text-lg sm:text-xl font-extrabold text-slate-900">
-          <Icon className={`w-5 h-5 ${group === 'POS' ? 'text-[#006BA6]' : 'text-[#4F518C]'}`} aria-hidden />{title}
+          <Icon className={`w-5 h-5 ${group === 'POS' ? 'text-[#22577A]' : 'text-[#4F518C]'}`} aria-hidden />{title}
         </h2>
       </div>
 

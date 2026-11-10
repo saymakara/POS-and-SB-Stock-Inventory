@@ -716,7 +716,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                             <div className="cell-main flex items-center gap-2 whitespace-nowrap">
                               {req.posQty > 0 && (
                                 <span className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
-                                  <Cpu className="w-3.5 h-3.5 text-[#006BA6] shrink-0" aria-hidden />
+                                  <Cpu className="w-3.5 h-3.5 text-[#22577A] shrink-0" aria-hidden />
                                   <span>{req.posQty} POS</span>
                                 </span>
                               )}
@@ -1100,7 +1100,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                             </td>
                             <td className="py-2.5 px-4 font-bold">
                               {item.type === 'POS Terminal' ? (
-                                <span className="inline-flex items-center gap-1.5 text-[#006BA6] dark:text-[#5cc8ff]">
+                                <span className="inline-flex items-center gap-1.5 text-[#22577A] dark:text-[#5cc8ff]">
                                   <Cpu className="w-3.5 h-3.5 shrink-0" />
                                   POS Terminal
                                 </span>
@@ -1429,7 +1429,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                          <Package className="w-4 h-4 text-[#006BA6]" />
+                          <Package className="w-4 h-4 text-[#22577A]" />
                           <span>Detailed Requested Quantities</span>
                         </span>
                         <span className="font-mono text-[11px] font-semibold text-slate-500">
@@ -1452,7 +1452,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                               <tr className="hover:bg-slate-50 dark:hover:bg-white/5">
                                 <td className="py-2.5 px-3 text-center font-mono text-slate-400">1</td>
                                 <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                                  <Cpu className="w-4 h-4 text-[#006BA6]" />
+                                  <Cpu className="w-4 h-4 text-[#22577A]" />
                                   <span>POS Terminal</span>
                                 </td>
                                 <td className="py-2.5 px-3 text-slate-500">Hardware Unit</td>

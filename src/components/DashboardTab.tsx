@@ -658,7 +658,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       labels={monthlyChart.labels}
                       series1Label="POS Terminal Installed"
                       series1Data={monthlyChart.pos}
-                      series1Color="#006BA6"
+                      series1Color="#22577A"
                       series2Label="Sound Box Installed"
                       series2Data={monthlyChart.sb}
                       series2Color="#4F518C"
@@ -749,7 +749,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-200">
                         <div
                           style={{ width: `${posPct}%` }}
-                          className="h-full bg-[#006BA6]"
+                          className="h-full bg-[#22577A]"
                         />
                         <div
                           style={{ width: `${sbPct}%` }}
@@ -774,7 +774,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   labels={topBranchesChart.labels}
                   series1Label="POS Terminal Units"
                   series1Data={topBranchesChart.posSeries}
-                  series1Color="#006BA6"
+                  series1Color="#22577A"
                   series2Label="Sound Box Units"
                   series2Data={topBranchesChart.sbSeries}
                   series2Color="#4F518C"
@@ -965,7 +965,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 flex items-center justify-center shrink-0">
                       {dev.type === 'POS Terminal' ? (
-                        <Cpu className="w-4 h-4 text-[#006BA6] dark:text-[#5cc8ff]" />
+                        <Cpu className="w-4 h-4 text-[#22577A] dark:text-[#5cc8ff]" />
                       ) : (
                         <Volume2 className="w-4 h-4 text-[#4F518C] dark:text-[#a2a5e0]" />
                       )}
