@@ -6,6 +6,9 @@ import { supabase } from '../lib/supabase';
  * Confirm / Reject through cc_review (Admin HQ only), which also asks the phone app's bot to reply in the staff group.
  */
 export type CcReview = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'NO_REVIEW';
+/** (11 Nov 2026) The list filter: a review status, or WAITING_DOCS (well received, documents not yet at Head Office). */
+export type CcFilter = CcReview | 'WAITING_DOCS';
+export type CcDocStatus = 'WAITING' | 'RECEIVED' | null;
 
 export interface CcSupplementary { full_name?: string; marital?: string; account?: string; email?: string }
 export interface CcHistoryItem { at: string; action: string; by?: string; reason?: string; note?: string; was?: string }
@@ -41,6 +44,11 @@ export interface CcEntry {
   notifyState: 'PENDING' | 'SENDING' | 'SENT' | 'FAILED' | null;
   notifiedAt: string | null;
   telegramLink: string | null;
+  /** (11 Nov 2026) Well Received → WAITING for the documents; confirmed later → RECEIVED. */
+  docStatus: CcDocStatus;
+  docSince: string | null;
+  docFollowups: number;
+  docLastFollowup: string | null;
 }
 export interface CcCounts {
   total: number;
@@ -52,8 +60,9 @@ export interface CcCounts {
   primaryCards?: number;
   suppCards?: number;
   pendingAll: number;
+  waitingDocs?: number;
 }
-export interface CcQuery { from: string | null; to: string | null; review?: CcReview | ''; branchId?: string; search?: string; page: number; pageSize: number }
+export interface CcQuery { from: string | null; to: string | null; review?: CcFilter | ''; branchId?: string; search?: string; page: number; pageSize: number }
 
 const map = (r: any): CcEntry => ({
   id: Number(r.id), recordId: r.record_id, requestType: r.request_type || '', cardStatus: r.card_status ?? null, failReason: r.fail_reason ?? null,
@@ -65,6 +74,8 @@ const map = (r: any): CcEntry => ({
   reviewStatus: r.review_status, reviewReason: r.review_reason ?? null, reviewNote: r.review_note ?? null, reviewedBy: r.reviewed_by ?? null,
   reviewedAt: r.reviewed_at ?? null, reviewHistory: Array.isArray(r.review_history) ? r.review_history : [],
   notifyState: r.notify_state ?? null, notifiedAt: r.notified_at ?? null, telegramLink: r.telegram_link ?? null,
+  docStatus: r.doc_status === 'WAITING' || r.doc_status === 'RECEIVED' ? r.doc_status : null, docSince: r.doc_since ?? null,
+  docFollowups: Number(r.doc_followups) || 0, docLastFollowup: r.doc_last_followup ?? null,
 });
 
 /**
@@ -118,6 +129,7 @@ async function fetchCcCountsNow(from: string | null, to: string | null): Promise
     primaryCards: Number(d.primary_cards) || 0,
     suppCards: Number(d.supp_cards) || 0,
     pendingAll: Number(d.pending_all) || 0,
+    waitingDocs: d.waiting_docs === undefined ? undefined : Number(d.waiting_docs) || 0,
   };
   setCachedCcCounts(`${from || ''}|${to || ''}`, res);
   return res;
@@ -129,6 +141,18 @@ export async function reviewCc(recordId: string, action: 'CONFIRM' | 'REJECT', r
   if (error) throw new Error(error.message);
   const d: any = data || {};
   return { reviewedBy: d.reviewed_by || '', reviewedAt: d.reviewed_at || '' };
+}
+
+/** (11 Nov 2026) Well Received (waiting for the documents) or Follow Up (a reminder) - Admin HQ. The bot replies under the
+ *  entry's post in the staff group (Merchant Visit 3.99+). */
+export async function docsCc(recordId: string, action: 'WELL_RECEIVED' | 'FOLLOW_UP', note?: string): Promise<{ docStatus: CcDocStatus; docSince: string | null; docFollowups: number; docLastFollowup: string | null; by: string; at: string }> {
+  const { data, error } = await supabase.rpc('cc_docs', { p_record_id: recordId, p_action: action, p_note: note || null });
+  if (error) {
+    if (/cc_docs|PGRST202|does not exist|schema cache/i.test(error.message)) throw new Error('The database needs the update 20261111_01_cc_documents.sql first.');
+    throw new Error(error.message);
+  }
+  const d: any = data || {};
+  return { docStatus: d.doc_status ?? null, docSince: d.doc_since ?? null, docFollowups: Number(d.doc_followups) || 0, docLastFollowup: d.doc_last_followup ?? null, by: d.by || '', at: d.at || '' };
 }
 
 /** (31 Oct 2026, speed) The last answers, kept in memory only (cleared on sign-out): the page opens with them at once and

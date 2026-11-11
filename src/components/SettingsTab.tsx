@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { LogoPageTab } from './LogoPageTab';
 import { KpiRulesAdminSection } from './KpiRulesAdminSection';
+import { KpiTeamLeadsSection } from './KpiTeamLeadsSection';
 import { KpiPointRule, KpiTargets, fetchFastKpiSettings, getCachedKpiSettings } from '../services/kpiService';
 // (31 Oct 2026) System Health: loaded only when that section is opened
 const SystemHealthPanel = React.lazy(() => import('./SystemHealthPanel'));
@@ -668,6 +669,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <p className="text-xs text-rose-500">Could not load KPI settings. Please try again.</p>
               </div>
             )}
+            {isAdminLike && <KpiTeamLeadsSection canEdit={isAdminLike} branches={branches} toast={(msg) => onToast?.(msg)} />}   {/* (11 Nov 2026) Team KPI in the phone app */}
           </div>
         )}
         {/* SUBTAB: System Health (31 Oct 2026) */}

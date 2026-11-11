@@ -2,6 +2,31 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 11 Nov 2026 — Credit Card: Well Received and Follow Up
+
+- Phone App Review → Credit Card, on an entry waiting for review (Admin HQ):
+  **Well Received** acknowledges the onboarding and marks it **Waiting documents** (Head Office waits for the staff member
+  to bring the documents); **Follow Up** sends a reminder and counts it (at most one every 10 minutes per entry).
+  The bot replies under the staff member's post in the staff group (Merchant Visit 3.99+). Confirm / Reject are unchanged;
+  confirming a waiting entry marks its documents received.
+- New filter tab **Waiting documents**; the Waiting review card shows how many wait for documents; the CSV export adds
+  Documents, Well Received At, Follow-ups, Last Follow-up.
+- Database: `supabase/migrations/20261111_01_cc_documents.sql` (new function `cc_docs`, Admin HQ only; four new columns on
+  `cc_entries`; `cc_review`, `cc_list`, `cc_counts`, `cc_outbox_take` updated). Additive; safe to run again. An older phone
+  app never receives the document notices, so it cannot post them as a decision.
+- Test: `tests/e2e/cc_docs_e2e.js` (stand-in API).
+
+## 11 Nov 2026 — KPI in the Merchant Visit app: My KPI and Team KPI (team leads)
+
+- **Settings → KPI → Team leads** (Admin HQ): who is a team lead (Merchant Visit Staff ID) and whose KPI they see — the
+  staff of the chosen branches plus Staff IDs added by hand. Add, edit, switch off or remove.
+- The Merchant Visit app (4.00) shows **My KPI** to every staff member (own figures only) and **Team KPI** to a team lead,
+  with the same rules, points and targets as the KPI page (it reads `kpi_dashboard_summary`).
+- Database: `supabase/migrations/20261111_02_kpi_team_leads.sql` — table `kpi_team_leads` (no direct access; RLS on),
+  `kpi_team_lead_list` / `kpi_team_lead_save` / `kpi_team_lead_delete` (Admin only) and `mv_kpi` (service key only, used by
+  the phone app's server). Safe to run again; nothing existing changes.
+- Test: `tests/e2e/kpi_team_leads_e2e.js` (stand-in API).
+
 ## 10 Nov 2026 — Merchant Visit Request: each staff member sees only their own requests
 
 - `mv_req_list` takes the staff ID and returns only that staff member's requests (Merchant Visit 3.97). Without it

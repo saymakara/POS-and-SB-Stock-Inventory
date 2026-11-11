@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil, PencilLine, Trash2 } from 'lucide-react';
+import { CreditCard, Search, RefreshCw, Loader2, ChevronDown, CheckCircle2, XCircle, Clock, MinusCircle, Send, ExternalLink, Users, Pencil, PencilLine, Trash2, Inbox, BellRing } from 'lucide-react';
 import { Branch, UserRole } from '../types';
 import { Pager } from './Pager';
 import { ClearFiltersButton } from './ClearFiltersButton';
@@ -9,7 +9,7 @@ import { downloadCsv, collectAll, csvTime } from '../utils/exportCsv';
 import { usePager } from '../utils/usePager';
 import { stampPP } from '../utils/time';
 import { Period, periodRange } from '../services/khqrCache';
-import { CcCounts, CcEntry, CcReview, fetchCcCounts, fetchCcList, reviewCc, ccListKey, getCachedCcList, setCachedCcList, getCachedCcCounts, setCachedCcCounts, patchCachedCcEntry, clearCcCache } from '../services/ccService';
+import { CcCounts, CcEntry, CcFilter, CcReview, docsCc, fetchCcCounts, fetchCcList, reviewCc, ccListKey, getCachedCcList, setCachedCcList, getCachedCcCounts, setCachedCcCounts, patchCachedCcEntry, clearCcCache } from '../services/ccService';
 import { deletePhoneRecords } from '../services/supabaseService';
 import { DeleteRecordsDialog, NoCell, SelectBox, useRecordSelection } from './DeleteRecordsDialog';
 import { CopyableRecordId } from './CopyableRecordId';
@@ -28,7 +28,7 @@ type CcPeriod = 'ALL' | Period;
 const PERIOD_LABEL: Record<CcPeriod, string> = { ALL: 'All time', TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months' };
 const ccPeriodRange = (p: CcPeriod): { from: string | null; to: string | null } => (p === 'ALL' ? { from: null, to: null } : periodRange(p));
 const REVIEW_TABS: {
-  v: CcReview | '';
+  v: CcFilter | '';
   label: string;
   Icon: React.ElementType;
   accentColor: string;
@@ -36,6 +36,7 @@ const REVIEW_TABS: {
 }[] = [
   { v: '', label: 'All', Icon: CreditCard, accentColor: 'text-[#003857]', badgeTone: 'bg-slate-100 text-slate-800 border-slate-200' },
   { v: 'PENDING', label: 'Waiting review', Icon: Clock, accentColor: 'text-amber-500', badgeTone: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { v: 'WAITING_DOCS', label: 'Waiting documents', Icon: Inbox, accentColor: 'text-sky-600', badgeTone: 'bg-sky-50 text-sky-700 border-sky-200' },   // (11 Nov 2026)
   { v: 'CONFIRMED', label: 'Confirmed', Icon: CheckCircle2, accentColor: 'text-emerald-600', badgeTone: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   { v: 'REJECTED', label: 'Rejected', Icon: XCircle, accentColor: 'text-rose-600', badgeTone: 'bg-rose-50 text-rose-700 border-rose-200' },
   { v: 'NO_REVIEW', label: 'Not onboarded', Icon: MinusCircle, accentColor: 'text-slate-400', badgeTone: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -64,7 +65,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const [delOpen, setDelOpen] = useState(false);
   const [delBusy, setDelBusy] = useState(false);
   const [period, setPeriod] = useState<CcPeriod>('ALL');
-  const [review, setReview] = useState<CcReview | ''>('');
+  const [review, setReview] = useState<CcFilter | ''>('');
   const [branchId, setBranchId] = useState('');
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
@@ -139,18 +140,20 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
   const exportCsv = async () => {
     const rows = await collectAll((page) => fetchCcList({ from: range.from, to: range.to, review, branchId, search, page, pageSize: 200 }, 0).then((r) => ({ rows: r.rows, total: r.total })), 200);
     if (!rows.length) return 0;
-    const label: Record<CcReview, string> = { PENDING: 'Waiting review', CONFIRMED: 'Confirmed', REJECTED: 'Rejected', NO_REVIEW: 'Not onboarded' };
+    const label: Record<CcFilter, string> = { PENDING: 'Waiting review', WAITING_DOCS: 'Waiting documents', CONFIRMED: 'Confirmed', REJECTED: 'Rejected', NO_REVIEW: 'Not onboarded' };
     downloadCsv(`Credit_Card_${review ? label[review].replace(/\s+/g, '_') : 'All'}_${PERIOD_LABEL[period].replace(/\s+/g, '_')}`,
       ['Record ID', 'Date Sent', 'Edited At', 'Request Type', 'Card Status', 'Failure Reason', 'Full Name', 'Contact Number', 'Status of Marriage',
         'Account Number', 'MID or Acc Number', 'Limit (USD)', 'Repayment', 'Email', 'Supplementary Cards', 'Supplementary Details', 'Cards Requested', 'Confirmed Cards Onboarded',
-        'Remarks', 'Photos', 'Staff ID', 'Staff Name', 'Branch', 'Branch Code', 'Review', 'Reject Reason', 'Review Note', 'Reviewed By', 'Reviewed At', 'Telegram Reply'],
+        'Remarks', 'Photos', 'Staff ID', 'Staff Name', 'Branch', 'Branch Code', 'Review', 'Reject Reason', 'Review Note', 'Reviewed By', 'Reviewed At', 'Telegram Reply',
+        'Documents', 'Well Received At', 'Follow-ups', 'Last Follow-up'],
       rows.map((e) => [e.recordId, csvTime(e.submittedAt), csvTime(e.editedAt), e.requestType, e.cardStatus, e.failReason, e.fullName, e.contact, e.marital,
         e.primaryAcc, e.midOrAcc, e.limitUsd, e.repayment, e.email, e.supplementary.length,
         e.supplementary.map((x, i) => `${i + 1}. ${x.full_name || ''} · ${x.marital || ''} · ${x.account || ''}${x.email ? ' · ' + x.email : ''}`).join(' | '),
         (e.requestType === 'Add Supplementary Only' ? 0 : e.cardStatus === 'Onboarded Successfully' ? 1 : 0) + e.supplementary.length,
         e.reviewStatus === 'CONFIRMED' ? ((e.requestType === 'Add Supplementary Only' ? 0 : 1) + e.supplementary.length) : 0,
         e.remarks, e.photoCount, e.staffId, e.staffName, e.branchText, e.branchId, label[e.reviewStatus], e.reviewReason, e.reviewNote, e.reviewedBy,
-        csvTime(e.reviewedAt), e.notifyState === 'SENT' ? 'Posted' : e.notifyState === 'FAILED' ? 'Not posted' : e.notifyState ? 'Posting' : '']));
+        csvTime(e.reviewedAt), e.notifyState === 'SENT' ? 'Posted' : e.notifyState === 'FAILED' ? 'Not posted' : e.notifyState ? 'Posting' : '',
+        e.docStatus === 'WAITING' ? 'Waiting' : e.docStatus === 'RECEIVED' ? 'Received' : '', csvTime(e.docSince), e.docFollowups || '', csvTime(e.docLastFollowup)]));
     return rows.length;
   };
   const onReviewed = (recordId: string, next: Partial<CcEntry>) => {
@@ -163,10 +166,11 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
 
   const branchOptions = useMemo(() => branches.filter((b) => b.id !== '100').sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true })), [branches]);
 
-  const tabCount = (v: CcReview | ''): number | undefined => {
+  const tabCount = (v: CcFilter | ''): number | undefined => {
     if (!counts) return undefined;
     if (v === '') return counts.total;
     if (v === 'PENDING') return counts.pending;
+    if (v === 'WAITING_DOCS') return counts.waitingDocs;
     if (v === 'CONFIRMED') return counts.confirmed;
     if (v === 'REJECTED') return counts.rejected;
     return counts.noReview;
@@ -206,7 +210,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mt-6 pt-6 border-t border-slate-200/90" aria-label="Credit Card statistics">
-            <Kpi label="Waiting review" value={counts?.pending} sub="Onboarded · to confirm" tone="amber" Icon={Clock} onClick={() => setReview('PENDING')} active={review === 'PENDING'} />
+            <Kpi label="Waiting review" value={counts?.pending} sub={counts?.waitingDocs ? `Onboarded · ${counts.waitingDocs} waiting documents` : 'Onboarded · to confirm'} tone="amber" Icon={Clock} onClick={() => setReview('PENDING')} active={review === 'PENDING'} />
             <Kpi label="Confirmed" value={counts?.confirmed} sub="Checked by Head Office" tone="emerald" Icon={CheckCircle2} onClick={() => setReview('CONFIRMED')} active={review === 'CONFIRMED'} />
             <Kpi label="Rejected" value={counts?.rejected} sub="Returned with a reason" tone="rose" Icon={XCircle} onClick={() => setReview('REJECTED')} active={review === 'REJECTED'} />
             <Kpi label="Not onboarded" value={counts?.noReview} sub="Onboarding failed · no review" tone="slate" Icon={MinusCircle} onClick={() => setReview('NO_REVIEW')} active={review === 'NO_REVIEW'} />
@@ -443,7 +447,8 @@ const Kpi: React.FC<{ label: string; value?: number; sub: string; tone: keyof ty
   </button>
 );
 
-const StatusChip: React.FC<{ s: CcReview }> = ({ s }) => {
+const StatusChip: React.FC<{ s: CcReview; doc?: CcEntry['docStatus'] }> = ({ s, doc }) => {
+  if (s === 'PENDING' && doc === 'WAITING') return <span className="chip chip-sky inline-flex items-center gap-1"><Inbox className="w-3 h-3" aria-hidden />Waiting documents</span>;   // (11 Nov 2026)
   const u = STATUS_UI[s];
   return <span className={`${u.cls} inline-flex items-center gap-1`}><u.Icon className="w-3 h-3" aria-hidden />{u.label}</span>;
 };
@@ -503,6 +508,21 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
     } finally { setBusy(false); }
   };
 
+  // (11 Nov 2026) Well Received: waiting for the documents at Head Office · Follow Up: a reminder to the staff member
+  const docs = async (action: 'WELL_RECEIVED' | 'FOLLOW_UP') => {
+    setBusy(true);
+    try {
+      const r = await docsCc(e.recordId, action, note.trim());
+      onReviewed(e.recordId, { docStatus: r.docStatus, docSince: r.docSince, docFollowups: r.docFollowups, docLastFollowup: r.docLastFollowup, notifyState: 'PENDING',
+        reviewHistory: [...e.reviewHistory, { at: r.at, action, by: r.by, note: note.trim() || undefined }] });
+      toast(`${e.recordId} ${action === 'WELL_RECEIVED' ? 'well received · waiting for the documents' : `followed up (${r.docFollowups})`} · the reply is being posted in the staff group.`);
+      setNote('');
+    } catch (err) {
+      toast(`Not saved: ${err instanceof Error ? err.message : String(err)}`);
+    } finally { setBusy(false); }
+  };
+  const followSoon = !!e.docLastFollowup && Date.now() - new Date(e.docLastFollowup).getTime() < 10 * 60 * 1000;
+
   return (
     <div className={checked ? "bg-sky-50/80" : "hover:bg-slate-50/70"}>
       <div
@@ -553,7 +573,7 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
           </span>
         </span>
         <span className="leading-tight pl-1">
-          <StatusChip s={e.reviewStatus} />
+          <StatusChip s={e.reviewStatus} doc={e.docStatus} />
           {e.editedAt && (
             <span className="block text-[10.5px] text-slate-400 mt-1">
               edited {fmt(e.editedAt)}
@@ -623,9 +643,16 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
               </span>
             </div>
           )}
+          {e.reviewStatus === 'PENDING' && e.docStatus === 'WAITING' && (
+            <div className="rounded-xl border px-3 py-2 text-[13px] mb-3 bg-sky-50 border-sky-200 text-sky-900">
+              <strong>Well received</strong> {fmt(e.docSince)} · waiting for the documents at Head Office
+              {e.docFollowups > 0 && <> · followed up {e.docFollowups}× (last {fmt(e.docLastFollowup)})</>}
+              <span className="block text-[11px] opacity-80 mt-0.5">Confirm once the documents have arrived and are in order.</span>
+            </div>
+          )}
           {e.reviewHistory.length > 1 && (
             <div className="text-[12px] text-slate-600 mb-3">
-              History: {e.reviewHistory.map((h) => `${h.action === 'RESUBMITTED' ? 'corrected by staff' : h.action.toLowerCase()}${h.reason ? ` (${h.reason})` : ''}${h.by && h.action !== 'RESUBMITTED' ? ` by ${h.by}` : ''} ${fmt(h.at)}`).join(' → ')}
+              History: {e.reviewHistory.map((h) => `${h.action === 'RESUBMITTED' ? 'corrected by staff' : h.action === 'WELL_RECEIVED' ? 'well received' : h.action === 'FOLLOW_UP' ? 'followed up' : h.action.toLowerCase()}${h.reason ? ` (${h.reason})` : ''}${h.by && h.action !== 'RESUBMITTED' ? ` by ${h.by}` : ''} ${fmt(h.at)}`).join(' → ')}
             </div>
           )}
 
@@ -634,6 +661,18 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
               <a href={e.telegramLink} target="_blank" rel="noreferrer" className="btn btn-secondary">
                 <ExternalLink className="w-3.5 h-3.5" aria-hidden />Open group post
               </a>
+            )}
+            {canReview && e.reviewStatus === 'PENDING' && mode === 'none' && !e.docStatus && (
+              <button type="button" disabled={busy} onClick={() => docs('WELL_RECEIVED')} className="btn btn-secondary"
+                title="Acknowledge the onboarding; Head Office now waits for the staff member to bring the documents">
+                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Inbox className="w-3.5 h-3.5" />}Well Received
+              </button>
+            )}
+            {canReview && e.reviewStatus === 'PENDING' && mode === 'none' && e.docStatus === 'WAITING' && (
+              <button type="button" disabled={busy || followSoon} onClick={() => docs('FOLLOW_UP')} className="btn btn-secondary"
+                title={followSoon ? 'A follow-up was sent less than 10 minutes ago' : 'Remind the staff member in the group to bring the documents'}>
+                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />}Follow Up{e.docFollowups ? ` (${e.docFollowups})` : ''}
+              </button>
             )}
             {canReview && e.reviewStatus === 'PENDING' && mode === 'none' && (<>
               <button type="button" disabled={busy} onClick={() => act('CONFIRM')}
