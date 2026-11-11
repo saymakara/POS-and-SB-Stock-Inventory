@@ -2,6 +2,20 @@
 
 Notable changes, newest first. Database changes are in `supabase/migrations/` (each file says when it was applied).
 
+## 11 Nov 2026 — Credit Card: Well Received and Follow Up
+
+- Phone App Review → Credit Card, on an entry waiting for review (Admin HQ):
+  **Well Received** acknowledges the onboarding and marks it **Waiting documents** (Head Office waits for the staff member
+  to bring the documents); **Follow Up** sends a reminder and counts it (at most one every 10 minutes per entry).
+  The bot replies under the staff member's post in the staff group (Merchant Visit 3.99+). Confirm / Reject are unchanged;
+  confirming a waiting entry marks its documents received.
+- New filter tab **Waiting documents**; the Waiting review card shows how many wait for documents; the CSV export adds
+  Documents, Well Received At, Follow-ups, Last Follow-up.
+- Database: `supabase/migrations/20261111_01_cc_documents.sql` (new function `cc_docs`, Admin HQ only; four new columns on
+  `cc_entries`; `cc_review`, `cc_list`, `cc_counts`, `cc_outbox_take` updated). Additive; safe to run again. An older phone
+  app never receives the document notices, so it cannot post them as a decision.
+- Test: `tests/e2e/cc_docs_e2e.js` (stand-in API).
+
 ## 10 Nov 2026 — Merchant Visit Request: each staff member sees only their own requests
 
 - `mv_req_list` takes the staff ID and returns only that staff member's requests (Merchant Visit 3.97). Without it
