@@ -71,7 +71,7 @@ interface MonthlyBucket {
   sbInstalled: number;
   faulty: number;
   total: number;
-  /** Stock-in â†’ install days, summed over installs this month that have both dates. */
+  /** Stock-in → install days, summed over installs this month that have both dates. */
   cycleDaysSum: number;
   cycleMeasured: number;
 }
@@ -207,7 +207,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     return { reserve, configuring, complete, atBranches };
   }, [activeDevices]);
 
-  // Stage ageing computed from each unit's stored hours-in-stage, plus stock-in â†’ install days.
+  // Stage ageing computed from each unit's stored hours-in-stage, plus stock-in → install days.
   const stageAgeing = useKeptMemo('dash.ageing', () => {
     const stages: { stage: 'HQ_STOCK' | 'BRANCH_RESERVE' | 'CONFIGURING'; title: string }[] = [
       { stage: 'HQ_STOCK', title: 'Waiting in HQ Stock' },
@@ -226,7 +226,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         sum += h;
         if (h > max) max = h;
       }
-      return { key: stage, title, count: n, avg: n > 0 ? fmtHours(sum / n) : 'â€”', detail: n > 0 ? `Longest: ${fmtHours(max)}` : 'No units in this stage' };
+      return { key: stage, title, count: n, avg: n > 0 ? fmtHours(sum / n) : '—', detail: n > 0 ? `Longest: ${fmtHours(max)}` : 'No units in this stage' };
     });
     let n = 0;
     let sum = 0;
@@ -240,9 +240,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     const all: { key: string; title: string; count: number; avg: string; detail: string }[] = rows;
     all.push({
       key: 'STOCKIN_TO_INSTALL',
-      title: 'Stock-In â†’ Installed (all installed units)',
+      title: 'Stock-In → Installed (all installed units)',
       count: n,
-      avg: n > 0 ? `${(sum / n).toFixed(1)} days` : 'â€”',
+      avg: n > 0 ? `${(sum / n).toFixed(1)} days` : '—',
       detail: n > 0 ? 'Based on stock-in and install dates' : 'No units with both dates',
     });
     return all;
@@ -424,8 +424,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               {isAdminLike
-                ? 'All Branch Codes Â· Figures are computed from the current stock records'
-                : `Branch Code ${selectedBranch} Â· Merchant installations, reserves and serial lifecycles from the current stock records`}
+                ? 'All Branch Codes · Figures are computed from the current stock records'
+                : `Branch Code ${selectedBranch} · Merchant installations, reserves and serial lifecycles from the current stock records`}
             </p>
           </div>
         </div>
@@ -581,7 +581,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 </span>
               </div>
               <div className="text-[11px] text-slate-600 mt-0.5">
-                POS: <strong className="text-slate-900">{fmtNum(selectedMonthStats.posInstalled)}</strong> Â· Sound Box:{' '}
+                POS: <strong className="text-slate-900">{fmtNum(selectedMonthStats.posInstalled)}</strong> · Sound Box:{' '}
                 <strong className="text-slate-900">{fmtNum(selectedMonthStats.sbInstalled)}</strong>
               </div>
             </div>
@@ -627,11 +627,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
             <div className="surface-inset-light p-4">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-1">
-                <span>AVG STOCK-IN â†’ INSTALL</span>
+                <span>AVG STOCK-IN → INSTALL</span>
                 <Clock className="w-3.5 h-3.5 text-slate-600" aria-hidden="true" />
               </div>
               <div className="text-2xl font-black font-figure tabular-nums text-zinc-900">
-                {selectedAvgCycle ?? 'â€”'}{' '}
+                {selectedAvgCycle ?? '—'}{' '}
                 {selectedAvgCycle && <span className="text-xs font-normal text-slate-500">days</span>}
               </div>
               <div className="text-[11px] text-slate-600 font-semibold mt-0.5">
@@ -909,7 +909,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 Recently Updated Serials
               </h3>
               <p className="text-xs text-slate-500">
-                Latest 6 by last update Â· Click a serial to inspect its history &amp; installation date
+                Latest 6 by last update · Click a serial to inspect its history &amp; installation date
               </p>
             </div>
             {onNavigateTab && (
@@ -975,11 +975,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         <span className="font-mono font-medium text-slate-700 dark:text-slate-300">
                           {dev.serial}
                         </span>
-                        <span className="text-slate-400">Â·</span>
+                        <span className="text-slate-400">·</span>
                         <span className="font-mono text-[11px] text-slate-600 font-semibold">
                           Branch Code {dev.branchId}
                         </span>
-                        <span className="text-slate-400">Â·</span>
+                        <span className="text-slate-400">·</span>
                         <span className="font-mono text-[11px] text-zinc-700 font-bold">
                           {cycleCount} History event{cycleCount === 1 ? '' : 's'}
                         </span>
@@ -988,10 +988,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         {dev.merchantName
                           ? `${dev.merchantName}${dev.mid ? ` (${dev.mid})` : ' (no MID)'}`
                           : dev.model}{' '}
-                        Â·{' '}
+                        ·{' '}
                         {dev.deployedDate
                           ? `Install Date: ${dev.deployedDate}`
-                          : `Stock-In: ${dev.stockInDate || 'â€”'}`}
+                          : `Stock-In: ${dev.stockInDate || '—'}`}
                       </div>
                     </div>
                   </div>
@@ -1056,7 +1056,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs font-extrabold text-zinc-900">
-                        {req.reqId} Â· Branch Code {req.branchId}
+                        {req.reqId} · Branch Code {req.branchId}
                       </span>
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
@@ -1092,7 +1092,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </h3>
             </div>
             <span className="text-[11px] font-mono text-slate-500">
-              POS Terminals only Â· {fmtNum(batterySummary.total)} units
+              POS Terminals only · {fmtNum(batterySummary.total)} units
             </span>
           </div>
 
@@ -1122,7 +1122,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     {pctOf(batterySummary.replaceSoon, batterySummary.total)}%
                   </div>
                   <div className="text-[11px] font-bold text-slate-600 mt-1">
-                    Due Soon ({batteryWarningMonths}â€“{batteryLifespanMonths - 1}M)
+                    Due Soon ({batteryWarningMonths}–{batteryLifespanMonths - 1}M)
                   </div>
                 </div>
                 <div className="surface-inset-light p-3.5">
@@ -1133,7 +1133,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     {pctOf(batterySummary.critical, batterySummary.total)}%
                   </div>
                   <div className="text-[11px] font-bold text-slate-600 mt-1">
-                    Replace (â‰¥{batteryLifespanMonths}M)
+                    Replace (≥{batteryLifespanMonths}M)
                   </div>
                 </div>
               </div>

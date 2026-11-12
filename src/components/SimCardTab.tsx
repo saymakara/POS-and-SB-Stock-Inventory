@@ -20,7 +20,7 @@ import { ManageSimModal } from './ManageSimModal';
 import { WHILE_TAP_BUTTON, SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 
 /**
- * (6 Nov 2026) Stock Inventory â†’ SIM Card.
+ * (6 Nov 2026) Stock Inventory → SIM Card.
  * Clean, fast unified enterprise table showing cellular connectivity SIM cards.
  * Hardware types (POS Terminal vs Sound Box) are selectable via intuitive type filters,
  * eliminating redundant empty product columns from the table.
@@ -28,6 +28,10 @@ import { WHILE_TAP_BUTTON, SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/a
 const SIM_CODES: ['SIM'] = ['SIM'];
 const STATUSES: SerialStatus[] = ['HQ_STOCK', 'IN_TRANSIT', 'BRANCH_RESERVE', 'AT_MERCHANT', 'LOST', 'WRITTEN_OFF'];
 export type HardwareFilter = 'ALL' | 'POS' | 'SOUND_BOX' | 'UNASSIGNED';
+
+const EmptyDash: React.FC = () => (
+  <span className="text-slate-300 dark:text-slate-600 font-mono select-none" aria-hidden="true">&mdash;</span>
+);
 
 // Module-level caches for instant 0ms tab mounting without skeleton flicker
 let simCache: { rows: MaterialSerial[]; total: number } | null = null;
@@ -290,7 +294,7 @@ const SimCardTabComponent: React.FC<{
               status === '' ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            All <span className="tabular-nums opacity-80 ml-1">{totalAll?.toLocaleString() ?? 'â€”'}</span>
+            All <span className="tabular-nums opacity-80 ml-1">{totalAll?.toLocaleString() ?? '—'}</span>
           </motion.button>
           {STATUSES.map((s) => (
             <motion.button
@@ -305,7 +309,7 @@ const SimCardTabComponent: React.FC<{
             >
               {SERIAL_STATUS_LABEL[s]}{' '}
               <span className="tabular-nums opacity-80 ml-1">
-                {counts ? counts[s].toLocaleString() : 'â€”'}
+                {counts ? counts[s].toLocaleString() : '—'}
               </span>
             </motion.button>
           ))}
@@ -534,14 +538,14 @@ const SimCardTabComponent: React.FC<{
                       {hw.serial ? (
                         <span className="font-semibold text-slate-800">{hw.serial}</span>
                       ) : (
-                        <span className="text-slate-300 select-none">â€”</span>
+                        <EmptyDash />
                       )}
                     </td>
                     <td className="px-2.5 py-2.5">
                       {hasMerchant ? (
                         <div className="min-w-0 max-w-[200px]">
                           <span className="block font-medium text-slate-900 truncate" title={merchantName}>
-                            {merchantName || 'â€”'}
+                            {merchantName || <EmptyDash />}
                           </span>
                           {mid && (
                             <span className="block text-[11px] font-mono text-slate-500 truncate">
@@ -550,14 +554,14 @@ const SimCardTabComponent: React.FC<{
                           )}
                         </div>
                       ) : (
-                        <span className="text-slate-300 select-none">â€”</span>
+                        <EmptyDash />
                       )}
                     </td>
                     <td className="px-2.5 py-2.5 tabular-nums whitespace-nowrap">
                       {deployedDate ? (
                         <span className="text-slate-700 font-medium">{deployedDate}</span>
                       ) : (
-                        <span className="text-slate-300 select-none">â€”</span>
+                        <EmptyDash />
                       )}
                     </td>
                     <td className="px-2.5 py-2.5">
@@ -566,7 +570,7 @@ const SimCardTabComponent: React.FC<{
                           {branchStaff}
                         </span>
                       ) : (
-                        <span className="text-slate-300 select-none">â€”</span>
+                        <EmptyDash />
                       )}
                     </td>
                     <td className="px-2.5 py-2.5">
@@ -575,7 +579,7 @@ const SimCardTabComponent: React.FC<{
                           {branchName}
                         </span>
                       ) : (
-                        <span className="text-slate-300 select-none">â€”</span>
+                        <EmptyDash />
                       )}
                     </td>
                     <td className="px-2.5 py-2.5 text-right whitespace-nowrap">

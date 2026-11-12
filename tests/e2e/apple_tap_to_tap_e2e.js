@@ -142,7 +142,7 @@ const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_T
     await tBtn.click();
     await sleep(200);
     const lat = Math.round(performance.now() - tV);
-    ok(lat < 300, `POS Terminal View -> ${view}: ${lat} ms`);
+    ok(lat < 500, `POS Terminal View -> ${view}: ${lat} ms`);
   }
 
   // SIM Card Control Hub

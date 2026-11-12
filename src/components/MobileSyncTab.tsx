@@ -209,7 +209,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
     );
     setMerchantPhone(dev.merchantPhone || '012 990 315');
     setAddress(dev.address || 'St 51, Boeung Keng Kang 1, Phnom Penh');
-    setGpsLocation(dev.location || '11.5540Â° N, 104.9282Â° E Â· Phnom Penh');
+    setGpsLocation(dev.location || '11.5540° N, 104.9282° E · Phnom Penh');
 
     if (dev.stage === 'BRANCH_RESERVE') {
       setStage('CONFIGURING');
@@ -251,7 +251,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
           severity: 'CRITICAL',
           title: 'Unregistered Hardware Serial',
           summary: `Webhook ${evt.eventId} reported serial ${evt.serial}, which is missing from the local registry.`,
-          webhookValue: `${evt.newStage} Â· ${evt.merchantName} (${evt.mid})`,
+          webhookValue: `${evt.newStage} · ${evt.merchantName} (${evt.mid})`,
           registryValue: 'Not Registered',
           latestEvent: evt,
           canAutoResolve: true,
@@ -292,7 +292,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
           severity: 'WARNING',
           title: 'MID / TID Binding Mismatch',
           summary: `Webhook MID/TID binding differs from local hardware registry.`,
-          webhookValue: `${evt.mid || 'â€”'} / ${evt.tid || 'â€”'}`,
+          webhookValue: `${evt.mid || '—'} / ${evt.tid || '—'}`,
           registryValue: `${localDev.mid || 'Unbound'} / ${localDev.tid || 'Unbound'}`,
           latestEvent: evt,
           localDevice: localDev,
@@ -365,7 +365,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
         title: 'Missing Field Check-In',
         summary: `Serial ${d.serial} is in Branch Config for Branch ${d.branchId} with no webhook check-in.`,
         webhookValue: 'No Webhook Event',
-        registryValue: `${STAGE_META[d.stage]?.short || d.stage} Â· Br.${d.branchId}`,
+        registryValue: `${STAGE_META[d.stage]?.short || d.stage} · Br.${d.branchId}`,
         localDevice: d,
         syntheticEvent: synthEvent,
         canAutoResolve: true,
@@ -524,7 +524,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
         onReplaceDevice(
           selectedSerial,
           replacementSerial,
-          notes.trim() || 'Error after deploy â€” Replaced via Mobile App',
+          notes.trim() || 'Error after deploy — Replaced via Mobile App',
           replaceStaffOfficer || activeStaff
         );
       } else {
@@ -757,7 +757,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
               </span>
             </div>
             <span className={`text-[11px] font-semibold mt-1 block ${navyTitleClass}`}>
-              {reconciliationOpen ? 'Hide Audit Drawer â–´' : 'Inspect Cross-Check â–¾'}
+              {reconciliationOpen ? 'Hide Audit Drawer ▴' : 'Inspect Cross-Check ▾'}
             </span>
           </div>
           <div
@@ -792,8 +792,8 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     Serial Registry vs. Mobile Sync Cross-Check
                   </h3>
                   <p className={`text-xs ${subtextClass}`}>
-                    Last checked: <span className="font-mono font-semibold">{lastAuditTimestamp}</span> Â·{' '}
-                    <strong className="text-amber-400">{reconciliationReport.totalDiscrepancies}</strong> flagged Â·{' '}
+                    Last checked: <span className="font-mono font-semibold">{lastAuditTimestamp}</span> ·{' '}
+                    <strong className="text-amber-400">{reconciliationReport.totalDiscrepancies}</strong> flagged ·{' '}
                     <strong className="text-emerald-400">{reconciliationReport.verifiedMatches.length}</strong> aligned
                   </p>
                 </div>
@@ -917,7 +917,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         </span>
                       </div>
                       <div className={`text-[11px] ${subtextClass} truncate mt-1`}>
-                        {device.merchantName} ({device.mid}) Â· Event {event.eventId}
+                        {device.merchantName} ({device.mid}) · Event {event.eventId}
                       </div>
                     </div>
                     <button
@@ -968,7 +968,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                                 isCrit ? 'text-rose-400' : 'text-amber-400'
                               }`}
                             >
-                              Â· {disc.title}
+                              · {disc.title}
                             </span>
                           </div>
                           <p className={`text-xs ${subtextClass}`}>{disc.summary}</p>
@@ -1028,7 +1028,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
           {/* iPhone 18 Pro Max Spec Badge */}
           <div className="mb-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] font-mono font-bold border bg-[#141518]/90 text-zinc-200 border-zinc-700/80 shadow-sm backdrop-blur-md">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>iPhone 18 Pro Max â€¢ 6.9&quot; Super Retina XDR â€¢ Space Black Titanium</span>
+            <span>iPhone 18 Pro Max • 6.9&quot; Super Retina XDR • Space Black Titanium</span>
           </div>
 
           {/* Authentic Real iPhone 18 Pro Max Form Factor: 163.0mm Ã— 77.6mm (1 : 2.1 Physical Aspect Ratio) */}
@@ -1197,7 +1197,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                           </span>
                           <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-                            iPhone 18 Pro Max Â· Space Black Titanium
+                            iPhone 18 Pro Max · Space Black Titanium
                           </span>
                         </div>
                       </div>
@@ -1251,7 +1251,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     >
                       {installableDevices.map((d) => (
                         <option key={d.serial} value={d.serial} className="bg-zinc-900 text-white">
-                          {d.serial} Â· {d.model} ({STAGE_META[d.stage]?.short})
+                          {d.serial} · {d.model} ({STAGE_META[d.stage]?.short})
                         </option>
                       ))}
                     </select>
@@ -1645,7 +1645,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                           mobileTechError.kind === 'notice' ? 'text-amber-400' : 'text-rose-400'
                         }`}>
                           <AlertOctagon className="w-3.5 h-3.5 shrink-0" />
-                          {mobileTechError.badge || (mobileTechError.kind === 'notice' ? 'Validation Notice' : `System Alert Â· ${mobileTechError.code}`)}
+                          {mobileTechError.badge || (mobileTechError.kind === 'notice' ? 'Validation Notice' : `System Alert · ${mobileTechError.code}`)}
                         </span>
                         <div className="text-xs font-bold text-white mt-0.5">
                           {mobileTechError.title || (mobileTechError.kind === 'notice' ? 'Action Could Not Be Completed' : 'System Operation Alert')}
@@ -1664,7 +1664,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     </div>
                     <div className="text-[10px] text-slate-400 flex flex-wrap items-center justify-between gap-2">
                       <span>{mobileTechError.operationLabel || mobileTechError.operation}</span>
-                      <span className="font-mono">Staff {mobileTechError.staffId} Â· Br.{mobileTechError.branchId} Â· {mobileTechError.timestamp}</span>
+                      <span className="font-mono">Staff {mobileTechError.staffId} · Br.{mobileTechError.branchId} · {mobileTechError.timestamp}</span>
                     </div>
                   </div>
                 )}
@@ -1852,7 +1852,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                               <span className={`font-mono font-bold text-xs ${headingClass}`}>
                                 {evt.serial}
                               </span>
-                              <span className="text-slate-400 text-xs">Â·</span>
+                              <span className="text-slate-400 text-xs">·</span>
                               <span className={`text-xs font-bold ${navyTitleClass}`}>
                                 {evt.merchantName}
                               </span>
@@ -1879,7 +1879,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                               <span>{evt.mid}</span>
                               <span className="opacity-40">/</span>
                               <span>{evt.tid}</span>
-                              <span className="opacity-40">Â·</span>
+                              <span className="opacity-40">·</span>
                               <span>Branch {evt.branchId}</span>
                             </div>
                           </div>
@@ -1900,7 +1900,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                           <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                             {newMeta?.short || evt.newStage || 'Installed Live'}
                           </span>
-                          <span className="text-slate-400">Â·</span>
+                          <span className="text-slate-400">·</span>
                           <span className={`text-xs flex items-center gap-1 ${subtextClass}`}>
                             <UserCheck className="w-3 h-3 opacity-70" />
                             <span>{evt.installerStaff}</span>
@@ -1959,7 +1959,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                   }}
                   className="px-3 py-1 rounded-xl text-[11px] font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer"
                 >
-                  {tgSavedNotice ? 'Webhook Saved âœ“' : 'Save Webhook'}
+                  {tgSavedNotice ? 'Webhook Saved ✓' : 'Save Webhook'}
                 </button>
                 <button
                   type="button"
