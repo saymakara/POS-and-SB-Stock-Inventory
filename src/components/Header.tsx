@@ -460,7 +460,7 @@ interface HeaderProps {
   activeBranchId: string;
   onChangeBranchId: (id: string) => void;
   activeStaff: string;
-  onOpenRequestModal: () => void;
+  onOpenRequestModal?: () => void;
   onOpenExportModal: () => void;
   onLockSession: () => void;
   onSignOut: () => void;
@@ -489,7 +489,6 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   activeBranchId,
   onChangeBranchId,
   activeStaff,
-  onOpenRequestModal,
   onOpenExportModal,
   onLockSession,
   onSignOut,
@@ -898,21 +897,6 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               </span>
             </div>
           )}
-
-          {/* Request Stock Action Button in Signature Navy Blue */}
-          <motion.button
-            whileHover={{ y: -1 }}
-            whileTap={{ scale: 0.96 }}
-            type="button"
-            onClick={onOpenRequestModal}
-            aria-label="Request Stock"
-            title="Request Stock"
-            className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer shrink-0 bg-[#003857] hover:bg-[#002a42] text-white transition"
-          >
-            <SendHorizontal className="w-3.5 h-3.5" />
-            {/* (31 Oct 2026) phones: icon only, so the header fits on one line without overlapping the search */}
-            <span className="hidden sm:inline">Request Stock</span>
-          </motion.button>
 
           {/* Live Alert Notification Bell */}
           <div ref={notifRef} className="relative shrink-0">
