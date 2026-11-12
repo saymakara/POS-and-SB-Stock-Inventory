@@ -2093,11 +2093,11 @@ export async function saveStaffAccount(p: {
 }
 
 export async function fetchBranchesFromSupabase(
-  limit = 100,
+  limit = 500,
   offset = 0
 ): Promise<{ id: string; code: string; name: string; region: string }[] | null> {
   if (!isSupabaseConfigured) return null;
-  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);
   try {
     const { data, error } = await supabase

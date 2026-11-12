@@ -78,7 +78,9 @@ const WEEKDAY = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const fmtInt = (n: number) => NF_INT.format(n);
 
 function cleanBranchName(name: string, _stripSuffix = false): string {
-  const base = (name || '').replace(/^Code\s+\d+\s*[·-]\s*/i, '').trim();
+  const base = (name || '')
+    .replace(/^Code\s+\d+\s*[·-]\s*|^\d{3}\s*[-·]\s*/i, '')
+    .trim();
   if (!base || base.toLowerCase() === 'unassigned') return 'Unassigned';
   if (/^Branch\s+\d+/i.test(base) || /\bbranch$/i.test(base)) {
     return base;
@@ -89,6 +91,7 @@ function cleanBranchName(name: string, _stripSuffix = false): string {
 function fmtBranchLabel(branchId: string, branchName: string, _short = false): string {
   const clean = cleanBranchName(branchName);
   if (!branchId || branchId === 'UNASSIGNED') return clean;
+  if (clean.endsWith(`(${branchId})`)) return clean;
   return `${clean} (${branchId})`;
 }
 
@@ -581,12 +584,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     }>();
 
     enrichedStaff.forEach((s) => {
-      const key = s.branchId || 'UNASSIGNED';
+      const key = (s.branchId && s.branchId !== 'UNASSIGNED') ? s.branchId : (s.branchName || 'UNASSIGNED');
       let b = map.get(key);
       if (!b) {
         b = {
-          branchId: key,
-          branchName: branchNameMap.get(key) || s.branchName || 'Unassigned',
+          branchId: s.branchId || 'UNASSIGNED',
+          branchName: (s.branchId && branchNameMap.get(s.branchId)) || s.branchName || 'Unassigned',
           isPP: s.isPP,
           staffCount: 0,
           kpiStaffCount: 0,
