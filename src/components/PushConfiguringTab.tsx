@@ -37,6 +37,7 @@ import {
   Check,
 } from 'lucide-react';
 import { formatBranchName, fmtNum } from '../utils/format';
+import { PillMotion } from './PillMotion';
 
 interface PushConfiguringTabProps {
   devices: Device[];
@@ -1066,7 +1067,7 @@ return (
                   title="Consolidate devices per staff member into 1 Telegram message + CSV file"
                 >
                   {pushMode === 'total_csv' && (
-                    <motion.div
+                    <PillMotion
                       layoutId="activePushModeIndicatorEmbedded"
                       className="absolute inset-0 rounded-lg shadow-xs bg-[#003857]"
                       transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
@@ -1088,7 +1089,7 @@ return (
                   title="Combine all devices across all staff into 1 single CSV file and message"
                 >
                   {pushMode === 'total_csv_all' && (
-                    <motion.div
+                    <PillMotion
                       layoutId="activePushModeIndicatorEmbedded"
                       className="absolute inset-0 rounded-lg shadow-xs bg-[#003857]"
                       transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
@@ -1110,7 +1111,7 @@ return (
                   title="Send individual 1-device alert without attached CSV file"
                 >
                   {pushMode === 'single_alert' && (
-                    <motion.div
+                    <PillMotion
                       layoutId="activePushModeIndicatorEmbedded"
                       className="absolute inset-0 rounded-lg shadow-xs bg-[#003857]"
                       transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
@@ -1568,7 +1569,7 @@ return (
                 title="Consolidate devices per staff member into 1 Telegram message + CSV file (e.g. 10 merchants for Khon Rithy in 1 message, no spam)"
               >
                 {pushMode === 'total_csv' && (
-                  <motion.div
+                  <PillMotion
                     layoutId="activePushModeIndicator"
                     className={`absolute inset-0 rounded-lg shadow-xs ${
                       isLight
@@ -1607,7 +1608,7 @@ return (
                 title="Combine all devices across all staff into 1 single CSV file and message"
               >
                 {pushMode === 'total_csv_all' && (
-                  <motion.div
+                  <PillMotion
                     layoutId="activePushModeIndicator"
                     className={`absolute inset-0 rounded-lg shadow-xs ${
                       isLight
@@ -1646,7 +1647,7 @@ return (
                 title="Send individual 1-device alert without attached CSV file"
               >
                 {pushMode === 'single_alert' && (
-                  <motion.div
+                  <PillMotion
                     layoutId="activePushModeIndicator"
                     className={`absolute inset-0 rounded-lg shadow-xs ${
                       isLight

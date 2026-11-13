@@ -28,6 +28,7 @@ import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
 import { CopyableRecordId } from './CopyableRecordId';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
+import { PillMotion } from './PillMotion';
 
 /**
  * Phone App Review.
@@ -761,7 +762,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         }`}
       >
         {active && (
-          <motion.div
+          <PillMotion
             layoutId="fr-type-pill"
             aria-hidden
             className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs"
@@ -875,7 +876,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                   }`}
                 >
                   {isActive && (
-                    <motion.div
+                    <PillMotion
                       layoutId="fr-status-pill"
                       aria-hidden
                       className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs"

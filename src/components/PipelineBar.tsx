@@ -4,6 +4,7 @@ import { STAGE_META } from '../data/initialData';
 import { Odometer } from './Odometer';
 import { motion, AnimatePresence } from 'motion/react';
 import { WHILE_TAP_BUTTON, SPRING_NO_BOUNCE, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import { PillMotion } from './PillMotion';
 import {
   Layers,
   Warehouse,
@@ -125,7 +126,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
                 }`}
               >
                 {isSelected && (
-                  <motion.div
+                  <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.PIPELINE_STAGE_PILL}
                     transition={SPRING_NO_BOUNCE}
                     className="absolute -inset-[1px] rounded-md tab-active-blue border border-sky-400/40 shadow-xs z-0 pointer-events-none"

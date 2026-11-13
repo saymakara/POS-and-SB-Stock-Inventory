@@ -32,6 +32,7 @@ import {
   Package,
 } from 'lucide-react';
 import { fmtNum } from '../utils/format';
+import { PillMotion } from './PillMotion';
 
 /** Battery policy defaults (same values as AppSettings defaults). App can pass the live settings values as props. */
 export const DEFAULT_BATTERY_LIFESPAN_MONTHS = 24;
@@ -499,7 +500,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     }`}
                   >
                     {active && (
-                      <motion.div
+                      <PillMotion
                         layoutId="dashboardPerfViewPill"
                         transition={SPRING_TAB_PILL}
                         className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -538,7 +539,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     }`}
                   >
                     {isSelected && (
-                      <motion.div
+                      <PillMotion
                         layoutId="dashboardTimeHorizonPill"
                         transition={SPRING_TAB_PILL}
                         className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"

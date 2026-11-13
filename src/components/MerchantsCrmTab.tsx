@@ -49,6 +49,7 @@ import { lastMonthsPP, todayPP } from '../utils/time';
 import { canSeeFullContact, phoneFor } from '../utils/privacy';
 import { canMove, moveError, statusOf } from '../utils/stages';
 import { formatBranchName, fmtNum, showDateTime } from '../utils/format';
+import { PillMotion } from './PillMotion';
 
 /**
  * What the CRM sends with a bind (22 Oct 2026). The stage fields are what the move to "Installed Live" must set
@@ -871,7 +872,7 @@ return (
                 }`}
               >
                 {trendChartMode === 'POS_VS_SB' && (
-                  <motion.div
+                  <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.CRM_TREND_MODE_PILL}
                     aria-hidden
                     className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -892,7 +893,7 @@ return (
                 }`}
               >
                 {trendChartMode === 'BY_MID_STACKED' && (
-                  <motion.div
+                  <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.CRM_TREND_MODE_PILL}
                     aria-hidden
                     className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -921,7 +922,7 @@ return (
                 }`}
               >
                 {trendHorizon === '6M' && (
-                  <motion.div
+                  <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.CRM_TREND_HORIZON_PILL}
                     aria-hidden
                     className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -942,7 +943,7 @@ return (
                 }`}
               >
                 {trendHorizon === '12M' && (
-                  <motion.div
+                  <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.CRM_TREND_HORIZON_PILL}
                     aria-hidden
                     className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"

@@ -32,6 +32,7 @@ import {
   Package,
 } from 'lucide-react';
 import { fmtNum } from '../utils/format';
+import { PillMotion } from './PillMotion';
 
 interface BranchesTabProps {
   branches: Branch[];
@@ -435,7 +436,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     }`}
                   >
                     {isActive && (
-                      <motion.div
+                      <PillMotion
                         layoutId="branch-status-filter-pill"
                         aria-hidden
                         className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -485,7 +486,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     title={id === 'TABLE' ? 'Table View (by Branch)' : 'Cards Grid'}
                   >
                     {isActive && (
-                      <motion.div
+                      <PillMotion
                         layoutId="branch-layout-view-pill"
                         aria-hidden
                         className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"

@@ -12,7 +12,8 @@ import { useDrawerOpen, setDrawerOpen } from '../utils/drawerStore';
 import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
-import { WHILE_TAP_BUTTON, WHILE_TAP_ICON, SPRING_NO_BOUNCE, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import { WHILE_TAP_BUTTON, WHILE_TAP_ICON } from '../utils/animationRules';
+import { usePendingTab } from '../utils/navPending';
 
 import {
   Building2,
@@ -86,6 +87,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 }) => {
   const storeOpen = useDrawerOpen();
   const mobileOpen = mobileOpenProp ?? storeOpen;
+  // (13 Nov 2026) the tapped page is highlighted in the next frame, before the page itself is drawn (see navPending)
+  const pendingTab = usePendingTab();
+  const navTab = pendingTab ?? activeTab;
   const navGroups: Array<{
     heading: string;
     items: Array<{
@@ -254,9 +258,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               <div className="flex flex-col gap-1 relative">
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const childActive = !!item.children?.some((c) => c.id === activeTab) ;
+                  const childActive = !!item.children?.some((c) => c.id === navTab) ;
                   const showChildren = !!item.children && (isMobileView || !collapsed);
-                  const isActive = showChildren ? false : (activeTab === item.id || childActive);
+                  const isActive = showChildren ? false : (navTab === item.id || childActive);
 
                   return (
                     <React.Fragment key={item.id}>
@@ -324,7 +328,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       <div className="relative ml-[22px] pl-2.5 flex flex-col gap-0.5 border-l border-white/12" role="group" aria-label={`${item.label} sections`}>
                         {item.children!.map((c) => {
                           const CI = c.icon;
-                          const on = activeTab === c.id;
+                          const on = navTab === c.id;
                           return (
                             <motion.button
                               key={c.id}
@@ -644,13 +648,15 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   // Style #2 Locked In as the #1 Permanent Header Style:
   // Translucent Crystal-White Glass Header with Stock-Request Table-Header Blue (slightly darker: #0f334d / #133e5e)
   // (31 Oct 2026, native-like) phone bottom tab bar: the four most used pages + "More" (the full menu), like a banking app
-  const reviewActive = activeTab.startsWith('mobile_sync');
+  const pendingTab = usePendingTab();                                 // (13 Nov 2026) the tapped page lights up at once
+  const navTab = pendingTab ?? activeTab;
+  const reviewActive = navTab.startsWith('mobile_sync');
   const bottomTabs: { id: string; label: string; icon: React.ElementType; active: boolean; dot?: boolean; onTap: () => void }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, active: activeTab === 'dashboard', onTap: () => onSelectTab('dashboard') },
-    { id: 'inventory', label: 'Stock', icon: Boxes, active: STOCK_TABS.includes(activeTab), onTap: () => onSelectTab('inventory') },
-    { id: 'requisitions', label: 'Requests', icon: ScrollText, active: activeTab === 'requisitions', dot: unreadCount > 0, onTap: () => onSelectTab('requisitions') },
-    { id: 'mobile_sync', label: 'Review', icon: Smartphone, active: reviewActive, onTap: () => onSelectTab(reviewActive ? activeTab : 'mobile_sync') },
-    { id: 'more', label: 'More', icon: Menu, active: !['dashboard', 'requisitions'].includes(activeTab) && !STOCK_TABS.includes(activeTab) && !reviewActive, onTap: () => setDrawerOpen(true) },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, active: navTab === 'dashboard', onTap: () => onSelectTab('dashboard') },
+    { id: 'inventory', label: 'Stock', icon: Boxes, active: STOCK_TABS.includes(navTab), onTap: () => onSelectTab('inventory') },
+    { id: 'requisitions', label: 'Requests', icon: ScrollText, active: navTab === 'requisitions', dot: unreadCount > 0, onTap: () => onSelectTab('requisitions') },
+    { id: 'mobile_sync', label: 'Review', icon: Smartphone, active: reviewActive, onTap: () => onSelectTab(activeTab.startsWith('mobile_sync') ? activeTab : 'mobile_sync') },
+    { id: 'more', label: 'More', icon: Menu, active: !['dashboard', 'requisitions'].includes(navTab) && !STOCK_TABS.includes(navTab) && !reviewActive, onTap: () => setDrawerOpen(true) },
   ];
 
   return (
@@ -1135,13 +1141,11 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           aria-current={t.active ? 'page' : undefined}
           className={`relative flex flex-col items-center justify-center gap-0.5 h-14 text-[11px] font-semibold cursor-pointer ${t.active ? 'text-[#003857]' : 'text-slate-500'}`}
         >
+          {/* (13 Nov 2026, speed) a plain bar with a short fade (was a shared-layout animation: on every page change the
+              animation library measured the whole page right after the new page was inserted - up to 230 ms frozen on a
+              laptop, even with this phone bar hidden) */}
           {t.active && (
-            <motion.span
-              layoutId={SHARED_LAYOUT_IDS.MOBILE_TAB_PILL}
-              transition={SPRING_NO_BOUNCE}
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-[#003857]"
-              aria-hidden
-            />
+            <span className="tabbar-pill-in absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-[#003857]" aria-hidden />
           )}
           <span className="relative">
             <t.icon className="w-5 h-5" aria-hidden />

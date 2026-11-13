@@ -33,6 +33,7 @@ import { todayPP } from '../utils/time';
 import { tidFromMid } from '../utils/tid';
 import { validateStaffWithBranch } from '../utils/staffUtils';
 import { CSV_BATCH_SIZE, CSV_BATCH_DELAY_MS, checkExistingSerialsOnServer } from '../services/supabaseService';
+import { PillMotion } from './PillMotion';
 
 export type IntakeCycle = 'HQ_STOCK' | 'BRANCH_RESERVE' | 'CONFIGURING' | 'COMPLETE';
 
@@ -2202,7 +2203,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           }`}
                         >
                           {stageFilter === 'ALL' && (
-                            <motion.div
+                            <PillMotion
                               layoutId="batch-stage-filter-pill"
                               aria-hidden
                               className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -2230,7 +2231,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               }`}
                             >
                               {isActive && (
-                                <motion.div
+                                <PillMotion
                                   layoutId="batch-stage-filter-pill"
                                   aria-hidden
                                   className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
