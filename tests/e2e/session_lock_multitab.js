@@ -75,7 +75,7 @@ async function api(route) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch(Object.assign({ headless: true }, process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}));
   const context = await browser.newContext();
   await context.route(B + '/**', api);
 

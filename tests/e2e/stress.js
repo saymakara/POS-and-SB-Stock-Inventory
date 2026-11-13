@@ -140,7 +140,7 @@ async function api(route) {
 }
 
 (async () => {
-  const b = await chromium.launch();
+  const b = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
   const ctx = await b.newContext({ viewport: { width: 1366, height: 900 } });
   await ctx.route(B + '/**', api);
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));

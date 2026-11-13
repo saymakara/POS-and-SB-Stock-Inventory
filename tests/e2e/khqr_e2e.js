@@ -214,7 +214,7 @@ async function api2(route) {
 state.events.push({ id: 20, source_record_id: 'SB-20261021-0001', unit_no: 1, revision: 1, kind: 'SB_MAINT', device_type: 'Sound Box', serial: 'SB0001', mid: '200123456789012', outlet_name: 'Sokha Mart', branch_text: 'Toul Kork', branch_id: '105', staff_name: 'Sok Dara', recorded_at: '2026-10-21T11:00:00+07:00', payload: {}, issues: [], status: 'PENDING', received_at: '2026-10-21T04:00:00Z' });
 
 (async () => {
-  const b = await chromium.launch();
+  const b = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
   const ctx = await b.newContext({ viewport: { width: 1440, height: 950 } });
   await ctx.route(B + '/**', api2);
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
