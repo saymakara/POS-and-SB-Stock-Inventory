@@ -7,7 +7,7 @@ import {
   ClipboardList, LayoutGrid, List,
 } from 'lucide-react';
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
+  BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
 } from 'recharts';
 import { Branch, UserRole } from '../types';
 import { Pager } from './Pager';
@@ -26,6 +26,8 @@ import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHo
 import { todayPP } from '../utils/time';
 import { SPRING_TAB_PILL, WHILE_TAP_BUTTON, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import { PillMotion } from './PillMotion';
+import { AfterPaint } from './AfterPaint';
+import { MeasuredChart } from './MeasuredChart';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -1861,6 +1863,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         loading && !data ? (
           <KpiChartsSkeleton />
         ) : (
+          <AfterPaint order={1} minHeight={502}>
           <section
             className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4"
             aria-label="Executive KPI Charts"
@@ -1952,8 +1955,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       No trend data available for this granularity.
                     </div>
                   ) : (
-                    <ResponsiveContainer width="100%" height="100%" debounce={0}>
-                      <ComposedChart data={reversedTimeSeries} margin={{ top: 8, right: 6, left: -14, bottom: 0 }} barGap={4}>
+                    <MeasuredChart height={280}>{(chartW) => (
+                      <ComposedChart width={chartW} height={280} data={reversedTimeSeries} margin={{ top: 8, right: 6, left: -14, bottom: 0 }} barGap={4}>
                         <defs>
                           <linearGradient id="kpiPosGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#3d79a3" />
@@ -1983,7 +1986,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           tickLine={false}
                           tick={{ fontSize: 11, fill: '#64748b' }}
                           dy={4}
-                          interval={chronologicalTimeSeries.length > 25 ? 'preserveStartEnd' : 0}
+                          interval={Math.max(0, Math.ceil(chronologicalTimeSeries.length / 25) - 1)}   // (13 Nov 2026, speed) fixed step: no label measuring
                         />
                         <YAxis
                           yAxisId="left"
@@ -2018,7 +2021,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           isAnimationActive={false}
                         />
                       </ComposedChart>
-                    </ResponsiveContainer>
+                    )}</MeasuredChart>
                   )}
                 </div>
               </div>
@@ -2071,8 +2074,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       No branch activity matching current filters.
                     </div>
                   ) : (
-                    <ResponsiveContainer width="100%" height="100%" debounce={0}>
+                    <MeasuredChart height={280} stagger={2}>{(chartW) => (
                       <BarChart
+                        width={chartW}
+                        height={280}
                         layout="vertical"
                         data={topBranchChartData}
                         margin={{ top: 4, right: 14, left: 0, bottom: 0 }}
@@ -2124,17 +2129,19 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         <Bar dataKey="ccPoints" name="Credit Card" stackId="b" fill="url(#kpiBranchCcGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} isAnimationActive={false} />
                         <Bar dataKey="mvPoints" name="Merchant Visit" stackId="b" fill="url(#kpiBranchMvGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} isAnimationActive={false} />
                       </BarChart>
-                    </ResponsiveContainer>
+                    )}</MeasuredChart>
                   )}
                 </div>
               </div>
             </div>
           </div>
         </section>
+          </AfterPaint>
       ))}
 
       {/* ───────────── Most KPI Types Consumed (Push Configuring Hub Backdrop Style) ───────────── */}
       {showSection('all') && (
+        <AfterPaint order={2} minHeight={249}>
         <section
           className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4"
           aria-label="Most KPI Types Consumed"
@@ -2613,10 +2620,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             </AnimatePresence>
           </div>
         </section>
+        </AfterPaint>
       )}
 
       {/* ───────────── Combined Institutional Leaderboard (Top 10 Staff & Branch Switchable) ───────────── */}
       {(showSection('all') || showSection('top10')) && (
+        <AfterPaint order={view === 'all' ? 2 : 1} minHeight={420}>
         <section
           className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4"
           aria-label="Top 10 Institutional Leaderboard"
@@ -2959,10 +2968,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             </div>
           </div>
         </section>
+        </AfterPaint>
       )}
 
       {/* ───────────── Overall Performance Breakdown by Daily, Weekly, Monthly & Quarterly ───────────── */}
       {(showSection('all') || showSection('timeline')) && (
+        <AfterPaint order={view === 'all' ? 3 : 1} minHeight={1254}>
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden" aria-label="Overall Performance by Period">
           <div className="px-5 py-3.5 border-b border-slate-200/90 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
@@ -3053,6 +3064,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
           </div>
         </section>
+        </AfterPaint>
       )}
 
       {/* ───────────── KPI Performance by Branch & Staff (Switchable Combined Table) ───────────── */}

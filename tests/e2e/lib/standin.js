@@ -50,7 +50,11 @@ for (let i = 0; i < 130; i++) STAFF.push({ user_id: 'u-' + i, emp_id: String(200
 const MAX_ROWS = Number(process.env.MAX_ROWS || 1000);
 function pg(route, req, url, all, key) {
   let rows = all.slice().sort((a, b) => String(a[key]) < String(b[key]) ? -1 : String(a[key]) > String(b[key]) ? 1 : 0);
-  const gt = url.searchParams.get(key); if (gt && gt.startsWith('gt.')) rows = rows.filter((r) => String(r[key]) > gt.slice(3));
+  url.searchParams.getAll(key).forEach((f) => {   // serial=gt./gte./lt. range filters (also several on the same column)
+    if (f.startsWith('gt.')) rows = rows.filter((r) => String(r[key]) > f.slice(3));
+    else if (f.startsWith('gte.')) rows = rows.filter((r) => String(r[key]) >= f.slice(4));
+    else if (f.startsWith('lt.')) rows = rows.filter((r) => String(r[key]) < f.slice(3));
+  });
   url.searchParams.forEach((v, k) => { if (v.startsWith('eq.') && rows.length && k in rows[0]) rows = rows.filter((r) => String(r[k]) === v.slice(3)); });   // key=eq.value filters (stage, archived, type ...)
   const ge = url.searchParams.get('updated_at'); if (ge && ge.startsWith('gte.')) { const t = Date.parse(ge.slice(4)); rows = rows.filter((r) => Date.parse(r.updated_at) >= t); }
   const off = Number(url.searchParams.get('offset') || 0), lim = Math.min(Number(url.searchParams.get('limit') || MAX_ROWS), MAX_ROWS);
@@ -149,7 +153,22 @@ async function api(route) {
   if (path === '/rest/v1/material_lost') return json(200, []);
   if (path === '/rest/v1/material_counts') return json(200, []);
   if (path === '/rest/v1/material_movements') return json(200, []);
-  if (path === '/rest/v1/rpc/device_page_bounds') return json(200, []);
+  // (13 Nov 2026) the range download production uses: opt-in with STANDIN_RANGES=1 (without it the app falls back to the
+  // OFFSET download, as before); STANDIN_COMPACT=1 also answers the compact read (migration 20261113_02)
+  const visibleDevices = () => (me && me.profile.role === 'BRANCH' ? state.devices.filter(d => d.branch_id === me.profile.branch_id) : state.devices).slice().sort((a, b) => (a.serial < b.serial ? -1 : a.serial > b.serial ? 1 : 0));
+  if (path === '/rest/v1/rpc/device_page_bounds') {
+    if (!process.env.STANDIN_RANGES && !process.env.STANDIN_COMPACT) return json(200, []);
+    const all = state.devices.slice().sort((a, b) => (a.serial < b.serial ? -1 : a.serial > b.serial ? 1 : 0)); const size = Math.max(100, Math.min(Number(body && body.p_size) || 1000, 1000));
+    return json(200, { total: all.length, bounds: all.filter((_, i) => i % size === 0).map(d => d.serial) });
+  }
+  if (path === '/rest/v1/rpc/devices_page_compact') {
+    state.compactCalls = (state.compactCalls || 0) + 1;
+    if (!process.env.STANDIN_COMPACT) return json(404, { code: 'PGRST202', message: 'Could not find the function public.devices_page_compact' });
+    const from = (body && body.p_from) || '', to = body && body.p_to, lim = Math.max(1, Math.min(Number(body && body.p_limit) || 2000, 5000));
+    const COLS = ['serial', 'type', 'model', 'stage', 'branch_id', 'branch_name', 'stock_in_date', 'deployed_date', 'battery_installed_date', 'battery_serial', 'redeploy_count', 'staff', 'merchant_name', 'merchant_phone', 'location', 'address', 'mid', 'tid', 'note', 'history', 'archived', 'custom_fields', 'return_reason', 'deployment_status', 'stock_status', 'hours_in_stage', 'integrity_hash', 'updated_at', 'row_version'];
+    const rows = visibleDevices().filter(d => d.serial >= from && (to == null || d.serial < to)).slice(0, lim);
+    return json(200, rows.map(d => COLS.map(c => (d[c] === undefined ? null : d[c]))));
+  }
   if (path === '/rest/v1/rpc/cc_counts') return json(200, { pending: 0, confirmed: 0, rejected: 0, no_review: 0, total: 0 });
   if (path === '/rest/v1/rpc/cc_list') return json(200, []);
   if (path === '/rest/v1/rpc/kpi_dashboard_summary') return json(200, []);

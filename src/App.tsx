@@ -968,11 +968,21 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   useEffect(() => {
     if (requisitions.length > 0) {
       saveRequisitionsToIdb(requisitions).catch(() => {});
-      try {
-        localStorage.setItem(STORAGE_KEY_REQS, JSON.stringify(requisitions));
-      } catch (e) {
-        console.error(e);
-      }
+      // (13 Nov 2026, speed, phase 2) the quick-start copy is written once the list has stopped changing, in an idle moment
+      // (one JSON copy of every request: before, on every change, in the same task as the change)
+      const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void };
+      let idle = 0;
+      const t = window.setTimeout(() => {
+        const write = () => {
+          try {
+            localStorage.setItem(STORAGE_KEY_REQS, JSON.stringify(requisitions));
+          } catch (e) {
+            console.error(e);
+          }
+        };
+        if (w.requestIdleCallback) idle = w.requestIdleCallback(write, { timeout: 5000 }); else write();
+      }, 1500);
+      return () => { window.clearTimeout(t); if (idle && w.cancelIdleCallback) w.cancelIdleCallback(idle); };
     }
   }, [requisitions]);
 

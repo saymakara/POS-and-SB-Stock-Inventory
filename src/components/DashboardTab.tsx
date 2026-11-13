@@ -77,15 +77,31 @@ interface MonthlyBucket {
   cycleMeasured: number;
 }
 
+// (13 Nov 2026, speed) the day number of each YYYY-MM-DD is worked out once: the Dashboard asks for ~27,000 units, but there
+// are only a few hundred different dates (before: two pattern checks and two date parses per unit, ~110 ms on a slower laptop)
+const dayNumberCache = new Map<string, number | null>();
+function dayNumber(s: string | undefined): number | null {
+  if (!s) return null;
+  const k = s.length > 10 ? s.slice(0, 10) : s;
+  let v = dayNumberCache.get(k);
+  if (v === undefined) {
+    v = null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(k)) {
+      const t = Date.parse(`${k}T00:00:00Z`);
+      if (!Number.isNaN(t)) v = Math.round(t / 86400000);
+    }
+    if (dayNumberCache.size > 20000) dayNumberCache.clear();
+    dayNumberCache.set(k, v);
+  }
+  return v;
+}
+
 /** Whole days between two YYYY-MM-DD(...) dates, or null when either is missing/invalid or negative. */
 function daysBetween(fromStr: string | undefined, toStr: string | undefined): number | null {
-  const a = (fromStr || '').slice(0, 10);
-  const b = (toStr || '').slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(a) || !/^\d{4}-\d{2}-\d{2}$/.test(b)) return null;
-  const ta = Date.parse(`${a}T00:00:00Z`);
-  const tb = Date.parse(`${b}T00:00:00Z`);
-  if (Number.isNaN(ta) || Number.isNaN(tb) || tb < ta) return null;
-  return Math.round((tb - ta) / 86400000);
+  const a = dayNumber(fromStr);
+  const b = dayNumber(toStr);
+  if (a === null || b === null || b < a) return null;
+  return b - a;
 }
 
 const pctOf = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);

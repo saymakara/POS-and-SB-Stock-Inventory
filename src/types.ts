@@ -113,12 +113,27 @@ export interface BatteryLifecycleStatus {
   label: string;
 }
 
+// (13 Nov 2026, speed) the result depends only on the two dates: worked out once per pair (the stock list and the
+// Dashboard ask for ~27,000 units, which share a few hundred dates). Callers only read the result.
+const batteryStatusCache = new Map<string, BatteryLifecycleStatus>();
+
 export function getBatteryLifecycleStatus(
   device: Pick<Device, 'batteryInstalledDate' | 'stockInDate' | 'deployedDate'>,
   referenceDateStr = todayPP()
 ): BatteryLifecycleStatus {
   // (22 Oct 2026) no made-up dates: a unit without any date is shown as "no date recorded" (to be checked)
   const installedStr = device.batteryInstalledDate || device.stockInDate || device.deployedDate || '';
+  const key = installedStr + '|' + referenceDateStr;
+  let hit = batteryStatusCache.get(key);
+  if (!hit) {
+    hit = computeBatteryLifecycleStatus(installedStr, referenceDateStr);
+    if (batteryStatusCache.size > 20000) batteryStatusCache.clear();
+    batteryStatusCache.set(key, hit);
+  }
+  return hit;
+}
+
+function computeBatteryLifecycleStatus(installedStr: string, referenceDateStr: string): BatteryLifecycleStatus {
   if (!/^\d{4}-\d{2}-\d{2}/.test(installedStr) || !/^\d{4}-\d{2}-\d{2}/.test(referenceDateStr)) {
     return { installedDate: '', dueDate: '', monthsUsed: 0, monthsRemaining: 0, lifePercent: 0, state: 'DUE_SOON',
       label: 'No battery date recorded — please check' };

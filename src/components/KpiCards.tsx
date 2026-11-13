@@ -261,7 +261,7 @@ export const KpiCards: React.FC<KpiCardsProps> = React.memo(({
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: Math.max(pct, count > 0 ? 6 : 0) / 100 }}
                 transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-                style={{ transformOrigin: 'left center', willChange: 'transform' }}
+                style={{ transformOrigin: 'left center' }}
                 className={`h-full w-full rounded-full ${style.accentBar}`}
               />
             </div>
