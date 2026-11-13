@@ -1,4 +1,5 @@
 import { Device, Requisition, Branch, HistoricalMerchantRecord } from '../types';
+import { pageSwitchAt } from './navPending';
 
 const DB_NAME = 'pos_sb_stock_inventory_db';
 const DB_VERSION = 2;
@@ -100,7 +101,11 @@ export async function loadFullCacheFromIdb(): Promise<CachedInventorySnapshot> {
       if (stores.includes(STORE_REQUISITIONS)) {
         const reqReq = tx.objectStore(STORE_REQUISITIONS).getAll();
         reqReq.onsuccess = () => {
-          if (reqReq.result && reqReq.result.length > 0) requisitions = reqReq.result;
+          if (reqReq.result && reqReq.result.length > 0) {
+            requisitions = reqReq.result;
+            persistedReqs.clear();
+            for (const r of reqReq.result as Requisition[]) persistedReqs.set(r.reqId, r);
+          }
         };
       }
 
@@ -143,63 +148,75 @@ export async function loadFullCacheFromIdb(): Promise<CachedInventorySnapshot> {
  * High-Throughput Bulk Device Persister (IndexedDB)
  * Handles up to 500,000+ hardware devices without memory crashes or quota limits.
  */
-/** Resolves at the browser's next idle moment (at the latest after 1 s); right away where idle callbacks do not exist. */
-function whenIdle(): Promise<void> {
-  const w = (typeof window !== 'undefined' ? window : undefined) as (Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }) | undefined;
-  return new Promise<void>((resolve) => {
-    if (w?.requestIdleCallback) w.requestIdleCallback(() => resolve(), { timeout: 1000 });
-    else setTimeout(resolve, 0);
+// (13 Nov 2026, speed, phase 2) Background saves never share a frame with a tap or a page being drawn.
+// Every put() copies the record on the main thread (structured clone): ~27,600 units are ~2.9 s of work on a slower laptop.
+// The work is cut into slices of at most SLICE_MS, each run in an idle moment, and a slice waits while the user has just
+// tapped, typed or scrolled, or a page switch is under way.
+const SLICE_MS = 6;
+const QUIET_AFTER_INPUT_MS = 700;
+let lastInputAt = 0;
+if (typeof window !== 'undefined') {
+  const mark = () => { lastInputAt = performance.now(); };
+  for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart']) window.addEventListener(ev, mark, { capture: true, passive: true });
+}
+type IdleWin = Window & { requestIdleCallback?: (cb: (d: { timeRemaining: () => number; didTimeout: boolean }) => void, o?: { timeout: number }) => number };
+/** Resolves with the time this slice may use: in an idle moment after any recent input / page switch has settled. */
+function whenQuiet(): Promise<number> {
+  const w = (typeof window !== 'undefined' ? window : undefined) as IdleWin | undefined;
+  return new Promise<number>((resolve) => {
+    if (!w?.requestIdleCallback) { setTimeout(() => resolve(SLICE_MS), 0); return; }
+    const startedWaiting = performance.now();
+    const ask = () => w.requestIdleCallback!((d) => {
+      const now = performance.now();
+      const busy = now - Math.max(lastInputAt, pageSwitchAt) < QUIET_AFTER_INPUT_MS;
+      // never starve: after 8 s of a constantly busy page, save small slices anyway
+      if (busy && now - startedWaiting < 8000) { setTimeout(ask, 120); return; }
+      resolve(d.didTimeout || busy ? 2 : Math.max(2, Math.min(SLICE_MS, d.timeRemaining() - 1)));
+    }, { timeout: 2000 });
+    ask();
   });
 }
 
-export async function saveDevicesToIdb(
-  devices: Device[],
-  onProgress?: (saved: number, total: number) => void
-): Promise<boolean> {
+/**
+ * Writes `items` (and deletes `removeKeys`) in time-limited slices, one transaction per slice. `clearFirst`: the first slice
+ * empties the store. Records written by a slice are kept even when a later slice fails (the next save completes them).
+ */
+async function writeInSlices<T>(storeName: string, items: T[], opts: { clearFirst?: boolean; removeKeys?: IDBValidKey[] } = {}): Promise<void> {
+  const db = await getDb();
+  const removeKeys = opts.removeKeys || [];
+  let i = 0, r = 0, first = true;
+  while (first || i < items.length || r < removeKeys.length) {
+    const budget = await whenQuiet();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction([storeName], 'readwrite');
+      const store = tx.objectStore(storeName);
+      if (first && opts.clearFirst) store.clear();
+      const t0 = performance.now();
+      let n = 0;
+      // at least a few records per slice (progress even when the budget is tiny); clock checked every 8 records
+      while (r < removeKeys.length && (n < 8 || (n & 7) !== 0 || performance.now() - t0 < budget)) { store.delete(removeKeys[r++]); n++; }
+      while (i < items.length && (n < 8 || (n & 7) !== 0 || performance.now() - t0 < budget)) { store.put(items[i++]); n++; }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
+    });
+    first = false;
+  }
+}
+
+export async function saveDevicesToIdb(devices: Device[]): Promise<boolean> {
   try {
+    // (13 Nov 2026, phase 2) idle, time-limited slices (see writeInSlices); before: 250 units per step at the next idle moment
+    // or after 1 s at the latest, so steps of ~60 ms still landed in the middle of page switches
+    await writeInSlices(STORE_DEVICES, devices, { clearFirst: true });
     const db = await getDb();
-    const total = devices.length;
-
-    // Use transaction in chunks of 5,000 to keep UI responsive on massive datasets
-    // (30 Oct 2026) 1,000 per step (was 5,000): each step is a short task, so taps and scrolling stay smooth during the save
-    // (4 Nov 2026) 250 per step: on a phone 1,000 writes took ~130 ms (a visible stutter); 250 stay under the 50 ms frame budget
-    const CHUNK_SIZE = 250;
-    for (let i = 0; i < total; i += CHUNK_SIZE) {
-      // (13 Nov 2026, speed) each step waits for an idle moment, so the first full save (~27,600 units, ~2.9 s of work on a
-      // slower laptop) never runs in the frames where the Dashboard is drawn or a tap is answered
-      await whenIdle();
-      const chunk = devices.slice(i, i + CHUNK_SIZE);
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction([STORE_DEVICES], 'readwrite');
-        const store = tx.objectStore(STORE_DEVICES);
-
-        if (i === 0) {
-          // Clear old records on the first chunk
-          store.clear();
-        }
-
-        for (let j = 0; j < chunk.length; j++) {
-          store.put(chunk[j]);
-        }
-
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(new Error('Transaction aborted'));
-      });
-
-      onProgress?.(Math.min(i + CHUNK_SIZE, total), total);
-    }
-
-    // Save metadata update timestamp
     if (db.objectStoreNames.contains(STORE_META)) {
-      const metaTx = db.transaction([STORE_META], 'readwrite');
-      metaTx.objectStore(STORE_META).put({
+      db.transaction([STORE_META], 'readwrite').objectStore(STORE_META).put({
         key: 'last_device_save',
-        count: total,
+        count: devices.length,
         timestamp: new Date().toISOString(),
       });
     }
-
     return true;
   } catch (err) {
     console.warn('[IndexedDB] Error saving devices to IDB:', err);
@@ -248,17 +265,9 @@ export function persistDevicesIncremental(devices: Device[]): Promise<boolean> {
         }
         return ok;
       }
+      await writeInSlices(STORE_DEVICES, changed, { removeKeys: removed });
       const db = await getDb();
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction([STORE_DEVICES, STORE_META], 'readwrite');
-        const store = tx.objectStore(STORE_DEVICES);
-        for (const d of changed) store.put(d);
-        for (const sn of removed) store.delete(sn);
-        tx.objectStore(STORE_META).put({ key: 'last_device_save', count: devices.length, timestamp: new Date().toISOString() });
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
-      });
+      db.transaction([STORE_META], 'readwrite').objectStore(STORE_META).put({ key: 'last_device_save', count: devices.length, timestamp: new Date().toISOString() });
       for (const d of changed) persistedDevices.set(d.serial, d);
       for (const sn of removed) persistedDevices.delete(sn);
       return true;
@@ -275,25 +284,44 @@ export function persistDevicesIncremental(devices: Device[]): Promise<boolean> {
 
 /**
  * Persists requisitions to IndexedDB for fast browser caching.
+ * (13 Nov 2026, speed, phase 2) Only the requests that changed are written (by reference: a changed request is a new object),
+ * removed ones are deleted, in idle time-limited slices. Before: the store was emptied and every request written again on
+ * every change (~230 ms on a slower laptop during sign-in).
  */
-export async function saveRequisitionsToIdb(requisitions: Requisition[]): Promise<boolean> {
-  try {
-    const db = await getDb();
-    if (!db.objectStoreNames.contains(STORE_REQUISITIONS)) return false;
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction([STORE_REQUISITIONS], 'readwrite');
-      const store = tx.objectStore(STORE_REQUISITIONS);
-      store.clear();
+const persistedReqs = new Map<string, Requisition>();
+/** Sign-out deletes the database: forget what it held, so the next save writes everything again. */
+export function forgetSavedCopies(): void {
+  persistedDevices.clear();
+  persistedReqs.clear();
+}
+let reqChain: Promise<unknown> = Promise.resolve();
+export function saveRequisitionsToIdb(requisitions: Requisition[]): Promise<boolean> {
+  const run = async (): Promise<boolean> => {
+    try {
+      const db = await getDb();
+      if (!db.objectStoreNames.contains(STORE_REQUISITIONS)) return false;
+      const changed: Requisition[] = [];
+      const live = new Set<string>();
       for (const r of requisitions) {
-        store.put(r);
+        live.add(r.reqId);
+        if (persistedReqs.get(r.reqId) !== r) changed.push(r);
       }
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch (err) {
-    console.warn('[IndexedDB] Error saving requisitions to IDB:', err);
-    return false;
-  }
+      const removed: string[] = [];
+      persistedReqs.forEach((_r, id) => { if (!live.has(id)) removed.push(id); });
+      if (!changed.length && !removed.length) return true;
+      // nothing known about the store yet (first save of this session): empty it first so no stale request stays
+      await writeInSlices(STORE_REQUISITIONS, changed, { clearFirst: persistedReqs.size === 0, removeKeys: persistedReqs.size === 0 ? [] : removed });
+      for (const r of changed) persistedReqs.set(r.reqId, r);
+      for (const id of removed) persistedReqs.delete(id);
+      return true;
+    } catch (err) {
+      console.warn('[IndexedDB] Error saving requisitions to IDB:', err);
+      return false;
+    }
+  };
+  const next = reqChain.then(run, run);
+  reqChain = next.catch(() => undefined);
+  return next;
 }
 
 /**

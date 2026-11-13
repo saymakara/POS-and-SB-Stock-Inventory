@@ -539,6 +539,34 @@ export async function fetchConfiguringDevicesFromSupabase(force = false): Promis
   }
 }
 
+// (13 Nov 2026, speed, phase 2) The stock list as arrays in this fixed column order (migration 20261113_02,
+// public.devices_page_compact): about half the bytes of table rows (no column names repeated 27,649 times), read faster by the
+// browser. The order is a contract with that function: new columns are added at the END in both places.
+const DEVICE_COMPACT_COLUMNS = [
+  'serial', 'type', 'model', 'stage', 'branch_id', 'branch_name', 'stock_in_date', 'deployed_date', 'battery_installed_date',
+  'battery_serial', 'redeploy_count', 'staff', 'merchant_name', 'merchant_phone', 'location', 'address', 'mid', 'tid', 'note',
+  'history', 'archived', 'custom_fields', 'return_reason', 'deployment_status', 'stock_status', 'hours_in_stage',
+  'integrity_hash', 'updated_at', 'row_version',
+] as const;
+/** null: not tried yet; false: this database has no compact read (older migration level) - the table is read as before. */
+let compactDeviceReadOk: boolean | null = null;
+function compactToRow(a: unknown[]): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  for (let i = 0; i < DEVICE_COMPACT_COLUMNS.length; i++) row[DEVICE_COMPACT_COLUMNS[i]] = a[i];
+  return row;
+}
+/** Units with from <= serial < to (to null: to the end), at most `limit`, as table-shaped rows; null: use the table read. */
+async function readDeviceRangeCompact(from: string, to: string | null, limit: number): Promise<any[] | null> {
+  if (compactDeviceReadOk === false) return null;
+  const { data, error } = await supabase.rpc('devices_page_compact', { p_from: from, p_to: to, p_limit: limit });
+  if (error || !Array.isArray(data) || (data.length && !Array.isArray(data[0]))) {
+    if (compactDeviceReadOk === null) { compactDeviceReadOk = false; return null; }   // not on this database: fall back for good
+    throw error || new Error('devices_page_compact: unexpected answer');
+  }
+  compactDeviceReadOk = true;
+  return (data as unknown[][]).map(compactToRow);
+}
+
 /** The whole stock list by serial ranges (see fetchDevicesFromSupabase). null: not available (older database) or a read failed. */
 async function fetchDevicesByRanges(size: number, onFirstPage?: (rows: Device[], total: number) => void): Promise<Device[] | null> {
   try {
@@ -549,6 +577,19 @@ async function fetchDevicesByRanges(size: number, onFirstPage?: (rows: Device[],
     if (!bounds.length) { onFirstPage?.([], 0); return []; }
     const CAP = size * 2;                                                // units added meanwhile: a page may hold a few more
     const readRange = async (from: string, to: string | null): Promise<any[]> => {
+      const compact = await readDeviceRangeCompact(from, to, CAP);
+      if (compact) {
+        let out = compact;
+        // very rare: more than CAP units in one range: read on from the last serial (inclusive, so drop that one)
+        while (out.length && out.length % CAP === 0) {
+          const last = out[out.length - 1].serial as string;
+          const more = await readDeviceRangeCompact(last, to, CAP + 1);
+          const next = (more || []).filter((r) => (r.serial as string) > last);
+          if (!next.length) break;
+          out = out.concat(next);
+        }
+        return out;
+      }
       let q: any = supabase.from('devices').select('*').gte('serial', from);
       if (to !== null) q = q.lt('serial', to);
       const { data: rows, error: e } = await q.order('serial', { ascending: true }).limit(CAP);

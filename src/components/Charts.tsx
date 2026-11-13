@@ -61,15 +61,17 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
       }
     };
 
-    updateWidth();
-
     let observer: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(() => {
-        updateWidth();
+      // (13 Nov 2026, speed) the observer reports the first size itself, after the browser's own layout: reading clientWidth
+      // here forced an extra layout of the whole page in the middle of drawing it (~100 ms on a slower laptop at sign-in)
+      observer = new ResizeObserver((entries) => {
+        const w = Math.round(entries[entries.length - 1]?.contentRect.width || 0);
+        if (w > 0) setContainerWidth(w);
       });
       observer.observe(parent);
     } else {
+      updateWidth();
       window.addEventListener('resize', updateWidth);
     }
 

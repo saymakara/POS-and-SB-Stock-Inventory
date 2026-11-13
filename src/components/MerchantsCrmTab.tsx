@@ -33,7 +33,6 @@ ChevronLeft,
   User,
 } from 'lucide-react';
 import {
-  ResponsiveContainer,
   ComposedChart,
   BarChart,
   Bar,
@@ -50,6 +49,7 @@ import { canSeeFullContact, phoneFor } from '../utils/privacy';
 import { canMove, moveError, statusOf } from '../utils/stages';
 import { formatBranchName, fmtNum, showDateTime } from '../utils/format';
 import { PillMotion } from './PillMotion';
+import { MeasuredChart } from './MeasuredChart';
 
 /**
  * What the CRM sends with a bind (22 Oct 2026). The stage fields are what the move to "Installed Live" must set
@@ -532,6 +532,9 @@ export const MerchantsCrmTab: React.FC<MerchantsCrmTabProps> = ({
     });
     return rows;
   }, [filteredMerchants, merchantProfiles, selectedTrendMid, trendMonths, topMerchantsForTrend]);
+  // (13 Nov 2026, speed) a fixed label step: the chart library otherwise measures every month label in the page to decide
+  // which ones fit (a layout read per label while the page is drawn); about 12 labels always fit this chart
+  const monthTickInterval = Math.max(0, Math.ceil(monthlyDeploymentTrendData.length / 12) - 1);
 
   const trendHasData = useMemo(
     () => monthlyDeploymentTrendData.some((r) => r.monthlyTotal > 0),
@@ -974,9 +977,11 @@ return (
             </p>
           )}
         <div className="h-72 w-full pt-1">
-          <ResponsiveContainer width="100%" height="100%">
-            {trendChartMode === 'POS_VS_SB' ? (
+          <MeasuredChart height={284}>{(chartW) => (
+            trendChartMode === 'POS_VS_SB' ? (
               <ComposedChart
+                width={chartW}
+                height={284}
                 data={monthlyDeploymentTrendData}
                 margin={{ top: 10, right: 16, left: -12, bottom: 0 }}
               >
@@ -990,6 +995,7 @@ return (
                   tick={{ fill: isLight ? '#002f49' : '#94a3b8', fontSize: 11, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}
                   axisLine={{ stroke: isLight ? '#cbd8e3' : '#003857' }}
                   tickLine={false}
+                  interval={monthTickInterval}
                 />
                 <YAxis
                   yAxisId="left"
@@ -1030,6 +1036,8 @@ return (
               </ComposedChart>
             ) : (
               <BarChart
+                width={chartW}
+                height={284}
                 data={monthlyDeploymentTrendData}
                 margin={{ top: 10, right: 16, left: -12, bottom: 0 }}
               >
@@ -1043,6 +1051,7 @@ return (
                   tick={{ fill: isLight ? '#002f49' : '#94a3b8', fontSize: 11, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}
                   axisLine={{ stroke: isLight ? '#cbd8e3' : '#003857' }}
                   tickLine={false}
+                  interval={monthTickInterval}
                 />
                 <YAxis
                   allowDecimals={false}
@@ -1074,8 +1083,8 @@ return (
                   />
                 ))}
               </BarChart>
-            )}
-          </ResponsiveContainer>
+            )
+          )}</MeasuredChart>
         </div>
         </>
         )}

@@ -7,6 +7,7 @@ import { clearCcCache } from '../services/ccService';
 import { clearMvCache } from '../services/mvCache';
 import { clearFresh } from '../utils/freshness';
 import { clearWorkstationLock, notifySessionSignOut } from '../utils/sessionSecurity';
+import { forgetSavedCopies } from '../utils/idbStorage';
 
 /**
  * Sign-in with the shared database (21 Oct 2026).
@@ -47,6 +48,7 @@ export function clearLocalCaches(): void {
   }
   try {
     indexedDB.deleteDatabase('pos_sb_stock_inventory_db');
+    forgetSavedCopies();
   } catch {
     /* not available */
   }

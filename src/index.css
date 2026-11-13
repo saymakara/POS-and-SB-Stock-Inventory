@@ -708,8 +708,7 @@ button:hover:not(:disabled),
 }
 
 .page-glide-in {
-  animation: pageGlideIn 140ms ease-out both;
-  will-change: opacity;
+  animation: pageGlideIn 140ms ease-out backwards;   /* (13 Nov 2026) released when done: no page-sized layer kept */
 }
 
 /* (23 Oct 2026) rows are no longer animated one by one (that stuttered); a page change glides the whole list (utils/glide.ts) */
@@ -859,7 +858,8 @@ nav a:active,
               border-color var(--duration-fast) var(--ease-standard),
               box-shadow var(--duration-fast) var(--ease-standard),
               opacity var(--duration-fast) var(--ease-standard);
-  will-change: transform;
+  /* (13 Nov 2026, speed) no permanent will-change: the browser lifts a button onto its own layer only while it moves.
+     Before, every such button on a page was a separate compositor layer for as long as the page was open. */
 }
 .btn-press:active:not(:disabled),
 .btn-tactile:active:not(:disabled) {
