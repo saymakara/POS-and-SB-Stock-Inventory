@@ -1402,3 +1402,8 @@ tbody > tr {
   transform: translateZ(0);
 }
 
+
+/* (13 Nov 2026, speed) phone tab bar: the chosen tab's bar fades in (CSS only, no layout measuring) */
+.tabbar-pill-in { animation: tabbarPillIn 0.22s var(--ease-out) both; }
+@keyframes tabbarPillIn { from { opacity: 0; transform: translateX(-50%) scaleX(0.4); } to { opacity: 1; transform: translateX(-50%) scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .tabbar-pill-in { animation: none; } }

@@ -20,6 +20,7 @@ import {
 } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
 import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
+import { PillMotion } from './PillMotion';
 
 /**
  * Phone App Review → KHQR (28 Oct 2026).
@@ -369,7 +370,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
                   }`}
                 >
                   {active && (
-                    <motion.div layoutId="qr-view-pill" aria-hidden className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs" transition={SPRING} />
+                    <PillMotion layoutId="qr-view-pill" aria-hidden className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs" transition={SPRING} />
                   )}
                   <span className="relative z-10 flex items-center gap-1.5">
                     {v !== 'entries' && <span className={`w-2 h-2 rounded-full ${v === 'failed' ? (active ? 'bg-rose-300' : 'bg-rose-500') : v === 'wrong' ? (active ? 'bg-orange-300' : 'bg-orange-500') : (active ? 'bg-violet-300' : 'bg-violet-500')}`} aria-hidden />}

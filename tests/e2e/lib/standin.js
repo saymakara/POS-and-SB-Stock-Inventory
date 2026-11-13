@@ -1,5 +1,7 @@
 // Shared stand-in of the Supabase API for the end-to-end tests (extended 29 Oct 2026: updated_at, changed-only reads, HEAD counts).
-const { chromium } = require("playwright");
+const pw = require("playwright");
+// (13 Nov 2026) CHROMIUM_PATH: a browser already on the machine (e.g. /opt/pw-browsers/chromium) instead of Playwright's own download
+const chromium = { launch: (o) => pw.chromium.launch(Object.assign(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}, o || {})) };
 let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const B = process.env.SUPABASE_URL || 'https://mrrzfmtaqjdwhwznznie.supabase.co';

@@ -18,6 +18,7 @@ import {
   MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts, fetchLost, MaterialBalance,
 } from '../services/materialsService';
 import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
+import { PillMotion } from './PillMotion';
 
 export type ProductView = 'UNITS' | 'PUSH' | 'MATERIAL';
 
@@ -1081,7 +1082,7 @@ const MaterialStockPanelComponent: React.FC<{
                   }`}
                 >
                   {activeLedgerView === 'DEPLOYMENTS' && (
-                    <motion.div
+                    <PillMotion
                       layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
                       aria-hidden
                       className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -1102,7 +1103,7 @@ const MaterialStockPanelComponent: React.FC<{
                   }`}
                 >
                   {activeLedgerView === 'BALANCES' && (
-                    <motion.div
+                    <PillMotion
                       layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
                       aria-hidden
                       className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -1517,7 +1518,7 @@ export const LostTable: React.FC<{
                 }`}
               >
                 {isSelected && (
-                  <motion.div
+                  <PillMotion
                     layoutId="active-lost-filter-pill"
                     className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
                     transition={SPRING_TAB_PILL}

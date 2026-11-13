@@ -18,6 +18,7 @@ import {
 } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import { SPRING_TAB_PILL } from '../utils/animationRules';
+import { PillMotion } from './PillMotion';
 import {
   Smartphone,
   Wifi,
@@ -881,7 +882,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     }`}
                   >
                     {isActive && (
-                      <motion.div
+                      <PillMotion
                         layoutId="sync-reconciliation-filter-pill"
                         aria-hidden
                         className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -1761,7 +1762,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     }`}
                   >
                     {active && (
-                      <motion.div
+                      <PillMotion
                         layoutId="sync-feed-filter-pill"
                         aria-hidden
                         className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"

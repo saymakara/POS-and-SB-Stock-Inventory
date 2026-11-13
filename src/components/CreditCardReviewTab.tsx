@@ -14,6 +14,7 @@ import { deletePhoneRecords } from '../services/supabaseService';
 import { DeleteRecordsDialog, NoCell, SelectBox, useRecordSelection } from './DeleteRecordsDialog';
 import { CopyableRecordId } from './CopyableRecordId';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
+import { PillMotion } from './PillMotion';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -251,7 +252,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                     }`}
                   >
                     {active && (
-                      <motion.div
+                      <PillMotion
                         layoutId="cc-review-pill"
                         className="absolute -inset-[1px] rounded-lg tab-active-blue border border-sky-400/40 shadow-xs z-0 pointer-events-none"
                         transition={SPRING}

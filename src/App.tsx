@@ -1,4 +1,5 @@
-import React, { Suspense, useState, useMemo, useEffect, useCallback, useDeferredValue } from 'react';
+import React, { Suspense, useState, useMemo, useEffect, useCallback, useDeferredValue, startTransition } from 'react';
+import { setPendingTab } from './utils/navPending';
 import { setDrawerOpen, getDrawerOpen, closeDrawer } from './utils/drawerStore';
 import {
   Device,
@@ -91,7 +92,7 @@ import {
   MobileSyncTab, LogoPageTab, AuditLogTab, SettingsTab, FieldReviewTab, KhqrReviewTab, CreditCardReviewTab,
   SimCardTab, MerchantVisitTab, KpiPerformanceTab, StaffAccountsTab, PushConfiguringTab, TraceModal, WorkflowModal,
   ChangeBatteryModal, ExportDataModal, BatchUploadModal, RequestStockModal, DELTA_SYNC_ENABLED, KEY_DEVICES_FULL_AT,
-  DELTA_FULL_RELOAD_AFTER_MS, DELTA_OVERLAP_MS, DELTA_MAX_ROWS, markCacheHydrated, cacheHydrated, DeviceLoad,
+  DELTA_FULL_RELOAD_AFTER_MS, DELTA_OVERLAP_MS, DELTA_MAX_ROWS, markCacheHydrated, cacheHydrated, DeviceLoad, markStockLoaded, stockLoaded,
   STORAGE_KEY_DEVICES, STORAGE_KEY_REQS, STORAGE_KEY_BRANCHES, STORAGE_KEY_USERS, STORAGE_KEY_LOGS,
   STORAGE_KEY_WEBHOOKS, STORAGE_KEY_NOTIFS, STORAGE_KEY_HISTORICAL_MERCHANTS, STORAGE_KEY_STAGE_SUMMARY,
   STORAGE_KEY_SETTINGS, STORAGE_KEY_AUTH_SESSION, STORAGE_KEY_PUSHED_CONFIGURING, STORAGE_KEY_PUSH_TRACKING,
@@ -112,8 +113,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   useEffect(() => {                                                  // the other screens arrive while the first one is in use
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
     const warm = () => { prefetchTabs(); prefetchFieldEvents(); if (profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN') { prefetchAudit(); prefetchStaff(); } };   // (29 Oct 2026) Audit Trail opens with its first page already here
-    const t = w.requestIdleCallback ? w.requestIdleCallback(warm, { timeout: 2500 }) : window.setTimeout(warm, 1200);
-    return () => { if (!w.requestIdleCallback) window.clearTimeout(t); };
+    // (13 Nov 2026, speed) after the first stock load (at most 12 s), then at an idle moment
+    let cancelled = false;
+    Promise.race([stockLoaded, new Promise<void>((r) => window.setTimeout(r, 12000))]).then(() => {
+      if (cancelled) return;
+      if (w.requestIdleCallback) w.requestIdleCallback(() => { if (!cancelled) warm(); }, { timeout: 2500 }); else window.setTimeout(() => { if (!cancelled) warm(); }, 300);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -746,6 +752,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const start = () => reloadFromServerOnce(opts);
     const p: Promise<boolean> = (cur ? cur.p.catch(() => false).then(start) : start()).finally(() => {
       if (reloadInFlight.current?.p === p) reloadInFlight.current = null;
+      markStockLoaded();                                                  // (13 Nov 2026) the other screens' data may come now
     });
     reloadInFlight.current = { p, full: wantFull };
     return p;
@@ -1053,7 +1060,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   });
   // (22 Oct 2026) changing page glides: the browser morphs the old page into the new one (View Transitions);
   // older browsers get a short CSS glide-in instead. Respects "reduce motion".
-  const setActiveTab = useCallback((tab: string) => setActiveTabRaw(tab), []);
+  // (13 Nov 2026, speed) a page change is a background (transition) render: React draws the new page in short slices between
+  // frames instead of one long block inside the tap, so the tap answers in the next frame (the sidebar / tab bar already show
+  // the chosen page, see navPending) and scrolling or a second tap are never held up by a page being built
+  const setActiveTab = useCallback((tab: string) => { startTransition(() => setActiveTabRaw(tab)); }, []);
   // (23 Oct 2026) the menu highlight moves at once; the new page is prepared in the background (React keeps drawing
   // frames meanwhile, so nothing freezes) and glides in when ready
   const shownTab = useDeferredValue(activeTab);
@@ -1076,6 +1086,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }
     if (tabId === 'brand_logo') {
       setSettingsSubTab('brand_logo');
+      setPendingTab('settings');
       setActiveTab('settings');
       setMobileDrawerOpen(false);
       return;
@@ -1092,6 +1103,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }
     // (31 Oct 2026, native-like) On a phone the drawer closes on this tap at once; the new page is drawn from the next
     // frames on (the page itself is a background render, see shownTab), so the tap answers immediately instead of waiting for the whole page to render.
+    setPendingTab(tabId);                                                // the sidebar / tab bar show the choice at once
     if (getDrawerOpen()) {
       setMobileDrawerOpen(false);
       requestAnimationFrame(() => requestAnimationFrame(() => setActiveTab(tabId)));
@@ -1111,6 +1123,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   // Persist activeTab to localStorage and keep URL hash in sync for instant browser reload retention
   useEffect(() => {
+    setPendingTab(null);                                                 // (13 Nov 2026) the chosen page is on screen now
     try {
       localStorage.setItem(STORAGE_KEY_ACTIVE_TAB, activeTab);
       if (typeof window !== 'undefined') {

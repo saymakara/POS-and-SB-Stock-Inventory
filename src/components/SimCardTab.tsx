@@ -18,6 +18,7 @@ import { MaterialsSetupNotice, StatusPill, btnLight, btnPrimary, fmtDay } from '
 import { AdjustDialog, LostMaterialsSection, StockInDialog } from './MaterialStockPanel';
 import { ManageSimModal } from './ManageSimModal';
 import { WHILE_TAP_BUTTON, SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import { PillMotion } from './PillMotion';
 
 /**
  * (6 Nov 2026) Stock Inventory → SIM Card.
@@ -343,7 +344,7 @@ const SimCardTabComponent: React.FC<{
                   }`}
                 >
                   {active && (
-                    <motion.div
+                    <PillMotion
                       layoutId={SHARED_LAYOUT_IDS.SIM_HARDWARE_PILL}
                       transition={SPRING_TAB_PILL}
                       className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"

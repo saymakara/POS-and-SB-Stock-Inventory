@@ -25,6 +25,7 @@ import {
 import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHolidays';
 import { todayPP } from '../utils/time';
 import { SPRING_TAB_PILL, WHILE_TAP_BUTTON, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import { PillMotion } from './PillMotion';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -1778,7 +1779,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   }`}
                 >
                   {active && (
-                    <motion.div
+                    <PillMotion
                       layoutId="kpi-view-pill"
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
                       transition={SPRING}
@@ -1903,7 +1904,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         }`}
                       >
                         {active && (
-                          <motion.div
+                          <PillMotion
                             layoutId="kpi-chart-granularity-pill"
                             transition={SPRING}
                             className="absolute inset-0 rounded-lg bg-[#003857] shadow-2xs"
@@ -2280,7 +2281,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               title="Card Grid View"
                             >
                               {subCatViewMode === 'cards' && (
-                                <motion.div
+                                <PillMotion
                                   layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_VIEW_PILL}
                                   transition={SPRING_TAB_PILL}
                                   className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -2303,7 +2304,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               title="Detailed Table View"
                             >
                               {subCatViewMode === 'table' && (
-                                <motion.div
+                                <PillMotion
                                   layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_VIEW_PILL}
                                   transition={SPRING_TAB_PILL}
                                   className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -2351,7 +2352,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 }`}
                               >
                                 {active && (
-                                  <motion.div
+                                  <PillMotion
                                     layoutId={SHARED_LAYOUT_IDS.KPI_SUBCAT_CATEGORY_PILL}
                                     transition={SPRING_TAB_PILL}
                                     className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
@@ -2642,7 +2643,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   }`}
                 >
                   {leaderboardMode === 'staff' && (
-                    <motion.div
+                    <PillMotion
                       layoutId="kpi-top10-mode-pill"
                       transition={SPRING}
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
@@ -2663,7 +2664,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   }`}
                 >
                   {leaderboardMode === 'branch' && (
-                    <motion.div
+                    <PillMotion
                       layoutId="kpi-top10-mode-pill"
                       transition={SPRING}
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
@@ -3084,7 +3085,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   }`}
                 >
                   {tableMode === 'staff' && staffSubView === 'summary' && (
-                    <motion.div
+                    <PillMotion
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
@@ -3104,7 +3105,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   }`}
                 >
                   {tableMode === 'branch' && branchSubView === 'summary' && (
-                    <motion.div
+                    <PillMotion
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
@@ -3124,7 +3125,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   }`}
                 >
                   {tableMode === 'staff' && staffSubView === 'daily' && (
-                    <motion.div
+                    <PillMotion
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
@@ -3144,7 +3145,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   }`}
                 >
                   {tableMode === 'branch' && branchSubView === 'daily' && (
-                    <motion.div
+                    <PillMotion
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"

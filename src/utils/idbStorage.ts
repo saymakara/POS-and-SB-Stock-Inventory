@@ -143,6 +143,15 @@ export async function loadFullCacheFromIdb(): Promise<CachedInventorySnapshot> {
  * High-Throughput Bulk Device Persister (IndexedDB)
  * Handles up to 500,000+ hardware devices without memory crashes or quota limits.
  */
+/** Resolves at the browser's next idle moment (at the latest after 1 s); right away where idle callbacks do not exist. */
+function whenIdle(): Promise<void> {
+  const w = (typeof window !== 'undefined' ? window : undefined) as (Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }) | undefined;
+  return new Promise<void>((resolve) => {
+    if (w?.requestIdleCallback) w.requestIdleCallback(() => resolve(), { timeout: 1000 });
+    else setTimeout(resolve, 0);
+  });
+}
+
 export async function saveDevicesToIdb(
   devices: Device[],
   onProgress?: (saved: number, total: number) => void
@@ -156,6 +165,9 @@ export async function saveDevicesToIdb(
     // (4 Nov 2026) 250 per step: on a phone 1,000 writes took ~130 ms (a visible stutter); 250 stay under the 50 ms frame budget
     const CHUNK_SIZE = 250;
     for (let i = 0; i < total; i += CHUNK_SIZE) {
+      // (13 Nov 2026, speed) each step waits for an idle moment, so the first full save (~27,600 units, ~2.9 s of work on a
+      // slower laptop) never runs in the frames where the Dashboard is drawn or a tap is answered
+      await whenIdle();
       const chunk = devices.slice(i, i + CHUNK_SIZE);
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction([STORE_DEVICES], 'readwrite');

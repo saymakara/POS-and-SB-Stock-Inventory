@@ -76,6 +76,11 @@ export const DELTA_MAX_ROWS = 3000;
 // resolved when the saved copy has been read, so the first reload can start from it
 export let markCacheHydrated: () => void = () => {};
 export const cacheHydrated: Promise<void> = new Promise<void>((resolve) => { markCacheHydrated = resolve; });
+// (13 Nov 2026, speed) resolved when the first stock load has finished: the other screens' data (KPI, KHQR, Credit Card,
+// SIM, field events, audit) is fetched only then, so it no longer competes with the stock list for the network and the
+// database while the Dashboard is getting ready
+export let markStockLoaded: () => void = () => {};
+export const stockLoaded: Promise<void> = new Promise<void>((resolve) => { markStockLoaded = resolve; });
 export type DeviceLoad = { list: Device[] | null; delta?: boolean; unchanged?: boolean };
 
 export const STORAGE_KEY_DEVICES = 'crm_pos_devices_v20';

@@ -29,6 +29,7 @@ import {
 } from '../utils/errorLogger';
 import { motion, AnimatePresence } from 'motion/react';
 import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import { PillMotion } from './PillMotion';
 import {
   Settings,
   BatteryCharging,
@@ -616,7 +617,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 }`}
               >
                 {isActive && (
-                  <motion.div
+                  <PillMotion
                     layoutId={SHARED_LAYOUT_IDS.SETTINGS_SUBTAB_PILL}
                     aria-hidden
                     className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
