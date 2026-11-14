@@ -168,6 +168,16 @@ export const StaffAccountsTab: React.FC<{
 
   const roleOptions = role === 'SUPER_ADMIN' ? ['BRANCH', 'ADMIN', 'SUPER_ADMIN'] : ['BRANCH'];
   const canEdit = (a: StaffAccount) => role === 'SUPER_ADMIN' || (role === 'ADMIN' && a.role === 'BRANCH');
+  const editingAccount = useMemo(
+    () => (!isNew && form ? (list || []).find((x) => x.empId === form.emp_id) || null : null),
+    [isNew, form, list]
+  );
+  const canDeleteEditing = Boolean(
+    editingAccount &&
+    isAdmin &&
+    canEdit(editingAccount) &&
+    !(currentEmpId && editingAccount.empId.trim().toLowerCase() === currentEmpId.trim().toLowerCase())
+  );
 
   const handleToggleStatus = useCallback(
     async (a: StaffAccount) => {
@@ -524,22 +534,41 @@ export const StaffAccountsTab: React.FC<{
               {formErr}
             </div>
           )}
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setForm(null)}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={save}
-              disabled={busy}
-              className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
-            >
-              {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              {!isNew && canDeleteEditing && editingAccount && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteReason('Staff resigned');
+                    setDeleteTarget(editingAccount);
+                  }}
+                  disabled={busy || deleting}
+                  title={`Delete user ${editingAccount.name} (${editingAccount.empId})`}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 disabled:opacity-60 inline-flex items-center gap-1.5 cursor-pointer transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete User
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setForm(null)}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={save}
+                disabled={busy}
+                className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] text-white disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+              >
+                {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -628,17 +657,8 @@ export const StaffAccountsTab: React.FC<{
                   locationLabel={getLocation(a)}
                   onlineInfo={onlineByEmp.get(String(a.empId).trim()) || onlineByEmp.get(a.name.trim().toLowerCase())}
                   editable={isAdmin && canEdit(a)}
-                  canDelete={
-                    isAdmin &&
-                    canEdit(a) &&
-                    !(currentEmpId && a.empId.trim().toLowerCase() === currentEmpId.trim().toLowerCase())
-                  }
                   onEdit={openEdit}
                   onToggleStatus={handleToggleStatus}
-                  onDelete={(acc) => {
-                    setDeleteReason('Staff resigned');
-                    setDeleteTarget(acc);
-                  }}
                 />
               ))}
               {list && shown.length === 0 && (
@@ -751,10 +771,8 @@ const StaffRow = memo(function StaffRow({
   locationLabel,
   onlineInfo,
   editable,
-  canDelete,
   onEdit,
   onToggleStatus,
-  onDelete,
 }: {
   a: StaffAccount;
   no: number;
@@ -762,10 +780,8 @@ const StaffRow = memo(function StaffRow({
   locationLabel: string;
   onlineInfo?: OnlineOperatorPresence;
   editable: boolean;
-  canDelete: boolean;
   onEdit: (a: StaffAccount) => void;
   onToggleStatus: (a: StaffAccount) => void;
-  onDelete: (a: StaffAccount) => void;
 }) {
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50/80 transition-colors">
@@ -851,17 +867,6 @@ const StaffRow = memo(function StaffRow({
                 >
                   Edit
                 </button>
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => onDelete(a)}
-                    title={`Delete user ${a.name} (${a.empId})`}
-                    className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 transition inline-flex items-center gap-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Delete
-                  </button>
-                )}
               </div>
             </>
           )}
