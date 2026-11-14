@@ -1003,9 +1003,13 @@ const MaterialStockPanelComponent: React.FC<{
         ).length;
         const deployed = Math.max(bal?.atMerchant || 0, deployedInBranch);
 
-        const total = onHand + deployed + inTransit;
+        const total = onHand + deployed;
 
-        if (total > 0 || branchFilter || bId === '100') {
+        if (total > 0) {
+          if (statusFilter === 'HQ_STOCK' && !(bId === '100' && onHand > 0)) continue;
+          if (statusFilter === 'BRANCH_RESERVE' && !(bId !== '100' && onHand > 0)) continue;
+          if (statusFilter === 'AT_MERCHANT' && !(deployed > 0)) continue;
+
           list.push({
             branchId: bId,
             branchName: bName,
@@ -1029,7 +1033,7 @@ const MaterialStockPanelComponent: React.FC<{
         r.branchId.toLowerCase().includes(sLow) ||
         r.materialName.toLowerCase().includes(sLow)
     );
-  }, [branches, selectedCode, codes, branchFilter, balances, deviceDerivedItems, search]);
+  }, [branches, selectedCode, codes, branchFilter, statusFilter, balances, deviceDerivedItems, search]);
 
   // Status counts across all loaded items
   const dynamicStatusCounts = useMemo(() => {
@@ -1088,11 +1092,16 @@ const MaterialStockPanelComponent: React.FC<{
     }
   }, [onSummariesChange, codes, materialSummaries, branchFilter, search]);
 
-  // Pagination for the detailed table
+  // Pagination for both ledger views
   const pg = usePager(combinedItems.length, [selectedCode, statusFilter, branchFilter, assignmentFilter, search]);
   const displayedItems = useMemo(
     () => combinedItems.slice(pg.start, pg.end),
     [combinedItems, pg.start, pg.end]
+  );
+  const balPg = usePager(branchBalanceRows.length, [selectedCode, statusFilter, branchFilter, search]);
+  const displayedBalanceRows = useMemo(
+    () => branchBalanceRows.slice(balPg.start, balPg.end),
+    [branchBalanceRows, balPg.start, balPg.end]
   );
 
   const exportDetailedInventoryCsv = () => {
@@ -1133,8 +1142,8 @@ const MaterialStockPanelComponent: React.FC<{
     downloadCsv(
       `${group === 'POS' ? 'pos' : 'sound-box'}-materials-branch-balances`,
       [
-        'Branch Code', 'Branch Name', 'Material Type', 'Shelf Reserve (On Hand)',
-        'Deployed at Merchants', 'In Transit', 'Total Controlled'
+        'Branch Code', 'Branch Name', 'Material Type', 'Available (On Hand)',
+        'Bundled Live', 'Total Controlled'
       ],
       branchBalanceRows.map((r) => [
         r.branchId,
@@ -1142,7 +1151,6 @@ const MaterialStockPanelComponent: React.FC<{
         r.materialName,
         r.onHand,
         r.deployed,
-        r.inTransit,
         r.total,
       ])
     );
@@ -1319,7 +1327,11 @@ const MaterialStockPanelComponent: React.FC<{
 
             <select
               value={pg.pageSize}
-              onChange={(e) => pg.setPageSize(Number(e.target.value))}
+              onChange={(e) => {
+                const sz = Number(e.target.value);
+                pg.setPageSize(sz);
+                balPg.setPageSize(sz);
+              }}
               className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               title="Select view page (100 Row Max)"
             >
@@ -1469,109 +1481,111 @@ const MaterialStockPanelComponent: React.FC<{
 
         {/* Dynamic Table: View 1 (Merchant Deployments) OR View 2 (Multi-Branch Balances) */}
         {activeLedgerView === 'BALANCES' ? (
-          /* Multi-Branch Balances Matrix Ledger */
+          /* Clean Grouped Branch Stock Matrix */
           <div className="overflow-x-auto overflow-y-hidden">
-            <table className="w-full min-w-[900px] text-sm text-left">
+            <table className="w-full min-w-[820px] text-sm text-left">
               <thead>
                 <tr className="bg-[#155484] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
                   <th className="px-4 py-3 text-center w-12">No.</th>
-                  <th className="px-4 py-3">Branch Location / Custody</th>
+                  <th className="px-4 py-3">Branch</th>
                   <th className="px-4 py-3">Material Type</th>
-                  <th className="px-4 py-3 text-right">Branch Shelf Reserve (On Hand)</th>
-                  <th className="px-4 py-3 text-right">Deployed at Merchants</th>
-                  <th className="px-4 py-3 text-right">In Transit</th>
-                  <th className="px-4 py-3 text-right font-bold">Total Controlled</th>
-                  {isAdmin && <th className="px-4 py-3 text-center w-36">Actions</th>}
+                  <th className="px-4 py-3 text-right">Available (On Hand)</th>
+                  <th className="px-4 py-3 text-right">Bundled Live</th>
+                  <th className="px-4 py-3 text-right font-bold">Total</th>
+                  {isAdmin && <th className="px-4 py-3 text-center w-44">Action</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {branchBalanceRows.length === 0 ? (
+              <tbody className="text-xs">
+                {displayedBalanceRows.length === 0 ? (
                   <tr>
-                    <td colSpan={isAdmin ? 8 : 7} className="px-4 py-12 text-center text-slate-400">
+                    <td colSpan={isAdmin ? 7 : 6} className="px-4 py-12 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
                         <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
                           <Boxes className="w-5 h-5 text-slate-400" />
                         </div>
-                        <p className="font-bold text-slate-700 text-sm">No branch balances recorded</p>
+                        <p className="font-bold text-slate-700 text-sm">No branch balances match</p>
                         <p className="text-xs text-slate-500">
-                          Click "Stock In" above to allocate accessory units into branch stock.
+                          {branchFilter || statusFilter || selectedCode !== 'ALL' || search
+                            ? 'Clear active filters or click "Stock In" to allocate stock.'
+                            : 'Click "Stock In" above to allocate accessory units into branch stock.'}
                         </p>
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  branchBalanceRows.map((r, idx) => (
-                    <tr
-                      key={`bal-${r.branchId}-${r.code}-${idx}`}
-                      className="hover:bg-slate-50/80 transition-colors"
-                    >
-                      <td className="px-4 py-2.5 text-center font-mono text-slate-400 font-normal">
-                        {idx + 1}
-                      </td>
-
-                      <td className="px-4 py-2.5 font-normal text-slate-800">
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          <span>{r.branchName}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-2.5">
-                        {getMaterialBadge(r.code)}
-                      </td>
-
-                      <td className="px-4 py-2.5 text-right font-mono font-normal text-slate-800">
-                        <span className={r.onHand > 0 ? 'text-slate-900' : 'text-slate-400'}>
-                          {r.onHand.toLocaleString()}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-2.5 text-right font-mono font-normal text-slate-800">
-                        <span className={r.deployed > 0 ? 'text-emerald-700' : 'text-slate-400'}>
-                          {r.deployed.toLocaleString()}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-2.5 text-right font-mono font-normal text-slate-600">
-                        {r.inTransit > 0 ? (
-                          <span className="text-amber-700 font-medium">+{r.inTransit}</span>
-                        ) : (
-                          '0'
-                        )}
-                      </td>
-
-                      <td className="px-4 py-2.5 text-right font-mono font-normal text-slate-900">
-                        {r.total.toLocaleString()}
-                      </td>
-
-                      {isAdmin && (
-                        <td className="px-4 py-2.5 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              className="px-2 py-1 rounded text-[11px] font-normal bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
-                              onClick={() => {
-                                setDlgParams({ code: r.code, branchId: r.branchId });
-                                setDlg('IN');
-                              }}
-                            >
-                              + Stock In
-                            </button>
-                            <button
-                              type="button"
-                              className="px-2 py-1 rounded text-[11px] font-normal bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition cursor-pointer"
-                              onClick={() => {
-                                setDlgParams({ code: r.code, branchId: r.branchId });
-                                setDlg('ADJUST');
-                              }}
-                            >
-                              Adjust
-                            </button>
-                          </div>
+                  displayedBalanceRows.map((r, idx) => {
+                    const isFirstForBranch = idx === 0 || displayedBalanceRows[idx - 1].branchId !== r.branchId;
+                    return (
+                      <tr
+                        key={`bal-${r.branchId}-${r.code}-${idx}`}
+                        className={`hover:bg-slate-50/90 transition-colors ${
+                          idx === 0 ? '' : isFirstForBranch ? 'border-t border-slate-200' : 'border-t border-slate-100/80'
+                        }`}
+                      >
+                        <td className="px-4 py-2.5 text-center font-mono text-slate-400 tabular-nums">
+                          {balPg.start + idx + 1}
                         </td>
-                      )}
-                    </tr>
-                  ))
+
+                        <td className="px-4 py-2.5">
+                          {isFirstForBranch ? (
+                            <div className="flex items-center gap-2 font-semibold text-slate-900">
+                              <Building2 className="w-3.5 h-3.5 text-[#155484] shrink-0" />
+                              <span className="truncate">{r.branchName}</span>
+                            </div>
+                          ) : (
+                            <div className="pl-5 text-slate-300 select-none" aria-hidden="true">↳</div>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-2.5 whitespace-nowrap">
+                          {getMaterialBadge(r.code)}
+                        </td>
+
+                        <td className="px-4 py-2.5 text-right font-mono tabular-nums">
+                          <span className={r.onHand > 0 ? 'font-semibold text-[#003857]' : 'text-slate-300'}>
+                            {r.onHand.toLocaleString()}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-2.5 text-right font-mono tabular-nums">
+                          <span className={r.deployed > 0 ? 'font-semibold text-emerald-700' : 'text-slate-300'}>
+                            {r.deployed.toLocaleString()}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-2.5 text-right font-mono tabular-nums font-semibold text-slate-900">
+                          {r.total.toLocaleString()}
+                        </td>
+
+                        {isAdmin && (
+                          <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                            <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+                              <button
+                                type="button"
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 transition cursor-pointer whitespace-nowrap"
+                                onClick={() => {
+                                  setDlgParams({ code: r.code, branchId: r.branchId });
+                                  setDlg('IN');
+                                }}
+                              >
+                                + Stock In
+                              </button>
+                              <button
+                                type="button"
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white border border-slate-200 hover:border-[#003857] hover:text-[#003857] text-slate-700 transition cursor-pointer whitespace-nowrap shadow-2xs"
+                                onClick={() => {
+                                  setDlgParams({ code: r.code, branchId: r.branchId });
+                                  setDlg('ADJUST');
+                                }}
+                              >
+                                Adjust
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1699,12 +1713,10 @@ const MaterialStockPanelComponent: React.FC<{
           </div>
         )}
 
-        {/* Pager (shown on Deployments view) */}
-        {activeLedgerView === 'DEPLOYMENTS' && (
-          <div className="p-3.5 border-t border-slate-100 bg-slate-50/50">
-            <Pager pg={pg} />
-          </div>
-        )}
+        {/* Pager */}
+        <div className="p-3.5 border-t border-slate-100 bg-slate-50/50">
+          <Pager pg={activeLedgerView === 'BALANCES' ? balPg : pg} />
+        </div>
       </section>
 
       <LostMaterialsSection codes={codes} title={`Lost Materials · ${group === 'POS' ? 'POS Terminal' : 'Sound Box'}`} branches={branches}
