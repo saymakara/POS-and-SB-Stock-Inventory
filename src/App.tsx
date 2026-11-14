@@ -33,6 +33,7 @@ import { newRecordId } from './utils/ids';
 import { canMove, moveError, statusOf, onMove } from './utils/stages';
 import { csvFile } from './utils/csv';
 import { deduplicateStaffList, normalizeStaffName, getStaffAliases } from './utils/staffUtils';
+import { buildPpDirectoryScope, getControlledBranches, isPhnomPenhBranch, isUserInPhnomPenh } from './utils/fieldScope';
 import { tidFromMid } from './utils/tid';
 import { SaveGuard, throttled, watchNewVersion } from './utils/saveGuard';
 import { phoneFor } from './utils/privacy';
@@ -50,7 +51,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ConnectionNotice } from './components/ConnectionNotice';
 import { prefetchAudit } from './services/auditCache';
 import { prefetchFieldEvents } from './services/fieldCache';
-import { loadStaff, prefetchStaff } from './services/staffCache';
+import { getCachedStaff, loadStaff, onStaffList, prefetchStaff } from './services/staffCache';
 import { motion, AnimatePresence } from 'motion/react';
 import { SessionLockModal } from './components/SessionLockModal';
 import {
@@ -742,7 +743,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       if (srvBranches && srvBranches.length) {
         setBranches((prev) => {
           const local = new Map(prev.map((b) => [b.id, b]));
-          return srvBranches.map((b) => ({ ...(local.get(b.id) || { staff: [], staffDetails: [] }), id: b.id, code: b.code, name: b.id === '100' ? 'Head Office' : b.name }));
+          return srvBranches.map((b) => ({
+            ...(local.get(b.id) || { staff: [], staffDetails: [] }),
+            id: b.id,
+            code: b.code,
+            name: b.id === '100' ? 'Head Office' : b.name,
+            region: b.region,
+          }));
         });
       }
       return srvBranches;
@@ -764,20 +771,19 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           setUsers(nextUsers);
           setBranches((prev) => {
             const byBranch = new Map<string, string[]>();
-            for (const s of staffList) {
-              if (!s.active) continue;
-              const bId = String(s.branchId).trim();
-              const displayName = s.name.trim();
+            for (const u of nextUsers) {
+              if (u.status === 'Suspended' || !isUserInPhnomPenh(u)) continue;
+              const bId = String(u.branchId).trim();
+              const displayName = u.name.trim();
               if (!byBranch.has(bId)) byBranch.set(bId, []);
               const list = byBranch.get(bId)!;
               if (!list.includes(displayName)) list.push(displayName);
             }
             return prev.map((b) => {
               const sList = byBranch.get(String(b.code).trim()) || byBranch.get(String(b.id).trim()) || [];
-              const combined = sList.length > 0 ? sList : deduplicateStaffList(b.staff || []);
               return {
                 ...b,
-                staff: combined,
+                staff: staffList.length > 0 ? sList : deduplicateStaffList(b.staff || []),
               };
             });
           });
@@ -1713,10 +1719,61 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     triggerToast(`Welcome ${params.operatorLabel} (${params.role})`);
   };
 
+  const [cachedStaffList, setCachedStaffList] = useState<StaffAccount[] | null>(() => getCachedStaff());
+  useEffect(() => onStaffList(setCachedStaffList), []);
+
+  const ppDirectoryScope = useMemo(
+    () => buildPpDirectoryScope(branches, users, cachedStaffList),
+    [branches, users, cachedStaffList]
+  );
+
+  const { ppScopedDevices, excludedDeviceSerials } = useMemo(() => {
+    const allowed: Device[] = [];
+    const excluded = new Set<string>();
+    for (let i = 0; i < devices.length; i++) {
+      const d = devices[i];
+      if (ppDirectoryScope.isDeviceInScope(d)) {
+        allowed.push(d);
+      } else if (d.serial) {
+        excluded.add(d.serial.toUpperCase());
+      }
+    }
+    return { ppScopedDevices: allowed, excludedDeviceSerials: excluded };
+  }, [devices, ppDirectoryScope]);
+
+  const ppScopedHistory = useMemo(
+    () => historicalMerchants.filter((r) => ppDirectoryScope.isHistoryRecordInScope(r)),
+    [historicalMerchants, ppDirectoryScope]
+  );
+
+  const ppActiveUsers = useMemo(() => {
+    if (cachedStaffList && cachedStaffList.length > 0) {
+      const bn = new Map(branches.map((b) => [b.id, b.name]));
+      return cachedStaffList
+        .map((a) => staffToUser(a, bn.get(a.branchId)))
+        .filter((u) => u.status !== 'Suspended' && ppDirectoryScope.isBranchInScope(u.branchId, u.branchName) && isUserInPhnomPenh(u));
+    }
+    return users.filter(
+      (u) => u.status !== 'Suspended' && ppDirectoryScope.isBranchInScope(u.branchId, u.branchName) && isUserInPhnomPenh(u)
+    );
+  }, [cachedStaffList, branches, users, ppDirectoryScope]);
+
   const scopedDevices = useMemo(() => {
-    if (role === 'SUPER_ADMIN' || role === 'ADMIN') return devices;
-    return devices.filter((d) => d.branchId === selectedBranch);
-  }, [devices, role, selectedBranch]);
+    if (role === 'SUPER_ADMIN' || role === 'ADMIN') return ppScopedDevices;
+    return ppScopedDevices.filter((d) => d.branchId === selectedBranch);
+  }, [ppScopedDevices, role, selectedBranch]);
+
+  const phnomPenhBranches = useMemo(
+    () => branches.filter(isPhnomPenhBranch),
+    [branches]
+  );
+
+  const controlledBranches = useMemo(
+    () => getControlledBranches(branches, users, ppScopedDevices),
+    [branches, users, ppScopedDevices]
+  );
+
+  const useRawServerSummary = Boolean(serverStageSummary) && devices.length === 0;
 
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
@@ -1897,7 +1954,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const productType: 'POS Terminal' | 'Sound Box' | null =
     shownTab === 'inventory_pos' ? 'POS Terminal' : shownTab === 'inventory_sb' ? 'Sound Box' : null;
   const pipelineCounts = useMemo(() => {
-    if (serverStageSummary && productType) {
+    if (useRawServerSummary && serverStageSummary && productType) {
       const n = (st: keyof typeof serverStageSummary.byStage) => {
         const b = serverStageSummary.byStage[st];
         return b ? (productType === 'POS Terminal' ? b.posCount : b.sbCount) : 0;
@@ -1905,7 +1962,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       const hq = n('HQ_STOCK'), reserve = n('BRANCH_RESERVE'), config = n('CONFIGURING'), complete = n('COMPLETE'), faulty = n('FAULTY'), lost = n('LOST');
       return { all: hq + reserve + config + complete + faulty + lost, hq, reserve, config, complete, faulty, lost };
     }
-    if (serverStageSummary) {
+    if (useRawServerSummary && serverStageSummary) {
       return {
         all: serverStageSummary.all,
         hq: serverStageSummary.hq,
@@ -1932,7 +1989,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       }
     }
     return { all, hq, reserve, config, complete, faulty, lost };
-  }, [scopedDevices, serverStageSummary, productType]);
+  }, [scopedDevices, serverStageSummary, productType, useRawServerSummary]);
   /** a stage chosen on the stock strip opens the unit list of the same product (all units elsewhere) */
   const stockTabForStage = productType === 'POS Terminal' ? 'inventory_pos' : productType === 'Sound Box' ? 'inventory_sb' : 'inventory';
 
@@ -2007,9 +2064,10 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
   );
 
   const scopedRequisitions = useMemo(() => {
-    if (role === 'SUPER_ADMIN' || role === 'ADMIN') return requisitions;
-    return requisitions.filter((r) => r.branchId === selectedBranch);
-  }, [requisitions, role, selectedBranch]);
+    const inScope = requisitions.filter((r) => ppDirectoryScope.isRequisitionInScope(r));
+    if (role === 'SUPER_ADMIN' || role === 'ADMIN') return inScope;
+    return inScope.filter((r) => r.branchId === selectedBranch);
+  }, [requisitions, ppDirectoryScope, role, selectedBranch]);
 
   // Fast O(1) serial index map for instant lookups
   const deviceBySerialMap = useMemo(() => {
@@ -2690,10 +2748,10 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
           setUsers(nextUsers);
 
           const byBranch = new Map<string, string[]>();
-          for (const s of staffList) {
-            if (!s.active) continue;
-            const bId = String(s.branchId).trim();
-            const displayName = s.name.trim();
+          for (const u of nextUsers) {
+            if (u.status === 'Suspended' || !isUserInPhnomPenh(u)) continue;
+            const bId = String(u.branchId).trim();
+            const displayName = u.name.trim();
             if (!byBranch.has(bId)) byBranch.set(bId, []);
             const list = byBranch.get(bId)!;
             if (!list.includes(displayName)) list.push(displayName);
@@ -2703,10 +2761,9 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
 
           return prev.map((b) => {
             const sList = byBranch.get(String(b.code).trim()) || byBranch.get(String(b.id).trim()) || [];
-            const combined = sList.length > 0 ? sList : deduplicateStaffList(b.staff || []);
             return {
               ...b,
-              staff: combined,
+              staff: sList,
             };
           });
         });
@@ -3631,6 +3688,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
           id: code,
           code,
           name,
+          region: 'Phnom Penh',
           staff: staffArr.length ? staffArr : ['Branch Officer'],
           staffDetails: [],
         },
@@ -4381,9 +4439,9 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                 deviceType={productType || undefined}
                 theme={theme}
                 activeStageFilter={stageFilter}
-                serverStatsByStage={serverStageSummary?.byStage}
-                serverTotal={serverStageSummary?.all}
-                historicalMerchants={historicalMerchants}
+                serverStatsByStage={useRawServerSummary ? serverStageSummary?.byStage : undefined}
+                serverTotal={useRawServerSummary ? serverStageSummary?.all : undefined}
+                historicalMerchants={ppScopedHistory}
                 onOpenHistoryTab={() => handleSelectTab('merchant_history')}
                 onSelectStage={(st) => {
                   setStageFilter(st);
@@ -4403,8 +4461,8 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                   {shownTab === 'dashboard' && (
                     <DashboardTab
                       devices={scopedDevices}
-                      allDevices={devices}
-                      branches={branches}
+                      allDevices={ppScopedDevices}
+                      branches={controlledBranches}
                       requisitions={scopedRequisitions}
                       role={role}
                       selectedBranch={selectedBranch}
@@ -4414,9 +4472,9 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       onNavigateTab={handleSelectTab}
                       batteryLifespanMonths={appSettings.batteryLifespanMonths}
                       batteryWarningMonths={appSettings.batteryWarningMonths}
-                      serverTotalDevices={serverStageSummary ? serverStageSummary.all : serverDeviceTotal}
+                      serverTotalDevices={useRawServerSummary ? (serverStageSummary ? serverStageSummary.all : serverDeviceTotal) : ppScopedDevices.length}
                       serverStageCounts={
-                        serverStageSummary
+                        useRawServerSummary && serverStageSummary
                           ? {
                               HQ_STOCK: serverStageSummary.hq,
                               BRANCH_RESERVE: serverStageSummary.reserve,
@@ -4434,8 +4492,8 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                     <MerchantsCrmTab
                       role={role}
                       devices={scopedDevices}
-                      allDevices={devices}
-                      branches={branches}
+                      allDevices={ppScopedDevices}
+                      branches={controlledBranches}
                       activeBranchId={selectedBranch}
                       activeStaff={selectedStaffUser}
                       onOpenWorkflow={(sn) => setEditingDeviceSerial(sn)}
@@ -4451,12 +4509,12 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
 
                   {shownTab === 'merchant_history' && (
                     <MerchantHistoryTab
-                      records={historicalMerchants}
-                      branches={branches}
+                      records={ppScopedHistory}
+                      branches={controlledBranches}
                       role={role}
                       selectedBranch={selectedBranch}
                       theme={theme}
-                      devices={devices}
+                      devices={ppScopedDevices}
                       onClearAll={role === 'SUPER_ADMIN' ? handleClearHistory : undefined}
                       onAddRecord={(rec) => {
                         setHistoricalMerchants((prev) => [rec, ...prev]);
@@ -4477,7 +4535,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                     <RequisitionsTab
                       role={role}
                       requisitions={scopedRequisitions}
-                      hqDevices={devices}
+                      hqDevices={ppScopedDevices}
                       onOpenRequestModal={() => setIsReqModalOpen(true)}
                       onApproveRequisition={handleApproveRequisition}
                       onApproveReturnRequisition={handleApproveReturnRequisition}
@@ -4519,7 +4577,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       onReturnDevice={(sn) => { setWorkflowPreset('RETURN'); setEditingDeviceSerial(sn); }}
                       devices={filteredInventory}
                       allDevices={scopedDevices}
-                      branches={branches}
+                      branches={phnomPenhBranches}
                       role={role}
                       selectedBranch={selectedBranch}
                       theme={theme}
@@ -4549,10 +4607,10 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       fulfillingRequisition={fulfillingRequisition}
                       onConfirmFulfillment={handleConfirmFulfillment}
                       onCancelFulfillment={handleCancelFulfillment}
-                      serverTotalDevices={serverStageSummary ? serverStageSummary.all : serverDeviceTotal}
-                      serverArchivedCount={serverStageSummary ? serverStageSummary.archived : null}
+                      serverTotalDevices={useRawServerSummary ? (serverStageSummary ? serverStageSummary.all : serverDeviceTotal) : undefined}
+                      serverArchivedCount={useRawServerSummary ? (serverStageSummary ? serverStageSummary.archived : null) : undefined}
                       serverStageCounts={
-                        serverStageSummary
+                        useRawServerSummary && serverStageSummary
                           ? {
                               HQ_STOCK: serverStageSummary.hq,
                               BRANCH_RESERVE: serverStageSummary.reserve,
@@ -4592,9 +4650,9 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         deviceType={productType || undefined}
                         theme={theme}
                         activeStageFilter={stageFilter}
-                        serverStatsByStage={serverStageSummary?.byStage}
-                        serverTotal={serverStageSummary?.all}
-                        historicalMerchants={historicalMerchants}
+                        serverStatsByStage={useRawServerSummary ? serverStageSummary?.byStage : undefined}
+                        serverTotal={useRawServerSummary ? serverStageSummary?.all : undefined}
+                        historicalMerchants={ppScopedHistory}
                         onOpenHistoryTab={() => handleSelectTab('merchant_history')}
                         onSelectStage={(st) => {
                           setStageFilter(st);
@@ -4610,26 +4668,28 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       <ProductStockPage
                         group={shownTab === 'inventory_pos' ? 'POS' : 'SB'}
                         role={role}
-                        branches={branches}
+                        branches={phnomPenhBranches}
                         myBranch={selectedBranch}
                         triggerToast={triggerToast}
                         pipelineBar={pipelineBarNode}
                         kpiCards={kpiCardsNode}
                         renderUnits={renderUnitsNode}
+                        users={users}
+                        excludedSerials={excludedDeviceSerials}
                         push={
                           <PushConfiguringTab
                             hideHero
                             viewToggle={viewToggle}
                             devices={scopedDevices.filter((d) => d.type === (shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'))}
                             lockType={shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'}
-                            branches={branches}
+                            branches={phnomPenhBranches}
                             role={role}
                             operatorLabel={operatorLabel || profile?.name || 'System Admin'}
                             onNotifyConfigReady={handleNotifyConfigReady}
                             onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
                             onAssignStaff={handleBulkAssignStaff}
                             regionalGroups={appSettings.telegramRegionalGroups}
-                            users={users}
+                            users={ppActiveUsers}
                             pushedSerials={pushedConfiguringSerials}
                             onMarkPushed={markConfiguringSerialsPushed}
                             onRefreshQueue={handleRefreshConfiguringQueue}
@@ -4642,6 +4702,16 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         onViewChange={setProductView}
                         onLostChanged={refreshLostCounts}
                         devices={scopedDevices}
+                        hardwareSummary={
+                          shownTab === 'inventory_pos'
+                            ? {
+                                total: pipelineCounts.all,
+                                adminStock: pipelineCounts.hq,
+                                branchReserve: pipelineCounts.reserve,
+                                live: pipelineCounts.config + pipelineCounts.complete,
+                              }
+                            : undefined
+                        }
                       />
                     );
                   })()}
@@ -4649,10 +4719,11 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                   {shownTab === 'sim_cards' && (
                     <SimCardTab
                       role={role}
-                      branches={branches}
+                      branches={phnomPenhBranches}
                       myBranch={selectedBranch}
-                      devices={devices}
+                      devices={ppScopedDevices}
                       users={users}
+                      excludedSerials={excludedDeviceSerials}
                       triggerToast={triggerToast}
                       onLostChanged={refreshLostCounts}
                       onUpdateDevice={(sn, u) => {
@@ -4674,11 +4745,12 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
 
                   {shownTab === 'branches' && (
                     <BranchesTab
-                      branches={branches}
-                      devices={devices}
-                      users={users}
+                      branches={controlledBranches}
+                      devices={ppScopedDevices}
+                      users={ppActiveUsers}
                       role={role}
                       theme={theme}
+                      activeBranchId={selectedBranch}
                       onSelectBranchFilter={(bCode) => {
                         setBranchFilter(bCode);
                         setActiveTab('inventory');
@@ -4715,10 +4787,11 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                   {(shownTab === 'users' || shownTab === 'iam') && isSupabaseConfigured && (
                     <StaffAccountsTab
                       role={role}
-                      branches={branches}
+                      branches={phnomPenhBranches}
                       triggerToast={triggerToast}
                       onStaffUpdated={reloadStaffAccounts}
                       onlineOperators={onlineOperators}
+                      currentEmpId={profile?.emp_id}
                     />
                   )}
                   {(shownTab === 'users' || shownTab === 'iam') && !isSupabaseConfigured && (
@@ -4821,6 +4894,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       role={role}
                       userBranchId={selectedBranch}
                       branches={branches}
+                      users={users}
                       triggerToast={triggerToast}
                       onNavigateToSettings={(subTab) => {
                         if (subTab) setSettingsSubTab(subTab as SettingsSubTab);
@@ -4935,7 +5009,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
             <div className="flex items-center gap-4 text-[11px] font-mono text-slate-500">
               <span className="inline-flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
-                {branches.length} Branch Codes Connected
+                {controlledBranches.length} Branch Codes Connected
               </span>
               {!isSupabaseConfigured && (
                 <>
@@ -4973,7 +5047,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
             <RequestStockModal
               isOpen={isReqModalOpen}
               onClose={() => setIsReqModalOpen(false)}
-              branches={branches}
+              branches={phnomPenhBranches}
               activeBranchId={selectedBranch}
               onSubmitRequest={handleSubmitStockRequest}
               theme={theme}
@@ -4988,8 +5062,8 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
             <TraceModal
               query={traceQuery}
               devices={scopedDevices}
-              history={historicalMerchants}
-              requisitions={requisitions}
+              history={ppScopedHistory}
+              requisitions={scopedRequisitions}
               isAdmin={role === 'SUPER_ADMIN' || role === 'ADMIN'}
               onOpenDevice={(sn) => setEditingDeviceSerial(sn)}
               onClose={() => setTraceQuery('')}
@@ -5004,8 +5078,8 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
           <Suspense fallback={null}>
             <WorkflowModal
               device={editingDevice}
-              branches={branches}
-              users={users}
+              branches={phnomPenhBranches}
+              users={ppActiveUsers}
               role={role}
               theme={theme}
               onClose={() => { setEditingDeviceSerial(null); setWorkflowPreset(''); }}
@@ -5051,9 +5125,9 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
             <ExportDataModal
               isOpen={isExportModalOpen}
               onClose={() => setIsExportModalOpen(false)}
-              devices={devices}
-              requisitions={requisitions}
-              users={users}
+              devices={ppScopedDevices}
+              requisitions={scopedRequisitions}
+              users={ppActiveUsers}
               auditLogs={auditLogs}
               theme={theme}
               onToast={(msg) => triggerToast(msg)}

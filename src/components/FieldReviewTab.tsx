@@ -796,14 +796,14 @@ export const FieldReviewTab: React.FC<Props> = ({
         </div>
       </section>
 
-      {/* Section 1 — Clean Filter Header */}
+      {/* Section 1 — Clean Single-Row Filter & Bulk Decision Header */}
       <section
-        className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs transition-all"
+        className="bg-white rounded-2xl border border-slate-200 px-2.5 py-2 shadow-2xs transition-all"
         aria-label="Filters"
       >
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap lg:flex-nowrap items-center gap-1 min-w-0">
           {/* Segmented status tabs */}
-          <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0">
+          <div className="relative inline-flex items-center p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/90 gap-0.5 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0 shrink-0">
             {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as Filter[]).map((f) => {
               const isActive = filter === f;
               const label =
@@ -814,7 +814,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                   type="button"
                   onClick={() => setFilter(f)}
                   aria-pressed={isActive}
-                  className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
+                  className={`relative px-1.5 py-1 rounded-md text-[11px] font-medium flex items-center gap-0.5 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
                     isActive ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -822,14 +822,14 @@ export const FieldReviewTab: React.FC<Props> = ({
                     <PillMotion
                       layoutId="fr-status-pill"
                       aria-hidden
-                      className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs"
+                      className="absolute inset-0 rounded-md tab-active-blue border border-white/10 shadow-xs"
                       transition={SPRING}
                     />
                   )}
-                  <span className="relative z-10 flex items-center gap-1.5">
+                  <span className="relative z-10 flex items-center gap-0.5">
                     <span>{label}</span>{' '}
                     <span
-                      className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md transition-colors ${
+                      className={`font-mono text-[10px] px-0.5 py-0.5 rounded transition-colors ${
                         isActive
                           ? 'bg-white/20 text-white font-bold'
                           : 'bg-slate-200/60 text-slate-500'
@@ -843,42 +843,43 @@ export const FieldReviewTab: React.FC<Props> = ({
             })}
           </div>
 
-          <span className="hidden sm:block w-px h-5 bg-slate-200 mx-1" aria-hidden />
+          <span className="hidden 2xl:block w-px h-4 bg-slate-200 mx-0.5 shrink-0" aria-hidden />
 
           {/* Segmented device type tabs (not shown when a sub-menu has chosen the device type) */}
           {!deviceType && (
-            <div className="relative inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/90 gap-1 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0">
+            <div className="relative inline-flex items-center p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/90 gap-0.5 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0 shrink-0">
               {typePill('ALL', 'All devices', typeCounts.pos + typeCounts.sb)}
               {typePill('POS Terminal', 'POS Terminal', typeCounts.pos)}
               {typePill('Sound Box', 'Sound Box', typeCounts.sb)}
             </div>
           )}
 
-
           {/* Scope Toggle: Phnom Penh Staff Only vs All Branches */}
           <button
             type="button"
             onClick={() => setActiveScope((prev) => (prev === 'ALL' ? 'PHNOM_PENH' : 'ALL'))}
-            className={`btn-press px-3 py-1.5 rounded-xl text-xs font-normal border inline-flex items-center gap-1.5 transition-all cursor-pointer ${
+            className={`btn-press px-1.5 py-1 rounded-lg text-[11px] font-normal border inline-flex items-center gap-1 whitespace-nowrap shrink-0 transition-all cursor-pointer ${
               activeScope === 'PHNOM_PENH'
                 ? 'bg-slate-100 text-slate-800 border-slate-300'
                 : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
             }`}
             title="Click to switch between Phnom Penh staff only (33 Branches) and All Branches (Phnom Penh + Regional)"
           >
-            <MapPin className="w-3.5 h-3.5 text-slate-500" />
+            <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
             <span>
               {activeScope === 'PHNOM_PENH' ? 'Phnom Penh Staff Only' : 'All Branches'}
             </span>
           </button>
 
           {/* Record Type Select Filter */}
-          <div className="relative inline-flex items-center">
+          <div className="relative inline-flex items-center shrink-0">
             <select
               value={recordTypeFilter}
               onChange={(e) => setRecordTypeFilter(e.target.value as RecordTypeFilter)}
               aria-label="Filter by record type"
-              className="btn-press px-3 py-1.5 rounded-xl text-xs font-normal border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-slate-400 transition-all cursor-pointer"
+              className={`btn-press px-1.5 py-1 rounded-lg text-[11px] font-normal border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-slate-400 transition-all cursor-pointer truncate ${
+                isAdmin && selectedAll.length > 0 ? 'w-[96px]' : 'w-[138px]'
+              }`}
             >
               <option value="ALL">All Record Types ({kindCounts.ALL || 0})</option>
               {availableKinds.map((k) => (
@@ -889,18 +890,19 @@ export const FieldReviewTab: React.FC<Props> = ({
             </select>
           </div>
 
-          <div className="relative w-48 sm:w-56 shrink-0">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className={`relative min-w-0 ${isAdmin && selectedAll.length > 0 ? 'flex-1 min-w-[72px] max-w-[115px]' : 'w-44 sm:w-52 shrink-0'}`}>
+            <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search Serial, MID, Staff, Branch…"
+              placeholder={isAdmin && selectedAll.length > 0 ? 'Search…' : 'Search Serial, MID, Staff, Branch…'}
               aria-label="Search records"
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs font-normal text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400 shadow-2xs transition-all"
+              className="w-full pl-6 pr-2 py-1 rounded-lg border border-slate-200 text-[11px] font-normal text-slate-800 placeholder:text-slate-400 outline-none focus:border-slate-400 shadow-2xs transition-all"
             />
           </div>
           <ClearFiltersButton
-            className="!py-1.5"
+            compact={isAdmin && selectedAll.length > 0}
+            className="!px-1.5 !py-1 !rounded-lg !text-[11px] !gap-1"
             active={!!query || typeFilter !== (deviceType || 'ALL') || filter !== 'PENDING' || recordTypeFilter !== 'ALL'}
             onClear={() => {
               setQuery('');
@@ -910,13 +912,13 @@ export const FieldReviewTab: React.FC<Props> = ({
             }}
           />
 
-          {/* Inline Bulk Decision Actions — Keeps table frame completely stable with 0px layout shift */}
+          {/* Inline Bulk Decision Actions — Fits cleanly on the same row as filters */}
           {isAdmin && selectedAll.length > 0 && (
             <div
-              className="flex items-center gap-2 shrink-0 bg-slate-50 border border-slate-200/90 rounded-xl px-2.5 py-1 ml-auto flex-wrap"
+              className="flex items-center gap-1 shrink-0 bg-slate-50 border border-slate-200/90 rounded-lg px-1 py-0.5 ml-auto flex-nowrap"
               aria-label="Decide the selected records"
             >
-              <span className="px-2 py-0.5 rounded-md bg-white text-slate-700 border border-slate-200 text-xs font-normal font-mono">
+              <span className="px-1 py-0.5 rounded bg-white text-slate-700 border border-slate-200 text-[10px] font-normal font-mono whitespace-nowrap">
                 {selectedAll.length} Selected
               </span>
               {selectedShown.length > 0 && (
@@ -927,10 +929,10 @@ export const FieldReviewTab: React.FC<Props> = ({
                     maxLength={500}
                     placeholder="Reason (to reject)"
                     aria-label="Reason for the selected records"
-                    className="w-36 sm:w-44 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-normal text-slate-800 outline-none focus:border-slate-400 bg-white"
+                    className="w-[78px] xl:w-[88px] px-1.5 py-0.5 rounded-md border border-slate-200 text-[10.5px] font-normal text-slate-800 outline-none focus:border-slate-400 bg-white"
                   />
                   {selectedShown.some(hasWarn) && (
-                    <label className="flex items-center gap-1 text-[11px] font-normal text-slate-700 cursor-pointer">
+                    <label className="flex items-center gap-0.5 text-[10px] font-normal text-slate-700 cursor-pointer whitespace-nowrap">
                       <input type="checkbox" checked={bulkAck} onChange={(e) => setBulkAck(e.target.checked)} /> Checked
                     </label>
                   )}
@@ -938,7 +940,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                     type="button"
                     onClick={() => runBulk('reject')}
                     disabled={!!bulkBusy}
-                    className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold border border-rose-200/90 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 flex items-center gap-1 cursor-pointer shadow-2xs transition-all active:scale-[0.97]"
+                    className="btn-press px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold border border-rose-200/90 text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 flex items-center gap-0.5 cursor-pointer shadow-2xs transition-all active:scale-[0.97] whitespace-nowrap"
                   >
                     {bulkBusy === 'reject' ? (
                       <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
@@ -951,7 +953,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                     type="button"
                     onClick={() => runBulk('approve')}
                     disabled={!!bulkBusy}
-                    className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow border border-emerald-600/30 disabled:opacity-50 flex items-center gap-1 cursor-pointer transition-all active:scale-[0.97]"
+                    className="btn-press px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs hover:shadow border border-emerald-600/30 disabled:opacity-50 flex items-center gap-0.5 cursor-pointer transition-all active:scale-[0.97] whitespace-nowrap"
                   >
                     {bulkBusy === 'approve' ? (
                       <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
@@ -967,7 +969,7 @@ export const FieldReviewTab: React.FC<Props> = ({
                   type="button"
                   onClick={() => setDelOpen(true)}
                   disabled={!!bulkBusy || delBusy}
-                  className="btn-press px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60 flex items-center gap-1 cursor-pointer shadow-2xs active:scale-[0.98]"
+                  className="btn-press px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60 flex items-center gap-0.5 cursor-pointer shadow-2xs active:scale-[0.98] whitespace-nowrap"
                 >
                   <Trash2 className="w-3 h-3" /> Delete {selectedAll.length}
                 </button>

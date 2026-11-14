@@ -32,6 +32,7 @@ import {
   Package,
 } from 'lucide-react';
 import { fmtNum } from '../utils/format';
+import { getControlledBranches, isUserInPhnomPenh } from '../utils/fieldScope';
 import { PillMotion } from './PillMotion';
 
 interface BranchesTabProps {
@@ -40,6 +41,7 @@ interface BranchesTabProps {
   users: User[];
   role: UserRole;
   theme?: ThemeMode;
+  activeBranchId?: string;
   onSelectBranchFilter: (branchCode: string) => void;
   onOpenNewBranchModal?: () => void;
   onOpenEditBranchModal?: (branch: Branch) => void;
@@ -55,6 +57,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
   onSelectBranchFilter,
   onOpenNewBranchModal: _onOpenNewBranchModal,
   theme = 'dark',
+  activeBranchId,
   onOpenEditBranchModal,
   onSaveBranch,
   onSelectDevice,
@@ -84,6 +87,21 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
     [devices]
   );
 
+  // Branch Control: Phnom Penh branches only, following active Staff Directory users (and own branch for Branch role)
+  const controlledBranches = useMemo(() => {
+    const ppBranches = getControlledBranches(branches, users, activeDevices);
+    if (role === 'BRANCH' && activeBranchId) {
+      const target = String(activeBranchId).trim();
+      const own = ppBranches.filter(
+        (b) => String(b.code || '').trim() === target || String(b.id || '').trim() === target
+      );
+      if (own.length > 0) return own;
+    }
+    return ppBranches;
+  }, [branches, users, activeDevices, role, activeBranchId]);
+
+  const strictDirectoryStaff = isAdminLike && users.length > 0;
+
   // High-Throughput Branch Aggregation: Single pass over activeDevices
   const { branchDataMap, metrics } = useMemo(() => {
     interface BranchAccumulator {
@@ -99,7 +117,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
     }
 
     const bMap = new Map<string, BranchAccumulator>();
-    for (let i = 0; i < branches.length; i++) {
+    for (let i = 0; i < controlledBranches.length; i++) {
       const acc: BranchAccumulator = {
         posCount: 0,
         sbCount: 0,
@@ -111,8 +129,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         totalDevices: 0,
         sampleDevices: [],
       };
-      if (branches[i].code) bMap.set(String(branches[i].code).trim(), acc);
-      if (branches[i].id) bMap.set(String(branches[i].id).trim(), acc);
+      if (controlledBranches[i].code) bMap.set(String(controlledBranches[i].code).trim(), acc);
+      if (controlledBranches[i].id) bMap.set(String(controlledBranches[i].id).trim(), acc);
     }
 
     let totalDevices = 0;
@@ -157,17 +175,18 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
     let totalStaff = 0;
     let lowReserveCount = 0;
-    for (let i = 0; i < branches.length; i++) {
-      const b = branches[i];
+    for (let i = 0; i < controlledBranches.length; i++) {
+      const b = controlledBranches[i];
       const acc = bMap.get(b.code);
       const res = acc ? acc.reserveCount : 0;
       const staffFromDir = users.filter(
         (u) =>
           (String(u.branchId).trim() === String(b.code).trim() ||
            String(u.branchId).trim() === String(b.id).trim()) &&
-          u.status !== 'Suspended'
+          u.status !== 'Suspended' &&
+          isUserInPhnomPenh(u)
       );
-      const sCount = staffFromDir.length || (b.staff || []).length;
+      const sCount = strictDirectoryStaff ? staffFromDir.length : (staffFromDir.length || (b.staff || []).length);
       totalStaff += sCount;
       if (b.code !== '100' && res < 1) lowReserveCount++;
     }
@@ -175,7 +194,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
     return {
       branchDataMap: bMap,
       metrics: {
-        totalBranches: branches.length,
+        totalBranches: controlledBranches.length,
         totalDevices,
         totalReserve,
         totalLive,
@@ -186,10 +205,10 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         lowReserveCount,
       },
     };
-  }, [branches, activeDevices, users]);
+  }, [controlledBranches, activeDevices, users, strictDirectoryStaff]);
 
   const matchedBranches = useMemo(() => {
-    return branches
+    return controlledBranches
       .map((b) => {
         const codeKey = String(b.code || '').trim();
         const idKey = String(b.id || '').trim();
@@ -208,7 +227,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
           (u) =>
             (String(u.branchId).trim() === String(b.code).trim() ||
              String(u.branchId).trim() === String(b.id).trim()) &&
-            u.status !== 'Suspended'
+            u.status !== 'Suspended' &&
+            isUserInPhnomPenh(u)
         );
         const lowReserve = b.code !== '100' && acc.reserveCount < 1;
 
@@ -223,7 +243,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
           completeCount: acc.completeCount,
           inFlightCount: acc.inFlightCount,
           faultyCount: acc.faultyCount,
-          staffCount: staffList.length || (b.staff || []).length,
+          staffCount: strictDirectoryStaff ? staffList.length : (staffList.length || (b.staff || []).length),
           staffList,
           lowReserve,
         };
@@ -243,7 +263,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
           b.staffList.some((u) => u.name.toLowerCase().includes(q) || (u.empId && u.empId.toLowerCase().includes(q)))
         );
       });
-  }, [branches, branchDataMap, users, deferredQuery, statusFilter]);
+  }, [controlledBranches, branchDataMap, users, strictDirectoryStaff, deferredQuery, statusFilter]);
   const { sorted: enrichedBranches, sort: brSort, toggle: brToggle } = useSort<(typeof matchedBranches)[number]>(matchedBranches, {
     code: (b) => Number(b.code) || b.code, name: (b) => b.name, pos: (b) => b.posCount, sb: (b) => b.sbCount, total: (b) => b.totalDevices,
     reserve: (b) => b.reserveCount, live: (b) => b.completeCount, staff: (b) => b.staffCount, status: (b) => (b.lowReserve ? 1 : 0),
@@ -309,7 +329,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
             <div className="text-lg font-black font-figure text-zinc-900">
               {metrics.totalBranches}
             </div>
-            <div className="text-[10px] text-slate-400">Nationwide Network</div>
+            <div className="text-[10px] text-slate-400">Phnom Penh Network</div>
           </div>
         </div>
 
@@ -597,7 +617,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                             </div>
                             <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
                               <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span>Phnom Penh</span>
+                              <span>{b.region || 'Phnom Penh'}</span>
                             </div>
                           </td>
 
@@ -745,7 +765,9 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                                   </div>
                                   {b.staffList.length === 0 ? (
                                     <div className="text-xs text-slate-400 py-3 text-center">
-                                      No dedicated IAM accounts assigned. Default staff: {(b.staff || []).join(', ') || 'Branch Officer'}
+                                      {strictDirectoryStaff
+                                        ? 'No active Phnom Penh staff assigned in Staff Directory.'
+                                        : `No dedicated IAM accounts assigned. Default staff: ${(b.staff || []).join(', ') || 'Branch Officer'}`}
                                     </div>
                                   ) : (
                                     <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
@@ -879,7 +901,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                         </h3>
                         <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                           <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>Phnom Penh</span>
+                          <span>{b.region || 'Phnom Penh'}</span>
                         </div>
                       </div>
                     </div>
@@ -1196,7 +1218,9 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
 
                         {inspectedBranch.staffList.length === 0 ? (
                           <div className="text-xs text-slate-500 p-4 border border-slate-200/80 dark:border-slate-800 rounded-xl bg-white dark:bg-[#121620] text-center shadow-2xs">
-                            No IAM users assigned to this branch. Default staff: {(inspectedBranch.staff || []).join(', ') || 'Branch Officer'}
+                            {strictDirectoryStaff
+                              ? 'No active Phnom Penh staff assigned in Staff Directory.'
+                              : `No IAM users assigned to this branch. Default staff: ${(inspectedBranch.staff || []).join(', ') || 'Branch Officer'}`}
                           </div>
                         ) : (
                           <div className="space-y-2 max-h-80 overflow-y-auto pr-1">

@@ -4,19 +4,22 @@ import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
   ChevronDown, ChevronLeft, ChevronRight, Cpu, Volume2, QrCode, CreditCard, TrendingUp, TrendingDown, Target,
   Sun, CheckSquare, Diamond, X, ArrowUpDown, ArrowUp, ArrowDown, ShieldCheck,
-  ClipboardList, LayoutGrid, List,
+  ClipboardList, LayoutGrid, List, MapPin,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
 } from 'recharts';
-import { Branch, UserRole } from '../types';
+import { Branch, User, UserRole } from '../types';
 import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { ClearFiltersButton } from './ClearFiltersButton';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv } from '../utils/exportCsv';
 import { getManagementExemptSet, isStaffManagementExempt, KPI_MANAGEMENT_EXEMPT_EVENT } from '../utils/kpiManagementUtils';
-import { getCachedStaff } from '../services/staffCache';
+import { getCachedStaff, loadStaff, onStaffList } from '../services/staffCache';
+import type { StaffAccount } from '../services/supabaseService';
+import { normalizeStaffName } from '../utils/staffUtils';
+import { isPhnomPenhBranch } from '../utils/fieldScope';
 import {
   KpiCategory, KpiPeriod, KPI_PERIOD_LABEL, kpiPeriodRange, KpiPointRule, KpiDashboardData,
   KpiRawCounts, computeKpiPoints, addExtraCounts, rulePts, fetchKpiSummary, getCachedKpiSummary,
@@ -52,12 +55,25 @@ const CAT_COLORS: Record<KpiCategory, { hex: string; badge: string; bar: string;
   Other: { hex: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200', bar: 'bg-slate-500', dot: 'bg-slate-500', Icon: Layers },
 };
 
-const PHNOM_PENH_CODES = new Set([
-  '100', '101', '102', '103', '104', '105', '106', '107', '108', '109',
-  '110', '111', '112', '113', '114', '115', '116', '117', '118', '119',
-  '120', '121', '122', '123', '124', '125', '126', '127', '128', '129',
-  '130', '131', '132', '133', '134', '801',
-]);
+const STAFF_LOCATION_KEY = 'staff_locations_map_v1';
+
+function loadLocationOverrides(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(STAFF_LOCATION_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+interface PpDirMember {
+  empId: string;
+  name: string;
+  branchId: string;
+  position: string;
+  role: string;
+  isManagement: boolean;
+}
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function fmtMonth(ym: string): string {
@@ -205,19 +221,27 @@ interface Props {
   role: UserRole;
   userBranchId?: string;
   branches: Branch[];
+  users?: User[];
   triggerToast: (msg: string) => void;
   onNavigateToSettings?: (subTab?: string) => void;
 }
 
-export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branches, triggerToast }) => {
+export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branches, users = [], triggerToast }) => {
   const isAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const [period, setPeriod] = useState<KpiPeriod>('ALL');
   const [view, setView] = useState<KpiView>('all');
   const [granularity, setGranularity] = useState<Granularity>('daily');
-  const [regionFilter, setRegionFilter] = useState<'ALL' | 'PP' | 'PROV'>('ALL');
   const [branchFilter, setBranchFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | KpiCategory>('ALL');
   const [query, setQuery] = useState('');
+  const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
+  useEffect(() => {
+    const unsub = onStaffList(setCachedStaff);
+    if (!getCachedStaff() && isAdmin) {
+      loadStaff({ maxAgeMs: 30000 }).then((x) => { if (x) setCachedStaff(x); });
+    }
+    return unsub;
+  }, [isAdmin]);
   const deferredQuery = useDeferredValue(query);
   const [selectedTopMonth, setSelectedTopMonth] = useState<string>('ALL');
   const [leaderboardMode, setLeaderboardMode] = useState<'staff' | 'branch'>('staff');
@@ -333,42 +357,147 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     return m;
   }, [branches]);
 
+  // Active Phnom Penh staff scoped directly from the Staff Directory tab (live cache -> App users fallback)
+  const ppDirectoryScope = useMemo(() => {
+    const branchById = new Map<string, Branch>();
+    branches.forEach((b) => {
+      if (b.id) branchById.set(String(b.id).trim(), b);
+      if (b.code) branchById.set(String(b.code).trim(), b);
+    });
+
+    const locOverrides = loadLocationOverrides();
+    const byEmpId = new Map<string, PpDirMember>();
+    const byName = new Map<string, PpDirMember>();
+    const members: PpDirMember[] = [];
+
+    const addIfEligible = (
+      empIdRaw: string | null | undefined,
+      nameRaw: string | null | undefined,
+      branchIdRaw: string | null | undefined,
+      positionRaw: string | null | undefined,
+      roleRaw: string | null | undefined,
+      locationRaw: string | null | undefined,
+      active: boolean
+    ) => {
+      if (!active) return;
+      const empId = String(empIdRaw || '').trim();
+      const name = String(nameRaw || '').trim();
+      const branchId = String(branchIdRaw || '').trim();
+      if (!empId && !name) return;
+
+      const loc = String((empId && locOverrides[empId]) || locationRaw || 'Phnom Penh').trim();
+      if (loc && !/phnom\s*penh|head\s*office/i.test(loc)) return;
+
+      const brObj = branchById.get(branchId);
+      const isPPBranch = brObj
+        ? isPhnomPenhBranch(brObj)
+        : isPhnomPenhBranch({ id: branchId, code: branchId, name: '' });
+      if (!isPPBranch) return;
+
+      const isManagement = isStaffManagementExempt(empId, name, exemptSet);
+      const entry: PpDirMember = {
+        empId,
+        name,
+        branchId,
+        position: String(positionRaw || '').trim() || (isManagement ? 'Management' : 'MS Officer'),
+        role: String(roleRaw || 'BRANCH'),
+        isManagement,
+      };
+      members.push(entry);
+      if (empId) {
+        byEmpId.set(empId, entry);
+        byEmpId.set(empId.toLowerCase(), entry);
+      }
+      if (name) {
+        const norm = normalizeStaffName(name).toLowerCase();
+        if (norm) byName.set(norm, entry);
+        byName.set(name.toLowerCase(), entry);
+      }
+    };
+
+    const hasCached = Boolean(cachedStaff && cachedStaff.length > 0);
+    const hasUsers = Boolean(users && users.length > 0);
+    if (hasCached) {
+      cachedStaff!.forEach((a) =>
+        addIfEligible(a.empId, a.name, a.branchId, a.position, a.role, a.location, a.active !== false)
+      );
+    } else if (hasUsers) {
+      users.forEach((u) =>
+        addIfEligible(u.empId || u.uid, u.name, u.branchId, u.position, u.accessRole, u.location, u.status !== 'Suspended')
+      );
+    }
+
+    const hasDirectory = hasCached || hasUsers;
+    const matchPpStaff = (
+      staffId?: string | null,
+      staffName?: string | null,
+      fallbackBranchId?: string | null,
+      fallbackBranchName?: string | null
+    ): PpDirMember | null => {
+      const idKey = String(staffId || '').trim();
+      const rawName = String(staffName || '').trim();
+      const normName = normalizeStaffName(rawName).toLowerCase();
+      const dirHit =
+        (idKey && (byEmpId.get(idKey) || byEmpId.get(idKey.toLowerCase()))) ||
+        (normName && byName.get(normName)) ||
+        (rawName && byName.get(rawName.toLowerCase())) ||
+        null;
+      if (hasDirectory) return dirHit;
+
+      const fbId = String(fallbackBranchId || '').trim();
+      const fbBranch = branchById.get(fbId);
+      const fbName = String(fallbackBranchName || '').trim();
+      const isPPFallback = fbBranch
+        ? isPhnomPenhBranch(fbBranch)
+        : isPhnomPenhBranch({ id: fbId, code: fbId, name: fbName });
+      if (!isPPFallback) return null;
+      const isManagement = isStaffManagementExempt(idKey, rawName, exemptSet);
+      return {
+        empId: idKey,
+        name: rawName || idKey,
+        branchId: fbId,
+        position: isManagement ? 'Management' : 'MS Officer',
+        role: 'BRANCH',
+        isManagement,
+      };
+    };
+
+    return { hasDirectory, members, byEmpId, byName, matchPpStaff };
+  }, [cachedStaff, users, branches, exemptSet]);
+
   const staffMetaMap = useMemo(() => {
     const map = new Map<string, { position: string; role: string; isManagement: boolean; name: string }>();
 
-    // 1. Populate from branches.staffDetails
-    branches.forEach((b) => {
-      (b.staffDetails || []).forEach((u) => {
-        const isMgt = isStaffManagementExempt(u.empId, u.name, exemptSet);
-        const entry = {
-          position: u.position || (isMgt ? 'Management' : 'MS Officer'),
-          role: u.accessRole || 'BRANCH',
-          isManagement: isMgt,
-          name: u.name,
-        };
-        if (u.empId) map.set(u.empId, entry);
-        if (u.name) map.set(u.name.toLowerCase(), entry);
-      });
-    });
-
-    // 2. Also overlay from getCachedStaff() if available
-    const cached = getCachedStaff();
-    if (cached) {
-      cached.forEach((a) => {
-        const isMgt = isStaffManagementExempt(a.empId, a.name, exemptSet);
-        const entry = {
-          position: a.position || (isMgt ? 'Management' : 'MS Officer'),
-          role: a.role,
-          isManagement: isMgt,
-          name: a.name,
-        };
-        if (a.empId) map.set(a.empId, entry);
-        if (a.name) map.set(a.name.toLowerCase(), entry);
+    // Populate from active Phnom Penh Staff Directory (and overlay branches.staffDetails if directory not loaded)
+    if (!ppDirectoryScope.hasDirectory) {
+      branches.filter((b) => isPhnomPenhBranch(b)).forEach((b) => {
+        (b.staffDetails || []).forEach((u) => {
+          const isMgt = isStaffManagementExempt(u.empId, u.name, exemptSet);
+          const entry = {
+            position: u.position || (isMgt ? 'Management' : 'MS Officer'),
+            role: u.accessRole || 'BRANCH',
+            isManagement: isMgt,
+            name: u.name,
+          };
+          if (u.empId) map.set(u.empId, entry);
+          if (u.name) map.set(u.name.toLowerCase(), entry);
+        });
       });
     }
 
+    ppDirectoryScope.members.forEach((m) => {
+      const entry = {
+        position: m.position,
+        role: m.role,
+        isManagement: m.isManagement,
+        name: m.name,
+      };
+      if (m.empId) map.set(m.empId, entry);
+      if (m.name) map.set(m.name.toLowerCase(), entry);
+    });
+
     return map;
-  }, [branches, exemptSet]);
+  }, [branches, exemptSet, ppDirectoryScope]);
 
   const ruleMap = useMemo(() => {
     const m = new Map<string, KpiPointRule>();
@@ -465,41 +594,84 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const enrichedStaff = useMemo(() => {
     if (!data) return [];
 
-    // Track existing staff from data.staff
-    const existingStaffIds = new Set(data.staff.map((s) => s.staffId));
-    const existingStaffNames = new Set(data.staff.map((s) => s.staffName.toLowerCase()));
+    // Strictly filter & canonicalize KPI staff against active Phnom Penh Staff Directory
+    type RawStaffRow = (typeof data.staff)[number];
+    const canonicalByStaff = new Map<string, RawStaffRow>();
+    const existingStaffIds = new Set<string>();
+    const existingStaffNames = new Set<string>();
 
-    // Supplement management staff from branches so management level has room in the roster
-    const managementRosterExtras: typeof data.staff = [];
-    branches.forEach((b) => {
-      (b.staffDetails || []).forEach((u) => {
-        const isMgt = isStaffManagementExempt(u.empId, u.name, exemptSet);
-        if (isMgt) {
-          const empId = u.empId || '';
-          const nameLower = (u.name || '').toLowerCase();
-          if ((!empId || !existingStaffIds.has(empId)) && (!nameLower || !existingStaffNames.has(nameLower))) {
-            if (empId) existingStaffIds.add(empId);
-            if (nameLower) existingStaffNames.add(nameLower);
-            managementRosterExtras.push({
-              staffId: empId,
-              staffName: u.name,
-              branchId: b.id,
-              branchName: b.name,
-              posInstall: 0, posReplace: 0, posBattery: 0,
-              sbInstall: 0, sbReplace: 0, sbMaint: 0, sbReturn: 0,
-              khqrInstall: 0, khqrReplace: 0, khqrMaterials: 0,
-              ccPrimary: 0, ccSupp: 0,
-              posSubmitted: 0, posRejected: 0,
-              sbSubmitted: 0, sbRejected: 0,
-              khqrFailed: 0,
-              ccSubmitted: 0, ccRejected: 0,
-            });
-          }
-        }
-      });
+    for (const s of data.staff) {
+      const dir = ppDirectoryScope.matchPpStaff(s.staffId, s.staffName, s.branchId, s.branchName);
+      if (!dir) continue;
+      const canonId = dir.empId || s.staffId;
+      const canonName = dir.name || s.staffName;
+      const canonBranch = dir.branchId || s.branchId;
+      const key = canonId || canonName.toLowerCase();
+      if (canonId) existingStaffIds.add(canonId);
+      if (canonName) existingStaffNames.add(canonName.toLowerCase());
+
+      const prev = canonicalByStaff.get(key);
+      if (!prev) {
+        const extraClone = s.extra ? { ...s.extra } : undefined;
+        canonicalByStaff.set(key, {
+          ...s,
+          staffId: canonId,
+          staffName: canonName,
+          branchId: canonBranch,
+          branchName: branchNameMap.get(canonBranch) || s.branchName || canonBranch,
+          extra: extraClone,
+        });
+      } else {
+        prev.posInstall += s.posInstall;
+        prev.posReplace += s.posReplace;
+        prev.posBattery += s.posBattery;
+        prev.sbInstall += s.sbInstall;
+        prev.sbReplace += s.sbReplace;
+        prev.sbMaint += s.sbMaint;
+        prev.sbReturn += s.sbReturn;
+        prev.khqrInstall += s.khqrInstall;
+        prev.khqrReplace += s.khqrReplace;
+        prev.khqrMaterials += s.khqrMaterials;
+        prev.ccPrimary += s.ccPrimary;
+        prev.ccSupp += s.ccSupp;
+        prev.posSubmitted += s.posSubmitted;
+        prev.posRejected += s.posRejected;
+        prev.sbSubmitted += s.sbSubmitted;
+        prev.sbRejected += s.sbRejected;
+        prev.khqrFailed += s.khqrFailed;
+        prev.ccSubmitted += s.ccSubmitted;
+        prev.ccRejected += s.ccRejected;
+        addExtraCounts(prev, s);
+      }
+    }
+
+    // Supplement management staff from active Phnom Penh Staff Directory so management tier stays represented
+    const managementRosterExtras: RawStaffRow[] = [];
+    ppDirectoryScope.members.forEach((m) => {
+      if (!m.isManagement) return;
+      const empId = m.empId || '';
+      const nameLower = (m.name || '').toLowerCase();
+      if ((!empId || !existingStaffIds.has(empId)) && (!nameLower || !existingStaffNames.has(nameLower))) {
+        if (empId) existingStaffIds.add(empId);
+        if (nameLower) existingStaffNames.add(nameLower);
+        managementRosterExtras.push({
+          staffId: empId,
+          staffName: m.name,
+          branchId: m.branchId,
+          branchName: branchNameMap.get(m.branchId) || m.branchId,
+          posInstall: 0, posReplace: 0, posBattery: 0,
+          sbInstall: 0, sbReplace: 0, sbMaint: 0, sbReturn: 0,
+          khqrInstall: 0, khqrReplace: 0, khqrMaterials: 0,
+          ccPrimary: 0, ccSupp: 0,
+          posSubmitted: 0, posRejected: 0,
+          sbSubmitted: 0, sbRejected: 0,
+          khqrFailed: 0,
+          ccSubmitted: 0, ccRejected: 0,
+        });
+      }
     });
 
-    const combinedList = [...data.staff, ...managementRosterExtras];
+    const combinedList = [...Array.from(canonicalByStaff.values()), ...managementRosterExtras];
 
     const base = combinedList
       .map((s) => {
@@ -512,13 +684,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         const totalSubmitted = s.posSubmitted + s.sbSubmitted + pts.khqrTasks + s.ccSubmitted;
         const totalIssues = s.posRejected + s.sbRejected + s.khqrFailed + s.ccRejected;
         const qualityPct = totalSubmitted > 0 ? Math.max(0, Math.round(((totalSubmitted - totalIssues) / totalSubmitted) * 100)) : 100;
-        const isPP = PHNOM_PENH_CODES.has(s.branchId) || /phnom\s*penh|head\s*office/i.test(canonicalBranchName);
         return {
           ...s,
           position,
           isManagement,
           branchName: canonicalBranchName,
-          isPP,
+          isPP: true,
           ...pts,
           qualityPct,
         };
@@ -563,7 +734,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
         if (a.isManagement !== b.isManagement) return a.isManagement ? 1 : -1;
         return a.staffName.localeCompare(b.staffName);
       });
-  }, [data, ruleMap, branchNameMap, activeTargets.staff, branches, staffMetaMap, exemptSet, pacingInfo]);
+  }, [data, ruleMap, branchNameMap, activeTargets.staff, ppDirectoryScope, staffMetaMap, exemptSet, pacingInfo]);
 
   const branchRows = useMemo(() => {
     const map = new Map<string, {
@@ -665,8 +836,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const filteredBranches = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     const list = branchRows.filter((b) => {
-      if (regionFilter === 'PP' && !b.isPP) return false;
-      if (regionFilter === 'PROV' && b.isPP) return false;
       if (branchFilter && b.branchId !== branchFilter) return false;
       if (categoryFilter === 'POS Terminal' && b.posTasks === 0) return false;
       if (categoryFilter === 'Sound Box' && b.sbTasks === 0) return false;
@@ -739,7 +908,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const numB = Number(bv) || 0;
       return branchSortDir === 'asc' ? numA - numB : numB - numA;
     });
-  }, [branchRows, regionFilter, branchFilter, categoryFilter, deferredQuery, branchSortKey, branchSortDir]);
+  }, [branchRows, branchFilter, categoryFilter, deferredQuery, branchSortKey, branchSortDir]);
 
   const filteredStaff = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
@@ -747,8 +916,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       if (!isAdmin && userBranchId && s.branchId !== userBranchId) return false;
       if (staffLevelFilter === 'field' && s.isManagement) return false;
       if (staffLevelFilter === 'management' && !s.isManagement) return false;
-      if (regionFilter === 'PP' && !s.isPP) return false;
-      if (regionFilter === 'PROV' && s.isPP) return false;
       if (branchFilter && s.branchId !== branchFilter) return false;
       if (categoryFilter === 'POS Terminal' && s.posTasks === 0) return false;
       if (categoryFilter === 'Sound Box' && s.sbTasks === 0) return false;
@@ -825,7 +992,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const numB = Number(bv) || 0;
       return staffSortDir === 'asc' ? numA - numB : numB - numA;
     });
-  }, [enrichedStaff, isAdmin, userBranchId, regionFilter, branchFilter, categoryFilter, deferredQuery, staffSortKey, staffSortDir, staffLevelFilter]);
+  }, [enrichedStaff, isAdmin, userBranchId, branchFilter, categoryFilter, deferredQuery, staffSortKey, staffSortDir, staffLevelFilter]);
 
   const totals = useMemo(() => {
     const raw: KpiRawCounts = {
@@ -887,16 +1054,184 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
   const timeSeries = useMemo(() => {
     if (!data) return [];
-    const rawDailyFilled = buildDailyContiguousSeries(data.daily, period, range);
-    const src =
-      granularity === 'daily' ? rawDailyFilled :
-      granularity === 'weekly' ? data.weekly :
-      granularity === 'quarterly' ? data.quarterly :
-      data.monthly;
-    const enriched = src.map((row) => ({
-      ...row,
-      ...computeKpiPoints(row, ruleMap),
-    }));
+
+    type SeriesBucket = KpiTimeBucketRaw & {
+      posPoints: number;
+      sbPoints: number;
+      khqrPoints: number;
+      ccPoints: number;
+      mvPoints: number;
+      posTasks: number;
+      sbTasks: number;
+      khqrTasks: number;
+      ccTasks: number;
+      mvTasks: number;
+      totalTasks: number;
+      totalPoints: number;
+    };
+
+    const emptyRawBucket = (p: string): KpiTimeBucketRaw => ({
+      period: p,
+      activeBranches: 0,
+      activeStaff: 0,
+      posInstall: 0, posReplace: 0, posBattery: 0,
+      sbInstall: 0, sbReplace: 0, sbMaint: 0, sbReturn: 0,
+      khqrInstall: 0, khqrReplace: 0, khqrMaterials: 0,
+      ccPrimary: 0, ccSupp: 0,
+    });
+
+    const weekStartIso = (ymd: string): string => {
+      const [yy, mm, dd] = ymd.split('-').map(Number);
+      if (!yy || !mm || !dd) return ymd;
+      const d = new Date(Date.UTC(yy, mm - 1, dd));
+      const offset = (d.getUTCDay() + 6) % 7;
+      d.setUTCDate(d.getUTCDate() - offset);
+      return d.toISOString().slice(0, 10);
+    };
+
+    const quarterOfMonth = (ym: string): string => {
+      const [yy, mm] = ym.split('-').map(Number);
+      if (!yy || !mm) return ym;
+      return `${yy}-Q${Math.ceil(mm / 3)}`;
+    };
+
+    let enriched: SeriesBucket[] = [];
+
+    if ((granularity === 'monthly' || granularity === 'quarterly') && Array.isArray(data.monthlyStaff) && data.monthlyStaff.length > 0) {
+      const buckets = new Map<string, { raw: KpiTimeBucketRaw; branches: Set<string>; staff: Set<string> }>();
+      for (const ms of data.monthlyStaff) {
+        const dir = ppDirectoryScope.matchPpStaff(ms.staffId, ms.staffName, ms.branchId, ms.branchName);
+        if (!dir) continue;
+        if (!isAdmin && userBranchId && dir.branchId !== userBranchId) continue;
+        if (branchFilter && dir.branchId !== branchFilter) continue;
+        const pKey = granularity === 'quarterly' ? quarterOfMonth(ms.month) : ms.month;
+        let b = buckets.get(pKey);
+        if (!b) {
+          b = { raw: emptyRawBucket(pKey), branches: new Set(), staff: new Set() };
+          buckets.set(pKey, b);
+        }
+        b.branches.add(dir.branchId);
+        b.staff.add(dir.empId || dir.name.toLowerCase());
+        b.raw.posInstall += ms.posInstall;
+        b.raw.posReplace += ms.posReplace;
+        b.raw.posBattery += ms.posBattery;
+        b.raw.sbInstall += ms.sbInstall;
+        b.raw.sbReplace += ms.sbReplace;
+        b.raw.sbMaint += ms.sbMaint;
+        b.raw.sbReturn += ms.sbReturn;
+        b.raw.khqrInstall += ms.khqrInstall;
+        b.raw.khqrReplace += ms.khqrReplace;
+        b.raw.khqrMaterials += ms.khqrMaterials;
+        b.raw.ccPrimary += ms.ccPrimary;
+        b.raw.ccSupp += ms.ccSupp;
+        addExtraCounts(b.raw, ms);
+      }
+      enriched = Array.from(buckets.values())
+        .sort((a, b) => b.raw.period.localeCompare(a.raw.period))
+        .map(({ raw, branches: bSet, staff: sSet }) => ({
+          ...raw,
+          activeBranches: bSet.size,
+          activeStaff: sSet.size,
+          ...computeKpiPoints(raw, ruleMap),
+        }));
+    } else if ((granularity === 'daily' || granularity === 'weekly') && Array.isArray(data.dailyStaff) && data.dailyStaff.length > 0) {
+      const posRate = totals.posTasks > 0 ? totals.posPoints / totals.posTasks : (rulePts(ruleMap, 'POS_INSTALL') || 2);
+      const sbRate = totals.sbTasks > 0 ? totals.sbPoints / totals.sbTasks : (rulePts(ruleMap, 'SB_INSTALL') || 1);
+      const khqrRate = totals.khqrTasks > 0 ? totals.khqrPoints / totals.khqrTasks : (rulePts(ruleMap, 'KHQR_INSTALL') || 1);
+      const ccRate = totals.ccTasks > 0 ? totals.ccPoints / totals.ccTasks : (rulePts(ruleMap, 'CC_PRIMARY') || 2);
+      const mvRate = totals.mvTasks > 0 ? totals.mvPoints / totals.mvTasks : (rulePts(ruleMap, 'MV_VISIT') || 1);
+
+      const buckets = new Map<string, {
+        period: string;
+        branches: Set<string>;
+        staff: Set<string>;
+        posTasks: number;
+        sbTasks: number;
+        khqrTasks: number;
+        ccTasks: number;
+        mvTasks: number;
+      }>();
+
+      for (const ds of data.dailyStaff) {
+        if (!ds.day) continue;
+        if (range.from && ds.day < range.from.slice(0, 10)) continue;
+        if (range.to && ds.day >= range.to.slice(0, 10)) continue;
+        const dir = ppDirectoryScope.matchPpStaff(ds.staffId, ds.staffName, ds.branchId, ds.branchName);
+        if (!dir) continue;
+        if (!isAdmin && userBranchId && dir.branchId !== userBranchId) continue;
+        if (branchFilter && dir.branchId !== branchFilter) continue;
+        const pKey = granularity === 'weekly' ? weekStartIso(ds.day) : ds.day;
+        let b = buckets.get(pKey);
+        if (!b) {
+          b = { period: pKey, branches: new Set(), staff: new Set(), posTasks: 0, sbTasks: 0, khqrTasks: 0, ccTasks: 0, mvTasks: 0 };
+          buckets.set(pKey, b);
+        }
+        if ((ds.totalTasks || 0) > 0) {
+          b.branches.add(dir.branchId);
+          b.staff.add(dir.empId || dir.name.toLowerCase());
+        }
+        b.posTasks += Number(ds.posTasks) || 0;
+        b.sbTasks += Number(ds.sbTasks) || 0;
+        b.khqrTasks += Number(ds.khqrTasks) || 0;
+        b.ccTasks += Number(ds.ccTasks) || 0;
+        b.mvTasks += Number(ds.mvTasks) || 0;
+      }
+
+      const toBucket = (p: string, b?: (typeof buckets extends Map<string, infer V> ? V : never)): SeriesBucket => {
+        const posT = b?.posTasks || 0;
+        const sbT = b?.sbTasks || 0;
+        const khqrT = b?.khqrTasks || 0;
+        const ccT = b?.ccTasks || 0;
+        const mvT = b?.mvTasks || 0;
+        const posPoints = Math.round(posT * posRate * 10) / 10;
+        const sbPoints = Math.round(sbT * sbRate * 10) / 10;
+        const khqrPoints = Math.round(khqrT * khqrRate * 10) / 10;
+        const ccPoints = Math.round(ccT * ccRate * 10) / 10;
+        const mvPoints = Math.round(mvT * mvRate * 10) / 10;
+        const totalPoints = Math.round((posPoints + sbPoints + khqrPoints + ccPoints + mvPoints) * 10) / 10;
+        return {
+          ...emptyRawBucket(p),
+          activeBranches: b?.branches.size || 0,
+          activeStaff: b?.staff.size || 0,
+          posPoints,
+          sbPoints,
+          khqrPoints,
+          ccPoints,
+          mvPoints,
+          posTasks: posT,
+          sbTasks: sbT,
+          khqrTasks: khqrT,
+          ccTasks: ccT,
+          mvTasks: mvT,
+          totalTasks: posT + sbT + khqrT + ccT + mvT,
+          totalPoints,
+        };
+      };
+
+      if (granularity === 'daily') {
+        const contiguous = buildDailyContiguousSeries(
+          Array.from(buckets.keys()).map((d) => emptyRawBucket(d)),
+          period,
+          range
+        );
+        enriched = contiguous.map((c) => toBucket(c.period, buckets.get(c.period)));
+      } else {
+        enriched = Array.from(buckets.values())
+          .sort((a, b) => b.period.localeCompare(a.period))
+          .map((b) => toBucket(b.period, b));
+      }
+    } else {
+      const rawDailyFilled = buildDailyContiguousSeries(data.daily, period, range);
+      const src =
+        granularity === 'daily' ? rawDailyFilled :
+        granularity === 'weekly' ? data.weekly :
+        granularity === 'quarterly' ? data.quarterly :
+        data.monthly;
+      enriched = src.map((row) => ({
+        ...row,
+        ...computeKpiPoints(row, ruleMap),
+      }));
+    }
     const mapped = enriched.map((row, idx) => {
       const prev = enriched[idx + 1];
       const growthPct = prev && prev.totalPoints > 0
@@ -978,7 +1313,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       const numB = Number(bv) || 0;
       return timelineSortDir === 'asc' ? numA - numB : numB - numA;
     });
-  }, [data, granularity, period, range, ruleMap, timelineSortKey, timelineSortDir]);
+  }, [data, granularity, period, range, ruleMap, timelineSortKey, timelineSortDir, ppDirectoryScope, totals, isAdmin, userBranchId, branchFilter]);
 
   const subCategoryBreakdown = useMemo(() => {
     const r = totals.raw;
@@ -1226,7 +1561,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     });
   }, [dailyBranchRows, dailySortKey, dailySortDir]);
 
-  const dailyBranchPg = usePager(sortedDailyBranchRows.length, [dailyMatrixMonth, regionFilter, branchFilter, categoryFilter, deferredQuery]);
+  const dailyBranchPg = usePager(sortedDailyBranchRows.length, [dailyMatrixMonth, branchFilter, categoryFilter, deferredQuery]);
 
   const stepDailyMonth = (direction: -1 | 1) => {
     const [yStr, mStr] = (dailyMatrixMonth || '').split('-');
@@ -1408,7 +1743,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     });
   }, [dailyStaffRows, dailyStaffSortKey, dailyStaffSortDir]);
 
-  const dailyStaffPg = usePager(sortedDailyStaffRows.length, [dailyMatrixMonth, regionFilter, branchFilter, categoryFilter, deferredQuery]);
+  const dailyStaffPg = usePager(sortedDailyStaffRows.length, [dailyMatrixMonth, branchFilter, categoryFilter, deferredQuery]);
 
   const exportDailyStaffCsv = async () => {
     if (!filteredStaff.length) return 0;
@@ -1480,14 +1815,21 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     const monthStaff = data.monthlyStaff
       .filter((ms) => ms.month === selectedTopMonth)
       .map((ms) => {
+        const dir = ppDirectoryScope.matchPpStaff(ms.staffId, ms.staffName, ms.branchId, ms.branchName);
+        if (!dir) return null;
+        const canonBranch = dir.branchId || ms.branchId;
         const pts = computeKpiPoints(ms, ruleMap);
         return {
           ...ms,
-          branchName: branchNameMap.get(ms.branchId) || ms.branchName || ms.branchId,
+          staffId: dir.empId || ms.staffId,
+          staffName: dir.name || ms.staffName,
+          branchId: canonBranch,
+          branchName: branchNameMap.get(canonBranch) || ms.branchName || canonBranch,
+          isManagement: dir.isManagement,
           ...pts,
         };
       })
-      .filter((ms) => ms.totalTasks > 0 && !staffMetaMap.get(ms.staffId)?.isManagement)
+      .filter((ms): ms is NonNullable<typeof ms> => ms !== null && ms.totalTasks > 0 && !ms.isManagement)
       .sort((a, b) => b.totalPoints - a.totalPoints || b.totalTasks - a.totalTasks);
 
     const bMap = new Map<string, { branchId: string; branchName: string; staffCount: number; raw: KpiRawCounts }>();
@@ -1539,15 +1881,14 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       branches: monthBranches.slice(0, 10),
       staff: monthStaff.slice(0, 10),
     };
-  }, [selectedTopMonth, data, branchRows, enrichedStaff, ruleMap, branchNameMap]);
+  }, [selectedTopMonth, data, branchRows, enrichedStaff, ruleMap, branchNameMap, ppDirectoryScope]);
 
-  const branchPg = usePager(filteredBranches.length, [period, regionFilter, branchFilter, categoryFilter, deferredQuery]);
-  const staffPg = usePager(filteredStaff.length, [period, regionFilter, branchFilter, categoryFilter, deferredQuery]);
+  const branchPg = usePager(filteredBranches.length, [period, branchFilter, categoryFilter, deferredQuery]);
+  const staffPg = usePager(filteredStaff.length, [period, branchFilter, categoryFilter, deferredQuery]);
 
-  const filtersActive = period !== 'ALL' || regionFilter !== 'ALL' || !!branchFilter || categoryFilter !== 'ALL' || !!query;
+  const filtersActive = period !== 'ALL' || !!branchFilter || categoryFilter !== 'ALL' || !!query;
   const clearAll = () => {
     setPeriod('ALL');
-    setRegionFilter('ALL');
     setBranchFilter('');
     setCategoryFilter('ALL');
     setQuery('');
@@ -1588,7 +1929,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   
 
   const sortedBranches = useMemo(
-    () => [...branches].sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true })),
+    () =>
+      [...branches]
+        .filter((b) => isPhnomPenhBranch(b))
+        .sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true })),
     [branches]
   );
 
@@ -1703,7 +2047,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <BigKpiCard
                 label="Active Branches"
                 value={fmtInt(totals.activeBranchCount)}
-                sub="Phnom Penh & Provinces"
+                sub="Phnom Penh Branches"
                 icon={Building2}
                 accentColor="amber"
                 badge={`${totals.branchesOnTarget} on target`}
@@ -1799,16 +2143,13 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 flex-1 justify-start sm:justify-end w-full sm:w-auto">
-              <select
-                aria-label="Region filter"
-                value={regionFilter}
-                onChange={(e) => setRegionFilter(e.target.value as 'ALL' | 'PP' | 'PROV')}
-                className="text-xs rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white px-2.5 py-1.5 cursor-pointer text-slate-800 font-normal outline-none focus:border-slate-400 transition"
+              <span
+                className="inline-flex items-center gap-1.5 text-xs rounded-xl border border-slate-200/90 bg-slate-100/80 px-2.5 py-1.5 text-slate-700 font-medium whitespace-nowrap"
+                title="Scoped to active Phnom Penh Staff from the Staff Directory"
               >
-                <option value="ALL">All regions</option>
-                <option value="PP">Phnom Penh</option>
-                <option value="PROV">Provinces</option>
-              </select>
+                <MapPin className="w-3.5 h-3.5 text-[#155484] shrink-0" aria-hidden />
+                <span>Phnom Penh · Staff Directory</span>
+              </span>
 
               <select
                 aria-label="Branch filter"

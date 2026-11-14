@@ -10,8 +10,9 @@ import {
   ThemeMode,
   CustomFieldDefinition,
   DEFAULT_CUSTOM_FIELDS,
-  isCustomFieldVisibleForDevice,
+  resolveActiveCustomFieldsForDevice,
 } from '../types';
+import { fetchSerialsPage } from '../services/materialsService';
 import { STAGE_META } from '../data/initialData';
 import { normalizeStaffName, extractEmpIdFromName, resolveStaffFromDirectory } from '../utils/staffUtils';
 import { todayPP } from '../utils/time';
@@ -220,7 +221,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const isSoundBox = device?.type === 'Sound Box';
   const activeCustomFields = useMemo(() => {
     const targetDeviceType: 'POS' | 'SOUND_BOX' = isSoundBox ? 'SOUND_BOX' : 'POS';
-    return (customFields || []).filter((f) => isCustomFieldVisibleForDevice(f, targetDeviceType));
+    return resolveActiveCustomFieldsForDevice(customFields, targetDeviceType);
   }, [customFields, isSoundBox]);
 
   // Reset the form only when a different unit is opened (or the modal re-opens), not every time the parent
@@ -264,6 +265,30 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceSerial, preset]);
+
+  // Auto-populate linked SIM serial from SIM Card inventory when not yet saved on device customFields
+  useEffect(() => {
+    if (!device || device.customFields?.simNumber) return;
+    let cancelled = false;
+    fetchSerialsPage({ code: 'SIM', search: device.serial, page: 1, pageSize: 5 })
+      .then(({ rows }) => {
+        if (cancelled) return;
+        const linkedSim = rows.find(
+          (r) => (r.deviceSerial || '').trim().toUpperCase() === device.serial.trim().toUpperCase()
+        );
+        if (linkedSim?.serial) {
+          setCustomFieldValues((prev) =>
+            prev.simNumber ? prev : { ...prev, simNumber: linkedSim.serial }
+          );
+        }
+      })
+      .catch(() => {
+        // Non-critical lookup; keep user-entered value or blank
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [device?.serial]);
 
   // Synchronize battery serial and commissioning date when replaced via ChangeBatteryModal
   useEffect(() => {
@@ -1408,8 +1433,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             </div>
                           ) : (
                             <input
-                              type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                              type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'phone' ? 'tel' : 'text'}
                               value={val}
+                              placeholder={field.placeholder || ''}
                               onChange={(e) =>
                                 setCustomFieldValues((prev) => ({
                                   ...prev,

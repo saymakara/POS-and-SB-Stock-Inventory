@@ -7,7 +7,7 @@ import {
   CustomFieldDefinition,
   CustomFieldType,
   DEFAULT_CUSTOM_FIELDS,
-  isCustomFieldVisibleForDevice,
+  resolveActiveCustomFieldsForDevice,
   TelegramRegionalGroup,
 } from '../types';
 import { LogoPageTab } from './LogoPageTab';
@@ -47,7 +47,6 @@ import {
   Download,
   Upload,
   AlertTriangle,
-  Info,
   Clock,
   Layers,
   SlidersHorizontal,
@@ -1265,24 +1264,24 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-base font-extrabold text-zinc-900">
-                        Custom &amp; Dynamic Fields Configuration
+                        Custom &amp; Dynamic Fields
                       </h3>
-                      <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold border border-emerald-200">
-                        {currentCustomFields.filter((f) => f.enabled).length} Enabled
+                      <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                        {currentCustomFields.filter((f) => f.enabled).length} Active
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Add, customize, and toggle flexible metadata fields (Location, Phone Number, Store Address, SIM Card, Floor/Booth, etc.) that dynamically populate device lifecycle workflows and merchant records.
+                      Manage optional and required workflow fields for merchant deployment and hardware configuration.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={handleResetToDefaultFields}
-                    className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/80 transition cursor-pointer flex items-center gap-1.5"
-                    title="Restore standard ABA recommended fields"
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/80 transition cursor-pointer flex items-center gap-1.5"
+                    title="Restore standard recommended fields"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Restore Defaults</span>
@@ -1290,27 +1289,22 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => handleOpenAddField()}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5"
                   >
-                    <Plus className="w-4 h-4 text-emerald-400" />
-                    <span>Add Custom Field</span>
+                    <Plus className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>Add Field</span>
                   </button>
                 </div>
               </div>
 
-              {/* One-Click Recommended Presets Strip */}
-              <div className="pt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Quick-Add Recommended Attributes</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    Click to activate or add instantly
-                  </span>
+              {/* Compact Recommended Presets Strip */}
+              <div className="pt-3.5">
+                <div className="flex items-center gap-1.5 mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Quick-Add Presets</span>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {[
                     {
                       id: 'merchantPhone',
@@ -1329,6 +1323,15 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       defaultValue: 'Smart Axiata',
                       placeholder: 'Select Sim Card',
                       description: 'Cellular network provider provisioned in the terminal or Sound Box.',
+                      isSystem: false,
+                      targetDeviceType: 'ALL' as const,
+                    },
+                    {
+                      id: 'simNumber',
+                      label: 'SIM Number',
+                      type: 'phone' as CustomFieldType,
+                      placeholder: 'e.g. 096 269 1111',
+                      description: 'SIM phone number / MSISDN installed in the device.',
                       isSystem: false,
                       targetDeviceType: 'ALL' as const,
                     },
@@ -1411,23 +1414,18 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         key={preset.id}
                         type="button"
                         onClick={() => handleQuickAddPreset(preset)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition inline-flex items-center gap-1.5 cursor-pointer ${
                           isEnabled
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
-                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                            ? 'bg-emerald-50/90 text-emerald-800 border-emerald-200'
+                            : 'bg-slate-50/70 hover:bg-slate-100 text-slate-600 border-slate-200/80'
                         }`}
                       >
                         {isEnabled ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                         ) : (
-                          <PlusCircle className="w-3.5 h-3.5 text-slate-400" />
+                          <PlusCircle className="w-3 h-3 text-slate-400 shrink-0" />
                         )}
                         <span>{preset.label}</span>
-                        {isEnabled && (
-                          <span className="text-[9px] font-mono text-emerald-700 font-bold">
-                            Active
-                          </span>
-                        )}
                       </button>
                     );
                   })}
@@ -1435,20 +1433,20 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             </div>
 
-            {/* Split Grid: Fields Manager & Live Workflow Preview */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left Column: All Custom Fields List */}
-              <div className="lg:col-span-7 space-y-3">
-                <div className="flex items-center justify-between pb-1">
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Configured Attribute Fields ({currentCustomFields.length})
+            {/* Split Grid: Clean Grouped Fields List & Compact Live Form Simulator */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              {/* Left Column: Clean Grouped Custom Fields List */}
+              <div className="lg:col-span-7 space-y-2.5">
+                <div className="flex items-center justify-between px-1">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Configured Fields ({currentCustomFields.length})
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    Toggle switch to activate/deactivate in forms
+                    Toggle to enable in forms
                   </div>
                 </div>
 
-                <div className="space-y-2.5">
+                <div className="surface-card rounded-2xl border border-slate-200/90 shadow-xs divide-y divide-slate-100 overflow-hidden">
                   {currentCustomFields.map((field) => {
                     const getIcon = () => {
                       if (field.id === 'location') return <MapPin className="w-4 h-4 text-emerald-600" />;
@@ -1461,148 +1459,119 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       return <Type className="w-4 h-4 text-slate-600" />;
                     };
 
+                    const summaryText = [
+                      field.description,
+                      field.type === 'select' && field.options?.length ? field.options.join(', ') : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ');
+
                     return (
                       <div
                         key={field.id}
-                        className={`p-4 rounded-2xl border transition-all ${
+                        className={`px-4 py-3 transition-colors flex items-center justify-between gap-3 ${
                           field.enabled
-                            ? 'surface-card border-slate-200 shadow-xs'
-                            : 'bg-slate-50/70 border-slate-200/60 opacity-65'
+                            ? 'bg-white hover:bg-slate-50/70'
+                            : 'bg-slate-50/50 hover:bg-slate-100/50'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={`p-2.5 rounded-xl border shrink-0 ${
-                                field.enabled
-                                  ? 'bg-slate-100 border-slate-200'
-                                  : 'bg-slate-200/50 border-slate-200'
-                              }`}
-                            >
-                              {getIcon()}
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h4 className="text-xs font-extrabold text-zinc-900">
-                                  {field.label}
-                                </h4>
-                                <span className="font-mono text-[10px] text-slate-400">
-                                  ({field.id})
-                                </span>
-                                <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-sky-50 text-sky-800 border border-sky-200">
-                                  Tab: {field.targetTab || 'all'}
-                                </span>
-                                {field.targetDeviceType && field.targetDeviceType !== 'ALL' && (
-                                  <span className={`font-mono text-[10px] uppercase font-bold px-1.5 py-0.2 rounded border ${
-                                    field.targetDeviceType === 'POS'
-                                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                                      : 'bg-purple-50 text-purple-700 border-purple-200'
-                                  }`}>
-                                    {field.targetDeviceType === 'POS' ? 'POS Only' : 'Sound Box Only'}
-                                  </span>
-                                )}
-                                <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                                  {field.type}
-                                </span>
-                                {field.required ? (
-                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200">
-                                    Required
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-slate-100 text-slate-500">
-                                    Optional
-                                  </span>
-                                )}
-                                {field.isSystem && (
-                                  <span className="text-[9px] font-semibold text-slate-400 italic">
-                                    System Core
-                                  </span>
-                                )}
-                              </div>
-
-                              {field.description && (
-                                <p className="text-[11px] text-slate-500 leading-snug">
-                                  {field.description}
-                                </p>
-                              )}
-
-                              {field.type === 'select' && field.options && field.options.length > 0 && (
-                                <div className="text-[10px] font-mono text-slate-500 flex flex-wrap items-center gap-1 pt-0.5">
-                                  <span className="font-semibold text-slate-400">Options:</span>
-                                  {field.options.map((opt, i) => (
-                                    <span
-                                      key={i}
-                                      className="px-1.5 py-0.2 rounded bg-slate-100 border border-slate-200"
-                                    >
-                                      {opt}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-
-                              {field.placeholder && (
-                                <div className="text-[10px] text-slate-400 font-mono">
-                                  Placeholder: "{field.placeholder}"
-                                </div>
-                              )}
-                            </div>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${
+                              field.enabled
+                                ? 'bg-slate-50 border-slate-200'
+                                : 'bg-slate-100/70 border-slate-200/60 opacity-60'
+                            }`}
+                          >
+                            {getIcon()}
                           </div>
 
-                          {/* Control Toggles & Actions */}
-                          <div className="flex items-center gap-2 shrink-0">
-                            {/* Required Toggle Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleToggleRequired(field.id)}
-                              className={`px-2 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
-                                field.required
-                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                              }`}
-                              title={field.required ? 'Make Optional' : 'Make Mandatory (Required)'}
-                            >
-                              {field.required ? '* Required' : 'Optional'}
-                            </button>
-
-                            {/* Edit Field */}
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditField(field)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-zinc-900 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition cursor-pointer"
-                              title="Edit field settings"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-
-                            {/* Delete Field (Only if non-system) */}
-                            {!field.isSystem && (
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteField(field.id)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition cursor-pointer"
-                                title="Delete custom field"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-
-                            {/* Main Active/Inactive Toggle */}
-                            <button
-                              type="button"
-                              onClick={() => handleToggleField(field.id)}
-                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                field.enabled ? 'bg-[#155484]' : 'bg-slate-300'
-                              }`}
-                              title={field.enabled ? 'Click to disable' : 'Click to enable'}
-                            >
-                              <span
-                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                  field.enabled ? 'translate-x-5' : 'translate-x-0'
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4
+                                className={`text-xs font-bold truncate ${
+                                  field.enabled ? 'text-slate-900' : 'text-slate-500'
                                 }`}
-                              />
-                            </button>
+                              >
+                                {field.label}
+                              </h4>
+                              {field.targetDeviceType && field.targetDeviceType !== 'ALL' && (
+                                <span
+                                  className={`text-[10px] font-semibold px-1.5 py-0.2 rounded-md ${
+                                    field.targetDeviceType === 'POS'
+                                      ? 'bg-sky-50 text-sky-700'
+                                      : 'bg-purple-50 text-purple-700'
+                                  }`}
+                                >
+                                  {field.targetDeviceType === 'POS' ? 'POS Only' : 'Sound Box'}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-slate-400 capitalize">
+                                · {field.type}
+                              </span>
+                            </div>
+
+                            {summaryText && (
+                              <p
+                                className="text-[11px] text-slate-400 truncate max-w-[420px] mt-0.5"
+                                title={summaryText}
+                              >
+                                {summaryText}
+                              </p>
+                            )}
                           </div>
+                        </div>
+
+                        {/* Clean Aligned Actions */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRequired(field.id)}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition cursor-pointer ${
+                              field.required
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : 'bg-transparent text-slate-500 border-slate-200/80 hover:bg-slate-100'
+                            }`}
+                            title={field.required ? 'Make Optional' : 'Make Required'}
+                          >
+                            {field.required ? 'Required' : 'Optional'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditField(field)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+                            title="Edit field settings"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {!field.isSystem && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteField(field.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                              title="Delete custom field"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleField(field.id)}
+                            aria-label={`${field.enabled ? 'Disable' : 'Enable'} ${field.label}`}
+                            className={`relative ml-1 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              field.enabled ? 'bg-[#155484]' : 'bg-slate-200'
+                            }`}
+                            title={field.enabled ? 'Click to disable' : 'Click to enable'}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                                field.enabled ? 'translate-x-4' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
                         </div>
                       </div>
                     );
@@ -1610,14 +1579,14 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 </div>
               </div>
 
-              {/* Right Column: Real-Time Live Form Preview */}
-              <div className="lg:col-span-5 space-y-3">
-                <div className="flex items-center justify-between pb-1">
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-sky-500" />
-                    <span>Live Form Simulator</span>
+              {/* Right Column: Clean Live Form Preview */}
+              <div className="lg:col-span-5 lg:sticky lg:top-4 space-y-2.5">
+                <div className="flex items-center justify-between px-1">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#155484]" />
+                    <span>Live Form Preview</span>
                   </div>
-                  <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/80 shadow-xs">
+                  <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/80 shadow-2xs">
                     {(['POS', 'SOUND_BOX'] as const).map((dt) => {
                       const active = simulatorDeviceType === dt;
                       return (
@@ -1638,89 +1607,44 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   </div>
                 </div>
 
-                <div className="surface-card p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
-                  <div className="p-3 rounded-xl bg-sky-50 text-sky-900 border border-sky-200 text-xs flex items-start gap-2">
-                    <Info className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-bold">
-                        Workflow Form Preview ({simulatorDeviceType === 'POS' ? 'POS Terminal' : 'Sound Box'})
-                      </div>
-                      <p className="text-[11px] opacity-90 mt-0.5">
-                        {simulatorDeviceType === 'POS'
-                          ? 'Active attributes shown for POS Terminal configurations (4 enabled defaults: Merchant Phone Number, SIM Card, Charging Dock, POS Stand).'
-                          : 'Active attributes shown for Sound Box configurations (SIM Card only by default).'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 pt-1">
-                    {/* Fixed Standard Headers */}
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                        Merchant Name *
-                      </label>
-                      <input
-                        type="text"
-                        disabled
-                        value="Brown Coffee Toul Kork"
-                        className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 border border-slate-200 text-slate-700 cursor-not-allowed"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                          MID *
-                        </label>
-                        <input
-                          type="text"
-                          disabled
-                          value={simulatorDeviceType === 'POS' ? '100000880105001' : '012888900'}
-                          className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold bg-slate-100 border border-slate-200 text-slate-700 cursor-not-allowed"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                          Terminal ID (TID) *
-                        </label>
-                        <input
-                          type="text"
-                          disabled
-                          value="TID-10501"
-                          className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold bg-slate-100 border border-slate-200 text-slate-700 cursor-not-allowed"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Dynamic Active Custom Fields */}
-                    {(() => {
-                      const simulatedFields = currentCustomFields.filter((f) =>
-                        isCustomFieldVisibleForDevice(f, simulatorDeviceType)
-                      );
-                      return (
-                    <div className="pt-2 border-t border-slate-100 space-y-3">
-                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 flex items-center justify-between">
-                        <span>Active Custom Attributes ({simulatedFields.length})</span>
-                        <span className="text-slate-400 font-normal">Interactive Sandbox</span>
-                      </div>
-
-                      {simulatedFields.length === 0 ? (
-                        <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400">
-                          No custom fields are active for {simulatorDeviceType === 'POS' ? 'POS Terminal' : 'Sound Box'}. Click on the presets above or toggle fields on the left.
+                {(() => {
+                  const simulatedFields = resolveActiveCustomFieldsForDevice(
+                    currentCustomFields,
+                    simulatorDeviceType
+                  );
+                  return (
+                    <div className="surface-card rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden bg-white">
+                      {/* Compact Context Strip */}
+                      <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 truncate">
+                            Brown Coffee Toul Kork
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-mono truncate">
+                            MID {simulatorDeviceType === 'POS' ? '100000880105001' : '012888900'} · TID-10501
+                          </div>
                         </div>
-                      ) : (
-                        simulatedFields.map((field) => {
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-50 text-[#155484] border border-sky-200/80 shrink-0">
+                          {simulatedFields.length} Active {simulatedFields.length === 1 ? 'Field' : 'Fields'}
+                        </span>
+                      </div>
+
+                      <div className="p-4 space-y-3">
+                        {simulatedFields.length === 0 ? (
+                          <div className="p-5 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400">
+                            No active fields for {simulatorDeviceType === 'POS' ? 'POS Terminal' : 'Sound Box'}. Enable fields on the left to preview them here.
+                          </div>
+                        ) : (
+                          simulatedFields.map((field) => {
                             const val = customFieldPreviewValues[field.id] || '';
+                            const fieldCls =
+                              'w-full px-3 py-2 rounded-xl text-xs font-normal bg-white border border-slate-200 text-zinc-900 outline-none focus:ring-2 focus:ring-[#155484]/15 focus:border-[#155484] transition';
 
                             return (
-                              <div key={field.id}>
-                                <label className="block text-[11px] font-bold text-zinc-800 mb-1 flex items-center justify-between">
-                                  <span>
-                                    {field.label} {field.required && <span className="text-rose-500">*</span>}
-                                  </span>
-                                  <span className="font-mono text-[9px] uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-500">
-                                    {field.type}
-                                  </span>
+                              <div key={field.id} title={field.description || undefined}>
+                                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                                  {field.label}
+                                  {field.required && <span className="text-rose-500 ml-0.5">*</span>}
                                 </label>
 
                                 {field.type === 'select' && field.options && field.options.length > 0 ? (
@@ -1732,7 +1656,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                         [field.id]: e.target.value,
                                       }))
                                     }
-                                    className="w-full px-3 py-2 rounded-xl text-xs font-normal bg-white border border-slate-200 text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                                    className={fieldCls}
                                   >
                                     <option value="">-- {field.placeholder || 'Select Option'} --</option>
                                     {field.options.map((opt) => (
@@ -1751,7 +1675,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                         [field.id]: e.target.value,
                                       }))
                                     }
-                                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                                    className={fieldCls}
                                   />
                                 ) : field.type === 'number' ? (
                                   <input
@@ -1764,7 +1688,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                       }))
                                     }
                                     placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-                                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                                    className={fieldCls}
                                   />
                                 ) : (
                                   <input
@@ -1777,24 +1701,17 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                                       }))
                                     }
                                     placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-                                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                                    className={fieldCls}
                                   />
-                                )}
-
-                                {field.description && (
-                                  <div className="text-[10px] text-slate-400 mt-0.5 italic">
-                                    {field.description}
-                                  </div>
                                 )}
                               </div>
                             );
                           })
-                      )}
+                        )}
+                      </div>
                     </div>
-                      );
-                    })()}
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
             </div>
 

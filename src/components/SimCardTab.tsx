@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
-  Search, RefreshCw, Loader2, PackagePlus, PencilLine, CreditCard, Download,
+  Search, RefreshCw, Loader2, PackagePlus, PencilLine, CreditCard, FileSpreadsheet,
   Cpu, Volume2, Layers
 } from 'lucide-react';
 import { Branch, UserRole, Device, User } from '../types';
@@ -14,11 +14,14 @@ import {
   fetchSerialStatusCounts, fetchSerialsPage, isMaterialsMissing, placeName,
   adminSimUpdate,
 } from '../services/materialsService';
-import { MaterialsSetupNotice, StatusPill, btnLight, btnPrimary, fmtDay } from './MaterialsUi';
+import { MaterialsSetupNotice, StatusPill, fmtDay } from './MaterialsUi';
 import { AdjustDialog, LostMaterialsSection, StockInDialog } from './MaterialStockPanel';
 import { ManageSimModal } from './ManageSimModal';
 import { WHILE_TAP_BUTTON, SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import { PillMotion } from './PillMotion';
+import { buildPpDirectoryScope } from '../utils/fieldScope';
+import { getCachedStaff, onStaffList } from '../services/staffCache';
+import type { StaffAccount } from '../services/supabaseService';
 
 /**
  * (6 Nov 2026) Stock Inventory → SIM Card.
@@ -57,11 +60,12 @@ const SimCardTabComponent: React.FC<{
   myBranch: string;
   devices?: Device[];
   users?: User[];
+  excludedSerials?: Set<string>;
   triggerToast: (m: string) => void;
   onLostChanged?: () => void;
   onUpdateDevice?: (sn: string, updates: any) => void;
 }> = ({
-  role, branches, myBranch, devices = [], users = [], triggerToast, onLostChanged, onUpdateDevice,
+  role, branches, myBranch, devices = [], users = [], excludedSerials, triggerToast, onLostChanged, onUpdateDevice,
 }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [hardwareFilter, setHardwareFilter] = useState<HardwareFilter>('ALL');
@@ -75,12 +79,26 @@ const SimCardTabComponent: React.FC<{
   }, [query]);
 
   const [rows, setRows] = useState<MaterialSerial[] | null>(() => simCache?.rows || null);
+  const [unfilteredRows, setUnfilteredRows] = useState<MaterialSerial[] | null>(() => simCache?.rows || null);
   const [, setTotal] = useState(() => simCache?.total || 0);
   const [counts, setCounts] = useState<Record<SerialStatus, number> | null>(() => simCountsCache || null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST'>('');
   const [managingSim, setManagingSim] = useState<MaterialSerial | null>(null);
+  const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
+  useEffect(() => onStaffList(setCachedStaff), []);
+
+  const ppScope = useMemo(
+    () => buildPpDirectoryScope(branches, users, cachedStaff),
+    [branches, users, cachedStaff]
+  );
+
+  const isRowInScope = useCallback((r: MaterialSerial): boolean => {
+    if (!ppScope.isBranchInScope(r.branchId)) return false;
+    if (r.deviceSerial && excludedSerials?.has(r.deviceSerial.toUpperCase())) return false;
+    return true;
+  }, [ppScope, excludedSerials]);
 
   const deviceMap = useMemo(() => {
     const map = new Map<string, Device>();
@@ -127,21 +145,26 @@ const SimCardTabComponent: React.FC<{
     };
   }, [deviceMap]);
 
-  const filteredRows = useMemo(() => {
+  const scopedRows = useMemo(() => {
     if (!rows) return null;
-    if (hardwareFilter === 'ALL') return rows;
-    return rows.filter((r) => getHardwareInfo(r).type === hardwareFilter);
-  }, [rows, hardwareFilter, getHardwareInfo]);
+    return rows.filter(isRowInScope);
+  }, [rows, isRowInScope]);
+
+  const filteredRows = useMemo(() => {
+    if (!scopedRows) return null;
+    if (hardwareFilter === 'ALL') return scopedRows;
+    return scopedRows.filter((r) => getHardwareInfo(r).type === hardwareFilter);
+  }, [scopedRows, hardwareFilter, getHardwareInfo]);
 
   const typeCounts = useMemo(() => {
-    const c = { ALL: rows?.length ?? 0, POS: 0, SOUND_BOX: 0, UNASSIGNED: 0 };
-    if (!rows) return c;
-    for (let i = 0; i < rows.length; i++) {
-      const t = getHardwareInfo(rows[i]).type;
+    const c = { ALL: scopedRows?.length ?? 0, POS: 0, SOUND_BOX: 0, UNASSIGNED: 0 };
+    if (!scopedRows) return c;
+    for (let i = 0; i < scopedRows.length; i++) {
+      const t = getHardwareInfo(scopedRows[i]).type;
       c[t]++;
     }
     return c;
-  }, [rows, getHardwareInfo]);
+  }, [scopedRows, getHardwareInfo]);
 
   const pg = usePager(filteredRows?.length ?? 0, [status, branchId, search, hardwareFilter]);
   const displayedRows = useMemo(
@@ -155,7 +178,7 @@ const SimCardTabComponent: React.FC<{
     setLoading(true);
     try {
       const p = await fetchSerialsPage({ code: 'SIM', status, branchId: branchId || undefined, search, page: 1, pageSize: 1000 }, force);
-      if (!status && !branchId && !search) { simCache = { rows: p.rows, total: p.total }; }
+      if (!status && !branchId && !search) { simCache = { rows: p.rows, total: p.total }; setUnfilteredRows(p.rows); }
       setRows(p.rows); setTotal(p.total); setErr('');
     } catch (e) {
       const m = cleanMaterialError(e); setErr(isMaterialsMissing(m) ? 'SETUP' : m); setRows((r) => r || []);
@@ -228,7 +251,7 @@ const SimCardTabComponent: React.FC<{
   };
 
   const exportCsv = async () => {
-    const list = filteredRows || rows || [];
+    const list = filteredRows || scopedRows || [];
     downloadCsv('sim-cards', [
       'SIM number', 'Status', 'Type of Sim Card', 'Assigned Device (Serial)', 'Merchant Name', 'MID', 'Deployment Date', 'Branch Staff', 'Branch Name', 'Updated At', 'Updated By'
     ], list.map((s) => {
@@ -245,7 +268,26 @@ const SimCardTabComponent: React.FC<{
     triggerToast(`Saved ${list.length} SIM card(s).`);
   };
 
-  const totalAll = useMemo(() => (counts ? Object.values(counts).reduce((a, b) => a + b, 0) : undefined), [counts]);
+  const effectiveCounts = useMemo(() => {
+    if (!counts) return null;
+    const baseList = unfilteredRows
+      ? (branchId ? unfilteredRows.filter((r) => r.branchId === branchId) : unfilteredRows)
+      : rows;
+    if (!baseList) return counts;
+    const out: Record<SerialStatus, number> = { ...counts };
+    for (let i = 0; i < baseList.length; i++) {
+      const r = baseList[i];
+      if (!isRowInScope(r) && (out[r.status] || 0) > 0) {
+        out[r.status] = out[r.status] - 1;
+      }
+    }
+    return out;
+  }, [counts, unfilteredRows, rows, branchId, isRowInScope]);
+
+  const totalAll = useMemo(
+    () => (effectiveCounts ? Object.values(effectiveCounts).reduce((a, b) => a + b, 0) : undefined),
+    [effectiveCounts]
+  );
 
   if (err === 'SETUP') return <MaterialsSetupNotice />;
 
@@ -254,42 +296,68 @@ const SimCardTabComponent: React.FC<{
       {/* Top Banner Header */}
       <section className="relative overflow-hidden rounded-3xl p-6 sm:p-7 border shadow-sm bg-slate-100 border-slate-200/90" aria-label="SIM cards">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="space-y-1 max-w-3xl">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-3 text-slate-900">
-              <CreditCard className="w-7 h-7 text-[#155484]" aria-hidden />
-              <span>SIM Card Control Hub</span>
-            </h1>
+          <div className="flex items-start gap-3.5 max-w-3xl">
+            <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/90 flex items-center justify-center shadow-2xs shrink-0 mt-0.5">
+              <CreditCard className="w-5 h-5 text-[#155484]" aria-hidden />
+            </div>
+            <div className="space-y-1">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                SIM Card Control Hub
+              </h1>
+              <p className="text-sm sm:text-base leading-relaxed text-slate-600">
+                Track and manage provisioned SIM card numbers across HQ stock, branch reserves, POS Terminals, and Sound Boxes.
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {isAdmin && (
               <motion.button
+                whileHover={{ y: -1 }}
                 whileTap={WHILE_TAP_BUTTON}
                 type="button"
-                className={btnPrimary}
+                className="btn btn-secondary btn-md shadow-2xs"
                 onClick={() => setDlg('IN')}
               >
-                <PackagePlus className="w-4 h-4" />
-                Add SIMs
+                <PackagePlus className="w-4 h-4 text-[#155484]" aria-hidden />
+                <span>Add SIMs</span>
               </motion.button>
             )}
             {isAdmin && (
-              <motion.button whileTap={WHILE_TAP_BUTTON} type="button" className={btnLight} onClick={() => setDlg('ADJUST')}>
-                <PencilLine className="w-4 h-4" />
-                Correct
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={WHILE_TAP_BUTTON}
+                type="button"
+                className="btn btn-secondary btn-md shadow-2xs"
+                onClick={() => setDlg('ADJUST')}
+              >
+                <PencilLine className="w-4 h-4 text-amber-600" aria-hidden />
+                <span>Correct</span>
               </motion.button>
             )}
             <motion.button
+              whileHover={{ y: -1 }}
               whileTap={WHILE_TAP_BUTTON}
               type="button"
-              className={btnLight}
+              className="btn btn-secondary btn-md shadow-2xs"
               onClick={() => exportCsv().catch((e) => triggerToast(`Not saved: ${cleanMaterialError(e)}`))}
             >
-              <Download className="w-4 h-4" />
-              Export CSV
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" aria-hidden />
+              <span>Export CSV</span>
             </motion.button>
-            <motion.button whileTap={WHILE_TAP_BUTTON} type="button" className={btnLight} onClick={changed} aria-label="Refresh">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              Refresh
+            <motion.button
+              whileHover={{ y: -1 }}
+              whileTap={WHILE_TAP_BUTTON}
+              type="button"
+              className="group btn btn-secondary btn-md shadow-2xs"
+              onClick={changed}
+              aria-label="Refresh"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-[#155484]" aria-hidden />
+              ) : (
+                <RefreshCw className="w-4 h-4 text-slate-600 group-hover:rotate-180 transition-transform duration-300" aria-hidden />
+              )}
+              <span>Refresh</span>
             </motion.button>
           </div>
         </div>
@@ -323,7 +391,7 @@ const SimCardTabComponent: React.FC<{
               }`}>{item.step}</span>
               <span>{item.label}</span>
               <span className="tabular-nums opacity-80 ml-0.5">
-                {counts ? counts[item.status].toLocaleString() : '—'}
+                {effectiveCounts ? effectiveCounts[item.status].toLocaleString() : '—'}
               </span>
             </motion.button>
           ))}

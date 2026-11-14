@@ -693,7 +693,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
         {/* Filter & Search Bar - Compact 2-Row Layout */}
         <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/90 space-y-2">
           {/* Row 1: Search + Dropdown Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -706,21 +706,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 placeholder="Search Serial SN, Merchant, TID, Branch Code..."
                 className="w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
               />
-            </div>
-
-            <div className="relative">
-              <select
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="w-full px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-                title="Select view page (100 Row Max)"
-              >
-                <option value={50}>View: 50 Rows / Page</option>
-                <option value={100}>View: 100 Rows / Page (Max)</option>
-              </select>
             </div>
 
             <div className="relative">

@@ -195,6 +195,7 @@ export interface Branch {
   id: string;
   code: string;
   name: string;
+  region?: string;
   staff: string[];
   staffDetails?: User[];
   telegramChatId?: string;
@@ -411,6 +412,16 @@ export const DEFAULT_CUSTOM_FIELDS: CustomFieldDefinition[] = [
     description: 'Cellular network provider provisioned in the terminal or Sound Box.',
   },
   {
+    id: 'simNumber',
+    label: 'SIM Number',
+    type: 'phone',
+    placeholder: 'e.g. 096 269 1111',
+    enabled: true,
+    isSystem: false,
+    targetDeviceType: 'ALL',
+    description: 'SIM phone number / MSISDN installed in the device.',
+  },
+  {
     id: 'boothNumber',
     label: 'Floor / Booth / Stall #',
     type: 'text',
@@ -496,5 +507,30 @@ export function isCustomFieldVisibleForDevice(
     return false;
   }
   return true;
+}
+
+/**
+ * Resolves the active custom attributes for a device type, inserting default `simNumber`
+ * immediately after `simCarrier` if existing saved settings predate the `simNumber` field.
+ */
+export function resolveActiveCustomFieldsForDevice(
+  fields: CustomFieldDefinition[] | undefined,
+  deviceType: 'POS' | 'SOUND_BOX'
+): CustomFieldDefinition[] {
+  const list = fields || [];
+  const filtered = list.filter((f) => isCustomFieldVisibleForDevice(f, deviceType));
+  const hasExplicitSimNumber = list.some((f) => (f.id || '').toLowerCase() === 'simnumber');
+  if (!hasExplicitSimNumber) {
+    const carrierIdx = filtered.findIndex((f) => (f.id || '').toLowerCase() === 'simcarrier');
+    const defaultSimNumber = DEFAULT_CUSTOM_FIELDS.find((f) => f.id === 'simNumber');
+    if (carrierIdx >= 0 && defaultSimNumber) {
+      return [
+        ...filtered.slice(0, carrierIdx + 1),
+        defaultSimNumber,
+        ...filtered.slice(carrierIdx + 1),
+      ];
+    }
+  }
+  return filtered;
 }
 

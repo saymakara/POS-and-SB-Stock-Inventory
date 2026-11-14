@@ -241,12 +241,28 @@ export const TabLoading = () => (
 );
 export const loadServerAuditLogs = (limit = 50, offset = 0) => fetchAuditLogs(limit, offset);
 /** A server staff account in the shape the screens use (no password: sign-in is handled by the server). */
-export const staffToUser = (a: StaffAccount, branchName?: string): User => ({
-  uid: a.userId, empId: a.empId, name: a.name, label: `${a.name} (${a.empId})`, accessRole: a.role,
-  branchId: a.branchId, branchName: a.branchId === '100' ? 'Head Office' : branchName || `Branch ${a.branchId}`,
-  position: a.position || '', contact: a.contact || '', telegramUsername: a.telegramUsername || undefined, status: a.active ? (a.mustChangePassword ? 'Pending' : 'Operating') : 'Suspended',
-  updatedAt: (a.updatedAt || '').slice(0, 10),
-});
+export const staffToUser = (a: StaffAccount, branchName?: string): User => {
+  let location = 'Phnom Penh';
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('staff_locations_map_v1') : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && typeof parsed[a.empId] === 'string' && parsed[a.empId].trim()) {
+        location = parsed[a.empId].trim();
+      }
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return {
+    uid: a.userId, empId: a.empId, name: a.name, label: `${a.name} (${a.empId})`, accessRole: a.role,
+    branchId: a.branchId, branchName: a.branchId === '100' ? 'Head Office' : branchName || `Branch ${a.branchId}`,
+    position: a.position || '', contact: a.contact || '', telegramUsername: a.telegramUsername || undefined,
+    location,
+    status: a.active ? (a.mustChangePassword ? 'Pending' : 'Operating') : 'Suspended',
+    updatedAt: (a.updatedAt || '').slice(0, 10),
+  };
+};
 
 
 export const INITIAL_NOTIFICATIONS: SystemNotification[] = [];

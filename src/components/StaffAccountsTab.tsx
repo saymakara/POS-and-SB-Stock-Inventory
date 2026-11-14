@@ -3,10 +3,10 @@ import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useStat
 import { useSort, SortTh } from '../utils/sort';
 import { usePager } from '../utils/usePager';
 import { Pager } from './Pager';
-import { UserCog, Plus, Search, Loader2, KeyRound, ShieldCheck, RefreshCw, MapPin, CheckCircle2, Ban } from 'lucide-react';
+import { UserCog, Plus, Search, Loader2, KeyRound, ShieldCheck, RefreshCw, MapPin, CheckCircle2, Ban, Trash2, AlertTriangle, X } from 'lucide-react';
 import { Branch, UserRole } from '../types';
-import { StaffAccount, saveStaffAccount, OnlineOperatorPresence } from '../services/supabaseService';
-import { getCachedStaff, loadStaff, onStaffList } from '../services/staffCache';
+import { StaffAccount, saveStaffAccount, deleteStaffAccount, OnlineOperatorPresence } from '../services/supabaseService';
+import { getCachedStaff, loadStaff, onStaffList, setCachedStaff } from '../services/staffCache';
 import { saveStaffAlias } from '../utils/staffUtils';
 
 /**
@@ -54,7 +54,8 @@ export const StaffAccountsTab: React.FC<{
   triggerToast: (m: string) => void;
   onlineOperators?: OnlineOperatorPresence[];
   onStaffUpdated?: () => void;
-}> = ({ role, branches, triggerToast, onlineOperators = [], onStaffUpdated }) => {
+  currentEmpId?: string;
+}> = ({ role, branches, triggerToast, onlineOperators = [], onStaffUpdated, currentEmpId }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [list, setList] = useState<StaffAccount[] | null>(() => getCachedStaff());   // shown at once; the fresh list replaces it quietly
   const [locationMap, setLocationMap] = useState<Record<string, string>>(loadLocationMap);
@@ -66,6 +67,9 @@ export const StaffAccountsTab: React.FC<{
   const [busy, setBusy] = useState(false);
   const [formErr, setFormErr] = useState('');
   const [shownPassword, setShownPassword] = useState<{ emp: string; pw: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StaffAccount | null>(null);
+  const [deleteReason, setDeleteReason] = useState('Staff resigned');
+  const [deleting, setDeleting] = useState(false);
 
   const onlineByEmp = useMemo(() => {
     const m = new Map<string, OnlineOperatorPresence>();
@@ -190,6 +194,42 @@ export const StaffAccountsTab: React.FC<{
     },
     [isAdmin, canEdit, getLocation, triggerToast, load, onStaffUpdated]
   );
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    try {
+      const target = deleteTarget;
+      await deleteStaffAccount({
+        emp_id: target.empId,
+        reason: deleteReason.trim() || 'Staff resigned',
+      });
+      setList((prev) => {
+        if (!prev) return prev;
+        const next = prev.filter((item) => item.empId !== target.empId);
+        setCachedStaff(next);
+        return next;
+      });
+      setLocationMap((prev) => {
+        if (!(target.empId in prev)) return prev;
+        const next = { ...prev };
+        delete next[target.empId];
+        try { localStorage.setItem(STAFF_LOCATION_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
+      if (form && !isNew && form.emp_id === target.empId) {
+        setForm(null);
+      }
+      setDeleteTarget(null);
+      triggerToast(`Deleted user ${target.name} (${target.empId}).`);
+      if (onStaffUpdated) onStaffUpdated(); else load(true);
+    } catch (err) {
+      triggerToast(`Failed to delete user: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const save = async () => {
     if (!form) return;
     setFormErr('');
@@ -588,8 +628,17 @@ export const StaffAccountsTab: React.FC<{
                   locationLabel={getLocation(a)}
                   onlineInfo={onlineByEmp.get(String(a.empId).trim()) || onlineByEmp.get(a.name.trim().toLowerCase())}
                   editable={isAdmin && canEdit(a)}
+                  canDelete={
+                    isAdmin &&
+                    canEdit(a) &&
+                    !(currentEmpId && a.empId.trim().toLowerCase() === currentEmpId.trim().toLowerCase())
+                  }
                   onEdit={openEdit}
                   onToggleStatus={handleToggleStatus}
+                  onDelete={(acc) => {
+                    setDeleteReason('Staff resigned');
+                    setDeleteTarget(acc);
+                  }}
                 />
               ))}
               {list && shown.length === 0 && (
@@ -604,6 +653,93 @@ export const StaffAccountsTab: React.FC<{
           <Pager pg={pg} label="accounts" />
         </div>
       </div>
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-staff-title"
+        >
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 id="delete-staff-title" className="text-sm font-bold text-slate-900">
+                    Delete Staff Account
+                  </h3>
+                  <p className="text-[11px] text-slate-500">Permanent user removal</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !deleting && setDeleteTarget(null)}
+                disabled={deleting}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
+                aria-label="Close delete dialog"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 text-xs space-y-1">
+                <div className="font-bold text-slate-900 text-sm">{deleteTarget.name}</div>
+                <div className="text-slate-600">
+                  Employee ID: <span className="font-mono font-semibold text-slate-800">{deleteTarget.empId}</span>
+                </div>
+                <div className="text-slate-600">
+                  Role: <span className="font-medium text-slate-800">{ROLE_LABEL[deleteTarget.role] || deleteTarget.role}</span>
+                  {' · '}
+                  Branch: <span className="font-medium text-slate-800">{branchName(deleteTarget.branchId)}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed">
+                This permanently deletes this staff member&apos;s sign-in credentials and removes them from the Staff Directory. Historical deployments and audit trail records are preserved.
+              </p>
+
+              <div>
+                <label htmlFor="delete-staff-reason" className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Reason for deletion
+                </label>
+                <input
+                  id="delete-staff-reason"
+                  type="text"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  disabled={deleting}
+                  placeholder="Staff resigned"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400"
+                />
+              </div>
+            </div>
+
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-60 inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {deleting ? 'Deleting...' : 'Delete User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -615,8 +751,10 @@ const StaffRow = memo(function StaffRow({
   locationLabel,
   onlineInfo,
   editable,
+  canDelete,
   onEdit,
   onToggleStatus,
+  onDelete,
 }: {
   a: StaffAccount;
   no: number;
@@ -624,8 +762,10 @@ const StaffRow = memo(function StaffRow({
   locationLabel: string;
   onlineInfo?: OnlineOperatorPresence;
   editable: boolean;
+  canDelete: boolean;
   onEdit: (a: StaffAccount) => void;
   onToggleStatus: (a: StaffAccount) => void;
+  onDelete: (a: StaffAccount) => void;
 }) {
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50/80 transition-colors">
@@ -711,6 +851,17 @@ const StaffRow = memo(function StaffRow({
                 >
                   Edit
                 </button>
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(a)}
+                    title={`Delete user ${a.name} (${a.empId})`}
+                    className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 transition inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Delete
+                  </button>
+                )}
               </div>
             </>
           )}

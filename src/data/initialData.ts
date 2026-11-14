@@ -77,6 +77,7 @@ export function buildInitialBranches(users: User[]): Branch[] {
       id: b.id,
       code: b.id,
       name: b.name,
+      region: 'Phnom Penh',
       staff: Array.from(new Set(staff.length > 0 ? staff : branchUsers.map(u => u.name))),
       staffDetails: branchUsers
     };

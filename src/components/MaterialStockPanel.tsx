@@ -5,7 +5,7 @@ import {
   Boxes, Cpu, Volume2, RefreshCw, Loader2, PackagePlus, PencilLine, Upload,
   Download, Package, Battery, Dock, Smartphone, Plug, Search, Copy, Check, Building2, AlertTriangle
 } from 'lucide-react';
-import { Branch, UserRole, Device } from '../types';
+import { Branch, UserRole, Device, User } from '../types';
 import { Pager } from './Pager';
 import { usePager } from '../utils/usePager';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
@@ -20,6 +20,9 @@ import {
 import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
 import { PillMotion } from './PillMotion';
 import { ManageMaterialModal } from './ManageMaterialModal';
+import { buildPpDirectoryScope } from '../utils/fieldScope';
+import { getCachedStaff, onStaffList } from '../services/staffCache';
+import type { StaffAccount } from '../services/supabaseService';
 
 export type ProductView = 'UNITS' | 'PUSH';
 
@@ -182,15 +185,35 @@ export const ProductViewToggle: React.FC<{
   );
 };
 
+export interface HardwareSummaryMetric {
+  total: number;
+  adminStock: number;
+  branchReserve: number;
+  live: number;
+}
+
 const MaterialSummaryCardsStrip: React.FC<{
   codes: MaterialCode[];
   summaries: Partial<Record<MaterialCode, MaterialSummaryMetric>>;
   selectedCode: MaterialCode | 'ALL' | null;
   onSelectCode: (code: MaterialCode) => void;
+  hardwareSummary?: HardwareSummaryMetric;
+  isHardwareSelected?: boolean;
+  onSelectHardware?: () => void;
   lostCount?: number;
   onOpenLostMaterials?: () => void;
-}> = ({ codes, summaries, selectedCode, onSelectCode, lostCount = 0, onOpenLostMaterials }) => (
-  <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/90 space-y-2">
+}> = ({
+  codes,
+  summaries,
+  selectedCode,
+  onSelectCode,
+  hardwareSummary,
+  isHardwareSelected = false,
+  onSelectHardware,
+  lostCount = 0,
+  onOpenLostMaterials,
+}) => (
+  <div className="px-4 py-3 bg-slate-50/70 border-b border-slate-200/90 space-y-2.5">
     {lostCount > 0 && onOpenLostMaterials && (
       <div className="flex items-center justify-end">
         <button
@@ -203,7 +226,53 @@ const MaterialSummaryCardsStrip: React.FC<{
         </button>
       </div>
     )}
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${hardwareSummary ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+      {hardwareSummary && (
+        <button
+          type="button"
+          onClick={onSelectHardware}
+          className={`flex flex-col justify-between text-left p-4 rounded-xl border transition-all active:scale-[0.985] ${
+            onSelectHardware ? 'cursor-pointer' : 'cursor-default'
+          } ${
+            isHardwareSelected
+              ? 'bg-white border-[#155484] ring-1 ring-[#155484]/30 shadow-xs'
+              : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-sky-50 text-[#155484]">
+                <Cpu className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-bold text-slate-800 truncate">POS Terminal</span>
+            </div>
+            {isHardwareSelected && (
+              <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#155484] text-white shrink-0">
+                Active
+              </span>
+            )}
+          </div>
+
+          <div className="mt-3 flex items-baseline justify-between gap-2">
+            <span className="text-2xl font-extrabold font-mono text-slate-900 tabular-nums leading-none">
+              {hardwareSummary.total.toLocaleString()}
+            </span>
+            <span className="text-[11px] text-slate-500 font-normal">Units</span>
+          </div>
+
+          <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-3 gap-1 text-[11px] text-slate-600 font-normal">
+            <span title="Admin HQ Stock" className="truncate">
+              In Stock: <span className="font-semibold text-[#003857]">{hardwareSummary.adminStock.toLocaleString()}</span>
+            </span>
+            <span title="Branch Reserve" className="truncate text-center">
+              Reserve: <span className="font-semibold text-sky-700">{hardwareSummary.branchReserve.toLocaleString()}</span>
+            </span>
+            <span title="Installed Live / Configuring" className="truncate text-right">
+              Live: <span className="font-semibold text-emerald-700">{hardwareSummary.live.toLocaleString()}</span>
+            </span>
+          </div>
+        </button>
+      )}
       {codes.map((c) => {
         const summary = summaries[c] || { total: 0, adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0 };
         const isSelected = selectedCode === c;
@@ -214,40 +283,40 @@ const MaterialSummaryCardsStrip: React.FC<{
             key={c}
             type="button"
             onClick={() => onSelectCode(c)}
-            className={`flex flex-col text-left px-3 py-2 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
+            className={`flex flex-col justify-between text-left p-4 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
               isSelected
                 ? 'bg-white border-[#155484] ring-1 ring-[#155484]/30 shadow-xs'
                 : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
             }`}
           >
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+              <div className="flex items-center gap-2 min-w-0">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                   c === 'BATTERY' ? 'bg-amber-50 text-amber-700' :
                   c === 'STAND' ? 'bg-indigo-50 text-indigo-700' :
                   c === 'DOCK' ? 'bg-sky-50 text-sky-700' :
                   c === 'SB_ADAPTOR' ? 'bg-purple-50 text-purple-700' :
                   'bg-slate-100 text-slate-700'
                 }`}>
-                  <IconComp className="w-3.5 h-3.5" />
+                  <IconComp className="w-4 h-4" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 truncate">{materialName(c)}</span>
               </div>
-              <div className="flex items-baseline gap-1.5 shrink-0">
-                <span className="text-base font-extrabold font-mono text-slate-900 tabular-nums leading-none">
-                  {summary.total.toLocaleString()}
+              {isSelected && (
+                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#155484] text-white shrink-0">
+                  Active
                 </span>
-                {isSelected ? (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#155484] text-white leading-none">
-                    Active
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-slate-400 font-normal">Controlled</span>
-                )}
-              </div>
+              )}
             </div>
 
-            <div className="mt-1.5 pt-1.5 border-t border-slate-100 grid grid-cols-3 gap-1 text-[10.5px] text-slate-600 font-normal">
+            <div className="mt-3 flex items-baseline justify-between gap-2">
+              <span className="text-2xl font-extrabold font-mono text-slate-900 tabular-nums leading-none">
+                {summary.total.toLocaleString()}
+              </span>
+              <span className="text-[11px] text-slate-500 font-normal">Controlled</span>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-3 gap-1 text-[11px] text-slate-600 font-normal">
               <span title="Available In Stock (Head Office)" className="truncate">
                 In Stock: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
               </span>
@@ -283,6 +352,9 @@ const ProductStockPageComponent: React.FC<{
   onViewChange: (v: ProductView) => void;
   onLostChanged?: () => void;
   devices?: Device[];
+  users?: User[];
+  excludedSerials?: Set<string>;
+  hardwareSummary?: HardwareSummaryMetric;
   pipelineBar?: React.ReactNode;
   kpiCards?: React.ReactNode;
 }> = ({
@@ -300,6 +372,9 @@ const ProductStockPageComponent: React.FC<{
   onViewChange,
   onLostChanged,
   devices = [],
+  users = [],
+  excludedSerials,
+  hardwareSummary,
   pipelineBar,
   kpiCards,
 }) => {
@@ -382,11 +457,26 @@ const ProductStockPageComponent: React.FC<{
     </select>
   );
 
+  const computedHardwareSummary = useMemo<HardwareSummaryMetric | undefined>(() => {
+    if (group !== 'POS') return undefined;
+    if (hardwareSummary) return hardwareSummary;
+    const pos = devices.filter((d) => !d.archived && d.type === 'POS Terminal');
+    return {
+      total: pos.length,
+      adminStock: pos.filter((d) => d.stage === 'HQ_STOCK').length,
+      branchReserve: pos.filter((d) => d.stage === 'BRANCH_RESERVE').length,
+      live: pos.filter((d) => d.stage === 'COMPLETE' || d.stage === 'CONFIGURING').length,
+    };
+  }, [group, hardwareSummary, devices]);
+
   const materialSummaryStrip = group === 'POS' ? (
     <MaterialSummaryCardsStrip
       codes={matsForGroup.map((m) => m.code)}
       summaries={materialSnap.summaries}
       selectedCode={unitsScope === 'MATERIAL' ? selectedMaterialCode : null}
+      hardwareSummary={computedHardwareSummary}
+      isHardwareSelected={unitsScope === 'HARDWARE'}
+      onSelectHardware={() => React.startTransition(() => setUnitsScope('HARDWARE'))}
       lostCount={lostCount}
       onOpenLostMaterials={() =>
         React.startTransition(() => {
@@ -419,10 +509,13 @@ const ProductStockPageComponent: React.FC<{
             triggerToast={triggerToast}
             onLostChanged={onLostChanged}
             devices={devices}
+            users={users}
+            excludedSerials={excludedSerials}
             viewToggle={viewToggle}
             selectedCode={selectedMaterialCode}
             onSelectedCodeChange={setSelectedMaterialCode}
             onSwitchToUnits={() => React.startTransition(() => setUnitsScope('HARDWARE'))}
+            hardwareSummary={computedHardwareSummary}
             onSummariesChange={handleSummariesChange}
           />
         </div>
@@ -528,17 +621,26 @@ const MaterialStockPanelComponent: React.FC<{
   triggerToast: (m: string) => void;
   onLostChanged?: () => void;
   devices?: Device[];
+  users?: User[];
+  excludedSerials?: Set<string>;
   hideHero?: boolean;
   viewToggle?: React.ReactNode;
   selectedCode?: MaterialCode | 'ALL';
   onSelectedCodeChange?: (code: MaterialCode | 'ALL') => void;
   onSwitchToUnits?: () => void;
+  hardwareSummary?: HardwareSummaryMetric;
   onSummariesChange?: (summaries: Partial<Record<MaterialCode, MaterialSummaryMetric>>, totalCount: number) => void;
 }> = ({
-  group, role, branches, myBranch, triggerToast, onLostChanged, devices = [], viewToggle,
-  selectedCode: selectedCodeProp, onSelectedCodeChange, onSwitchToUnits, onSummariesChange,
+  group, role, branches, myBranch, triggerToast, onLostChanged, devices = [], users = [], excludedSerials, viewToggle,
+  selectedCode: selectedCodeProp, onSelectedCodeChange, onSwitchToUnits, hardwareSummary, onSummariesChange,
 }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
+  useEffect(() => onStaffList(setCachedStaff), []);
+  const ppScope = useMemo(
+    () => buildPpDirectoryScope(branches, users, cachedStaff),
+    [branches, users, cachedStaff]
+  );
   const mats = useMemo(() => productMaterials(group), [group]);
   const codes = useMemo(() => mats.map((m) => m.code), [mats]);
 
@@ -847,6 +949,8 @@ const MaterialStockPanelComponent: React.FC<{
 
     for (let i = 0; i < rawDb.length; i++) {
       const r = rawDb[i];
+      if (!ppScope.isBranchInScope(r.branchId)) continue;
+      if (r.deviceSerial && excludedSerials?.has(r.deviceSerial.toUpperCase())) continue;
       const dev = r.deviceSerial ? deviceMap.get(r.deviceSerial.toUpperCase()) : undefined;
       const normStatus = effectiveMaterialStatus(r, dev);
       seen.add(`${r.code}|${r.serial.toUpperCase()}`);
@@ -888,7 +992,7 @@ const MaterialStockPanelComponent: React.FC<{
         (branchNameMap.get(r.branchId) || placeName(r.branchId, branches)).toLowerCase().includes(sLow)
       );
     });
-  }, [dbSerials, deviceDerivedItems, selectedCode, statusFilter, branchFilter, assignmentFilter, search, deviceMap, branches, branchNameMap]);
+  }, [dbSerials, deviceDerivedItems, selectedCode, statusFilter, branchFilter, assignmentFilter, search, deviceMap, branches, branchNameMap, ppScope, excludedSerials]);
 
   // Executive summary metrics per controlled material (Admin Stock, Branch Reserve, At Merchant)
   const materialSummaries = useMemo(() => {
@@ -911,9 +1015,10 @@ const MaterialStockPanelComponent: React.FC<{
       SIM: { code: 'SIM', name: 'SIM Card', adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0, lost: 0, total: 0 },
     };
 
-    // 1. Accumulate balances from DB material_balances
+    // 1. Accumulate balances from DB material_balances (scoped to Phnom Penh branches)
     for (let i = 0; i < balances.length; i++) {
       const b = balances[i];
+      if (b.branchId !== '100' && !ppScope.isBranchInScope(b.branchId)) continue;
       if (map[b.code]) {
         if (!branchFilter || b.branchId === branchFilter) {
           if (b.branchId === '100') {
@@ -955,7 +1060,7 @@ const MaterialStockPanelComponent: React.FC<{
     }
 
     return map;
-  }, [balances, deviceDerivedItems, branchFilter]);
+  }, [balances, deviceDerivedItems, branchFilter, ppScope]);
 
   // Branch Stock Balances matrix rows
   interface BranchBalanceRow {
@@ -1325,20 +1430,6 @@ const MaterialStockPanelComponent: React.FC<{
               })}
             </select>
 
-            <select
-              value={pg.pageSize}
-              onChange={(e) => {
-                const sz = Number(e.target.value);
-                pg.setPageSize(sz);
-                balPg.setPageSize(sz);
-              }}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-              title="Select view page (100 Row Max)"
-            >
-              <option value={50}>50 / page</option>
-              <option value={100}>100 / page</option>
-            </select>
-
             <div
               className="relative inline-flex p-0.5 rounded-xl bg-slate-200/70 border border-slate-200/90 select-none gap-0.5"
               role="group"
@@ -1473,6 +1564,9 @@ const MaterialStockPanelComponent: React.FC<{
             codes={codes}
             summaries={materialSummaries}
             selectedCode={selectedCode}
+            hardwareSummary={hardwareSummary}
+            isHardwareSelected={false}
+            onSelectHardware={onSwitchToUnits}
             onSelectCode={(c) => React.startTransition(() => setSelectedCode(selectedCode === c ? 'ALL' : c))}
           />
         )}

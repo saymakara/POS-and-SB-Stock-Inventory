@@ -441,7 +441,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               {isAdminLike
-                ? 'All Branch Codes · Figures are computed from the current stock records'
+                ? 'Phnom Penh & Staff Directory · Figures are computed from scoped stock records'
                 : `Branch Code ${selectedBranch} · Merchant installations, reserves and serial lifecycles from the current stock records`}
             </p>
           </div>

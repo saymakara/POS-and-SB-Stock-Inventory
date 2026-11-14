@@ -2391,6 +2391,25 @@ export async function saveStaffAccount(p: {
   }
 }
 
+export async function deleteStaffAccount(p: {
+  emp_id: string;
+  reason?: string;
+}): Promise<{ deleted: boolean; emp_id: string; name?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('admin_delete_staff', { p });
+    if (error) {
+      if (/could not find the function|admin_delete_staff/i.test(error.message || '')) {
+        throw new Error('Database migration required: apply 20261114_01_admin_delete_staff.sql in Supabase SQL Editor.');
+      }
+      throw error;
+    }
+    return data || { deleted: true, emp_id: p.emp_id };
+  } catch (err) {
+    await reportCaughtError('deleteStaffAccount', err, { target: p.emp_id });
+    throw new Error(err instanceof Error ? err.message : String((err as any)?.message || err));
+  }
+}
+
 export async function fetchBranchesFromSupabase(
   limit = 500,
   offset = 0

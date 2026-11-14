@@ -1,4 +1,5 @@
-import type { Branch } from '../types';
+import type { Branch, Device, HistoricalMerchantRecord, Requisition, User } from '../types';
+import { extractEmpIdFromName, getStaffAliases, normalizeStaffName } from './staffUtils';
 
 export type FieldScope = 'PHNOM_PENH' | 'ALL';
 
@@ -107,4 +108,252 @@ export function countPendingFieldEventsScoped(
     else pos++;
   }
   return { pos, sb };
+}
+
+/** True when a branch belongs to Phnom Penh (never Provincial / 2xx-7xx branches). */
+export function isPhnomPenhBranch(b: Pick<Branch, 'id' | 'code' | 'name' | 'region'>): boolean {
+  const region = String(b.region || '').trim();
+  if (region) return /phnom\s*penh|head\s*office/i.test(region);
+  const code = String(b.code || b.id || '').trim();
+  const name = String(b.name || '').trim();
+  if (/^[2-7]\d{2}$/.test(code) || REGIONAL_KEYWORD_REGEX.test(name)) return false;
+  return PHNOM_PENH_BRANCH_CODES.has(code) || PHNOM_PENH_NAME_REGEX.test(name);
+}
+
+/** True when a Staff Directory user is based in Phnom Penh (default when location is unset). */
+export function isUserInPhnomPenh(u: Pick<User, 'location'>): boolean {
+  const loc = String(u.location || '').trim();
+  return !loc || /phnom\s*penh|head\s*office/i.test(loc);
+}
+
+/**
+ * Branch Control scope: Phnom Penh branches only, following active Staff Directory users
+ * (or retaining any Phnom Penh branch that currently holds active hardware units).
+ */
+export function getControlledBranches(
+  branches: Branch[],
+  users: User[],
+  devices: Pick<Device, 'branchId' | 'archived'>[] = []
+): Branch[] {
+  const staffBranches = new Set<string>();
+  for (const u of users) {
+    if (u.status === 'Suspended' || !isUserInPhnomPenh(u)) continue;
+    const bId = String(u.branchId || '').trim();
+    if (bId) staffBranches.add(bId);
+  }
+
+  const deviceBranches = new Set<string>();
+  for (const d of devices) {
+    if (d.archived) continue;
+    const bId = String(d.branchId || '').trim();
+    if (bId) deviceBranches.add(bId);
+  }
+
+  const hasDirectoryUsers = users.length > 0;
+  return branches.filter((b) => {
+    if (!isPhnomPenhBranch(b)) return false;
+    const code = String(b.code || '').trim();
+    const id = String(b.id || '').trim();
+    if ((code && deviceBranches.has(code)) || (id && deviceBranches.has(id))) return true;
+    if (hasDirectoryUsers) {
+      return (code && staffBranches.has(code)) || (id && staffBranches.has(id));
+    }
+    return (b.staff || []).length > 0;
+  });
+}
+
+export const STAFF_LOCATION_KEY = 'staff_locations_map_v1';
+
+export function loadStaffLocationOverrides(): Record<string, string> {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(STAFF_LOCATION_KEY) : null;
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export interface DirectoryStaffLike {
+  empId: string;
+  name: string;
+  branchId: string;
+  location?: string | null;
+  active?: boolean;
+}
+
+const SYSTEM_PLACEHOLDER_STAFF_RE =
+  /^(?:-|—|unassigned|n\/?a|none|null|unknown|system|system\s*admin|admin|hq|head\s*office|branch\s*staff|assigned\s*branch\s*staff|staff)$/i;
+
+export function isSystemPlaceholderStaff(raw?: string | null): boolean {
+  const s = String(raw || '').trim();
+  return !s || SYSTEM_PLACEHOLDER_STAFF_RE.test(s);
+}
+
+export interface PpDirectoryScope {
+  hasDirectory: boolean;
+  eligibleEmpIds: Set<string>;
+  eligibleNames: Set<string>;
+  isBranchInScope: (branchId?: string | null, branchName?: string | null) => boolean;
+  isStaffInScope: (rawStaff?: string | null, staffId?: string | null) => boolean;
+  isDeviceInScope: (
+    d: Pick<Device, 'branchId' | 'branchName' | 'stage' | 'staff' | 'installedByStaff'>
+  ) => boolean;
+  isHistoryRecordInScope: (
+    r: Pick<HistoricalMerchantRecord, 'branchId' | 'branchName' | 'installedByStaff' | 'handledByStaff' | 'returnedByStaff'>
+  ) => boolean;
+  isRequisitionInScope: (r: Pick<Requisition, 'branchId' | 'branchName' | 'staff'>) => boolean;
+}
+
+/**
+ * Shared Phnom Penh + Active Staff Directory scope for all non–Phone App Review screens
+ * (Dashboard, KPI Performance, Merchant Deployment, Merchant History, Stock Inventory, SIM Cards,
+ * Stock Requests, Branch Codes). Phone App Review deliberately stays independent.
+ */
+export function buildPpDirectoryScope(
+  branches: Branch[],
+  users: User[],
+  cachedStaff?: DirectoryStaffLike[] | null
+): PpDirectoryScope {
+  const branchById = new Map<string, Branch>();
+  branches.forEach((b) => {
+    if (b.id) branchById.set(String(b.id).trim(), b);
+    if (b.code) branchById.set(String(b.code).trim(), b);
+  });
+
+  const isBranchInScope = (branchId?: string | null, branchName?: string | null): boolean => {
+    const id = String(branchId || '').trim();
+    const name = String(branchName || '').trim();
+    if (!id && !name) return true;
+    const brObj = id ? branchById.get(id) : undefined;
+    if (brObj) return isPhnomPenhBranch(brObj);
+    return isPhnomPenhBranch({ id, code: id, name });
+  };
+
+  const locOverrides = loadStaffLocationOverrides();
+  const eligibleEmpIds = new Set<string>();
+  const eligibleNames = new Set<string>();
+
+  const registerIfEligible = (
+    empIdRaw: string | null | undefined,
+    nameRaw: string | null | undefined,
+    branchIdRaw: string | null | undefined,
+    locationRaw: string | null | undefined,
+    active: boolean
+  ) => {
+    if (!active) return;
+    const empId = String(empIdRaw || '').trim();
+    const name = String(nameRaw || '').trim();
+    const branchId = String(branchIdRaw || '').trim();
+    if (!empId && !name) return;
+
+    const loc = String((empId && locOverrides[empId]) || locationRaw || 'Phnom Penh').trim();
+    if (loc && !/phnom\s*penh|head\s*office/i.test(loc)) return;
+    if (branchId && !isBranchInScope(branchId, '')) return;
+
+    if (empId) {
+      eligibleEmpIds.add(empId);
+      eligibleEmpIds.add(empId.toLowerCase());
+    }
+    if (name) {
+      eligibleNames.add(name.toLowerCase());
+      const norm = normalizeStaffName(name).toLowerCase();
+      if (norm) eligibleNames.add(norm);
+    }
+  };
+
+  const hasCached = Boolean(cachedStaff && cachedStaff.length > 0);
+  const hasUsers = Boolean(users && users.length > 0);
+  if (hasCached) {
+    cachedStaff!.forEach((a) =>
+      registerIfEligible(a.empId, a.name, a.branchId, a.location, a.active !== false)
+    );
+  } else if (hasUsers) {
+    users.forEach((u) =>
+      registerIfEligible(u.empId || u.uid, u.name, u.branchId, u.location, u.status !== 'Suspended')
+    );
+  }
+
+  const hasDirectory = hasCached || hasUsers;
+  const aliases = getStaffAliases();
+
+  const isStaffInScope = (rawStaff?: string | null, staffId?: string | null): boolean => {
+    const idTrim = String(staffId || '').trim();
+    const rawTrim = String(rawStaff || '').trim();
+    const idActive = !isSystemPlaceholderStaff(idTrim) ? idTrim : '';
+    const rawActive = !isSystemPlaceholderStaff(rawTrim) ? rawTrim : '';
+    if (!idActive && !rawActive) return true;
+
+    if (!hasDirectory) {
+      return !REGIONAL_KEYWORD_REGEX.test(`${idActive} ${rawActive}`);
+    }
+
+    const embeddedId = rawActive ? extractEmpIdFromName(rawActive) : undefined;
+    const norm = rawActive ? normalizeStaffName(rawActive) : '';
+    if (idActive && (eligibleEmpIds.has(idActive) || eligibleEmpIds.has(idActive.toLowerCase()))) {
+      return true;
+    }
+    if (embeddedId && (eligibleEmpIds.has(embeddedId) || eligibleEmpIds.has(embeddedId.toLowerCase()))) {
+      return true;
+    }
+    if (norm && eligibleEmpIds.has(norm.toLowerCase())) {
+      return true;
+    }
+    if (rawActive && eligibleNames.has(rawActive.toLowerCase())) {
+      return true;
+    }
+    if (norm && eligibleNames.has(norm.toLowerCase())) {
+      return true;
+    }
+    const aliasName =
+      (rawActive && aliases[rawActive.toLowerCase()]) ||
+      (norm && aliases[norm.toLowerCase()]) ||
+      '';
+    if (aliasName && eligibleNames.has(normalizeStaffName(aliasName).toLowerCase())) {
+      return true;
+    }
+    return false;
+  };
+
+  const isDeviceInScope = (
+    d: Pick<Device, 'branchId' | 'branchName' | 'stage' | 'staff' | 'installedByStaff'>
+  ): boolean => {
+    if (d.branchId && !isBranchInScope(d.branchId, d.branchName)) return false;
+    const owner = !isSystemPlaceholderStaff(d.staff) ? d.staff : d.installedByStaff;
+    if (!isSystemPlaceholderStaff(owner) && !isStaffInScope(owner)) return false;
+    return true;
+  };
+
+  const isHistoryRecordInScope = (
+    r: Pick<HistoricalMerchantRecord, 'branchId' | 'branchName' | 'installedByStaff' | 'handledByStaff' | 'returnedByStaff'>
+  ): boolean => {
+    if (r.branchId && !isBranchInScope(r.branchId, r.branchName)) return false;
+    const owner = !isSystemPlaceholderStaff(r.installedByStaff)
+      ? r.installedByStaff
+      : !isSystemPlaceholderStaff(r.handledByStaff)
+      ? r.handledByStaff
+      : r.returnedByStaff;
+    if (!isSystemPlaceholderStaff(owner) && !isStaffInScope(owner)) return false;
+    return true;
+  };
+
+  const isRequisitionInScope = (
+    r: Pick<Requisition, 'branchId' | 'branchName' | 'staff'>
+  ): boolean => {
+    if (r.branchId && !isBranchInScope(r.branchId, r.branchName)) return false;
+    if (!isSystemPlaceholderStaff(r.staff) && !isStaffInScope(r.staff)) return false;
+    return true;
+  };
+
+  return {
+    hasDirectory,
+    eligibleEmpIds,
+    eligibleNames,
+    isBranchInScope,
+    isStaffInScope,
+    isDeviceInScope,
+    isHistoryRecordInScope,
+    isRequisitionInScope,
+  };
 }
