@@ -21,9 +21,9 @@ const STATUS_TONE: Record<SerialStatus, string> = {
   FAULTY: 'bg-amber-50 text-amber-800 border-amber-100',
   WRITTEN_OFF: 'bg-slate-100 text-slate-600 border-slate-200',
 };
-export const StatusPill: React.FC<{ status: SerialStatus; extra?: string }> = ({ status, extra }) => (
+export const StatusPill: React.FC<{ status: SerialStatus; extra?: string; label?: string }> = ({ status, extra, label }) => (
   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${STATUS_TONE[status]}`}>
-    {SERIAL_STATUS_LABEL[status]}{extra ? ` · ${extra}` : ''}
+    {label || SERIAL_STATUS_LABEL[status]}{extra ? ` · ${extra}` : ''}
   </span>
 );
 export const Pill: React.FC<{ tone: 'good' | 'warn' | 'bad' | 'info' | 'mute'; children: React.ReactNode }> = ({ tone, children }) => {

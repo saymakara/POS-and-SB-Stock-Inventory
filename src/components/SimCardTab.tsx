@@ -27,7 +27,21 @@ import { PillMotion } from './PillMotion';
  * eliminating redundant empty product columns from the table.
  */
 const SIM_CODES: ['SIM'] = ['SIM'];
-const STATUSES: SerialStatus[] = ['HQ_STOCK', 'IN_TRANSIT', 'BRANCH_RESERVE', 'AT_MERCHANT', 'LOST', 'WRITTEN_OFF'];
+const PRIMARY_SIM_STEPS: { status: SerialStatus; step: string; label: string }[] = [
+  { status: 'HQ_STOCK', step: '1', label: 'Available In Stock' },
+  { status: 'BRANCH_RESERVE', step: '2', label: 'Branch Reserve' },
+  { status: 'AT_MERCHANT', step: '3', label: 'Bundled (Serial & MID)' },
+];
+const SECONDARY_SIM_STATUSES: SerialStatus[] = ['IN_TRANSIT', 'LOST', 'WRITTEN_OFF'];
+const SIM_STATUS_DISPLAY: Record<SerialStatus, string> = {
+  HQ_STOCK: 'Available In Stock',
+  IN_TRANSIT: 'In Transit',
+  BRANCH_RESERVE: 'Branch Reserve',
+  AT_MERCHANT: 'Bundled Live',
+  LOST: 'Lost',
+  FAULTY: 'Faulty',
+  WRITTEN_OFF: 'Written Off',
+};
 export type HardwareFilter = 'ALL' | 'POS' | 'SOUND_BOX' | 'UNASSIGNED';
 
 const EmptyDash: React.FC = () => (
@@ -247,7 +261,7 @@ const SimCardTabComponent: React.FC<{
               <span>SIM Card Control Hub</span>
             </h1>
             <p className="text-sm sm:text-base text-slate-600">
-              Cellular connectivity for POS Terminals and Sound Boxes: Head Office stock, in transit, branch reserve, and active merchant deployments.
+              3-step SIM lifecycle: <strong className="font-semibold text-slate-800">1. Available In Stock (HQ)</strong> &rarr; <strong className="font-semibold text-slate-800">2. Under Branch Reserve</strong> &rarr; <strong className="font-semibold text-slate-800">3. Bundled with Device (Serial &amp; MID)</strong>. A SIM never goes live alone — it always follows its paired device.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -284,8 +298,8 @@ const SimCardTabComponent: React.FC<{
           </div>
         </div>
 
-        {/* Status Filter Pills */}
-        <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-slate-200/90" role="group" aria-label="Status">
+        {/* 3-Step Lifecycle & Status Filter Pills */}
+        <div className="flex flex-wrap items-center gap-2 mt-5 pt-5 border-t border-slate-200/90" role="group" aria-label="Status">
           <motion.button
             whileTap={WHILE_TAP_BUTTON}
             type="button"
@@ -297,18 +311,39 @@ const SimCardTabComponent: React.FC<{
           >
             All <span className="tabular-nums opacity-80 ml-1">{totalAll?.toLocaleString() ?? '—'}</span>
           </motion.button>
-          {STATUSES.map((s) => (
+          {PRIMARY_SIM_STEPS.map((item) => (
+            <motion.button
+              key={item.status}
+              whileTap={WHILE_TAP_BUTTON}
+              type="button"
+              onClick={() => setStatus(item.status)}
+              aria-pressed={status === item.status}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition inline-flex items-center gap-1.5 ${
+                status === item.status ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full text-[10px] inline-flex items-center justify-center font-bold ${
+                status === item.status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }`}>{item.step}</span>
+              <span>{item.label}</span>
+              <span className="tabular-nums opacity-80 ml-0.5">
+                {counts ? counts[item.status].toLocaleString() : '—'}
+              </span>
+            </motion.button>
+          ))}
+          <span className="hidden sm:inline-block h-4 w-px bg-slate-300 mx-0.5" aria-hidden />
+          {SECONDARY_SIM_STATUSES.map((s) => (
             <motion.button
               key={s}
               whileTap={WHILE_TAP_BUTTON}
               type="button"
               onClick={() => setStatus(s)}
               aria-pressed={status === s}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition ${
-                status === s ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition ${
+                status === s ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-slate-50'
               }`}
             >
-              {SERIAL_STATUS_LABEL[s]}{' '}
+              {SIM_STATUS_DISPLAY[s]}{' '}
               <span className="tabular-nums opacity-80 ml-1">
                 {counts ? counts[s].toLocaleString() : '—'}
               </span>
@@ -366,7 +401,7 @@ const SimCardTabComponent: React.FC<{
             })}
           </div>
           <p className="text-xs text-slate-500 italic hidden sm:block">
-            SIM cards provide cellular service to either POS or Sound Box depending on merchant requirement
+            SIM cards never go live alone — they always follow their paired POS Terminal or Sound Box
           </p>
         </div>
       </section>
@@ -509,7 +544,7 @@ const SimCardTabComponent: React.FC<{
                     </td>
                     <td className="px-2.5 py-2.5 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
-                        <StatusPill status={s.status} />
+                        <StatusPill status={s.status} label={SIM_STATUS_DISPLAY[s.status]} />
                         {s.blocked && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
                             Blocked

@@ -4,7 +4,7 @@ import { DRAWER_VARIANTS, BACKDROP_VARIANTS, WHILE_TAP_BUTTON } from '../utils/a
 import {
   CreditCard, X, Check, Copy, ArrowRight, ArrowLeft, RefreshCw,
   Cpu, Volume2, AlertTriangle, Layers, Building2,
-  UserCheck, Store, Radio, Smartphone, AlertCircle, Sparkles,
+  Radio, Smartphone, AlertCircle, Sparkles,
   Pencil, ChevronDown
 } from 'lucide-react';
 import { PillMotion } from './PillMotion';
@@ -36,21 +36,32 @@ export interface ManageSimModalProps {
   }) => Promise<void>;
 }
 
-const LIFECYCLE_OPTIONS: { value: SerialStatus; label: string; desc: string }[] = [
-  { value: 'HQ_STOCK', label: 'HQ Stock (Central Warehouse)', desc: 'Stored at Head Office central depot (Branch 100)' },
-  { value: 'BRANCH_RESERVE', label: 'Branch Reserve', desc: 'Ready on branch shelf for merchant deployment' },
-  { value: 'AT_MERCHANT', label: 'At Merchant (Live Deployment)', desc: 'Active in a merchant store paired with hardware' },
-  { value: 'IN_TRANSIT', label: 'In Transit', desc: 'En route between Head Office and branch' },
-  { value: 'LOST', label: 'Lost / Missing', desc: 'Reported lost or missing from store/branch' },
-  { value: 'WRITTEN_OFF', label: 'Written Off', desc: 'Permanently decommissioned or retired' },
+const SIM_PRIMARY_STEPS: { value: SerialStatus; step: string; title: string; subtitle: string }[] = [
+  { value: 'HQ_STOCK', step: '1', title: 'Available In Stock', subtitle: 'Head Office (100)' },
+  { value: 'BRANCH_RESERVE', step: '2', title: 'Branch Reserve', subtitle: 'Ready on branch shelf' },
+  { value: 'AT_MERCHANT', step: '3', title: 'Bundled with Device', subtitle: 'Follows Serial & MID' },
 ];
+const SIM_OTHER_STATUSES: { value: SerialStatus; label: string }[] = [
+  { value: 'IN_TRANSIT', label: 'In Transit' },
+  { value: 'LOST', label: 'Lost / Missing' },
+  { value: 'WRITTEN_OFF', label: 'Written Off' },
+];
+const SIM_STEP_LABEL: Record<SerialStatus, string> = {
+  HQ_STOCK: 'Available In Stock',
+  BRANCH_RESERVE: 'Branch Reserve',
+  AT_MERCHANT: 'Bundled with Device (Live)',
+  IN_TRANSIT: 'In Transit',
+  LOST: 'Lost / Missing',
+  FAULTY: 'Faulty',
+  WRITTEN_OFF: 'Written Off',
+};
 
 const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
   sim,
   isOpen,
   onClose,
   branches,
-  users = [],
+  users: _users = [],
   devices = [],
   role,
   myBranch,
@@ -140,13 +151,6 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
     return list;
   }, [eligibleDevices, assignedDevice]);
 
-  // Filter branch users for datalist
-  const branchUsers = useMemo(() => {
-    return users
-      .filter((u) => !branchId || branchId === '100' || u.branchId === branchId)
-      .slice(0, 100);
-  }, [users, branchId]);
-
   // Initialize state when modal opens with a SIM
   useEffect(() => {
     if (sim && isOpen) {
@@ -172,11 +176,41 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
     }
   }, [sim, isOpen, deviceBySerialMap, isAdmin, myBranch]);
 
+  const handleSelectStep = (nextStatus: SerialStatus) => {
+    setErrorMsg('');
+    setStatus(nextStatus);
+    if (nextStatus === 'HQ_STOCK') {
+      setBranchId('100');
+      setAssignedDeviceSerial('');
+      setMerchantName('');
+      setMid('');
+      setTid('');
+      setStaff('');
+      setDeployedDate('');
+    } else if (nextStatus === 'BRANCH_RESERVE') {
+      if (branchId === '100' && myBranch && myBranch !== '100') {
+        setBranchId(myBranch);
+      }
+      setAssignedDeviceSerial('');
+      setMerchantName('');
+      setMid('');
+      setTid('');
+      setStaff('');
+      setDeployedDate('');
+    } else if (nextStatus === 'LOST') {
+      setBlockedWithCarrier(true);
+    }
+  };
+
   // When a user selects a device from dropdown, dynamically populate merchant and branch details
   const handleSelectDevice = (devSerial: string) => {
     setAssignedDeviceSerial(devSerial);
     if (!devSerial) {
-      // Unassigned
+      setMerchantName('');
+      setMid('');
+      setTid('');
+      setStaff('');
+      setDeployedDate('');
       if (status === 'AT_MERCHANT') {
         setStatus('BRANCH_RESERVE');
       }
@@ -186,16 +220,13 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
     const dev = deviceBySerialMap.get(devSerial.toUpperCase());
     if (dev) {
       if (dev.branchId) setBranchId(dev.branchId);
-      if (dev.merchantName) setMerchantName(dev.merchantName);
-      if (dev.mid) setMid(dev.mid);
-      if (dev.tid) setTid(dev.tid);
-      if (dev.staff || dev.installedByStaff) setStaff(dev.staff || dev.installedByStaff || '');
-      if (dev.deployedDate) setDeployedDate(dev.deployedDate);
-
-      // Automatically upgrade status to AT_MERCHANT if device is active/complete or configuring
-      if (dev.stage === 'COMPLETE' || dev.stage === 'CONFIGURING' || dev.mid) {
-        setStatus('AT_MERCHANT');
-      }
+      setMerchantName(dev.merchantName || '');
+      setMid(dev.mid || '');
+      setTid(dev.tid || '');
+      setStaff(dev.staff || dev.installedByStaff || '');
+      setDeployedDate(dev.deployedDate || '');
+      // A SIM paired with a device always follows the device
+      setStatus('AT_MERCHANT');
     }
   };
 
@@ -246,7 +277,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
   const handleProceedToReview = (e: React.FormEvent) => {
     e.preventDefault();
     if (status === 'AT_MERCHANT' && !assignedDeviceSerial) {
-      setErrorMsg('Choose the unit (POS Terminal / Sound Box) this SIM is in: a SIM at a merchant goes into that merchant\'s kit.');
+      setErrorMsg('SIM cards cannot go live alone. Select a POS Terminal or Sound Box (Serial & MID) to bundle this SIM with.');
       return;
     }
     if ((status === 'LOST' || status === 'WRITTEN_OFF') && status !== sim?.status && note.trim().length < 3) {
@@ -349,7 +380,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                       SIM Card
                     </span>
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/12 text-slate-100 border border-white/10">
-                      {SERIAL_STATUS_LABEL[status]}
+                      {SIM_STEP_LABEL[status] || SERIAL_STATUS_LABEL[status]}
                     </span>
                   </div>
                   <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
@@ -478,39 +509,82 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
           <div className="flex-1 overflow-y-auto bg-slate-50/60 dark:bg-slate-900/60 p-4 sm:p-5 space-y-3.5">
             {step === 'CONFIG' ? (
               <form id="sim-manage-form" onSubmit={handleProceedToReview} className="space-y-3.5">
-                {/* 1. LIFECYCLE & BRANCH CUSTODY */}
+                {/* 1. 3-STEP SIM CONTROL */}
                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
-                    <Building2 className="w-4 h-4 text-[#003857] dark:text-sky-400" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      1. Lifecycle & Branch Custody
-                    </h3>
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-[#003857] dark:text-sky-400" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        1. Choose SIM Step
+                      </h3>
+                    </div>
+                    <span className="text-[10.5px] text-slate-500">
+                      Never goes live alone — follows paired device
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Lifecycle Status Stage <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value as SerialStatus)}
-                          className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
+                  {/* 3 Primary Step Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {SIM_PRIMARY_STEPS.map((item) => {
+                      const active = status === item.value;
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() => handleSelectStep(item.value)}
+                          className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
+                            active
+                              ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
+                              : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
                         >
-                          {LIFECYCLE_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
-                      </div>
-                    </div>
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span
+                              className={`w-4 h-4 rounded-full text-[10px] font-bold inline-flex items-center justify-center ${
+                                active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                              }`}
+                            >
+                              {item.step}
+                            </span>
+                            <span className="text-[11.5px] font-bold leading-tight">{item.title}</span>
+                          </div>
+                          <p className={`text-[10.5px] leading-tight ${active ? 'text-sky-100' : 'text-slate-500'}`}>
+                            {item.subtitle}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                    <div>
+                  {/* Secondary Exception Statuses */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                    <span className="text-[10.5px] font-medium text-slate-400">Other status:</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {SIM_OTHER_STATUSES.map((opt) => {
+                        const active = status === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => handleSelectStep(opt.value)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
+                              active
+                                ? 'bg-slate-800 text-white border-slate-800'
+                                : 'bg-white hover:bg-slate-50 text-slate-500 border-slate-200'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Branch Custody (shown when not HQ_STOCK and not auto-locked to paired device) */}
+                  {status !== 'HQ_STOCK' && status !== 'AT_MERCHANT' && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60">
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Assigned Branch Custody <span className="text-rose-500">*</span>
+                        Branch Custody <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative">
                         <select
@@ -531,261 +605,180 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
                       </div>
                     </div>
-                  </div>
-                </div>
+                  )}
 
-                {/* 2. ASSIGNED HARDWARE DEVICE & LINKAGE */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700/60">
-                    <div className="flex items-center gap-2">
-                      <Smartphone className="w-4 h-4 text-purple-600" />
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                        2. Assigned Hardware Device
-                      </h3>
-                    </div>
-                    {eligibleDevices.length > 0 && (
-                      <span className="text-[10.5px] text-slate-400 font-mono">
-                        {eligibleDevices.length >= 60 ? 'Top 60 matches' : `${eligibleDevices.length} available`}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Device Type Filters & Search */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-900 rounded-lg text-xs border border-slate-200/70">
-                      <button
-                        type="button"
-                        onClick={() => setDeviceFilterType('ALL')}
-                        className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer ${
-                          deviceFilterType === 'ALL'
-                            ? 'text-white font-semibold'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        {deviceFilterType === 'ALL' && (
-                          <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
-                        )}
-                        <span className="relative z-10">All</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeviceFilterType('POS')}
-                        className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer flex items-center gap-1 ${
-                          deviceFilterType === 'POS'
-                            ? 'text-white font-semibold'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        {deviceFilterType === 'POS' && (
-                          <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
-                        )}
-                        <Cpu className="relative z-10 w-3 h-3" />
-                        <span className="relative z-10">POS</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeviceFilterType('SOUND_BOX')}
-                        className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer flex items-center gap-1 ${
-                          deviceFilterType === 'SOUND_BOX'
-                            ? 'text-white font-semibold'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        {deviceFilterType === 'SOUND_BOX' && (
-                          <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
-                        )}
-                        <Volume2 className="relative z-10 w-3 h-3" />
-                        <span className="relative z-10">Sound Box</span>
-                      </button>
-                    </div>
-
-                    <input
-                      type="text"
-                      value={deviceSearch}
-                      onChange={(e) => setDeviceSearch(e.target.value)}
-                      placeholder="Search device serial, merchant, MID..."
-                      className="flex-1 min-w-[170px] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900 text-xs outline-none focus:bg-white focus:border-[#003857] transition-all"
-                    />
-                  </div>
-
-                  {/* Device Dropdown Selector */}
-                  <div className="relative">
-                    <select
-                      value={assignedDeviceSerial}
-                      onChange={(e) => handleSelectDevice(e.target.value)}
-                      aria-label="Choose Device to Assign"
-                      className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
-                    >
-                      <option value="">-- Unassigned (Available Pool / No Device) --</option>
-                      {displayDevices.map((d) => (
-                        <option key={d.serial} value={d.serial}>
-                          [{d.type === 'Sound Box' ? 'SB' : 'POS'}] {d.serial} {d.merchantName ? `· ${d.merchantName}` : ''} {d.mid ? `(MID: ${d.mid})` : ''} · {d.branchName || 'Branch ' + d.branchId}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
-                  </div>
-
-                  {/* Selected Device Live Detail Card */}
-                  {assignedDevice ? (
-                    <div className="p-3 rounded-xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {assignedDevice.type === 'Sound Box' ? (
-                            <Volume2 className="w-4 h-4 text-purple-600" />
-                          ) : (
-                            <Cpu className="w-4 h-4 text-sky-600" />
-                          )}
-                          <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
-                            {assignedDevice.serial}
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-white text-slate-800 border border-slate-200 shadow-2xs">
-                            {assignedDevice.type}
-                          </span>
-                        </div>
-                        <span className="text-[10px] font-bold text-sky-800 dark:text-sky-300 uppercase tracking-wider">
-                          Stage: {assignedDevice.stage}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 dark:text-slate-300 pt-1 border-t border-sky-100 dark:border-sky-900/60">
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">Merchant</span>
-                          <span className="font-medium text-slate-900 dark:text-white truncate block">
-                            {assignedDevice.merchantName || '—'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">MID / TID</span>
-                          <span className="font-mono font-medium text-slate-900 dark:text-white truncate block">
-                            {assignedDevice.mid || '—'} {assignedDevice.tid ? `(${assignedDevice.tid})` : ''}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">Servicing Branch</span>
-                          <span className="font-medium text-slate-800 dark:text-slate-200 truncate block">
-                            {assignedDevice.branchName || placeName(assignedDevice.branchId, branches)}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">Assigned Staff</span>
-                          <span className="font-medium text-slate-800 dark:text-slate-200 truncate block">
-                            {assignedDevice.staff || assignedDevice.installedByStaff || '—'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500 flex items-center gap-2">
-                      <Layers className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  {status === 'HQ_STOCK' && (
+                    <div className="px-3 py-2 rounded-xl bg-blue-50/70 border border-blue-200/80 text-[11px] text-[#003857] flex items-center gap-2">
+                      <Building2 className="w-3.5 h-3.5 shrink-0" />
                       <span>
-                        Available Pool — Select a POS Terminal or Sound Box above to pair automatically.
+                        <strong>Available In Stock (Head Office 100)</strong> — Unassigned and ready to be dispatched to any branch.
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* 3. FIELD STAFF & DEPLOYMENT SCHEDULE */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
-                    <UserCheck className="w-4 h-4 text-emerald-600" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      3. Field Staff & Deployment Schedule
-                    </h3>
-                  </div>
+                {/* 2. BUNDLE WITH HARDWARE DEVICE (Only when Bundled / AT_MERCHANT, or quick-pair from Reserve) */}
+                {(status === 'AT_MERCHANT' || status === 'BRANCH_RESERVE') && (
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="w-4 h-4 text-purple-600" />
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                          2. Bundle with Device (Serial &amp; MID)
+                        </h3>
+                      </div>
+                      {eligibleDevices.length > 0 && (
+                        <span className="text-[10.5px] text-slate-400 font-mono">
+                          {eligibleDevices.length >= 60 ? 'Top 60 matches' : `${eligibleDevices.length} available`}
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Assigned Branch Staff Officer
-                      </label>
+                    {/* Device Type Filters & Search */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-900 rounded-lg text-xs border border-slate-200/70">
+                        <button
+                          type="button"
+                          onClick={() => setDeviceFilterType('ALL')}
+                          className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer ${
+                            deviceFilterType === 'ALL'
+                              ? 'text-white font-semibold'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          {deviceFilterType === 'ALL' && (
+                            <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
+                          )}
+                          <span className="relative z-10">All</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeviceFilterType('POS')}
+                          className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer flex items-center gap-1 ${
+                            deviceFilterType === 'POS'
+                              ? 'text-white font-semibold'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          {deviceFilterType === 'POS' && (
+                            <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
+                          )}
+                          <Cpu className="relative z-10 w-3 h-3" />
+                          <span className="relative z-10">POS</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeviceFilterType('SOUND_BOX')}
+                          className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer flex items-center gap-1 ${
+                            deviceFilterType === 'SOUND_BOX'
+                              ? 'text-white font-semibold'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          {deviceFilterType === 'SOUND_BOX' && (
+                            <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
+                          )}
+                          <Volume2 className="relative z-10 w-3 h-3" />
+                          <span className="relative z-10">Sound Box</span>
+                        </button>
+                      </div>
+
                       <input
                         type="text"
-                        list="sim-branch-staff-list"
-                        value={staff}
-                        onChange={(e) => setStaff(e.target.value)}
-                        placeholder="e.g. SOK Dara (33105)"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
+                        value={deviceSearch}
+                        onChange={(e) => setDeviceSearch(e.target.value)}
+                        placeholder="Search device serial, merchant, MID..."
+                        className="flex-1 min-w-[170px] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900 text-xs outline-none focus:bg-white focus:border-[#003857] transition-all"
                       />
-                      <datalist id="sim-branch-staff-list">
-                        {branchUsers.map((u) => (
-                          <option key={u.empId || u.name} value={`${u.name} (${u.empId})`} />
+                    </div>
+
+                    {/* Device Dropdown Selector */}
+                    <div className="relative">
+                      <select
+                        value={assignedDeviceSerial}
+                        onChange={(e) => handleSelectDevice(e.target.value)}
+                        aria-label="Choose Device to Assign"
+                        className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
+                      >
+                        <option value="">-- Select POS Terminal or Sound Box (Serial &amp; MID) --</option>
+                        {displayDevices.map((d) => (
+                          <option key={d.serial} value={d.serial}>
+                            [{d.type === 'Sound Box' ? 'SB' : 'POS'}] {d.serial} {d.merchantName ? `· ${d.merchantName}` : ''} {d.mid ? `(MID: ${d.mid})` : ''} · {d.branchName || 'Branch ' + d.branchId}
+                          </option>
                         ))}
-                      </datalist>
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Installation / Deployment Date
-                      </label>
-                      <input
-                        type="date"
-                        value={deployedDate}
-                        onChange={(e) => setDeployedDate(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
-                      />
-                    </div>
+                    {/* Selected Device Live Detail Card (Follows Device Automatically) */}
+                    {assignedDevice ? (
+                      <div className="p-3 rounded-xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800 space-y-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            {assignedDevice.type === 'Sound Box' ? (
+                              <Volume2 className="w-4 h-4 text-purple-600" />
+                            ) : (
+                              <Cpu className="w-4 h-4 text-sky-600" />
+                            )}
+                            <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                              {assignedDevice.serial}
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-white text-slate-800 border border-slate-200 shadow-2xs">
+                              {assignedDevice.type}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                            Follows Device ({assignedDevice.stage})
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 dark:text-slate-300 pt-1.5 border-t border-sky-100 dark:border-sky-900/60">
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">Merchant</span>
+                            <span className="font-medium text-slate-900 dark:text-white truncate block">
+                              {assignedDevice.merchantName || merchantName || '—'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">MID / TID</span>
+                            <span className="font-mono font-medium text-slate-900 dark:text-white truncate block">
+                              {assignedDevice.mid || mid || '—'} {assignedDevice.tid || tid ? `(${assignedDevice.tid || tid})` : ''}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">Branch</span>
+                            <span className="font-medium text-slate-800 dark:text-slate-200 truncate block">
+                              {assignedDevice.branchName || placeName(assignedDevice.branchId, branches)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">Assigned Staff</span>
+                            <span className="font-medium text-slate-800 dark:text-slate-200 truncate block">
+                              {assignedDevice.staff || assignedDevice.installedByStaff || staff || '—'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500 flex items-center gap-2">
+                        <Layers className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>
+                          {status === 'AT_MERCHANT'
+                            ? 'Select the POS Terminal or Sound Box above — Merchant, MID, Branch, and Staff follow it automatically.'
+                            : 'Under Branch Reserve — pick a device above whenever you are ready to bundle it live.'}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
 
-                {/* 4. MERCHANT & TERMINAL SETUP */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
-                    <Store className="w-4 h-4 text-amber-600" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      4. Merchant & Terminal Setup
-                    </h3>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Merchant Name
-                      </label>
-                      <input
-                        type="text"
-                        value={merchantName}
-                        onChange={(e) => setMerchantName(e.target.value)}
-                        placeholder="e.g. Lucky Mart / Heng Heng Coffee"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        MID (Merchant ID)
-                      </label>
-                      <input
-                        type="text"
-                        value={mid}
-                        onChange={(e) => setMid(e.target.value)}
-                        placeholder="e.g. 200100000000001"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        Terminal ID (TID)
-                      </label>
-                      <input
-                        type="text"
-                        value={tid}
-                        onChange={(e) => setTid(e.target.value)}
-                        placeholder="e.g. 12321323"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5. CARRIER SECURITY & REMARKS */}
+                {/* 3. CARRIER NETWORK & REMARKS */}
                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700/60">
                     <div className="flex items-center gap-2">
                       <Radio className="w-4 h-4 text-sky-600" />
                       <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                        5. Carrier Network & Remarks
+                        {status === 'AT_MERCHANT' || status === 'BRANCH_RESERVE' ? '3. Carrier & Remarks' : '2. Carrier & Remarks'}
                       </h3>
                     </div>
                     <label className="inline-flex items-center gap-2 cursor-pointer">
@@ -811,7 +804,12 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Operational Remarks / Audit Note <span className="text-slate-400 font-normal">(Optional)</span>
+                      Operational Remarks / Audit Note{' '}
+                      {status === 'LOST' || status === 'WRITTEN_OFF' ? (
+                        <span className="text-rose-500">*</span>
+                      ) : (
+                        <span className="text-slate-400 font-normal">(Optional)</span>
+                      )}
                     </label>
                     <input
                       type="text"
