@@ -557,65 +557,17 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
               {shownReqs.map((req, rowIdx) => {
                 const isReturnReq = req.type === 'STOCK_RETURN';
                 let statusLabel = 'Pending';
-                let actionBtn: React.ReactNode = null;
-                const canEdit = Boolean(onEditRequisition) && req.status === 'PENDING_ADMIN' && !isReturnReq;
-                const editBtn = canEdit ? (
-                  <button type="button" onClick={() => openEdit(req)} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 inline-flex items-center cursor-pointer transition shadow-2xs active:scale-90" title="Edit the quantity or reason" aria-label="Edit">
-                    <Pencil className="w-3.5 h-3.5" aria-hidden />
-                  </button>
-                ) : null;
-
-                const rejectBtn = isAdmin && onRejectRequisition && req.status === 'PENDING_ADMIN' ? (
-                  <button type="button" onClick={() => { setRejectingReq(req); setRejectText(''); }} className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 inline-flex items-center cursor-pointer transition shadow-2xs active:scale-90" title="Reject this request with a reason (for example no stock)" aria-label="Reject">
-                    <Ban className="w-3.5 h-3.5" aria-hidden />
-                  </button>
-                ) : null;
 
                 if (req.status === 'PENDING_ADMIN') {
                   if (isReturnReq) {
                     statusLabel = 'Return Pending';
-                    actionBtn = isAdmin ? (
-                      <div className="inline-flex items-center gap-1.5">
-                        {rejectBtn}
-                        <button
-                          type="button"
-                          onClick={() => onApproveReturnRequisition?.(req.reqId, req.returnSerials, req.reason)}
-                          className="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95"
-                          title="Approve and receive the returned units into Head Office stock"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
-                          <span>Approve &amp; Receive</span>
-                        </button>
-                      </div>
-                    ) : <span className="cell-sub italic">Awaiting HQ</span>;
-                  } else {
-                    actionBtn = (
-                      <div className="inline-flex items-center gap-1.5">
-                        {editBtn}
-                        {rejectBtn}
-                        {isAdmin ? (
-                          <button type="button" onClick={() => openArrangeModal(req)} className="px-2.5 py-1 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-700 dark:text-sky-300 inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95" title="Choose the serials and dispatch to the branch" aria-label="Dispatch">
-                            <Truck className="w-3.5 h-3.5" aria-hidden />
-                            <span>Dispatch</span>
-                          </button>
-                        ) : <span className="cell-sub italic">Awaiting HQ</span>}
-                      </div>
-                    );
                   }
                 } else if (req.status === 'DISPATCHED') {
                   statusLabel = 'Dispatched';
-                  actionBtn = (
-                    <button type="button" onClick={() => onReceiveRequisition(req.reqId)} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95">
-                      <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
-                      <span>Confirm Receipt</span>
-                    </button>
-                  );
                 } else if (req.status === 'REJECTED') {
                   statusLabel = 'Rejected';
-                  actionBtn = null;
                 } else if (req.status === 'RECEIVED') {
                   statusLabel = isReturnReq ? 'Received at HQ' : 'Received';
-                  actionBtn = null;
                 }
 
                 let statusBadge = (
@@ -783,14 +735,13 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     </td>
                     <td className="text-right whitespace-nowrap col-actions">
                       <div className="inline-flex items-center justify-end gap-1.5">
-                        {actionBtn}
                         <button
                           type="button"
                           onClick={() => setSelectedRequisition(req)}
                           className="row-btn"
-                          title="View requisition details"
+                          title="Manage requisition"
                         >
-                          Details
+                          Manage
                         </button>
                       </div>
                     </td>
@@ -1601,11 +1552,100 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                   </div>
 
                   {/* Footer */}
-                  <div className="px-6 py-3 border-t border-slate-200 dark:border-white/10 flex items-center justify-end bg-slate-50 dark:bg-slate-900/40">
+                  <div className="px-6 py-3.5 border-t border-slate-200 dark:border-white/10 flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900/40 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {selectedRequisition.status === 'PENDING_ADMIN' && (
+                        <>
+                          {Boolean(onEditRequisition) && selectedRequisition.type !== 'STOCK_RETURN' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const r = selectedRequisition;
+                                setSelectedRequisition(null);
+                                openEdit(r);
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs active:scale-95"
+                              title="Edit the quantity or reason"
+                              aria-label="Edit"
+                            >
+                              <Pencil className="w-3.5 h-3.5" aria-hidden />
+                              <span>Edit</span>
+                            </button>
+                          )}
+                          {isAdmin && onRejectRequisition && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const r = selectedRequisition;
+                                setSelectedRequisition(null);
+                                setRejectingReq(r);
+                                setRejectText('');
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs active:scale-95"
+                              title="Reject this request with a reason (for example no stock)"
+                              aria-label="Reject"
+                            >
+                              <Ban className="w-3.5 h-3.5" aria-hidden />
+                              <span>Reject</span>
+                            </button>
+                          )}
+                          {selectedRequisition.type === 'STOCK_RETURN' ? (
+                            isAdmin ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const r = selectedRequisition;
+                                  setSelectedRequisition(null);
+                                  onApproveReturnRequisition?.(r.reqId, r.returnSerials, r.reason);
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95"
+                                title="Approve and receive the returned units into Head Office stock"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+                                <span>Approve &amp; Receive</span>
+                              </button>
+                            ) : (
+                              <span className="cell-sub italic">Awaiting HQ</span>
+                            )
+                          ) : isAdmin ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const r = selectedRequisition;
+                                setSelectedRequisition(null);
+                                openArrangeModal(r);
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-700 dark:text-sky-300 inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95"
+                              title="Choose the serials and dispatch to the branch"
+                              aria-label="Dispatch"
+                            >
+                              <Truck className="w-3.5 h-3.5" aria-hidden />
+                              <span>Dispatch</span>
+                            </button>
+                          ) : (
+                            <span className="cell-sub italic">Awaiting HQ</span>
+                          )}
+                        </>
+                      )}
+                      {selectedRequisition.status === 'DISPATCHED' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const r = selectedRequisition;
+                            setSelectedRequisition(null);
+                            onReceiveRequisition(r.reqId);
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+                          <span>Confirm Receipt</span>
+                        </button>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => setSelectedRequisition(null)}
-                      className="px-4 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer transition shadow-2xs"
+                      className="px-4 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer transition shadow-2xs ml-auto"
                     >
                       Close Details
                     </button>

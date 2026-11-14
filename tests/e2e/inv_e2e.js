@@ -202,6 +202,7 @@ async function api(route) {
   ok((state.histSaved || []).some((h) => JSON.stringify(h).includes('Lucky Mart')), 'the old merchant (Lucky Mart) is kept in Merchant History');
   // (22 Oct 2026) dispatch goes through the server function; the request status is never saved directly
   await p.getByText('Stock Requests', { exact: true }).first().click(); await sleep(1200);
+  await p.locator('tr', { hasText: 'REQ-20261022-ABC123' }).getByRole('button', { name: 'Manage' }).click(); await sleep(400);
   await p.getByRole('button', { name: 'Dispatch', exact: true }).first().click(); await sleep(800);
   const arr = await p.textContent('body');
   ok(/WP0100/.test(arr), 'auto-match picks the free HQ unit WP0100');
@@ -211,7 +212,8 @@ async function api(route) {
   ok(!state.calls.some(c => /^(PATCH|POST) \/rest\/v1\/requisitions/.test(c)), 'request row not written by the browser (status changed only by the server)');
   ok(/Dispatched 1 unit/.test(await p.textContent('[role=status]')), 'the result is shown in the message area (toast rendered)');
   // reject a request with a reason
-  await p.locator('tr', { hasText: 'REQ-20261022-ZZZ999' }).getByRole('button', { name: 'Reject' }).click(); await sleep(500);
+  await p.locator('tr', { hasText: 'REQ-20261022-ZZZ999' }).getByRole('button', { name: 'Manage' }).click(); await sleep(400);
+  await p.getByRole('button', { name: 'Reject', exact: true }).click(); await sleep(500);
   ok(await p.getByRole('button', { name: 'Reject request' }).isDisabled(), 'reject needs a reason (button disabled while empty)');
   await p.getByRole('button', { name: 'No stock available at Head Office' }).click(); await p.getByRole('button', { name: 'Reject request' }).click(); await sleep(1200);
   ok(state.reject && state.reject.p_req_id === 'REQ-20261022-ZZZ999' && /No stock/.test(state.reject.p_reason), 'reject → admin_reject_requisition with the reason ' + JSON.stringify(state.reject));
