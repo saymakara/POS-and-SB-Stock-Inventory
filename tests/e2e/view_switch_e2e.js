@@ -20,7 +20,7 @@ const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_T
     await p.locator('aside').first().getByRole('group', { name: 'Stock Inventory sections' }).getByRole('button', { name: new RegExp('^' + prod) }).click();
     await sleep(1500);
     await p.evaluate(() => window.scrollTo(0, 420)); await sleep(200);
-    const seq = ['Push Configuring', 'Material', 'Units', 'Push Configuring', 'Units', 'Material', 'Units'];
+    const seq = ['Push Configuring', 'Units', 'Push Configuring', 'Units'];
     for (let i = 0; i < seq.length; i++) {
       const name = seq[i];
       const r = await p.evaluate(async (name) => {
@@ -44,7 +44,7 @@ const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_T
       if (process.env.DBG) console.log(JSON.stringify(r));
       const again = i >= 3;
       ok(r.minPanels === 1 && r.maxPanels === 1, `${prod}: → ${name}: exactly one view on screen in every frame (${r.n} frames)`);
-      ok(r.minLists === 1, `${prod}: → ${name}: the Units / Push / Material switch stays on screen`);
+      ok(r.minLists === 1, `${prod}: → ${name}: the Units / Push switch stays on screen`);
       ok(r.yJump <= 2, `${prod}: → ${name}: the page does not jump (scroll moved ${r.yJump}px)`);
       ok(r.selected && r.selected.startsWith(name) && r.pillAnimating, `${prod}: → ${name}: selected, highlight glides`);
       if (again) ok(r.tClick < 120, `${prod}: → ${name} again: shown without rebuilding (${r.tClick} ms)`);

@@ -21,14 +21,25 @@ import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnL
 import { PillMotion } from './PillMotion';
 import { ManageMaterialModal } from './ManageMaterialModal';
 
-export type ProductView = 'UNITS' | 'PUSH' | 'MATERIAL';
+export type ProductView = 'UNITS' | 'PUSH';
 
-/* (7 Nov 2026 / updated 9 Nov 2026) Ultra-smooth switching without flicker or jump.
-   Each view (Units, Push Configuring, Material) shows this switch. The active pill
-   remembers where it was across views and glides smoothly using GPU-accelerated WAAPI
-   without destination flashes or layout jumps. */
+/* (7 Nov 2026 / updated 14 Nov 2026) Ultra-smooth switching without flicker or jump.
+   Only Units and Push Configuring tabs exist; Material is filtered in-place inside Units.
+   The active pill remembers where it was across views and glides smoothly using WAAPI. */
 const lastPill: Partial<Record<DeviceGroup, { x: number; w: number }>> = {};
 const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+export interface MaterialSummaryMetric {
+  code: MaterialCode;
+  name: string;
+  adminStock: number;
+  branchReserve: number;
+  onHand: number;
+  deployed: number;
+  inTransit: number;
+  lost: number;
+  total: number;
+}
 
 export const ProductViewToggle: React.FC<{
   view: ProductView;
@@ -37,8 +48,8 @@ export const ProductViewToggle: React.FC<{
   pushCount?: number;
   lostCount?: number;
   hasPush?: boolean;
-}> = ({ view, onViewChange, group, pushCount = 0, lostCount = 0, hasPush = true }) => {
-  const views: ProductView[] = hasPush ? ['UNITS', 'PUSH', 'MATERIAL'] : ['UNITS', 'MATERIAL'];
+}> = ({ view, onViewChange, group, pushCount = 0, hasPush = true }) => {
+  const views: ProductView[] = hasPush ? ['UNITS', 'PUSH'] : ['UNITS'];
   const listRef = useRef<HTMLDivElement>(null);
   const pillRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<Animation | null>(null);
@@ -128,7 +139,7 @@ export const ProductViewToggle: React.FC<{
         className="absolute left-0 top-1 bottom-1 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none will-change-transform"
       />
       {views.map((v) => {
-        const n = v === 'PUSH' ? pushCount || 0 : v === 'MATERIAL' ? lostCount || 0 : 0;
+        const n = v === 'PUSH' ? pushCount || 0 : 0;
         const isSelected = view === v;
         return (
           <button
@@ -143,13 +154,7 @@ export const ProductViewToggle: React.FC<{
               }
               onViewChange(v);
             }}
-            title={
-              v === 'PUSH' && n
-                ? `${n} unit(s) waiting to be pushed`
-                : v === 'MATERIAL' && n
-                ? `${n} open lost item(s)`
-                : undefined
-            }
+            title={v === 'PUSH' && n ? `${n} unit(s) waiting to be pushed` : undefined}
             className="relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer select-none"
           >
             <span
@@ -157,7 +162,7 @@ export const ProductViewToggle: React.FC<{
                 isSelected ? 'text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              {v === 'UNITS' ? 'Units' : v === 'PUSH' ? 'Push Configuring' : 'Material'}
+              {v === 'UNITS' ? 'Units' : 'Push Configuring'}
             </span>
             {n > 0 && (
               <span
@@ -177,13 +182,100 @@ export const ProductViewToggle: React.FC<{
   );
 };
 
+const MaterialSummaryCardsStrip: React.FC<{
+  codes: MaterialCode[];
+  summaries: Partial<Record<MaterialCode, MaterialSummaryMetric>>;
+  selectedCode: MaterialCode | 'ALL' | null;
+  onSelectCode: (code: MaterialCode) => void;
+  lostCount?: number;
+  onOpenLostMaterials?: () => void;
+}> = ({ codes, summaries, selectedCode, onSelectCode, lostCount = 0, onOpenLostMaterials }) => (
+  <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-2.5">
+    {lostCount > 0 && onOpenLostMaterials && (
+      <div className="flex items-center justify-end">
+        <button
+          type="button"
+          onClick={onOpenLostMaterials}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/90 transition cursor-pointer"
+        >
+          <AlertTriangle className="w-3 h-3 text-amber-600" />
+          <span>{lostCount} Open Lost Material{lostCount === 1 ? '' : 's'} — View</span>
+        </button>
+      </div>
+    )}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {codes.map((c) => {
+        const summary = summaries[c] || { total: 0, adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0 };
+        const isSelected = selectedCode === c;
+        const IconComp = c === 'BATTERY' ? Battery : c === 'STAND' ? Smartphone : c === 'DOCK' ? Dock : Plug;
+
+        return (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onSelectCode(c)}
+            className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
+              isSelected
+                ? 'bg-white border-[#155484] ring-1 ring-[#155484]/30 shadow-xs'
+                : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  c === 'BATTERY' ? 'bg-amber-50 text-amber-700' :
+                  c === 'STAND' ? 'bg-indigo-50 text-indigo-700' :
+                  c === 'DOCK' ? 'bg-sky-50 text-sky-700' :
+                  c === 'SB_ADAPTOR' ? 'bg-purple-50 text-purple-700' :
+                  'bg-slate-100 text-slate-700'
+                }`}>
+                  <IconComp className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-800">{materialName(c)}</span>
+              </div>
+              {isSelected && (
+                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#155484] text-white">
+                  Active
+                </span>
+              )}
+            </div>
+
+            <div className="mt-2.5 flex items-baseline justify-between gap-2">
+              <span className="text-xl font-bold font-mono text-slate-900 tabular-nums">
+                {summary.total.toLocaleString()}
+              </span>
+              <span className="text-[11px] text-slate-500 font-normal">Controlled</span>
+            </div>
+
+            <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-3 gap-1 text-[10.5px] text-slate-600 font-normal">
+              <span title="Available In Stock (Head Office)" className="truncate">
+                In Stock: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
+              </span>
+              <span title="Under Branch Reserve" className="truncate text-center">
+                Reserve: <span className="font-semibold text-sky-700">{summary.branchReserve.toLocaleString()}</span>
+              </span>
+              <span title="Bundled with Device (Serial & MID)" className="truncate text-right">
+                Bundled: <span className="font-semibold text-emerald-700">{summary.deployed.toLocaleString()}</span>
+              </span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
 const ProductStockPageComponent: React.FC<{
   group: DeviceGroup;
   role: UserRole;
   branches: Branch[];
   myBranch: string;
   triggerToast: (m: string) => void;
-  units: React.ReactNode;
+  units?: React.ReactNode;
+  renderUnits?: (ctx: {
+    stockScopeControl: React.ReactNode;
+    materialSummaryStrip: React.ReactNode | null;
+  }) => React.ReactNode;
   push?: React.ReactNode;
   pushCount?: number;
   lostCount?: number;
@@ -200,6 +292,7 @@ const ProductStockPageComponent: React.FC<{
   myBranch,
   triggerToast,
   units,
+  renderUnits,
   push,
   pushCount,
   lostCount,
@@ -213,15 +306,128 @@ const ProductStockPageComponent: React.FC<{
   const Icon = group === 'POS' ? Cpu : Volume2;
   const title = group === 'POS' ? 'POS Terminal' : 'Sound Box';
 
+  const [unitsScope, setUnitsScope] = useState<'HARDWARE' | 'MATERIAL'>('HARDWARE');
+  const [selectedMaterialCode, setSelectedMaterialCode] = useState<MaterialCode | 'ALL'>('ALL');
+  const [materialSnap, setMaterialSnap] = useState<{
+    summaries: Partial<Record<MaterialCode, MaterialSummaryMetric>>;
+    total: number;
+  }>({ summaries: {}, total: 0 });
+  const [matPrewarmed, setMatPrewarmed] = useState(false);
+
+  useEffect(() => {
+    setUnitsScope('HARDWARE');
+    setSelectedMaterialCode('ALL');
+    setMatPrewarmed(false);
+    const t = setTimeout(() => setMatPrewarmed(true), 60);
+    return () => clearTimeout(t);
+  }, [group]);
+
+  const handleSummariesChange = useCallback(
+    (summaries: Partial<Record<MaterialCode, MaterialSummaryMetric>>, total: number) => {
+      setMaterialSnap({ summaries, total });
+    },
+    []
+  );
+
+  const matsForGroup = useMemo(() => productMaterials(group), [group]);
+
   const viewToggle = (
     <ProductViewToggle
       view={view}
-      onViewChange={onViewChange}
+      onViewChange={(next) => {
+        if (next === 'UNITS' && view === 'UNITS' && unitsScope === 'MATERIAL') {
+          React.startTransition(() => setUnitsScope('HARDWARE'));
+          return;
+        }
+        onViewChange(next);
+      }}
       group={group}
       pushCount={pushCount}
       lostCount={lostCount}
       hasPush={Boolean(push)}
     />
+  );
+
+  const stockScopeControl = (
+    <select
+      aria-label="Filter Stock Type or Material"
+      value={unitsScope === 'HARDWARE' ? 'HARDWARE' : selectedMaterialCode}
+      onChange={(e) => {
+        const val = e.target.value;
+        React.startTransition(() => {
+          if (val === 'HARDWARE') {
+            setUnitsScope('HARDWARE');
+          } else {
+            setSelectedMaterialCode(val as MaterialCode | 'ALL');
+            setUnitsScope('MATERIAL');
+          }
+        });
+      }}
+      className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+      title="Filter between Hardware Units and Material stock in-place"
+    >
+      <option value="HARDWARE">Hardware Units</option>
+      <option value="ALL">
+        All Material Types{materialSnap.total > 0 ? ` (${materialSnap.total.toLocaleString()})` : ''}
+        {lostCount ? ` · ${lostCount} Lost` : ''}
+      </option>
+      {matsForGroup.map((m) => {
+        const s = materialSnap.summaries[m.code];
+        return (
+          <option key={m.code} value={m.code}>
+            {m.name}{s ? ` (${s.total.toLocaleString()})` : ''}
+          </option>
+        );
+      })}
+    </select>
+  );
+
+  const materialSummaryStrip = group === 'POS' ? (
+    <MaterialSummaryCardsStrip
+      codes={matsForGroup.map((m) => m.code)}
+      summaries={materialSnap.summaries}
+      selectedCode={unitsScope === 'MATERIAL' ? selectedMaterialCode : null}
+      lostCount={lostCount}
+      onOpenLostMaterials={() =>
+        React.startTransition(() => {
+          setSelectedMaterialCode('ALL');
+          setUnitsScope('MATERIAL');
+        })
+      }
+      onSelectCode={(code) =>
+        React.startTransition(() => {
+          setSelectedMaterialCode(code);
+          setUnitsScope('MATERIAL');
+        })
+      }
+    />
+  ) : null;
+
+  const hardwareNode = renderUnits ? renderUnits({ stockScopeControl, materialSummaryStrip }) : units;
+  const unifiedUnitsNode = (
+    <div className="w-full">
+      <div hidden={unitsScope !== 'HARDWARE'} className="w-full">
+        {hardwareNode}
+      </div>
+      {(matPrewarmed || unitsScope === 'MATERIAL') && (
+        <div hidden={unitsScope !== 'MATERIAL'} className="w-full">
+          <MaterialStockPanel
+            group={group}
+            role={role}
+            branches={branches}
+            myBranch={myBranch}
+            triggerToast={triggerToast}
+            onLostChanged={onLostChanged}
+            devices={devices}
+            viewToggle={viewToggle}
+            selectedCode={selectedMaterialCode}
+            onSelectedCodeChange={setSelectedMaterialCode}
+            onSwitchToUnits={() => React.startTransition(() => setUnitsScope('HARDWARE'))}
+            onSummariesChange={handleSummariesChange}
+          />
+        </div>
+      )}
+    </div>
   );
 
   // views opened so far on this product page (a new product page starts again)
@@ -230,33 +436,20 @@ const ProductStockPageComponent: React.FC<{
   const seen = seenRef.current.set;
   seen.add(view);
 
-  // Eagerly pre-warm all views so switching is 100% instant with zero delay or flicker
+  // Eagerly pre-warm views so switching is 100% instant with zero delay or flicker
   const [, setPrewarmed] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => {
       seen.add('UNITS');
       seen.add('PUSH');
-      seen.add('MATERIAL');
       setPrewarmed(true);
     }, 60);
     return () => clearTimeout(t);
   }, [group]);
 
   const panes: [ProductView, React.ReactNode][] = [
-    ['UNITS', units],
+    ['UNITS', unifiedUnitsNode],
     ['PUSH', push || null],
-    ['MATERIAL', (
-      <MaterialStockPanel
-        group={group}
-        role={role}
-        branches={branches}
-        myBranch={myBranch}
-        triggerToast={triggerToast}
-        onLostChanged={onLostChanged}
-        devices={devices}
-        viewToggle={viewToggle}
-      />
-    )],
   ];
   const shownView = useRef<ProductView>(view);
   useLayoutEffect(() => {
@@ -337,15 +530,28 @@ const MaterialStockPanelComponent: React.FC<{
   devices?: Device[];
   hideHero?: boolean;
   viewToggle?: React.ReactNode;
+  selectedCode?: MaterialCode | 'ALL';
+  onSelectedCodeChange?: (code: MaterialCode | 'ALL') => void;
+  onSwitchToUnits?: () => void;
+  onSummariesChange?: (summaries: Partial<Record<MaterialCode, MaterialSummaryMetric>>, totalCount: number) => void;
 }> = ({
   group, role, branches, myBranch, triggerToast, onLostChanged, devices = [], viewToggle,
+  selectedCode: selectedCodeProp, onSelectedCodeChange, onSwitchToUnits, onSummariesChange,
 }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const mats = useMemo(() => productMaterials(group), [group]);
   const codes = useMemo(() => mats.map((m) => m.code), [mats]);
 
   // Tab & Table Filter States
-  const [selectedCode, setSelectedCode] = useState<MaterialCode | 'ALL'>('ALL');
+  const [internalSelectedCode, setInternalSelectedCode] = useState<MaterialCode | 'ALL'>('ALL');
+  const selectedCode = selectedCodeProp !== undefined ? selectedCodeProp : internalSelectedCode;
+  const setSelectedCode = useCallback(
+    (code: MaterialCode | 'ALL') => {
+      setInternalSelectedCode(code);
+      onSelectedCodeChange?.(code);
+    },
+    [onSelectedCodeChange]
+  );
   const [statusFilter, setStatusFilter] = useState<SerialStatus | ''>('');
   const [branchFilter, setBranchFilter] = useState(isAdmin ? '' : myBranch);
   const [assignmentFilter, setAssignmentFilter] = useState<'ALL' | 'ASSIGNED' | 'UNASSIGNED'>('ALL');
@@ -865,6 +1071,23 @@ const MaterialStockPanelComponent: React.FC<{
     [dynamicStatusCounts]
   );
 
+  // Sync summary metrics upward to the unified Units view when values change (branch/search unfiltered)
+  const lastSummarySigRef = useRef('');
+  useEffect(() => {
+    if (!onSummariesChange || branchFilter || search) return;
+    const totalUnfiltered = codes.reduce((acc, c) => acc + (materialSummaries[c]?.total || 0), 0);
+    const sig = codes
+      .map((c) => {
+        const s = materialSummaries[c];
+        return s ? `${c}:${s.total}:${s.adminStock}:${s.branchReserve}:${s.deployed}` : c;
+      })
+      .join('|') + `#${totalUnfiltered}`;
+    if (sig !== lastSummarySigRef.current) {
+      lastSummarySigRef.current = sig;
+      onSummariesChange(materialSummaries, totalUnfiltered);
+    }
+  }, [onSummariesChange, codes, materialSummaries, branchFilter, search]);
+
   // Pagination for the detailed table
   const pg = usePager(combinedItems.length, [selectedCode, statusFilter, branchFilter, assignmentFilter, search]);
   const displayedItems = useMemo(
@@ -1072,9 +1295,16 @@ const MaterialStockPanelComponent: React.FC<{
             <select
               aria-label="Select Material Category"
               value={selectedCode}
-              onChange={(e) => setSelectedCode(e.target.value as MaterialCode | 'ALL')}
+              onChange={(e) => {
+                if (e.target.value === 'HARDWARE') {
+                  onSwitchToUnits?.();
+                } else {
+                  setSelectedCode(e.target.value as MaterialCode | 'ALL');
+                }
+              }}
               className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs min-w-[180px]"
             >
+              {onSwitchToUnits && <option value="HARDWARE">Hardware Units</option>}
               <option value="ALL">All Material Types ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
               {codes.map((c) => {
                 const summary = materialSummaries[c];
@@ -1227,67 +1457,12 @@ const MaterialStockPanelComponent: React.FC<{
 
         {/* Executive Controlled Materials Summary Cards (POS only — Sound Box has a single category) */}
         {group === 'POS' && (
-          <div className="p-4 bg-slate-50/70 border-b border-slate-200/90">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {codes.map((c) => {
-                const summary = materialSummaries[c] || { total: 0, onHand: 0, deployed: 0, inTransit: 0 };
-                const isSelected = selectedCode === c;
-                const IconComp = c === 'BATTERY' ? Battery : c === 'STAND' ? Smartphone : c === 'DOCK' ? Dock : Plug;
-
-                return (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => React.startTransition(() => setSelectedCode(isSelected ? 'ALL' : c))}
-                    className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
-                      isSelected
-                        ? 'bg-white border-[#155484] ring-1 ring-[#155484]/30 shadow-xs'
-                        : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          c === 'BATTERY' ? 'bg-amber-50 text-amber-700' :
-                          c === 'STAND' ? 'bg-indigo-50 text-indigo-700' :
-                          c === 'DOCK' ? 'bg-sky-50 text-sky-700' :
-                          c === 'SB_ADAPTOR' ? 'bg-purple-50 text-purple-700' :
-                          'bg-slate-100 text-slate-700'
-                        }`}>
-                          <IconComp className="w-4 h-4" />
-                        </div>
-                        <span className="text-xs font-bold text-slate-800">{materialName(c)}</span>
-                      </div>
-                      {isSelected && (
-                        <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#155484] text-white">
-                          Active
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mt-2.5 flex items-baseline justify-between gap-2">
-                      <span className="text-xl font-bold font-mono text-slate-900 tabular-nums">
-                        {summary.total.toLocaleString()}
-                      </span>
-                      <span className="text-[11px] text-slate-500 font-normal">Controlled</span>
-                    </div>
-
-                    <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-3 gap-1 text-[10.5px] text-slate-600 font-normal">
-                      <span title="Available In Stock (Head Office)" className="truncate">
-                        In Stock: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
-                      </span>
-                      <span title="Under Branch Reserve" className="truncate text-center">
-                        Reserve: <span className="font-semibold text-sky-700">{summary.branchReserve.toLocaleString()}</span>
-                      </span>
-                      <span title="Bundled with Device (Serial & MID)" className="truncate text-right">
-                        Bundled: <span className="font-semibold text-emerald-700">{summary.deployed.toLocaleString()}</span>
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <MaterialSummaryCardsStrip
+            codes={codes}
+            summaries={materialSummaries}
+            selectedCode={selectedCode}
+            onSelectCode={(c) => React.startTransition(() => setSelectedCode(selectedCode === c ? 'ALL' : c))}
+          />
         )}
 
 

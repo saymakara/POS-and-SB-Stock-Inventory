@@ -66,6 +66,8 @@ interface InventoryTabProps {
   /** (5 Nov 2026) on the POS Terminal / Sound Box pages the product is fixed: the type list is hidden */
   lockType?: boolean;
   viewToggle?: React.ReactNode;
+  stockScopeControl?: React.ReactNode;
+  materialSummaryStrip?: React.ReactNode;
   branchFilter: string;
   onBranchFilterChange: (b: string) => void;
   onSelectDevice: (sn: string) => void;
@@ -109,6 +111,8 @@ interface InventoryTabProps {
 export const InventoryTab: React.FC<InventoryTabProps> = ({
   lockType,
   viewToggle,
+  stockScopeControl,
+  materialSummaryStrip,
   devices,
   allDevices = [],
   branches,
@@ -738,7 +742,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               </select>
             </div>
 
-            {!lockType && (
+            {!lockType ? (
               <select
                 value={typeFilter}
                 onChange={(e) => {
@@ -751,7 +755,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 <option value="POS Terminal">POS Terminal (Wizar POS Q2 Pro)</option>
                 <option value="Sound Box">Sound Box (QR Audio)</option>
               </select>
-            )}
+            ) : stockScopeControl}
 
             <select
               value={midDeviceFilter}
@@ -828,6 +832,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             />
           </div>
         </div>
+        {materialSummaryStrip}
       </div>
 
 

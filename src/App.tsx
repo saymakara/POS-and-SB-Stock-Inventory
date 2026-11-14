@@ -1289,7 +1289,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [stageFilter, setStageFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   // (5 Nov 2026) the product pages show one product: the unit list follows the page; back on the all-units page, all types again
-  const [productView, setProductView] = useState<'UNITS' | 'PUSH' | 'MATERIAL'>('UNITS');
+  const [productView, setProductView] = useState<'UNITS' | 'PUSH'>('UNITS');
   const lastStockTab = React.useRef('');
   useEffect(() => {
     // (5 Nov 2026) Push Configuring lives inside the POS Terminal / Sound Box pages: old links (notifications) open it there
@@ -4507,10 +4507,15 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       />
                     ) : undefined;
 
-                    const units = (
+                    const renderUnitsNode = (ctx?: {
+                      stockScopeControl?: React.ReactNode;
+                      materialSummaryStrip?: React.ReactNode | null;
+                    }) => (
                     <InventoryTab
                       lockType={shownTab !== 'inventory'}
                       viewToggle={viewToggle}
+                      stockScopeControl={ctx?.stockScopeControl}
+                      materialSummaryStrip={ctx?.materialSummaryStrip}
                       onReturnDevice={(sn) => { setWorkflowPreset('RETURN'); setEditingDeviceSerial(sn); }}
                       devices={filteredInventory}
                       allDevices={scopedDevices}
@@ -4561,7 +4566,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       onFetchServerPage={handleFetchInventoryPage}
                     />
                     );
-                    if (shownTab === 'inventory') return units;
+                    if (shownTab === 'inventory') return renderUnitsNode();
 
                     const pipelineBarNode = (
                       <PipelineBar
@@ -4610,7 +4615,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         triggerToast={triggerToast}
                         pipelineBar={pipelineBarNode}
                         kpiCards={kpiCardsNode}
-                        units={units}
+                        renderUnits={renderUnitsNode}
                         push={
                           <PushConfiguringTab
                             hideHero

@@ -111,8 +111,9 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
     'POS Terminal → Push Configuring: the hub with POS units only');
   await p.getByRole('tab', { name: 'Units' }).click(); await sleep(800);
   ok(await p.locator('option', { hasText: 'All Hardware Types' }).count() === 0, 'Units: the hardware type list is hidden (POS only)');
-  ok(/Material\s*1/.test(await p.getByRole('tab', { name: /Material/ }).textContent()), 'Material tab shows 1 open lost item');
-  await p.getByRole('tab', { name: /Material/ }).click(); await sleep(1500);
+  ok(await p.getByRole('tab', { name: 'Material' }).count() === 0, 'Material tab is removed (unified inside Units)');
+  ok(/1 Open Lost Material/.test(await p.textContent('main')), 'Unified Units view surfaces 1 open lost material alert');
+  await p.locator('[aria-label="Filter Stock Type or Material"]').selectOption('ALL'); await sleep(1500);
   ok((await p.locator('section[aria-label="Material totals"]').count()) === 0, 'Redundant material totals KPI cards are removed');
   ok(await p.locator('[aria-label="Select Material Category"]').isVisible(), 'Material Category filter is visible');
   ok((await p.locator('section[aria-label="Stock per location"]').count()) === 0, 'Stock per location matrix table is removed from POS');
@@ -134,7 +135,8 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   ok(si && si.p.code === 'POS_ADAPTOR' && si.p.qty === 50 && si.p.branch_id === '100', 'Stock In → admin_material_stock_in ' + JSON.stringify(si && si.p));
 
   await g.getByRole('button', { name: /^Sound Box/ }).click(); await sleep(1200);
-  if (await p.getByRole('tab', { name: 'Material' }).getAttribute('aria-selected') !== 'true') { await p.getByRole('tab', { name: 'Material' }).click(); await sleep(1200); }
+  const sbScope = p.locator('[aria-label="Filter Stock Type or Material"]');
+  if (await sbScope.isVisible()) { await sbScope.selectOption('ALL'); await sleep(1200); }
   const sbt = await p.locator('[aria-label="Select Material Category"]').textContent();
   ok(/Sound Box AC Adaptor/.test(sbt) && !/Charging Dock/.test(sbt), 'Sound Box material: only the Sound Box adaptor');
   ok((await p.locator('section[aria-label="Stock per location"]').count()) === 0, 'Stock per location matrix table is removed from Sound Box');
@@ -197,14 +199,14 @@ const last = (fn) => rpcCalls.filter((c) => c.fn === fn).slice(-1)[0];
   const s2 = await signIn(b, '33105', 'Branch123');
   const q = s2.p; const g2 = stockGroup(q);
   await g2.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1200);
-  await q.getByRole('tab', { name: 'Material' }).click(); await sleep(1200);
+  await q.locator('[aria-label="Filter Stock Type or Material"]').selectOption('ALL'); await sleep(1200);
   const t2 = await q.locator('section[aria-label="POS Materials Inventory Table"]').textContent();
   ok(!/Head Office/.test(t2) && /105/.test(t2), 'branch staff see only their own branch');
   ok((await q.locator('section[aria-label="Stock per location"]').count()) === 0, 'Stock per location matrix table is removed for branch');
   ok(await q.getByRole('button', { name: 'Stock In', exact: true }).count() === 0 && await q.getByRole('button', { name: 'Correct', exact: true }).count() === 0, 'branch staff: no Stock In / Correct');
 
   await g2.getByRole('button', { name: /^POS Terminal/ }).click(); await sleep(1000);
-  await q.getByRole('tab', { name: 'Units' }).click(); await sleep(1200);
+  await q.locator('[aria-label="Select Material Category"]').selectOption('HARDWARE'); await sleep(800);
   await q.getByRole('button', { name: /Request HQ Stock/ }).click(); await sleep(800);
   await q.getByLabel('SIM Card quantity').fill('5');
   await q.getByLabel('POS AC Adaptor quantity').fill('2');

@@ -136,7 +136,7 @@ const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_T
   // POS Terminal
   await stockGroup.getByRole('button', { name: /^POS Terminal/ }).click();
   await sleep(600);
-  for (const view of ['Push Configuring', 'Material', 'Units']) {
+  for (const view of ['Push Configuring', 'Units']) {
     const tBtn = p.locator('main button[role="tab"]:visible').filter({ hasText: new RegExp('^' + view) }).first();
     const tV = performance.now();
     await tBtn.click();
@@ -144,6 +144,11 @@ const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_T
     const lat = Math.round(performance.now() - tV);
     ok(lat < 500, `POS Terminal View -> ${view}: ${lat} ms`);
   }
+  await p.locator('[aria-label="Filter Stock Type or Material"]').selectOption('ALL');
+  await sleep(200);
+  ok(await p.locator('[aria-label="Select Material Category"]').isVisible(), 'In-place Material filter switches cleanly inside Units');
+  await p.locator('[aria-label="Select Material Category"]').selectOption('HARDWARE');
+  await sleep(150);
 
   // SIM Card Control Hub
   await stockGroup.getByRole('button', { name: /^SIM Card/ }).click();

@@ -32,7 +32,6 @@ const PRIMARY_SIM_STEPS: { status: SerialStatus; step: string; label: string }[]
   { status: 'BRANCH_RESERVE', step: '2', label: 'Branch Reserve' },
   { status: 'AT_MERCHANT', step: '3', label: 'Bundled (Serial & MID)' },
 ];
-const SECONDARY_SIM_STATUSES: SerialStatus[] = ['IN_TRANSIT', 'LOST', 'WRITTEN_OFF'];
 const SIM_STATUS_DISPLAY: Record<SerialStatus, string> = {
   HQ_STOCK: 'Available In Stock',
   IN_TRANSIT: 'In Transit',
@@ -325,24 +324,6 @@ const SimCardTabComponent: React.FC<{
               <span>{item.label}</span>
               <span className="tabular-nums opacity-80 ml-0.5">
                 {counts ? counts[item.status].toLocaleString() : '—'}
-              </span>
-            </motion.button>
-          ))}
-          <span className="hidden sm:inline-block h-4 w-px bg-slate-300 mx-0.5" aria-hidden />
-          {SECONDARY_SIM_STATUSES.map((s) => (
-            <motion.button
-              key={s}
-              whileTap={WHILE_TAP_BUTTON}
-              type="button"
-              onClick={() => React.startTransition(() => setStatus(s))}
-              aria-pressed={status === s}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition ${
-                status === s ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {SIM_STATUS_DISPLAY[s]}{' '}
-              <span className="tabular-nums opacity-80 ml-1">
-                {counts ? counts[s].toLocaleString() : '—'}
               </span>
             </motion.button>
           ))}
