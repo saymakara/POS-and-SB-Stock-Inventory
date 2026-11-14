@@ -548,30 +548,30 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Executive Serial Inventory Command Card */}
       <div className="surface-card rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm">
         {/* Top Header Strip - System Grey Palette */}
-        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 min-h-[78px] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
-              <Boxes className="w-5 h-5 text-slate-700 dark:text-slate-200" />
+        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-4 py-2.5 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
+              <Boxes className="w-4 h-4 text-slate-700 dark:text-slate-200" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
+                <h2 className="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
                   {showArchivedView
                     ? 'Removed / Archived Serials'
                     : 'Stock Inventory & Multi-Branch Ledger'}
                 </h2>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 Select multiple serials (e.g. Select 10) to batch-assign to a Branch Code or return to Admin HQ Stock
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
 
             {!showArchivedView && visibleDevices.length > 0 && (
               <motion.button
@@ -690,12 +690,12 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           )}
         </AnimatePresence>
 
-        {/* Filter & Search Bar in Neutral Slate & Charcoal (Consistent 3-row layout with PushConfiguringTab & MaterialStockPanel) */}
-        <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-3">
+        {/* Filter & Search Bar - Compact 2-Row Layout */}
+        <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/90 space-y-2">
           {/* Row 1: Search + Dropdown Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
@@ -704,7 +704,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   setCurrentPage(1);
                 }}
                 placeholder="Search Serial SN, Merchant, TID, Branch Code..."
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
+                className="w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
               />
             </div>
 
@@ -715,7 +715,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                className="w-full px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
                 title="Select view page (100 Row Max)"
               >
                 <option value={50}>View: 50 Rows / Page</option>
@@ -724,14 +724,14 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             </div>
 
             <div className="relative">
-              <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <select
                 value={stageFilter}
                 onChange={(e) => {
                   onStageFilterChange(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-8 pr-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                className="w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               >
                 <option value="ALL">All Lifecycle Stages</option>
                 {STAGE_ORDER.map((s) => (
@@ -749,7 +749,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   onTypeFilterChange(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               >
                 <option value="ALL">All Hardware Types</option>
                 <option value="POS Terminal">POS Terminal (Wizar POS Q2 Pro)</option>
@@ -763,7 +763,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 setMidDeviceFilter(e.target.value as 'ALL' | 'SINGLE' | 'MULTIPLE');
                 setCurrentPage(1);
               }}
-              className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               title="Filter by number of devices linked to MID"
             >
               <option value="ALL">All MIDs (Any Count)</option>
@@ -777,7 +777,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 setBatteryFilter(e.target.value as any);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               title="Filter by POS Terminal 24-Month Battery Lifecycle"
             >
               <option value="ALL">All Battery Cycles</option>
@@ -787,9 +787,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             </select>
           </div>
 
-          {/* Row 2: Branch Filter on left, viewToggle in exact same location on right */}
-          <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
-            <div className="flex-1 min-w-[220px] max-w-sm">
+          {/* Row 2: Branch Filter on left, Clear Filters + viewToggle on right */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex-1 min-w-[200px] max-w-xs">
               {isAdminLike ? (
                 <select
                   value={branchFilter}
@@ -797,7 +797,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     onBranchFilterChange(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                  className="w-full px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
                 >
                   <option value="ALL">All Branch Codes</option>
                   {branches.map((b) => (
@@ -807,29 +807,27 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   ))}
                 </select>
               ) : (
-                <div className="w-full px-3 py-2.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
+                <div className="w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
                   <Building2 className="w-3.5 h-3.5" />
                   <span>Scoped to Branch Code: {selectedBranch}</span>
                 </div>
               )}
             </div>
-            {viewToggle && (
-              <div className="flex items-center">
-                {viewToggle}
-              </div>
-            )}
-          </div>
-
-          {/* Row 3: Clear Filters */}
-          <div className="flex justify-end items-center pt-1 border-t border-slate-200/60 min-h-[36px]">
-            <ClearFiltersButton
-              active={!!searchQuery || stageFilter !== 'ALL' || (!lockType && typeFilter !== 'ALL') || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}
-              onClear={() => {
-                onSearchChange(''); onStageFilterChange('ALL'); if (!lockType) onTypeFilterChange('ALL');
-                if (isAdminLike) onBranchFilterChange('ALL');
-                setBatteryFilter('ALL'); setMidDeviceFilter('ALL'); setCurrentPage(1);
-              }}
-            />
+            <div className="flex items-center gap-2">
+              <ClearFiltersButton
+                active={!!searchQuery || stageFilter !== 'ALL' || (!lockType && typeFilter !== 'ALL') || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}
+                onClear={() => {
+                  onSearchChange(''); onStageFilterChange('ALL'); if (!lockType) onTypeFilterChange('ALL');
+                  if (isAdminLike) onBranchFilterChange('ALL');
+                  setBatteryFilter('ALL'); setMidDeviceFilter('ALL'); setCurrentPage(1);
+                }}
+              />
+              {viewToggle && (
+                <div className="flex items-center">
+                  {viewToggle}
+                </div>
+              )}
+            </div>
           </div>
         </div>
         {materialSummaryStrip}
@@ -928,7 +926,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
       {/* Clean Hardware Serial Ledger Table (Matching Merchant Deployment style) */}
       <div className={`${cardClass} border border-slate-200/90 dark:border-slate-800 rounded-xl overflow-hidden`}>
-        <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase tracking-wider text-[#003857] dark:text-sky-400">
               Hardware Serial Ledger

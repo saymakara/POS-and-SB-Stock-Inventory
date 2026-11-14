@@ -190,20 +190,20 @@ const MaterialSummaryCardsStrip: React.FC<{
   lostCount?: number;
   onOpenLostMaterials?: () => void;
 }> = ({ codes, summaries, selectedCode, onSelectCode, lostCount = 0, onOpenLostMaterials }) => (
-  <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-2.5">
+  <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/90 space-y-2">
     {lostCount > 0 && onOpenLostMaterials && (
       <div className="flex items-center justify-end">
         <button
           type="button"
           onClick={onOpenLostMaterials}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/90 transition cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/90 transition cursor-pointer"
         >
           <AlertTriangle className="w-3 h-3 text-amber-600" />
           <span>{lostCount} Open Lost Material{lostCount === 1 ? '' : 's'} — View</span>
         </button>
       </div>
     )}
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
       {codes.map((c) => {
         const summary = summaries[c] || { total: 0, adminStock: 0, branchReserve: 0, onHand: 0, deployed: 0, inTransit: 0 };
         const isSelected = selectedCode === c;
@@ -214,40 +214,40 @@ const MaterialSummaryCardsStrip: React.FC<{
             key={c}
             type="button"
             onClick={() => onSelectCode(c)}
-            className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
+            className={`flex flex-col text-left px-3 py-2 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
               isSelected
                 ? 'bg-white border-[#155484] ring-1 ring-[#155484]/30 shadow-xs'
                 : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
             }`}
           >
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
                   c === 'BATTERY' ? 'bg-amber-50 text-amber-700' :
                   c === 'STAND' ? 'bg-indigo-50 text-indigo-700' :
                   c === 'DOCK' ? 'bg-sky-50 text-sky-700' :
                   c === 'SB_ADAPTOR' ? 'bg-purple-50 text-purple-700' :
                   'bg-slate-100 text-slate-700'
                 }`}>
-                  <IconComp className="w-4 h-4" />
+                  <IconComp className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs font-bold text-slate-800">{materialName(c)}</span>
+                <span className="text-xs font-bold text-slate-800 truncate">{materialName(c)}</span>
               </div>
-              {isSelected && (
-                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#155484] text-white">
-                  Active
+              <div className="flex items-baseline gap-1.5 shrink-0">
+                <span className="text-base font-extrabold font-mono text-slate-900 tabular-nums leading-none">
+                  {summary.total.toLocaleString()}
                 </span>
-              )}
+                {isSelected ? (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#155484] text-white leading-none">
+                    Active
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-400 font-normal">Controlled</span>
+                )}
+              </div>
             </div>
 
-            <div className="mt-2.5 flex items-baseline justify-between gap-2">
-              <span className="text-xl font-bold font-mono text-slate-900 tabular-nums">
-                {summary.total.toLocaleString()}
-              </span>
-              <span className="text-[11px] text-slate-500 font-normal">Controlled</span>
-            </div>
-
-            <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-3 gap-1 text-[10.5px] text-slate-600 font-normal">
+            <div className="mt-1.5 pt-1.5 border-t border-slate-100 grid grid-cols-3 gap-1 text-[10.5px] text-slate-600 font-normal">
               <span title="Available In Stock (Head Office)" className="truncate">
                 In Stock: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
               </span>
@@ -363,7 +363,7 @@ const ProductStockPageComponent: React.FC<{
           }
         });
       }}
-      className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+      className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
       title="Filter between Hardware Units and Material stock in-place"
     >
       <option value="HARDWARE">Hardware Units</option>
@@ -1332,7 +1332,7 @@ const MaterialStockPanelComponent: React.FC<{
                 pg.setPageSize(sz);
                 balPg.setPageSize(sz);
               }}
-              className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               title="Select view page (100 Row Max)"
             >
               <option value={50}>50 / page</option>
