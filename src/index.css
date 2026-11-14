@@ -177,25 +177,17 @@
   background-color: #f3f4f6;
 }
 
-/* Charcoal Sidebar Theme (#22252B Charcoal + Amber #FFB020 Active Signal) */
+/* Signature Deep Navy Blue Sidebar (Cloned from Push Configuring Hub) */
 .sb-sidebar-gradient {
-  background-color: #22252b;
+  background-color: #002238;
   background-image: linear-gradient(
     180deg,
-    #1c1e23 0%,
-    #22252b 50%,
-    #272b33 100%
+    #002238 0%,
+    #003857 50%,
+    #004e75 100%
   );
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 4px 0 24px -4px rgba(17, 19, 24, 0.55);
-}
-.sb-sidebar-gradient .nav-bar-in {
-  background-color: #ffb020 !important;
-  box-shadow: 0 0 10px rgba(255, 176, 32, 0.45);
-}
-.sb-sidebar-gradient button span.bg-white.text-zinc-900 {
-  background-color: #ffb020 !important;
-  color: #22252b !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 4px 0 24px -4px rgba(0, 34, 56, 0.65);
 }
 
 /* Crisp Corporate Blue Bar & Table Header (lighter blue, not too navy) */
