@@ -298,7 +298,6 @@ const PRIMARY_MATERIAL_STEPS: { status: SerialStatus; step: string; label: strin
   { status: 'BRANCH_RESERVE', step: '2', label: 'Branch Reserve' },
   { status: 'AT_MERCHANT', step: '3', label: 'Bundled (Serial & MID)' },
 ];
-const SECONDARY_MATERIAL_STATUSES: SerialStatus[] = ['IN_TRANSIT', 'LOST', 'WRITTEN_OFF'];
 const MATERIAL_STATUS_DISPLAY: Record<SerialStatus, string> = {
   HQ_STOCK: 'Available In Stock',
   IN_TRANSIT: 'In Transit',
@@ -1224,88 +1223,72 @@ const MaterialStockPanelComponent: React.FC<{
               </span>
             </motion.button>
           ))}
-          <span className="hidden sm:inline-block h-4 w-px bg-slate-300 mx-0.5" aria-hidden />
-          {SECONDARY_MATERIAL_STATUSES.map((s) => (
-            <motion.button
-              key={s}
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              onClick={() => React.startTransition(() => setStatusFilter(s))}
-              aria-pressed={statusFilter === s}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition ${
-                statusFilter === s ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {MATERIAL_STATUS_DISPLAY[s]}{' '}
-              <span className="tabular-nums opacity-80 ml-1">
-                {(dynamicStatusCounts[s] ?? 0).toLocaleString()}
-              </span>
-            </motion.button>
-          ))}
         </div>
 
-        {/* Executive Controlled Materials Summary Cards */}
-        <div className="p-4 bg-slate-50/70 border-b border-slate-200/90">
-          <div className={`grid grid-cols-1 sm:grid-cols-2 ${group === 'POS' ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-3`}>
-            {codes.map((c) => {
-              const summary = materialSummaries[c] || { total: 0, onHand: 0, deployed: 0, inTransit: 0 };
-              const isSelected = selectedCode === c;
-              const IconComp = c === 'BATTERY' ? Battery : c === 'STAND' ? Smartphone : c === 'DOCK' ? Dock : Plug;
+        {/* Executive Controlled Materials Summary Cards (POS only — Sound Box has a single category) */}
+        {group === 'POS' && (
+          <div className="p-4 bg-slate-50/70 border-b border-slate-200/90">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {codes.map((c) => {
+                const summary = materialSummaries[c] || { total: 0, onHand: 0, deployed: 0, inTransit: 0 };
+                const isSelected = selectedCode === c;
+                const IconComp = c === 'BATTERY' ? Battery : c === 'STAND' ? Smartphone : c === 'DOCK' ? Dock : Plug;
 
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => React.startTransition(() => setSelectedCode(isSelected ? 'ALL' : c))}
-                  className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
-                    isSelected
-                      ? 'bg-white border-[#155484] ring-1 ring-[#155484]/30 shadow-xs'
-                      : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        c === 'BATTERY' ? 'bg-amber-50 text-amber-700' :
-                        c === 'STAND' ? 'bg-indigo-50 text-indigo-700' :
-                        c === 'DOCK' ? 'bg-sky-50 text-sky-700' :
-                        c === 'SB_ADAPTOR' ? 'bg-purple-50 text-purple-700' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
-                        <IconComp className="w-4 h-4" />
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => React.startTransition(() => setSelectedCode(isSelected ? 'ALL' : c))}
+                    className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
+                      isSelected
+                        ? 'bg-white border-[#155484] ring-1 ring-[#155484]/30 shadow-xs'
+                        : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          c === 'BATTERY' ? 'bg-amber-50 text-amber-700' :
+                          c === 'STAND' ? 'bg-indigo-50 text-indigo-700' :
+                          c === 'DOCK' ? 'bg-sky-50 text-sky-700' :
+                          c === 'SB_ADAPTOR' ? 'bg-purple-50 text-purple-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          <IconComp className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">{materialName(c)}</span>
                       </div>
-                      <span className="text-xs font-bold text-slate-800">{materialName(c)}</span>
+                      {isSelected && (
+                        <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#155484] text-white">
+                          Active
+                        </span>
+                      )}
                     </div>
-                    {isSelected && (
-                      <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#155484] text-white">
-                        Active
+
+                    <div className="mt-2.5 flex items-baseline justify-between gap-2">
+                      <span className="text-xl font-bold font-mono text-slate-900 tabular-nums">
+                        {summary.total.toLocaleString()}
                       </span>
-                    )}
-                  </div>
+                      <span className="text-[11px] text-slate-500 font-normal">Controlled</span>
+                    </div>
 
-                  <div className="mt-2.5 flex items-baseline justify-between gap-2">
-                    <span className="text-xl font-bold font-mono text-slate-900 tabular-nums">
-                      {summary.total.toLocaleString()}
-                    </span>
-                    <span className="text-[11px] text-slate-500 font-normal">Controlled</span>
-                  </div>
-
-                  <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-3 gap-1 text-[10.5px] text-slate-600 font-normal">
-                    <span title="Available In Stock (Head Office)" className="truncate">
-                      In Stock: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
-                    </span>
-                    <span title="Under Branch Reserve" className="truncate text-center">
-                      Reserve: <span className="font-semibold text-sky-700">{summary.branchReserve.toLocaleString()}</span>
-                    </span>
-                    <span title="Bundled with Device (Serial & MID)" className="truncate text-right">
-                      Bundled: <span className="font-semibold text-emerald-700">{summary.deployed.toLocaleString()}</span>
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+                    <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-3 gap-1 text-[10.5px] text-slate-600 font-normal">
+                      <span title="Available In Stock (Head Office)" className="truncate">
+                        In Stock: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
+                      </span>
+                      <span title="Under Branch Reserve" className="truncate text-center">
+                        Reserve: <span className="font-semibold text-sky-700">{summary.branchReserve.toLocaleString()}</span>
+                      </span>
+                      <span title="Bundled with Device (Serial & MID)" className="truncate text-right">
+                        Bundled: <span className="font-semibold text-emerald-700">{summary.deployed.toLocaleString()}</span>
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
 
 
