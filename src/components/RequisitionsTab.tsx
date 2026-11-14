@@ -594,7 +594,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                         {editBtn}
                         {rejectBtn}
                         {isAdmin ? (
-                          <button type="button" onClick={() => openArrangeModal(req)} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[#003857] hover:bg-[#002a42] text-white inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95" title="Choose the serials and dispatch to the branch" aria-label="Dispatch">
+                          <button type="button" onClick={() => openArrangeModal(req)} className="px-2.5 py-1 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-700 dark:text-sky-300 inline-flex items-center gap-1.5 shadow-2xs cursor-pointer transition active:scale-95" title="Choose the serials and dispatch to the branch" aria-label="Dispatch">
                             <Truck className="w-3.5 h-3.5" aria-hidden />
                             <span>Dispatch</span>
                           </button>
