@@ -563,6 +563,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const nextTotal = c.pos + c.sb;
     setPendingFieldCount((prev) => (prev === nextTotal ? prev : nextTotal));
   }, []);
+  const phoneReviewScopeRef = React.useRef<'PHNOM_PENH' | 'ALL'>(appSettings.phoneReviewScope || 'PHNOM_PENH');
+  phoneReviewScopeRef.current = appSettings.phoneReviewScope || 'PHNOM_PENH';
+  const branchesRef = React.useRef<Branch[]>(branches);
+  branchesRef.current = branches;
   const [onlineOperators, setOnlineOperators] = useState<OnlineOperatorPresence[]>([]);
   // (29 Oct 2026) the connection-speed reading (a request every 45 s per open screen) was removed: nothing displays it any more
   useEffect(() => {
@@ -834,7 +838,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     let unsubscribe: () => void = () => {};
     let unsubscribeField: () => void = () => {};
     const countPending = () =>
-      countPendingFieldEventsByType().then((c) => {
+      countPendingFieldEventsByType(phoneReviewScopeRef.current, branchesRef.current).then((c) => {
         if (alive && c !== null) applyPendingByType(c);
       });
 
@@ -927,7 +931,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         if (d && have && (have.rowVersion || 0) >= (d.rowVersion || 0)) pendingDev.delete(serial);
       });
       scheduleFlush();
-      countPending();
       unsubscribeField = subscribeToFieldEvents(() => countPendingSoon());
     })();
 
@@ -939,6 +942,17 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       unsubscribeField();
     };
   }, [reloadFromServer, applyPendingByType]);
+
+  // Keep sidebar POS / Sound Box badges synced with the active scope after branches & settings are committed
+  useEffect(() => {
+    if (!isSupabaseConfigured || !serverReady) return;
+    let alive = true;
+    const scope = appSettings.phoneReviewScope || 'PHNOM_PENH';
+    countPendingFieldEventsByType(scope, branches).then((c) => {
+      if (alive && c !== null) applyPendingByType(c);
+    });
+    return () => { alive = false; };
+  }, [serverReady, appSettings.phoneReviewScope, branches, applyPendingByType]);
 
   // Mobile & Background Resume: Re-sync state when browser tab becomes active or device resumes from sleep
   useEffect(() => {
@@ -3568,34 +3582,38 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
     triggerToast(`Bound ${nextMap.size} unit(s)` + (problems.length ? `; ${problems.length} refused: ${problems.slice(0, 3).join('; ')}${problems.length > 3 ? '…' : ''}` : '.'));
   };
 
-  const handleSaveBranch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = branchCodeInput.trim();
-    const name = branchNameInput.trim();
-    const staffArr = branchStaffInput
+  const saveBranchRecord = useCallback(async (
+    editingTarget: Branch | null,
+    rawCode: string,
+    rawName: string,
+    rawStaff: string
+  ): Promise<boolean> => {
+    const code = rawCode.trim();
+    const name = rawName.trim();
+    const staffArr = rawStaff
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
 
-    if (!code || !name) return;
-    if (!editingBranch && branches.some((b) => b.code === code)) {
+    if (!code || !name) return false;
+    if (!editingTarget && branches.some((b) => b.code === code)) {
       triggerToast(`Branch Code ${code} already exists!`);
-      return;
+      return false;
     }
     if (!/^[A-Za-z0-9-]{1,10}$/.test(code)) {
       triggerToast('Branch Code: up to 10 letters or digits.');
-      return;
+      return false;
     }
     if (isSupabaseConfigured) {
       // (22 Oct 2026, review) saved on the server first, so every admin sees the same branches
-      const err = await saveBranchOnServer({ id: editingBranch ? editingBranch.id : code, name });
-      if (err) { triggerToast(`Branch Code ${code} was not saved: ${err}`); return; }
+      const err = await saveBranchOnServer({ id: editingTarget ? editingTarget.id : code, name });
+      if (err) { triggerToast(`Branch Code ${code} was not saved: ${err}`); return false; }
     }
 
-    if (editingBranch) {
+    if (editingTarget) {
       setBranches((prev) =>
         prev.map((b) =>
-          b.code === editingBranch.code
+          b.code === editingTarget.code
             ? { ...b, name, staff: staffArr.length ? staffArr : b.staff }
             : b
         )
@@ -3605,7 +3623,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
     } else {
       if (branches.some((b) => b.code === code)) {
         triggerToast(`Branch Code ${code} already exists!`);
-        return;
+        return false;
       }
       setBranches((prev) => [
         ...prev,
@@ -3620,6 +3638,13 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
       addAuditLog('Branch Code Created', `Created new Branch Code ${code} (${name})`);
       triggerToast(`Branch Code ${code} created`);
     }
+    return true;
+  }, [branches, addAuditLog, triggerToast]);
+
+  const handleSaveBranch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const ok = await saveBranchRecord(editingBranch, branchCodeInput, branchNameInput, branchStaffInput);
+    if (!ok) return;
     setIsNewBranchModalOpen(false);
     setEditingBranch(null);
   };
@@ -4667,6 +4692,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         setBranchStaffInput(b.staff.join(', '));
                         setIsNewBranchModalOpen(true);
                       }}
+                      onSaveBranch={(b, updates) => saveBranchRecord(b, b.code, updates.name, updates.staff)}
                       onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
                     />
                   )}
@@ -4767,8 +4793,10 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       devices={devices}
                       triggerToast={triggerToast}
                       onApplied={() => {
-                        // the live feed brings the changed units and history; only the waiting count is asked for
-                        countPendingFieldEventsByType().then((c) => c !== null && applyPendingByType(c));
+                        // the live feed brings the changed units and history; verify the scoped waiting count
+                        countPendingFieldEventsByType(appSettings.phoneReviewScope || 'PHNOM_PENH', branches).then(
+                          (c) => c !== null && applyPendingByType(c)
+                        );
                       }}
                       onOpenWorkflow={(sn) => setEditingDeviceSerial(sn)}
                       scope={appSettings.phoneReviewScope || 'PHNOM_PENH'}
@@ -5088,7 +5116,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-extrabold cursor-pointer transition shadow-xs"
+                  className="px-4 py-2 rounded-xl bg-[#155484] hover:bg-[#114670] text-white text-xs font-extrabold cursor-pointer transition shadow-xs"
                 >
                   Save Branch Code
                 </button>

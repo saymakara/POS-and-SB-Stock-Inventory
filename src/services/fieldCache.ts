@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { fetchPendingFieldEvents, fetchReviewedFieldEvents, type FieldEvent } from './supabaseService';
+import { fetchAllPendingFieldEvents, fetchReviewedFieldEvents, type FieldEvent } from './supabaseService';
 import { markFresh } from '../utils/freshness';
 
 /**
@@ -9,11 +9,16 @@ import { markFresh } from '../utils/freshness';
  * emptied when the signed-in user changes.
  */
 let events: FieldEvent[] | null = null;
+let pendingComplete = false;
 let owner: string | null | undefined;
 
-export const clearFieldCache = () => { events = null; };
+export const clearFieldCache = () => { events = null; pendingComplete = false; };
 export const getCachedFieldEvents = () => events;
-export const setCachedFieldEvents = (list: FieldEvent[]) => { events = list; };
+export const isFieldCacheComplete = () => pendingComplete;
+export const setCachedFieldEvents = (list: FieldEvent[], complete = pendingComplete) => {
+  events = list;
+  pendingComplete = complete;
+};
 
 if (isSupabaseConfigured) {
   try {
@@ -30,16 +35,28 @@ export function prefetchFieldEvents(): Promise<void> {
   if (!isSupabaseConfigured) return Promise.resolve();
   if (inflight) return inflight;
   inflight = (async () => {
-    const pendingReq = fetchPendingFieldEvents(1000, 0);
+    const pendingReq = fetchAllPendingFieldEvents((firstPage) => {
+      if (!events) {
+        events = firstPage;
+        pendingComplete = false;
+      }
+    });
     const reviewedReq = fetchReviewedFieldEvents(1000, 0);
     const pending = await pendingReq;
-    if (pending && !events) events = pending;                     // the Waiting list is usable as soon as it arrives
+    if (pending) {
+      events = [...pending, ...(events || []).filter((e) => e.status !== 'PENDING')];
+      pendingComplete = true;                     // complete PENDING set across all pages
+      markFresh('field');
+    }
     const reviewed = await reviewedReq;
     if (pending || reviewed) {
       const keepPending = pending ?? (events || []).filter((e) => e.status === 'PENDING');
       const keepReviewed = reviewed ?? (events || []).filter((e) => e.status !== 'PENDING');
       events = [...keepPending, ...keepReviewed];
-      markFresh('field');
+      if (pending) {
+        pendingComplete = true;
+        markFresh('field');
+      }
     }
   })().catch(() => {}).finally(() => { inflight = null; });
   return inflight;

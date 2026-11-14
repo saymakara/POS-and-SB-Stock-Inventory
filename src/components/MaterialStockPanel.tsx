@@ -309,6 +309,25 @@ const MATERIAL_STATUS_DISPLAY: Record<SerialStatus, string> = {
   WRITTEN_OFF: 'Written Off',
 };
 
+/** Material is Available In Stock whenever it is at Head Office (100) or not yet used for any MID or Serial. */
+function effectiveMaterialStatus(s: MaterialSerial, dev?: Device): SerialStatus {
+  if (s.status === 'LOST' || s.status === 'FAULTY' || s.status === 'WRITTEN_OFF' || s.status === 'IN_TRANSIT') {
+    return s.status;
+  }
+  const hasMidOrMerchant = Boolean(
+    (s.mid && s.mid.trim()) ||
+    (s.merchantName && s.merchantName.trim()) ||
+    (dev && ((dev.mid && dev.mid.trim()) || (dev.merchantName && dev.merchantName.trim())))
+  );
+  if (s.status === 'AT_MERCHANT' && !hasMidOrMerchant && !(s.deviceSerial && s.deviceSerial.trim())) {
+    return !s.branchId || s.branchId === '100' ? 'HQ_STOCK' : 'BRANCH_RESERVE';
+  }
+  if (s.status === 'BRANCH_RESERVE' && (!s.branchId || s.branchId === '100') && !hasMidOrMerchant) {
+    return 'HQ_STOCK';
+  }
+  return s.status;
+}
+
 const MaterialStockPanelComponent: React.FC<{
   group: DeviceGroup;
   role: UserRole;
@@ -388,7 +407,8 @@ const MaterialStockPanelComponent: React.FC<{
       if (group === 'POS' && d.type !== 'POS Terminal') continue;
       if (group === 'SB' && d.type !== 'Sound Box') continue;
 
-      const isInstalled = d.stage === 'COMPLETE' || d.stage === 'CONFIGURING';
+      const hasMerchantBinding = Boolean((d.mid && d.mid.trim()) || (d.merchantName && d.merchantName.trim()));
+      const isInstalled = (d.stage === 'COMPLETE' || d.stage === 'CONFIGURING') && hasMerchantBinding;
       const branchId = String(d.branchId || '100');
 
       if (group === 'POS') {
@@ -399,10 +419,12 @@ const MaterialStockPanelComponent: React.FC<{
             const st: SerialStatus =
               isInstalled
                 ? 'AT_MERCHANT'
-                : d.stage === 'HQ_STOCK'
-                ? 'HQ_STOCK'
                 : d.stage === 'LOST'
                 ? 'LOST'
+                : d.stage === 'FAULTY'
+                ? 'FAULTY'
+                : d.stage === 'HQ_STOCK' || branchId === '100'
+                ? 'HQ_STOCK'
                 : 'BRANCH_RESERVE';
 
             items.push({
@@ -614,8 +636,18 @@ const MaterialStockPanelComponent: React.FC<{
 
   // Combine DB serials and device-derived items
   const combinedItems = useMemo(() => {
-    const list: MaterialSerial[] = [...(dbSerials || [])];
-    const seen = new Set((dbSerials || []).map((r) => `${r.code}|${r.serial.toUpperCase()}`));
+    const list: MaterialSerial[] = [];
+    const seen = new Set<string>();
+    const rawDb = dbSerials || [];
+
+    for (let i = 0; i < rawDb.length; i++) {
+      const r = rawDb[i];
+      const dev = r.deviceSerial ? deviceMap.get(r.deviceSerial.toUpperCase()) : undefined;
+      const normStatus = effectiveMaterialStatus(r, dev);
+      seen.add(`${r.code}|${r.serial.toUpperCase()}`);
+      if (statusFilter && normStatus !== statusFilter) continue;
+      list.push(normStatus === r.status ? r : { ...r, status: normStatus });
+    }
 
     for (let i = 0; i < deviceDerivedItems.length; i++) {
       const item = deviceDerivedItems[i];
@@ -802,7 +834,20 @@ const MaterialStockPanelComponent: React.FC<{
     if (counts) {
       Object.assign(res, counts);
     }
-    const seen = new Set((dbSerials || []).map((r) => `${r.code}|${r.serial.toUpperCase()}`));
+    const seen = new Set<string>();
+    const rawDb = dbSerials || [];
+    for (let i = 0; i < rawDb.length; i++) {
+      const r = rawDb[i];
+      seen.add(`${r.code}|${r.serial.toUpperCase()}`);
+      if (!statusFilter && !search) {
+        const dev = r.deviceSerial ? deviceMap.get(r.deviceSerial.toUpperCase()) : undefined;
+        const norm = effectiveMaterialStatus(r, dev);
+        if (norm !== r.status) {
+          if (res[r.status] > 0) res[r.status]--;
+          res[norm]++;
+        }
+      }
+    }
     for (let i = 0; i < deviceDerivedItems.length; i++) {
       const item = deviceDerivedItems[i];
       if (selectedCode !== 'ALL' && item.code !== selectedCode) continue;
@@ -814,7 +859,7 @@ const MaterialStockPanelComponent: React.FC<{
       }
     }
     return res;
-  }, [counts, dbSerials, deviceDerivedItems, selectedCode, branchFilter]);
+  }, [counts, dbSerials, deviceDerivedItems, selectedCode, branchFilter, statusFilter, search, deviceMap]);
 
   const totalAllItems = useMemo(
     () => Object.values(dynamicStatusCounts).reduce((a, b) => a + b, 0),
@@ -926,7 +971,7 @@ const MaterialStockPanelComponent: React.FC<{
         aria-label={group === 'POS' ? 'POS Materials Inventory Table' : 'Sound Box Materials Inventory Table'}
       >
         {/* Top Header Strip - System Grey Palette matching InventoryTab & PushConfiguringTab */}
-        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 min-h-[72px] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 min-h-[78px] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
               <Boxes className="w-5 h-5 text-slate-700 dark:text-slate-200" />
@@ -1010,69 +1055,9 @@ const MaterialStockPanelComponent: React.FC<{
           </div>
         </div>
 
-        {/* 3-Step Lifecycle & Status Filter Pills (matches SIM Card Control Hub) */}
-        <div className="px-5 py-3 bg-slate-100/70 dark:bg-slate-800/60 border-b border-slate-200/90 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Status">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              onClick={() => React.startTransition(() => setStatusFilter(''))}
-              aria-pressed={statusFilter === ''}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition ${
-                statusFilter === '' ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              All <span className="tabular-nums opacity-80 ml-1">{totalAllItems?.toLocaleString() ?? '—'}</span>
-            </motion.button>
-            {PRIMARY_MATERIAL_STEPS.map((item) => (
-              <motion.button
-                key={item.status}
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                onClick={() => React.startTransition(() => setStatusFilter(item.status))}
-                aria-pressed={statusFilter === item.status}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition inline-flex items-center gap-1.5 ${
-                  statusFilter === item.status ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <span className={`w-4 h-4 rounded-full text-[10px] inline-flex items-center justify-center font-bold ${
-                  statusFilter === item.status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-                }`}>{item.step}</span>
-                <span>{item.label}</span>
-                <span className="tabular-nums opacity-80 ml-0.5">
-                  {(dynamicStatusCounts[item.status] ?? 0).toLocaleString()}
-                </span>
-              </motion.button>
-            ))}
-            <span className="hidden sm:inline-block h-4 w-px bg-slate-300 mx-0.5" aria-hidden />
-            {SECONDARY_MATERIAL_STATUSES.map((s) => (
-              <motion.button
-                key={s}
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                onClick={() => React.startTransition(() => setStatusFilter(s))}
-                aria-pressed={statusFilter === s}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition ${
-                  statusFilter === s ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {MATERIAL_STATUS_DISPLAY[s]}{' '}
-                <span className="tabular-nums opacity-80 ml-1">
-                  {(dynamicStatusCounts[s] ?? 0).toLocaleString()}
-                </span>
-              </motion.button>
-            ))}
-          </div>
-
-          {viewToggle && (
-            <div className="flex items-center">
-              {viewToggle}
-            </div>
-          )}
-        </div>
-
-        {/* Clean Single-Row Filter Toolbar */}
+        {/* Filter Toolbar (Row 1 + Row 2 match InventoryTab & PushConfiguringTab so viewToggle never moves) */}
         <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-3">
+          {/* Row 1: Search + Category + Page Size + Ledger Switch + Clear */}
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1081,7 +1066,7 @@ const MaterialStockPanelComponent: React.FC<{
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={group === 'POS' ? 'Search serial, POS, MID...' : 'Search serial, Sound Box, MID...'}
-                className="w-full pl-9 pr-3 py-2 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
               />
             </div>
 
@@ -1089,7 +1074,7 @@ const MaterialStockPanelComponent: React.FC<{
               aria-label="Select Material Category"
               value={selectedCode}
               onChange={(e) => setSelectedCode(e.target.value as MaterialCode | 'ALL')}
-              className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs min-w-[180px]"
+              className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs min-w-[180px]"
             >
               <option value="ALL">All Material Types ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
               {codes.map((c) => {
@@ -1103,33 +1088,10 @@ const MaterialStockPanelComponent: React.FC<{
               })}
             </select>
 
-            {isAdmin ? (
-              <select
-                value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs max-w-[230px]"
-              >
-                <option value="">All locations</option>
-                <option value="100">100 · Head Office</option>
-                {branches
-                  .filter((b) => b.id !== '100' && b.code !== '100')
-                  .map((b) => (
-                    <option key={b.code || b.id} value={b.code || b.id}>
-                      {b.code || b.id} · {b.name}
-                    </option>
-                  ))}
-              </select>
-            ) : (
-              <div className="px-3 py-2 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Branch {myBranch}</span>
-              </div>
-            )}
-
             <select
               value={pg.pageSize}
               onChange={(e) => pg.setPageSize(Number(e.target.value))}
-              className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               title="Select view page (100 Row Max)"
             >
               <option value={50}>50 / page</option>
@@ -1138,13 +1100,12 @@ const MaterialStockPanelComponent: React.FC<{
 
             <div
               className="relative inline-flex p-0.5 rounded-xl bg-slate-200/70 border border-slate-200/90 select-none gap-0.5"
-              role="tablist"
+              role="group"
               aria-label="Ledger views"
             >
               <button
                 type="button"
-                role="tab"
-                aria-selected={activeLedgerView === 'DEPLOYMENTS'}
+                aria-pressed={activeLedgerView === 'DEPLOYMENTS'}
                 onClick={() => React.startTransition(() => setActiveLedgerView('DEPLOYMENTS'))}
                 className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
                   activeLedgerView === 'DEPLOYMENTS'
@@ -1164,8 +1125,7 @@ const MaterialStockPanelComponent: React.FC<{
               </button>
               <button
                 type="button"
-                role="tab"
-                aria-selected={activeLedgerView === 'BALANCES'}
+                aria-pressed={activeLedgerView === 'BALANCES'}
                 onClick={() => React.startTransition(() => setActiveLedgerView('BALANCES'))}
                 className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
                   activeLedgerView === 'BALANCES'
@@ -1196,6 +1156,92 @@ const MaterialStockPanelComponent: React.FC<{
               }}
             />
           </div>
+
+          {/* Row 2: Branch Filter on left, viewToggle in exact same location on right */}
+          <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
+            <div className="flex-1 min-w-[220px] max-w-sm">
+              {isAdmin ? (
+                <select
+                  value={branchFilter}
+                  onChange={(e) => setBranchFilter(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                >
+                  <option value="">All locations</option>
+                  <option value="100">100 · Head Office</option>
+                  {branches
+                    .filter((b) => b.id !== '100' && b.code !== '100')
+                    .map((b) => (
+                      <option key={b.code || b.id} value={b.code || b.id}>
+                        {b.code || b.id} · {b.name}
+                      </option>
+                    ))}
+                </select>
+              ) : (
+                <div className="w-full px-3 py-2.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Scoped to Branch Code: {myBranch}</span>
+                </div>
+              )}
+            </div>
+            {viewToggle && (
+              <div className="flex items-center">
+                {viewToggle}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 3-Step Lifecycle & Status Filter Pills (matches SIM Card Control Hub) */}
+        <div className="px-5 py-3 bg-slate-100/70 dark:bg-slate-800/60 border-b border-slate-200/90 flex flex-wrap items-center gap-2" role="group" aria-label="Status">
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            type="button"
+            onClick={() => React.startTransition(() => setStatusFilter(''))}
+            aria-pressed={statusFilter === ''}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition ${
+              statusFilter === '' ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            All <span className="tabular-nums opacity-80 ml-1">{totalAllItems?.toLocaleString() ?? '—'}</span>
+          </motion.button>
+          {PRIMARY_MATERIAL_STEPS.map((item) => (
+            <motion.button
+              key={item.status}
+              whileTap={{ scale: 0.97 }}
+              type="button"
+              onClick={() => React.startTransition(() => setStatusFilter(item.status))}
+              aria-pressed={statusFilter === item.status}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition inline-flex items-center gap-1.5 ${
+                statusFilter === item.status ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full text-[10px] inline-flex items-center justify-center font-bold ${
+                statusFilter === item.status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }`}>{item.step}</span>
+              <span>{item.label}</span>
+              <span className="tabular-nums opacity-80 ml-0.5">
+                {(dynamicStatusCounts[item.status] ?? 0).toLocaleString()}
+              </span>
+            </motion.button>
+          ))}
+          <span className="hidden sm:inline-block h-4 w-px bg-slate-300 mx-0.5" aria-hidden />
+          {SECONDARY_MATERIAL_STATUSES.map((s) => (
+            <motion.button
+              key={s}
+              whileTap={{ scale: 0.97 }}
+              type="button"
+              onClick={() => React.startTransition(() => setStatusFilter(s))}
+              aria-pressed={statusFilter === s}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition ${
+                statusFilter === s ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {MATERIAL_STATUS_DISPLAY[s]}{' '}
+              <span className="tabular-nums opacity-80 ml-1">
+                {(dynamicStatusCounts[s] ?? 0).toLocaleString()}
+              </span>
+            </motion.button>
+          ))}
         </div>
 
         {/* Executive Controlled Materials Summary Cards */}
@@ -1794,8 +1840,9 @@ export const AdjustDialog: React.FC<{
   const save = async () => {
     setBusy(true);
     try {
+      const resolvedStatus: SerialStatus = place === '100' && status === 'BRANCH_RESERVE' ? 'HQ_STOCK' : status;
       await materialAdjust(m.tracking === 'QTY' ? { code, branch_id: place, qty: Math.floor(Number(qty)), reason: reason.trim() }
-        : { code, branch_id: place, serial, status, reason: reason.trim() });
+        : { code, branch_id: place, serial, status: resolvedStatus, reason: reason.trim() });
       triggerToast(`${m.name} corrected.`); onDone(); onClose();
     } catch (e) { triggerToast(`Not corrected: ${cleanMaterialError(e)}`); } finally { setBusy(false); }
   };

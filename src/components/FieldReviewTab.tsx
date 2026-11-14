@@ -14,7 +14,8 @@ import {
   FieldEvent,
   FieldEventStatus,
   fetchBranchRegions,
-  fetchPendingFieldEvents,
+  getCachedBranchRegions,
+  fetchAllPendingFieldEvents,
   fetchReviewedFieldEvents,
   fetchAllFieldEvents,
   subscribeToFieldEvents,
@@ -23,7 +24,8 @@ import {
 } from '../services/supabaseService';
 import { deletePhoneRecords } from '../services/supabaseService';
 import { DeleteRecordsDialog, SelectBox } from './DeleteRecordsDialog';
-import { getCachedFieldEvents, setCachedFieldEvents } from '../services/fieldCache';
+import { getCachedFieldEvents, isFieldCacheComplete, setCachedFieldEvents } from '../services/fieldCache';
+import { normalizeFieldDeviceType, buildPhnomPenhScopeSets, isFieldEventInScope } from '../utils/fieldScope';
 import { ExportCsvButton } from './ExportCsvButton';
 import { downloadCsv, csvTime } from '../utils/exportCsv';
 import { CopyableRecordId } from './CopyableRecordId';
@@ -60,27 +62,11 @@ type TypeFilter = 'ALL' | 'POS Terminal' | 'Sound Box';
 type RecordTypeFilter = 'ALL' | FieldEvent['kind'];
 const DOT = { 'POS Terminal': 'bg-[#22577A]', 'Sound Box': 'bg-[#4F518C]' } as const;
 /** POS Terminal unless the record says Sound Box (the same rule as the row label) */
-const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
+const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => normalizeFieldDeviceType(e.deviceType);
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
   'grid items-center gap-x-2.5 grid-cols-[34px_38px_98px_180px_185px_minmax(130px,1.25fr)_minmax(125px,1.15fr)_minmax(125px,1.2fr)_84px_88px]';
-const CACHE_KEY = 'fe_review_cache_v5';
-
-/** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */
-const PHNOM_PENH_BRANCH_CODES = new Set([
-  '100', '101', '102', '103', '104', '105', '106', '107', '108', '109',
-  '110', '111', '112', '113', '114', '115', '116', '117', '118', '119',
-  '120', '121', '122', '123', '124', '125', '126', '127', '128', '129',
-  '130', '131', '132', '133', '134', '801',
-]);
-
-/** Explicit Provincial / Regional keywords that must NEVER pass when querying Phnom Penh Staff only. */
-const REGIONAL_KEYWORD_REGEX =
-  /province|provincial|regional|district|krong|sihanouk|kampong|kompong|takeo|takéo|kampot|kep|siem\s*reap|battambang|kandal|ta\s*khmau|poipet|banteay|svay\s*rieng|ba\s*vet|prey\s*veng|kratie|ratanakiri|mondulkiri|pursat|koh\s*kong|pailin|oddar|preah\s*vihear|stung\s*treng|tbong|suong|bati|angkor\s*chey|kiri\s*vong|chbar\s*mon|moung\s*russei|kamrieng|peam|memot|snoul|skun|prey\s*nob|sre\s*ambel|tram\s*kak|kiri\s*rom|odongk|basedth|chhuk|kampong\s*trach|banteay\s*meas/i;
-
-/** Positive Phnom Penh branch name patterns when no numeric code is present. */
-const PHNOM_PENH_NAME_REGEX =
-  /phnom\s*penh|head\s*office|\bhq\b|borei\s*keyla|mao\s*tse\s*toung|stade\s*chas|tuek\s*thla|tek\s*thla|toul\s*kork|tuol\s*kork|central\s*branch|central\s*market|stung\s*mean\s*chey|stueng\s*mean\s*chey|independent\s*monument|independence\s*monument|chbar\s*ampov|chaom\s*chau|choam\s*chao|samdach\s*sothearos|sothearos|ou\s*baek\s*k|obek\s*kaom|saensokh|sen\s*sok|russey\s*keo|russei\s*keo|phsar\s*derm\s*thkov|ph?sar\s*d(a|e)?e?u?r?m\s*th?kov|special\s*shift|psar\s*ដើមថ្កូវ|santhor\s*mok|chamkar\s*doung|chraoy\s*changvar|chroy\s*changvar|samdach\s*monireth|monireth|mittapheap|boeng\s*trabaek|boeng\s*trabek|samraong\s*kraom|grand\s*phnom\s*penh|praek\s*pnov|prek\s*pnov|kamboul|kambol|chamkar\s*mon|nirouth|niroth|bkk|daun\s*penh|7\s*makara|prampir\s*makara|dangkao|mean\s*chey|por\s*senchey|pur\s*senchey|chbar\s*ampov/i;
+const CACHE_KEY = 'fe_review_cache_v6';
 
 // one formatter, reused for every row (same text as toLocaleString with these options, ~20x faster)
 const FMT_TIME = new Intl.DateTimeFormat('en-GB', {
@@ -229,16 +215,20 @@ export const FieldReviewTab: React.FC<Props> = ({
   const selectable = useCallback((e: FieldEvent) => (isAdmin && e.status === 'PENDING') || (isSuper && e.status !== 'APPROVED'), [isAdmin, isSuper]);
   const [delOpen, setDelOpen] = useState(false);
   const [delBusy, setDelBusy] = useState(false);
-  const [events, setEvents] = useState<FieldEvent[] | null>(() => {
+  const initialSnapshot = useMemo(() => {
     const mem = getCachedFieldEvents();                              // fetched in the background after sign-in: no parsing, no waiting
-    if (mem) return mem;
+    if (mem) return { events: mem, complete: isFieldCacheComplete() };
     try {
-      const c = sessionStorage.getItem(CACHE_KEY);
-      return c ? (JSON.parse(c) as FieldEvent[]) : null;
-    } catch {
-      return null;
-    }
-  });
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (!raw) return { events: null as FieldEvent[] | null, complete: false };
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return { events: parsed as FieldEvent[], complete: parsed.length < 1000 };
+      if (parsed && Array.isArray(parsed.events)) return { events: parsed.events as FieldEvent[], complete: Boolean(parsed.complete) };
+    } catch { /* storage blocked or corrupt */ }
+    return { events: null as FieldEvent[] | null, complete: false };
+  }, []);
+  const [events, setEvents] = useState<FieldEvent[] | null>(initialSnapshot.events);
+  const [pendingReady, setPendingReady] = useState<boolean>(initialSnapshot.complete);
   const [reviewedReady, setReviewedReady] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [live, setLive] = useState(false);
@@ -257,7 +247,8 @@ export const FieldReviewTab: React.FC<Props> = ({
   const [bulkAck, setBulkAck] = useState(false);
   const [bulkBusy, setBulkBusy] = useState<'' | 'approve' | 'reject'>('');
   const [bulkReport, setBulkReport] = useState<string[]>([]);
-  const [regions, setRegions] = useState<Record<string, string>>({});
+  const [regions, setRegions] = useState<Record<string, string>>(() => getCachedBranchRegions() || {});
+  const [regionsReady, setRegionsReady] = useState<boolean>(() => Boolean(getCachedBranchRegions()));
   // the sub-menu decides the device type; the list already loaded is kept (no reload when switching)
   useEffect(() => {
     setTypeFilter(deviceType || 'ALL');
@@ -267,38 +258,45 @@ export const FieldReviewTab: React.FC<Props> = ({
   }, [deviceType]);
 
   useEffect(() => {
-    fetchBranchRegions().then((g) => startTransition(() => setRegions(g)));
+    fetchBranchRegions().then((g) => startTransition(() => { setRegions(g); setRegionsReady(true); }));
   }, []);
 
-  useEffect(() => { if (events) setCachedFieldEvents(events); }, [events]);   // the next opening starts from the latest list
+  useEffect(() => { if (events) setCachedFieldEvents(events, pendingReady); }, [events, pendingReady]);   // the next opening starts from the latest list
 
-  // Cache records so tab switches and page refreshes paint instantly (0ms)
+  // Cache records so tab switches and page refreshes paint instantly (never truncating PENDING records)
   useEffect(() => {
-    if (!events || events.length === 0) return;
+    if (!events || events.length === 0 || !pendingReady) return;
     const t = window.setTimeout(() => {
       try {
+        const pendingOnly = events.filter((e) => e.status === 'PENDING');
+        const reviewedCap = events.filter((e) => e.status !== 'PENDING').slice(0, 500);
         sessionStorage.setItem(
           CACHE_KEY,
-          JSON.stringify(events.slice(0, 1000))
+          JSON.stringify({ complete: true, events: [...pendingOnly, ...reviewedCap] })
         );
       } catch {
         /* storage full or blocked: fine */
       }
     }, 1200);
     return () => window.clearTimeout(t);
-  }, [events]);
+  }, [events, pendingReady]);
 
   const load = useCallback(async () => {
     setLoadError('');
     try {
-      // (29 Oct 2026, speed review) both lists are requested at the same time, but the Waiting list (what is opened first)
-      // is shown as soon as IT arrives; before, the screen waited for the slower of the two.
-      const pendingReq = fetchPendingFieldEvents(1000, 0);
+      // Both lists are requested at the same time; page 1 of Waiting paints at once if >1,000 rows exist,
+      // and all remaining Waiting pages finish before pendingReady enables sidebar count sync.
+      const pendingReq = fetchAllPendingFieldEvents((firstPage) => {
+        startTransition(() => {
+          setEvents((prev) => (prev && prev.length ? prev : [...firstPage]));
+        });
+      });
       const reviewedReq = fetchReviewedFieldEvents(1000, 0);
       const pending = await pendingReq;
       if (pending) {
         startTransition(() => {
           setEvents((prev) => [...pending, ...(prev || []).filter((e) => e.status !== 'PENDING')]);
+          setPendingReady(true);
         });
       }
       const reviewed = await reviewedReq;
@@ -312,18 +310,18 @@ export const FieldReviewTab: React.FC<Props> = ({
           const keepReviewed = reviewed ?? (prev || []).filter((e) => e.status !== 'PENDING');
           return [...keepPending, ...keepReviewed];
         });
+        if (pending) setPendingReady(true);
         setReviewedReady(true);
       });
-      markFresh('field');
+      if (pending) markFresh('field');
     } catch {
       setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
     }
   }, []);
 
   useEffect(() => {
-    // (5 Nov 2026, speed) the records fetched in the last minute (sign-in warm-up, the other review page) are used as
-    // they are: the live feed below keeps them current, Refresh fetches again
-    if (!(getCachedFieldEvents() && isFresh('field', 60000))) load();
+    // Only reuse cached records if all PENDING pages finished within the last minute
+    if (!(getCachedFieldEvents() && isFieldCacheComplete() && isFresh('field', 60000))) load();
     // (29 Oct 2026, speed review) live changes are collected and applied together once per frame: a burst of phone records
     // (or a bulk approval) is one screen update, not one per record
     const queued = new Map<number, FieldEvent>();
@@ -366,22 +364,7 @@ export const FieldReviewTab: React.FC<Props> = ({
   }, [devices]);
 
   // Build lookup set of known Phnom Penh branch codes and staff IDs from the 33 Phnom Penh branches
-  const { ppBranchCodes, ppStaffEmpIds } = useMemo(() => {
-    const codes = new Set<string>(PHNOM_PENH_BRANCH_CODES);
-    const empIds = new Set<string>();
-    branches.forEach((b) => {
-      const code = String(b.code || b.id || '').trim();
-      if (code && !/^[2-7]\d{2}$/.test(code) && !REGIONAL_KEYWORD_REGEX.test(b.name || '')) {
-        codes.add(code);
-      }
-      (b.staffDetails || []).forEach((u) => {
-        if (u.empId && (!u.location || /phnom\s*penh/i.test(u.location))) {
-          empIds.add(String(u.empId).trim());
-        }
-      });
-    });
-    return { ppBranchCodes: codes, ppStaffEmpIds: empIds };
-  }, [branches]);
+  const { ppBranchCodes, ppStaffEmpIds } = useMemo(() => buildPhnomPenhScopeSets(branches), [branches]);
 
   /**
    * Policy #8: Strict, zero-mistake Phnom Penh Staff filter.
@@ -389,47 +372,7 @@ export const FieldReviewTab: React.FC<Props> = ({
    * even when `e.branchId` is null on the field event record.
    */
   const inScope = useCallback(
-    (e: FieldEvent) => {
-      if (activeScope !== 'PHNOM_PENH') return true;
-
-      const rawId = String(e.branchId || '').trim();
-      const rawText = String(e.branchText || '').trim();
-      const combinedBranch = `${rawId} ${rawText}`.trim();
-
-      // 1. Any explicit regional/provincial/district/krong keyword in branchText is immediately excluded
-      if (REGIONAL_KEYWORD_REGEX.test(combinedBranch)) {
-        return false;
-      }
-
-      // 2. Check any 3-digit branch code in branchId or at the start of branchText (e.g. "404-Kampong Speu Branch")
-      const codeMatch = rawId.match(/^(\d{3})$/) || rawText.match(/^\s*(\d{3})\b/);
-      if (codeMatch) {
-        const code = codeMatch[1];
-        // Branch codes 200-799 are Regional branches -> exclude immediately
-        if (/^[2-7]\d{2}$/.test(code)) return false;
-        // Must belong to our Phnom Penh branch set (100..134, 801)
-        if (!ppBranchCodes.has(code)) return false;
-        const r = regions[code];
-        if (r !== undefined && r !== '' && !/phnom\s*penh|head\s*office/i.test(r)) {
-          return false;
-        }
-        return true;
-      }
-
-      // 3. If branchText is provided without a 3-digit code, verify it matches a Phnom Penh branch name
-      // (31 Oct 2026) … or that the staff member is a Phnom Penh staff member. Before, "Special Shift" (59 records) and
-      // "Phsar Daeum Thkov Branch" (17) were hidden from the Phnom Penh list although they were in the system.
-      if (rawText) {
-        return PHNOM_PENH_NAME_REGEX.test(rawText) || (!!e.staffId && ppStaffEmpIds.has(String(e.staffId).trim()));
-      }
-
-      // 4. If neither branchId nor branchText is present, check if the staffId belongs to Phnom Penh staff
-      if (e.staffId && ppStaffEmpIds.size > 0) {
-        return ppStaffEmpIds.has(String(e.staffId).trim());
-      }
-
-      return true;
-    },
+    (e: FieldEvent) => isFieldEventInScope(e, activeScope, ppBranchCodes, ppStaffEmpIds, regions),
     [activeScope, ppBranchCodes, ppStaffEmpIds, regions]
   );
 
@@ -459,7 +402,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     return { staff: staff.size, warn, block, top };
   }, [scoped, deviceType]);
 
-  // Keep the sub-menu badges synchronized with the active scope's exact waiting count of each device type
+  // Keep the sub-menu badges synchronized with the active scope's exact waiting count once full PENDING data + regions load
   const pendingByType = useMemo(() => {
     const c = { pos: 0, sb: 0 };
     scoped.forEach((e) => {
@@ -470,10 +413,10 @@ export const FieldReviewTab: React.FC<Props> = ({
     return c;
   }, [scoped]);
   useEffect(() => {
-    if (events && onPendingCountChange) {
+    if (events && pendingReady && regionsReady && onPendingCountChange) {
       onPendingCountChange(pendingByType);
     }
-  }, [events, pendingByType, onPendingCountChange]);
+  }, [events, pendingReady, regionsReady, pendingByType, onPendingCountChange]);
 
   const availableKinds = useMemo(() => {
     const defaultKinds: FieldEvent['kind'][] =

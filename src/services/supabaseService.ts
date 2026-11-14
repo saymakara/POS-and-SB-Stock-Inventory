@@ -1,9 +1,10 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, ArrangedDeviceItem } from '../types';
+import { Device, Requisition, HistoricalMerchantRecord, LifecycleStage, ArrangedDeviceItem, Branch } from '../types';
 import { normalizeMid } from '../utils/display';
 import { reportCaughtError } from '../utils/errorLogger';
 import { isFresh, markFresh, clearFresh } from '../utils/freshness';
 import { getCachedDevicePage, setCachedDevicePage, makeDevicePageKey, clearInventoryCache } from './inventoryCache';
+import { FieldScope, countPendingFieldEventsScoped } from '../utils/fieldScope';
 
 /** Batch size and inter-batch delay for CSV / bulk device inserts (prevents connection pool exhaustion & payload timeouts). */
 export const CSV_BATCH_SIZE = 250;
@@ -1597,6 +1598,8 @@ function mapFieldEvent(r: any): FieldEvent {
 
 let cachedBranchRegions: Record<string, string> | null = null;
 
+export const getCachedBranchRegions = (): Record<string, string> | null => cachedBranchRegions;
+
 export async function fetchBranchRegions(): Promise<Record<string, string>> {
   if (cachedBranchRegions) return cachedBranchRegions;
   try {
@@ -1624,12 +1627,55 @@ export async function fetchPendingFieldEvents(limit = 1000, offset = 0): Promise
       .select('*')
       .eq('status', 'PENDING')
       .order('received_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(safeLimit)
       .range(safeOffset, safeOffset + safeLimit - 1);
     if (error) throw error;
     return (data || []).map(mapFieldEvent);
   } catch (err) {
     await reportCaughtError('fetchPendingFieldEvents', err, { showPopup: false });
+    return null;
+  }
+}
+
+/**
+ * Fetches every PENDING record across 1,000-row pages so >1,000 waiting items are never truncated.
+ * Calls `onFirstPage` immediately when more than 1,000 rows exist so the screen renders without waiting for later pages.
+ */
+export async function fetchAllPendingFieldEvents(onFirstPage?: (rows: FieldEvent[]) => void): Promise<FieldEvent[] | null> {
+  const out: FieldEvent[] = [];
+  const seenIds = new Set<number>();
+  try {
+    for (let offset = 0; offset < 100000; offset += 1000) {
+      const { data, error } = await supabase
+        .from('field_events')
+        .select('*')
+        .eq('status', 'PENDING')
+        .order('received_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(1000)
+        .range(offset, offset + 999);
+      if (error) throw error;
+      const rows = data || [];
+      let added = 0;
+      const pageEvents: FieldEvent[] = [];
+      for (const r of rows) {
+        const mapped = mapFieldEvent(r);
+        if (!seenIds.has(mapped.id)) {
+          seenIds.add(mapped.id);
+          out.push(mapped);
+          pageEvents.push(mapped);
+          added++;
+        }
+      }
+      if (offset === 0 && rows.length === 1000 && pageEvents.length > 0) {
+        onFirstPage?.(pageEvents);
+      }
+      if (added === 0 || rows.length !== 1000) break;
+    }
+    return out;
+  } catch (err) {
+    await reportCaughtError('fetchAllPendingFieldEvents', err, { showPopup: false });
     return null;
   }
 }
@@ -1657,6 +1703,7 @@ export async function fetchReviewedFieldEvents(limit = 1000, offset = 0): Promis
       .select('*')
       .neq('status', 'PENDING')
       .order('received_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(safeLimit)
       .range(safeOffset, safeOffset + safeLimit - 1);
     if (error) throw error;
@@ -1681,17 +1728,58 @@ export async function countPendingFieldEvents(): Promise<number | null> {
   }
 }
 
-/** (28 Oct 2026) waiting records per device type (badges of the Phone App Review sub-menus) */
-export async function countPendingFieldEventsByType(): Promise<{ pos: number; sb: number } | null> {
+/**
+ * Waiting records per device type (badges of the Phone App Review sub-menus).
+ * Applies the active scope ('PHNOM_PENH' vs 'ALL') with lightweight column projection so boot/realtime counts
+ * always match the Phone App Review screen even when >1,000 pending items exist.
+ */
+export async function countPendingFieldEventsByType(
+  scope: FieldScope = 'ALL',
+  branches: Branch[] = []
+): Promise<{ pos: number; sb: number } | null> {
   try {
-    const [all, sb] = await Promise.all([
-      supabase.from('field_events').select('id', { count: 'exact', head: true }).eq('status', 'PENDING'),
-      supabase.from('field_events').select('id', { count: 'exact', head: true }).eq('status', 'PENDING').eq('device_type', 'Sound Box'),
-    ]);
-    if (all.error) throw all.error;
-    if (sb.error) throw sb.error;
-    const s = sb.count || 0;
-    return { pos: Math.max(0, (all.count || 0) - s), sb: s };
+    if (scope !== 'PHNOM_PENH') {
+      const [all, sb] = await Promise.all([
+        supabase.from('field_events').select('id', { count: 'exact', head: true }).eq('status', 'PENDING'),
+        supabase.from('field_events').select('id', { count: 'exact', head: true }).eq('status', 'PENDING').eq('device_type', 'Sound Box'),
+      ]);
+      if (all.error) throw all.error;
+      if (sb.error) throw sb.error;
+      const s = sb.count || 0;
+      return { pos: Math.max(0, (all.count || 0) - s), sb: s };
+    }
+
+    const regionsPromise = fetchBranchRegions();
+    const seenIds = new Set<number>();
+    const targets: Array<{ deviceType: string; branchId: string | null; branchText: string; staffId: string | null }> = [];
+    for (let offset = 0; offset < 100000; offset += 1000) {
+      const { data, error } = await supabase
+        .from('field_events')
+        .select('id,device_type,branch_id,branch_text,staff_id')
+        .eq('status', 'PENDING')
+        .order('id', { ascending: false })
+        .limit(1000)
+        .range(offset, offset + 999);
+      if (error) throw error;
+      const rows = data || [];
+      let added = 0;
+      for (const r of rows as Array<Record<string, any>>) {
+        const id = Number(r.id);
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          targets.push({
+            deviceType: r.device_type === 'Sound Box' ? 'Sound Box' : 'POS Terminal',
+            branchId: r.branch_id ?? null,
+            branchText: r.branch_text ?? '',
+            staffId: r.staff_id ?? null,
+          });
+          added++;
+        }
+      }
+      if (added === 0 || rows.length !== 1000) break;
+    }
+    const regions = await regionsPromise;
+    return countPendingFieldEventsScoped(targets, scope, branches, regions);
   } catch (err) {
     await reportCaughtError('countPendingFieldEventsByType', err, { showPopup: false });
     return null;

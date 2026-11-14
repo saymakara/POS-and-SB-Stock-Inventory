@@ -219,10 +219,10 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
             role="dialog"
             aria-modal="true"
             aria-label={`Manage ${materialName(item.code)} ${item.serial}`}
-            className="relative z-10 w-full max-w-xl bg-white dark:bg-slate-900 h-full shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden transform-gpu will-change-transform"
+            className="relative z-10 w-full sm:max-w-[460px] md:max-w-[480px] bg-white dark:bg-slate-900 h-full rounded-l-2xl shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden transform-gpu will-change-transform"
           >
-            {/* Dark Navy Header */}
-            <div className="bg-[#155484] text-white px-5 py-4 flex items-start justify-between gap-3 shrink-0">
+            {/* Corporate Blue Header */}
+            <div className="bg-[#155484] rounded-tl-2xl text-white px-4 py-3.5 flex items-start justify-between gap-3 shrink-0">
               <div className="flex items-start gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
                   <MaterialIcon className="w-5 h-5 text-white" />
@@ -261,20 +261,20 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
             </div>
 
             {/* Stepper Header */}
-            <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 text-xs shrink-0">
+            <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 text-xs shrink-0">
               <div className="flex items-center gap-2 font-semibold">
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${step === 'CONFIG' ? 'bg-[#003857] text-white' : 'bg-emerald-50 text-emerald-700'}`}>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${step === 'CONFIG' ? 'bg-[#155484] text-white' : 'bg-emerald-50 text-emerald-700'}`}>
                   <span>1</span> Configure
                 </span>
                 <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${step === 'REVIEW' ? 'bg-[#003857] text-white' : 'bg-slate-200/70 text-slate-600'}`}>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${step === 'REVIEW' ? 'bg-[#155484] text-white' : 'bg-slate-200/70 text-slate-600'}`}>
                   <span>2</span> Impact Review
                 </span>
               </div>
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/40">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/40">
               {errorMsg && (
                 <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
@@ -312,10 +312,10 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                   )}
 
                   {/* 1. Choose Material Step */}
-                  <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-2xs">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-2.5 shadow-2xs">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-800">
-                        <Building2 className="w-4 h-4 text-[#003857]" />
+                        <Building2 className="w-4 h-4 text-[#155484]" />
                         <span>1. Choose Material Step</span>
                       </div>
                       <span className="text-[11px] text-slate-500">Follows paired device & MID</span>
@@ -338,9 +338,9 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                                 setAssignedDeviceSerial('');
                               }
                             }}
-                            className={`text-left p-3 rounded-xl border transition cursor-pointer ${
+                            className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
                               active
-                                ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
+                                ? 'bg-[#155484] text-white border-[#155484] shadow-xs'
                                 : 'bg-slate-50/70 hover:bg-slate-100/80 text-slate-800 border-slate-200'
                             }`}
                           >
@@ -407,10 +407,10 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                   </div>
 
                   {/* 2. Bundle with Device (Serial & MID) — Simple Search Only */}
-                  <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-2xs">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-2.5 shadow-2xs">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-800">
-                        <Smartphone className="w-4 h-4 text-[#003857]" />
+                        <Smartphone className="w-4 h-4 text-[#155484]" />
                         <span>2. Bundle with Device (Serial & MID)</span>
                       </div>
                     </div>
@@ -424,7 +424,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                         placeholder="Search by Serial Number or MID..."
                         aria-label="Search device by Serial or MID"
                         disabled={!isAdmin}
-                        className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-[#003857] outline-none transition"
+                        className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-[#155484] outline-none transition"
                       />
                       {deviceSearch && (
                         <button
@@ -510,7 +510,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                   </div>
 
                   {/* 3. Remark */}
-                  <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2 shadow-2xs">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-2 shadow-2xs">
                     <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800">
                       3. Movement / Action Remark
                     </label>
@@ -520,13 +520,13 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                       onChange={(e) => setNote(e.target.value)}
                       placeholder="Optional note or reason for change..."
                       disabled={!isAdmin}
-                      className="w-full px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-[#003857] outline-none"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-[#155484] outline-none"
                     />
                   </div>
                 </>
               ) : (
                 /* Impact Review Step */
-                <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-2xs text-xs">
+                <div className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-2.5 shadow-2xs text-xs">
                   <h3 className="font-extrabold text-sm text-slate-900">Confirm Material Update</h3>
                   <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl">
                     <div className="px-3.5 py-2.5 flex justify-between gap-3">
@@ -535,7 +535,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                     </div>
                     <div className="px-3.5 py-2.5 flex justify-between gap-3">
                       <span className="text-slate-500">New Lifecycle Step</span>
-                      <span className="font-bold text-[#003857]">{MATERIAL_STEP_LABEL[status]}</span>
+                      <span className="font-bold text-[#155484]">{MATERIAL_STEP_LABEL[status]}</span>
                     </div>
                     <div className="px-3.5 py-2.5 flex justify-between gap-3">
                       <span className="text-slate-500">Branch Custody</span>
@@ -559,7 +559,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-3.5 bg-white border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
+            <div className="px-4 py-3 bg-white border-t border-slate-200 rounded-bl-2xl flex items-center justify-between gap-3 shrink-0">
               {step === 'CONFIG' ? (
                 <>
                   <button
@@ -574,7 +574,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                       whileTap={WHILE_TAP_BUTTON}
                       type="button"
                       onClick={validateAndProceed}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition cursor-pointer shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#11456d] text-white transition cursor-pointer shadow-xs"
                     >
                       <span>Review Impact</span>
                       <ArrowRight className="w-3.5 h-3.5" />

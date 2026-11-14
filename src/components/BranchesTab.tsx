@@ -42,7 +42,8 @@ interface BranchesTabProps {
   theme?: ThemeMode;
   onSelectBranchFilter: (branchCode: string) => void;
   onOpenNewBranchModal?: () => void;
-  onOpenEditBranchModal: (branch: Branch) => void;
+  onOpenEditBranchModal?: (branch: Branch) => void;
+  onSaveBranch?: (branch: Branch, updates: { name: string; staff: string }) => Promise<boolean>;
   onSelectDevice?: (serial: string) => void;
 }
 
@@ -55,6 +56,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
   onOpenNewBranchModal: _onOpenNewBranchModal,
   theme = 'dark',
   onOpenEditBranchModal,
+  onSaveBranch,
   onSelectDevice,
 }) => {
   const isLight = theme === 'light';
@@ -64,6 +66,17 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
   const [displayLayout, setDisplayLayout] = useState<'TABLE' | 'GRID'>('TABLE');
   const [expandedBranchCode, setExpandedBranchCode] = useState<string | null>(null);
   const [inspectedBranchCode, setInspectedBranchCode] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editStaff, setEditStaff] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const openInspectBranch = (b: Branch) => {
+    setInspectedBranchCode(b.code);
+    setEditName(b.name);
+    setEditStaff((b.staff || []).join(', '));
+    setEditOpen(false);
+  };
 
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const activeDevices = useMemo(
@@ -376,7 +389,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
         {/* Controls Header */}
         <div className="p-4 sm:p-5 border-b border-slate-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white">
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-[#003857] text-white flex items-center justify-center shadow-xs shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#155484] text-white flex items-center justify-center shadow-xs shrink-0">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
@@ -694,33 +707,23 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           <td className="py-3 px-3.5 text-right space-x-1.5 whitespace-nowrap">
                             <button
                               type="button"
-                              onClick={() => setInspectedBranchCode(b.code)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition cursor-pointer"
-                              title={`Inspect devices and staff at Branch Code ${b.code}`}
+                              onClick={() => openInspectBranch(b)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition inline-flex items-center gap-1 cursor-pointer"
+                              title={isAdminLike ? `Inspect and edit Branch Code ${b.code}` : `Inspect devices and staff at Branch Code ${b.code}`}
                             >
-                              Inspect
+                              {isAdminLike && <Edit3 className="w-3 h-3 text-slate-500" />}
+                              <span>{isAdminLike ? 'Inspect & Edit' : 'Inspect'}</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => onSelectBranchFilter(b.code)}
-                              className="px-2.5 py-1 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white font-normal text-xs transition inline-flex items-center gap-1 cursor-pointer"
+                              className="px-2.5 py-1 rounded-lg bg-[#155484] hover:bg-[#114670] text-white font-normal text-xs transition inline-flex items-center gap-1 cursor-pointer shadow-2xs"
                               title={`Open filtered hardware stock ledger for Branch Code ${b.code}`}
                             >
                               <span>Stock Ledger</span>
                               <ArrowUpRight className="w-3 h-3" />
                             </button>
-
-                            {isAdminLike && (
-                              <button
-                                type="button"
-                                onClick={() => onOpenEditBranchModal(b)}
-                                className="p-1.5 rounded-lg border bg-white hover:bg-slate-100 border-slate-200 text-slate-600 transition cursor-pointer inline-flex items-center justify-center align-middle"
-                                title={`Edit Branch Code ${b.code}`}
-                              >
-                                <Edit3 className="w-3 h-3" />
-                              </button>
-                            )}
                           </td>
                         </tr>
 
@@ -879,17 +882,6 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           <span>Phnom Penh</span>
                         </div>
                       </div>
-
-                      {isAdminLike && (
-                        <button
-                          type="button"
-                          onClick={() => onOpenEditBranchModal(b)}
-                          className="p-2 rounded-lg border bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600 transition cursor-pointer"
-                          title={`Edit Branch Code ${b.code}`}
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
                     </div>
 
                     <div className="grid grid-cols-4 gap-2 mb-4">
@@ -967,17 +959,18 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => setInspectedBranchCode(b.code)}
-                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 transition cursor-pointer"
+                        onClick={() => openInspectBranch(b)}
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 transition inline-flex items-center gap-1 cursor-pointer"
                       >
-                        Inspect
+                        {isAdminLike && <Edit3 className="w-3 h-3 text-slate-500" />}
+                        <span>{isAdminLike ? 'Inspect & Edit' : 'Inspect'}</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => onSelectBranchFilter(b.code)}
-                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-[#003857] hover:bg-[#002a42] text-white transition flex items-center gap-1 cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-[#155484] hover:bg-[#114670] text-white transition flex items-center gap-1 cursor-pointer shadow-2xs"
                       >
-                        <span>Ledger</span>
+                        <span>Stock Ledger</span>
                         <ArrowUpRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -1011,14 +1004,14 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                   animate={{ x: 0 }}
                   exit={{ x: '100%' }}
                   transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
+                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-2xl ${
                     isLight ? 'bg-white text-[#002f49]' : 'bg-[#12151e] text-slate-100'
                   }`}
                 >
-                  {/* Signature Navy Header Bar */}
-                  <div className="navy-header-bar rounded-tl-lg px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
+                  {/* Signature Corporate Blue Header Bar */}
+                  <div className="navy-header-bar rounded-tl-2xl px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-sky-300">
+                      <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-sky-200">
                         <Building2 className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
@@ -1031,18 +1024,45 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           </span>
                         </div>
                         <p className="text-xs text-slate-200/90 font-medium mt-0.5 truncate">
-                          Branch inventory hub · Assigned staff &amp; live hardware allocation
+                          Branch inventory hub · {isAdminLike ? 'Inspect stock, staff & edit branch details' : 'Assigned staff & live hardware allocation'}
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setInspectedBranchCode(null)}
-                      aria-label="Close"
-                      className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0 ml-2"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      {isAdminLike && (onSaveBranch || onOpenEditBranchModal) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onSaveBranch) {
+                              if (!editOpen) {
+                                setEditName(inspectedBranch.name);
+                                setEditStaff((inspectedBranch.staff || []).join(', '));
+                              }
+                              setEditOpen((v) => !v);
+                            } else {
+                              setInspectedBranchCode(null);
+                              onOpenEditBranchModal?.(inspectedBranch);
+                            }
+                          }}
+                          className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition inline-flex items-center gap-1.5 cursor-pointer ${
+                            editOpen
+                              ? 'bg-white text-[#155484] border-white'
+                              : 'bg-white/12 hover:bg-white/20 text-white border-white/20'
+                          }`}
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>{editOpen ? 'Editing' : 'Edit Branch'}</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setInspectedBranchCode(null)}
+                        aria-label="Close"
+                        className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Sub-Header Context & Metric Strip */}
@@ -1083,7 +1103,76 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                   </div>
 
                   {/* Modal Body */}
-                  <div className="p-6 overflow-y-auto max-h-[68vh] space-y-4 text-xs">
+                  <div className="p-6 flex-1 min-h-0 overflow-y-auto space-y-4 text-xs">
+                    {isAdminLike && editOpen && onSaveBranch && (
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (editSaving) return;
+                          setEditSaving(true);
+                          try {
+                            const ok = await onSaveBranch(inspectedBranch, { name: editName, staff: editStaff });
+                            if (ok) setEditOpen(false);
+                          } finally {
+                            setEditSaving(false);
+                          }
+                        }}
+                        className={`p-4 rounded-2xl border space-y-3 ${
+                          isLight ? 'bg-sky-50/50 border-[#155484]/25 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-[#155484] dark:text-sky-300 flex items-center gap-1.5">
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Edit Branch Code {inspectedBranch.code}</span>
+                          </h4>
+                          <span className="text-[10px] font-mono text-slate-500">Code locked</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                              Branch Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl text-xs border bg-white border-slate-200 text-slate-900 outline-none focus:border-[#155484]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                              Assigned Staff (Comma Separated)
+                            </label>
+                            <input
+                              type="text"
+                              value={editStaff}
+                              onChange={(e) => setEditStaff(e.target.value)}
+                              placeholder="e.g. SOK Dara (27811), NI Oudomroth (10811)"
+                              className="w-full px-3 py-2 rounded-xl text-xs border bg-white border-slate-200 text-slate-900 outline-none focus:border-[#155484]"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditOpen(false)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={editSaving || !editName.trim()}
+                            className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white cursor-pointer disabled:opacity-50 transition shadow-2xs"
+                          >
+                            {editSaving ? 'Saving…' : 'Save Changes'}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Section 1: Assigned Branch Staff */}
                       <div className={`p-4 rounded-2xl border space-y-3 ${
@@ -1091,7 +1180,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                       }`}>
                         <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 dark:border-white/[0.06]">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-lg bg-[#155484]/10 text-[#155484] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
                               <Users className="w-3.5 h-3.5" />
                             </div>
                             <div>
@@ -1137,7 +1226,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                       }`}>
                         <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 dark:border-white/[0.06]">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-[#003857]/10 text-[#003857] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-lg bg-[#155484]/10 text-[#155484] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
                               <Package className="w-3.5 h-3.5" />
                             </div>
                             <div>
@@ -1156,7 +1245,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                               setInspectedBranchCode(null);
                               onSelectBranchFilter(inspectedBranch.code);
                             }}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-2xs transition flex items-center gap-1 cursor-pointer shrink-0"
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-2xs transition flex items-center gap-1 cursor-pointer shrink-0"
                             title="Filter stock inventory ledger to this branch"
                           >
                             <span>Open in Ledger</span>
@@ -1222,9 +1311,9 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                         setInspectedBranchCode(null);
                         onSelectBranchFilter(inspectedBranch.code);
                       }}
-                      className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 border border-white/10"
+                      className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-xs active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 border border-white/10"
                     >
-                      <ArrowUpRight className="w-4 h-4 text-sky-300" />
+                      <ArrowUpRight className="w-4 h-4 text-sky-200" />
                       <span>View Branch in Stock Ledger ({inspectedBranch.devices.length})</span>
                     </button>
                   </div>
