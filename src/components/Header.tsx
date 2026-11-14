@@ -47,10 +47,7 @@ import {
   CardSim,
   ClipboardList,
   Trophy,
-  Sun,
-  Moon,
 } from 'lucide-react';
-import type { PortalPalette } from '../utils/portalTheme';
 import { formatBranchName, fmtNum } from '../utils/format';
 import { prefetchKpi } from '../services/kpiService';
 
@@ -480,9 +477,6 @@ interface HeaderProps {
   onMarkAllNotificationsRead: () => void;
   onSelectNotification: (notif: SystemNotification) => void;
   theme?: ThemeMode;
-  portalPalette?: PortalPalette;
-  onChangePortalPalette?: (p: PortalPalette) => void;
-  onToggleThemeMode?: () => void;
   onToggleSidebar?: () => void;
   devices?: Device[];
   onSelectDevice?: (serial: string) => void;
@@ -507,10 +501,6 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   notifications,
   onMarkAllNotificationsRead,
   onSelectNotification,
-  theme = 'light',
-  portalPalette = 'cairn',
-  onChangePortalPalette,
-  onToggleThemeMode,
   onToggleSidebar,
   devices = [],
   onSelectDevice,
@@ -912,83 +902,6 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                 {currentBranch ? `Branch Code ${currentBranch.id} - ${formatBranchName(currentBranch.name)}` : `Branch Code ${activeBranchId}`}
               </span>
             </div>
-          )}
-
-          {/* Theme Palette (Cairn / Navy) & Dark Mode Toggle */}
-          {onChangePortalPalette && (
-            <div
-              role="group"
-              aria-label="Portal color theme"
-              className="hidden sm:inline-flex items-center p-0.5 rounded-xl border border-zinc-200 bg-slate-100/90 backdrop-blur-md shrink-0"
-            >
-              <button
-                type="button"
-                onClick={() => onChangePortalPalette('cairn')}
-                aria-pressed={portalPalette === 'cairn'}
-                title="Cairn Theme (Amber, Charcoal, Deep Teal & Quarry Cream)"
-                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer transition ${
-                  portalPalette === 'cairn'
-                    ? 'bg-[#1F5D50] text-white shadow-2xs'
-                    : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                <span className="inline-flex items-center -space-x-1 shrink-0" aria-hidden>
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#FFB020] ring-1 ring-black/15" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#1F5D50] ring-1 ring-white/40" />
-                </span>
-                <span>Cairn</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onChangePortalPalette('navy')}
-                aria-pressed={portalPalette === 'navy'}
-                title="Classic Institutional Navy Theme"
-                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold cursor-pointer transition ${
-                  portalPalette === 'navy'
-                    ? 'bg-[#003857] text-white shadow-2xs'
-                    : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                <span className="inline-flex items-center -space-x-1 shrink-0" aria-hidden>
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#003857] ring-1 ring-white/40" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#38BDF8] ring-1 ring-black/15" />
-                </span>
-                <span>Navy</span>
-              </button>
-            </div>
-          )}
-
-          {onChangePortalPalette && (
-            <motion.button
-              whileTap={WHILE_TAP_ICON}
-              type="button"
-              onClick={() => onChangePortalPalette(portalPalette === 'cairn' ? 'navy' : 'cairn')}
-              aria-label={`Switch portal palette (current: ${portalPalette})`}
-              title={portalPalette === 'cairn' ? 'Switch to Classic Navy Theme' : 'Switch to Cairn Theme'}
-              className="sm:hidden p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/80 hover:bg-slate-200 text-zinc-700 border-zinc-200 backdrop-blur-md"
-            >
-              <span className="inline-flex items-center -space-x-1" aria-hidden>
-                <span className={`w-2.5 h-2.5 rounded-full ${portalPalette === 'cairn' ? 'bg-[#FFB020]' : 'bg-[#003857]'}`} />
-                <span className={`w-2.5 h-2.5 rounded-full ${portalPalette === 'cairn' ? 'bg-[#1F5D50]' : 'bg-[#38BDF8]'}`} />
-              </span>
-            </motion.button>
-          )}
-
-          {onToggleThemeMode && (
-            <motion.button
-              whileTap={WHILE_TAP_ICON}
-              type="button"
-              onClick={onToggleThemeMode}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              className="p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/80 hover:bg-slate-200 text-zinc-700 border-zinc-200 backdrop-blur-md transition"
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-3.5 h-3.5 text-[#FFB020]" />
-              ) : (
-                <Moon className="w-3.5 h-3.5" />
-              )}
-            </motion.button>
           )}
 
           {/* Live Alert Notification Bell */}

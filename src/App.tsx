@@ -1,7 +1,6 @@
 import React, { Suspense, useState, useMemo, useEffect, useCallback, useDeferredValue, startTransition } from 'react';
 import { setPendingTab } from './utils/navPending';
 import { setDrawerOpen, getDrawerOpen, closeDrawer } from './utils/drawerStore';
-import { usePortalTheme } from './utils/portalTheme';
 import {
   Device,
   Branch,
@@ -109,8 +108,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const bootSession = React.useRef<StoredAuthSession | null | undefined>(undefined);
   if (bootSession.current === undefined) bootSession.current = profile ? sessionFromProfile(profile) : getInitialAuthSession();
   const getBootSession = () => bootSession.current || null;
-  const { palette: portalPalette, mode: colorMode, setPalette: setPortalPalette, toggleMode: toggleThemeMode } = usePortalTheme();
-  const theme: ThemeMode = colorMode;
+  // Always use Light Mode (Single theme with Charcoal Sidebar)
+  const theme: ThemeMode = 'light';
 
   useEffect(() => {                                                  // the other screens arrive while the first one is in use
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
@@ -127,8 +126,14 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   useEffect(() => {
     try {
       localStorage.removeItem('pos_apple_glass_theme');
+      localStorage.removeItem('pos_portal_palette_v1');
+      localStorage.removeItem('pos_portal_mode_v1');
     } catch {}
     document.documentElement.removeAttribute('data-apple-theme');
+    document.documentElement.removeAttribute('data-portal-theme');
+    document.documentElement.removeAttribute('data-theme');
+    document.documentElement.classList.remove('dark');
+    document.documentElement.style.colorScheme = 'light';
   }, []);
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -4402,9 +4407,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
               if (n.targetTab) handleSelectTab(n.targetTab);
             }}
             theme={theme}
-            portalPalette={portalPalette}
-            onChangePortalPalette={setPortalPalette}
-            onToggleThemeMode={toggleThemeMode}
             onToggleSidebar={handleToggleSidebar}
             devices={scopedDevices}
             onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
