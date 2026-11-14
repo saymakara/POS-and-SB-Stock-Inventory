@@ -115,6 +115,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   requisitions,
   role,
   selectedBranch,
+  theme = 'light',
   onSelectDevice,
   onOpenExportModal,
   onNavigateTab,
@@ -680,7 +681,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       series2Data={monthlyChart.sb}
                       series2Color="#4F518C"
                       height={240}
-                      theme="light"
+                      theme={theme}
                     />
                   </div>
                   <div className="lg:col-span-4 space-y-2">
@@ -796,7 +797,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   series2Data={topBranchesChart.sbSeries}
                   series2Color="#4F518C"
                   height={240}
-                  theme="light"
+                  theme={theme}
                 />
               </motion.div>
             )}

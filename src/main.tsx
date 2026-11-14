@@ -11,6 +11,10 @@ import './index.css';
 import { startFilterMarks } from './utils/filterMarks';
 import { startPerfMonitor } from './utils/perfMonitor';
 import { startClickGuard } from './utils/clickGuard';
+import { initPortalTheme } from './utils/portalTheme';
+
+// Apply stored portal palette (Cairn / Navy) and color mode (Light / Dark) before first paint
+initPortalTheme();
 
 // (31 Oct 2026) speed and error figures for Settings → System Health (kept in this tab's memory only)
 startPerfMonitor();

@@ -1,6 +1,7 @@
 import React, { Suspense, useState, useMemo, useEffect, useCallback, useDeferredValue, startTransition } from 'react';
 import { setPendingTab } from './utils/navPending';
 import { setDrawerOpen, getDrawerOpen, closeDrawer } from './utils/drawerStore';
+import { usePortalTheme } from './utils/portalTheme';
 import {
   Device,
   Branch,
@@ -108,8 +109,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const bootSession = React.useRef<StoredAuthSession | null | undefined>(undefined);
   if (bootSession.current === undefined) bootSession.current = profile ? sessionFromProfile(profile) : getInitialAuthSession();
   const getBootSession = () => bootSession.current || null;
-  // Always use Light Mode (Single theme as before)
-  const theme: ThemeMode = 'light';
+  const { palette: portalPalette, mode: colorMode, setPalette: setPortalPalette, toggleMode: toggleThemeMode } = usePortalTheme();
+  const theme: ThemeMode = colorMode;
 
   useEffect(() => {                                                  // the other screens arrive while the first one is in use
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
@@ -128,7 +129,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       localStorage.removeItem('pos_apple_glass_theme');
     } catch {}
     document.documentElement.removeAttribute('data-apple-theme');
-    document.documentElement.classList.remove('dark');
   }, []);
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -4402,6 +4402,9 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
               if (n.targetTab) handleSelectTab(n.targetTab);
             }}
             theme={theme}
+            portalPalette={portalPalette}
+            onChangePortalPalette={setPortalPalette}
+            onToggleThemeMode={toggleThemeMode}
             onToggleSidebar={handleToggleSidebar}
             devices={scopedDevices}
             onSelectDevice={(sn) => setEditingDeviceSerial(sn)}
