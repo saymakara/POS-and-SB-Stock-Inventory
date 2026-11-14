@@ -761,7 +761,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {rejectingReq && (
-              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onMouseDown={(e) => { if (e.target === e.currentTarget) setRejectingReq(null); }}>
+              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/55 will-change-[opacity]" onMouseDown={(e) => { if (e.target === e.currentTarget) setRejectingReq(null); }}>
                 <motion.div
                   variants={DRAWER_VARIANTS}
                   initial="hidden"
@@ -806,7 +806,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {editingReq && (
-              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setEditingReq(null); }}>
+              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/55 will-change-[opacity]" onClick={(e) => { if (e.target === e.currentTarget) setEditingReq(null); }}>
                 <motion.div
                   variants={DRAWER_VARIANTS}
                   initial="hidden"
@@ -856,7 +856,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {arrangingReq && isAdmin && (
-              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs">
+              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/55 will-change-[opacity]">
                 <motion.div
                   variants={DRAWER_VARIANTS}
                   initial="hidden"
@@ -1288,7 +1288,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                   animate="visible"
                   exit="exit"
                   onClick={() => setSelectedRequisition(null)}
-                  className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+                  className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
                 />
                 <motion.div
                   variants={DRAWER_VARIANTS}

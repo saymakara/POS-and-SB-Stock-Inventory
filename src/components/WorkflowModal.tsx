@@ -700,7 +700,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           animate="visible"
           exit="exit"
           onClick={onClose}
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+          className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
         />
 
         {/* Slide-over Drawer Window */}
@@ -709,7 +709,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           initial="hidden"
           animate="visible"
           exit="exit"
-          className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg ${
+          className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg transform-gpu will-change-transform ${
             isLight
               ? 'bg-white text-slate-800'
               : 'bg-[#12151e] text-slate-100'

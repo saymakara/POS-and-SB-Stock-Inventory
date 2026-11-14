@@ -26,7 +26,7 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { SPRING_TAB_PILL } from '../utils/animationRules';
+import { SPRING_TAB_PILL, BACKDROP_VARIANTS, DRAWER_VARIANTS } from '../utils/animationRules';
 import { normalizeMid, isValidMidForType, midRuleError } from '../utils/display';
 import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
@@ -1375,8 +1375,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   }, [sbPasteText, activeStagedBatch]);
 
   const modalBoxClass = isLight
-    ? 'bg-white/95 text-slate-800 backdrop-blur-xl'
-    : 'bg-[#11141e]/95 text-slate-100 backdrop-blur-xl';
+    ? 'bg-white text-slate-800'
+    : 'bg-[#11141e] text-slate-100';
 
   const inputClass = isLight
     ? 'bg-white border-slate-300 text-slate-900'
@@ -1387,16 +1387,18 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1, transition: { duration: 0.22, ease: 'easeOut' } }}
-        exit={{ opacity: 0, transition: { duration: 0.18, ease: 'easeIn' } }}
+        variants={BACKDROP_VARIANTS}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
         onClick={onClose}
-        className="fixed inset-0 bg-slate-950/50"
+        className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
       />
       <motion.div
-        initial={{ x: '100%' }}
-        animate={{ x: 0, transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] } }}
-        exit={{ x: '100%', transition: { duration: 0.22, ease: [0.7, 0, 0.84, 0] } }}
+        variants={DRAWER_VARIANTS}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
         className={`${modalBoxClass} relative z-10 w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-transform rounded-l-lg`}
       >
         {/* Header (Signature Navy Bar) */}

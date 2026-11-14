@@ -246,33 +246,36 @@ export const BACKDROP_VARIANTS: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { duration: 0.2, ease: EASE_ENTRANCE },
+    transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.16, ease: [0.4, 0, 1, 1] }, // 20% shorter exit
+    transition: { duration: 0.16, ease: [0.32, 0.72, 0, 1] },
   },
 };
 
 export const MODAL_VARIANTS: Variants = {
   hidden: {
     opacity: 0,
-    scale: 0.96,
+    y: 10,
+    scale: 0.97,
   },
   visible: {
     opacity: 1,
+    y: 0,
     scale: 1,
     transition: {
       duration: DURATION_MODAL_ENTER,
-      ease: EASE_ENTRANCE,
+      ease: [0.22, 1, 0.36, 1],
     },
   },
   exit: {
     opacity: 0,
-    scale: 0.96,
+    y: 6,
+    scale: 0.97,
     transition: {
-      duration: DURATION_MODAL_EXIT,
-      ease: [0.4, 0, 1, 1], // 20% shorter exit
+      duration: 0.16,
+      ease: [0.32, 0.72, 0, 1],
     },
   },
 };
@@ -280,22 +283,18 @@ export const MODAL_VARIANTS: Variants = {
 export const DRAWER_VARIANTS: Variants = {
   hidden: {
     x: '100%',
-    opacity: 0.6,
   },
   visible: {
     x: 0,
-    opacity: 1,
     transition: {
-      x: { type: 'spring', stiffness: 380, damping: 32, mass: 0.75, bounce: 0 },
-      opacity: { duration: DURATION_DRAWER_ENTER, ease: EASE_ENTRANCE },
+      x: { type: 'spring', stiffness: 440, damping: 40, mass: 0.72, bounce: 0 },
     },
   },
   exit: {
     x: '100%',
-    opacity: 0,
     transition: {
-      duration: DURATION_DRAWER_EXIT,
-      ease: [0.4, 0, 1, 1], // 20% shorter exit
+      duration: 0.2,
+      ease: [0.32, 0.72, 0, 1],
     },
   },
 };

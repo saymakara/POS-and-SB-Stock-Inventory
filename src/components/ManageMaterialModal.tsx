@@ -208,7 +208,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
             animate="visible"
             exit="exit"
             onClick={onClose}
-            className="fixed inset-0 bg-slate-900/45 backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-900/55 will-change-[opacity]"
           />
 
           <motion.aside
@@ -219,7 +219,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
             role="dialog"
             aria-modal="true"
             aria-label={`Manage ${materialName(item.code)} ${item.serial}`}
-            className="relative z-10 w-full max-w-xl bg-white dark:bg-slate-900 h-full shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
+            className="relative z-10 w-full max-w-xl bg-white dark:bg-slate-900 h-full shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden transform-gpu will-change-transform"
           >
             {/* Dark Navy Header */}
             <div className="bg-[#003857] text-white px-5 py-4 flex items-start justify-between gap-3 shrink-0">

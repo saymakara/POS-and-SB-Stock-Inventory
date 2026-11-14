@@ -332,7 +332,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   }`;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/55 will-change-[opacity]" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <motion.div
         variants={DRAWER_VARIANTS}
         initial="hidden"

@@ -307,7 +307,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
+          className="fixed inset-0 bg-slate-900/55 will-change-[opacity]"
           onClick={onClose}
           aria-hidden
         />
@@ -317,7 +317,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="relative w-full sm:max-w-[560px] md:max-w-[580px] bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full rounded-l-lg overflow-hidden"
+          className="relative w-full sm:max-w-[560px] md:max-w-[580px] bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full rounded-l-lg overflow-hidden transform-gpu will-change-transform"
         >
           {/* 1. NAVY HEADER BAR */}
           <div className="bg-[#003857] rounded-tl-lg text-white px-5 py-3.5 shrink-0 shadow-sm border-b border-white/10">

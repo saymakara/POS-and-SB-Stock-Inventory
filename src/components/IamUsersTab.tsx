@@ -428,7 +428,7 @@ export const IamUsersTab: React.FC<IamUsersTabProps> = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setDeleteConfirm({ isOpen: false, type: 'SINGLE', userIds: [], userNames: [] })}
-              className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs"
+              className="fixed inset-0 bg-slate-950/60 will-change-[opacity]"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 12 }}

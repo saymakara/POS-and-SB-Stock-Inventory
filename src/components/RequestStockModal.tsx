@@ -148,7 +148,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
           animate="visible"
           exit="exit"
           onClick={onClose}
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+          className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
         />
 
         {/* Modal Box */}

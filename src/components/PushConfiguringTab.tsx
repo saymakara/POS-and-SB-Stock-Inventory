@@ -2256,7 +2256,7 @@ return (
                     setPusherPassword('');
                     setPusherPasswordError('');
                   }}
-                  className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+                  className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
                 />
 
                 {/* Clean, Modern Slide-over Drawer */}
