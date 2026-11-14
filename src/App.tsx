@@ -4644,7 +4644,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       />
                     );
 
-                    const kpiCardsNode = (
+                    const kpiCardsNode = shownTab === 'inventory_pos' ? undefined : (
                       <KpiCards
                         devices={scopedDevices}
                         deviceType={productType || undefined}
