@@ -1597,7 +1597,7 @@ const MaterialStockPanelComponent: React.FC<{
               <thead>
                 <tr className="bg-[#155484] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
                   <th className="px-4 py-3 text-center w-12">No.</th>
-                  <th className="px-4 py-3">Item / Identifier</th>
+                  <th className="px-4 py-3">Item Serial</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Material Type</th>
                   <th className="px-4 py-3">
