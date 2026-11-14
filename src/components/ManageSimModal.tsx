@@ -320,7 +320,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
           className="relative w-full sm:max-w-[560px] md:max-w-[580px] bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full rounded-l-lg overflow-hidden transform-gpu will-change-transform"
         >
           {/* 1. NAVY HEADER BAR */}
-          <div className="bg-[#003857] rounded-tl-lg text-white px-5 py-3.5 shrink-0 shadow-sm border-b border-white/10">
+          <div className="bg-[#155484] rounded-tl-lg text-white px-5 py-3.5 shrink-0 shadow-sm border-b border-white/10">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="p-2 rounded-xl bg-white/10 text-[#5cc8ff] shrink-0 border border-white/10 shadow-xs">

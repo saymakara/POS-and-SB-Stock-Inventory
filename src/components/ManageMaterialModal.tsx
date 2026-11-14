@@ -222,7 +222,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
             className="relative z-10 w-full max-w-xl bg-white dark:bg-slate-900 h-full shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden transform-gpu will-change-transform"
           >
             {/* Dark Navy Header */}
-            <div className="bg-[#003857] text-white px-5 py-4 flex items-start justify-between gap-3 shrink-0">
+            <div className="bg-[#155484] text-white px-5 py-4 flex items-start justify-between gap-3 shrink-0">
               <div className="flex items-start gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
                   <MaterialIcon className="w-5 h-5 text-white" />

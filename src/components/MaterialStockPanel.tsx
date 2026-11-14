@@ -1274,7 +1274,7 @@ const MaterialStockPanelComponent: React.FC<{
           <div className="overflow-x-auto overflow-y-hidden">
             <table className="w-full min-w-[900px] text-sm text-left">
               <thead>
-                <tr className="bg-[#003857] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
+                <tr className="bg-[#155484] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
                   <th className="px-4 py-3 text-center w-12">No.</th>
                   <th className="px-4 py-3">Branch Location / Custody</th>
                   <th className="px-4 py-3">Material Type</th>
@@ -1382,7 +1382,7 @@ const MaterialStockPanelComponent: React.FC<{
           <div className="overflow-x-auto overflow-y-hidden">
             <table className="w-full min-w-[900px] text-sm text-left">
               <thead>
-                <tr className="bg-[#003857] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
+                <tr className="bg-[#155484] text-white text-[10.5px] uppercase tracking-wider font-bold select-none">
                   <th className="px-4 py-3 text-center w-12">No.</th>
                   <th className="px-4 py-3">Item / Identifier</th>
                   <th className="px-4 py-3">Status</th>

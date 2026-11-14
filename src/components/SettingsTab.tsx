@@ -1765,7 +1765,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
                     className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 bg-white flex flex-col my-0 overflow-hidden text-slate-900 rounded-l-lg"
                   >
-                    <div className="px-6 py-4 bg-[#003857] rounded-tl-lg border-b border-white/10 flex items-center justify-between text-white">
+                    <div className="px-6 py-4 bg-[#155484] rounded-tl-lg border-b border-white/10 flex items-center justify-between text-white">
                       <div>
                         <h3 className="text-sm font-extrabold">
                           {editingFieldId ? 'Edit Attribute Field' : 'Add New Custom Field'}

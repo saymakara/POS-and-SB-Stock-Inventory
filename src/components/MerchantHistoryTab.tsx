@@ -1322,7 +1322,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
               className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden bg-white text-zinc-900 rounded-l-lg"
             >
-              <div className="px-6 py-4.5 bg-[#003857] rounded-tl-lg border-b border-white/10 text-white flex items-center justify-between shrink-0">
+              <div className="px-6 py-4.5 bg-[#155484] rounded-tl-lg border-b border-white/10 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2.5">
                   <RotateCcw className="w-5 h-5 text-white" />
                   <h3 className="text-base font-extrabold text-white">
