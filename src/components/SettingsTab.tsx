@@ -7,6 +7,7 @@ import {
   CustomFieldDefinition,
   CustomFieldType,
   DEFAULT_CUSTOM_FIELDS,
+  isCustomFieldVisibleForDevice,
   TelegramRegionalGroup,
 } from '../types';
 import { LogoPageTab } from './LogoPageTab';
@@ -252,6 +253,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [modalFieldTargetTab, setModalFieldTargetTab] = useState<'inventory' | 'merchants' | 'branches' | 'staff' | 'requisitions' | 'all'>('all');
   const [modalFieldTargetDeviceType, setModalFieldTargetDeviceType] = useState<'ALL' | 'POS' | 'SOUND_BOX'>('ALL');
   const [customFieldPreviewValues, setCustomFieldPreviewValues] = useState<Record<string, string>>({});
+  const [simulatorDeviceType, setSimulatorDeviceType] = useState<'POS' | 'SOUND_BOX'>('POS');
 
   const currentCustomFields: CustomFieldDefinition[] =
     formState.customFields && formState.customFields.length > 0
@@ -1288,7 +1290,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => handleOpenAddField()}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-xs transition cursor-pointer flex items-center gap-1.5"
                   >
                     <Plus className="w-4 h-4 text-emerald-400" />
                     <span>Add Custom Field</span>
@@ -1311,19 +1313,51 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <div className="flex flex-wrap gap-2">
                   {[
                     {
-                      id: 'location',
-                      label: 'Store Location / Area',
-                      type: 'text' as CustomFieldType,
-                      placeholder: 'e.g. Toul Kork / BKK1 / Riverside',
-                      description: 'Commercial zone, municipal district, or branch territory.',
-                      isSystem: true,
-                    },
-                    {
                       id: 'merchantPhone',
                       label: 'Merchant Phone Number',
                       type: 'phone' as CustomFieldType,
                       placeholder: 'e.g. 012 888 900',
                       description: 'Direct contact phone number for merchant owner or shop manager.',
+                      isSystem: true,
+                      targetDeviceType: 'POS' as const,
+                    },
+                    {
+                      id: 'simCarrier',
+                      label: 'SIM Card',
+                      type: 'select' as CustomFieldType,
+                      options: ['Smart Axiata', 'Cellcard', 'Metfone'],
+                      defaultValue: 'Smart Axiata',
+                      placeholder: 'Select Sim Card',
+                      description: 'Cellular network provider provisioned in the terminal or Sound Box.',
+                      isSystem: false,
+                      targetDeviceType: 'ALL' as const,
+                    },
+                    {
+                      id: 'charging_dock',
+                      label: 'Charging Dock',
+                      type: 'select' as CustomFieldType,
+                      options: ['Yes', 'No'],
+                      targetTab: 'inventory' as const,
+                      targetDeviceType: 'POS' as const,
+                      description: 'Include intelligent charging dock accessory in POS terminal kit.',
+                      isSystem: false,
+                    },
+                    {
+                      id: 'pos_stand',
+                      label: 'POS Stand',
+                      type: 'select' as CustomFieldType,
+                      options: ['Yes', 'No'],
+                      targetTab: 'inventory' as const,
+                      targetDeviceType: 'POS' as const,
+                      description: 'Include countertop swivel POS stand in terminal kit.',
+                      isSystem: false,
+                    },
+                    {
+                      id: 'location',
+                      label: 'Store Location / Area',
+                      type: 'text' as CustomFieldType,
+                      placeholder: 'e.g. Toul Kork / BKK1 / Riverside',
+                      description: 'Commercial zone, municipal district, or branch territory.',
                       isSystem: true,
                     },
                     {
@@ -1335,24 +1369,20 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       isSystem: true,
                     },
                     {
-                      id: 'simCarrier',
-                      label: 'SIM Card / 4G Carrier',
-                      type: 'select' as CustomFieldType,
-                      options: ['Smart Axiata (4G)', 'Cellcard (4G)', 'Metfone (4G)', 'Ethernet / Wi-Fi Only'],
-                      defaultValue: 'Smart Axiata (4G)',
-                      placeholder: 'Select cellular operator',
-                      description: 'Cellular network provider provisioned in the POS terminal.',
-                      isSystem: false,
-          targetTab: modalFieldTargetTab,
-                    },
-                    {
                       id: 'boothNumber',
                       label: 'Floor / Booth / Stall #',
                       type: 'text' as CustomFieldType,
                       placeholder: 'e.g. 2nd Floor, Kiosk B-14',
                       description: 'Specific booth, mall floor, or market stall identifier.',
                       isSystem: false,
-          targetTab: modalFieldTargetTab,
+                    },
+                    {
+                      id: 'installationContact',
+                      label: 'On-site Contact Person',
+                      type: 'text' as CustomFieldType,
+                      placeholder: 'e.g. Mr. Sokha (Store Supervisor)',
+                      description: 'Authorized on-site person to receive and sign for hardware handovers.',
+                      isSystem: false,
                     },
                     {
                       id: 'merchantTier',
@@ -1363,16 +1393,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       placeholder: 'Select tier',
                       description: 'Business tier for priority support and SLA dispatch.',
                       isSystem: false,
-          targetTab: modalFieldTargetTab,
-                    },
-                    {
-                      id: 'installationContact',
-                      label: 'On-site Contact Person',
-                      type: 'text' as CustomFieldType,
-                      placeholder: 'e.g. Mr. Sokha (Store Supervisor)',
-                      description: 'Authorized on-site person to receive and sign for hardware handovers.',
-                      isSystem: false,
-          targetTab: modalFieldTargetTab,
                     },
                     {
                       id: 'contractId',
@@ -1381,7 +1401,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       placeholder: 'e.g. CTR-2026-9920',
                       description: 'Merchant acquiring legal contract reference code.',
                       isSystem: false,
-          targetTab: modalFieldTargetTab,
                     },
                   ].map((preset) => {
                     const isExisting = currentCustomFields.find((f) => f.id === preset.id);
@@ -1573,7 +1592,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               type="button"
                               onClick={() => handleToggleField(field.id)}
                               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                field.enabled ? 'bg-[#003857]' : 'bg-slate-300'
+                                field.enabled ? 'bg-[#155484]' : 'bg-slate-300'
                               }`}
                               title={field.enabled ? 'Click to disable' : 'Click to enable'}
                             >
@@ -1598,18 +1617,38 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <Sparkles className="w-3.5 h-3.5 text-sky-500" />
                     <span>Live Form Simulator</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    Technician Experience
-                  </span>
+                  <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/80 shadow-xs">
+                    {(['POS', 'SOUND_BOX'] as const).map((dt) => {
+                      const active = simulatorDeviceType === dt;
+                      return (
+                        <button
+                          key={dt}
+                          type="button"
+                          onClick={() => setSimulatorDeviceType(dt)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                            active
+                              ? 'tab-active-blue shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          {dt === 'POS' ? 'POS Terminal' : 'Sound Box'}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="surface-card p-5 rounded-2xl shadow-xs border border-slate-200/80 space-y-4">
                   <div className="p-3 rounded-xl bg-sky-50 text-sky-900 border border-sky-200 text-xs flex items-start gap-2">
                     <Info className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
                     <div>
-                      <div className="font-bold">Workflow Form Preview</div>
+                      <div className="font-bold">
+                        Workflow Form Preview ({simulatorDeviceType === 'POS' ? 'POS Terminal' : 'Sound Box'})
+                      </div>
                       <p className="text-[11px] opacity-90 mt-0.5">
-                        These are the fields currently active for branch technicians and administrators when configuring devices in the Workflow Modal.
+                        {simulatorDeviceType === 'POS'
+                          ? 'Active attributes shown for POS Terminal configurations (4 enabled defaults: Merchant Phone Number, SIM Card, Charging Dock, POS Stand).'
+                          : 'Active attributes shown for Sound Box configurations (SIM Card only by default).'}
                       </p>
                     </div>
                   </div>
@@ -1636,7 +1675,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         <input
                           type="text"
                           disabled
-                          value="100000880105001"
+                          value={simulatorDeviceType === 'POS' ? '100000880105001' : '012888900'}
                           className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold bg-slate-100 border border-slate-200 text-slate-700 cursor-not-allowed"
                         />
                       </div>
@@ -1654,20 +1693,23 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     </div>
 
                     {/* Dynamic Active Custom Fields */}
+                    {(() => {
+                      const simulatedFields = currentCustomFields.filter((f) =>
+                        isCustomFieldVisibleForDevice(f, simulatorDeviceType)
+                      );
+                      return (
                     <div className="pt-2 border-t border-slate-100 space-y-3">
                       <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 flex items-center justify-between">
-                        <span>Active Custom Attributes ({currentCustomFields.filter((f) => f.enabled).length})</span>
+                        <span>Active Custom Attributes ({simulatedFields.length})</span>
                         <span className="text-slate-400 font-normal">Interactive Sandbox</span>
                       </div>
 
-                      {currentCustomFields.filter((f) => f.enabled).length === 0 ? (
+                      {simulatedFields.length === 0 ? (
                         <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400">
-                          No custom fields are currently enabled. Click on the presets above or toggle fields on the left.
+                          No custom fields are active for {simulatorDeviceType === 'POS' ? 'POS Terminal' : 'Sound Box'}. Click on the presets above or toggle fields on the left.
                         </div>
                       ) : (
-                        currentCustomFields
-                          .filter((f) => f.enabled)
-                          .map((field) => {
+                        simulatedFields.map((field) => {
                             const val = customFieldPreviewValues[field.id] || '';
 
                             return (
@@ -1749,6 +1791,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           })
                       )}
                     </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

@@ -375,7 +375,7 @@ export const DEFAULT_CUSTOM_FIELDS: CustomFieldDefinition[] = [
     label: 'Store Location / Area',
     type: 'text',
     placeholder: 'e.g. Toul Kork / BKK1 / Riverside',
-    enabled: true,
+    enabled: false,
     isSystem: true,
     description: 'Commercial zone, municipal district, or branch territory.',
   },
@@ -386,6 +386,7 @@ export const DEFAULT_CUSTOM_FIELDS: CustomFieldDefinition[] = [
     placeholder: 'e.g. 012 888 900',
     enabled: true,
     isSystem: true,
+    targetDeviceType: 'POS',
     description: 'Direct contact phone number for merchant owner or shop manager.',
   },
   {
@@ -393,20 +394,21 @@ export const DEFAULT_CUSTOM_FIELDS: CustomFieldDefinition[] = [
     label: 'Physical Store Address',
     type: 'text',
     placeholder: 'e.g. #12, St 315, Sangkat Boeung Kak 1, Phnom Penh',
-    enabled: true,
+    enabled: false,
     isSystem: true,
     description: 'Detailed street address for field technician on-site maintenance.',
   },
   {
     id: 'simCarrier',
-    label: 'SIM Card / 4G Carrier',
+    label: 'SIM Card',
     type: 'select',
-    options: ['Smart Axiata (4G)', 'Cellcard (4G)', 'Metfone (4G)', 'Ethernet / Wi-Fi Only'],
-    defaultValue: 'Smart Axiata (4G)',
-    placeholder: 'Select cellular operator',
-    enabled: false,
+    options: ['Smart Axiata', 'Cellcard', 'Metfone'],
+    defaultValue: 'Smart Axiata',
+    placeholder: 'Select Sim Card',
+    enabled: true,
     isSystem: false,
-    description: 'Cellular network provider provisioned in the POS terminal.',
+    targetDeviceType: 'ALL',
+    description: 'Cellular network provider provisioned in the terminal or Sound Box.',
   },
   {
     id: 'boothNumber',
@@ -426,5 +428,73 @@ export const DEFAULT_CUSTOM_FIELDS: CustomFieldDefinition[] = [
     isSystem: false,
     description: 'Authorized on-site person to receive and sign for hardware handovers.',
   },
+  {
+    id: 'charging_dock',
+    label: 'Charging Dock',
+    type: 'select',
+    options: ['Yes', 'No'],
+    targetTab: 'inventory',
+    targetDeviceType: 'POS',
+    enabled: true,
+    isSystem: false,
+    description: 'Include intelligent charging dock accessory in POS terminal kit.',
+  },
+  {
+    id: 'pos_stand',
+    label: 'POS Stand',
+    type: 'select',
+    options: ['Yes', 'No'],
+    targetTab: 'inventory',
+    targetDeviceType: 'POS',
+    enabled: true,
+    isSystem: false,
+    description: 'Include countertop swivel POS stand in terminal kit.',
+  },
 ];
+
+/**
+ * Determines whether an enabled custom attribute applies to POS Terminal vs Sound Box.
+ * Sound Box defaults to SIM Card only (hiding POS-kit hardware and merchant phone attributes
+ * unless explicitly scoped to SOUND_BOX).
+ */
+export function isCustomFieldVisibleForDevice(
+  field: Pick<CustomFieldDefinition, 'id' | 'label' | 'enabled' | 'targetDeviceType'> & { targetDevice?: string },
+  deviceType: 'POS' | 'SOUND_BOX'
+): boolean {
+  if (!field.enabled) return false;
+  const targetDev = field.targetDeviceType || field.targetDevice;
+  const idLower = (field.id || '').toLowerCase();
+  const labelLower = (field.label || '').toLowerCase();
+
+  if (deviceType === 'SOUND_BOX') {
+    if (targetDev === 'POS' || targetDev === 'POS_TERMINAL') return false;
+    if (
+      targetDev !== 'SOUND_BOX' &&
+      targetDev !== 'SB' &&
+      (idLower === 'merchantphone' ||
+        idLower.includes('dock') ||
+        labelLower.includes('dock') ||
+        idLower.includes('stand') ||
+        labelLower.includes('stand') ||
+        idLower.includes('pos') ||
+        labelLower.startsWith('pos ') ||
+        labelLower.includes('pos terminal') ||
+        labelLower.includes('pos ac adaptor'))
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  if (targetDev === 'SOUND_BOX' || targetDev === 'SB') return false;
+  if (
+    idLower.includes('soundbox') ||
+    labelLower.includes('sound box') ||
+    labelLower.includes('soundbox') ||
+    labelLower.includes('sb adaptor')
+  ) {
+    return false;
+  }
+  return true;
+}
 
