@@ -1488,30 +1488,48 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   : 'bg-[#131722] border-slate-800/80'
               }`}
             >
-              <div className="inline-flex p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/90 gap-1 border border-slate-200 dark:border-slate-700/60 shadow-2xs">
+              <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800/90 gap-0.5 border border-slate-200/90 dark:border-slate-700/60 shadow-2xs" role="tablist" aria-label="Import method">
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={method === 'tableCsv'}
                   onClick={() => setMethod('tableCsv')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
                     method === 'tableCsv'
-                      ? 'bg-white dark:bg-slate-900 text-[#003857] dark:text-sky-300 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'text-white font-semibold'
+                      : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'
                   }`}
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400" />
-                  <span>Method A: Table CSV Import</span>
+                  {method === 'tableCsv' && (
+                    <PillMotion
+                      layoutId="batch-import-method-pill"
+                      transition={SPRING_TAB_PILL}
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                    />
+                  )}
+                  <FileSpreadsheet className={`w-3.5 h-3.5 relative z-10 ${method === 'tableCsv' ? 'text-white' : 'text-[#003857] dark:text-sky-400'}`} />
+                  <span className="relative z-10">Method A: Table CSV Import</span>
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={method === 'paste'}
                   onClick={() => setMethod('paste')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
                     method === 'paste'
-                      ? 'bg-white dark:bg-slate-900 text-[#003857] dark:text-sky-300 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'text-white font-semibold'
+                      : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'
                   }`}
                 >
-                  <Layers className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Method B: By Hardware Type</span>
+                  {method === 'paste' && (
+                    <PillMotion
+                      layoutId="batch-import-method-pill"
+                      transition={SPRING_TAB_PILL}
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                    />
+                  )}
+                  <Layers className={`w-3.5 h-3.5 relative z-10 ${method === 'paste' ? 'text-white' : 'text-indigo-500'}`} />
+                  <span className="relative z-10">Method B: By Hardware Type</span>
                 </button>
               </div>
 

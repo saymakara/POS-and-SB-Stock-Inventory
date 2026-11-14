@@ -233,7 +233,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
       {loadError !== 'SETUP' && (<>
         <section className="bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-2xs" aria-label="Filters">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-100/90 border border-slate-200/90" role="tablist" aria-label="Review status">
+            <div className="inline-flex flex-wrap items-center gap-0.5 p-1 rounded-xl bg-slate-100 border border-slate-200/90" role="tablist" aria-label="Review status">
               {REVIEW_TABS.map((t) => {
                 const active = review === t.v;
                 const n = tabCount(t.v);
@@ -245,21 +245,21 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                     role="tab"
                     aria-selected={active}
                     onClick={() => setReview(t.v)}
-                    className={`relative px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-200 inline-flex items-center gap-2 border select-none ${
+                    className={`relative px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 select-none ${
                       active
-                        ? 'border-transparent text-white'
-                        : 'bg-white border-slate-200/90 text-slate-800 hover:border-slate-300 hover:bg-slate-50 shadow-2xs'
+                        ? 'text-white font-semibold'
+                        : 'text-slate-700 hover:text-slate-900 font-medium'
                     }`}
                   >
                     {active && (
                       <PillMotion
                         layoutId="cc-review-pill"
-                        className="absolute -inset-[1px] rounded-lg tab-active-blue border border-sky-400/40 shadow-xs z-0 pointer-events-none"
+                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                         transition={SPRING}
                       />
                     )}
                     <Icon
-                      className={`w-3.5 h-3.5 shrink-0 relative z-10 transition-colors duration-200 ${
+                      className={`w-3.5 h-3.5 shrink-0 relative z-10 transition-colors duration-150 ${
                         active ? 'text-white' : t.accentColor
                       }`}
                       aria-hidden
@@ -267,10 +267,10 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
                     <span className="relative z-10 whitespace-nowrap">{t.label}</span>
                     {n !== undefined && (
                       <span
-                        className={`font-figure tabular-nums text-[10.5px] font-extrabold px-1.5 py-0.2 rounded relative z-10 border transition-colors duration-200 ${
+                        className={`font-figure tabular-nums text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none relative z-10 transition-colors duration-150 ${
                           active
-                            ? 'bg-white/15 text-white border-white/20'
-                            : t.badgeTone
+                            ? 'bg-white/20 text-white'
+                            : 'bg-white text-slate-700 border border-slate-200/80'
                         }`}
                       >
                         {n.toLocaleString()}

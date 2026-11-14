@@ -482,6 +482,13 @@ a:focus-visible {
   box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgba(0, 56, 87, 0.38) !important;
 }
 
+/* Segmented tabs already have a high-contrast active pill; suppress the outer double ring on tab buttons */
+[role="tablist"] button:focus-visible,
+[role="tab"]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Fluid Hover state transitions */
 button:hover:not(:disabled),
 [role="button"]:hover:not(:disabled),
@@ -843,7 +850,10 @@ nav a,
   transform: scale(0.995);
   transition-duration: var(--duration-instant);
 }
-[role="tab"]:active,
+[role="tab"] {
+  transition: color 180ms var(--ease-apple-smooth),
+              background-color 180ms var(--ease-apple-smooth);
+}
 [role="menuitem"]:active,
 [role="option"]:active,
 nav a:active,

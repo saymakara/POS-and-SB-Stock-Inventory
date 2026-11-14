@@ -1,4 +1,4 @@
-import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Trophy, BarChart3, Building2, Users, Calendar, Layers, Award, Search, RefreshCw, Loader2,
@@ -24,7 +24,7 @@ import {
 } from '../services/kpiService';
 import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHolidays';
 import { todayPP } from '../utils/time';
-import { SPRING_TAB_PILL, WHILE_TAP_BUTTON, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import { PillMotion } from './PillMotion';
 import { AfterPaint } from './AfterPaint';
 import { MeasuredChart } from './MeasuredChart';
@@ -241,7 +241,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const [dailyStaffSortKey, setDailyStaffSortKey] = useState<string>('monthTotalTasks');
   const [dailyStaffSortDir, setDailyStaffSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
 
   // Management KPI Exemption reactive synchronization
   const [exemptVersion, setExemptVersion] = useState(0);
@@ -253,51 +252,45 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const exemptSet = useMemo(() => getManagementExemptSet(), [exemptVersion]);
 
   const handleViewChange = useCallback((newView: KpiView) => {
-    startTransition(() => {
-      setView(newView);
-      setSelectedCard(null);
-      if (newView === 'branches') {
-        setTableMode('branch');
-        setBranchSubView('summary');
-      }
-      if (newView === 'staff') {
-        setTableMode('staff');
-        setStaffSubView('summary');
-      }
-    });
-  }, [startTransition]);
+    setView(newView);
+    setSelectedCard(null);
+    if (newView === 'branches') {
+      setTableMode('branch');
+      setBranchSubView('summary');
+    }
+    if (newView === 'staff') {
+      setTableMode('staff');
+      setStaffSubView('summary');
+    }
+  }, []);
 
   const handleTableModeChange = useCallback((mode: 'branch' | 'staff' | 'branch_daily' | 'staff_daily') => {
-    startTransition(() => {
-      if (mode === 'branch_daily') {
-        setTableMode('branch');
-        setBranchSubView('daily');
-      } else if (mode === 'staff_daily') {
-        setTableMode('staff');
-        setStaffSubView('daily');
-      } else if (mode === 'branch') {
-        setTableMode('branch');
-        setBranchSubView('summary');
-      } else if (mode === 'staff') {
-        setTableMode('staff');
-        setStaffSubView('summary');
-      }
-    });
-  }, [startTransition]);
+    if (mode === 'branch_daily') {
+      setTableMode('branch');
+      setBranchSubView('daily');
+    } else if (mode === 'staff_daily') {
+      setTableMode('staff');
+      setStaffSubView('daily');
+    } else if (mode === 'branch') {
+      setTableMode('branch');
+      setBranchSubView('summary');
+    } else if (mode === 'staff') {
+      setTableMode('staff');
+      setStaffSubView('summary');
+    }
+  }, []);
 
   const handleCardClick = useCallback((cardKey: string, targetView: KpiView, mode?: 'branch' | 'staff') => {
-    startTransition(() => {
-      setSelectedCard((c) => (c === cardKey ? null : cardKey));
-      setView(targetView);
-      if (mode === 'branch') {
-        setTableMode('branch');
-        setBranchSubView('summary');
-      } else if (mode === 'staff') {
-        setTableMode('staff');
-        setStaffSubView('summary');
-      }
-    });
-  }, [startTransition]);
+    setSelectedCard((c) => (c === cardKey ? null : cardKey));
+    setView(targetView);
+    if (mode === 'branch') {
+      setTableMode('branch');
+      setBranchSubView('summary');
+    } else if (mode === 'staff') {
+      setTableMode('staff');
+      setStaffSubView('summary');
+    }
+  }, []);
 
   // Sorting state for tables
   const [branchSortKey, setBranchSortKey] = useState<string>('totalPoints');
@@ -1610,8 +1603,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
   const showSection = (sec: KpiView) => view === 'all' || view === sec;
 
   const chronologicalTimeSeries = useMemo(() => {
-    return [...timeSeries].sort((a, b) => a.period.localeCompare(b.period));
-  }, [timeSeries]);
+    const sorted = [...timeSeries].sort((a, b) => a.period.localeCompare(b.period));
+    return granularity === 'daily' ? sorted.slice(-15) : sorted;
+  }, [timeSeries, granularity]);
   const reversedTimeSeries = chronologicalTimeSeries;
   const topBranchChartData = useMemo(
     () =>
@@ -1859,8 +1853,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       </section>
 
       {/* ───────────── Executive Graphs & Charts (Push Configuring Hub Backdrop Style) ───────────── */}
-      {showSection('all') && (
-        loading && !data ? (
+      <div className={showSection('all') ? 'contents' : 'hidden'}>
+        {loading && !data ? (
           <KpiChartsSkeleton />
         ) : (
           <AfterPaint order={1} minHeight={502}>
@@ -1888,7 +1882,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <h3 className="text-[13px] font-semibold text-slate-900">KPI Point Velocity &amp; Active Staff</h3>
                 </div>
 
-                <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5">
+                <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5" role="tablist" aria-label="Chart granularity">
                   {([
                     ['daily', 'Daily'],
                     ['weekly', 'Weekly'],
@@ -1900,6 +1894,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       <button
                         key={g}
                         type="button"
+                        role="tab"
+                        aria-selected={active}
                         onClick={() => setGranularity(g)}
                         aria-pressed={active}
                         className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors ${
@@ -1910,7 +1906,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           <PillMotion
                             layoutId="kpi-chart-granularity-pill"
                             transition={SPRING}
-                            className="absolute inset-0 rounded-lg bg-[#003857] shadow-2xs"
+                            className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                           />
                         )}
                         <span className="relative z-10">{label}</span>
@@ -1986,7 +1982,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           tickLine={false}
                           tick={{ fontSize: 11, fill: '#64748b' }}
                           dy={4}
-                          interval={Math.max(0, Math.ceil(chronologicalTimeSeries.length / 25) - 1)}   // (13 Nov 2026, speed) fixed step: no label measuring
+                          interval={granularity === 'daily' ? 0 : Math.max(0, Math.ceil(chronologicalTimeSeries.length / 15) - 1)}   // (14 Nov 2026) Daily shows the last 15 days without label overlap
                         />
                         <YAxis
                           yAxisId="left"
@@ -2137,10 +2133,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
         </section>
           </AfterPaint>
-      ))}
+        )}
+      </div>
 
       {/* ───────────── Most KPI Types Consumed (Push Configuring Hub Backdrop Style) ───────────── */}
-      {showSection('all') && (
+      <div className={showSection('all') ? 'contents' : 'hidden'}>
         <AfterPaint order={2} minHeight={249}>
         <section
           className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4"
@@ -2274,8 +2271,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                           {/* View Mode Switcher */}
                           <div className="relative inline-flex rounded-xl border border-slate-200/90 p-1 bg-slate-100/90 shadow-2xs gap-0.5" role="tablist" aria-label="View mode">
-                            <motion.button
-                              whileTap={WHILE_TAP_BUTTON}
+                            <button
                               type="button"
                               role="tab"
                               aria-selected={subCatViewMode === 'cards'}
@@ -2296,9 +2292,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               )}
                               <LayoutGrid className="w-3.5 h-3.5 relative z-10" />
                               <span className="hidden sm:inline relative z-10">Cards</span>
-                            </motion.button>
-                            <motion.button
-                              whileTap={WHILE_TAP_BUTTON}
+                            </button>
+                            <button
                               type="button"
                               role="tab"
                               aria-selected={subCatViewMode === 'table'}
@@ -2319,7 +2314,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               )}
                               <List className="w-3.5 h-3.5 relative z-10" />
                               <span className="hidden sm:inline relative z-10">Table</span>
-                            </motion.button>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -2345,9 +2340,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           ]).map(({ id, label, catStyle, count }) => {
                             const active = categoryFilter === id;
                             return (
-                              <motion.button
+                              <button
                                 key={id}
-                                whileTap={WHILE_TAP_BUTTON}
                                 type="button"
                                 role="tab"
                                 aria-selected={active}
@@ -2380,7 +2374,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                 >
                                   {count}
                                 </span>
-                              </motion.button>
+                              </button>
                             );
                           })}
                         </div>
@@ -2621,10 +2615,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
         </section>
         </AfterPaint>
-      )}
+      </div>
 
       {/* ───────────── Combined Institutional Leaderboard (Top 10 Staff & Branch Switchable) ───────────── */}
-      {(showSection('all') || showSection('top10')) && (
+      <div className={showSection('all') || showSection('top10') ? 'contents' : 'hidden'}>
         <AfterPaint order={view === 'all' ? 2 : 1} minHeight={420}>
         <section
           className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-4 sm:p-5 space-y-4"
@@ -2643,9 +2637,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Switch View by Staff or Branch */}
-              <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap">
+              <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap" role="tablist" aria-label="Leaderboard mode">
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={leaderboardMode === 'staff'}
                   onClick={() => setLeaderboardMode('staff')}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
                     leaderboardMode === 'staff' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
@@ -2655,7 +2651,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <PillMotion
                       layoutId="kpi-top10-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
                   <Users className="w-3.5 h-3.5 relative z-10" aria-hidden />
@@ -2667,6 +2663,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={leaderboardMode === 'branch'}
                   onClick={() => setLeaderboardMode('branch')}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
                     leaderboardMode === 'branch' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
@@ -2676,7 +2674,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <PillMotion
                       layoutId="kpi-top10-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
                   <Building2 className="w-3.5 h-3.5 relative z-10" aria-hidden />
@@ -2688,26 +2686,44 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
 
               {/* Month Selector Pills */}
-              <div className="inline-flex flex-wrap items-center gap-0.5 p-0.5 rounded-xl bg-slate-100 border border-slate-200/90">
+              <div className="inline-flex flex-wrap items-center gap-0.5 p-1 rounded-xl bg-slate-100 border border-slate-200/90" role="tablist" aria-label="Leaderboard month">
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={selectedTopMonth === 'ALL'}
                   onClick={() => setSelectedTopMonth('ALL')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition ${
-                    selectedTopMonth === 'ALL' ? 'bg-[#003857] text-white font-semibold shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-medium'
+                  className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors ${
+                    selectedTopMonth === 'ALL' ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
                   }`}
                 >
-                  {KPI_PERIOD_LABEL[period]}
+                  {selectedTopMonth === 'ALL' && (
+                    <PillMotion
+                      layoutId="kpi-top10-month-pill"
+                      transition={SPRING}
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                    />
+                  )}
+                  <span className="relative z-10">{KPI_PERIOD_LABEL[period]}</span>
                 </button>
                 {availableMonths.slice(0, 6).map((m) => (
                   <button
                     key={m}
                     type="button"
+                    role="tab"
+                    aria-selected={selectedTopMonth === m}
                     onClick={() => setSelectedTopMonth(m)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition ${
-                      selectedTopMonth === m ? 'bg-[#003857] text-white font-semibold shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors ${
+                      selectedTopMonth === m ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
                     }`}
                   >
-                    {fmtMonth(m)}
+                    {selectedTopMonth === m && (
+                      <PillMotion
+                        layoutId="kpi-top10-month-pill"
+                        transition={SPRING}
+                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      />
+                    )}
+                    <span className="relative z-10">{fmtMonth(m)}</span>
                   </button>
                 ))}
               </div>
@@ -2969,10 +2985,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
         </section>
         </AfterPaint>
-      )}
+      </div>
 
       {/* ───────────── Overall Performance Breakdown by Daily, Weekly, Monthly & Quarterly ───────────── */}
-      {(showSection('all') || showSection('timeline')) && (
+      <div className={showSection('all') || showSection('timeline') ? 'contents' : 'hidden'}>
         <AfterPaint order={view === 'all' ? 3 : 1} minHeight={1254}>
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden" aria-label="Overall Performance by Period">
           <div className="px-5 py-3.5 border-b border-slate-200/90 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
@@ -2990,24 +3006,36 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 <p className="text-[11.5px] text-slate-500 font-medium">Historical periodic trend of branch activity, staff deployment, and point production</p>
               </div>
             </div>
-            <div className="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200/90 text-[11px] gap-0.5">
+            <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/90 text-[11px] gap-0.5" role="tablist" aria-label="Timeline granularity">
               {([
                 ['daily', 'Daily'],
                 ['weekly', 'Weekly'],
                 ['monthly', 'Monthly'],
                 ['quarterly', 'Quarterly'],
-              ] as const).map(([g, label]) => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => setGranularity(g)}
-                  className={`px-3 py-1 rounded-lg cursor-pointer transition font-semibold ${
-                    granularity === g ? 'bg-[#003857] text-white shadow-2xs' : 'text-slate-700 hover:text-slate-900 font-medium'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              ] as const).map(([g, label]) => {
+                const active = granularity === g;
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setGranularity(g)}
+                    className={`relative px-3 py-1 rounded-lg cursor-pointer transition-colors ${
+                      active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    {active && (
+                      <PillMotion
+                        layoutId="kpi-timeline-granularity-pill"
+                        transition={SPRING}
+                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      />
+                    )}
+                    <span className="relative z-10">{label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -3065,10 +3093,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
           </div>
         </section>
         </AfterPaint>
-      )}
+      </div>
 
       {/* ───────────── KPI Performance by Branch & Staff (Switchable Combined Table) ───────────── */}
-      {(showSection('all') || showSection('branches') || showSection('staff')) && (
+      <div className={showSection('all') || showSection('branches') || showSection('staff') ? 'contents' : 'hidden'}>
         <section className="fr-table-frame bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden relative" aria-label="KPI Performance Table">
           {loading && (
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-sky-400 via-[#1e5b88] to-teal-400 animate-pulse z-20" />
@@ -3088,9 +3116,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
             <div className="flex flex-wrap items-center gap-2.5">
               <div className="overflow-x-auto no-scrollbar max-w-full py-0.5">
-                <div className="inline-flex p-0.5 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap">
+                <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5 text-xs shrink-0 whitespace-nowrap" role="tablist" aria-label="Matrix mode">
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={tableMode === 'staff' && staffSubView === 'summary'}
                   onClick={() => { handleTableModeChange('staff'); setStaffSubView('summary'); }}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
                     tableMode === 'staff' && staffSubView === 'summary' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
@@ -3100,7 +3130,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
                   <Users className="w-3.5 h-3.5 relative z-10" aria-hidden />
@@ -3111,6 +3141,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={tableMode === 'branch' && branchSubView === 'summary'}
                   onClick={() => { handleTableModeChange('branch'); setBranchSubView('summary'); }}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
                     tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
@@ -3120,7 +3152,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
                   <Building2 className="w-3.5 h-3.5 relative z-10" aria-hidden />
@@ -3131,6 +3163,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={tableMode === 'staff' && staffSubView === 'daily'}
                   onClick={() => { handleTableModeChange('staff'); setStaffSubView('daily'); }}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
                     tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
@@ -3140,7 +3174,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
                   <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
@@ -3151,6 +3185,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={tableMode === 'branch' && branchSubView === 'daily'}
                   onClick={() => { handleTableModeChange('branch'); setBranchSubView('daily'); }}
                   className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold cursor-pointer transition ${
                     tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-slate-700 hover:text-slate-900 font-medium'
@@ -3160,7 +3196,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     <PillMotion
                       layoutId="kpi-table-mode-pill"
                       transition={SPRING}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs"
+                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
                   <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
@@ -3247,34 +3283,61 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 {tableMode === 'staff' && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] text-slate-500 font-medium">Level:</span>
-                    <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs">
+                    <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs gap-0.5" role="tablist" aria-label="Staff level filter">
                       <button
                         type="button"
+                        role="tab"
+                        aria-selected={staffLevelFilter === 'all'}
                         onClick={() => setStaffLevelFilter('all')}
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                          staffLevelFilter === 'all' ? 'bg-[#003857] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                          staffLevelFilter === 'all' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        All ({enrichedStaff.length})
+                        {staffLevelFilter === 'all' && (
+                          <PillMotion
+                            layoutId="kpi-staff-level-pill"
+                            transition={SPRING}
+                            className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
+                          />
+                        )}
+                        <span className="relative z-10">All ({enrichedStaff.length})</span>
                       </button>
                       <button
                         type="button"
+                        role="tab"
+                        aria-selected={staffLevelFilter === 'field'}
                         onClick={() => setStaffLevelFilter('field')}
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                          staffLevelFilter === 'field' ? 'bg-[#003857] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                          staffLevelFilter === 'field' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        Field Officers ({enrichedStaff.filter((s) => !s.isManagement).length})
+                        {staffLevelFilter === 'field' && (
+                          <PillMotion
+                            layoutId="kpi-staff-level-pill"
+                            transition={SPRING}
+                            className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
+                          />
+                        )}
+                        <span className="relative z-10">Field Officers ({enrichedStaff.filter((s) => !s.isManagement).length})</span>
                       </button>
                       <button
                         type="button"
+                        role="tab"
+                        aria-selected={staffLevelFilter === 'management'}
                         onClick={() => setStaffLevelFilter('management')}
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                          staffLevelFilter === 'management' ? 'bg-[#003857] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                          staffLevelFilter === 'management' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
                         }`}
                         title="Management level staff (Branch Managers, Supervisors, Team Leads, Admins) who oversee operations and are exempt from field KPIs"
                       >
-                        Management ({enrichedStaff.filter((s) => s.isManagement).length})
+                        {staffLevelFilter === 'management' && (
+                          <PillMotion
+                            layoutId="kpi-staff-level-pill"
+                            transition={SPRING}
+                            className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
+                          />
+                        )}
+                        <span className="relative z-10">Management ({enrichedStaff.filter((s) => s.isManagement).length})</span>
                       </button>
                     </div>
                   </div>
@@ -3291,14 +3354,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <KpiTableSkeleton rows={8} />
             </div>
           ) : (
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={`${tableMode}-${tableMode === 'branch' ? branchSubView : staffSubView}`}
-                initial={{ opacity: 0, y: 3 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -3 }}
-                transition={{ duration: 0.12, ease: 'easeOut' }}
-              >
+            <div>
                 {tableMode === 'branch' ? (
                   branchSubView === 'daily' ? (
                     <>
@@ -4110,11 +4166,10 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               <Pager pg={staffPg} label="staff members" />
             </>
           )}
-        </motion.div>
-      </AnimatePresence>
+        </div>
     )}
   </section>
-)}
+      </div>
 
 
     </div>
