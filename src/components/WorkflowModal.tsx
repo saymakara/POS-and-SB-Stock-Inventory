@@ -24,12 +24,10 @@ import {
   UserCheck,
   X,
   RotateCcw,
-  Calendar,
   Cpu,
   Volume2,
   BatteryCharging,
   Building2,
-  User,
   Store,
   ChevronDown,
   AlertTriangle,
@@ -38,19 +36,11 @@ import {
   SearchX,
   ArrowRight,
   ArrowLeft,
-  ShieldCheck,
   CheckCircle2,
   SlidersHorizontal,
-  MapPin,
-  Phone,
   AlertCircle,
-  Hash,
-    Send,
+  Send,
   Pencil,
-  CreditCard,
-  Activity,
-  Tag,
-  ListFilter,
 } from 'lucide-react';
 
 interface WorkflowModalProps {
@@ -132,6 +122,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const [batterySerial, setBatterySerial] = useState('');
   const [midError, setMidError] = useState('');
   const [editedSerial, setEditedSerial] = useState('');
+  const [editingSerial, setEditingSerial] = useState(false);
   const [renamingSerial, setRenamingSerial] = useState(false);
   const [serialRenameMsg, setSerialRenameMsg] = useState('');
 
@@ -275,6 +266,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       setNote('');
       setMidError('');
       setEditedSerial(device.serial);
+      setEditingSerial(false);
       setSerialRenameMsg('');
       // Only the unit's own recorded battery data; blank when not recorded (never a made-up serial/date).
       setBatterySerial(device.batterySerial || '');
@@ -445,6 +437,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       }
       setMidError('');
       setEditedSerial(device.serial);
+      setEditingSerial(false);
       setSerialRenameMsg('');
       setModalStep('PREVIEW');
       return;
@@ -723,46 +716,123 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           }`}
         >
           {/* Header */}
-          <div className="navy-header-bar rounded-tl-lg px-4 sm:px-5 py-3 flex items-center justify-between text-white border-b border-white/10 shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-xs text-white">
-                {device.type === 'POS Terminal' ? (
-                  <Cpu className="w-4 h-4 text-[#5cc8ff]" />
-                ) : (
-                  <Volume2 className="w-4 h-4 text-[#a2a5e0]" />
-                )}
+          <div className="navy-header-bar rounded-tl-lg px-5 py-3.5 flex flex-col gap-2 text-white border-b border-white/10 shrink-0">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-xs text-white">
+                  {device.type === 'POS Terminal' ? (
+                    <Cpu className="w-4 h-4 text-[#5cc8ff]" />
+                  ) : (
+                    <Volume2 className="w-4 h-4 text-[#a2a5e0]" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-mono text-base font-bold text-white tracking-tight truncate">
+                      {device.serial}
+                    </span>
+                    {isAdminLike && onRenameSerial && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSerial((v) => !v);
+                          setEditedSerial(device.serial);
+                          setSerialRenameMsg('');
+                        }}
+                        className="p-1 rounded-md text-white/70 hover:text-white hover:bg-white/15 transition cursor-pointer"
+                        title="Correct hardware serial number"
+                        aria-label="Correct hardware serial number"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-white/15 text-white border border-white/15">
+                      {device.type}
+                    </span>
+                    <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-white/90">
+                      Branch {device.branchId}
+                    </span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                    {STAGE_META[device.stage].label}
+                    {device.merchantName ? ` · ${device.merchantName}` : ''}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="font-mono text-sm sm:text-base font-bold text-white tracking-tight truncate">
-                    {device.serial}
-                  </span>
-                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-white/15 text-white border border-white/20">
-                    {device.type}
-                  </span>
-                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-white/10 text-white/90 border border-white/15">
-                    Branch Code {device.branchId}
-                  </span>
-                </div>
-                </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1.5 rounded-xl text-white/75 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0"
+                title="Close Modal"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-xl text-white/75 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0 ml-2"
-              title="Close Modal"
-              aria-label="Close"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {isAdminLike && onRenameSerial && editingSerial && (
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/15">
+                <span className="text-[11px] text-sky-200 font-medium">Serial Correction:</span>
+                <input
+                  type="text"
+                  value={editedSerial}
+                  onChange={(e) => {
+                    setEditedSerial(e.target.value.toUpperCase());
+                    setSerialRenameMsg('');
+                  }}
+                  aria-label="Edit hardware serial number"
+                  className="w-44 rounded-lg px-2.5 py-1 text-xs font-mono font-bold bg-white text-slate-900 border border-white/30 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={renamingSerial || !editedSerial.trim() || editedSerial.trim().toUpperCase() === device.serial.toUpperCase()}
+                  onClick={async () => {
+                    const nextSn = editedSerial.trim().toUpperCase();
+                    if (!nextSn || nextSn === device.serial.toUpperCase()) return;
+                    setRenamingSerial(true);
+                    setSerialRenameMsg('');
+                    try {
+                      const err = await onRenameSerial(device.serial, nextSn);
+                      if (err) {
+                        setSerialRenameMsg(err);
+                      } else {
+                        setSerialRenameMsg('Serial updated!');
+                        setEditingSerial(false);
+                      }
+                    } finally {
+                      setRenamingSerial(false);
+                    }
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {renamingSerial ? 'Updating…' : 'Update Serial'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingSerial(false);
+                    setEditedSerial(device.serial);
+                    setSerialRenameMsg('');
+                  }}
+                  className="px-2 py-1 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                {serialRenameMsg && (
+                  <span className={`text-[11px] font-semibold ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    {serialRenameMsg}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Stepper Progress Bar (Double-Step Flow) */}
+          {/* Unified Stepper & Quick Lifecycle Bar */}
           <div
-            className={`px-4 py-1.5 border-b flex items-center justify-between text-xs shrink-0 ${
+            className={`px-5 py-2 border-b flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 ${
               isLight
-                ? 'bg-slate-50 border-slate-200 text-slate-700'
+                ? 'bg-white border-slate-200/90 text-slate-700'
                 : 'bg-[#151922] border-slate-800 text-slate-300'
             }`}
           >
@@ -770,9 +840,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <button
                 type="button"
                 onClick={() => setModalStep('EDIT')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold tracking-wide transition cursor-pointer text-xs ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold transition cursor-pointer text-xs ${
                   modalStep === 'EDIT'
-                    ? 'bg-[#003857] text-white shadow-xs'
+                    ? 'bg-[#003857] text-white shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
@@ -790,247 +860,166 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   if (pendingPayload) setModalStep('PREVIEW');
                 }}
                 disabled={!pendingPayload}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold tracking-wide transition text-xs ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold transition text-xs ${
                   modalStep === 'PREVIEW'
-                    ? 'bg-[#003857] text-white shadow-xs'
+                    ? 'bg-[#003857] text-white shadow-2xs'
                     : pendingPayload
                     ? 'text-slate-600 hover:text-slate-900 dark:hover:text-white cursor-pointer'
                     : 'text-slate-400 opacity-60 cursor-not-allowed'
                 }`}
               >
-                <span className="w-3.5 h-3.5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">
+                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  modalStep === 'PREVIEW' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
                   2
                 </span>
                 <span>Impact Review</span>
               </button>
             </div>
 
-            <div className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 shrink-0">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
-              <span>Safeguard Active</span>
-            </div>
+            {modalStep === 'EDIT' && hasQuickActions && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {canReturnToReserve && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingPayload(
+                        quickMove(
+                          'BRANCH_RESERVE',
+                          'RETURN_BRANCH_RESERVE',
+                          'Return Unit from Merchant to Branch Reserve',
+                          device.branchId,
+                          device.staff || '',
+                          `Returned from merchant ${device.merchantName || ''} back to Branch Reserve`.replace('  ', ' ')
+                        )
+                      );
+                      setModalStep('PREVIEW');
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold border transition cursor-pointer ${
+                      isLight
+                        ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+                        : 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300'
+                    }`}
+                    title="Return unit from merchant to Branch Reserve"
+                  >
+                    <Building2 className="w-3 h-3" />
+                    <span>Return to Branch Reserve</span>
+                  </button>
+                )}
+
+                {canReturnToHq && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isAdminLike && onReturnToAdminStock) {
+                        setPendingPayload(
+                          quickMove(
+                            'HQ_STOCK',
+                            'RETURN_ADMIN_STOCK',
+                            'Return Unit to Head Office Admin Stock (Code 100)',
+                            '100',
+                            operatorLabel.trim(),
+                            'Returned back to Admin HQ Stock (Branch Code 100)'
+                          )
+                        );
+                        setModalStep('PREVIEW');
+                      } else if (onRequestReturnToAdminStock) {
+                        onRequestReturnToAdminStock(
+                          device.serial,
+                          note.trim() || `Branch requested return of ${device.serial} to Admin Stock`
+                        );
+                        onClose();
+                      }
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold border transition cursor-pointer ${
+                      isLight
+                        ? 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800'
+                        : 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300'
+                    }`}
+                    title={
+                      isAdminLike
+                        ? 'Return unit back to Head Office Admin Stock'
+                        : 'Submit a return request to Admin HQ for approval'
+                    }
+                  >
+                    <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>
+                      {isAdminLike
+                        ? 'Return to Admin Stock'
+                        : 'Request Return to Admin Stock'}
+                    </span>
+                  </button>
+                )}
+
+                {isAdminLike && stage === 'CONFIGURING' && onNotifyConfigReady && (
+                  notifyCooldownSecs > 0 ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-not-allowed"
+                      title={`Telegram alert sent! 1-minute cooldown active (${notifyCooldownSecs}s remaining)`}
+                    >
+                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                      <span>Pushed · {notifyCooldownSecs}s</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleNotifyWith2Clicks}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold border transition cursor-pointer ${
+                        confirmingNotify
+                          ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-600 animate-pulse'
+                          : 'bg-sky-50 hover:bg-sky-100 text-sky-800 border-sky-200'
+                      }`}
+                      title={
+                        confirmingNotify
+                          ? `Click 2nd time to confirm Telegram notification (${notifyConfirmSecs}s window)`
+                          : 'Notify Staff & Alert Telegram (Open Device for App Push) — click twice to confirm'
+                      }
+                    >
+                      {confirmingNotify ? (
+                        <>
+                          <AlertCircle className="w-3 h-3 text-amber-100" />
+                          <span>Confirm Push ({notifyConfirmSecs}s)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3 h-3 text-sky-700" />
+                          <span>Notify Staff (Telegram)</span>
+                        </>
+                      )}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
           </div>
 
           {modalStep === 'EDIT' ? (
             <>
-              {/* Quick Action Toolbar Strip */}
-              {hasQuickActions && (
-                <div
-                  className={`px-4 py-1.5 border-b flex items-center justify-between flex-wrap gap-2 text-xs shrink-0 ${
-                    isLight
-                      ? 'bg-slate-50/90 border-slate-200/80 text-slate-600'
-                      : 'bg-[#181c26] border-slate-700/80 text-slate-300'
-                  }`}
-                >
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    Lifecycle Actions
-                  </span>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {canReturnToReserve && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPendingPayload(
-                            quickMove(
-                              'BRANCH_RESERVE',
-                              'RETURN_BRANCH_RESERVE',
-                              'Return Unit from Merchant to Branch Reserve',
-                              device.branchId,
-                              device.staff || '',
-                              `Returned from merchant ${device.merchantName || ''} back to Branch Reserve`.replace('  ', ' ')
-                            )
-                          );
-                          setModalStep('PREVIEW');
-                        }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
-                          isLight
-                            ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
-                            : 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300'
-                        }`}
-                        title="Return unit from merchant to Branch Reserve"
-                      >
-                        <Building2 className="w-3.5 h-3.5" />
-                        <span>Return to Branch Reserve</span>
-                      </button>
-                    )}
-
-                    {canReturnToHq && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isAdminLike && onReturnToAdminStock) {
-                            setPendingPayload(
-                              quickMove(
-                                'HQ_STOCK',
-                                'RETURN_ADMIN_STOCK',
-                                'Return Unit to Head Office Admin Stock (Code 100)',
-                                '100',
-                                operatorLabel.trim(),
-                                'Returned back to Admin HQ Stock (Branch Code 100)'
-                              )
-                            );
-                            setModalStep('PREVIEW');
-                          } else if (onRequestReturnToAdminStock) {
-                            onRequestReturnToAdminStock(
-                              device.serial,
-                              note.trim() || `Branch requested return of ${device.serial} to Admin Stock`
-                            );
-                            onClose();
-                          }
-                        }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
-                          isLight
-                            ? 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800'
-                            : 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300'
-                        }`}
-                        title={
-                          isAdminLike
-                            ? 'Return unit back to Head Office Admin Stock'
-                            : 'Submit a return request to Admin HQ for approval'
-                        }
-                      >
-                        <RotateCcw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                        <span>
-                          {isAdminLike
-                            ? 'Return to Admin Stock'
-                            : 'Request Return to Admin Stock'}
-                        </span>
-                      </button>
-                    )}
-
-                    {isAdminLike && stage === 'CONFIGURING' && onNotifyConfigReady && (
-                      notifyCooldownSecs > 0 ? (
-                        <button
-                          type="button"
-                          disabled
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-not-allowed opacity-90"
-                          title={`Telegram alert sent! 1-minute cooldown active (${notifyCooldownSecs}s remaining)`}
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>Pushed · {notifyCooldownSecs}s</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleNotifyWith2Clicks}
-                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-[0.97] ${
-                            confirmingNotify
-                              ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-400 animate-pulse shadow-sm'
-                              : 'bg-[#003857] hover:bg-[#002a42] text-white shadow-xs'
-                          }`}
-                          title={
-                            confirmingNotify
-                              ? `Click 2nd time to confirm Telegram notification (${notifyConfirmSecs}s window)`
-                              : 'Click once, then click 2nd time within 1 minute to send Telegram alert'
-                          }
-                        >
-                          {confirmingNotify ? (
-                            <>
-                              <AlertCircle className="w-3.5 h-3.5 text-amber-200" />
-                              <span>Click 2nd Time to Confirm Push ({notifyConfirmSecs}s)</span>
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-3.5 h-3.5" />
-                              <span>Notify Staff &amp; Alert Telegram (Open Device for App Push)</span>
-                            </>
-                          )}
-                        </button>
-                      )
-                    )}
-
-                  </div>
-                </div>
-              )}
-
               {/* Form Body */}
               <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3 overflow-y-auto min-h-0 custom-scrollbar">
-            {/* Section 0: Admin Serial Number Correction */}
-            {isAdminLike && onRenameSerial && (
-              <div className={`p-2 sm:px-3 sm:py-1.5 rounded-xl border transition-colors shrink-0 ${
-                isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#181c26] border-slate-700/80'
-              }`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md bg-sky-100 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400 border border-sky-200/80 flex items-center justify-center shrink-0 shadow-2xs">
-                      <Pencil className="w-3 h-3" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">
-                        Hardware Serial Correction
-                      </h4>
-                      <p className="text-[10px] text-slate-400">Typo correction for Super Admin</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <input
-                      type="text"
-                      value={editedSerial}
-                      onChange={(e) => {
-                        setEditedSerial(e.target.value.toUpperCase());
-                        setSerialRenameMsg('');
-                      }}
-                      aria-label="Edit hardware serial number"
-                      className={`w-40 sm:w-44 rounded-lg px-2.5 py-1 text-xs font-mono font-bold border focus:outline-none transition ${
-                        isLight ? 'bg-white border-slate-300 text-slate-900 focus:border-[#003857]' : 'bg-[#121620] border-slate-700 text-white focus:border-sky-500'
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      disabled={renamingSerial || !editedSerial.trim() || editedSerial.trim().toUpperCase() === device.serial.toUpperCase()}
-                      onClick={async () => {
-                        const nextSn = editedSerial.trim().toUpperCase();
-                        if (!nextSn || nextSn === device.serial.toUpperCase()) return;
-                        setRenamingSerial(true);
-                        setSerialRenameMsg('');
-                        try {
-                          const err = await onRenameSerial(device.serial, nextSn);
-                          if (err) {
-                            setSerialRenameMsg(err);
-                          } else {
-                            setSerialRenameMsg('Serial updated!');
-                          }
-                        } finally {
-                          setRenamingSerial(false);
-                        }
-                      }}
-                      className="px-3 py-1 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs"
-                    >
-                      {renamingSerial ? 'Updating…' : 'Update Serial'}
-                    </button>
-                    {serialRenameMsg && (
-                      <span className={`text-[11px] font-semibold ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {serialRenameMsg}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Sections 1 & 2: Lifecycle Custody & Field Staff in 2 Columns */}
-            <div className="flex flex-col gap-3">
+                <div className={`flex-1 p-4 sm:p-5 flex flex-col gap-3.5 overflow-y-auto min-h-0 custom-scrollbar ${
+                  isLight ? 'bg-slate-50/60' : ''
+                }`}>
+            {/* Sections 1 & 2: Lifecycle Custody & Field Staff */}
+            <div className="flex flex-col gap-3.5">
               {/* Section 1: Lifecycle & Branch Assignment */}
-              <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
-                isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
+              <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-colors ${
+                isLight ? 'bg-white border-slate-200/90 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
               }`}>
-                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
-                  <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/70 flex items-center justify-center shrink-0 shadow-2xs">
-                    <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                  </div>
+                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-white/[0.06]">
+                  <Layers className="w-4 h-4 text-[#003857] dark:text-sky-400 shrink-0" />
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                     1. Lifecycle &amp; Branch Custody
                   </h4>
                 </div>
 
-                <div className="space-y-2 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
                   {/* Lifecycle Status Stage */}
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                      <Activity className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
-                      <span>Lifecycle Status Stage</span>
-                      <span className="text-rose-500 font-bold">*</span>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Lifecycle Status Stage <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative">
                       <select
@@ -1041,10 +1030,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           setReturnMode(false);
                           handleStageChange(e.target.value as LifecycleStage);
                         }}
-                        className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-normal border focus:outline-none transition cursor-pointer pr-8 ${
+                        className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                         }`}
                       >
                         {stageOptions.map((s) => (
@@ -1069,10 +1058,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
                   {/* Assigned Branch Code */}
                   <div className="flex flex-col gap-1">
-                    <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      <Building2 className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 shrink-0" />
-                      <span>Assigned Branch Code</span>
-                      <span className="text-rose-500 font-bold">*</span>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Assigned Branch <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative">
                       <select
@@ -1080,10 +1067,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         onChange={(e) => handleBranchChange(e.target.value)}
                         aria-label="Assigned branch code"
                         disabled={!isAdminLike || stage === 'HQ_STOCK'}
-                        className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-normal border focus:outline-none transition cursor-pointer pr-8 disabled:opacity-60 disabled:cursor-not-allowed ${
+                        className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 disabled:opacity-60 disabled:cursor-not-allowed ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                         }`}
                       >
                         {branches.map((b) => (
@@ -1092,7 +1079,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             value={b.code}
                             className={isLight ? 'bg-white text-slate-900 font-normal' : 'bg-slate-900 text-white font-normal'}
                           >
-                            Branch Code {b.code} — {b.name}
+                            {b.code} · {b.name}
                           </option>
                         ))}
                       </select>
@@ -1202,14 +1189,12 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
               {/* Section 2: Staff Officer & Deployment Schedule */}
               {!returnMode && (
-                <div className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
-                  isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
+                <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-colors ${
+                  isLight ? 'bg-white border-slate-200/90 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
                 }`}>
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-6 h-6 rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/60 dark:text-violet-400 border border-violet-200/70 flex items-center justify-center shrink-0 shadow-2xs">
-                        <UserCheck className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
-                      </div>
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-white/[0.06]">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-violet-600 dark:text-violet-400 shrink-0" />
                       <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                         2. Field Staff &amp; Deployment Schedule
                       </h4>
@@ -1225,23 +1210,21 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     )}
                   </div>
 
-                  <div className="space-y-2 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
                     {/* Assigned Branch Staff Officer */}
                     <div className="flex flex-col gap-1">
-                      <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <User className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400 shrink-0" />
-                        <span>Assigned Branch Staff Officer</span>
-                        <span className="text-rose-500 font-bold">*</span>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Assigned Branch Staff Officer <span className="text-rose-500">*</span>
                       </label>
                       <div className="relative">
                         <select
                           value={staff}
                           aria-label="Assigned branch staff officer"
                           onChange={(e) => setStaff(e.target.value)}
-                          className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-normal border focus:outline-none transition cursor-pointer pr-8 ${
+                          className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
                             isLight
-                              ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                              : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                              ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#003857]'
+                              : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                           }`}
                         >
                           <option value="" className={isLight ? 'bg-white text-slate-500 font-normal' : 'bg-slate-900 text-slate-400 font-normal'}>
@@ -1271,19 +1254,17 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
                     {/* Installation / Deployment Date */}
                     <div className="flex flex-col gap-1">
-                      <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <Calendar className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
-                        <span>Installation / Deployment Date</span>
-                        <span className="text-rose-500 font-bold">*</span>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Installation / Deployment Date <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="date"
                         value={deployedDate}
                         onChange={(e) => setDeployedDate(e.target.value)}
-                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                         }`}
                       />
                     </div>
@@ -1295,35 +1276,30 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             {/* (23 Oct 2026) Return: the merchant, officer and battery fields are not needed */}
             {!returnMode && (<>
               {/* Section 3: Merchant & Terminal Setup */}
-              <div className={`p-3 rounded-xl border transition-colors ${
-                isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
+              <div className={`p-4 rounded-2xl border transition-colors ${
+                isLight ? 'bg-white border-slate-200/90 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
               }`}>
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-white/[0.06]">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/70 flex items-center justify-center shrink-0 shadow-2xs">
-                      <Store className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    </div>
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-white/[0.06]">
+                  <div className="flex items-center gap-2">
+                    <Store className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                       3. Merchant &amp; Terminal Setup
                     </h4>
                   </div>
-                  
                 </div>
 
                 {merchantLocked && (
-                  <div role="note" className="p-2 my-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium">
+                  <div role="note" className="p-2.5 my-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium">
                     The merchant details of an installed unit can be changed by Admin HQ only. Please contact HQ if something is wrong.
                   </div>
                 )}
 
                 <fieldset disabled={merchantLocked} className="contents">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
                     {/* Merchant Name */}
                     <div className="flex flex-col gap-1 sm:col-span-2">
-                      <label className="flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <Store className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
-                        <span>Merchant Name</span>
-                        <span className="text-rose-500 font-bold">*</span>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Merchant Name <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -1335,11 +1311,11 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             setStage('CONFIGURING');
                           }
                         }}
-                        
-                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition ${
+                        placeholder="e.g. Lucky Mart / Heng Heng Coffee"
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-500'
                         }`}
                       />
                     </div>
@@ -1347,10 +1323,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     {/* MID */}
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                          <CreditCard className="w-3.5 h-3.5 text-teal-500 dark:text-teal-400 shrink-0" />
-                          <span>MID</span>
-                          <span className="text-rose-500 font-bold">*</span>
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          MID <span className="text-rose-500">*</span>
                         </label>
                         <span className="font-mono text-[10px] text-slate-400">{mid.length}/15</span>
                       </div>
@@ -1369,13 +1343,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         maxLength={15}
                         inputMode="numeric"
                         aria-label="MID"
-                        
-                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
+                        placeholder="15-digit MID"
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                           midError
                             ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/50'
                             : isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                         }`}
                       />
                       {midError && (
@@ -1385,20 +1359,18 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
                     {/* TID */}
                     <div className="flex flex-col gap-1">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <Cpu className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 shrink-0" />
-                        <span>Terminal ID (TID)</span>
-                        <span className="text-rose-500 font-bold">*</span>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Terminal ID (TID) <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
                         value={mid.length >= 8 ? mid.slice(-8) : tid}
                         readOnly
                         title="Filled automatically: the last 8 digits of the MID"
-                        
-                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
+                        placeholder="Auto-filled from MID"
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
-                            ? 'bg-slate-200/60 border-slate-300/80 text-slate-700 placeholder:text-slate-400'
+                            ? 'bg-slate-100 border-slate-200/90 text-slate-600 placeholder:text-slate-400'
                             : 'bg-[#181c26] border-slate-700 text-white placeholder:text-slate-500'
                         }`}
                       />
@@ -1410,55 +1382,30 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               {/* Dynamic Custom & Additional Fields Section */}
               {activeCustomFields.length > 0 && (
                 <div
-                  className={`p-3 rounded-xl border flex flex-col gap-2 transition-colors ${
+                  className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${
                     isLight
-                      ? 'bg-slate-100/90 border-slate-200 shadow-2xs'
+                      ? 'bg-white border-slate-200/90 shadow-2xs'
                       : 'bg-[#161a24] border-slate-700/70'
                   }`}
                 >
-                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60 dark:border-white/[0.06]">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border border-purple-200/70 flex items-center justify-center shrink-0 shadow-2xs">
-                        <SlidersHorizontal className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                      </div>
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-white/[0.06]">
+                    <div className="flex items-center gap-2">
+                      <SlidersHorizontal className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                        Additional Custom Attributes ({activeCustomFields.length})
+                        4. Kit &amp; Contact Attributes
                       </span>
                     </div>
-                    <span className="text-[10px] text-slate-400 font-medium font-mono">
-                      Configured in Settings
-                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {activeCustomFields.map((field) => {
                       const val = customFieldValues[field.id] ?? '';
-                      const getFieldIcon = () => {
-                        const lowerId = (field.id || '').toLowerCase();
-                        const lowerLabel = (field.label || '').toLowerCase();
-                        if (lowerId.includes('sim') || lowerLabel.includes('sim')) {
-                          return <CreditCard className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
-                        }
-                        if (field.id === 'location' || lowerId.includes('location')) return <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
-                        if (field.id === 'merchantPhone' || field.type === 'phone' || lowerId.includes('phone')) return <Phone className="w-3.5 h-3.5 text-sky-500 shrink-0" />;
-                        if (field.id === 'address' || lowerId.includes('address')) return <Building2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
-                        if (field.type === 'number') return <Hash className="w-3.5 h-3.5 text-indigo-500 shrink-0" />;
-                        if (field.type === 'select') return <ListFilter className="w-3.5 h-3.5 text-purple-500 shrink-0" />;
-                        if (field.type === 'date') return <Calendar className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
-                        return <Tag className="w-3.5 h-3.5 text-indigo-500 shrink-0" />;
-                      };
 
                       return (
                         <div key={field.id} className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                            <span className="flex items-center gap-1.5">
-                              {getFieldIcon()}
-                              <span>{field.label}</span>
-                              {field.required && <span className="text-rose-500 font-bold">*</span>}
-                            </span>
-                            <span className="font-mono text-[9px] uppercase px-1.5 py-0.2 rounded bg-slate-200/70 dark:bg-white/10 text-slate-500">
-                              {field.type}
-                            </span>
+                          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            {field.label}
+                            {field.required && <span className="text-rose-500 ml-0.5">*</span>}
                           </label>
 
                           {field.type === 'select' && field.options && field.options.length > 0 ? (
@@ -1471,10 +1418,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                     [field.id]: e.target.value,
                                   }))
                                 }
-                                className={`w-full appearance-none rounded-lg px-2.5 py-1.5 text-xs font-normal border focus:outline-none transition cursor-pointer pr-8 ${
+                                className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
                                   isLight
-                                    ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                                    : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                                    ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#003857]'
+                                    : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                                 }`}
                               >
                                 <option value="">-- Choose {field.label} --</option>
@@ -1496,12 +1443,11 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                   [field.id]: e.target.value,
                                 }))
                               }
-                              
                               required={field.required && !(field.id === 'merchantPhone' && device.merchantPhone)}
-                              className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition ${
+                              className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                                 isLight
-                                  ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                                  : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                                  ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:border-[#003857]'
+                                  : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-500'
                               }`}
                             />
                           )}
@@ -1512,62 +1458,71 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 </div>
               )}
 
-              {/* Section 4: 24-Month POS Battery Lifecycle Card (Only displayed for POS Terminal or units with battery) */}
+              {/* Section 5: 24-Month POS Battery Lifecycle Card (Only displayed for POS Terminal or units with battery) */}
               {(device.type === 'POS Terminal' || (Boolean(device.batterySerial) && device.batterySerial?.trim() !== '' && device.batterySerial?.trim().toUpperCase() !== 'N/A')) && (
                 <div
-                  className={`p-3 rounded-xl border flex flex-col gap-2 transition-colors ${
+                  className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${
                     previewBatteryInfo.state === 'EXPIRED'
                       ? isLight
-                        ? 'bg-rose-50/60 border-rose-200'
+                        ? 'bg-rose-50/40 border-rose-200'
                         : 'bg-rose-950/20 border-rose-800/60'
                       : previewBatteryInfo.state === 'DUE_SOON'
                       ? isLight
-                        ? 'bg-amber-50/60 border-amber-200'
+                        ? 'bg-amber-50/40 border-amber-200'
                         : 'bg-amber-950/20 border-amber-800/60'
                       : isLight
-                      ? 'bg-slate-100/90 border-slate-200 shadow-2xs'
+                      ? 'bg-white border-slate-200/90 shadow-2xs'
                       : 'bg-[#161a24] border-slate-700/70'
                   }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 pb-1.5 border-b border-slate-200/60 dark:border-white/[0.06]">
-                    <div className="flex items-center gap-1.5">
-                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-2xs border ${
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-white/[0.06]">
+                    <div className="flex items-center gap-2">
+                      <BatteryCharging className={`w-4 h-4 shrink-0 ${
                         previewBatteryInfo.state === 'EXPIRED'
-                          ? 'bg-rose-100 text-rose-700 border-rose-300'
+                          ? 'text-rose-600'
                           : previewBatteryInfo.state === 'DUE_SOON'
-                          ? 'bg-amber-100 text-amber-700 border-amber-300'
-                          : 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                      }`}>
-                        <BatteryCharging className="w-3.5 h-3.5" />
-                      </div>
+                          ? 'text-amber-600'
+                          : 'text-emerald-600'
+                      }`} />
                       <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                        4. POS Battery Lifecycle (24-Month Standard)
+                        5. POS Battery Lifecycle (24-Month)
                       </h4>
                     </div>
-                    <span
-                      className={`text-[10px] font-mono font-medium px-2 py-0.2 rounded-full border ${
-                        previewBatteryInfo.state === 'EXPIRED'
-                          ? 'bg-rose-100/90 text-rose-800 border-rose-300'
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-full border ${
+                          previewBatteryInfo.state === 'EXPIRED'
+                            ? 'bg-rose-50 text-rose-800 border-rose-200'
+                            : previewBatteryInfo.state === 'DUE_SOON'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        }`}
+                      >
+                        {previewBatteryInfo.state === 'EXPIRED'
+                          ? 'EXPIRED — Change Required'
                           : previewBatteryInfo.state === 'DUE_SOON'
-                          ? 'bg-amber-100/90 text-amber-800 border-amber-300'
-                          : 'bg-emerald-100/90 text-emerald-800 border-emerald-300'
-                      }`}
-                    >
-                      {previewBatteryInfo.state === 'EXPIRED'
-                        ? 'EXPIRED — 24M Change Required'
-                        : previewBatteryInfo.state === 'DUE_SOON'
-                        ? 'Due Soon (<3M Left)'
-                        : 'Active / Healthy'}
-                    </span>
+                          ? 'Due Soon (<3M Left)'
+                          : 'Active / Healthy'}
+                      </span>
+                      {onChangeBattery && device && (
+                        <button
+                          type="button"
+                          onClick={() => onChangeBattery(device)}
+                          className="px-2.5 py-1 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer shadow-2xs"
+                          title="Open 2-step verification wizard to replace battery from old to new"
+                        >
+                          <BatteryCharging className="w-3 h-3" />
+                          <span>Replace Battery</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Battery Fields */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <BatteryCharging className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
-                        <span>Battery Serial Number</span>
-                        <span className="text-rose-500 font-bold">*</span>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Battery Serial Number <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -1575,21 +1530,18 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         onChange={(e) => setBatterySerial(e.target.value)}
                         id="workflow-battery-serial"
                         aria-label="Battery serial number"
-                        
-                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                         }`}
                       />
                     </div>
 
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                          <Calendar className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
-                          <span>Commissioned Date</span>
-                          <span className="text-rose-500 font-bold">*</span>
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Commissioned Date <span className="text-rose-500">*</span>
                         </label>
                         <span className="text-[10px] text-slate-400 font-mono">
                           Expiry: <strong className="text-slate-700 dark:text-slate-200">{previewBatteryInfo.dueDate}</strong>
@@ -1601,57 +1553,34 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         max={todayPP()}
                         aria-label="Battery installed date"
                         onChange={(e) => setBatteryInstalledDate(e.target.value)}
-                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium border focus:outline-none transition ${
+                        className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#003857]'
+                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                         }`}
                       />
                     </div>
-                  </div>
-
-                  {/* Battery Actions */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <span>Currently Installed:</span>
-                      <strong className="font-mono font-semibold text-slate-800 dark:text-slate-200">
-                        {device.batterySerial || 'Not recorded'}
-                      </strong>
-                    </div>
-
-                    {onChangeBattery && device && (
-                      <button
-                        type="button"
-                        onClick={() => onChangeBattery(device)}
-                        className="px-3 py-1 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold tracking-wide flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
-                        title="Open 2-step verification wizard to replace battery from old to new"
-                      >
-                        <BatteryCharging className="w-3.5 h-3.5" />
-                        <span>Replace Battery</span>
-                      </button>
-                    )}
                   </div>
                 </div>
               )}
             </>)}
 
             {/* Clean Remark */}
-            <div className={`p-2.5 sm:px-3 sm:py-2.5 rounded-xl border flex flex-col gap-1.5 transition-colors ${
-              isLight ? 'bg-slate-100/90 border-slate-200 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
+            <div className={`p-3.5 rounded-2xl border flex flex-col gap-1.5 transition-colors ${
+              isLight ? 'bg-white border-slate-200/90 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
             }`}>
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                <FileText className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
-                <span>Remark</span>
-                <span className="text-[11px] font-normal text-slate-400">(Optional)</span>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Remark <span className="text-[11px] font-normal text-slate-400">(Optional)</span>
               </label>
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-medium border focus:outline-none transition ${
+                placeholder="Add any note or operational remark..."
+                className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                   isLight
-                    ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
-                    : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
+                    ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:border-[#003857]'
+                    : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                 }`}
               />
             </div>

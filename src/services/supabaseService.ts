@@ -28,6 +28,73 @@ export interface PaginatedResult<T> {
 }
 
 /**
+ * Ensures any CONFIGURING device whose `history` already recorded an "App Push Notified" event
+ * in the current configuring cycle exposes `pushTrackingId`, `pushDate`, and `pushedBy` even if
+ * the push was recorded before `custom_fields.pushTrackingId` was introduced.
+ */
+export function hydrateDevicePushFromHistory(dev: Device): Device {
+  if (dev.stage !== 'CONFIGURING' || (dev.pushTrackingId && dev.pushDate)) {
+    return dev;
+  }
+  const history = Array.isArray(dev.history) ? dev.history : [];
+  if (history.length === 0) return dev;
+
+  let pushTrackingId = dev.pushTrackingId || dev.customFields?.pushTrackingId || undefined;
+  let pushDate = dev.pushDate || dev.customFields?.pushDate || undefined;
+  let pushedBy = dev.pushedBy || dev.customFields?.pushedBy || undefined;
+
+  for (const h of history) {
+    if (typeof h !== 'string') continue;
+    if (/App Push Notified/i.test(h)) {
+      const idMatch = h.match(/Push ID:\s*(PUSH-[A-Z0-9-]+)/i);
+      const timeMatch = h.match(/^(\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?)/);
+      const officerMatch = h.match(/Officer:\s*([^|—\n]+)/i);
+      if (!pushDate && timeMatch?.[1]) {
+        const rawTime = timeMatch[1].trim();
+        pushDate = rawTime.length === 10 ? `${rawTime} 08:30:00` : rawTime;
+      }
+      if (!pushTrackingId) {
+        if (idMatch?.[1]) {
+          pushTrackingId = idMatch[1].trim();
+        } else {
+          const dSource = pushDate || String(dev.updatedAt || '');
+          const dStr = /^\d{4}-\d{2}-\d{2}/.test(dSource) ? dSource.slice(2, 10).replace(/-/g, '') : '261026';
+          const sn = String(dev.serial || '');
+          let hash = 0;
+          for (let i = 0; i < sn.length; i++) {
+            hash = ((hash << 5) - hash) + sn.charCodeAt(i);
+            hash |= 0;
+          }
+          pushTrackingId = `PUSH-${dStr}-${String((Math.abs(hash) % 9000) + 1000)}`;
+        }
+      }
+      if (!pushedBy && officerMatch?.[1]) {
+        pushedBy = officerMatch[1].trim();
+      }
+      const nextCf: Record<string, string> = { ...(dev.customFields || {}) };
+      if (pushTrackingId) nextCf.pushTrackingId = pushTrackingId;
+      if (pushDate) nextCf.pushDate = pushDate;
+      if (pushedBy) nextCf.pushedBy = pushedBy;
+      return {
+        ...dev,
+        pushTrackingId,
+        pushDate,
+        pushedBy,
+        customFields: nextCf,
+      };
+    }
+    if (
+      /\|\s*(?:Cycle #\d+:\s*)?(?:Branch Reserve|HQ Stock|Head Office|Complete|At Merchant|Hardware Return|Faulty|Lost)\b/i.test(
+        h
+      )
+    ) {
+      break;
+    }
+  }
+  return dev;
+}
+
+/**
  * Maps Supabase snake_case / postgres schema to application Device type
  */
 function mapRowToDevice(row: any): Device {
@@ -38,7 +105,7 @@ function mapRowToDevice(row: any): Device {
       if (v !== null && v !== undefined) cf[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);
     }
   );
-  return {
+  const mapped: Device = {
     installedByStaff: cf.installedByStaff || undefined,
     replacedByStaff: cf.replacedByStaff || undefined,
     returnedByStaff: cf.returnedByStaff || undefined,
@@ -89,6 +156,7 @@ function mapRowToDevice(row: any): Device {
     customFields: cf,
     rowVersion: typeof row.row_version === 'number' ? row.row_version : Number(row.row_version) || undefined,
   };
+  return hydrateDevicePushFromHistory(mapped);
 }
 
 /**
@@ -537,6 +605,103 @@ export async function fetchConfiguringDevicesFromSupabase(force = false): Promis
     await reportCaughtError('fetchConfiguringDevicesFromSupabase', err, { showPopup: false });
     return null;
   }
+}
+
+/**
+ * Persists App Push status (`pushTrackingId`, `pushDate`, `pushedBy`) directly to `public.devices`
+ * by reading the latest server `row_version`, `custom_fields`, and `history` for each serial first.
+ * This guarantees cross-device consistency without `STALE_ROW` conflicts or dropped pre-hydration saves.
+ */
+export async function saveDevicePushStatusToSupabase(
+  serials: string[],
+  pushId: string,
+  pushTime: string,
+  pushedBy: string
+): Promise<Device[]> {
+  if (!isSupabaseConfigured || !serials.length) return [];
+  const updated: Device[] = [];
+  try {
+    for (let i = 0; i < serials.length; i += CSV_BATCH_SIZE) {
+      const slice = serials.slice(i, i + CSV_BATCH_SIZE);
+      const { data: rows, error } = await supabase
+        .from('devices')
+        .select('*')
+        .in('serial', slice);
+      if (error || !rows) {
+        if (error) await reportCaughtError('saveDevicePushStatusToSupabase.select', error, { showPopup: false });
+        continue;
+      }
+      const CONCURRENT = 15;
+      for (let j = 0; j < rows.length; j += CONCURRENT) {
+        await Promise.all(
+          rows.slice(j, j + CONCURRENT).map(async (row: any) => {
+            const applyOnRow = async (r: any): Promise<any | null> => {
+              const existingCf = r.custom_fields && typeof r.custom_fields === 'object' ? r.custom_fields : {};
+              const cf = {
+                ...existingCf,
+                pushTrackingId: pushId,
+                pushDate: pushTime,
+                pushedBy,
+              };
+              const existingHist: string[] = Array.isArray(r.history) ? r.history : [];
+              const logLine = `${pushTime} | App Push Notified | Push ID: ${pushId} — Officer: ${pushedBy}`;
+              const hasPushLine = existingHist.some((h) => typeof h === 'string' && h.includes(pushId));
+              const nextHist = hasPushLine ? existingHist : [logLine, ...existingHist];
+              const payload: Record<string, any> = {
+                custom_fields: cf,
+                history: nextHist,
+              };
+              if (typeof r.row_version === 'number') {
+                payload.row_version = r.row_version;
+              }
+              const { data: savedRows, error: upErr } = await supabase
+                .from('devices')
+                .update(payload)
+                .eq('serial', r.serial)
+                .select('*');
+              if (upErr) {
+                if (/STALE_ROW|PT409/.test(upErr.message + (upErr as any).code)) {
+                  const { data: freshRows } = await supabase
+                    .from('devices')
+                    .select('*')
+                    .eq('serial', r.serial)
+                    .limit(1);
+                  if (freshRows && freshRows[0]) {
+                    const fresh = freshRows[0];
+                    const freshCf = fresh.custom_fields && typeof fresh.custom_fields === 'object' ? fresh.custom_fields : {};
+                    const freshHist: string[] = Array.isArray(fresh.history) ? fresh.history : [];
+                    const retryPayload: Record<string, any> = {
+                      custom_fields: { ...freshCf, pushTrackingId: pushId, pushDate: pushTime, pushedBy },
+                      history: freshHist.some((h) => typeof h === 'string' && h.includes(pushId))
+                        ? freshHist
+                        : [logLine, ...freshHist],
+                      ...(typeof fresh.row_version === 'number' ? { row_version: fresh.row_version } : {}),
+                    };
+                    const { data: retrySaved } = await supabase
+                      .from('devices')
+                      .update(retryPayload)
+                      .eq('serial', r.serial)
+                      .select('*');
+                    return retrySaved?.[0] || null;
+                  }
+                }
+                await reportCaughtError('saveDevicePushStatusToSupabase.update', upErr, { target: r.serial, showPopup: false });
+                return null;
+              }
+              return savedRows?.[0] || null;
+            };
+            const saved = await applyOnRow(row);
+            if (saved) updated.push(mapRowToDevice(saved));
+          })
+        );
+      }
+    }
+    clearInventoryCache();
+    clearConfiguringCache();
+  } catch (err) {
+    await reportCaughtError('saveDevicePushStatusToSupabase', err, { showPopup: false });
+  }
+  return updated;
 }
 
 // (13 Nov 2026, speed, phase 2) The stock list as arrays in this fixed column order (migration 20261113_02,

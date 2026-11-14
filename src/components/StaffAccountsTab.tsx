@@ -681,7 +681,7 @@ const StaffRow = memo(function StaffRow({
           <div className="inline-flex items-center gap-1.5 text-xs">
             <span
               className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                a.active ? 'bg-emerald-500' : 'bg-slate-400'
+                a.active ? 'bg-emerald-500' : 'bg-rose-500'
               }`}
             />
             <span className={a.active ? 'text-slate-800 font-medium' : 'text-slate-400 font-medium'}>

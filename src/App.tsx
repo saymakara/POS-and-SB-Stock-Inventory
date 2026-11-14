@@ -68,7 +68,7 @@ import { clearInventoryCache } from './services/inventoryCache';
 import { clearMaterialsCache, fetchOpenLostCounts, adminSimUpdate, cleanMaterialError } from './services/materialsService';
 import { SendHorizontal, Lock, CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { isSupabaseConfigured } from './lib/supabase';
-import { fetchDevicesFromSupabase, fetchDevicesChangedSince, countDevicesOnServer, fetchConfiguringDevicesFromSupabase, fetchDevicesPageFromSupabase, fetchDeviceStageCountsFromSupabase, type DeviceStageSummary, type DeviceQueryParams, fetchRequisitionsFromSupabase, subscribeToRealtimeChanges, saveDevicesStrict, saveRequisitionStrict, deleteDevicesOnServer, confirmReceiptOnServer, writeAuditLog, fetchHistoricalMerchantsFromSupabase, insertHistoricalMerchantToSupabase, deleteAllHistoricalMerchantsOnServer, countPendingFieldEventsByType, subscribeToFieldEvents, dispatchRequisitionOnServer, dispatchRequestWithMaterialsOnServer, rejectRequisitionOnServer, receiveReturnOnServer, fetchBranchesFromSupabase, saveBranchOnServer, StaffAccount, renameDeviceSerialOnServer, subscribeToOnlinePresence, OnlineOperatorPresence } from './services/supabaseService';
+import { fetchDevicesFromSupabase, fetchDevicesChangedSince, countDevicesOnServer, fetchConfiguringDevicesFromSupabase, hydrateDevicePushFromHistory, saveDevicePushStatusToSupabase, fetchDevicesPageFromSupabase, fetchDeviceStageCountsFromSupabase, type DeviceStageSummary, type DeviceQueryParams, fetchRequisitionsFromSupabase, subscribeToRealtimeChanges, saveDevicesStrict, saveRequisitionStrict, deleteDevicesOnServer, confirmReceiptOnServer, writeAuditLog, fetchHistoricalMerchantsFromSupabase, insertHistoricalMerchantToSupabase, deleteAllHistoricalMerchantsOnServer, countPendingFieldEventsByType, subscribeToFieldEvents, dispatchRequisitionOnServer, dispatchRequestWithMaterialsOnServer, rejectRequisitionOnServer, receiveReturnOnServer, fetchBranchesFromSupabase, saveBranchOnServer, StaffAccount, renameDeviceSerialOnServer, subscribeToOnlinePresence, OnlineOperatorPresence } from './services/supabaseService';
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
 import {
   setErrorLoggerContext,
@@ -376,6 +376,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return new Set();
   });
 
+  const inFlightPushSerials = React.useRef<Set<string>>(new Set());
+  const backfilledPushSerials = React.useRef<Set<string>>(new Set());
+
   const markConfiguringSerialsPushed = useCallback((serialOrSerials: string | string[]) => {
     const list = Array.isArray(serialOrSerials) ? serialOrSerials : [serialOrSerials];
     if (list.length === 0) return;
@@ -401,10 +404,32 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     });
   }, []);
 
-  // Synchronize pushedConfiguringSerials from backend devices state (ensures PC and Phone sync immediately)
+  // Synchronize pushedConfiguringSerials from backend devices state (ensures all PCs, Laptops, and Phones stay identical)
   useEffect(() => {
-    let changed = false;
+    if (devices.length === 0) return;
     setPushedConfiguringSerials((prev) => {
+      if (isSupabaseConfigured) {
+        const authoritative = new Set<string>();
+        devices.forEach((d) => {
+          if (d.stage === 'CONFIGURING' && (d.pushTrackingId || d.pushDate || inFlightPushSerials.current.has(d.serial))) {
+            authoritative.add(d.serial);
+          }
+        });
+        const same =
+          authoritative.size === prev.size &&
+          Array.from(authoritative).every((sn) => prev.has(sn));
+        if (!same) {
+          try {
+            localStorage.setItem(STORAGE_KEY_PUSHED_CONFIGURING, JSON.stringify([...authoritative]));
+          } catch (e) {
+            // ignore
+          }
+          return authoritative;
+        }
+        return prev;
+      }
+
+      let changed = false;
       const next = new Set(prev);
       devices.forEach((d) => {
         if (d.stage === 'CONFIGURING' && (d.pushTrackingId || d.pushDate)) {
@@ -607,9 +632,10 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       }
     });
     if (!maxMs) return null;
-    const [rows, total] = await Promise.all([
+    const [rows, total, configuringDevs] = await Promise.all([
       fetchDevicesChangedSince(new Date(maxMs - DELTA_OVERLAP_MS).toISOString(), DELTA_MAX_ROWS),
       countDevicesOnServer(),
+      fetchConfiguringDevicesFromSupabase(true),
     ]);
     if (!rows || rows === 'TOO_MANY' || total === null) return null;
     const merged = new Map(base);
@@ -617,9 +643,46 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     for (const r of rows) {
       const cur = merged.get(r.serial);
       if (cur && (cur.rowVersion || 0) > (r.rowVersion || 0)) continue;                     // this screen already has a newer copy
-      if (cur && serverCopies.current.has(cur) && cur.rowVersion === r.rowVersion && cur.updatedAt === r.updatedAt) continue; // same copy
+      if (
+        cur &&
+        serverCopies.current.has(cur) &&
+        cur.rowVersion === r.rowVersion &&
+        cur.updatedAt === r.updatedAt &&
+        cur.pushTrackingId === r.pushTrackingId &&
+        cur.pushDate === r.pushDate
+      ) {
+        continue; // same copy
+      }
       merged.set(r.serial, r);
       changed++;
+    }
+    if (configuringDevs) {
+      const configBySn = new Map(configuringDevs.map((cd) => [cd.serial, cd]));
+      for (const cd of configuringDevs) {
+        const cur = merged.get(cd.serial);
+        if (
+          !cur ||
+          cur.stage !== cd.stage ||
+          cur.pushTrackingId !== cd.pushTrackingId ||
+          cur.pushDate !== cd.pushDate ||
+          cur.pushedBy !== cd.pushedBy ||
+          cur.rowVersion !== cd.rowVersion ||
+          cur.updatedAt !== cd.updatedAt ||
+          cur.staff !== cd.staff ||
+          cur.branchId !== cd.branchId ||
+          cur.mid !== cd.mid ||
+          cur.tid !== cd.tid ||
+          cur.merchantName !== cd.merchantName
+        ) {
+          merged.set(cd.serial, cd);
+          changed++;
+        }
+      }
+      for (const d of merged.values()) {
+        if (d.stage === 'CONFIGURING' && !d.archived && !configBySn.has(d.serial)) {
+          return null; // a unit left CONFIGURING on another device and was missed: do a full reload
+        }
+      }
     }
     if (merged.size !== total) return null;                                                   // a unit was added or removed that we missed
     setServerDeviceTotal(total);
@@ -636,7 +699,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       fetchDevicesFromSupabase(1000, 0, (_firstBatch, total) => {
         setServerDeviceTotal(total);
       }),
-      fetchConfiguringDevicesFromSupabase(),
+      fetchConfiguringDevicesFromSupabase(true),
     ]);
     if (!devs) return { list: null };                                    // the read failed: the list on the screen is kept
     let list = devs;
@@ -878,10 +941,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         const elapsed = Date.now() - lastActive;
-        // (29 Oct 2026) refresh from the server only after 5 minutes away. Before: after 4 seconds, so every switch
-        // back to the tab downloaded all ~27,600 units again. Shorter gaps are covered by the live feed, and a feed
-        // that dropped (sleep, network) reloads by itself when it reconnects (onReconnect).
-        if (elapsed > 5 * 60 * 1000) {
+        // Delta sync + configuring queue refresh is lightweight (<20 ms): refresh after 3 s away so switching between
+        // PC, laptop, and mobile immediately reflects any changes made on another device.
+        if (elapsed > 3000) {
           reloadFromServer().catch(() => {});
         }
         lastActive = Date.now();
@@ -910,12 +972,13 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       .then((cache) => {
         if (!isMounted) return;
         if (cache.devices && cache.devices.length > 0) {
-          cache.devices.forEach((d) => {
+          const hydratedDevs = cache.devices.map(hydrateDevicePushFromHistory);
+          hydratedDevs.forEach((d) => {
             syncedDevices.current.set(d.serial, d);
             serverCopies.current.add(d);
           });
-          setDevices((prev) => (prev.length === 0 ? cache.devices! : prev));
-          setServerDeviceTotal((prev) => (prev === null ? cache.devices!.length : prev));
+          setDevices((prev) => (prev.length === 0 ? hydratedDevs : prev));
+          setServerDeviceTotal((prev) => (prev === null ? hydratedDevs.length : prev));
         }
         if (cache.requisitions && cache.requisitions.length > 0) {
           cache.requisitions.forEach((r) => {
@@ -1656,37 +1719,67 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     };
   }, [role, selectedBranch, branchFilter]);
 
-  // Synchronize Push Configuring Hub devices when entering tab
+  // Synchronize Push Configuring Hub devices when entering tab, and backfill any local push tracking records to Supabase
   useEffect(() => {
     const onPush = productView === 'PUSH' && (shownTab === 'inventory_pos' || shownTab === 'inventory_sb');
     if (!isSupabaseConfigured || !onPush) return;
     let cancelled = false;
-    fetchConfiguringDevicesFromSupabase().then((cDevs) => {
-      if (!cancelled && cDevs && cDevs.length > 0) {
-        setDevices((prev) => {
-          const map = new Map(prev.map((d) => [d.serial, d]));
-          let modified = false;
-          for (const cd of cDevs) {
-            const existing = map.get(cd.serial);
-            if (
-              !existing ||
-              existing.stage !== cd.stage ||
-              existing.updatedAt !== cd.updatedAt ||
-              existing.pushTrackingId !== cd.pushTrackingId ||
-              existing.pushDate !== cd.pushDate ||
-              existing.pushedBy !== cd.pushedBy ||
-              existing.staff !== cd.staff ||
-              existing.branchId !== cd.branchId
-            ) {
-              map.set(cd.serial, cd);
-              syncedDevices.current.set(cd.serial, cd);
-              serverCopies.current.add(cd);
-              modified = true;
-            }
+    fetchConfiguringDevicesFromSupabase(true).then((cDevs) => {
+      if (cancelled || !cDevs) return;
+      setDevices((prev) => {
+        const map = new Map(prev.map((d) => [d.serial, d]));
+        let modified = false;
+        for (const cd of cDevs) {
+          const existing = map.get(cd.serial);
+          if (
+            !existing ||
+            existing.stage !== cd.stage ||
+            existing.updatedAt !== cd.updatedAt ||
+            existing.rowVersion !== cd.rowVersion ||
+            existing.pushTrackingId !== cd.pushTrackingId ||
+            existing.pushDate !== cd.pushDate ||
+            existing.pushedBy !== cd.pushedBy ||
+            existing.staff !== cd.staff ||
+            existing.branchId !== cd.branchId
+          ) {
+            map.set(cd.serial, cd);
+            syncedDevices.current.set(cd.serial, cd);
+            serverCopies.current.add(cd);
+            modified = true;
           }
-          return modified ? Array.from(map.values()) : prev;
-        });
-      }
+        }
+        return modified ? Array.from(map.values()) : prev;
+      });
+
+      // Self-healing backfill: if any CONFIGURING row on the server is missing custom_fields.pushTrackingId
+      // (e.g. pushed before custom_fields persistence or saved only in this browser's STORAGE_KEY_PUSH_TRACKING),
+      // persist its push metadata to Supabase once so all other PCs/devices immediately see the same status.
+      try {
+        const rawTracking = localStorage.getItem(STORAGE_KEY_PUSH_TRACKING);
+        const trackingMap: Record<string, { pushId: string; pushTime: string; pushedBy: string }> = rawTracking
+          ? JSON.parse(rawTracking)
+          : {};
+        for (const cd of cDevs) {
+          if (backfilledPushSerials.current.has(cd.serial)) continue;
+          const localRec = trackingMap[cd.serial];
+          const pushIdToSync = cd.pushTrackingId || localRec?.pushId;
+          const pushTimeToSync = cd.pushDate || localRec?.pushTime || cd.updatedAt || stampSecPP();
+          const pushedByToSync = cd.pushedBy || localRec?.pushedBy || 'System Admin';
+          const missingOnServerRow = !cd.pushTrackingId && Boolean(localRec?.pushId);
+          if (pushIdToSync && missingOnServerRow) {
+            backfilledPushSerials.current.add(cd.serial);
+            void saveDevicePushStatusToSupabase([cd.serial], pushIdToSync, pushTimeToSync, pushedByToSync).then(
+              (savedList) => {
+                if (!savedList.length) return;
+                const saved = savedList[0];
+                serverCopies.current.add(saved);
+                syncedDevices.current.set(saved.serial, saved);
+                setDevices((prev) => prev.map((d) => (d.serial === saved.serial ? saved : d)));
+              }
+            );
+          }
+        }
+      } catch {}
     });
     return () => {
       cancelled = true;
@@ -1706,6 +1799,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
             !existing ||
             existing.stage !== cd.stage ||
             existing.updatedAt !== cd.updatedAt ||
+            existing.rowVersion !== cd.rowVersion ||
             existing.pushTrackingId !== cd.pushTrackingId ||
             existing.pushDate !== cd.pushDate ||
             existing.pushedBy !== cd.pushedBy ||
@@ -2662,10 +2756,8 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
     if (list.length === 0) return;
 
     // Immediately mark serials as pushed (removes them from sidebar badge count)
+    list.forEach((sn) => inFlightPushSerials.current.add(sn));
     markConfiguringSerialsPushed(list);
-
-    const targets = devices.filter((d) => list.includes(d.serial));
-    if (targets.length === 0) return;
 
     const operator = operatorLabel || profile?.name || 'System Admin';
     const nowTime = stampSecPP();
@@ -2726,10 +2818,38 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
             ...(d.history || []),
           ],
         };
+        if (isSupabaseConfigured) {
+          // Mark as server-handled so the generic watcher does not race with saveDevicePushStatusToSupabase
+          serverCopies.current.add(updated);
+          syncedDevices.current.set(d.serial, updated);
+        }
         updatedDevices.push(updated);
         return updated;
       })
     );
+
+    // Persist directly to Supabase using latest server row_version so push status is 100% consistent across all PCs/Laptops
+    if (isSupabaseConfigured) {
+      void saveDevicePushStatusToSupabase(list, pushId, nowTime, operator)
+        .then((savedRows) => {
+          if (savedRows.length > 0) {
+            const bySn = new Map(savedRows.map((r) => [r.serial, r]));
+            savedRows.forEach((r) => {
+              serverCopies.current.add(r);
+              syncedDevices.current.set(r.serial, r);
+            });
+            setDevices((prev) => prev.map((d) => bySn.get(d.serial) || d));
+          }
+        })
+        .finally(() => {
+          list.forEach((sn) => inFlightPushSerials.current.delete(sn));
+        });
+    } else {
+      list.forEach((sn) => inFlightPushSerials.current.delete(sn));
+    }
+
+    const targets = devices.filter((d) => list.includes(d.serial));
+    if (targets.length === 0) return;
 
     // 4. Trigger optimistic sync and row pulse across all connected devices
     triggerOptimisticSync(list, `Dispatched App Push alert for ${list.length} device(s) [${pushId}]`, updatedDevices);

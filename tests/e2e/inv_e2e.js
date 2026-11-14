@@ -238,6 +238,7 @@ async function api(route) {
   ok(/21 Oct 2026|Oct 2026/.test(await card('WP0001').first().textContent()), 'Phone App Review shows the Date Sent in its own column');
   await card('WP0001').locator('button[aria-expanded]').first().click(); await sleep(500);
   ok(!/Verify serial|Verify MID/.test(await card('WP0001').textContent()), 'no Verify serial / Verify MID boxes in the review (checked on the phone)');
+  await card('WP0002').getByRole('button', { name: 'Manage', exact: true }).click(); await sleep(400);
   await card('WP0002').getByRole('button', { name: 'Approve', exact: true }).click(); await sleep(600);
   ok(/checked the warnings/.test(await p.textContent('body')), 'a record with warnings: approval needs the "I checked the warnings" box');
   const devGets = () => state.calls.filter(c => c.startsWith('GET /rest/v1/devices')).length; const before = devGets();

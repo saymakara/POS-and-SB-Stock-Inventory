@@ -199,7 +199,17 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
   // Synchronize local pushed serials whenever parent set updates
   useEffect(() => {
-    if (pushedSerials && pushedSerials.size > 0) {
+    if (!pushedSerials) return;
+    if (isSupabaseConfigured) {
+      setPushedSerialsLocal((prev) => {
+        const same =
+          pushedSerials.size === prev.size &&
+          Array.from(pushedSerials).every((sn) => prev.has(sn));
+        return same ? prev : new Set(pushedSerials);
+      });
+      return;
+    }
+    if (pushedSerials.size > 0) {
       setPushedSerialsLocal((prev) => {
         let changed = false;
         const next = new Set(prev);
@@ -328,14 +338,17 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
 
   const isDevicePushed = useCallback((serial: string, devObj?: Device): boolean => {
     const dev = devObj || devices.find((d) => d.serial === serial);
+    if (dev?.pushTrackingId || dev?.pushDate) return true;
+    if (pushedCooldowns[`sn_${serial}`] && pushedCooldowns[`sn_${serial}`] > Date.now()) return true;
+    if (isSupabaseConfigured) {
+      return Boolean(pushedSerials?.has(serial));
+    }
     return (
-      Boolean(dev?.pushTrackingId) ||
-      Boolean(dev?.pushDate) ||
       Boolean(pushedSerials?.has(serial)) ||
       Boolean(pushedSerialsLocal.has(serial)) ||
       Boolean(pushTimestamps[serial])
     );
-  }, [devices, pushedSerials, pushedSerialsLocal, pushTimestamps]);
+  }, [devices, pushedSerials, pushedSerialsLocal, pushTimestamps, pushedCooldowns]);
 
   const getDevicePushId = useCallback((dev: Device): string | null => {
     if (dev.pushTrackingId) return dev.pushTrackingId;

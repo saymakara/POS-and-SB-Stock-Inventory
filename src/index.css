@@ -694,7 +694,7 @@ button:hover:not(:disabled),
 .data-table .serial-btn:hover { border-color: #003857; color: #003857; background: #eef5f9; }
 .data-table th:first-child, .data-table td:first-child { padding-left: 16px; }
 /* the action button stays in view on small screens */
-.data-table th.col-no, .data-table td.col-no { width: 44px; min-width: 44px; text-align: right; color: #64748b; font-variant-numeric: tabular-nums; padding-right: 8px; padding-left: 12px; }
+.data-table th.col-no, .data-table td.col-no { width: 52px; min-width: 52px; text-align: center; color: #64748b; font-variant-numeric: tabular-nums; padding-right: 12px; padding-left: 14px; }
 .data-table .col-actions { position: sticky; right: 0; z-index: 1; padding-right: 16px; }
 
 .data-table .warn-text { color: #b45309 !important; font-weight: 600; }
@@ -801,7 +801,7 @@ table thead th {
   overflow: visible !important;
   text-overflow: clip !important;
 }
-table thead th.col-no { width: 44px; text-align: right; }
+table thead th.col-no { width: 52px; text-align: center; }
 
 /* Clean & Readable KPI Daily Matrix Table Header & Cells */
 .kpi-matrix-table thead th {
@@ -1295,10 +1295,19 @@ datalist option {
   font-family: var(--font-sans);
 }
 
+select.appearance-none {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
 @supports (appearance: base-select) {
-  select,
+  select:not(.appearance-none),
   ::picker(select) {
     appearance: base-select;
+  }
+  select.appearance-none::picker-icon {
+    display: none !important;
   }
   ::picker(select),
   option {

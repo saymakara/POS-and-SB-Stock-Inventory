@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { DRAWER_VARIANTS, BACKDROP_VARIANTS, WHILE_TAP_BUTTON } from '../utils/animationRules';
 import {
   CreditCard, X, Check, Copy, ArrowRight, ArrowLeft, RefreshCw,
-  Cpu, Volume2, ShieldCheck, AlertTriangle, Layers, Building2,
-  UserCheck, Store, Radio, Smartphone, AlertCircle, Sparkles
+  Cpu, Volume2, AlertTriangle, Layers, Building2,
+  UserCheck, Store, Radio, Smartphone, AlertCircle, Sparkles,
+  Pencil, ChevronDown
 } from 'lucide-react';
+import { PillMotion } from './PillMotion';
 import { Branch, Device, User, UserRole } from '../types';
 import { MaterialSerial, SerialStatus, SERIAL_STATUS_LABEL, placeName } from '../services/materialsService';
 import { todayPP } from '../utils/time';
@@ -304,192 +306,180 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="relative w-full sm:max-w-[460px] md:max-w-[480px] bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full rounded-l-lg overflow-hidden"
+          className="relative w-full sm:max-w-[560px] md:max-w-[580px] bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full rounded-l-lg overflow-hidden"
         >
           {/* 1. NAVY HEADER BAR */}
-          <div className="bg-[#003857] rounded-tl-lg text-white px-5 py-4 flex items-center justify-between shrink-0 shadow-sm border-b border-white/10">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="p-2 rounded-xl bg-white/10 text-[#5cc8ff] shrink-0 border border-white/10 shadow-xs">
-                <CreditCard className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-base font-bold tracking-tight text-white truncate">
-                    {simSerial}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopySerial}
-                    className="p-1 rounded hover:bg-white/15 text-slate-300 hover:text-white transition cursor-pointer"
-                    title="Copy SIM Number"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-200 border border-sky-400/30">
-                    SIM Card
-                  </span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/15 text-white">
-                    {SERIAL_STATUS_LABEL[status]}
-                  </span>
+          <div className="bg-[#003857] rounded-tl-lg text-white px-5 py-3.5 shrink-0 shadow-sm border-b border-white/10">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 rounded-xl bg-white/10 text-[#5cc8ff] shrink-0 border border-white/10 shadow-xs">
+                  <CreditCard className="w-4 h-4" />
                 </div>
-                <p className="text-xs text-slate-300 truncate mt-0.5">
-                  Custody: {branchNameDisplay} · {assignedDevice ? `${assignedDevice.type} (${assignedDevice.serial})` : 'Unassigned Pool'}
-                </p>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-mono text-base font-bold tracking-tight text-white truncate">
+                      {simSerial}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopySerial}
+                      className="p-1 rounded-md hover:bg-white/15 text-slate-300 hover:text-white transition cursor-pointer"
+                      title="Copy SIM Number"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRenaming((v) => !v);
+                          setNewSerialInput(simSerial);
+                        }}
+                        className={`p-1 rounded-md transition cursor-pointer ${
+                          isRenaming
+                            ? 'bg-sky-400/25 text-sky-200'
+                            : 'hover:bg-white/15 text-slate-300 hover:text-white'
+                        }`}
+                        title="Correct SIM Serial Number"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/12 text-sky-100 border border-white/10">
+                      SIM Card
+                    </span>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/12 text-slate-100 border border-white/10">
+                      {SERIAL_STATUS_LABEL[status]}
+                    </span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                    Custody: {branchNameDisplay} · {assignedDevice ? `${assignedDevice.type} (${assignedDevice.serial})` : 'Unassigned Pool'}
+                  </p>
+                </div>
               </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1.5 rounded-lg hover:bg-white/15 text-slate-200 hover:text-white transition cursor-pointer shrink-0"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition cursor-pointer"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {/* Inline SIM Serial Number Correction (Toggled from Header Pencil Icon) */}
+            {isAdmin && isRenaming && (
+              <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center gap-2">
+                <span className="text-[11px] font-medium text-sky-200 shrink-0">Correct SIM:</span>
+                <input
+                  type="text"
+                  value={newSerialInput}
+                  onChange={(e) => setNewSerialInput(e.target.value)}
+                  placeholder="Corrected SIM Number"
+                  className="flex-1 min-w-0 px-2.5 py-1 rounded-lg bg-white/10 border border-white/20 text-xs font-mono font-bold text-white placeholder:text-slate-400 outline-none focus:border-sky-300"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyRename}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-sky-500 hover:bg-sky-400 text-slate-950 transition cursor-pointer shrink-0"
+                >
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRenaming(false);
+                    setNewSerialInput(simSerial);
+                  }}
+                  className="px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-white/10 transition cursor-pointer shrink-0"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* 2. SUBHEADER STEPPER & SAFEGUARD */}
-          <div className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0 text-xs gap-2 flex-wrap">
-            <div className="flex items-center gap-2 font-semibold">
+          {/* 2. SUBHEADER STEPPER & QUICK LIFECYCLE BAR */}
+          <div className="px-5 py-2 bg-white dark:bg-slate-800/80 border-b border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap shrink-0">
+            <div className="flex items-center gap-1.5 text-xs">
               <button
                 type="button"
                 onClick={() => setStep('CONFIG')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition cursor-pointer ${
                   step === 'CONFIG'
-                    ? 'bg-white dark:bg-slate-700 text-[#003857] dark:text-sky-300 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-900'
+                    ? 'bg-[#003857] text-white shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <span className="w-4 h-4 rounded-full bg-[#003857] text-white flex items-center justify-center text-[10px]">1</span>
+                <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
+                  step === 'CONFIG' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>1</span>
                 <span>Configure</span>
               </button>
-              <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+              <ArrowRight className="w-3 h-3 text-slate-300" />
               <button
                 type="button"
                 onClick={() => setStep('REVIEW')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition cursor-pointer ${
                   step === 'REVIEW'
-                    ? 'bg-white dark:bg-slate-700 text-[#003857] dark:text-sky-300 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-900'
+                    ? 'bg-[#003857] text-white shadow-2xs'
+                    : 'text-slate-400 hover:text-slate-700'
                 }`}
               >
-                <span className="w-4 h-4 rounded-full bg-slate-400 text-white flex items-center justify-center text-[10px]">2</span>
+                <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
+                  step === 'REVIEW' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
+                }`}>2</span>
                 <span>Impact Review</span>
               </button>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Relative Dynamic Sync Active</span>
-            </div>
+            {step === 'CONFIG' && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleQuickReturnHq}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 transition cursor-pointer inline-flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3 text-amber-600" />
+                    <span>Return to HQ Stock</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleQuickBranchReserve}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 transition cursor-pointer inline-flex items-center gap-1"
+                >
+                  <Layers className="w-3 h-3 text-emerald-600" />
+                  <span>Move to Reserve</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleQuickMarkLost}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 transition cursor-pointer inline-flex items-center gap-1"
+                >
+                  <AlertTriangle className="w-3 h-3 text-rose-600" />
+                  <span>Mark Lost</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 3. ERROR ALERT */}
           {errorMsg && (
-            <div className="mx-5 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+            <div className="mx-5 mt-3.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span className="flex-1">{errorMsg}</span>
             </div>
           )}
 
           {/* 4. MODAL CONTENT BODY */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="flex-1 overflow-y-auto bg-slate-50/60 dark:bg-slate-900/60 p-4 sm:p-5 space-y-3.5">
             {step === 'CONFIG' ? (
-              <form id="sim-manage-form" onSubmit={handleProceedToReview} className="space-y-4">
-                {/* QUICK LIFECYCLE ACTIONS BAR */}
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Quick Lifecycle Shortcuts
-                  </span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={handleQuickReturnHq}
-                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1"
-                      >
-                        <RefreshCw className="w-3 h-3 text-sky-600" />
-                        <span>Return to HQ Stock</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleQuickBranchReserve}
-                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1"
-                    >
-                      <Layers className="w-3 h-3 text-emerald-600" />
-                      <span>Move to Reserve</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleQuickMarkLost}
-                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition cursor-pointer flex items-center gap-1"
-                    >
-                      <AlertTriangle className="w-3 h-3 text-rose-600" />
-                      <span>Mark Lost</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* SIM SERIAL NUMBER CORRECTION (ADMIN ONLY) */}
-                {isAdmin && (
-                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-sky-600" />
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                          SIM Serial Number Correction
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-mono">Typo correction for Super Admin / Admin</span>
-                    </div>
-
-                    {isRenaming ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        <input
-                          type="text"
-                          value={newSerialInput}
-                          onChange={(e) => setNewSerialInput(e.target.value)}
-                          placeholder="Corrected SIM Number"
-                          className="flex-1 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-[#003857]"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleApplyRename}
-                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#003857] text-white hover:bg-[#002b43] transition cursor-pointer"
-                        >
-                          Apply
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsRenaming(false);
-                            setNewSerialInput(simSerial);
-                          }}
-                          className="px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="font-mono text-sm font-bold text-slate-800 dark:text-slate-100">
-                          {simSerial}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setIsRenaming(true)}
-                          className="text-xs font-semibold text-sky-700 hover:text-sky-800 hover:underline cursor-pointer"
-                        >
-                          Change / Correct Number
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
+              <form id="sim-manage-form" onSubmit={handleProceedToReview} className="space-y-3.5">
                 {/* 1. LIFECYCLE & BRANCH CUSTODY */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs space-y-3">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
                   <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
                     <Building2 className="w-4 h-4 text-[#003857] dark:text-sky-400" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
@@ -497,104 +487,115 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                     </h3>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                         Lifecycle Status Stage <span className="text-rose-500">*</span>
                       </label>
-                      <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value as SerialStatus)}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857]"
-                      >
-                        {LIFECYCLE_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-[10.5px] text-slate-500 mt-1">
-                        {LIFECYCLE_OPTIONS.find((o) => o.value === status)?.desc}
-                      </p>
+                      <div className="relative">
+                        <select
+                          value={status}
+                          onChange={(e) => setStatus(e.target.value as SerialStatus)}
+                          className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
+                        >
+                          {LIFECYCLE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+                      </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                         Assigned Branch Custody <span className="text-rose-500">*</span>
                       </label>
-                      <select
-                        value={branchId}
-                        onChange={(e) => setBranchId(e.target.value)}
-                        disabled={!isAdmin && branchId !== myBranch}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857] disabled:bg-slate-100 disabled:text-slate-400"
-                      >
-                        <option value="100">100 · Head Office</option>
-                        {branches
-                          .filter((b) => b.id !== '100')
-                          .map((b) => (
-                            <option key={b.id} value={b.id}>
-                              {b.id} · {b.name}
-                            </option>
-                          ))}
-                      </select>
-                      <p className="text-[10.5px] text-slate-500 mt-1">
-                        Physical custody location for stock accounting.
-                      </p>
+                      <div className="relative">
+                        <select
+                          value={branchId}
+                          onChange={(e) => setBranchId(e.target.value)}
+                          disabled={!isAdmin && branchId !== myBranch}
+                          className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          <option value="100">100 · Head Office</option>
+                          {branches
+                            .filter((b) => b.id !== '100')
+                            .map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.id} · {b.name}
+                              </option>
+                            ))}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* 2. ASSIGNED HARDWARE DEVICE & LINKAGE */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs space-y-3">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700/60">
                     <div className="flex items-center gap-2">
                       <Smartphone className="w-4 h-4 text-purple-600" />
                       <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                        2. Assigned Hardware Device (Relative Link)
+                        2. Assigned Hardware Device
                       </h3>
                     </div>
-                    <span className="text-[10.5px] font-semibold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800">
-                      Auto-Syncs Hardware Fleet
-                    </span>
+                    {eligibleDevices.length > 0 && (
+                      <span className="text-[10.5px] text-slate-400 font-mono">
+                        {eligibleDevices.length >= 60 ? 'Top 60 matches' : `${eligibleDevices.length} available`}
+                      </span>
+                    )}
                   </div>
 
                   {/* Device Type Filters & Search */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-900 rounded-lg text-xs">
+                    <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-900 rounded-lg text-xs border border-slate-200/70">
                       <button
                         type="button"
                         onClick={() => setDeviceFilterType('ALL')}
-                        className={`px-2 py-1 rounded-md transition font-medium cursor-pointer ${
+                        className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer ${
                           deviceFilterType === 'ALL'
-                            ? 'bg-[#003857] text-white shadow-2xs font-bold'
-                            : 'text-slate-500 hover:text-slate-800'
+                            ? 'text-white font-semibold'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        All
+                        {deviceFilterType === 'ALL' && (
+                          <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
+                        )}
+                        <span className="relative z-10">All</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setDeviceFilterType('POS')}
-                        className={`px-2 py-1 rounded-md transition font-medium cursor-pointer flex items-center gap-1 ${
+                        className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer flex items-center gap-1 ${
                           deviceFilterType === 'POS'
-                            ? 'bg-[#003857] text-white shadow-2xs font-bold'
-                            : 'text-slate-500 hover:text-slate-800'
+                            ? 'text-white font-semibold'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        <Cpu className="w-3 h-3" />
-                        <span>POS</span>
+                        {deviceFilterType === 'POS' && (
+                          <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
+                        )}
+                        <Cpu className="relative z-10 w-3 h-3" />
+                        <span className="relative z-10">POS</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setDeviceFilterType('SOUND_BOX')}
-                        className={`px-2 py-1 rounded-md transition font-medium cursor-pointer flex items-center gap-1 ${
+                        className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer flex items-center gap-1 ${
                           deviceFilterType === 'SOUND_BOX'
-                            ? 'bg-[#003857] text-white shadow-2xs font-bold'
-                            : 'text-slate-500 hover:text-slate-800'
+                            ? 'text-white font-semibold'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        <Volume2 className="w-3 h-3" />
-                        <span>Sound Box</span>
+                        {deviceFilterType === 'SOUND_BOX' && (
+                          <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
+                        )}
+                        <Volume2 className="relative z-10 w-3 h-3" />
+                        <span className="relative z-10">Sound Box</span>
                       </button>
                     </div>
 
@@ -603,26 +604,17 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                       value={deviceSearch}
                       onChange={(e) => setDeviceSearch(e.target.value)}
                       placeholder="Search device serial, merchant, MID..."
-                      className="flex-1 min-w-[170px] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs outline-none focus:border-[#003857]"
+                      className="flex-1 min-w-[170px] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900 text-xs outline-none focus:bg-white focus:border-[#003857] transition-all"
                     />
                   </div>
 
                   {/* Device Dropdown Selector */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Choose Device to Assign
-                      </label>
-                      {eligibleDevices.length > 0 && (
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {eligibleDevices.length >= 60 ? 'Showing top 60 matches' : `${eligibleDevices.length} available`}
-                        </span>
-                      )}
-                    </div>
+                  <div className="relative">
                     <select
                       value={assignedDeviceSerial}
                       onChange={(e) => handleSelectDevice(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857]"
+                      aria-label="Choose Device to Assign"
+                      className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
                     >
                       <option value="">-- Unassigned (Available Pool / No Device) --</option>
                       {displayDevices.map((d) => (
@@ -631,6 +623,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         </option>
                       ))}
                     </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
                   </div>
 
                   {/* Selected Device Live Detail Card */}
@@ -683,17 +676,17 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                       </div>
                     </div>
                   ) : (
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-[11.5px] text-slate-500 flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500 flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span>
-                        This SIM card is in the <strong>Available Pool</strong>. It can be dynamically assigned to any POS Terminal or Sound Box.
+                        Available Pool — Select a POS Terminal or Sound Box above to pair automatically.
                       </span>
                     </div>
                   )}
                 </div>
 
                 {/* 3. FIELD STAFF & DEPLOYMENT SCHEDULE */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs space-y-3">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
                   <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
                     <UserCheck className="w-4 h-4 text-emerald-600" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
@@ -701,9 +694,9 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                     </h3>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                         Assigned Branch Staff Officer
                       </label>
                       <input
@@ -712,7 +705,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         value={staff}
                         onChange={(e) => setStaff(e.target.value)}
                         placeholder="e.g. SOK Dara (33105)"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857]"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
                       />
                       <datalist id="sim-branch-staff-list">
                         {branchUsers.map((u) => (
@@ -722,23 +715,21 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                         Installation / Deployment Date
                       </label>
-                      <div className="relative">
-                        <input
-                          type="date"
-                          value={deployedDate}
-                          onChange={(e) => setDeployedDate(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857]"
-                        />
-                      </div>
+                      <input
+                        type="date"
+                        value={deployedDate}
+                        onChange={(e) => setDeployedDate(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
+                      />
                     </div>
                   </div>
                 </div>
 
                 {/* 4. MERCHANT & TERMINAL SETUP */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs space-y-3">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
                   <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
                     <Store className="w-4 h-4 text-amber-600" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
@@ -748,7 +739,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                         Merchant Name
                       </label>
                       <input
@@ -756,12 +747,12 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         value={merchantName}
                         onChange={(e) => setMerchantName(e.target.value)}
                         placeholder="e.g. Lucky Mart / Heng Heng Coffee"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857]"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                         MID (Merchant ID)
                       </label>
                       <input
@@ -769,12 +760,12 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         value={mid}
                         onChange={(e) => setMid(e.target.value)}
                         placeholder="e.g. 200100000000001"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857]"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                         Terminal ID (TID)
                       </label>
                       <input
@@ -782,39 +773,32 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         value={tid}
                         onChange={(e) => setTid(e.target.value)}
                         placeholder="e.g. 12321323"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857]"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* 5. CARRIER SECURITY & REMARKS */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
-                    <Radio className="w-4 h-4 text-sky-600" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      5. Carrier Network & Operational Remarks
-                    </h3>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                    <div>
-                      <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">
-                        Blocked with Telecom Carrier
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        Flag cellular SIM as disabled/blocked by telecom provider (Smart, Cellcard, Metfone)
-                      </span>
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <Radio className="w-4 h-4 text-sky-600" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        5. Carrier Network & Remarks
+                      </h3>
                     </div>
-
-                    <label className="relative inline-flex items-center cursor-pointer">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                        Blocked with Carrier
+                      </span>
                       <input
                         type="checkbox"
                         checked={blockedWithCarrier}
                         onChange={(e) => setBlockedWithCarrier(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#003857]"></div>
+                      <div className="relative w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#003857]"></div>
                     </label>
                   </div>
 
@@ -826,15 +810,15 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                   )}
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Operational Remarks / Audit Log Note
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Operational Remarks / Audit Note <span className="text-slate-400 font-normal">(Optional)</span>
                     </label>
-                    <textarea
+                    <input
+                      type="text"
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      rows={2}
-                      placeholder="Add any specific context or remarks regarding this SIM card update..."
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857]"
+                      placeholder="Add context or remarks regarding this SIM card update..."
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
                     />
                   </div>
                 </div>

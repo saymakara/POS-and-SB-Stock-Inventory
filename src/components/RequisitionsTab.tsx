@@ -28,8 +28,6 @@ import {
   Pencil,
   Ban,
   FileSpreadsheet,
-  Calendar,
-  User,
   Boxes,
   Package,
 } from 'lucide-react';
@@ -539,18 +537,18 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
         </div>
 
         <div className="overflow-x-auto overflow-y-hidden no-scrollbar">
-          <table className="data-table min-w-[960px]">
+          <table className="data-table w-full min-w-[980px]">
             <thead className="glass-table-thead">
               <tr>
                 <th className="col-no">No.</th>
-                <SortTh k="date" sort={reqSort} onSort={reqToggle} className="w-36 whitespace-nowrap">Date</SortTh>
-                <SortTh k="request" sort={reqSort} onSort={reqToggle} className="w-44 whitespace-nowrap">Request ID</SortTh>
-                <SortTh k="type" sort={reqSort} onSort={reqToggle} className="w-32 whitespace-nowrap">Request Type</SortTh>
-                <SortTh k="staff" sort={reqSort} onSort={reqToggle} className="w-48">Staff / Branch</SortTh>
-                <SortTh k="qty" sort={reqSort} onSort={reqToggle} className="w-44 whitespace-nowrap">Quantity</SortTh>
-                <SortTh k="reason" sort={reqSort} onSort={reqToggle} className="min-w-[180px]">Reason</SortTh>
-                <SortTh k="status" sort={reqSort} onSort={reqToggle} className="w-28 whitespace-nowrap">Status</SortTh>
-                <th className="text-right col-actions">Actions</th>
+                <SortTh k="date" sort={reqSort} onSort={reqToggle} className="w-[12%] min-w-[144px] whitespace-nowrap">Date</SortTh>
+                <SortTh k="request" sort={reqSort} onSort={reqToggle} className="w-[14%] min-w-[172px] whitespace-nowrap">Request ID</SortTh>
+                <SortTh k="type" sort={reqSort} onSort={reqToggle} className="w-[11%] min-w-[126px] whitespace-nowrap">Request Type</SortTh>
+                <SortTh k="staff" sort={reqSort} onSort={reqToggle} className="w-[17%] min-w-[190px]">Staff / Branch</SortTh>
+                <SortTh k="qty" sort={reqSort} onSort={reqToggle} className="w-[14%] min-w-[165px] whitespace-nowrap">Quantity</SortTh>
+                <SortTh k="reason" sort={reqSort} onSort={reqToggle} className="w-[18%] min-w-[200px]">Reason</SortTh>
+                <SortTh k="status" sort={reqSort} onSort={reqToggle} className="w-[8%] min-w-[105px] whitespace-nowrap">Status</SortTh>
+                <th className="w-[6%] min-w-[92px] text-right col-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -610,10 +608,9 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                       {pg.start + rowIdx + 1}
                     </td>
                     <td className="whitespace-nowrap">
-                      <div className="cell-mono flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{showDateTime(req.date)}</span>
-                      </div>
+                      <span className="cell-mono text-slate-600 dark:text-slate-300">
+                        {showDateTime(req.date)}
+                      </span>
                     </td>
                     <td className="whitespace-nowrap">
                       <button
@@ -639,11 +636,10 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                       )}
                     </td>
                     <td>
-                      <div className="cell-main flex items-center gap-1.5 truncate max-w-[190px]" title={req.staff || 'Branch Staff'}>
-                        <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{req.staff || 'Branch Staff'}</span>
+                      <div className="cell-main truncate max-w-[220px]" title={req.staff || 'Branch Staff'}>
+                        {req.staff || 'Branch Staff'}
                       </div>
-                      <div className="cell-sub truncate max-w-[190px]">
+                      <div className="cell-sub truncate max-w-[220px]">
                         Code {req.branchId} · {formatBranchName(req.branchName)}
                       </div>
                     </td>
@@ -656,7 +652,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
 
                         return (
                           <div
-                            className="flex flex-col gap-0.5 justify-center py-0.5 cursor-pointer group"
+                            className="flex flex-col gap-0.5 justify-center cursor-pointer group"
                             title={`Click to view details\n${[
                               req.posQty > 0 ? `POS Terminal: ×${req.posQty}` : '',
                               req.sbQty > 0 ? `Sound Box: ×${req.sbQty}` : '',
@@ -667,22 +663,22 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                             {/* Line 1: Primary Hardware Units or Total Materials */}
                             <div className="cell-main flex items-center gap-2 whitespace-nowrap">
                               {req.posQty > 0 && (
-                                <span className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
+                                <span className="inline-flex items-center gap-1 text-slate-800 dark:text-slate-200">
                                   <Cpu className="w-3.5 h-3.5 text-[#22577A] shrink-0" aria-hidden />
                                   <span>{req.posQty} POS</span>
                                 </span>
                               )}
                               {req.posQty > 0 && req.sbQty > 0 && (
-                                <span className="text-slate-300 dark:text-slate-600 font-bold">·</span>
+                                <span className="text-slate-300 dark:text-slate-600">·</span>
                               )}
                               {req.sbQty > 0 && (
-                                <span className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
+                                <span className="inline-flex items-center gap-1 text-slate-800 dark:text-slate-200">
                                   <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" aria-hidden />
                                   <span>{req.sbQty} SB</span>
                                 </span>
                               )}
                               {!hasDevices && totalMat > 0 && (
-                                <span className="inline-flex items-center gap-1 font-semibold text-amber-700 dark:text-amber-400">
+                                <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
                                   <Boxes className="w-3.5 h-3.5 shrink-0" aria-hidden />
                                   <span>{totalMat} Materials</span>
                                 </span>
@@ -692,31 +688,29 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                               )}
                             </div>
 
-                            {/* Line 2: Materials Count / Hardware Only subtext */}
-                            <div className="cell-sub text-[11px] text-slate-500 truncate whitespace-nowrap max-w-[190px]">
-                              {totalMat > 0 && hasDevices ? (
-                                <span className="text-sky-700 dark:text-sky-400 font-medium group-hover:underline">
-                                  + {totalMat} Material{totalMat > 1 ? 's' : ''} ({matEntries.length} {matEntries.length === 1 ? 'item' : 'items'})
-                                </span>
-                              ) : hasDevices ? (
-                                <span className="text-slate-400 dark:text-slate-500 font-mono">Hardware only</span>
-                              ) : totalMat > 0 ? (
-                                <span className="text-slate-500 dark:text-slate-400 font-medium group-hover:underline">
-                                  {matEntries.length} Material {matEntries.length === 1 ? 'type' : 'types'}
-                                </span>
-                              ) : (
-                                <span className="font-mono">—</span>
-                              )}
-                              {/* Keep exact text accessible for tests & search */}
-                              <span className="sr-only">{matSummaryText}</span>
-                            </div>
+                            {/* Line 2: Materials Count subtext (only when materials are included) */}
+                            {totalMat > 0 && (
+                              <div className="cell-sub text-[11px] text-slate-500 truncate whitespace-nowrap max-w-[190px]">
+                                {hasDevices ? (
+                                  <span className="text-sky-700 dark:text-sky-400 group-hover:underline">
+                                    + {totalMat} Material{totalMat > 1 ? 's' : ''} ({matEntries.length} {matEntries.length === 1 ? 'item' : 'items'})
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500 dark:text-slate-400 group-hover:underline">
+                                    {matEntries.length} Material {matEntries.length === 1 ? 'type' : 'types'}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {/* Keep exact text accessible for tests & search */}
+                            <span className="sr-only">{matSummaryText}</span>
                           </div>
                         );
                       })()}
                     </td>
                     <td>
                       <div
-                        className="cell-main max-w-[260px] truncate"
+                        className="cell-main max-w-[340px] xl:max-w-[440px] truncate"
                         title={
                           req.status === 'REJECTED'
                             ? `Rejected: ${req.rejectReason || 'no reason recorded'}${req.rejectedBy ? ` · by ${req.rejectedBy}` : ''}${req.reason ? ` (Original request: ${req.reason})` : ''}`

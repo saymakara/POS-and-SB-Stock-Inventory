@@ -63,7 +63,7 @@ const DOT = { 'POS Terminal': 'bg-[#22577A]', 'Sound Box': 'bg-[#4F518C]' } as c
 const devType = (e: FieldEvent): 'POS Terminal' | 'Sound Box' => (e.deviceType === 'Sound Box' ? 'Sound Box' : 'POS Terminal');
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-2.5 grid-cols-[34px_38px_98px_180px_185px_minmax(125px,1.2fr)_minmax(120px,1.1fr)_minmax(120px,1.15fr)_84px_156px]';
+  'grid items-center gap-x-2.5 grid-cols-[34px_38px_98px_180px_185px_minmax(130px,1.25fr)_minmax(125px,1.15fr)_minmax(125px,1.2fr)_84px_88px]';
 const CACHE_KEY = 'fe_review_cache_v5';
 
 /** Explicit Phnom Penh Branch Codes (100 Head Office + 101..134 + 801 Central Market). */
@@ -1409,52 +1409,18 @@ const ReviewRow = memo(function ReviewRow({
             {STATUS_LABEL[e.status].length > 12 ? 'Closed' : STATUS_LABEL[e.status]}
           </span>
         </span>
-        <span className="flex justify-end gap-1.5">
-          {pending && isAdmin ? (
-            <>
-              <button
-                type="button"
-                onClick={() => onReject(e)}
-                disabled={busy}
-                className="btn-press inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold tracking-normal border transition-all cursor-pointer bg-rose-50 hover:bg-rose-100/90 text-rose-700 border-rose-200/90 hover:border-rose-300 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
-              >
-                <X className="w-3 h-3 text-rose-600 stroke-[2.4]" aria-hidden="true" />
-                Reject
-              </button>
-              <button
-                type="button"
-                onClick={() => onApprove(e)}
-                disabled={!canApprove}
-                title={
-                  blocks
-                    ? 'Open the line to see what must be fixed'
-                    : needsBranch && !r.branchId
-                    ? 'Open the line and choose the branch'
-                    : undefined
-                }
-                className={`btn-press inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold tracking-normal border transition-all active:scale-[0.97] ${
-                  canApprove
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600/30 shadow-xs hover:shadow-sm cursor-pointer'
-                    : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                }`}
-              >
-                {busy ? (
-                  <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Check className={`w-3 h-3 stroke-[2.4] ${canApprove ? 'text-white' : 'text-slate-300'}`} aria-hidden="true" />
-                )}
-                Approve
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onToggle(e.id)}
-              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-normal text-slate-600 cursor-pointer"
-            >
-              {isOpen ? 'Hide' : 'Details'}
-            </button>
-          )}
+        <span className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => onToggle(e.id)}
+            className={`px-3 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
+              isOpen
+                ? 'bg-[#003857] text-white border-[#003857] shadow-2xs'
+                : 'bg-[#eef5f9] hover:bg-[#003857] text-[#003857] hover:text-white border-[#cfe0ea] hover:border-[#003857]'
+            }`}
+          >
+            {isOpen ? 'Hide' : 'Manage'}
+          </button>
         </span>
       </div>
 
@@ -1596,6 +1562,41 @@ const ReviewRow = memo(function ReviewRow({
                       {err}
                     </div>
                   )}
+                  <div className="flex items-center gap-2 pt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onReject(e)}
+                      disabled={busy}
+                      className="btn-press inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-normal border transition-all cursor-pointer bg-rose-50 hover:bg-rose-100/90 text-rose-700 border-rose-200/90 hover:border-rose-300 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                    >
+                      <X className="w-3.5 h-3.5 text-rose-600 stroke-[2.4]" aria-hidden="true" />
+                      Reject
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onApprove(e)}
+                      disabled={!canApprove}
+                      title={
+                        blocks
+                          ? 'Cannot approve while blocking issues exist'
+                          : needsBranch && !r.branchId
+                          ? 'Choose the branch first'
+                          : undefined
+                      }
+                      className={`btn-press inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold tracking-normal border transition-all active:scale-[0.97] ${
+                        canApprove
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600/30 shadow-xs hover:shadow-sm cursor-pointer'
+                          : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                      }`}
+                    >
+                      {busy ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Check className={`w-3.5 h-3.5 stroke-[2.4] ${canApprove ? 'text-white' : 'text-slate-300'}`} aria-hidden="true" />
+                      )}
+                      Approve
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div className="font-normal text-slate-700">
