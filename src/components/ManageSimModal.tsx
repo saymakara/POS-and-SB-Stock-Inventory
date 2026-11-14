@@ -5,9 +5,8 @@ import {
   CreditCard, X, Check, Copy, ArrowRight, ArrowLeft, RefreshCw,
   Cpu, Volume2, AlertTriangle, Layers, Building2,
   Radio, Smartphone, AlertCircle, Sparkles,
-  Pencil, ChevronDown
+  Pencil, ChevronDown, Search
 } from 'lucide-react';
-import { PillMotion } from './PillMotion';
 import { Branch, Device, User, UserRole } from '../types';
 import { MaterialSerial, SerialStatus, SERIAL_STATUS_LABEL, placeName } from '../services/materialsService';
 import { todayPP } from '../utils/time';
@@ -83,7 +82,6 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
   const [status, setStatus] = useState<SerialStatus>('BRANCH_RESERVE');
   const [branchId, setBranchId] = useState('100');
   const [assignedDeviceSerial, setAssignedDeviceSerial] = useState<string>('');
-  const [deviceFilterType, setDeviceFilterType] = useState<'ALL' | 'POS' | 'SOUND_BOX'>('ALL');
   const [deviceSearch, setDeviceSearch] = useState('');
 
   const [staff, setStaff] = useState('');
@@ -116,40 +114,21 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
   // Deferred search term to keep keyboard input at crisp 120fps
   const deferredSearch = useDeferredValue(deviceSearch);
 
-  // Available devices in branch/fleet (Optimized with early exit to keep render instant)
-  const eligibleDevices = useMemo(() => {
+  // Instant search by Serial or MID (returns top 10 matches only when user types)
+  const matchedDevices = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase();
+    if (!q) return [];
     const results: Device[] = [];
-    const maxMatches = 60;
-
     for (let i = 0; i < devices.length; i++) {
       const d = devices[i];
-      if (deviceFilterType === 'POS' && d.type !== 'POS Terminal') continue;
-      if (deviceFilterType === 'SOUND_BOX' && d.type !== 'Sound Box') continue;
-      if (q) {
-        const match =
-          d.serial.toLowerCase().includes(q) ||
-          (d.merchantName || '').toLowerCase().includes(q) ||
-          (d.mid || '').toLowerCase().includes(q) ||
-          (d.staff || '').toLowerCase().includes(q);
-        if (!match) continue;
+      if (!d) continue;
+      if (d.serial.toLowerCase().includes(q) || (d.mid || '').toLowerCase().includes(q)) {
+        results.push(d);
+        if (results.length >= 10) break;
       }
-      results.push(d);
-      if (q && results.length >= maxMatches) break;
-      if (!q && results.length >= 100) break;
     }
     return results;
-  }, [devices, deviceFilterType, deferredSearch]);
-
-  // Display devices ensuring current assignedDevice is always present
-  const displayDevices = useMemo(() => {
-    const maxShow = 60;
-    const list = eligibleDevices.slice(0, maxShow);
-    if (assignedDevice && !list.some((d) => d.serial.toUpperCase() === assignedDevice.serial.toUpperCase())) {
-      list.unshift(assignedDevice);
-    }
-    return list;
-  }, [eligibleDevices, assignedDevice]);
+  }, [devices, deferredSearch]);
 
   // Initialize state when modal opens with a SIM
   useEffect(() => {
@@ -173,6 +152,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
       setDeployedDate(dev?.deployedDate || (sim.status === 'AT_MERCHANT' ? todayPP() : ''));
       setBlockedWithCarrier(Boolean(sim.blocked));
       setNote(sim.note || '');
+      setDeviceSearch('');
     }
   }, [sim, isOpen, deviceBySerialMap, isAdmin, myBranch]);
 
@@ -627,88 +607,91 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                           2. Bundle with Device (Serial &amp; MID)
                         </h3>
                       </div>
-                      {eligibleDevices.length > 0 && (
-                        <span className="text-[10.5px] text-slate-400 font-mono">
-                          {eligibleDevices.length >= 60 ? 'Top 60 matches' : `${eligibleDevices.length} available`}
-                        </span>
+                      {assignedDevice && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectDevice('')}
+                          className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
+                        >
+                          Unlink Device
+                        </button>
                       )}
                     </div>
 
-                    {/* Device Type Filters & Search */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-900 rounded-lg text-xs border border-slate-200/70">
-                        <button
-                          type="button"
-                          onClick={() => setDeviceFilterType('ALL')}
-                          className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer ${
-                            deviceFilterType === 'ALL'
-                              ? 'text-white font-semibold'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          {deviceFilterType === 'ALL' && (
-                            <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
-                          )}
-                          <span className="relative z-10">All</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeviceFilterType('POS')}
-                          className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer flex items-center gap-1 ${
-                            deviceFilterType === 'POS'
-                              ? 'text-white font-semibold'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          {deviceFilterType === 'POS' && (
-                            <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
-                          )}
-                          <Cpu className="relative z-10 w-3 h-3" />
-                          <span className="relative z-10">POS</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeviceFilterType('SOUND_BOX')}
-                          className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 font-medium cursor-pointer flex items-center gap-1 ${
-                            deviceFilterType === 'SOUND_BOX'
-                              ? 'text-white font-semibold'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          {deviceFilterType === 'SOUND_BOX' && (
-                            <PillMotion layoutId="sim-device-filter-pill" className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none" />
-                          )}
-                          <Volume2 className="relative z-10 w-3 h-3" />
-                          <span className="relative z-10">Sound Box</span>
-                        </button>
-                      </div>
-
+                    {/* Simple Search by Serial or MID */}
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
                         type="text"
                         value={deviceSearch}
                         onChange={(e) => setDeviceSearch(e.target.value)}
-                        placeholder="Search device serial, merchant, MID..."
-                        className="flex-1 min-w-[170px] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900 text-xs outline-none focus:bg-white focus:border-[#003857] transition-all"
+                        aria-label="Search device by Serial or MID"
+                        placeholder="Search by Serial Number or MID..."
+                        className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900 text-xs font-mono outline-none focus:bg-white focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
                       />
+                      {deviceSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setDeviceSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                          aria-label="Clear search"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
 
-                    {/* Device Dropdown Selector */}
-                    <div className="relative">
-                      <select
-                        value={assignedDeviceSerial}
-                        onChange={(e) => handleSelectDevice(e.target.value)}
-                        aria-label="Choose Device to Assign"
-                        className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
-                      >
-                        <option value="">-- Select POS Terminal or Sound Box (Serial &amp; MID) --</option>
-                        {displayDevices.map((d) => (
-                          <option key={d.serial} value={d.serial}>
-                            [{d.type === 'Sound Box' ? 'SB' : 'POS'}] {d.serial} {d.merchantName ? `· ${d.merchantName}` : ''} {d.mid ? `(MID: ${d.mid})` : ''} · {d.branchName || 'Branch ' + d.branchId}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
-                    </div>
+                    {/* Instant Search Results List (shown only while searching) */}
+                    {deferredSearch.trim().length > 0 && (
+                      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800 max-h-56 overflow-y-auto shadow-xs">
+                        {matchedDevices.length === 0 ? (
+                          <div className="px-3 py-3 text-xs text-slate-500 text-center">
+                            No device found matching &ldquo;{deferredSearch.trim()}&rdquo;
+                          </div>
+                        ) : (
+                          matchedDevices.map((d) => {
+                            const selected = d.serial.toUpperCase() === assignedDeviceSerial.toUpperCase();
+                            return (
+                              <button
+                                key={d.serial}
+                                type="button"
+                                onClick={() => {
+                                  handleSelectDevice(d.serial);
+                                  setDeviceSearch('');
+                                }}
+                                className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 transition cursor-pointer ${
+                                  selected ? 'bg-sky-50 text-[#003857]' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                                }`}
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    {d.type === 'Sound Box' ? (
+                                      <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                                    ) : (
+                                      <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                                    )}
+                                    <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                                      {d.serial}
+                                    </span>
+                                    {d.mid && (
+                                      <span className="text-[11px] font-mono text-slate-500">
+                                        · MID: {d.mid}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                    {d.merchantName || 'No merchant'} · {d.branchName || `Branch ${d.branchId}`}
+                                  </p>
+                                </div>
+                                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 shrink-0">
+                                  {selected ? 'Bundled' : 'Select'}
+                                </span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
 
                     {/* Selected Device Live Detail Card (Follows Device Automatically) */}
                     {assignedDevice ? (
