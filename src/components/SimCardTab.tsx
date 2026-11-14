@@ -261,7 +261,7 @@ const SimCardTabComponent: React.FC<{
               <span>SIM Card Control Hub</span>
             </h1>
             <p className="text-sm sm:text-base text-slate-600">
-              3-step SIM lifecycle: <strong className="font-semibold text-slate-800">1. Available In Stock (HQ)</strong> &rarr; <strong className="font-semibold text-slate-800">2. Under Branch Reserve</strong> &rarr; <strong className="font-semibold text-slate-800">3. Bundled with Device (Serial &amp; MID)</strong>. A SIM never goes live alone — it always follows its paired device.
+              Track SIM cards across Stock, Branch Reserve, and Bundled Devices.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -400,9 +400,6 @@ const SimCardTabComponent: React.FC<{
               );
             })}
           </div>
-          <p className="text-xs text-slate-500 italic hidden sm:block">
-            SIM cards never go live alone — they always follow their paired POS Terminal or Sound Box
-          </p>
         </div>
       </section>
 

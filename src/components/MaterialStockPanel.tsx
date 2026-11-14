@@ -292,7 +292,21 @@ const ProductStockPageComponent: React.FC<{
   );
 };
 
-const STATUS_OPTIONS: SerialStatus[] = ['HQ_STOCK', 'IN_TRANSIT', 'BRANCH_RESERVE', 'AT_MERCHANT', 'LOST', 'WRITTEN_OFF'];
+const PRIMARY_MATERIAL_STEPS: { status: SerialStatus; step: string; label: string }[] = [
+  { status: 'HQ_STOCK', step: '1', label: 'Available In Stock' },
+  { status: 'BRANCH_RESERVE', step: '2', label: 'Branch Reserve' },
+  { status: 'AT_MERCHANT', step: '3', label: 'Bundled (Serial & MID)' },
+];
+const SECONDARY_MATERIAL_STATUSES: SerialStatus[] = ['IN_TRANSIT', 'LOST', 'WRITTEN_OFF'];
+const MATERIAL_STATUS_DISPLAY: Record<SerialStatus, string> = {
+  HQ_STOCK: 'Available In Stock',
+  IN_TRANSIT: 'In Transit',
+  BRANCH_RESERVE: 'Branch Reserve',
+  AT_MERCHANT: 'Bundled Live',
+  LOST: 'Lost',
+  FAULTY: 'Faulty',
+  WRITTEN_OFF: 'Written Off',
+};
 
 const MaterialStockPanelComponent: React.FC<{
   group: DeviceGroup;
@@ -869,7 +883,7 @@ const MaterialStockPanelComponent: React.FC<{
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
-                  {group === 'POS' ? 'POS Terminal Materials Ledger' : 'Sound Box Materials Ledger'}
+                  {group === 'POS' ? 'POS Terminal Materials' : 'Sound Box Materials'}
                 </h2>
                 <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                   {totalAllItems?.toLocaleString() ?? combinedItems.length} Items
@@ -877,8 +891,8 @@ const MaterialStockPanelComponent: React.FC<{
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 {group === 'POS'
-                  ? 'Multi-branch materials tracking for Batteries, Stand Holders, Charging Docks, and AC Adaptors'
-                  : 'Multi-branch materials tracking for Sound Box AC Adaptors'}
+                  ? 'Batteries, Stand Holders, Charging Docks & AC Adaptors'
+                  : 'Sound Box AC Adaptors'}
               </p>
             </div>
           </div>
@@ -950,120 +964,146 @@ const MaterialStockPanelComponent: React.FC<{
           </div>
         </div>
 
-        {/* Filter Toolbar matching InventoryTab & PushConfiguringTab */}
+        {/* 3-Step Lifecycle & Status Filter Pills (matches SIM Card Control Hub) */}
+        <div className="px-5 py-3 bg-slate-100/70 dark:bg-slate-800/60 border-b border-slate-200/90 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Status">
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              type="button"
+              onClick={() => setStatusFilter('')}
+              aria-pressed={statusFilter === ''}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition ${
+                statusFilter === '' ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              All <span className="tabular-nums opacity-80 ml-1">{totalAllItems?.toLocaleString() ?? '—'}</span>
+            </motion.button>
+            {PRIMARY_MATERIAL_STEPS.map((item) => (
+              <motion.button
+                key={item.status}
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                onClick={() => setStatusFilter(item.status)}
+                aria-pressed={statusFilter === item.status}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition inline-flex items-center gap-1.5 ${
+                  statusFilter === item.status ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <span className={`w-4 h-4 rounded-full text-[10px] inline-flex items-center justify-center font-bold ${
+                  statusFilter === item.status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>{item.step}</span>
+                <span>{item.label}</span>
+                <span className="tabular-nums opacity-80 ml-0.5">
+                  {(dynamicStatusCounts[item.status] ?? 0).toLocaleString()}
+                </span>
+              </motion.button>
+            ))}
+            <span className="hidden sm:inline-block h-4 w-px bg-slate-300 mx-0.5" aria-hidden />
+            {SECONDARY_MATERIAL_STATUSES.map((s) => (
+              <motion.button
+                key={s}
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                onClick={() => setStatusFilter(s)}
+                aria-pressed={statusFilter === s}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition ${
+                  statusFilter === s ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {MATERIAL_STATUS_DISPLAY[s]}{' '}
+                <span className="tabular-nums opacity-80 ml-1">
+                  {(dynamicStatusCounts[s] ?? 0).toLocaleString()}
+                </span>
+              </motion.button>
+            ))}
+          </div>
+
+          {viewToggle && (
+            <div className="flex items-center">
+              {viewToggle}
+            </div>
+          )}
+        </div>
+
+        {/* Clean Single-Row Filter Toolbar */}
         <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-3">
-          {/* Row 1: Search + Material Category selector + Status selector + Assignment selector + Page size */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={group === 'POS' ? 'Search serial, POS, MID...' : 'Search serial, Sound Box, MID...'}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
+                className="w-full pl-9 pr-3 py-2 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
               />
             </div>
 
-            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
-              <select
-                aria-label="Select Material Category"
-                value={selectedCode}
-                onChange={(e) => setSelectedCode(e.target.value as MaterialCode | 'ALL')}
-                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">All Material Types ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
-                {codes.map((c) => {
-                  const summary = materialSummaries[c];
-                  const count = summary?.total ?? combinedItems.filter((i) => i.code === c).length;
-                  return (
-                    <option key={c} value={c}>
-                      {materialName(c)} ({count.toLocaleString()})
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
-              <select
-                aria-label="Status"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as SerialStatus | '')}
-                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-              >
-                <option value="">All Statuses ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {SERIAL_STATUS_LABEL[s]} ({dynamicStatusCounts[s] ?? 0})
+            <select
+              aria-label="Select Material Category"
+              value={selectedCode}
+              onChange={(e) => setSelectedCode(e.target.value as MaterialCode | 'ALL')}
+              className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs min-w-[180px]"
+            >
+              <option value="ALL">All Material Types ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
+              {codes.map((c) => {
+                const summary = materialSummaries[c];
+                const count = summary?.total ?? combinedItems.filter((i) => i.code === c).length;
+                return (
+                  <option key={c} value={c}>
+                    {materialName(c)} ({count.toLocaleString()})
                   </option>
-                ))}
-              </select>
-            </div>
+                );
+              })}
+            </select>
 
-            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
+            <select
+              aria-label="Assignment Filter"
+              value={assignmentFilter}
+              onChange={(e) => setAssignmentFilter(e.target.value as 'ALL' | 'ASSIGNED' | 'UNASSIGNED')}
+              className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs min-w-[175px]"
+            >
+              <option value="ALL">All Items (Bundled &amp; Reserve)</option>
+              <option value="ASSIGNED">{group === 'POS' ? 'Bundled with POS Terminal' : 'Bundled with Sound Box'}</option>
+              <option value="UNASSIGNED">Unassigned Reserve</option>
+            </select>
+
+            {isAdmin ? (
               <select
-                aria-label="Assignment Filter"
-                value={assignmentFilter}
-                onChange={(e) => setAssignmentFilter(e.target.value as 'ALL' | 'ASSIGNED' | 'UNASSIGNED')}
-                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-                title="Filter by assignment to terminal or in reserve stock"
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs max-w-[230px]"
               >
-                <option value="ALL">All Items (Bundled &amp; Spare)</option>
-                <option value="ASSIGNED">{group === 'POS' ? 'Bundled with POS Terminal' : 'Bundled with Sound Box'}</option>
-                <option value="UNASSIGNED">Standalone Support Materials</option>
+                <option value="">All locations</option>
+                <option value="100">100 · Head Office</option>
+                {branches
+                  .filter((b) => b.id !== '100' && b.code !== '100')
+                  .map((b) => (
+                    <option key={b.code || b.id} value={b.code || b.id}>
+                      {b.code || b.id} · {b.name}
+                    </option>
+                  ))}
               </select>
-            </div>
-
-            <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-1">
-              <select
-                value={pg.pageSize}
-                onChange={(e) => pg.setPageSize(Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-                title="Select view page (100 Row Max)"
-              >
-                <option value={50}>View: 50 Rows / Page</option>
-                <option value={100}>View: 100 Rows / Page (Max)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Row 2: Branch Filter on left, viewToggle in exact same location on right */}
-          <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
-            <div className="flex-1 min-w-[220px] max-w-sm">
-              {isAdmin ? (
-                <select
-                  value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-                >
-                  <option value="">All Branch Codes</option>
-                  <option value="100">Head Office (Code 100)</option>
-                  {branches
-                    .filter((b) => b.id !== '100' && b.code !== '100')
-                    .map((b) => (
-                      <option key={b.code || b.id} value={b.code || b.id}>
-                        Branch Code {b.code || b.id} — {b.name}
-                      </option>
-                    ))}
-                </select>
-              ) : (
-                <div className="w-full px-3 py-2.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Scoped to Branch Code: {myBranch}</span>
-                </div>
-              )}
-            </div>
-
-            {viewToggle && (
-              <div className="flex items-center">
-                {viewToggle}
+            ) : (
+              <div className="px-3 py-2 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Branch {myBranch}</span>
               </div>
             )}
+
+            <select
+              value={pg.pageSize}
+              onChange={(e) => pg.setPageSize(Number(e.target.value))}
+              className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              title="Select view page (100 Row Max)"
+            >
+              <option value={50}>50 / page</option>
+              <option value={100}>100 / page</option>
+            </select>
           </div>
 
-          {/* Row 3: Ledger View Switcher & Clear Filters */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-200/60 min-h-[36px]">
+          {/* Ledger View Switcher & Clear Filters */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200/60 min-h-[36px]">
             <div className="flex items-center gap-2.5">
               <div
                 className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs select-none gap-1"
@@ -1089,7 +1129,7 @@ const MaterialStockPanelComponent: React.FC<{
                       transition={SPRING_TAB_PILL}
                     />
                   )}
-                  <span className="relative z-10">Merchant Deployments ({combinedItems.length})</span>
+                  <span className="relative z-10">Deployments ({combinedItems.length})</span>
                 </button>
                 <button
                   type="button"
@@ -1110,12 +1150,12 @@ const MaterialStockPanelComponent: React.FC<{
                       transition={SPRING_TAB_PILL}
                     />
                   )}
-                  <span className="relative z-10">Multi-Branch Balances ({branchBalanceRows.length})</span>
+                  <span className="relative z-10">Branch Balances ({branchBalanceRows.length})</span>
                 </button>
               </div>
               <span className="text-xs font-semibold text-slate-500 hidden sm:inline">
                 {activeLedgerView === 'BALANCES'
-                  ? `${branchBalanceRows.length} branch balance record(s)`
+                  ? `${branchBalanceRows.length} branch balance(s)`
                   : `${displayedItems.length} of ${combinedItems.length} items`}
               </span>
             </div>
@@ -1180,14 +1220,14 @@ const MaterialStockPanelComponent: React.FC<{
                   </div>
 
                   <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-3 gap-1 text-[10.5px] text-slate-600 font-normal">
-                    <span title="In Central Head Office Warehouse (Admin Stock)" className="truncate">
-                      Admin: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
+                    <span title="Available In Stock (Head Office)" className="truncate">
+                      In Stock: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
                     </span>
-                    <span title="In Branch Reserve Shelves" className="truncate text-center">
+                    <span title="Under Branch Reserve" className="truncate text-center">
                       Reserve: <span className="font-semibold text-sky-700">{summary.branchReserve.toLocaleString()}</span>
                     </span>
-                    <span title="Deployed with active units at merchants" className="truncate text-right">
-                      Merchant: <span className="font-semibold text-emerald-700">{summary.deployed.toLocaleString()}</span>
+                    <span title="Bundled with Device (Serial & MID)" className="truncate text-right">
+                      Bundled: <span className="font-semibold text-emerald-700">{summary.deployed.toLocaleString()}</span>
                     </span>
                   </div>
                 </button>
@@ -1374,7 +1414,7 @@ const MaterialStockPanelComponent: React.FC<{
                       </td>
 
                       <td className="px-4 py-2.5">
-                        <StatusPill status={s.status} />
+                        <StatusPill status={s.status} label={MATERIAL_STATUS_DISPLAY[s.status]} />
                       </td>
 
                       <td className="px-4 py-2.5">
@@ -1383,14 +1423,9 @@ const MaterialStockPanelComponent: React.FC<{
 
                       <td className="px-4 py-2.5 font-mono font-normal text-slate-800">
                         {s.deviceSerial ? (
-                          <div className="flex items-center gap-1.5">
-                            <span>{s.deviceSerial}</span>
-                            <span className="text-[10px] font-sans px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium select-none">
-                              Bundled
-                            </span>
-                          </div>
+                          <span className="font-semibold text-slate-800">{s.deviceSerial}</span>
                         ) : (
-                          <span className="text-slate-400 font-sans text-xs italic select-none">Standalone Spare</span>
+                          <span className="text-slate-300 font-mono select-none" aria-hidden="true">&mdash;</span>
                         )}
                       </td>
 
