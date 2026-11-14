@@ -14,11 +14,12 @@ import { ClearFiltersButton } from './ClearFiltersButton';
 import {
   DeviceGroup, LostItem, MaterialCode, MATERIALS, SerialStatus, cleanMaterialError, fetchMaterialBalances,
   isMaterialsMissing, materialAdjust, materialByCode, materialLostAction, materialName, materialOpening, materialStockIn, normMaterialSerial, placeName, productMaterials,
-  clearMaterialsCache,
+  clearMaterialsCache, kitAdd, kitReturn,
   MaterialSerial, SERIAL_STATUS_LABEL, fetchSerialsPage, fetchSerialStatusCounts, fetchLost, MaterialBalance,
 } from '../services/materialsService';
 import { BusyLabel, MaterialDialog, MaterialsSetupNotice, Pill, StatusPill, btnLight, btnPrimary, btnRow, fmtDay, inputCls, labelCls } from './MaterialsUi';
 import { PillMotion } from './PillMotion';
+import { ManageMaterialModal } from './ManageMaterialModal';
 
 export type ProductView = 'UNITS' | 'PUSH' | 'MATERIAL';
 
@@ -342,6 +343,7 @@ const MaterialStockPanelComponent: React.FC<{
   const [dlg, setDlg] = useState<'' | 'IN' | 'ADJUST' | 'OPENING'>('');
   const [dlgParams, setDlgParams] = useState<{ code?: MaterialCode; branchId?: string }>({});
   const [copiedSerial, setCopiedSerial] = useState<string | null>(null);
+  const [managingItem, setManagingItem] = useState<MaterialSerial | null>(null);
 
   // View mode switcher: Individual Merchant Deployments & Serials vs Multi-Branch Balances Matrix
   const [activeLedgerView, setActiveLedgerView] = useState<'DEPLOYMENTS' | 'BALANCES'>('DEPLOYMENTS');
@@ -561,6 +563,55 @@ const MaterialStockPanelComponent: React.FC<{
     onLostChanged?.();
   };
 
+  const handleManageSave = async (payload: {
+    item: MaterialSerial;
+    status: SerialStatus;
+    branchId: string;
+    deviceSerial: string | null;
+    note: string | null;
+  }) => {
+    const { item, status, branchId, deviceSerial, note } = payload;
+    const isSerialTracked = materialByCode.get(item.code)?.tracking === 'SERIAL';
+    const itemRef = isSerialTracked ? { code: item.code, serial: item.serial } : { code: item.code, qty: 1 };
+
+    try {
+      // 1. If previously bundled on a device and either unbundling or moving to another device
+      if (item.status === 'AT_MERCHANT' && item.deviceSerial && (status !== 'AT_MERCHANT' || deviceSerial !== item.deviceSerial)) {
+        const result: 'RETURNED' | 'LOST' | 'FAULTY' =
+          status === 'LOST' ? 'LOST' : status === 'FAULTY' || status === 'WRITTEN_OFF' ? 'FAULTY' : 'RETURNED';
+        await kitReturn({
+          device_serial: item.deviceSerial,
+          items: [{ ...itemRef, result, remark: note || `Moved to ${MATERIAL_STATUS_DISPLAY[status]}` }],
+        });
+      }
+
+      // 2. If bundling onto a device
+      if (status === 'AT_MERCHANT' && deviceSerial) {
+        if (item.status !== 'AT_MERCHANT' || item.deviceSerial !== deviceSerial) {
+          await kitAdd({
+            device_serial: deviceSerial,
+            from_stock: item.status === 'HQ_STOCK' || item.status === 'BRANCH_RESERVE',
+            items: [{ ...itemRef, note: note || undefined }],
+          });
+        }
+      } else if (isSerialTracked && (status === 'HQ_STOCK' || status === 'BRANCH_RESERVE' || status === 'FAULTY' || status === 'WRITTEN_OFF')) {
+        // 3. Direct stock/reserve/status adjustment for serial-tracked items (e.g. Battery)
+        await materialAdjust({
+          code: item.code,
+          branch_id: status === 'HQ_STOCK' ? '100' : branchId,
+          serial: item.serial,
+          status,
+          reason: note || `Moved to ${MATERIAL_STATUS_DISPLAY[status]}`,
+        });
+      }
+    } catch (e) {
+      throw new Error(cleanMaterialError(e));
+    }
+
+    triggerToast(`${materialName(item.code)} ${item.serial} updated successfully.`);
+    changed();
+  };
+
   // Combine DB serials and device-derived items
   const combinedItems = useMemo(() => {
     const list: MaterialSerial[] = [...(dbSerials || [])];
@@ -717,7 +768,7 @@ const MaterialStockPanelComponent: React.FC<{
 
         const total = onHand + deployed + inTransit;
 
-        if (total > 0 || selectedCode !== 'ALL' || branchFilter || bId === '100') {
+        if (total > 0 || branchFilter || bId === '100') {
           list.push({
             branchId: bId,
             branchName: bName,
@@ -1057,17 +1108,6 @@ const MaterialStockPanelComponent: React.FC<{
               })}
             </select>
 
-            <select
-              aria-label="Assignment Filter"
-              value={assignmentFilter}
-              onChange={(e) => setAssignmentFilter(e.target.value as 'ALL' | 'ASSIGNED' | 'UNASSIGNED')}
-              className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs min-w-[175px]"
-            >
-              <option value="ALL">All Items (Bundled &amp; Reserve)</option>
-              <option value="ASSIGNED">{group === 'POS' ? 'Bundled with POS Terminal' : 'Bundled with Sound Box'}</option>
-              <option value="UNASSIGNED">Unassigned Reserve</option>
-            </select>
-
             {isAdmin ? (
               <select
                 value={branchFilter}
@@ -1100,64 +1140,54 @@ const MaterialStockPanelComponent: React.FC<{
               <option value={50}>50 / page</option>
               <option value={100}>100 / page</option>
             </select>
-          </div>
 
-          {/* Ledger View Switcher & Clear Filters */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200/60 min-h-[36px]">
-            <div className="flex items-center gap-2.5">
-              <div
-                className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs select-none gap-1"
-                role="tablist"
-                aria-label="Ledger views"
+            <div
+              className="relative inline-flex p-0.5 rounded-xl bg-slate-200/70 border border-slate-200/90 select-none gap-0.5"
+              role="tablist"
+              aria-label="Ledger views"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeLedgerView === 'DEPLOYMENTS'}
+                onClick={() => setActiveLedgerView('DEPLOYMENTS')}
+                className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
+                  activeLedgerView === 'DEPLOYMENTS'
+                    ? 'text-white'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activeLedgerView === 'DEPLOYMENTS'}
-                  onClick={() => setActiveLedgerView('DEPLOYMENTS')}
-                  className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
-                    activeLedgerView === 'DEPLOYMENTS'
-                      ? 'text-white'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  {activeLedgerView === 'DEPLOYMENTS' && (
-                    <PillMotion
-                      layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
-                      aria-hidden
-                      className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
-                      transition={SPRING_TAB_PILL}
-                    />
-                  )}
-                  <span className="relative z-10">Deployments ({combinedItems.length})</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activeLedgerView === 'BALANCES'}
-                  onClick={() => setActiveLedgerView('BALANCES')}
-                  className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
-                    activeLedgerView === 'BALANCES'
-                      ? 'text-white'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  {activeLedgerView === 'BALANCES' && (
-                    <PillMotion
-                      layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
-                      aria-hidden
-                      className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
-                      transition={SPRING_TAB_PILL}
-                    />
-                  )}
-                  <span className="relative z-10">Branch Balances ({branchBalanceRows.length})</span>
-                </button>
-              </div>
-              <span className="text-xs font-semibold text-slate-500 hidden sm:inline">
-                {activeLedgerView === 'BALANCES'
-                  ? `${branchBalanceRows.length} branch balance(s)`
-                  : `${displayedItems.length} of ${combinedItems.length} items`}
-              </span>
+                {activeLedgerView === 'DEPLOYMENTS' && (
+                  <PillMotion
+                    layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
+                    aria-hidden
+                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    transition={SPRING_TAB_PILL}
+                  />
+                )}
+                <span className="relative z-10">Inventory ({combinedItems.length})</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeLedgerView === 'BALANCES'}
+                onClick={() => setActiveLedgerView('BALANCES')}
+                className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
+                  activeLedgerView === 'BALANCES'
+                    ? 'text-white'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {activeLedgerView === 'BALANCES' && (
+                  <PillMotion
+                    layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
+                    aria-hidden
+                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                    transition={SPRING_TAB_PILL}
+                  />
+                )}
+                <span className="relative z-10">Branch Stock ({branchBalanceRows.length})</span>
+              </button>
             </div>
 
             <ClearFiltersButton
@@ -1364,12 +1394,13 @@ const MaterialStockPanelComponent: React.FC<{
                   <th className="px-4 py-3">Deployment Date</th>
                   <th className="px-4 py-3">Branch Staff</th>
                   <th className="px-4 py-3">Branch Name</th>
+                  {isAdmin && <th className="px-4 py-3 text-center w-24">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {displayedItems.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
+                    <td colSpan={isAdmin ? 10 : 9} className="px-4 py-12 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
                         <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
                           <Boxes className="w-5 h-5 text-slate-400" />
@@ -1449,6 +1480,18 @@ const MaterialStockPanelComponent: React.FC<{
                       <td className="px-4 py-2.5 text-slate-600 truncate max-w-[150px]" title={branchName}>
                         {branchName}
                       </td>
+
+                      {isAdmin && (
+                        <td className="px-4 py-2.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setManagingItem(s)}
+                            className="px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 hover:border-[#003857] hover:text-[#003857] text-slate-700 transition cursor-pointer shadow-2xs"
+                          >
+                            Manage
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -1490,6 +1533,16 @@ const MaterialStockPanelComponent: React.FC<{
         triggerToast={triggerToast}
       />
       <OpeningDialog open={dlg === 'OPENING'} branches={branches} onClose={() => setDlg('')} onDone={changed} triggerToast={triggerToast} />
+      <ManageMaterialModal
+        item={managingItem}
+        isOpen={Boolean(managingItem)}
+        onClose={() => setManagingItem(null)}
+        branches={branches}
+        devices={devices}
+        role={role}
+        myBranch={myBranch}
+        onSave={handleManageSave}
+      />
     </div>
   );
 };
