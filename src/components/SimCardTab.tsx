@@ -255,14 +255,11 @@ const SimCardTabComponent: React.FC<{
       {/* Top Banner Header */}
       <section className="relative overflow-hidden rounded-3xl p-6 sm:p-7 border shadow-sm bg-slate-100 border-slate-200/90" aria-label="SIM cards">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="space-y-1.5 max-w-3xl">
+          <div className="space-y-1 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-3 text-slate-900">
-              <CreditCard className="w-7 h-7 text-[#003857]" aria-hidden />
+              <CreditCard className="w-7 h-7 text-[#155484]" aria-hidden />
               <span>SIM Card Control Hub</span>
             </h1>
-            <p className="text-sm sm:text-base text-slate-600">
-              Track SIM cards across Stock, Branch Reserve, and Bundled Devices.
-            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {isAdmin && (
@@ -303,10 +300,10 @@ const SimCardTabComponent: React.FC<{
           <motion.button
             whileTap={WHILE_TAP_BUTTON}
             type="button"
-            onClick={() => setStatus('')}
+            onClick={() => React.startTransition(() => setStatus(''))}
             aria-pressed={status === ''}
             className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition ${
-              status === '' ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              status === '' ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
           >
             All <span className="tabular-nums opacity-80 ml-1">{totalAll?.toLocaleString() ?? '—'}</span>
@@ -316,10 +313,10 @@ const SimCardTabComponent: React.FC<{
               key={item.status}
               whileTap={WHILE_TAP_BUTTON}
               type="button"
-              onClick={() => setStatus(item.status)}
+              onClick={() => React.startTransition(() => setStatus(item.status))}
               aria-pressed={status === item.status}
               className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition inline-flex items-center gap-1.5 ${
-                status === item.status ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                status === item.status ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
               }`}
             >
               <span className={`w-4 h-4 rounded-full text-[10px] inline-flex items-center justify-center font-bold ${
@@ -337,10 +334,10 @@ const SimCardTabComponent: React.FC<{
               key={s}
               whileTap={WHILE_TAP_BUTTON}
               type="button"
-              onClick={() => setStatus(s)}
+              onClick={() => React.startTransition(() => setStatus(s))}
               aria-pressed={status === s}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition ${
-                status === s ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-slate-50'
+                status === s ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-slate-50'
               }`}
             >
               {SIM_STATUS_DISPLAY[s]}{' '}
@@ -371,7 +368,7 @@ const SimCardTabComponent: React.FC<{
                   type="button"
                   role="tab"
                   aria-selected={active}
-                  onClick={() => setHardwareFilter(id)}
+                  onClick={() => React.startTransition(() => setHardwareFilter(id))}
                   className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none flex items-center gap-1.5 ${
                     active
                       ? 'text-white'
@@ -415,21 +412,10 @@ const SimCardTabComponent: React.FC<{
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-slate-400"
           />
         </label>
-        <select
-          value={hardwareFilter}
-          onChange={(e) => setHardwareFilter(e.target.value as HardwareFilter)}
-          aria-label="Device Type"
-          className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 cursor-pointer min-w-[170px]"
-        >
-          <option value="ALL">All Hardware Types</option>
-          <option value="POS">POS Terminal</option>
-          <option value="SOUND_BOX">Sound Box</option>
-          <option value="UNASSIGNED">Available Pool (Unassigned)</option>
-        </select>
         {isAdmin && (
           <select
             value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
+            onChange={(e) => React.startTransition(() => setBranchId(e.target.value))}
             aria-label="Location"
             className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 cursor-pointer max-w-[260px]"
           >
@@ -442,12 +428,12 @@ const SimCardTabComponent: React.FC<{
         )}
         <ClearFiltersButton
           active={!!status || !!query || (isAdmin && !!branchId) || hardwareFilter !== 'ALL'}
-          onClear={() => {
+          onClear={() => React.startTransition(() => {
             setStatus('');
             setQuery('');
             setHardwareFilter('ALL');
             if (isAdmin) setBranchId('');
-          }}
+          })}
         />
       </section>
 

@@ -937,14 +937,9 @@ const MaterialStockPanelComponent: React.FC<{
                   {group === 'POS' ? 'POS Terminal Materials' : 'Sound Box Materials'}
                 </h2>
                 <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                  {totalAllItems?.toLocaleString() ?? combinedItems.length} Items
+                  {totalAllItems?.toLocaleString() ?? combinedItems.length}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {group === 'POS'
-                  ? 'Batteries, Stand Holders, Charging Docks & AC Adaptors'
-                  : 'Sound Box AC Adaptors'}
-              </p>
             </div>
           </div>
 
@@ -1021,10 +1016,10 @@ const MaterialStockPanelComponent: React.FC<{
             <motion.button
               whileTap={{ scale: 0.97 }}
               type="button"
-              onClick={() => setStatusFilter('')}
+              onClick={() => React.startTransition(() => setStatusFilter(''))}
               aria-pressed={statusFilter === ''}
               className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition ${
-                statusFilter === '' ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                statusFilter === '' ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
               All <span className="tabular-nums opacity-80 ml-1">{totalAllItems?.toLocaleString() ?? '—'}</span>
@@ -1034,10 +1029,10 @@ const MaterialStockPanelComponent: React.FC<{
                 key={item.status}
                 whileTap={{ scale: 0.97 }}
                 type="button"
-                onClick={() => setStatusFilter(item.status)}
+                onClick={() => React.startTransition(() => setStatusFilter(item.status))}
                 aria-pressed={statusFilter === item.status}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition inline-flex items-center gap-1.5 ${
-                  statusFilter === item.status ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  statusFilter === item.status ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <span className={`w-4 h-4 rounded-full text-[10px] inline-flex items-center justify-center font-bold ${
@@ -1055,10 +1050,10 @@ const MaterialStockPanelComponent: React.FC<{
                 key={s}
                 whileTap={{ scale: 0.97 }}
                 type="button"
-                onClick={() => setStatusFilter(s)}
+                onClick={() => React.startTransition(() => setStatusFilter(s))}
                 aria-pressed={statusFilter === s}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition ${
-                  statusFilter === s ? 'bg-[#003857] text-white border-[#003857]' : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-slate-50'
+                  statusFilter === s ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white/80 text-slate-500 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 {MATERIAL_STATUS_DISPLAY[s]}{' '}
@@ -1150,7 +1145,7 @@ const MaterialStockPanelComponent: React.FC<{
                 type="button"
                 role="tab"
                 aria-selected={activeLedgerView === 'DEPLOYMENTS'}
-                onClick={() => setActiveLedgerView('DEPLOYMENTS')}
+                onClick={() => React.startTransition(() => setActiveLedgerView('DEPLOYMENTS'))}
                 className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
                   activeLedgerView === 'DEPLOYMENTS'
                     ? 'text-white'
@@ -1171,7 +1166,7 @@ const MaterialStockPanelComponent: React.FC<{
                 type="button"
                 role="tab"
                 aria-selected={activeLedgerView === 'BALANCES'}
-                onClick={() => setActiveLedgerView('BALANCES')}
+                onClick={() => React.startTransition(() => setActiveLedgerView('BALANCES'))}
                 className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
                   activeLedgerView === 'BALANCES'
                     ? 'text-white'
@@ -1215,10 +1210,10 @@ const MaterialStockPanelComponent: React.FC<{
                 <button
                   key={c}
                   type="button"
-                  onClick={() => setSelectedCode(isSelected ? 'ALL' : c)}
-                  className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+                  onClick={() => React.startTransition(() => setSelectedCode(isSelected ? 'ALL' : c))}
+                  className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
                     isSelected
-                      ? 'bg-white border-[#003857] ring-1 ring-[#003857]/30 shadow-xs'
+                      ? 'bg-white border-[#155484] ring-1 ring-[#155484]/30 shadow-xs'
                       : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
                   }`}
                 >
@@ -1236,7 +1231,7 @@ const MaterialStockPanelComponent: React.FC<{
                       <span className="text-xs font-bold text-slate-800">{materialName(c)}</span>
                     </div>
                     {isSelected && (
-                      <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#003857] text-white">
+                      <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#155484] text-white">
                         Active
                       </span>
                     )}

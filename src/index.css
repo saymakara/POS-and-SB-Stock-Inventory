@@ -657,10 +657,12 @@ button:hover:not(:disabled),
   vertical-align: middle;
   border-bottom: 1px solid #edf0f3;
   background: #ffffff;
-  transition: background-color 0.16s var(--ease-apple-smooth);
+  transition: background-color 0.09s ease-out;
 }
+.data-table tbody tr { contain: layout style; }
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .data-table tbody tr:hover td { background: #f4f8fb; }
+.data-table tbody tr:active td { background: #e9f2f9; }
 .data-table .cell-main { font-size: 13px; font-weight: 400; color: #0f172a; line-height: 1.45; }
 /* (22 Oct 2026) plain, regular-weight text in tables (no bold), for easy reading */
 .data-table tbody td,
@@ -682,11 +684,13 @@ button:hover:not(:disabled),
 .chip-sky { background: #f0f9ff; color: #0369a1; border-color: #bae6fd !important; }   /* (11 Nov 2026) Credit Card: waiting for documents */
 .data-table .row-btn {
   padding: 5px 12px; border-radius: 8px;
-  font-size: 12px; font-weight: 400; white-space: nowrap;
-  color: #003857; background: #eef5f9; border: 1px solid #cfe0ea;
+  font-size: 12px; font-weight: 500; white-space: nowrap;
+  color: #155484; background: #eef5f9; border: 1px solid #cfe0ea;
   cursor: pointer;
+  transition: background-color 0.1s ease-out, color 0.1s ease-out, transform 0.08s ease-out;
 }
-.data-table .row-btn:hover { background: #003857; color: #ffffff; border-color: #003857; }
+.data-table .row-btn:hover { background: #155484; color: #ffffff; border-color: #155484; }
+.data-table .row-btn:active { transform: scale(0.97); }
 .data-table .serial-btn {
   font-family: var(--font-mono); font-size: 12px; color: #334155;
   padding: 2px 8px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc; cursor: pointer;
@@ -1327,10 +1331,9 @@ select.appearance-none {
    20 WAYS TO MAKE BEAUTIFUL ANIMATIONS - SYSTEM UTILITIES
    ========================================================================== */
 
-/* Rule 3: Stagger list rows by 30ms */
+/* Lightweight row entrance without forcing GPU layer promotion across 50-100 rows */
 .row-stagger {
-  animation: rowGlideIn var(--duration-fast) var(--ease-entrance) both;
-  will-change: transform, opacity;
+  animation: rowGlideIn 0.14s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Rule 5: Stretch moving knobs 12% */

@@ -774,14 +774,19 @@ async function fetchDevicesByRanges(size: number, onFirstPage?: (rows: Device[],
     const pages: any[][] = new Array(bounds.length);
     pages[0] = await readRange('', bounds[1] ?? null);                    // from the start (also units sorted before the first bound)
     onFirstPage?.(pages[0].map(mapRowToDevice), total);
-    const CONCURRENCY = 6;
+    const CONCURRENCY = 8;
     for (let i = 1; i < bounds.length; i += CONCURRENCY) {
       const idx = Array.from({ length: Math.min(CONCURRENCY, bounds.length - i) }, (_, k) => i + k);
       const got = await Promise.all(idx.map((j) => readRange(bounds[j], bounds[j + 1] ?? null)));
       idx.forEach((j, k) => { pages[j] = got[k]; });
     }
     const all: Device[] = [];
-    for (const pg of pages) for (const r of pg) all.push(mapRowToDevice(r));
+    for (const pg of pages) {
+      for (const r of pg) {
+        all.push(mapRowToDevice(r));
+        if (all.length % 2500 === 0) await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      }
+    }
     return all;
   } catch (err) {
     await reportCaughtError('fetchDevicesByRanges', err, { showPopup: false });

@@ -74,6 +74,23 @@ const cachedLost = new Map<string, LostItem[]>();
 let cachedOpenLostCounts: { pos: number; sb: number; sim: number } | null = null;
 let cachedStatusCounts = new Map<string, Record<SerialStatus, number>>();
 let cachedSerialsPages = new Map<string, { rows: MaterialSerial[]; total: number }>();
+const inflightSerialPages = new Map<string, Promise<{ rows: MaterialSerial[]; total: number }>>();
+const inflightStatusCounts = new Map<string, Promise<Record<SerialStatus, number>>>();
+let inflightBalances: Promise<MaterialBalance[]> | null = null;
+const inflightLost = new Map<string, Promise<LostItem[]>>();
+
+const EMPTY_SERIAL_COUNTS = (): Record<SerialStatus, number> => ({
+  HQ_STOCK: 0, IN_TRANSIT: 0, BRANCH_RESERVE: 0, AT_MERCHANT: 0, LOST: 0, FAULTY: 0, WRITTEN_OFF: 0,
+});
+
+function deriveCountsFromRows(rows: MaterialSerial[]): Record<SerialStatus, number> {
+  const out = EMPTY_SERIAL_COUNTS();
+  for (let i = 0; i < rows.length; i++) {
+    const st = rows[i].status;
+    if (st in out) out[st] += 1;
+  }
+  return out;
+}
 
 let owner: string | null | undefined;
 
@@ -83,6 +100,10 @@ export function clearMaterialsCache(): void {
   cachedOpenLostCounts = null;
   cachedStatusCounts.clear();
   cachedSerialsPages.clear();
+  inflightSerialPages.clear();
+  inflightStatusCounts.clear();
+  inflightBalances = null;
+  inflightLost.clear();
   clearFresh('mat:');
 }
 
@@ -100,21 +121,25 @@ if (isSupabaseConfigured) {
 
 export async function fetchMaterialBalances(force = false): Promise<MaterialBalance[]> {
   if (!isSupabaseConfigured) return [];
-  if (!force && cachedBalances && isFresh('mat:balances', 60000)) {
+  if (!force && cachedBalances && isFresh('mat:balances', 120000)) {
     return cachedBalances;
   }
-  const { data, error } = await supabase.from('material_balances').select('material_code,branch_id,on_hand,in_transit,at_merchant').limit(5000);
-  fail(error);
-  const sum = new Map<string, MaterialBalance>();
-  (data || []).forEach((r: any) => {
-    const k = `${r.material_code}|${r.branch_id}`;
-    const b = sum.get(k) || { code: r.material_code, branchId: String(r.branch_id), onHand: 0, inTransit: 0, atMerchant: 0 };
-    b.onHand += Number(r.on_hand) || 0; b.inTransit += Number(r.in_transit) || 0; b.atMerchant += Number(r.at_merchant) || 0;
-    sum.set(k, b);
-  });
-  cachedBalances = Array.from(sum.values());
-  markFresh('mat:balances');
-  return cachedBalances;
+  if (!force && inflightBalances) return inflightBalances;
+  inflightBalances = (async () => {
+    const { data, error } = await supabase.from('material_balances').select('material_code,branch_id,on_hand,in_transit,at_merchant').limit(5000);
+    fail(error);
+    const sum = new Map<string, MaterialBalance>();
+    (data || []).forEach((r: any) => {
+      const k = `${r.material_code}|${r.branch_id}`;
+      const b = sum.get(k) || { code: r.material_code, branchId: String(r.branch_id), onHand: 0, inTransit: 0, atMerchant: 0 };
+      b.onHand += Number(r.on_hand) || 0; b.inTransit += Number(r.in_transit) || 0; b.atMerchant += Number(r.at_merchant) || 0;
+      sum.set(k, b);
+    });
+    cachedBalances = Array.from(sum.values());
+    markFresh('mat:balances');
+    return cachedBalances;
+  })().finally(() => { inflightBalances = null; });
+  return inflightBalances;
 }
 
 const mapSerial = (r: any): MaterialSerial => ({
@@ -135,61 +160,95 @@ export async function fetchSerialsPage(q: SerialQuery, force = false): Promise<{
   const codesList = q.codes && q.codes.length > 0 ? q.codes : (q.code ? [q.code] : []);
   const codeKey = codesList.slice().sort().join(',');
   const k = `${codeKey}|${q.status || ''}|${q.branchId || ''}|${q.search || ''}|${q.page}|${q.pageSize}`;
-  if (!force && cachedSerialsPages.has(k) && isFresh('mat:page:' + k, 35000)) {
+  if (!force && cachedSerialsPages.has(k) && isFresh('mat:page:' + k, 90000)) {
     return cachedSerialsPages.get(k)!;
   }
-  let req = supabase.from('material_serials').select('*', { count: 'exact' });
-  if (codesList.length === 1) {
-    req = req.eq('material_code', codesList[0]);
-  } else if (codesList.length > 1) {
-    req = req.in('material_code', codesList);
+  if (!force && inflightSerialPages.has(k)) {
+    return inflightSerialPages.get(k)!;
   }
-  if (q.status) req = req.eq('status', q.status);
-  if (q.branchId) req = req.eq('branch_id', q.branchId);
-  const term = (q.search || '').trim().replace(/[%,()*]/g, ' ').trim();
-  if (term) {
-    const isSim = q.code === 'SIM' || (codesList.length === 1 && codesList[0] === 'SIM');
-    const sim = isSim ? normSim(term) : '';
-    const digits = term.replace(/\D/g, '');
-    const parts = [`serial.ilike.%${sim || term}%`, `mid.ilike.%${term}%`, `device_serial.ilike.%${term}%`, `merchant_name.ilike.%${term}%`];
-    if (isSim && digits.length >= 3 && !sim) parts.push(`serial.ilike.%${digits.slice(-3)}%`);
-    req = req.or(parts.join(','));
-  }
-  const from = (q.page - 1) * q.pageSize;
-  const { data, error, count } = await req.order('updated_at', { ascending: false }).order('serial').range(from, from + q.pageSize - 1);
-  fail(error);
-  const res = { rows: (data || []).map(mapSerial), total: count || 0 };
-  cachedSerialsPages.set(k, res);
-  markFresh('mat:page:' + k);
-  return res;
+  const p = (async () => {
+    let req = supabase.from('material_serials').select('*', { count: 'exact' });
+    if (codesList.length === 1) {
+      req = req.eq('material_code', codesList[0]);
+    } else if (codesList.length > 1) {
+      req = req.in('material_code', codesList);
+    }
+    if (q.status) req = req.eq('status', q.status);
+    if (q.branchId) req = req.eq('branch_id', q.branchId);
+    const term = (q.search || '').trim().replace(/[%,()*]/g, ' ').trim();
+    if (term) {
+      const isSim = q.code === 'SIM' || (codesList.length === 1 && codesList[0] === 'SIM');
+      const sim = isSim ? normSim(term) : '';
+      const digits = term.replace(/\D/g, '');
+      const parts = [`serial.ilike.%${sim || term}%`, `mid.ilike.%${term}%`, `device_serial.ilike.%${term}%`, `merchant_name.ilike.%${term}%`];
+      if (isSim && digits.length >= 3 && !sim) parts.push(`serial.ilike.%${digits.slice(-3)}%`);
+      req = req.or(parts.join(','));
+    }
+    const from = (q.page - 1) * q.pageSize;
+    const { data, error, count } = await req.order('updated_at', { ascending: false }).order('serial').range(from, from + q.pageSize - 1);
+    fail(error);
+    const res = { rows: (data || []).map(mapSerial), total: count || 0 };
+    cachedSerialsPages.set(k, res);
+    markFresh('mat:page:' + k);
+    // If all rows for this material group & branch fit in this single unfiltered page, seed status counts locally (saves 7 HEAD queries).
+    if (!q.status && !term && q.page === 1 && res.rows.length >= res.total) {
+      const ck = `${codeKey}|${q.branchId || ''}`;
+      cachedStatusCounts.set(ck, deriveCountsFromRows(res.rows));
+      markFresh('mat:counts:' + ck);
+    }
+    return res;
+  })().finally(() => {
+    if (inflightSerialPages.get(k) === p) inflightSerialPages.delete(k);
+  });
+  inflightSerialPages.set(k, p);
+  return p;
 }
 /** How many numbers of this material are in each status (optionally one branch). */
 export async function fetchSerialStatusCounts(code: MaterialCode | MaterialCode[], branchId?: string, force = false): Promise<Record<SerialStatus, number>> {
-  const out = { HQ_STOCK: 0, IN_TRANSIT: 0, BRANCH_RESERVE: 0, AT_MERCHANT: 0, LOST: 0, FAULTY: 0, WRITTEN_OFF: 0 } as Record<SerialStatus, number>;
+  const out = EMPTY_SERIAL_COUNTS();
   if (!isSupabaseConfigured) return out;
   const codes = Array.isArray(code) ? code : [code];
   const codeKey = codes.slice().sort().join(',');
   const k = `${codeKey}|${branchId || ''}`;
-  if (!force && cachedStatusCounts.has(k) && isFresh('mat:counts:' + k, 45000)) {
+  if (!force && cachedStatusCounts.has(k) && isFresh('mat:counts:' + k, 90000)) {
     return { ...cachedStatusCounts.get(k)! };
   }
-  // One exact count per status, in parallel: correct however many numbers there are (a plain select stops at 1,000 rows).
-  await Promise.all((Object.keys(out) as SerialStatus[]).map(async (st) => {
-    let req = supabase.from('material_serials').select('serial', { count: 'exact', head: true });
-    if (codes.length === 1) {
-      req = req.eq('material_code', codes[0]);
-    } else {
-      req = req.in('material_code', codes);
-    }
-    req = req.eq('status', st);
-    if (branchId) req = req.eq('branch_id', branchId);
-    const { count, error } = await req;
-    fail(error);
-    out[st] = count || 0;
-  }));
-  cachedStatusCounts.set(k, out);
-  markFresh('mat:counts:' + k);
-  return out;
+  // Wait briefly if a full page query for the exact same group/branch is already in-flight so we can reuse its derived counts.
+  const fullPageKey = `${codeKey}||${branchId || ''}||1|1000`;
+  if (!force && inflightSerialPages.has(fullPageKey)) {
+    try {
+      await inflightSerialPages.get(fullPageKey);
+      if (cachedStatusCounts.has(k) && isFresh('mat:counts:' + k, 90000)) {
+        return { ...cachedStatusCounts.get(k)! };
+      }
+    } catch { /* fall through to counts query */ }
+  }
+  if (!force && inflightStatusCounts.has(k)) {
+    return { ...(await inflightStatusCounts.get(k)!) };
+  }
+  const p = (async () => {
+    const next = EMPTY_SERIAL_COUNTS();
+    await Promise.all((Object.keys(next) as SerialStatus[]).map(async (st) => {
+      let req = supabase.from('material_serials').select('serial', { count: 'exact', head: true });
+      if (codes.length === 1) {
+        req = req.eq('material_code', codes[0]);
+      } else {
+        req = req.in('material_code', codes);
+      }
+      req = req.eq('status', st);
+      if (branchId) req = req.eq('branch_id', branchId);
+      const { count, error } = await req;
+      fail(error);
+      next[st] = count || 0;
+    }));
+    cachedStatusCounts.set(k, next);
+    markFresh('mat:counts:' + k);
+    return { ...next };
+  })().finally(() => {
+    if (inflightStatusCounts.get(k) === p) inflightStatusCounts.delete(k);
+  });
+  inflightStatusCounts.set(k, p);
+  return p;
 }
 
 const mapLost = (r: any): LostItem => ({

@@ -95,7 +95,7 @@ function shared<T>(key: string, maxAgeMs: number, cached: () => T | undefined, r
   return p;
 }
 
-export function fetchCcList(q: CcQuery, maxAgeMs = 4000): Promise<{ rows: CcEntry[]; total: number; masked: boolean }> {
+export function fetchCcList(q: CcQuery, maxAgeMs = 45000): Promise<{ rows: CcEntry[]; total: number; masked: boolean }> {
   const k = ccListKey(q);
   return shared('L' + k, maxAgeMs, () => listCache.get(k), () => fetchCcListNow(q));
 }
@@ -111,7 +111,7 @@ async function fetchCcListNow(q: CcQuery): Promise<{ rows: CcEntry[]; total: num
   return res;
 }
 
-export function fetchCcCounts(from: string | null, to: string | null, maxAgeMs = 4000): Promise<CcCounts | null> {
+export function fetchCcCounts(from: string | null, to: string | null, maxAgeMs = 45000): Promise<CcCounts | null> {
   const k = `${from || ''}|${to || ''}`;
   return shared('C' + k, maxAgeMs, () => countsCache.get(k), () => fetchCcCountsNow(from, to));
 }
@@ -139,6 +139,7 @@ async function fetchCcCountsNow(from: string | null, to: string | null): Promise
 export async function reviewCc(recordId: string, action: 'CONFIRM' | 'REJECT', reason?: string, note?: string): Promise<{ reviewedBy: string; reviewedAt: string }> {
   const { data, error } = await supabase.rpc('cc_review', { p_record_id: recordId, p_action: action, p_reason: reason || null, p_note: note || null });
   if (error) throw new Error(error.message);
+  clearCcCache();
   const d: any = data || {};
   return { reviewedBy: d.reviewed_by || '', reviewedAt: d.reviewed_at || '' };
 }
@@ -151,6 +152,7 @@ export async function docsCc(recordId: string, action: 'WELL_RECEIVED' | 'FOLLOW
     if (/cc_docs|PGRST202|does not exist|schema cache/i.test(error.message)) throw new Error('The database needs the update 20261111_01_cc_documents.sql first.');
     throw new Error(error.message);
   }
+  clearCcCache();
   const d: any = data || {};
   return { docStatus: d.doc_status ?? null, docSince: d.doc_since ?? null, docFollowups: Number(d.doc_followups) || 0, docLastFollowup: d.doc_last_followup ?? null, by: d.by || '', at: d.at || '' };
 }

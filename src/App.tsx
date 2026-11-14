@@ -690,7 +690,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   }, []);
   const loadDevicesSmart = useCallback(async (full: boolean): Promise<DeviceLoad> => {
     if (DELTA_SYNC_ENABLED && !full) {
-      await Promise.race([cacheHydrated, new Promise<void>((r) => setTimeout(r, 2500))]);   // start from the saved copy when there is one
+      await Promise.race([cacheHydrated, new Promise<void>((r) => setTimeout(r, 1200))]);   // start from the saved copy when there is one
       const d = await tryDeltaDevices();
       if (d) return d;
     }
@@ -715,17 +715,45 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     versionAlias.current = new Map();
     const isAdminProfile = profile?.role === 'SUPER_ADMIN' || profile?.role === 'ADMIN';
     const effectiveBranch = role === 'BRANCH' ? selectedBranch : (branchFilter !== 'ALL' ? branchFilter : undefined);
-    const [devLoad, reqs, hist, srvBranches, stageSummary] = await Promise.all([
-      loadDevicesSmart(Boolean(opts?.full)),
-      fetchRequisitionsFromSupabase(),
-      fetchHistoricalMerchantsFromSupabase(),
-      fetchBranchesFromSupabase(),
-      fetchDeviceStageCountsFromSupabase(effectiveBranch),
-    ]);
-    const devs = devLoad.list;
-    const devsUnchanged = Boolean(devLoad.unchanged);
+
+    // Fire fast independent reads immediately so UI shell, KPI counts, branches & requests render right away
+    // instead of blocking inside Promise.all behind 56 full-fleet device pages.
+    const devPromise = loadDevicesSmart(Boolean(opts?.full));
+    const reqPromise = fetchRequisitionsFromSupabase().then((reqs) => {
+      if (reqs) {
+        syncedReqs.current = new Map(reqs.map((r) => [r.reqId, r]));
+        reqs.forEach((r) => serverCopies.current.add(r));
+        setRequisitions(reqs);
+      }
+      return reqs;
+    });
+    const histPromise = fetchHistoricalMerchantsFromSupabase().then((hist) => {
+      if (hist) {
+        syncedHist.current = new Set(hist.map((h) => h.recordId));
+        setHistoricalMerchants(hist);
+      }
+      return hist;
+    });
+    const branchPromise = fetchBranchesFromSupabase().then((srvBranches) => {
+      if (srvBranches && srvBranches.length) {
+        setBranches((prev) => {
+          const local = new Map(prev.map((b) => [b.id, b]));
+          return srvBranches.map((b) => ({ ...(local.get(b.id) || { staff: [], staffDetails: [] }), id: b.id, code: b.code, name: b.id === '100' ? 'Head Office' : b.name }));
+        });
+      }
+      return srvBranches;
+    });
+    const stagePromise = fetchDeviceStageCountsFromSupabase(effectiveBranch).then((stageSummary) => {
+      if (stageSummary) {
+        setServerStageSummary(stageSummary);
+        try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(stageSummary)); } catch {}
+        setServerDeviceTotal((prev) => prev ?? stageSummary.all + stageSummary.archived);
+      }
+      return stageSummary;
+    });
+
     if (isAdminProfile) {
-      loadStaff({ maxAgeMs: opts?.full ? 0 : 30000 }).then((staffList) => {
+      Promise.all([loadStaff({ maxAgeMs: opts?.full ? 0 : 30000 }), branchPromise]).then(([staffList, srvBranches]) => {
         if (staffList) {
           const bn = new Map((srvBranches || []).map((b) => [b.id, b.name]));
           const nextUsers = staffList.map((a: StaffAccount) => staffToUser(a, bn.get(a.branchId)));
@@ -749,34 +777,23 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
               };
             });
           });
-          // (29 Oct 2026) devices are NOT rewritten here any more. Rewriting d.staff to the directory spelling made the
-          // change watcher save every such unit to the database on every reload; two spellings that resolve to each
-          // other (local name aliases) flipped back and forth, and 338 units were saved 224–600 times each. A staff
-          // rename is applied to devices by the database itself (admin_save_staff) and arrives through the live feed;
-          // screens that need the directory spelling resolve it when they display it.
         }
       });
     }
-    // (22 Oct 2026, review) the branch list and the staff are the server's: before, both came from a list built into
-    // the app, so a branch added by one admin was never seen by another and the staff counts were not the real accounts
-    if (srvBranches && srvBranches.length) {
-      setBranches((prev) => {
-        const local = new Map(prev.map((b) => [b.id, b]));
-        return srvBranches.map((b) => ({ ...(local.get(b.id) || { staff: [], staffDetails: [] }), id: b.id, code: b.code, name: b.id === '100' ? 'Head Office' : b.name }));
-      });
-    }
-    if (stageSummary) {
-      if (!devs || devs.length === 0 || stageSummary.all <= devs.length) {
-        setServerStageSummary(stageSummary);
-        try { localStorage.setItem(STORAGE_KEY_STAGE_SUMMARY, JSON.stringify(stageSummary)); } catch {}
-        if (!devs || devs.length === 0) {
-          setServerDeviceTotal(stageSummary.all + stageSummary.archived);
-        }
-      }
+
+    const [devLoad, reqs, hist, srvBranches, stageSummary] = await Promise.all([
+      devPromise,
+      reqPromise,
+      histPromise,
+      branchPromise,
+      stagePromise,
+    ]);
+    const devs = devLoad.list;
+    const devsUnchanged = Boolean(devLoad.unchanged);
+    if (stageSummary && devs && devs.length > 0 && stageSummary.all > devs.length) {
+      setServerDeviceTotal(devs.length);
     }
     const allDevs = devs || [];
-    // (29 Oct 2026) a failed read of the units never replaces the list on the screen (before, an empty answer for the units
-    // being configured could clear it)
     if (!devsUnchanged && devs) {
       if (!stageSummary) {
         setServerDeviceTotal(allDevs.length);
@@ -785,17 +802,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       allDevs.forEach((d) => serverCopies.current.add(d));
       setDevices(allDevs);
     }
-    if (reqs) {
-      syncedReqs.current = new Map(reqs.map((r) => [r.reqId, r]));
-      reqs.forEach((r) => serverCopies.current.add(r));
-      setRequisitions(reqs);
-    }
-    if (hist) {
-      syncedHist.current = new Set(hist.map((h) => h.recordId));
-      setHistoricalMerchants(hist);
-    }
     if (devs || reqs || hist || srvBranches) {
-      // (the units are saved by the effect that watches `devices`: only the changed ones are written)
       saveFullSnapshotToIdb({
         requisitions: reqs || undefined,
         historicalMerchants: hist || undefined,
@@ -1182,7 +1189,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       requestAnimationFrame(() => requestAnimationFrame(() => setActiveTab(tabId)));
       return;
     }
-    setActiveTab(tabId);
+    React.startTransition(() => setActiveTab(tabId));
   };
 
   useEffect(() => {
