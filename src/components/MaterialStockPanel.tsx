@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import {
@@ -390,6 +391,7 @@ const ProductStockPageComponent: React.FC<{
     total: number;
   }>({ summaries: {}, total: 0 });
   const [matPrewarmed, setMatPrewarmed] = useState(false);
+  const [heroMaterialSlot, setHeroMaterialSlot] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setUnitsScope('HARDWARE');
@@ -523,6 +525,7 @@ const ProductStockPageComponent: React.FC<{
             onSelectedCodeChange={setSelectedMaterialCode}
             onSwitchToUnits={() => React.startTransition(() => setUnitsScope('HARDWARE'))}
             onSummariesChange={handleSummariesChange}
+            heroControlsContainer={view === 'UNITS' && unitsScope === 'MATERIAL' ? heroMaterialSlot : null}
           />
         </div>
       )}
@@ -587,6 +590,9 @@ const ProductStockPageComponent: React.FC<{
             {materialSummaryStrip}
             {kpiCards && <div className="[&>.kpi-strip]:mb-0">{kpiCards}</div>}
           </div>
+        )}
+        {view === 'UNITS' && unitsScope === 'MATERIAL' && (
+          <div ref={setHeroMaterialSlot} className="pt-4 border-t border-slate-200/90 space-y-3" />
         )}
       </section>
 
@@ -657,9 +663,10 @@ const MaterialStockPanelComponent: React.FC<{
   onSelectedCodeChange?: (code: MaterialCode | 'ALL') => void;
   onSwitchToUnits?: () => void;
   onSummariesChange?: (summaries: Partial<Record<MaterialCode, MaterialSummaryMetric>>, totalCount: number) => void;
+  heroControlsContainer?: HTMLElement | null;
 }> = ({
   group, role, branches, myBranch, triggerToast, onLostChanged, devices = [], users = [], excludedSerials, viewToggle,
-  selectedCode: selectedCodeProp, onSelectedCodeChange, onSwitchToUnits, onSummariesChange,
+  selectedCode: selectedCodeProp, onSelectedCodeChange, onSwitchToUnits, onSummariesChange, heroControlsContainer,
 }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
@@ -1325,265 +1332,270 @@ const MaterialStockPanelComponent: React.FC<{
     );
   }
 
+  const actionButtons = (
+    <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+      {isAdmin && (
+        <motion.button
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          type="button"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition cursor-pointer shadow-2xs"
+          onClick={() => {
+            setDlgParams({ code: selectedCode !== 'ALL' ? selectedCode : codes[0], branchId: branchFilter || '100' });
+            setDlg('IN');
+          }}
+        >
+          <PackagePlus className="w-3.5 h-3.5" />
+          <span>Stock In</span>
+        </motion.button>
+      )}
+      {isAdmin && (
+        <motion.button
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          type="button"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
+          onClick={() => {
+            setDlgParams({ code: selectedCode !== 'ALL' ? selectedCode : codes[0], branchId: branchFilter || '100' });
+            setDlg('ADJUST');
+          }}
+        >
+          <PencilLine className="w-3.5 h-3.5 text-slate-600" />
+          <span>Correct</span>
+        </motion.button>
+      )}
+      {isAdmin && (
+        <motion.button
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          type="button"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
+          onClick={() => setDlg('OPENING')}
+        >
+          <Upload className="w-3.5 h-3.5 text-slate-600" />
+          <span>Opening stock</span>
+        </motion.button>
+      )}
+      <motion.button
+        whileHover={{ y: -1 }}
+        whileTap={{ scale: 0.97 }}
+        type="button"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
+        onClick={activeLedgerView === 'BALANCES' ? exportBalancesCsv : exportDetailedInventoryCsv}
+      >
+        <Download className="w-3.5 h-3.5 text-emerald-600" />
+        <span>Export CSV</span>
+      </motion.button>
+      <motion.button
+        whileHover={{ y: -1 }}
+        whileTap={{ scale: 0.97 }}
+        type="button"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
+        onClick={changed}
+        aria-label="Refresh"
+      >
+        {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-slate-600" />}
+        <span>Refresh</span>
+      </motion.button>
+    </div>
+  );
+
+  const filterToolbar = (
+    <div className="space-y-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[260px]">
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={group === 'POS' ? 'Search serial, POS, MID...' : 'Search serial, Sound Box, MID...'}
+              className="w-full pl-8 pr-3 py-2 rounded-xl text-xs font-semibold border bg-white border-slate-200/90 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
+            />
+          </div>
+
+          <select
+            aria-label="Select Material Category"
+            value={selectedCode}
+            onChange={(e) => {
+              if (e.target.value === 'HARDWARE') {
+                onSwitchToUnits?.();
+              } else {
+                setSelectedCode(e.target.value as MaterialCode | 'ALL');
+              }
+            }}
+            className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs min-w-[165px]"
+          >
+            {onSwitchToUnits && <option value="HARDWARE">Hardware Units</option>}
+            <option value="ALL">All Material Types ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
+            {codes.map((c) => {
+              const summary = materialSummaries[c];
+              const count = summary?.total ?? combinedItems.filter((i) => i.code === c).length;
+              return (
+                <option key={c} value={c}>
+                  {materialName(c)} ({count.toLocaleString()})
+                </option>
+              );
+            })}
+          </select>
+
+          <div className="min-w-[175px]">
+            {isAdmin ? (
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="">All locations</option>
+                <option value="100">100 · Head Office</option>
+                {branches
+                  .filter((b) => b.id !== '100' && b.code !== '100')
+                  .map((b) => (
+                    <option key={b.code || b.id} value={b.code || b.id}>
+                      {b.code || b.id} · {b.name}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <div className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-white border-slate-200/90 text-zinc-900">
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Scoped to Branch Code: {myBranch}</span>
+              </div>
+            )}
+          </div>
+
+          <div
+            className="relative inline-flex p-0.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs select-none gap-0.5"
+            role="group"
+            aria-label="Ledger views"
+          >
+            <button
+              type="button"
+              aria-pressed={activeLedgerView === 'DEPLOYMENTS'}
+              onClick={() => React.startTransition(() => setActiveLedgerView('DEPLOYMENTS'))}
+              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
+                activeLedgerView === 'DEPLOYMENTS'
+                  ? 'text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {activeLedgerView === 'DEPLOYMENTS' && (
+                <PillMotion
+                  layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
+                  aria-hidden
+                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                  transition={SPRING_TAB_PILL}
+                />
+              )}
+              <span className="relative z-10">Inventory ({combinedItems.length})</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeLedgerView === 'BALANCES'}
+              onClick={() => React.startTransition(() => setActiveLedgerView('BALANCES'))}
+              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
+                activeLedgerView === 'BALANCES'
+                  ? 'text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {activeLedgerView === 'BALANCES' && (
+                <PillMotion
+                  layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
+                  aria-hidden
+                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                  transition={SPRING_TAB_PILL}
+                />
+              )}
+              <span className="relative z-10">Branch Stock ({branchBalanceRows.length})</span>
+            </button>
+          </div>
+
+          <ClearFiltersButton
+            active={Boolean(query.trim() || statusFilter || (isAdmin && branchFilter) || selectedCode !== 'ALL' || assignmentFilter !== 'ALL')}
+            onClear={() => {
+              setQuery('');
+              setStatusFilter('');
+              if (isAdmin) setBranchFilter('');
+              setSelectedCode('ALL');
+              setAssignmentFilter('ALL');
+            }}
+          />
+        </div>
+
+        {heroControlsContainer && actionButtons}
+      </div>
+
+      {/* 3-Step Lifecycle & Status Filter Pills */}
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Status">
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          type="button"
+          onClick={() => React.startTransition(() => setStatusFilter(''))}
+          aria-pressed={statusFilter === ''}
+          className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition shadow-2xs ${
+            statusFilter === '' ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-600 border-slate-200/90 hover:bg-slate-50'
+          }`}
+        >
+          All <span className="tabular-nums opacity-80 ml-1">{totalAllItems?.toLocaleString() ?? '—'}</span>
+        </motion.button>
+        {PRIMARY_MATERIAL_STEPS.map((item) => (
+          <motion.button
+            key={item.status}
+            whileTap={{ scale: 0.97 }}
+            type="button"
+            onClick={() => React.startTransition(() => setStatusFilter(item.status))}
+            aria-pressed={statusFilter === item.status}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition inline-flex items-center gap-1.5 shadow-2xs ${
+              statusFilter === item.status ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-700 border-slate-200/90 hover:bg-slate-50'
+            }`}
+          >
+            <span className={`w-4 h-4 rounded-full text-[10px] inline-flex items-center justify-center font-bold ${
+              statusFilter === item.status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+            }`}>{item.step}</span>
+            <span>{item.label}</span>
+            <span className="tabular-nums opacity-80 ml-0.5">
+              {(dynamicStatusCounts[item.status] ?? 0).toLocaleString()}
+            </span>
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
-      {/* Executive Material Inventory Command Card */}
+      {heroControlsContainer && createPortal(filterToolbar, heroControlsContainer)}
+
+      {/* Executive Material Inventory Ledger Card */}
       <section
         className="surface-card rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm"
         aria-label={group === 'POS' ? 'POS Materials Inventory Table' : 'Sound Box Materials Inventory Table'}
       >
-        {/* Top Header Strip - System Grey Palette matching InventoryTab & PushConfiguringTab */}
-        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-5 py-4 min-h-[78px] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
-              <Boxes className="w-5 h-5 text-slate-700 dark:text-slate-200" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
-                  {group === 'POS' ? 'POS Terminal Materials' : 'Sound Box Materials'}
-                </h2>
-                <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                  {totalAllItems?.toLocaleString() ?? combinedItems.length}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {isAdmin && (
-              <motion.button
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition cursor-pointer shadow-2xs"
-                onClick={() => {
-                  setDlgParams({ code: selectedCode !== 'ALL' ? selectedCode : codes[0], branchId: branchFilter || '100' });
-                  setDlg('IN');
-                }}
-              >
-                <PackagePlus className="w-3.5 h-3.5" />
-                <span>Stock In</span>
-              </motion.button>
-            )}
-            {isAdmin && (
-              <motion.button
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
-                onClick={() => {
-                  setDlgParams({ code: selectedCode !== 'ALL' ? selectedCode : codes[0], branchId: branchFilter || '100' });
-                  setDlg('ADJUST');
-                }}
-              >
-                <PencilLine className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                <span>Correct</span>
-              </motion.button>
-            )}
-            {isAdmin && (
-              <motion.button
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
-                onClick={() => setDlg('OPENING')}
-              >
-                <Upload className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                <span>Opening stock</span>
-              </motion.button>
-            )}
-            <motion.button
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
-              onClick={activeLedgerView === 'BALANCES' ? exportBalancesCsv : exportDetailedInventoryCsv}
-            >
-              <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Export CSV</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
-              onClick={changed}
-              aria-label="Refresh"
-            >
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />}
-              <span>Refresh</span>
-            </motion.button>
-          </div>
-        </div>
-
-        {/* Filter Toolbar (Row 1 + Row 2 match InventoryTab & PushConfiguringTab so viewToggle never moves) */}
-        <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-3">
-          {/* Row 1: Search + Category + Page Size + Ledger Switch + Clear */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={group === 'POS' ? 'Search serial, POS, MID...' : 'Search serial, Sound Box, MID...'}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
-              />
-            </div>
-
-            <select
-              aria-label="Select Material Category"
-              value={selectedCode}
-              onChange={(e) => {
-                if (e.target.value === 'HARDWARE') {
-                  onSwitchToUnits?.();
-                } else {
-                  setSelectedCode(e.target.value as MaterialCode | 'ALL');
-                }
-              }}
-              className="px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs min-w-[180px]"
-            >
-              {onSwitchToUnits && <option value="HARDWARE">Hardware Units</option>}
-              <option value="ALL">All Material Types ({totalAllItems?.toLocaleString() ?? combinedItems.length})</option>
-              {codes.map((c) => {
-                const summary = materialSummaries[c];
-                const count = summary?.total ?? combinedItems.filter((i) => i.code === c).length;
-                return (
-                  <option key={c} value={c}>
-                    {materialName(c)} ({count.toLocaleString()})
-                  </option>
-                );
-              })}
-            </select>
-
-            <div
-              className="relative inline-flex p-0.5 rounded-xl bg-slate-200/70 border border-slate-200/90 select-none gap-0.5"
-              role="group"
-              aria-label="Ledger views"
-            >
-              <button
-                type="button"
-                aria-pressed={activeLedgerView === 'DEPLOYMENTS'}
-                onClick={() => React.startTransition(() => setActiveLedgerView('DEPLOYMENTS'))}
-                className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
-                  activeLedgerView === 'DEPLOYMENTS'
-                    ? 'text-white'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {activeLedgerView === 'DEPLOYMENTS' && (
-                  <PillMotion
-                    layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
-                    aria-hidden
-                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
-                    transition={SPRING_TAB_PILL}
-                  />
-                )}
-                <span className="relative z-10">Inventory ({combinedItems.length})</span>
-              </button>
-              <button
-                type="button"
-                aria-pressed={activeLedgerView === 'BALANCES'}
-                onClick={() => React.startTransition(() => setActiveLedgerView('BALANCES'))}
-                className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
-                  activeLedgerView === 'BALANCES'
-                    ? 'text-white'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {activeLedgerView === 'BALANCES' && (
-                  <PillMotion
-                    layoutId={SHARED_LAYOUT_IDS.MATERIAL_LEDGER_PILL}
-                    aria-hidden
-                    className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
-                    transition={SPRING_TAB_PILL}
-                  />
-                )}
-                <span className="relative z-10">Branch Stock ({branchBalanceRows.length})</span>
-              </button>
-            </div>
-
-            <ClearFiltersButton
-              active={Boolean(query.trim() || statusFilter || (isAdmin && branchFilter) || selectedCode !== 'ALL' || assignmentFilter !== 'ALL')}
-              onClear={() => {
-                setQuery('');
-                setStatusFilter('');
-                if (isAdmin) setBranchFilter('');
-                setSelectedCode('ALL');
-                setAssignmentFilter('ALL');
-              }}
-            />
-          </div>
-
-          {/* Row 2: Branch Filter on left, viewToggle in exact same location on right */}
-          <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
-            <div className="flex-1 min-w-[220px] max-w-sm">
-              {isAdmin ? (
-                <select
-                  value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-                >
-                  <option value="">All locations</option>
-                  <option value="100">100 · Head Office</option>
-                  {branches
-                    .filter((b) => b.id !== '100' && b.code !== '100')
-                    .map((b) => (
-                      <option key={b.code || b.id} value={b.code || b.id}>
-                        {b.code || b.id} · {b.name}
-                      </option>
-                    ))}
-                </select>
-              ) : (
-                <div className="w-full px-3 py-2.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Scoped to Branch Code: {myBranch}</span>
+        {!heroControlsContainer && (
+          <>
+            <div className="bg-slate-100 border-b border-slate-200/90 px-5 py-4 min-h-[78px] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-2xs">
+                  <Boxes className="w-5 h-5 text-slate-700" />
                 </div>
-              )}
-            </div>
-            {viewToggle && (
-              <div className="flex items-center">
-                {viewToggle}
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">
+                    {group === 'POS' ? 'POS Terminal Materials' : 'Sound Box Materials'}
+                  </h2>
+                  <span className="text-xs px-2 py-0.5 rounded-full font-mono bg-slate-200 text-slate-700">
+                    {totalAllItems?.toLocaleString() ?? combinedItems.length}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* 3-Step Lifecycle & Status Filter Pills (matches SIM Card Control Hub) */}
-        <div className="px-5 py-3 bg-slate-100/70 dark:bg-slate-800/60 border-b border-slate-200/90 flex flex-wrap items-center gap-2" role="group" aria-label="Status">
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            type="button"
-            onClick={() => React.startTransition(() => setStatusFilter(''))}
-            aria-pressed={statusFilter === ''}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition ${
-              statusFilter === '' ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            All <span className="tabular-nums opacity-80 ml-1">{totalAllItems?.toLocaleString() ?? '—'}</span>
-          </motion.button>
-          {PRIMARY_MATERIAL_STEPS.map((item) => (
-            <motion.button
-              key={item.status}
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              onClick={() => React.startTransition(() => setStatusFilter(item.status))}
-              aria-pressed={statusFilter === item.status}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition inline-flex items-center gap-1.5 ${
-                statusFilter === item.status ? 'bg-[#155484] text-white border-[#155484]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <span className={`w-4 h-4 rounded-full text-[10px] inline-flex items-center justify-center font-bold ${
-                statusFilter === item.status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-              }`}>{item.step}</span>
-              <span>{item.label}</span>
-              <span className="tabular-nums opacity-80 ml-0.5">
-                {(dynamicStatusCounts[item.status] ?? 0).toLocaleString()}
-              </span>
-            </motion.button>
-          ))}
-        </div>
+              {actionButtons}
+            </div>
+            <div className="p-4 bg-slate-50/70 border-b border-slate-200/90">
+              {filterToolbar}
+            </div>
+          </>
+        )}
 
         {/* Dynamic Table: View 1 (Merchant Deployments) OR View 2 (Multi-Branch Balances) */}
         {activeLedgerView === 'BALANCES' ? (
