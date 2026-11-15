@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, useId } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
 import {
   Device,
@@ -11,7 +11,13 @@ import {
   getBatteryLifecycleStatus,
 } from '../types';
 import { STAGE_META } from '../data/initialData';
-import { GroupedBarChart, CrossChannelVelocityChart, CrossChannelDayPoint, CHANNEL_COLORS } from './Charts';
+import {
+  GroupedBarChart,
+  CrossChannelVelocityChart,
+  CrossChannelDayPoint,
+  CHANNEL_COLORS,
+  type VelocityChannelKey,
+} from './Charts';
 import { Odometer } from './Odometer';
 import { PillMotion } from './PillMotion';
 import { todayPP, lastMonthsPP } from '../utils/time';
@@ -166,6 +172,181 @@ function sumRawInto(target: KpiRawCounts, src: KpiRawCounts): void {
   target.ccSupp += src.ccSupp;
   addExtraCounts(target, src);
 }
+
+type TrendDirection = 'up' | 'down' | 'flat';
+
+interface KpiSparkSummary {
+  values: number[];
+  direction: TrendDirection;
+  badgeText: string;
+  colorHex: string;
+  tooltip: string;
+}
+
+function analyzeSparkTrend(
+  rawValues: number[],
+  options: { invertSentiment?: boolean; isLight?: boolean; unitLabel?: string } = {}
+): KpiSparkSummary {
+  const { invertSentiment = false, isLight = true, unitLabel = 'period' } = options;
+  const values = rawValues.length >= 2 ? rawValues : rawValues.length === 1 ? [rawValues[0], rawValues[0]] : [0, 0];
+  const n = values.length;
+  const split = Math.max(1, Math.floor(n / 2));
+  const firstSlice = values.slice(0, split);
+  const secondSlice = values.slice(split);
+  const prevAvg = firstSlice.reduce((s, v) => s + v, 0) / Math.max(1, firstSlice.length);
+  const currAvg = secondSlice.reduce((s, v) => s + v, 0) / Math.max(1, secondSlice.length);
+  const diff = currAvg - prevAvg;
+  const eps = Math.max(0.01, Math.max(prevAvg, currAvg) * 0.002);
+
+  let direction: TrendDirection = 'flat';
+  if (diff > eps) direction = 'up';
+  else if (diff < -eps) direction = 'down';
+
+  let badgeText = '0.0%';
+  if (direction !== 'flat') {
+    if (prevAvg <= 0.5 && currAvg > 0) {
+      badgeText = currAvg >= 1000 ? `+${(diff / 1000).toFixed(1)}k` : `+${fmtNum(Math.round(diff))}`;
+    } else {
+      const pct = ((currAvg - prevAvg) / Math.max(1, prevAvg)) * 100;
+      const absPct = Math.abs(pct);
+      if (absPct > 999) {
+        badgeText = `${diff > 0 ? '+' : '-'}${Math.abs(diff) >= 1000 ? `${(Math.abs(diff) / 1000).toFixed(1)}k` : fmtNum(Math.round(Math.abs(diff)))}`;
+      } else {
+        badgeText = `${pct > 0 ? '+' : ''}${absPct >= 10 ? pct.toFixed(0) : pct.toFixed(1)}%`;
+      }
+    }
+  }
+
+  const upGoodHex = isLight ? '#2d6a4f' : '#34d399';
+  const badHex = isLight ? '#e11d48' : '#fb7185';
+  const flatHex = isLight ? '#64748b' : '#94a3b8';
+
+  const colorHex =
+    direction === 'flat'
+      ? flatHex
+      : invertSentiment
+        ? direction === 'up'
+          ? badHex
+          : upGoodHex
+        : direction === 'up'
+          ? upGoodHex
+          : badHex;
+
+  const dirWord = direction === 'up' ? 'Increased' : direction === 'down' ? 'Decreased' : 'Steady';
+  return {
+    values,
+    direction,
+    badgeText,
+    colorHex,
+    tooltip: `${dirWord} ${badgeText} (${unitLabel} trajectory)`,
+  };
+}
+
+function buildSmoothSparkPaths(values: number[], width = 100, height = 36): {
+  linePath: string;
+  areaPath: string;
+  lastX: number;
+  lastY: number;
+} {
+  const padX = 3;
+  const padTop = 5;
+  const padBottom = 4;
+  const innerW = width - padX * 2;
+  const innerH = height - padTop - padBottom;
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const span = maxVal - minVal;
+
+  const pts = values.map((v, idx) => {
+    const x = padX + (values.length <= 1 ? innerW : (idx / (values.length - 1)) * innerW);
+    const norm = span > 0 ? (v - minVal) / span : v > 0 ? 0.5 : 0.15;
+    const y = padTop + (1 - norm) * innerH;
+    return { x, y };
+  });
+
+  if (pts.length === 0) {
+    return { linePath: '', areaPath: '', lastX: padX, lastY: height - padBottom };
+  }
+  if (pts.length === 1) {
+    const p = pts[0];
+    return {
+      linePath: `M ${p.x.toFixed(1)} ${p.y.toFixed(1)} L ${(width - padX).toFixed(1)} ${p.y.toFixed(1)}`,
+      areaPath: `M ${p.x.toFixed(1)} ${height} L ${p.x.toFixed(1)} ${p.y.toFixed(1)} L ${(width - padX).toFixed(1)} ${p.y.toFixed(1)} L ${(width - padX).toFixed(1)} ${height} Z`,
+      lastX: width - padX,
+      lastY: p.y,
+    };
+  }
+
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+  const clampY = (y: number) => Math.max(padTop, Math.min(height - padBottom, y));
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = clampY(p1.y + (p2.y - p0.y) / 6);
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = clampY(p2.y - (p3.y - p1.y) / 6);
+    d += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+  }
+
+  const first = pts[0];
+  const last = pts[pts.length - 1];
+  const areaPath = `${d} L ${last.x.toFixed(2)} ${height} L ${first.x.toFixed(2)} ${height} Z`;
+  return { linePath: d, areaPath, lastX: last.x, lastY: last.y };
+}
+
+const KpiMiniSparkline: React.FC<{
+  metricId: string;
+  summary: KpiSparkSummary;
+  cardBgHex: string;
+}> = React.memo(({ metricId, summary, cardBgHex }) => {
+  const reactId = useId();
+  const gradId = `kpi-spark-${metricId}-${reactId.replace(/:/g, '')}`;
+  const { linePath, areaPath, lastX, lastY } = useMemo(
+    () => buildSmoothSparkPaths(summary.values, 100, 36),
+    [summary.values]
+  );
+
+  return (
+    <svg
+      viewBox="0 0 100 36"
+      className="w-[88px] sm:w-[98px] h-[36px] shrink-0 overflow-visible select-none"
+      data-kpi-sparkline={metricId}
+      aria-label={summary.tooltip}
+      role="img"
+    >
+      <title>{summary.tooltip}</title>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={summary.colorHex} stopOpacity={0.28} />
+          <stop offset="100%" stopColor={summary.colorHex} stopOpacity={0.01} />
+        </linearGradient>
+      </defs>
+      {areaPath && <path d={areaPath} fill={`url(#${gradId})`} />}
+      {linePath && (
+        <path
+          d={linePath}
+          fill="none"
+          stroke={summary.colorHex}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={summary.direction === 'flat' ? '3 3' : undefined}
+        />
+      )}
+      <circle
+        cx={lastX}
+        cy={lastY}
+        r={3}
+        fill={summary.colorHex}
+        stroke={cardBgHex}
+        strokeWidth={1.5}
+      />
+    </svg>
+  );
+});
 
 const DONUT_RADIUS = 116;
 const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
@@ -692,6 +873,194 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
   );
 });
 
+type FocusedVelocityChannel = Exclude<VelocityChannelKey, 'ALL'>;
+
+const VELOCITY_DOCK_CHANNELS: ReadonlyArray<{
+  key: FocusedVelocityChannel;
+  label: string;
+  color: string;
+}> = [
+  { key: 'khqr', label: 'KHQR', color: CHANNEL_COLORS.khqr },
+  { key: 'sb', label: 'Sound Box', color: CHANNEL_COLORS.sb },
+  { key: 'pos', label: 'POS', color: CHANNEL_COLORS.pos },
+  { key: 'mv', label: 'Visit', color: CHANNEL_COLORS.mv },
+  { key: 'cc', label: 'Credit Card', color: CHANNEL_COLORS.cc },
+];
+
+function computeVelocityPrimaryMeta(
+  series: CrossChannelDayPoint[],
+  focusChannel: VelocityChannelKey,
+  allPeak: { peakVal: number; peakLabel: string },
+  isLight: boolean
+) {
+  if (focusChannel === 'ALL') {
+    return {
+      label: 'Total Volume',
+      color: isLight ? CHANNEL_COLORS.khqr : '#38bdf8',
+      peakVal: allPeak.peakVal,
+      peakLabel: allPeak.peakLabel,
+    };
+  }
+  const meta = VELOCITY_DOCK_CHANNELS.find((c) => c.key === focusChannel)!;
+  let peakVal = 0;
+  let peakLabel = '';
+  for (const pt of series) {
+    if (pt.isFuture) continue;
+    const v = pt[focusChannel];
+    if (v > peakVal) {
+      peakVal = v;
+      peakLabel = pt.label;
+    }
+  }
+  return {
+    label: meta.label,
+    color: meta.color,
+    peakVal,
+    peakLabel,
+  };
+}
+
+interface VelocityChannelDockProps {
+  isLight: boolean;
+  series: CrossChannelDayPoint[];
+  totals: Record<FocusedVelocityChannel, number>;
+  totalTasks: number;
+  selectedChannel: VelocityChannelKey;
+  onSelectChannel: (channel: VelocityChannelKey) => void;
+}
+
+const VelocityChannelDock = React.memo<VelocityChannelDockProps>(({
+  isLight,
+  series,
+  totals,
+  totalTasks,
+  selectedChannel,
+  onSelectChannel,
+}) => {
+  const reactId = useId();
+  const nonFutureSeries = useMemo(() => series.filter((pt) => !pt.isFuture), [series]);
+
+  const dockItems = useMemo(
+    () =>
+      VELOCITY_DOCK_CHANNELS.map((ch) => {
+        const count = totals[ch.key];
+        const sharePct = totalTasks > 0 ? Number(((count / totalTasks) * 100).toFixed(1)) : 0;
+        const rawVals = nonFutureSeries.map((pt) => pt[ch.key]);
+        const sparkVals =
+          rawVals.length >= 2 ? rawVals : rawVals.length === 1 ? [rawVals[0], rawVals[0]] : [0, 0];
+        return {
+          ...ch,
+          count,
+          sharePct,
+          paths: buildSmoothSparkPaths(sparkVals, 46, 18),
+        };
+      }),
+    [nonFutureSeries, totals, totalTasks]
+  );
+
+  return (
+    <div
+      data-velocity-channel-dock="true"
+      role="group"
+      aria-label="Filter velocity trend by channel"
+      className={`grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2.5 border-t ${
+        isLight ? 'border-slate-100' : 'border-slate-800/80'
+      }`}
+    >
+      {dockItems.map((ch) => {
+        const isSelected = selectedChannel === ch.key;
+        const isDimmed = selectedChannel !== 'ALL' && !isSelected;
+        const gradId = `vel-dock-${reactId}-${ch.key}`;
+        return (
+          <button
+            key={ch.key}
+            type="button"
+            aria-pressed={isSelected}
+            onClick={() => onSelectChannel(isSelected ? 'ALL' : ch.key)}
+            className={`group text-left rounded-xl px-2.5 py-2 border transition-all duration-150 cursor-pointer flex flex-col justify-between gap-1.5 min-w-0 ${
+              isSelected
+                ? isLight
+                  ? 'shadow-xs'
+                  : 'shadow-sm'
+                : isLight
+                  ? 'bg-slate-50/75 hover:bg-slate-50 border-slate-200/70 hover:border-slate-300/80'
+                  : 'bg-slate-800/45 hover:bg-slate-800/75 border-slate-700/60 hover:border-slate-600'
+            } ${isDimmed ? 'opacity-60 hover:opacity-100' : ''}`}
+            style={
+              isSelected
+                ? {
+                    borderColor: ch.color,
+                    backgroundColor: isLight ? `${ch.color}12` : `${ch.color}24`,
+                  }
+                : undefined
+            }
+          >
+            <div className="flex items-center justify-between gap-1.5 min-w-0">
+              <span
+                className={`inline-flex items-center gap-1.5 text-[11px] font-semibold truncate ${
+                  isLight ? 'text-slate-700' : 'text-slate-200'
+                }`}
+              >
+                <i
+                  className="w-2 h-2 rounded-full inline-block shrink-0"
+                  style={{ backgroundColor: ch.color }}
+                />
+                <span className="truncate">{ch.label}</span>
+              </span>
+              <span
+                className={`text-[10.5px] font-figure font-semibold tabular-nums shrink-0 ${
+                  isLight ? 'text-slate-500' : 'text-slate-400'
+                }`}
+                style={isSelected ? { color: isLight ? ch.color : undefined } : undefined}
+              >
+                {ch.sharePct}%
+              </span>
+            </div>
+
+            <div className="flex items-end justify-between gap-1.5 min-w-0">
+              <span
+                className={`text-[15px] font-bold font-figure leading-none tabular-nums truncate ${
+                  isLight ? 'text-slate-900' : 'text-white'
+                }`}
+              >
+                {fmtNum(ch.count)}
+              </span>
+              <svg
+                width="46"
+                height="18"
+                viewBox="0 0 46 18"
+                className="shrink-0 overflow-visible"
+                aria-hidden="true"
+              >
+                <defs>
+                  <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={ch.color} stopOpacity="0.24" />
+                    <stop offset="100%" stopColor={ch.color} stopOpacity="0.02" />
+                  </linearGradient>
+                </defs>
+                {ch.paths.areaPath && (
+                  <path d={ch.paths.areaPath} fill={`url(#${gradId})`} stroke="none" />
+                )}
+                {ch.paths.linePath && (
+                  <path
+                    d={ch.paths.linePath}
+                    fill="none"
+                    stroke={ch.color}
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+                <circle cx={ch.paths.lastX} cy={ch.paths.lastY} r="2" fill={ch.color} />
+              </svg>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
 export const DashboardTab: React.FC<DashboardTabProps> = ({
   devices,
   allDevices,
@@ -717,6 +1086,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   const [period, setPeriod] = useState<DashPeriod>('MONTH');
   const [chartMode, setChartMode] = useState<ChartMode>('VELOCITY');
+  const [velocityChannel, setVelocityChannel] = useState<VelocityChannelKey>('ALL');
   const [timeHorizon, setTimeHorizon] = useState<TimeHorizon>('6M');
   const [batteryViewMode, setBatteryViewMode] = useState<'STATUS' | 'WATCHLIST'>('STATUS');
 
@@ -1699,6 +2069,84 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const kpiSubtextClass = isLight ? 'text-slate-500' : 'text-slate-400';
   const kpiFooterBorderClass = isLight ? 'border-slate-200/50' : 'border-slate-800/80';
 
+  const kpiSparklines = useMemo(() => {
+    const activePeriodDays = velocitySeries.filter((p) => !p.isFuture);
+    // When TODAY (1 day) is selected, build a trailing 14-day curve from cached monthly dailyStaff so the mini graph still displays movement
+    let sparkDays = activePeriodDays;
+    if (sparkDays.length <= 1) {
+      const monthFallback =
+        (kpiData?.dailyStaff?.length ? kpiData.dailyStaff : undefined) ??
+        getCachedKpiSummary(kpiPeriodRange('MONTH').from, kpiPeriodRange('MONTH').to)?.dailyStaff ??
+        getCachedKpiSummary(null, null)?.dailyStaff ??
+        [];
+      const byDayMap = new Map<string, CrossChannelDayPoint>();
+      for (let i = 13; i >= 0; i--) {
+        const ymd = addDaysYmd(today, -i);
+        byDayMap.set(ymd, {
+          label: fmtShortDay(ymd),
+          fullLabel: ymd,
+          pos: 0,
+          sb: 0,
+          khqr: 0,
+          mv: 0,
+          cc: 0,
+          activeStaff: 0,
+        });
+      }
+      for (const ds of monthFallback) {
+        if (!ds.day || !byDayMap.has(ds.day)) continue;
+        const dir = ppDirectoryScope.resolveKpiStaff(ds.staffId, ds.staffName, ds.branchId, ds.branchName);
+        if (!dir) continue;
+        if (branchScopedId && dir.branchId !== branchScopedId) continue;
+        const row = byDayMap.get(ds.day)!;
+        row.pos += Number(ds.posTasks) || 0;
+        row.sb += Number(ds.sbTasks) || 0;
+        row.khqr += Number(ds.khqrTasks) || 0;
+        row.mv += Number(ds.mvTasks) || 0;
+        row.cc += Number(ds.ccTasks) || 0;
+      }
+      sparkDays = Array.from(byDayMap.values());
+    }
+
+    const reqByDay = new Map<string, number>();
+    for (const r of requisitions) {
+      const ymd = (r.date || '').slice(0, 10);
+      if (ymd) reqByDay.set(ymd, (reqByDay.get(ymd) || 0) + 1);
+    }
+
+    const tasksVals = sparkDays.map((p) => p.pos + p.sb + p.khqr + p.mv + p.cc);
+    const approvalVals = sparkDays.map((p) => p.pos + p.sb + p.cc + (p.fullLabel ? reqByDay.get(p.fullLabel) || 0 : 0));
+    const reachVals = sparkDays.map((p) => p.khqr + p.mv + p.cc);
+
+    // Hardware Pool: 6-month cumulative stocked fleet growth (falls back to 6M hardware installs if stockInDate is uniform)
+    const months6 = lastMonthsPP(6);
+    const hwCumulative = months6.map((m) =>
+      activeDevices.filter((d) => {
+        const ym = (d.stockInDate || d.deployedDate || '').slice(0, 7);
+        return ym ? ym <= m.key : true;
+      }).length
+    );
+    const hwCumFlat = hwCumulative.every((v) => v === hwCumulative[0]);
+    const hwMonthlyInstalls = months6.map((m) =>
+      activeDevices.filter((d) => d.stage === 'COMPLETE' && (d.deployedDate || '').slice(0, 7) === m.key).length
+    );
+    const hwVals =
+      activeDevices.length === 0
+        ? [hardwareSummary.total, hardwareSummary.total]
+        : !hwCumFlat
+          ? hwCumulative
+          : hwMonthlyInstalls.some((v) => v > 0)
+            ? hwMonthlyInstalls
+            : hwCumulative;
+
+    return {
+      tasks: analyzeSparkTrend(tasksVals, { isLight, unitLabel: 'field tasks' }),
+      approvals: analyzeSparkTrend(approvalVals, { invertSentiment: true, isLight, unitLabel: 'queue intake' }),
+      hardware: analyzeSparkTrend(hwVals, { isLight, unitLabel: '6M fleet' }),
+      outreach: analyzeSparkTrend(reachVals, { isLight, unitLabel: 'merchant outreach' }),
+    };
+  }, [velocitySeries, kpiData?.dailyStaff, today, ppDirectoryScope, branchScopedId, requisitions, activeDevices, hardwareSummary.total, isLight]);
+
   return (
     <div className="space-y-5 apple-tab-panel" aria-label="Executive Operations Overview">
       {/* ───────────── 1 & 2. iOS MINIMAL HERO + 4 INSET KPI SQUIRCLES ───────────── */}
@@ -1843,8 +2291,28 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <TrendingUp className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
-              <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
-                <Odometer value={channelActivity.totalTasks} format duration={220} />
+              <div className="mt-2 flex items-end justify-between gap-2">
+                <div className="min-w-0">
+                  <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
+                    <Odometer value={channelActivity.totalTasks} format duration={220} />
+                  </div>
+                  <span
+                    data-kpi-delta="tasks"
+                    className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
+                    style={{
+                      color: kpiSparklines.tasks.colorHex,
+                      backgroundColor: `${kpiSparklines.tasks.colorHex}18`,
+                    }}
+                  >
+                    {kpiSparklines.tasks.direction === 'up' ? '▲' : kpiSparklines.tasks.direction === 'down' ? '▼' : '●'}{' '}
+                    {kpiSparklines.tasks.badgeText}
+                  </span>
+                </div>
+                <KpiMiniSparkline
+                  metricId="tasks"
+                  summary={kpiSparklines.tasks}
+                  cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
+                />
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
@@ -1870,8 +2338,28 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   </div>
                 )}
               </div>
-              <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
-                <Odometer value={queues.total} format duration={220} />
+              <div className="mt-2 flex items-end justify-between gap-2">
+                <div className="min-w-0">
+                  <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
+                    <Odometer value={queues.total} format duration={220} />
+                  </div>
+                  <span
+                    data-kpi-delta="approvals"
+                    className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
+                    style={{
+                      color: kpiSparklines.approvals.colorHex,
+                      backgroundColor: `${kpiSparklines.approvals.colorHex}18`,
+                    }}
+                  >
+                    {kpiSparklines.approvals.direction === 'up' ? '▲' : kpiSparklines.approvals.direction === 'down' ? '▼' : '●'}{' '}
+                    {kpiSparklines.approvals.badgeText}
+                  </span>
+                </div>
+                <KpiMiniSparkline
+                  metricId="approvals"
+                  summary={kpiSparklines.approvals}
+                  cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
+                />
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
@@ -1895,8 +2383,28 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <Boxes className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
-              <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
-                <Odometer value={hardwareSummary.total} format duration={220} />
+              <div className="mt-2 flex items-end justify-between gap-2">
+                <div className="min-w-0">
+                  <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
+                    <Odometer value={hardwareSummary.total} format duration={220} />
+                  </div>
+                  <span
+                    data-kpi-delta="hardware"
+                    className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
+                    style={{
+                      color: kpiSparklines.hardware.colorHex,
+                      backgroundColor: `${kpiSparklines.hardware.colorHex}18`,
+                    }}
+                  >
+                    {kpiSparklines.hardware.direction === 'up' ? '▲' : kpiSparklines.hardware.direction === 'down' ? '▼' : '●'}{' '}
+                    {kpiSparklines.hardware.badgeText}
+                  </span>
+                </div>
+                <KpiMiniSparkline
+                  metricId="hardware"
+                  summary={kpiSparklines.hardware}
+                  cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
+                />
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
@@ -1928,8 +2436,28 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <Store className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
-              <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
-                <Odometer value={reachTotal} format duration={220} />
+              <div className="mt-2 flex items-end justify-between gap-2">
+                <div className="min-w-0">
+                  <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
+                    <Odometer value={reachTotal} format duration={220} />
+                  </div>
+                  <span
+                    data-kpi-delta="outreach"
+                    className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
+                    style={{
+                      color: kpiSparklines.outreach.colorHex,
+                      backgroundColor: `${kpiSparklines.outreach.colorHex}18`,
+                    }}
+                  >
+                    {kpiSparklines.outreach.direction === 'up' ? '▲' : kpiSparklines.outreach.direction === 'down' ? '▼' : '●'}{' '}
+                    {kpiSparklines.outreach.badgeText}
+                  </span>
+                </div>
+                <KpiMiniSparkline
+                  metricId="outreach"
+                  summary={kpiSparklines.outreach}
+                  cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
+                />
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
@@ -2029,81 +2557,136 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </div>
 
-          <div className="px-6 pt-1 pb-5 flex-1 flex flex-col justify-between gap-2">
-            {chartMode === 'VELOCITY' && (
-              <div
-                className={`flex flex-wrap items-center justify-between gap-1.5 pb-1 text-[10.5px] ${
-                  isLight ? 'text-slate-600' : 'text-slate-300'
-                }`}
-              >
-                <div className="flex flex-wrap items-center gap-1">
-                  {([
-                    { label: 'POS', color: CHANNEL_COLORS.pos },
-                    { label: 'Sound Box', color: CHANNEL_COLORS.sb },
-                    { label: 'KHQR', color: CHANNEL_COLORS.khqr },
-                    { label: 'Merchant Visit', color: CHANNEL_COLORS.mv },
-                    { label: 'Credit Card', color: CHANNEL_COLORS.cc },
-                  ] as const).map((item) => (
-                    <span
-                      key={item.label}
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10.5px] font-medium whitespace-nowrap ${
-                        isLight
-                          ? 'bg-slate-50/90 border-slate-200/70 text-slate-700'
-                          : 'bg-slate-800/70 border-slate-700/70 text-slate-200'
-                      }`}
-                    >
-                      <i
-                        className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      {item.label}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {velocityPeak.peakVal > 0 && (
-                    <span
-                      className={`hidden xl:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium whitespace-nowrap ${
-                        isLight
-                          ? 'bg-slate-100/90 text-slate-600'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      Peak{' '}
-                      <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                        {fmtNum(velocityPeak.peakVal)}
-                      </strong>{' '}
-                      <span className="opacity-75">· {velocityPeak.peakLabel}</span>
-                    </span>
-                  )}
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold ${
-                      isLight
-                        ? 'bg-white border-slate-200/80 text-slate-800'
-                        : 'bg-slate-800 border-slate-700 text-slate-200'
+          <div className="px-6 pt-1 pb-4 flex-1 flex flex-col justify-between gap-2">
+            {chartMode === 'VELOCITY' ? (() => {
+              const channelTotals: Record<FocusedVelocityChannel, number> = {
+                khqr: channelActivity.khqrCount,
+                sb: channelActivity.sbCount,
+                pos: channelActivity.posCount,
+                mv: channelActivity.mvCount,
+                cc: channelActivity.ccCount,
+              };
+              const primaryMeta = computeVelocityPrimaryMeta(
+                velocitySeries,
+                velocityChannel,
+                velocityPeak,
+                isLight
+              );
+              const primaryCount =
+                velocityChannel === 'ALL'
+                  ? channelActivity.totalTasks
+                  : channelTotals[velocityChannel];
+              const staffStrokeColor = isLight ? CHANNEL_COLORS.sb : '#a2a5e0';
+
+              return (
+                <>
+                  <div
+                    className={`flex flex-wrap items-center justify-between gap-2 pb-0.5 text-[11px] ${
+                      isLight ? 'text-slate-600' : 'text-slate-300'
                     }`}
                   >
-                    <span className="relative inline-flex items-center justify-center w-3.5 h-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span
-                        className={`w-3.5 border-t-[2px] inline-block ${
-                          isLight ? 'border-slate-800' : 'border-slate-200'
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
+                          isLight
+                            ? 'bg-slate-50/90 border-slate-200/80 text-slate-800'
+                            : 'bg-slate-800/75 border-slate-700/80 text-slate-100'
                         }`}
-                      />
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full border-[1.5px] absolute ${
-                          isLight ? 'bg-white border-slate-800' : 'bg-slate-900 border-slate-200'
-                        }`}
-                      />
-                    </span>
-                    Active staff
-                  </span>
-                </div>
-              </div>
-            )}
+                      >
+                        <span className="relative inline-flex items-center justify-center w-3.5 h-2 shrink-0">
+                          <span
+                            className="w-3.5 border-t-[2px] inline-block"
+                            style={{ borderColor: primaryMeta.color }}
+                          />
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full border-[1.5px] absolute ${
+                              isLight ? 'bg-white' : 'bg-slate-900'
+                            }`}
+                            style={{ borderColor: primaryMeta.color }}
+                          />
+                        </span>
+                        <span>{primaryMeta.label}</span>
+                        <span
+                          className={`font-figure font-bold tabular-nums ml-0.5 ${
+                            isLight ? 'text-slate-900' : 'text-white'
+                          }`}
+                        >
+                          {fmtNum(primaryCount)}
+                        </span>
+                      </span>
 
-            {chartMode === 'VELOCITY' ? (
-              <CrossChannelVelocityChart items={velocitySeries} height={308} theme={theme} />
-            ) : (
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
+                          isLight
+                            ? 'bg-white border-slate-200/80 text-slate-700'
+                            : 'bg-slate-800/75 border-slate-700/80 text-slate-200'
+                        }`}
+                      >
+                        <span className="relative inline-flex items-center justify-center w-3.5 h-2 shrink-0">
+                          <span
+                            className="w-3.5 border-t-[2px] border-dashed inline-block"
+                            style={{ borderColor: staffStrokeColor }}
+                          />
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full border-[1.5px] absolute ${
+                              isLight ? 'bg-white' : 'bg-slate-900'
+                            }`}
+                            style={{ borderColor: staffStrokeColor }}
+                          />
+                        </span>
+                        Active staff
+                      </span>
+
+                      {velocityChannel !== 'ALL' && (
+                        <button
+                          type="button"
+                          onClick={() => setVelocityChannel('ALL')}
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold cursor-pointer transition-colors duration-150 ${
+                            isLight
+                              ? 'bg-sky-50 border-sky-200 text-[#004e75] hover:bg-sky-100'
+                              : 'bg-sky-900/40 border-sky-700/60 text-sky-300 hover:bg-sky-900/70'
+                          }`}
+                        >
+                          All Channels ×
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {primaryMeta.peakVal > 0 && (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${
+                            isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
+                          }`}
+                        >
+                          Peak{' '}
+                          <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                            {fmtNum(primaryMeta.peakVal)}
+                          </strong>{' '}
+                          <span className="opacity-75">· {primaryMeta.peakLabel}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <CrossChannelVelocityChart
+                    items={velocitySeries}
+                    focusChannel={velocityChannel}
+                    height={248}
+                    theme={theme}
+                  />
+
+                  <VelocityChannelDock
+                    isLight={isLight}
+                    series={velocitySeries}
+                    totals={channelTotals}
+                    totalTasks={channelActivity.totalTasks}
+                    selectedChannel={velocityChannel}
+                    onSelectChannel={setVelocityChannel}
+                  />
+                </>
+              );
+            })() : (
               <GroupedBarChart
                 labels={monthlyHardwareChart.labels}
                 series1Label="POS Terminal Installed"

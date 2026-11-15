@@ -319,8 +319,11 @@ export interface CrossChannelDayPoint {
   isFuture?: boolean;
 }
 
+export type VelocityChannelKey = 'ALL' | 'pos' | 'sb' | 'khqr' | 'mv' | 'cc';
+
 interface CrossChannelVelocityChartProps {
   items: CrossChannelDayPoint[];
+  focusChannel?: VelocityChannelKey;
   height?: number;
   theme?: ThemeMode;
   ariaLabel?: string;
@@ -342,12 +345,50 @@ const CHANNEL_SERIES = [
   { key: 'cc' as const, label: 'Credit Card', color: CHANNEL_COLORS.cc },
 ];
 
+function hexToRgba(hex: string, alpha: number): string {
+  const raw = hex.replace('#', '');
+  const full = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw;
+  const n = parseInt(full, 16);
+  if (Number.isNaN(n)) return `rgba(30, 96, 145, ${alpha})`;
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+/** Monotonic cubic spline path builder preventing bezier overshoot on flat/zero segments. */
+function traceMonotoneSpline(
+  ctx: Ctx2D,
+  pts: { x: number; y: number }[],
+  minY: number,
+  maxY: number
+): void {
+  if (pts.length === 0) return;
+  const clampY = (y: number) => Math.max(minY, Math.min(maxY, y));
+  const slopes = pts.map((_, i) => {
+    if (pts.length === 1) return 0;
+    if (i === 0) return (pts[1].y - pts[0].y) / Math.max(1, pts[1].x - pts[0].x);
+    if (i === pts.length - 1) return (pts[i].y - pts[i - 1].y) / Math.max(1, pts[i].x - pts[i - 1].x);
+    const sPrev = (pts[i].y - pts[i - 1].y) / Math.max(1, pts[i].x - pts[i - 1].x);
+    const sNext = (pts[i + 1].y - pts[i].y) / Math.max(1, pts[i + 1].x - pts[i].x);
+    if (sPrev * sNext <= 0) return 0;
+    return (sPrev + sNext) / 2;
+  });
+
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const dx = (pts[i + 1].x - pts[i].x) / 3;
+    const cp1y = clampY(pts[i].y + slopes[i] * dx);
+    const cp2y = clampY(pts[i + 1].y - slopes[i + 1] * dx);
+    ctx.bezierCurveTo(pts[i].x + dx, cp1y, pts[i + 1].x - dx, cp2y, pts[i + 1].x, pts[i + 1].y);
+  }
+}
+
 /**
- * Lightweight Canvas stacked bar + Active Staff dashed trend chart for the Dashboard landing page.
- * Renders without pulling the heavy Recharts chunk into initial login bundles.
+ * Lightweight Canvas smooth gradient-area spline + dashed Active Staff curve (Style 1 + Style 5).
+ * Renders without pulling heavy Recharts bundles onto sign-in views.
  */
 export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps> = React.memo(({
   items,
+  focusChannel = 'ALL',
   height = 250,
   theme = 'light',
   ariaLabel,
@@ -383,13 +424,29 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     };
   }, []);
 
-  const dataKey = useMemo(() => JSON.stringify(items), [items]);
+  const primarySeriesMeta = useMemo(() => {
+    if (focusChannel === 'ALL') {
+      return {
+        label: 'All 5 Channels',
+        color: theme === 'dark' ? '#38bdf8' : CHANNEL_COLORS.khqr,
+        getVal: (d: CrossChannelDayPoint) => d.pos + d.sb + d.khqr + d.mv + d.cc,
+      };
+    }
+    const found = CHANNEL_SERIES.find((s) => s.key === focusChannel)!;
+    return {
+      label: found.label,
+      color: found.color,
+      getVal: (d: CrossChannelDayPoint) => d[focusChannel],
+    };
+  }, [focusChannel, theme]);
+
+  const dataKey = useMemo(() => JSON.stringify([items, focusChannel]), [items, focusChannel]);
   const hasData = useMemo(
-    () => items.some((d) => d.pos + d.sb + d.khqr + d.mv + d.cc + d.activeStaff > 0),
-    [items]
+    () => items.some((d) => primarySeriesMeta.getVal(d) + d.activeStaff > 0),
+    [items, primarySeriesMeta]
   );
   const chartScales = useMemo(() => {
-    const maxTasks = Math.max(4, ...items.map((d) => d.pos + d.sb + d.khqr + d.mv + d.cc));
+    const maxTasks = Math.max(4, ...items.map((d) => primarySeriesMeta.getVal(d)));
     const maxStaff = Math.max(4, ...items.map((d) => d.activeStaff));
     return {
       taskScale: niceScale(maxTasks, 4),
@@ -428,31 +485,33 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     ctx.clearRect(0, 0, width, height);
 
     const isLight = theme === 'light';
-    const gridColor = isLight ? 'rgba(148, 163, 184, 0.16)' : 'rgba(255,255,255,0.08)';
+    const gridColor = isLight ? 'rgba(148, 163, 184, 0.18)' : 'rgba(255,255,255,0.08)';
     const axisColor = isLight ? '#64748b' : '#94a3b8';
-    const rightAxisColor = isLight ? '#475569' : '#94a3b8';
-    const staffStroke = isLight ? '#1e293b' : '#e2e8f0';
+    const rightAxisColor = isLight ? '#4F518C' : '#a2a5e0';
+    const primaryStroke = primarySeriesMeta.color;
+    const staffStroke = isLight ? CHANNEL_COLORS.sb : '#a2a5e0';
     const dotFill = isLight ? '#ffffff' : '#0f172a';
     const chartFont = '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif';
 
-    const padLeft = 36;
+    const padLeft = 38;
     const padRight = 32;
     const padTop = 26;
     const padBottom = 26;
     const plotW = Math.max(120, width - padLeft - padRight);
     const plotH = Math.max(80, height - padTop - padBottom);
+    const baseY = padTop + plotH;
 
     const { taskScale, staffScale } = chartScales;
 
-    // Horizontal grid + Left/Right axes
+    // Horizontal dashed grid + Left/Right axes
     ctx.font = `600 10.5px ${chartFont}`;
     ctx.lineWidth = 1;
     for (let i = 0; i <= taskScale.steps; i++) {
       const ratio = i / taskScale.steps;
-      const y = padTop + plotH - ratio * plotH;
+      const y = baseY - ratio * plotH;
       ctx.save();
       ctx.strokeStyle = i === 0 ? (isLight ? '#cbd5e1' : 'rgba(255,255,255,0.16)') : gridColor;
-      if (i > 0) ctx.setLineDash([2, 4]);
+      if (i > 0) ctx.setLineDash([3, 4]);
       ctx.beginPath();
       ctx.moveTo(padLeft, y);
       ctx.lineTo(width - padRight, y);
@@ -462,7 +521,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       const lv = Math.round(i * taskScale.step);
       const ls = lv >= 1000 ? `${(lv / 1000).toFixed(lv % 1000 === 0 ? 0 : 1)}k` : String(lv);
       ctx.fillStyle = axisColor;
-      ctx.fillText(ls, Math.max(2, padLeft - 6 - ctx.measureText(ls).width), y + 3);
+      ctx.fillText(ls, Math.max(2, padLeft - 7 - ctx.measureText(ls).width), y + 3);
 
       const rv = Math.round(ratio * staffScale.max);
       ctx.fillStyle = rightAxisColor;
@@ -472,7 +531,6 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     const count = Math.max(1, items.length);
     const groupW = plotW / count;
     geomRef.current = { padLeft, groupW, count: items.length };
-    const barW = Math.min(44, Math.max(6, groupW * 0.68));
     const xLabelFontPx = groupW >= 40 ? 10 : groupW >= 20 ? 9.5 : 9;
     ctx.font = `600 ${xLabelFontPx}px ${chartFont}`;
     const maxLabelW = items.reduce((mx, it) => Math.max(mx, ctx.measureText(it.label).width), 0);
@@ -481,81 +539,35 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
         ? 1
         : Math.max(2, Math.ceil((maxLabelW + 8) / Math.max(1, groupW)));
 
-    // Hover highlight band + crisp subtle vertical guide
+    // Subtle hover focus column wash & vertical dashed crosshair
     if (hover && items[hover.idx]) {
-      const bandX = padLeft + hover.idx * groupW + 2;
-      const bandW = Math.max(barW + 4, groupW - 4);
+      const bandW = Math.max(14, Math.min(44, groupW * 0.85));
       const hx = padLeft + hover.idx * groupW + groupW / 2;
       ctx.save();
-      ctx.fillStyle = isLight ? 'rgba(30, 96, 145, 0.05)' : 'rgba(56, 189, 248, 0.07)';
-      roundRectPath(ctx, bandX, padTop - 4, bandW, plotH + 8, 8);
+      ctx.fillStyle = hexToRgba(primaryStroke, isLight ? 0.065 : 0.11);
+      roundRectPath(ctx, hx - bandW / 2, padTop - 4, bandW, plotH + 8, 8);
       ctx.fill();
-      ctx.strokeStyle = isLight ? 'rgba(148, 163, 184, 0.45)' : 'rgba(148, 163, 184, 0.32)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = isLight ? 'rgba(100, 116, 139, 0.55)' : 'rgba(226, 232, 240, 0.48)';
+      ctx.lineWidth = 1.1;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(hx, padTop);
-      ctx.lineTo(hx, padTop + plotH);
+      ctx.lineTo(hx, baseY);
       ctx.stroke();
       ctx.restore();
     }
 
-    // Track peak day to render a clean peak value badge on top of the tallest stack
-    let peakIdx = -1;
-    let peakTotal = 0;
-    let peakTopY = padTop + plotH;
-
-    // Stacked bars with larger width, rounded capsule tips & subtle inter-segment spacing
+    // X-axis date labels + faint baseline anchor dots on upcoming days
     items.forEach((item, idx) => {
       const cx = padLeft + idx * groupW + groupW / 2;
-      const bx = cx - barW / 2;
-      let curY = padTop + plotH;
-      const dayTotal = item.pos + item.sb + item.khqr + item.mv + item.cc;
-      const isDimmed = hover !== null && hover.idx !== idx;
-
-      ctx.save();
-      if (isDimmed) ctx.globalAlpha = 0.46;
-
-      const activeSegs = CHANNEL_SERIES.filter((s) => item[s.key] > 0);
-      const segGap = 1.5;
-      if (activeSegs.length === 0) {
-        ctx.fillStyle = item.isFuture
-          ? isLight
-            ? 'rgba(148, 163, 184, 0.11)'
-            : 'rgba(148, 163, 184, 0.10)'
-          : isLight
-          ? 'rgba(148, 163, 184, 0.18)'
-          : 'rgba(148, 163, 184, 0.16)';
-        roundRectPath(ctx, bx, padTop + plotH - 2, barW, 2, 1);
+      if (item.isFuture) {
+        ctx.save();
+        ctx.fillStyle = isLight ? 'rgba(148, 163, 184, 0.35)' : 'rgba(148, 163, 184, 0.25)';
+        ctx.beginPath();
+        ctx.arc(cx, baseY, 1.5, 0, Math.PI * 2);
         ctx.fill();
-      } else {
-        activeSegs.forEach((s, sIdx) => {
-          const val = item[s.key];
-          const rawH = Math.max(2, (val / taskScale.max) * plotH);
-          const drawH = sIdx < activeSegs.length - 1 ? Math.max(1.5, rawH - segGap) : rawH;
-          const topY = curY - rawH;
-          const isBottom = sIdx === 0;
-          const isTop = sIdx === activeSegs.length - 1;
-          const r: [number, number, number, number] = [
-            isTop ? 6 : 2,
-            isTop ? 6 : 2,
-            isBottom ? 3 : 2,
-            isBottom ? 3 : 2,
-          ];
-          ctx.fillStyle = s.color;
-          roundRectPath(ctx, bx, curY - drawH, barW, drawH, r);
-          ctx.fill();
-          curY = topY;
-        });
+        ctx.restore();
       }
-      ctx.restore();
-
-      if (dayTotal > peakTotal) {
-        peakTotal = dayTotal;
-        peakIdx = idx;
-        peakTopY = curY;
-      }
-
       const lastIdx = items.length - 1;
       const isLast = idx === lastIdx;
       const collidesWithLast = !isLast && (lastIdx - idx) * groupW < maxLabelW + 6;
@@ -568,7 +580,133 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       }
     });
 
-    // Peak badge cleanly anchored above the highest bar
+    // Slice to latest non-future day so curves stop cleanly at today
+    const activeEndCount = items.reduce((last, d, i) => (!d.isFuture ? i + 1 : last), 0);
+    const activeItems = items.slice(0, activeEndCount);
+
+    // 1. Primary Series: Smooth Gradient Area Spline (Style 1 + Style 5)
+    let peakIdx = -1;
+    let peakTotal = 0;
+    let peakY = baseY;
+    const primaryPts = activeItems.map((item, idx) => {
+      const val = primarySeriesMeta.getVal(item);
+      const x = padLeft + idx * groupW + groupW / 2;
+      const y = baseY - (val / taskScale.max) * plotH;
+      if (val > peakTotal) {
+        peakTotal = val;
+        peakIdx = idx;
+        peakY = y;
+      }
+      return { x, y, val };
+    });
+
+    if (primaryPts.length > 0 && primaryPts.some((p) => p.val > 0)) {
+      // Soft vertical linear gradient fill under curve
+      ctx.save();
+      traceMonotoneSpline(ctx, primaryPts, padTop, baseY);
+      ctx.lineTo(primaryPts[primaryPts.length - 1].x, baseY);
+      ctx.lineTo(primaryPts[0].x, baseY);
+      ctx.closePath();
+      const areaGrad = ctx.createLinearGradient(0, padTop, 0, baseY);
+      areaGrad.addColorStop(0, hexToRgba(primaryStroke, isLight ? 0.28 : 0.34));
+      areaGrad.addColorStop(0.65, hexToRgba(primaryStroke, isLight ? 0.08 : 0.12));
+      areaGrad.addColorStop(1, hexToRgba(primaryStroke, 0));
+      ctx.fillStyle = areaGrad;
+      ctx.fill();
+      ctx.restore();
+
+      // Luminous smooth primary spline
+      ctx.save();
+      ctx.strokeStyle = primaryStroke;
+      ctx.lineWidth = 2.6;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.shadowColor = hexToRgba(primaryStroke, isLight ? 0.25 : 0.45);
+      ctx.shadowBlur = 8;
+      traceMonotoneSpline(ctx, primaryPts, padTop, baseY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 2. Secondary Series: Dashed Smooth Active Staff Trendline
+    const staffPts = activeItems.map((item, idx) => ({
+      x: padLeft + idx * groupW + groupW / 2,
+      y: baseY - (item.activeStaff / staffScale.max) * plotH,
+      val: item.activeStaff,
+    }));
+
+    if (staffPts.length > 0 && staffPts.some((p) => p.val > 0)) {
+      ctx.save();
+      traceMonotoneSpline(ctx, staffPts, padTop, baseY);
+      ctx.lineTo(staffPts[staffPts.length - 1].x, baseY);
+      ctx.lineTo(staffPts[0].x, baseY);
+      ctx.closePath();
+      const staffGrad = ctx.createLinearGradient(0, padTop, 0, baseY);
+      staffGrad.addColorStop(0, hexToRgba(staffStroke, isLight ? 0.07 : 0.10));
+      staffGrad.addColorStop(1, hexToRgba(staffStroke, 0));
+      ctx.fillStyle = staffGrad;
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = staffStroke;
+      ctx.lineWidth = 2.1;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.setLineDash([5, 4]);
+      traceMonotoneSpline(ctx, staffPts, padTop, baseY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 3. Hollow Circular Data Nodes (drawn after both splines so nodes stay crisp)
+    staffPts.forEach((pt, idx) => {
+      const isHov = hover?.idx === idx;
+      if (pt.val === 0 && !isHov) return;
+      if (pt.val > 0 && primaryPts[idx]?.val > 0 && Math.abs(pt.y - primaryPts[idx].y) < 10 && !isHov) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, isHov ? 4.2 : 2.6, 0, Math.PI * 2);
+      ctx.fillStyle = isHov ? staffStroke : dotFill;
+      ctx.fill();
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = isHov ? dotFill : staffStroke;
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    primaryPts.forEach((pt, idx) => {
+      const isHov = hover?.idx === idx;
+      const isPeak = idx === peakIdx && peakTotal > 0;
+      if (pt.val === 0 && !isHov) return;
+      if (isHov) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = hexToRgba(primaryStroke, 0.22);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 4.6, 0, Math.PI * 2);
+        ctx.fillStyle = primaryStroke;
+        ctx.fill();
+        ctx.lineWidth = 2.4;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, isPeak ? 4 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = dotFill;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = primaryStroke;
+        ctx.stroke();
+        ctx.restore();
+      }
+    });
+
+    // Peak callout pill cleanly anchored above peak node when idle
     if (peakIdx >= 0 && peakTotal > 0 && hover === null) {
       const px = padLeft + peakIdx * groupW + groupW / 2;
       const label = fmt(peakTotal);
@@ -577,10 +715,10 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       const bw = tw + 12;
       const bh = 18;
       const bx = Math.min(width - padRight - bw, Math.max(padLeft, px - bw / 2));
-      const by = Math.max(2, peakTopY - bh - 5);
+      const by = Math.max(2, peakY - bh - 7);
       ctx.save();
-      ctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.9)';
-      ctx.strokeStyle = isLight ? 'rgba(148, 163, 184, 0.35)' : 'rgba(148, 163, 184, 0.25)';
+      ctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(15, 23, 42, 0.92)';
+      ctx.strokeStyle = hexToRgba(primaryStroke, 0.35);
       ctx.lineWidth = 1;
       roundRectPath(ctx, bx, by, bw, bh, 9);
       ctx.fill();
@@ -589,86 +727,14 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       ctx.fillText(label, bx + 6, by + 12.5);
       ctx.restore();
     }
-
-    // Smooth monotonic spline + soft area wash for Active Staff trendline (stops at latest non-future day)
-    const activeEndCount = items.reduce((last, d, i) => (!d.isFuture ? i + 1 : last), 0);
-    const activeItems = items.slice(0, activeEndCount);
-    if (activeItems.length > 0 && activeItems.some((d) => d.activeStaff > 0)) {
-      const pts = activeItems.map((item, idx) => ({
-        x: padLeft + idx * groupW + groupW / 2,
-        y: padTop + plotH - (item.activeStaff / staffScale.max) * plotH,
-        val: item.activeStaff,
-      }));
-
-      // Monotonic slopes prevent bezier overshoot on flat zero-weekend segments
-      const slopes = pts.map((_, i) => {
-        if (pts.length === 1) return 0;
-        if (i === 0) return (pts[1].y - pts[0].y) / Math.max(1, pts[1].x - pts[0].x);
-        if (i === pts.length - 1) return (pts[i].y - pts[i - 1].y) / Math.max(1, pts[i].x - pts[i - 1].x);
-        const sPrev = (pts[i].y - pts[i - 1].y) / Math.max(1, pts[i].x - pts[i - 1].x);
-        const sNext = (pts[i + 1].y - pts[i].y) / Math.max(1, pts[i + 1].x - pts[i].x);
-        if (sPrev * sNext <= 0) return 0;
-        return (sPrev + sNext) / 2;
-      });
-
-      const traceCurve = () => {
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 0; i < pts.length - 1; i++) {
-          const dx = (pts[i + 1].x - pts[i].x) / 3;
-          ctx.bezierCurveTo(
-            pts[i].x + dx,
-            pts[i].y + slopes[i] * dx,
-            pts[i + 1].x - dx,
-            pts[i + 1].y - slopes[i + 1] * dx,
-            pts[i + 1].x,
-            pts[i + 1].y
-          );
-        }
-      };
-
-      // Soft area tint under the staff curve
-      ctx.save();
-      traceCurve();
-      ctx.lineTo(pts[pts.length - 1].x, padTop + plotH);
-      ctx.lineTo(pts[0].x, padTop + plotH);
-      ctx.closePath();
-      const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
-      grad.addColorStop(0, isLight ? 'rgba(15, 23, 42, 0.065)' : 'rgba(226, 232, 240, 0.09)');
-      grad.addColorStop(1, 'rgba(15, 23, 42, 0)');
-      ctx.fillStyle = grad;
-      ctx.fill();
-      ctx.restore();
-
-      // Refined trendline stroke
-      ctx.save();
-      ctx.strokeStyle = staffStroke;
-      ctx.lineWidth = 2;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      traceCurve();
-      ctx.stroke();
-      ctx.restore();
-
-      pts.forEach((pt, idx) => {
-        const isHov = hover?.idx === idx;
-        if (pt.val === 0 && !isHov) return;
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, isHov ? 4.5 : 3, 0, Math.PI * 2);
-        ctx.fillStyle = isHov ? staffStroke : dotFill;
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = isHov ? dotFill : staffStroke;
-        ctx.stroke();
-      });
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataKey, height, theme, containerWidth, hover]);
+  }, [dataKey, height, theme, containerWidth, hover, primarySeriesMeta]);
 
   const hoverItem = hover && items[hover.idx] ? items[hover.idx] : null;
   const hoverTotal = hoverItem
     ? hoverItem.pos + hoverItem.sb + hoverItem.khqr + hoverItem.mv + hoverItem.cc
     : 0;
+  const hoverHeadlineVal = hoverItem ? primarySeriesMeta.getVal(hoverItem) : 0;
 
   return (
     <div className="relative w-full" style={{ height }}>
@@ -676,7 +742,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
         ref={canvasRef}
         role="img"
         aria-label={summary}
-        className="w-full h-full block"
+        className="w-full h-full block cursor-crosshair"
         onPointerMove={(e) => {
           const g = geomRef.current;
           if (!g || !g.count) return;
@@ -706,38 +772,43 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       </canvas>
       {hover && hoverItem && hasData && (
         <div
-          className="absolute top-3 pointer-events-none z-20 rounded-xl border border-slate-200/90 bg-white/95 backdrop-blur-sm shadow-lg px-3 py-2 text-[11px] text-slate-700 whitespace-nowrap min-w-[190px]"
+          className="absolute top-2.5 pointer-events-none z-20 rounded-xl border border-slate-700/80 bg-[#0f172a]/95 backdrop-blur-md shadow-[0_12px_32px_rgba(15,23,42,0.38)] px-3.5 py-2.5 text-[11px] text-slate-200 whitespace-nowrap min-w-[205px]"
           style={{
             left: hover.x,
-            transform: `translateX(${hover.x > (containerWidth || 0) * 0.52 ? 'calc(-100% - 10px)' : '10px'})`,
+            transform: `translateX(${hover.x > (containerWidth || 0) * 0.52 ? 'calc(-100% - 12px)' : '12px'})`,
           }}
           role="status"
         >
-          <div className="flex items-center justify-between gap-4 font-bold text-slate-900 pb-1 mb-1 border-b border-slate-100">
-            <span>{hoverItem.fullLabel || hoverItem.label}</span>
-            <span className="font-figure">{fmt(hoverTotal)} tasks</span>
+          <div className="flex items-baseline justify-between gap-4 pb-1.5 mb-1.5 border-b border-slate-700/70">
+            <span className="text-[10.5px] font-semibold text-slate-400">
+              {hoverItem.fullLabel || hoverItem.label}
+            </span>
+            <span className="font-figure font-bold text-sm text-white">
+              {fmt(hoverHeadlineVal)} tasks
+            </span>
           </div>
           <div className="space-y-0.5">
             {CHANNEL_SERIES.map((s) =>
               hoverItem[s.key] > 0 ? (
                 <div key={s.key} className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <span className="w-2 h-2 rounded-sm" style={{ background: s.color }} />
+                  <span className="flex items-center gap-1.5 text-slate-300">
+                    <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
                     {s.label}
                   </span>
-                  <strong className="font-figure text-slate-900">{fmt(hoverItem[s.key])}</strong>
+                  <strong className="font-figure text-white">{fmt(hoverItem[s.key])}</strong>
                 </div>
               ) : null
             )}
           </div>
-          <div className="flex items-center justify-between gap-3 pt-1 mt-1 border-t border-slate-100 text-[10.5px] text-slate-500">
-            <span>
+          <div className="flex items-center justify-between gap-3 pt-1.5 mt-1.5 border-t border-slate-700/70 text-[10.5px] text-slate-400">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 border-t-[2px] border-dashed border-[#a2a5e0] inline-block" />
               {hoverItem.isFuture && hoverTotal === 0 && hoverItem.activeStaff === 0
                 ? 'Upcoming day'
                 : `${fmt(hoverItem.activeStaff)} staff${hoverItem.activeBranches ? ` · ${hoverItem.activeBranches} branches` : ''}`}
             </span>
             {hoverItem.activeStaff > 0 && (
-              <span className="font-figure font-semibold text-[#004e75]">
+              <span className="font-figure font-semibold text-sky-300">
                 {(hoverTotal / hoverItem.activeStaff).toFixed(1)}/staff
               </span>
             )}
