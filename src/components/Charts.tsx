@@ -306,6 +306,39 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
   );
 });
 
+/** Builds a clean SVG annular arc wedge between startRad and endRad radians. */
+export function buildAnnularArcPath(
+  cx: number,
+  cy: number,
+  rInner: number,
+  rOuter: number,
+  startRad: number,
+  endRad: number
+): string {
+  const largeArc = endRad - startRad > Math.PI ? 1 : 0;
+  const c0 = Math.cos(startRad);
+  const s0 = Math.sin(startRad);
+  const c1 = Math.cos(endRad);
+  const s1 = Math.sin(endRad);
+
+  const x0Out = cx + rOuter * c0;
+  const y0Out = cy + rOuter * s0;
+  const x1Out = cx + rOuter * c1;
+  const y1Out = cy + rOuter * s1;
+  const x1In = cx + rInner * c1;
+  const y1In = cy + rInner * s1;
+  const x0In = cx + rInner * c0;
+  const y0In = cy + rInner * s0;
+
+  return [
+    `M ${x0Out.toFixed(2)} ${y0Out.toFixed(2)}`,
+    `A ${rOuter} ${rOuter} 0 ${largeArc} 1 ${x1Out.toFixed(2)} ${y1Out.toFixed(2)}`,
+    `L ${x1In.toFixed(2)} ${y1In.toFixed(2)}`,
+    `A ${rInner} ${rInner} 0 ${largeArc} 0 ${x0In.toFixed(2)} ${y0In.toFixed(2)}`,
+    'Z',
+  ].join(' ');
+}
+
 export interface CrossChannelDayPoint {
   label: string;
   fullLabel?: string;
@@ -730,6 +763,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataKey, height, theme, containerWidth, hover, primarySeriesMeta]);
 
+  const isLight = theme === 'light';
   const hoverItem = hover && items[hover.idx] ? items[hover.idx] : null;
   const hoverTotal = hoverItem
     ? hoverItem.pos + hoverItem.sb + hoverItem.khqr + hoverItem.mv + hoverItem.cc
@@ -772,18 +806,26 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       </canvas>
       {hover && hoverItem && hasData && (
         <div
-          className="absolute top-2.5 pointer-events-none z-20 rounded-xl border border-slate-700/80 bg-[#0f172a]/95 backdrop-blur-md shadow-[0_12px_32px_rgba(15,23,42,0.38)] px-3.5 py-2.5 text-[11px] text-slate-200 whitespace-nowrap min-w-[205px]"
+          className={`absolute top-2.5 pointer-events-none z-20 rounded-xl border backdrop-blur-md px-3.5 py-2.5 text-[11px] whitespace-nowrap min-w-[205px] ${
+            isLight
+              ? 'border-slate-200/90 bg-white/95 text-slate-700 shadow-[0_12px_32px_rgba(15,23,42,0.12)]'
+              : 'border-slate-700/80 bg-[#0f172a]/95 text-slate-200 shadow-[0_12px_32px_rgba(15,23,42,0.38)]'
+          }`}
           style={{
             left: hover.x,
             transform: `translateX(${hover.x > (containerWidth || 0) * 0.52 ? 'calc(-100% - 12px)' : '12px'})`,
           }}
           role="status"
         >
-          <div className="flex items-baseline justify-between gap-4 pb-1.5 mb-1.5 border-b border-slate-700/70">
-            <span className="text-[10.5px] font-semibold text-slate-400">
+          <div
+            className={`flex items-baseline justify-between gap-4 pb-1.5 mb-1.5 border-b ${
+              isLight ? 'border-slate-100' : 'border-slate-700/70'
+            }`}
+          >
+            <span className={`text-[10.5px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               {hoverItem.fullLabel || hoverItem.label}
             </span>
-            <span className="font-figure font-bold text-sm text-white">
+            <span className={`font-figure font-bold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {fmt(hoverHeadlineVal)} tasks
             </span>
           </div>
@@ -791,24 +833,34 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
             {CHANNEL_SERIES.map((s) =>
               hoverItem[s.key] > 0 ? (
                 <div key={s.key} className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-1.5 text-slate-300">
+                  <span className={`flex items-center gap-1.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                     <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
                     {s.label}
                   </span>
-                  <strong className="font-figure text-white">{fmt(hoverItem[s.key])}</strong>
+                  <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {fmt(hoverItem[s.key])}
+                  </strong>
                 </div>
               ) : null
             )}
           </div>
-          <div className="flex items-center justify-between gap-3 pt-1.5 mt-1.5 border-t border-slate-700/70 text-[10.5px] text-slate-400">
+          <div
+            className={`flex items-center justify-between gap-3 pt-1.5 mt-1.5 border-t text-[10.5px] ${
+              isLight ? 'border-slate-100 text-slate-500' : 'border-slate-700/70 text-slate-400'
+            }`}
+          >
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 border-t-[2px] border-dashed border-[#a2a5e0] inline-block" />
+              <span
+                className={`w-2.5 border-t-[2px] border-dashed inline-block ${
+                  isLight ? 'border-[#4F518C]' : 'border-[#a2a5e0]'
+                }`}
+              />
               {hoverItem.isFuture && hoverTotal === 0 && hoverItem.activeStaff === 0
                 ? 'Upcoming day'
                 : `${fmt(hoverItem.activeStaff)} staff${hoverItem.activeBranches ? ` · ${hoverItem.activeBranches} branches` : ''}`}
             </span>
             {hoverItem.activeStaff > 0 && (
-              <span className="font-figure font-semibold text-sky-300">
+              <span className={`font-figure font-semibold ${isLight ? 'text-[#1e6091]' : 'text-sky-300'}`}>
                 {(hoverTotal / hoverItem.activeStaff).toFixed(1)}/staff
               </span>
             )}

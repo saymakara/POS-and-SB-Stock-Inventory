@@ -31,6 +31,7 @@ import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import { PillMotion } from './PillMotion';
 import { AfterPaint } from './AfterPaint';
 import { MeasuredChart } from './MeasuredChart';
+import { buildAnnularArcPath } from './Charts';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -231,6 +232,368 @@ function remapMetricSortKey(key: string, next: KpiMetricMode, allowStaffPerRatio
   if (allowStaffPerRatio && key === 'tasksPerStaff') return 'ptsPerStaff';
   return key;
 }
+
+interface KpiTargetDonutChannel {
+  key: 'khqr' | 'sb' | 'pos' | 'mv' | 'cc';
+  category: KpiCategory;
+  label: string;
+  color: string;
+  pts: number;
+  tasks: number;
+}
+
+interface KpiTargetComparisonDonutProps {
+  periodLabel: string;
+  targetLabel: string;
+  actualPoints: number;
+  targetPoints: number;
+  totalTasks: number;
+  activeBranchCount: number;
+  branchesOnTarget: number;
+  showPacingTick: boolean;
+  pacingRatio: number;
+  elapsedWorkDays: number;
+  totalWorkDays: number;
+  channels: KpiTargetDonutChannel[];
+  activeCategoryFilter: 'ALL' | KpiCategory;
+  onSelectCategory: (cat: 'ALL' | KpiCategory) => void;
+  onViewBranches: () => void;
+}
+
+const KPI_DONUT_VB = 216;
+const KPI_DONUT_C = KPI_DONUT_VB / 2;
+
+const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
+  periodLabel,
+  targetLabel,
+  actualPoints,
+  targetPoints,
+  totalTasks,
+  activeBranchCount,
+  branchesOnTarget,
+  showPacingTick,
+  pacingRatio,
+  elapsedWorkDays,
+  totalWorkDays,
+  channels,
+  activeCategoryFilter,
+  onSelectCategory,
+  onViewBranches,
+}) => {
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const safeTarget = Math.max(0, targetPoints);
+  const safeActual = Math.max(0, actualPoints);
+  const gapPts = Math.max(0, safeTarget - safeActual);
+  const surplusPts = Math.max(0, safeActual - safeTarget);
+  const isMet = safeTarget > 0 && safeActual >= safeTarget;
+  const achievementPct = safeTarget > 0 ? Math.min(999, Math.round((safeActual / safeTarget) * 1000) / 10) : 0;
+
+  const isAheadOfPace = !isMet && showPacingTick && safeTarget > 0 && (safeActual / safeTarget) >= pacingRatio;
+  const statusBadge = isMet
+    ? { label: 'Target Met', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200/80', dot: '#2d6a4f' }
+    : isAheadOfPace
+      ? { label: 'Ahead of Pace', cls: 'bg-sky-50 text-[#1e6091] border-sky-200/80', dot: '#1e6091' }
+      : { label: 'In Progress', cls: 'bg-amber-50 text-amber-700 border-amber-200/80', dot: '#f59e0b' };
+
+  const slices = useMemo(() => {
+    const denom = Math.max(safeTarget, safeActual);
+    if (denom <= 0) return [];
+    const list: Array<{
+      key: string;
+      label: string;
+      color: string;
+      pts: number;
+      tasks: number;
+      frac: number;
+      category?: KpiCategory;
+    }> = [];
+    for (const ch of channels) {
+      if (ch.pts <= 0) continue;
+      list.push({
+        key: ch.key,
+        label: ch.label,
+        color: ch.color,
+        pts: ch.pts,
+        tasks: ch.tasks,
+        frac: ch.pts / denom,
+        category: ch.category,
+      });
+    }
+    if (gapPts > 0) {
+      list.push({
+        key: 'remaining',
+        label: 'Remaining Gap',
+        color: '#e2e8f0',
+        pts: gapPts,
+        tasks: 0,
+        frac: gapPts / denom,
+      });
+    }
+    let accRad = -Math.PI / 2;
+    return list.map((item) => {
+      const spanRad = item.frac * Math.PI * 2;
+      const startRad = accRad;
+      accRad += spanRad;
+      return { ...item, startRad, spanRad };
+    });
+  }, [channels, safeTarget, safeActual, gapPts]);
+
+  const hoveredSlice = hoveredKey ? slices.find((s) => s.key === hoveredKey) || null : null;
+  const centerTop = hoveredSlice
+    ? { dot: hoveredSlice.key === 'remaining' ? '#94a3b8' : hoveredSlice.color, text: hoveredSlice.label }
+    : { dot: statusBadge.dot, text: 'Of Target' };
+  const centerPct = hoveredSlice
+    ? safeTarget > 0
+      ? `${Math.min(999, Math.round((hoveredSlice.pts / safeTarget) * 1000) / 10)}%`
+      : '0%'
+    : `${achievementPct}%`;
+  const centerPill = hoveredSlice
+    ? hoveredSlice.key === 'remaining'
+      ? { text: `${fmtPts(gapPts)} left`, color: '#475569', bg: 'rgba(148, 163, 184, 0.16)' }
+      : { text: `${fmtPts(hoveredSlice.pts)} pts · ${fmtInt(hoveredSlice.tasks)}`, color: hoveredSlice.color, bg: `${hoveredSlice.color}18` }
+    : isMet
+      ? { text: `+${fmtPts(surplusPts)} surplus`, color: '#2d6a4f', bg: 'rgba(45, 106, 79, 0.12)' }
+      : { text: `${fmtPts(gapPts)} to target`, color: '#1e6091', bg: 'rgba(30, 96, 145, 0.12)' };
+
+  const denomForBars = Math.max(safeTarget, safeActual, 1);
+  const pacingTickAngle = -Math.PI / 2 + Math.min(1, Math.max(0, pacingRatio)) * Math.PI * 2;
+
+  return (
+    <div
+      data-testid="kpi-target-donut-card"
+      className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
+    >
+      <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="text-[13px] font-semibold text-slate-900 truncate">
+            {targetLabel === 'Monthly target' ? 'Monthly Target vs Actual' : `${targetLabel} vs Actual`}{' '}
+            <span className="text-slate-400 font-normal">· {periodLabel}</span>
+          </h3>
+          <p className="text-[11px] text-slate-500 truncate">
+            Actual output vs {fmtInt(activeBranchCount)} active branches’ {targetLabel.toLowerCase()}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10.5px] font-semibold ${statusBadge.cls}`}>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: statusBadge.dot }} />
+            {statusBadge.label}
+          </span>
+          <button
+            type="button"
+            onClick={onViewBranches}
+            className="text-xs font-semibold text-[#004e75] hover:underline cursor-pointer whitespace-nowrap"
+          >
+            Branches ({activeBranchCount}) →
+          </button>
+        </div>
+      </div>
+
+      <div className="px-4 sm:px-5 py-3 flex-1 flex flex-col justify-between gap-2.5">
+        {/* Actual vs Monthly Target Comparison Strip */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-sky-50/60 border border-sky-200/60 px-3 py-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Actual Points
+            </div>
+            <div className="flex items-baseline justify-between gap-1.5 mt-0.5">
+              <span className="font-figure text-[17px] font-bold text-slate-900 tabular-nums leading-none">
+                {fmtPts(safeActual)}
+              </span>
+              <span className="text-[10.5px] font-medium text-slate-500 tabular-nums whitespace-nowrap">
+                {fmtInt(totalTasks)} tasks
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-slate-50/90 border border-slate-200/80 px-3 py-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 truncate">
+              {targetLabel}
+            </div>
+            <div className="flex items-baseline justify-between gap-1.5 mt-0.5">
+              <span className="font-figure text-[17px] font-bold text-slate-900 tabular-nums leading-none">
+                {fmtPts(safeTarget)}
+              </span>
+              <span className="text-[10.5px] font-medium text-slate-500 tabular-nums whitespace-nowrap">
+                {branchesOnTarget}/{activeBranchCount} ≥100%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Sculpted Precision Target Donut */}
+        <div className="flex-1 flex items-center justify-center py-0.5">
+          <div className="relative w-[196px] h-[196px] sm:w-[208px] sm:h-[208px] flex items-center justify-center">
+            <svg
+              viewBox={`0 0 ${KPI_DONUT_VB} ${KPI_DONUT_VB}`}
+              className="w-full h-full overflow-visible"
+              role="img"
+              aria-label={`Monthly Target vs Actual Donut Chart: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points)`}
+              data-testid="kpi-target-donut-svg"
+            >
+              {/* Outer instrument bezel */}
+              <circle
+                cx={KPI_DONUT_C}
+                cy={KPI_DONUT_C}
+                r={103}
+                fill="none"
+                stroke="rgba(15, 23, 42, 0.13)"
+                strokeWidth="2.5"
+                strokeDasharray="1.5 11.33"
+              />
+
+              {/* Base Track (100% Target Ring) */}
+              <circle
+                cx={KPI_DONUT_C}
+                cy={KPI_DONUT_C}
+                r={81}
+                fill="none"
+                stroke="rgba(15, 23, 42, 0.055)"
+                strokeWidth={22}
+              />
+
+              {/* Channel + Remaining Gap Arcs */}
+              {slices.length === 1 && (
+                <circle
+                  data-kpi-target-slice={slices[0].key}
+                  cx={KPI_DONUT_C}
+                  cy={KPI_DONUT_C}
+                  r={81}
+                  fill="none"
+                  stroke={slices[0].color}
+                  strokeWidth={hoveredKey === slices[0].key ? 26 : 22}
+                  className="cursor-pointer transition-all duration-150"
+                  onMouseEnter={() => setHoveredKey(slices[0].key)}
+                  onMouseLeave={() => setHoveredKey(null)}
+                  onClick={() => slices[0].category && onSelectCategory(activeCategoryFilter === slices[0].category ? 'ALL' : slices[0].category)}
+                />
+              )}
+
+              {slices.length > 1 &&
+                slices.map((s) => {
+                  const isFocused = hoveredKey === s.key || (s.category && activeCategoryFilter === s.category);
+                  const isDimmed = hoveredKey !== null && hoveredKey !== s.key;
+                  const gapTrim = Math.min(0.028, s.spanRad * 0.22);
+                  const a0 = s.startRad + gapTrim / 2;
+                  const a1 = s.startRad + s.spanRad - gapTrim;
+                  const rIn = isFocused ? 68 : 70;
+                  const rOut = isFocused ? 96 : 92;
+                  const d = buildAnnularArcPath(KPI_DONUT_C, KPI_DONUT_C, rIn, rOut, a0, a1);
+                  return (
+                    <path
+                      key={s.key}
+                      data-kpi-target-slice={s.key}
+                      d={d}
+                      fill={s.color}
+                      opacity={isDimmed ? 0.34 : 1}
+                      style={{
+                        filter: isFocused && s.key !== 'remaining' ? `drop-shadow(0 4px 10px ${s.color}48)` : undefined,
+                        transition: 'opacity 150ms ease, filter 150ms ease',
+                      }}
+                      className="cursor-pointer"
+                      onMouseEnter={() => setHoveredKey(s.key)}
+                      onMouseLeave={() => setHoveredKey(null)}
+                      onClick={() => s.category && onSelectCategory(activeCategoryFilter === s.category ? 'ALL' : s.category)}
+                    >
+                      <title>{`${s.label}: ${fmtPts(s.pts)} pts (${safeTarget > 0 ? Math.round((s.pts / safeTarget) * 1000) / 10 : 0}% of target)`}</title>
+                    </path>
+                  );
+                })}
+
+              {/* Expected Pacing Marker Tick (mid-month elapsed workdays benchmark) */}
+              {showPacingTick && !isMet && safeTarget > 0 && pacingRatio > 0 && pacingRatio < 1 && (
+                <g pointerEvents="none">
+                  <line
+                    x1={KPI_DONUT_C + 68 * Math.cos(pacingTickAngle)}
+                    y1={KPI_DONUT_C + 68 * Math.sin(pacingTickAngle)}
+                    x2={KPI_DONUT_C + 98 * Math.cos(pacingTickAngle)}
+                    y2={KPI_DONUT_C + 98 * Math.sin(pacingTickAngle)}
+                    stroke="#0f172a"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <title>{`Expected pace: ${Math.round(pacingRatio * 100)}% (Day ${elapsedWorkDays}/${totalWorkDays})`}</title>
+                </g>
+              )}
+
+              {/* Elevated Center Hub */}
+              <circle
+                cx={KPI_DONUT_C}
+                cy={KPI_DONUT_C}
+                r={64}
+                fill="#ffffff"
+                stroke="rgba(15, 23, 42, 0.075)"
+                strokeWidth="1.25"
+              />
+            </svg>
+
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-6">
+              <span className="inline-flex items-center gap-1 text-[8.5px] font-bold tracking-wider uppercase text-slate-500 max-w-[92px] truncate">
+                <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ backgroundColor: centerTop.dot }} />
+                <span className="truncate">{centerTop.text}</span>
+              </span>
+              <span className="text-[24px] sm:text-[26px] font-bold font-figure leading-none tracking-tight text-slate-900 mt-1 tabular-nums">
+                {centerPct}
+              </span>
+              <span
+                className="text-[8.5px] font-figure font-semibold px-2 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap max-w-[104px] truncate"
+                style={{ color: centerPill.color, backgroundColor: centerPill.bg }}
+              >
+                {centerPill.text}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 5-Channel Contribution Breakdown Toward Target */}
+        <div className="flex flex-col gap-1 pt-2 border-t border-slate-100">
+          {channels.map((ch) => {
+            const isHovered = hoveredKey === ch.key || activeCategoryFilter === ch.category;
+            const isDimmed = hoveredKey !== null && hoveredKey !== ch.key;
+            const pctOfTarget = safeTarget > 0 ? Math.round((ch.pts / safeTarget) * 1000) / 10 : 0;
+            const barWidth = ch.pts > 0 ? Math.max(3, Math.min(100, (ch.pts / denomForBars) * 100)) : 0;
+            return (
+              <button
+                key={ch.key}
+                type="button"
+                data-kpi-target-channel={ch.key}
+                onMouseEnter={() => setHoveredKey(ch.key)}
+                onMouseLeave={() => setHoveredKey(null)}
+                onFocus={() => setHoveredKey(ch.key)}
+                onBlur={() => setHoveredKey(null)}
+                onClick={() => onSelectCategory(activeCategoryFilter === ch.category ? 'ALL' : ch.category)}
+                className={`w-full flex items-center gap-2 px-2 py-1 rounded-lg border text-left transition-all duration-150 cursor-pointer ${
+                  isHovered ? 'shadow-2xs' : 'border-transparent hover:bg-slate-50/80'
+                } ${isDimmed ? 'opacity-45' : ''}`}
+                style={
+                  isHovered
+                    ? { borderColor: `${ch.color}55`, backgroundColor: `${ch.color}10` }
+                    : undefined
+                }
+              >
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ch.color }} />
+                <span className="text-[11px] font-semibold text-slate-700 whitespace-nowrap w-[90px] shrink-0">
+                  {ch.label}
+                </span>
+                <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden min-w-[36px]">
+                  <span
+                    className="block h-full rounded-full transition-all duration-200"
+                    style={{ width: `${barWidth}%`, backgroundColor: ch.color }}
+                  />
+                </span>
+                <span className="text-[10.5px] font-figure font-semibold text-slate-500 tabular-nums whitespace-nowrap shrink-0">
+                  {fmtPts(ch.pts)}
+                </span>
+                <span className="w-[40px] text-right text-[11px] font-figure font-bold text-slate-900 tabular-nums shrink-0">
+                  {pctOfTarget}%
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 interface Props {
   role: UserRole;
@@ -1125,6 +1488,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       qualityPct,
       branchesOnTarget,
       staffOnTarget,
+      totalBranchTargetPoints,
       targetAchievementPct,
       topBranch,
       topTaskBranch,
@@ -2068,36 +2432,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     return granularity === 'daily' ? sorted.slice(-15) : sorted;
   }, [timeSeries, granularity]);
   const reversedTimeSeries = chronologicalTimeSeries;
-  const topBranchChartData = useMemo(
-    () =>
-      [...filteredBranches]
-        .sort((a, b) =>
-          isTaskMode
-            ? b.totalTasks - a.totalTasks || b.totalPoints - a.totalPoints
-            : b.totalPoints - a.totalPoints || b.totalTasks - a.totalTasks
-        )
-        .slice(0, 10)
-        .map((b) => ({
-          name: fmtBranchLabel(b.branchId, b.branchName, true),
-          branchName: cleanBranchName(b.branchName),
-          branchCode: b.branchId && b.branchId !== 'UNASSIGNED' ? b.branchId : '',
-          fullBranchName: fmtBranchLabel(b.branchId, b.branchName),
-          posPoints: b.posPoints,
-          sbPoints: b.sbPoints,
-          khqrPoints: b.khqrPoints,
-          ccPoints: b.ccPoints,
-          mvPoints: b.mvPoints,
-          posTasks: b.posTasks,
-          sbTasks: b.sbTasks,
-          khqrTasks: b.khqrTasks,
-          ccTasks: b.ccTasks,
-          mvTasks: b.mvTasks,
-          totalPoints: b.totalPoints,
-          staffCount: b.staffCount,
-          totalTasks: b.totalTasks,
-        })),
-    [filteredBranches, isTaskMode]
-  );
 
   const velocitySummary = useMemo(() => {
     let total = 0;
@@ -2406,11 +2740,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                   <TrendingUp className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Performance Velocity &amp; Leading Branches</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Performance Velocity &amp; Monthly Target Attainment</h3>
                   <p className="text-[11.5px] text-slate-500 font-medium">
                     {isTaskMode
-                      ? 'Task count trajectory across time and leading branch contributors'
-                      : 'Point output trajectory across time and leading branch contributors'}
+                      ? 'Task count trajectory across time and actual vs target attainment'
+                      : 'Point output trajectory across time and actual vs target attainment'}
                   </p>
                 </div>
               </div>
@@ -2598,104 +2932,30 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
             </div>
 
-            {/* Chart 2 (5 cols): Executive Top-10 Ranked Leaderboard */}
-            <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between">
-              <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-[13px] font-semibold text-slate-900">
-                    Leading Branches <span className="text-slate-400 font-normal">· {KPI_PERIOD_LABEL[period]}</span>
-                  </h3>
-                  <p className="text-[11px] text-slate-500">Top-10 Ranked Leaderboard</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setView('branches')}
-                  className="text-xs font-semibold text-[#004e75] hover:underline cursor-pointer"
-                >
-                  View all ({filteredBranches.length}) →
-                </button>
-              </div>
-
-              <div className="px-3.5 sm:px-4 py-3 flex-1 flex flex-col justify-between">
-                {topBranchChartData.length === 0 ? (
-                  <div className="h-[310px] flex items-center justify-center text-xs text-slate-400">
-                    No branch activity matching current filters.
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {(() => {
-                      const maxBranchVal = Math.max(
-                        1,
-                        ...topBranchChartData.map((b) => (isTaskMode ? b.totalTasks : b.totalPoints))
-                      );
-                      return topBranchChartData.map((b, idx) => {
-                        const totalVal = isTaskMode ? b.totalTasks : b.totalPoints;
-                        const isTop3 = idx < 3;
-                        const segments = [
-                          { label: 'POS', val: isTaskMode ? b.posTasks : b.posPoints, color: 'bg-[#184e77]' },
-                          { label: 'SB', val: isTaskMode ? b.sbTasks : b.sbPoints, color: 'bg-[#4F518C]' },
-                          { label: 'KHQR', val: isTaskMode ? b.khqrTasks : b.khqrPoints, color: 'bg-[#1e6091]' },
-                          { label: 'CC', val: isTaskMode ? b.ccTasks : b.ccPoints, color: 'bg-[#f59e0b]' },
-                          { label: 'MV', val: isTaskMode ? b.mvTasks : b.mvPoints, color: 'bg-[#2d6a4f]' },
-                        ];
-                        const tipText = `${b.fullBranchName}: ${
-                          isTaskMode ? `${fmtInt(b.totalTasks)} tasks` : `${fmtPts(b.totalPoints)} pts`
-                        } (${segments.filter((s) => s.val > 0).map((s) => `${s.label} ${isTaskMode ? fmtInt(s.val) : fmtPts(s.val)}`).join(' · ')})`;
-
-                        return (
-                          <div
-                            key={`${b.branchCode || b.name}-${idx}`}
-                            title={tipText}
-                            className={`flex items-center justify-between gap-2.5 px-2.5 py-1.5 rounded-xl border transition-colors ${
-                              isTop3
-                                ? 'bg-[#004e75]/[0.06] border-[#004e75]/15'
-                                : 'bg-transparent border-transparent hover:bg-slate-50'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <span
-                                className={`w-6 text-center text-[10.5px] font-mono py-0.5 rounded-md shrink-0 ${
-                                  isTop3
-                                    ? 'bg-[#004e75] text-white font-bold'
-                                    : 'bg-slate-100 text-slate-600 font-semibold border border-slate-200/70'
-                                }`}
-                              >
-                                #{idx + 1}
-                              </span>
-                              <span className={`text-xs truncate ${isTop3 ? 'font-semibold text-slate-900' : 'font-medium text-slate-700'}`}>
-                                {b.branchName}
-                              </span>
-                              {b.branchCode && (
-                                <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-slate-200/80 text-slate-500 shrink-0">
-                                  {b.branchCode}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2.5 shrink-0">
-                              <div className="h-2 w-20 sm:w-24 xl:w-28 rounded-full bg-slate-100 overflow-hidden flex">
-                                {segments.map((seg) => {
-                                  if (seg.val <= 0) return null;
-                                  const w = Math.max(2, (seg.val / maxBranchVal) * 100);
-                                  return <div key={seg.label} className={`h-full ${seg.color}`} style={{ width: `${w}%` }} />;
-                                })}
-                              </div>
-                              <span
-                                className={`font-figure text-xs tabular-nums min-w-[3.1rem] text-right ${
-                                  isTop3 ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'
-                                }`}
-                              >
-                                {isTaskMode ? fmtInt(totalVal) : fmtPts(totalVal)}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* Chart 2 (5 cols): Monthly Target vs Actual Precision Donut */}
+            <KpiTargetComparisonDonut
+              periodLabel={KPI_PERIOD_LABEL[period]}
+              targetLabel={activeTargets.label}
+              actualPoints={totals.totalPoints}
+              targetPoints={totals.totalBranchTargetPoints}
+              totalTasks={totals.totalTasks}
+              activeBranchCount={totals.activeBranchCount}
+              branchesOnTarget={totals.branchesOnTarget}
+              showPacingTick={period === 'MONTH'}
+              pacingRatio={pacingInfo.pacingRatio}
+              elapsedWorkDays={pacingInfo.elapsedWorkDays}
+              totalWorkDays={pacingInfo.totalWorkDays}
+              channels={[
+                { key: 'khqr', category: 'KHQR', label: 'KHQR', color: '#1e6091', pts: totals.khqrPoints, tasks: totals.khqrTasks },
+                { key: 'sb', category: 'Sound Box', label: 'Sound Box', color: '#4F518C', pts: totals.sbPoints, tasks: totals.sbTasks },
+                { key: 'pos', category: 'POS Terminal', label: 'POS Terminal', color: '#184e77', pts: totals.posPoints, tasks: totals.posTasks },
+                { key: 'mv', category: 'Merchant Visit', label: 'Merchant Visit', color: '#2d6a4f', pts: totals.mvPoints, tasks: totals.mvTasks },
+                { key: 'cc', category: 'Credit Card', label: 'Credit Card', color: '#f59e0b', pts: totals.ccPoints, tasks: totals.ccTasks },
+              ]}
+              activeCategoryFilter={categoryFilter}
+              onSelectCategory={setCategoryFilter}
+              onViewBranches={() => setView('branches')}
+            />
           </div>
         </section>
           </AfterPaint>
