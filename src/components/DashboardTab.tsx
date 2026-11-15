@@ -891,207 +891,244 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [velocitySeries]);
 
+  const isLight = theme !== 'dark';
+  const kpiCardClass = isLight
+    ? 'surface-card-light text-[#002f49]'
+    : 'bg-[#1e2330] border border-slate-800 text-slate-100';
+  const kpiHeadingClass = isLight ? 'text-[#002f49]' : 'text-white';
+  const kpiSubtextClass = isLight ? 'text-slate-500' : 'text-slate-400';
+  const kpiFooterBorderClass = isLight ? 'border-slate-200/60' : 'border-slate-800/80';
+
   return (
     <div className="space-y-5 apple-tab-panel" aria-label="Executive Operations Overview">
-      {/* ───────────── 1. HEADER & PERIOD / SCOPE CONTROLS ───────────── */}
-      <div className="surface-card px-6 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-3.5">
-        <div className="flex items-center gap-3.5 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-[#003857] flex items-center justify-center text-white shadow-xs shrink-0">
-            <BarChart3 className="w-[18px] h-[18px] text-white" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-[17px] font-extrabold tracking-tight text-slate-900">
+      {/* ───────────── 1 & 2. HERO BACKDROP HEADER + 4 INSET KPI CARDS ───────────── */}
+      <div
+        data-hero-backdrop="dashboard"
+        className={`relative overflow-hidden rounded-3xl p-5 sm:p-7 border shadow-sm ${
+          isLight
+            ? 'bg-slate-100 border-slate-200/90 text-slate-900'
+            : 'bg-[#161a24] border-slate-800 text-slate-100'
+        }`}
+      >
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+          <div className="space-y-1.5 min-w-0">
+            <h1 className={`text-2xl sm:text-3xl xl:text-[30px] font-extrabold tracking-tight flex items-center gap-3 leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <BarChart3 className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} aria-hidden="true" />
+              <span>
                 {branchScopedId
                   ? `Branch Code ${branchScopedId} Operations Overview`
                   : 'Executive Operations Overview'}
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5 truncate">
-              <span className="font-semibold text-slate-700">{branchScopeDisplay}</span>
-              <span className="mx-1.5 text-slate-300">·</span>
+              </span>
+            </h1>
+            <p className={`text-sm sm:text-[15px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+              <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>{branchScopeDisplay}</span>
+              <span className="mx-1.5 text-slate-400" aria-hidden="true">·</span>
               <span>{fmtNum(scopedKpiTotals.activeStaffCount)} active staff across 5 field channels</span>
             </p>
           </div>
-        </div>
 
-        <div className="flex flex-wrap xl:flex-nowrap xl:justify-end items-center gap-2 shrink-0">
-          {/* Period Switcher */}
-          <div
-            className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/70 gap-0.5"
-            role="tablist"
-            aria-label="Dashboard Time Period"
-          >
-            {PERIOD_OPTIONS.map((opt) => {
-              const active = period === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setPeriod(opt.id)}
-                  className={`relative px-2.5 py-1 rounded-[9px] text-xs cursor-pointer transition-colors ${
-                    active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900 font-medium'
-                  }`}
-                >
-                  {active && (
-                    <PillMotion
-                      layoutId="dash-period-pill"
-                      transition={SPRING_TAB_PILL}
-                      className="absolute inset-0 rounded-[9px] tab-active-blue shadow-2xs pointer-events-none"
-                    />
-                  )}
-                  <span className="relative z-10">{opt.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Directory Scope Badge (Admin HQ) */}
-          {isAdminLike && !branchScopedId && (
-            <span
-              className="inline-flex items-center gap-1.5 text-xs rounded-xl border border-slate-200/90 bg-slate-100/80 px-2.5 py-1.5 text-slate-700 font-semibold whitespace-nowrap"
-              title="Scoped to active Phnom Penh staff from the Staff Directory"
+          <div className="flex flex-wrap xl:flex-nowrap xl:justify-end items-center gap-2 shrink-0">
+            {/* Period Switcher */}
+            <div
+              className={`inline-flex items-center p-1 rounded-xl border shadow-2xs gap-0.5 ${
+                isLight
+                  ? 'bg-white border-slate-200/90'
+                  : 'bg-slate-900/80 border-slate-700'
+              }`}
+              role="tablist"
+              aria-label="Dashboard Time Period"
             >
-              <MapPin className="w-3.5 h-3.5 text-[#003857] shrink-0" aria-hidden="true" />
-              <span>Phnom Penh · Staff Directory</span>
-            </span>
-          )}
+              {PERIOD_OPTIONS.map((opt) => {
+                const active = period === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setPeriod(opt.id)}
+                    className={`relative px-2.5 py-1 rounded-[9px] text-xs cursor-pointer transition-colors ${
+                      active
+                        ? 'text-white font-semibold'
+                        : `${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
+                    }`}
+                  >
+                    {active && (
+                      <PillMotion
+                        layoutId="dash-period-pill"
+                        transition={SPRING_TAB_PILL}
+                        className="absolute inset-0 rounded-[9px] tab-active-blue shadow-2xs pointer-events-none"
+                      />
+                    )}
+                    <span className="relative z-10">{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-          <span className="hidden xl:block h-5 w-px bg-slate-200/90 mx-0.5" aria-hidden="true" />
+            {/* Directory Scope Badge (Admin HQ) */}
+            {isAdminLike && !branchScopedId && (
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs rounded-xl border px-3 py-1.5 font-semibold whitespace-nowrap shadow-2xs ${
+                  isLight
+                    ? 'border-slate-200/90 bg-white text-slate-700'
+                    : 'border-slate-700 bg-slate-900/80 text-slate-200'
+                }`}
+                title="Scoped to active Phnom Penh staff from the Staff Directory"
+              >
+                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} aria-hidden="true" />
+                <span>Phnom Penh · Staff Directory</span>
+              </span>
+            )}
 
-          <button
-            type="button"
-            onClick={() => void loadCrossPortalData(true)}
-            className="btn-press px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 cursor-pointer transition"
-            title="Refresh live summary counts"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
-            <span>Sync</span>
-          </button>
+            <span className={`hidden xl:block h-5 w-px mx-0.5 ${isLight ? 'bg-slate-300/80' : 'bg-slate-700'}`} aria-hidden="true" />
 
-          {isAdminLike && (
             <button
               type="button"
-              onClick={onOpenExportModal}
-              className="btn-press px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-800 inline-flex items-center gap-1.5 cursor-pointer transition"
-              title="Export Reports & Data"
+              onClick={() => void loadCrossPortalData(true)}
+              className={`btn-press px-3 py-1.5 rounded-xl text-xs font-semibold border shadow-2xs inline-flex items-center gap-1.5 cursor-pointer transition ${
+                isLight
+                  ? 'border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700'
+                  : 'border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-200'
+              }`}
+              title="Refresh live summary counts"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
-              <span>Export</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isLight ? 'text-slate-500' : 'text-slate-400'} ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
+              <span>Sync</span>
             </button>
-          )}
-        </div>
-      </div>
 
-      {/* ───────────── 2. 4 SEPARATE KPI SUMMARY CARDS (OPTION 1) ───────────── */}
-      <section
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
-        aria-label="Key portal metrics"
-      >
-        {/* KPI 1: Field Tasks */}
-        <div className="surface-card px-4.5 py-4 sm:px-5 sm:py-4.5 flex flex-col justify-between gap-2 min-w-0">
-          <div className="flex items-center justify-between gap-1.5 min-h-[22px]">
-            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400 truncate">
-              Field Tasks · {activePeriodLabel}
-            </span>
-            <span className="text-[10.5px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap shrink-0">
-              {fmtNum(Math.round(channelActivity.totalPoints))} pts
-            </span>
-          </div>
-          <div className="text-[28px] sm:text-[31px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
-            <Odometer value={channelActivity.totalTasks} format duration={320} />
-          </div>
-          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <span><span className="font-medium text-slate-700">{fmtNum(scopedKpiTotals.activeBranchCount || branches.length)}</span> branches</span>
-            <span className="text-slate-300" aria-hidden="true">·</span>
-            <span><span className="font-medium text-slate-700">{fmtNum(scopedKpiTotals.activeStaffCount)}</span> active staff</span>
-          </div>
-        </div>
-
-        {/* KPI 2: Pending Approvals */}
-        <div className="surface-card px-4.5 py-4 sm:px-5 sm:py-4.5 flex flex-col justify-between gap-2 min-w-0">
-          <div className="flex items-center justify-between gap-1.5 min-h-[22px]">
-            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400 truncate">
-              Pending Approvals
-            </span>
-            {queues.total > 0 ? (
-              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-800 whitespace-nowrap shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                Action needed
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                All clear
-              </span>
-            )}
-          </div>
-          <div className="text-[28px] sm:text-[31px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
-            <Odometer value={queues.total} format duration={320} />
-          </div>
-          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <span><span className="font-medium text-slate-700">{fmtNum(queues.appTotal)}</span> App Reviews</span>
-            <span className="text-slate-300" aria-hidden="true">·</span>
-            <span><span className="font-medium text-slate-700">{fmtNum(queues.reqPend)}</span> Stock Requests</span>
-          </div>
-        </div>
-
-        {/* KPI 3: Hardware Pool */}
-        <div className="surface-card px-4.5 py-4 sm:px-5 sm:py-4.5 flex flex-col justify-between gap-2 min-w-0">
-          <div className="flex items-center justify-between gap-1.5 min-h-[22px]">
-            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400 truncate">
-              Hardware Pool
-            </span>
-            {queues.pushPend > 0 ? (
+            {isAdminLike && (
               <button
                 type="button"
-                onClick={() => onNavigateTab?.('push_configuring')}
-                className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-[#004e75] hover:bg-sky-500/20 cursor-pointer transition whitespace-nowrap shrink-0"
+                onClick={onOpenExportModal}
+                className={`btn-press px-3 py-1.5 rounded-xl text-xs font-semibold border shadow-2xs inline-flex items-center gap-1.5 cursor-pointer transition ${
+                  isLight
+                    ? 'border-slate-200/90 bg-white hover:bg-slate-50 text-slate-800'
+                    : 'border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-100'
+                }`}
+                title="Export Reports & Data"
               >
-                {fmtNum(queues.pushPend)} push due
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                <span>Export</span>
               </button>
-            ) : (
-              <span className="text-[10.5px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap shrink-0">
-                {fmtNum(materialsSummary.simTotal)} SIM
-              </span>
             )}
-          </div>
-          <div className="text-[28px] sm:text-[31px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
-            <Odometer value={hardwareSummary.total} format duration={320} />
-          </div>
-          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <span><span className="font-medium text-slate-700">{fmtNum(hardwareSummary.hq)}</span> HQ</span>
-            <span className="text-slate-300" aria-hidden="true">·</span>
-            <span><span className="font-medium text-slate-700">{fmtNum(hardwareSummary.reserve)}</span> Reserve</span>
-            <span className="text-slate-300" aria-hidden="true">·</span>
-            <span className="font-medium text-emerald-700">{fmtNum(hardwareSummary.installed)} Live</span>
           </div>
         </div>
 
-        {/* KPI 4: Merchant Outreach */}
-        <div className="surface-card px-4.5 py-4 sm:px-5 sm:py-4.5 flex flex-col justify-between gap-2 min-w-0">
-          <div className="flex items-center justify-between gap-1.5 min-h-[22px]">
-            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400 truncate">
-              Merchant Outreach
-            </span>
-            <span className="text-[10.5px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap shrink-0">
-              {reachSharePct}% of tasks
-            </span>
+        {/* 4 Executive Summary Cards inset inside Hero Backdrop */}
+        <section
+          className={`relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 mt-5 pt-5 border-t ${
+            isLight ? 'border-slate-200/90' : 'border-slate-800'
+          }`}
+          aria-label="Key portal metrics"
+        >
+          {/* KPI 1: Field Tasks */}
+          <div className={`${kpiCardClass} rounded-2xl px-3.5 py-4 flex flex-col justify-between shadow-2xs min-w-0`}>
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
+                  Field Tasks · {activePeriodLabel}
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-[#003857]/12 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-4 h-4" aria-hidden="true" />
+                </div>
+              </div>
+              <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 leading-tight ${kpiHeadingClass}`}>
+                <Odometer value={channelActivity.totalTasks} format duration={320} />
+              </div>
+            </div>
+            <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
+              <span>{fmtNum(scopedKpiTotals.activeBranchCount || branches.length)} branches · {fmtNum(scopedKpiTotals.activeStaffCount)} staff</span>
+              <span className="font-semibold text-emerald-600 whitespace-nowrap">{fmtNum(Math.round(channelActivity.totalPoints))} pts</span>
+            </div>
           </div>
-          <div className="text-[28px] sm:text-[31px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
-            <Odometer value={reachTotal} format duration={320} />
+
+          {/* KPI 2: Pending Approvals */}
+          <div className={`${kpiCardClass} rounded-2xl px-3.5 py-4 flex flex-col justify-between shadow-2xs min-w-0`}>
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
+                  Pending Approvals
+                </span>
+                {queues.total > 0 ? (
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/12 text-amber-600 flex items-center justify-center shrink-0">
+                    <AlertCircle className="w-4 h-4" aria-hidden="true" />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/12 text-emerald-600 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                  </div>
+                )}
+              </div>
+              <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 leading-tight ${kpiHeadingClass}`}>
+                <Odometer value={queues.total} format duration={320} />
+              </div>
+            </div>
+            <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
+              <span>{fmtNum(queues.appTotal)} App · {fmtNum(queues.reqPend)} Stock Req</span>
+              {queues.total > 0 ? (
+                <span className="font-semibold text-amber-600 whitespace-nowrap">Action needed</span>
+              ) : (
+                <span className="font-semibold text-emerald-600 whitespace-nowrap">All clear</span>
+              )}
+            </div>
           </div>
-          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <span><span className="font-medium text-slate-700">{fmtNum(channelActivity.khqrCount)}</span> KHQR</span>
-            <span className="text-slate-300" aria-hidden="true">·</span>
-            <span><span className="font-medium text-slate-700">{fmtNum(channelActivity.mvCount)}</span> Visits</span>
-            <span className="text-slate-300" aria-hidden="true">·</span>
-            <span><span className="font-medium text-slate-700">{fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)}</span> Cards</span>
+
+          {/* KPI 3: Hardware Pool */}
+          <div className={`${kpiCardClass} rounded-2xl px-3.5 py-4 flex flex-col justify-between shadow-2xs min-w-0`}>
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
+                  Hardware Pool
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/12 text-emerald-600 flex items-center justify-center shrink-0">
+                  <Boxes className="w-4 h-4" aria-hidden="true" />
+                </div>
+              </div>
+              <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 leading-tight ${kpiHeadingClass}`}>
+                <Odometer value={hardwareSummary.total} format duration={320} />
+              </div>
+            </div>
+            <div className={`flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
+              <span>{fmtNum(hardwareSummary.hq)} HQ · {fmtNum(hardwareSummary.reserve)} Res · {fmtNum(hardwareSummary.installed)} Live</span>
+              {queues.pushPend > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab?.('push_configuring')}
+                  className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#004e75]' : 'text-sky-300'}`}
+                >
+                  {fmtNum(queues.pushPend)} push
+                </button>
+              ) : (
+                <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-[#002f49]' : 'text-slate-200'}`}>
+                  {fmtNum(materialsSummary.simTotal)} SIM
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+
+          {/* KPI 4: Merchant Outreach */}
+          <div className={`${kpiCardClass} rounded-2xl px-3.5 py-4 flex flex-col justify-between shadow-2xs min-w-0`}>
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
+                  Merchant Outreach
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-sky-500/12 text-[#004e75] dark:text-sky-300 flex items-center justify-center shrink-0">
+                  <Store className="w-4 h-4" aria-hidden="true" />
+                </div>
+              </div>
+              <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 leading-tight ${kpiHeadingClass}`}>
+                <Odometer value={reachTotal} format duration={320} />
+              </div>
+            </div>
+            <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
+              <span>{fmtNum(channelActivity.khqrCount)} KHQR · {fmtNum(channelActivity.mvCount)} Visits · {fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)} CC</span>
+              <span className="font-semibold text-sky-600 whitespace-nowrap">{reachSharePct}%</span>
+            </div>
+          </div>
+        </section>
+      </div>
 
       {/* ───────────── 3. MIDDLE SPLIT: 5-CHANNEL SHARE MATRIX + HAIRLINE ACTION QUEUE ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
