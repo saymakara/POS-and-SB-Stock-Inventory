@@ -7,7 +7,7 @@ import {
   ClipboardList, LayoutGrid, List, MapPin,
 } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
+  Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
 } from 'recharts';
 import { Branch, User, UserRole } from '../types';
 import { Pager } from './Pager';
@@ -2099,6 +2099,28 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     [filteredBranches, isTaskMode]
   );
 
+  const velocitySummary = useMemo(() => {
+    let total = 0;
+    let staffSum = 0;
+    let activePeriods = 0;
+    let peakVal = 0;
+    let peakLabel = '';
+    for (const r of reversedTimeSeries) {
+      const val = isTaskMode ? r.totalTasks : r.totalPoints;
+      total += val;
+      if (r.activeStaff > 0) {
+        staffSum += r.activeStaff;
+        activePeriods++;
+      }
+      if (val >= peakVal && val > 0) {
+        peakVal = val;
+        peakLabel = r.label;
+      }
+    }
+    const avgStaff = activePeriods > 0 ? Math.round(staffSum / activePeriods) : 0;
+    return { total, avgStaff, peakVal, peakLabel };
+  }, [reversedTimeSeries, isTaskMode]);
+
   return (
     <div className="flex flex-col gap-6 sm:gap-7 apple-tab-panel" aria-label="KPI Performance">
       {/* ───────────── 1. HERO HEADER & 6 BIG KPI CARDS (Push Configuring Hub Backdrop Style) ───────────── */}
@@ -2393,109 +2415,138 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-            {/* Chart 1 (7 cols): Interactive Daily / Weekly / Monthly / Quarterly Stacked Point Trend */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Chart 1 (7 cols): Executive Point Velocity + Dashed Staff Spline */}
             <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between">
-              <div className="px-4 py-2.5 border-b border-slate-200/90 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-[#1e5b88] shrink-0" aria-hidden />
-                  <h3 className="text-[13px] font-semibold text-slate-900">
-                    {isTaskMode ? 'KPI Task Velocity & Active Staff' : 'KPI Point Velocity & Active Staff'}
-                  </h3>
+              <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-[13px] font-semibold text-slate-900">
+                      {isTaskMode ? 'KPI Task Velocity & Active Staff' : 'KPI Point Velocity & Active Staff'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500">Executive velocity across selected granularity</p>
+                  </div>
+
+                  <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5" role="tablist" aria-label="Chart granularity">
+                    {([
+                      { g: 'daily' as const, label: 'Daily', dot: 'bg-sky-500' },
+                      { g: 'weekly' as const, label: 'Weekly', dot: 'bg-emerald-500' },
+                      { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#003857]' },
+                      { g: 'quarterly' as const, label: 'Quarterly', dot: 'bg-amber-500' },
+                    ]).map(({ g, label, dot }) => {
+                      const active = granularity === g;
+                      return (
+                        <button
+                          key={g}
+                          type="button"
+                          role="tab"
+                          aria-selected={active}
+                          onClick={() => setGranularity(g)}
+                          aria-pressed={active}
+                          className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
+                            active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
+                          }`}
+                        >
+                          {active && (
+                            <PillMotion
+                              layoutId="kpi-chart-granularity-pill"
+                              transition={SPRING}
+                              className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                            />
+                          )}
+                          <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${active ? 'bg-white' : dot}`} aria-hidden />
+                          <span className="relative z-10">{label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5" role="tablist" aria-label="Chart granularity">
-                  {([
-                    { g: 'daily' as const, label: 'Daily', dot: 'bg-sky-500' },
-                    { g: 'weekly' as const, label: 'Weekly', dot: 'bg-emerald-500' },
-                    { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#003857]' },
-                    { g: 'quarterly' as const, label: 'Quarterly', dot: 'bg-amber-500' },
-                  ]).map(({ g, label, dot }) => {
-                    const active = granularity === g;
-                    return (
-                      <button
-                        key={g}
-                        type="button"
-                        role="tab"
-                        aria-selected={active}
-                        onClick={() => setGranularity(g)}
-                        aria-pressed={active}
-                        className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
-                          active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
-                        }`}
-                      >
-                        {active && (
-                          <PillMotion
-                            layoutId="kpi-chart-granularity-pill"
-                            transition={SPRING}
-                            className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
-                          />
+                {/* Headline Metrics Row */}
+                <div className="flex flex-wrap items-end justify-between gap-4 pt-1">
+                  <div className="flex items-center gap-6">
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-figure text-2xl font-bold tracking-tight text-slate-900 tabular-nums leading-none">
+                          {isTaskMode ? fmtInt(velocitySummary.total) : fmtPts(velocitySummary.total)}
+                        </span>
+                        {velocitySummary.peakLabel && (
+                          <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/70 tabular-nums">
+                            Peak {velocitySummary.peakLabel}
+                          </span>
                         )}
-                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${active ? 'bg-white' : dot}`} aria-hidden />
-                        <span className="relative z-10">{label}</span>
-                      </button>
-                    );
-                  })}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        {isTaskMode ? 'Window Total Tasks' : 'Window Total Points'}
+                      </p>
+                    </div>
+                    <div className="h-8 w-px bg-slate-200/80 hidden sm:block" aria-hidden />
+                    <div>
+                      <div className="font-figure text-2xl font-bold tracking-tight text-[#004e75] tabular-nums leading-none">
+                        {fmtInt(velocitySummary.avgStaff)}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">Avg Active Staff</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="px-4 pt-3 pb-4">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-2.5 text-[11px] font-semibold text-slate-700">
+              <div className="px-4 sm:px-5 pt-3 pb-4">
+                <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 pb-2.5 text-[11px] font-semibold text-slate-600">
                   <span className="inline-flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-[#22577A]" aria-hidden />
+                    <span className="w-2 h-2 rounded-full bg-[#004e75]" aria-hidden />
                     <span>POS Terminal</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-[#4F518C]" aria-hidden />
+                    <span className="w-2 h-2 rounded-full bg-[#4F518C]" aria-hidden />
                     <span>Sound Box</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <QrCode className="w-3.5 h-3.5 text-teal-600" aria-hidden />
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden />
                     <span>KHQR</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-amber-600" aria-hidden />
+                    <span className="w-2 h-2 rounded-full bg-amber-500" aria-hidden />
                     <span>Credit Card</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <ClipboardList className="w-3.5 h-3.5 text-[#168AAD]" aria-hidden />
+                    <span className="w-2 h-2 rounded-full bg-sky-500" aria-hidden />
                     <span>Merchant Visit</span>
                   </span>
-                  <span className="inline-flex items-center gap-1.5 ml-auto text-slate-600 font-medium">
-                    <span className="w-3.5 h-0.5 bg-[#1e5b88] rounded-full inline-block" />
-                    <Users className="w-3.5 h-3.5 text-[#1e5b88]" aria-hidden />
-                    <span>Active staff (right axis)</span>
+                  <span className="inline-flex items-center gap-1.5 ml-auto text-[#004e75] font-medium">
+                    <span className="w-4 border-t-2 border-dashed border-[#004e75] inline-block" aria-hidden />
+                    <span>Active staff (right)</span>
                   </span>
                 </div>
 
-                <div className="h-[280px] w-full">
+                <div className="h-[268px] w-full">
                   {reversedTimeSeries.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-xs text-slate-400">
                       No trend data available for this granularity.
                     </div>
                   ) : (
-                    <MeasuredChart height={280}>{(chartW) => (
-                      <ComposedChart width={chartW} height={280} data={reversedTimeSeries} margin={{ top: 8, right: 6, left: -14, bottom: 0 }} barGap={4}>
+                    <MeasuredChart height={268}>{(chartW) => (
+                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 10, right: 6, left: -14, bottom: 0 }} barGap={4}>
                         <defs>
                           <linearGradient id="kpiPosGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#3d79a3" />
-                            <stop offset="100%" stopColor="#22577A" />
+                            <stop offset="0%" stopColor="#006494" />
+                            <stop offset="100%" stopColor="#004e75" />
                           </linearGradient>
                           <linearGradient id="kpiSbGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#6c6eb0" />
                             <stop offset="100%" stopColor="#4F518C" />
                           </linearGradient>
                           <linearGradient id="kpiKhqrGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#14b8a6" />
-                            <stop offset="100%" stopColor="#0d9488" />
+                            <stop offset="0%" stopColor="#34d399" />
+                            <stop offset="100%" stopColor="#10b981" />
                           </linearGradient>
                           <linearGradient id="kpiCcGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#fbbf24" />
                             <stop offset="100%" stopColor="#f59e0b" />
                           </linearGradient>
                           <linearGradient id="kpiMvGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#52b2df" />
-                            <stop offset="100%" stopColor="#168AAD" />
+                            <stop offset="0%" stopColor="#38bdf8" />
+                            <stop offset="100%" stopColor="#0284c7" />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -2505,7 +2556,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           tickLine={false}
                           tick={{ fontSize: 11, fill: '#64748b' }}
                           dy={4}
-                          interval={granularity === 'daily' ? 0 : Math.max(0, Math.ceil(chronologicalTimeSeries.length / 15) - 1)}   // (14 Nov 2026) Daily shows the last 15 days without label overlap
+                          interval={granularity === 'daily' ? 0 : Math.max(0, Math.ceil(chronologicalTimeSeries.length / 15) - 1)}
                         />
                         <YAxis
                           yAxisId="left"
@@ -2519,24 +2570,25 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           orientation="right"
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fontSize: 11, fill: '#475569' }}
+                          tick={{ fontSize: 11, fill: '#004e75' }}
                           width={32}
                         />
-                        <Tooltip content={<CustomTrendTooltip metricMode={metricMode} />} cursor={{ fill: 'rgba(0, 56, 87, 0.04)' }} isAnimationActive={false} />
-                        <Bar yAxisId="left" dataKey={isTaskMode ? 'posTasks' : 'posPoints'} name="POS Terminal" stackId="pts" fill="url(#kpiPosGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={32} isAnimationActive={false} />
-                        <Bar yAxisId="left" dataKey={isTaskMode ? 'sbTasks' : 'sbPoints'} name="Sound Box" stackId="pts" fill="url(#kpiSbGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={32} isAnimationActive={false} />
-                        <Bar yAxisId="left" dataKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} name="KHQR" stackId="pts" fill="url(#kpiKhqrGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={32} isAnimationActive={false} />
-                        <Bar yAxisId="left" dataKey={isTaskMode ? 'ccTasks' : 'ccPoints'} name="Credit Card" stackId="pts" fill="url(#kpiCcGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={32} isAnimationActive={false} />
-                        <Bar yAxisId="left" dataKey={isTaskMode ? 'mvTasks' : 'mvPoints'} name="Merchant Visit" stackId="pts" fill="url(#kpiMvGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={32} isAnimationActive={false} />
+                        <Tooltip content={<CustomTrendTooltip metricMode={metricMode} />} cursor={{ fill: 'rgba(0, 78, 117, 0.04)' }} isAnimationActive={false} />
+                        <Bar yAxisId="left" dataKey={isTaskMode ? 'posTasks' : 'posPoints'} name="POS Terminal" stackId="pts" fill="url(#kpiPosGrad)" stroke="#ffffff" strokeWidth={1} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
+                        <Bar yAxisId="left" dataKey={isTaskMode ? 'sbTasks' : 'sbPoints'} name="Sound Box" stackId="pts" fill="url(#kpiSbGrad)" stroke="#ffffff" strokeWidth={1} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
+                        <Bar yAxisId="left" dataKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} name="KHQR" stackId="pts" fill="url(#kpiKhqrGrad)" stroke="#ffffff" strokeWidth={1} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
+                        <Bar yAxisId="left" dataKey={isTaskMode ? 'ccTasks' : 'ccPoints'} name="Credit Card" stackId="pts" fill="url(#kpiCcGrad)" stroke="#ffffff" strokeWidth={1} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
+                        <Bar yAxisId="left" dataKey={isTaskMode ? 'mvTasks' : 'mvPoints'} name="Merchant Visit" stackId="pts" fill="url(#kpiMvGrad)" stroke="#ffffff" strokeWidth={1} radius={[4, 4, 0, 0]} maxBarSize={26} isAnimationActive={false} />
                         <Line
                           yAxisId="right"
                           type="monotone"
                           dataKey="activeStaff"
                           name="Active Staff"
-                          stroke="#1e5b88"
-                          strokeWidth={1.75}
-                          dot={{ r: 3, fill: '#ffffff', stroke: '#1e5b88', strokeWidth: 1.75 }}
-                          activeDot={{ r: 4.5, fill: '#1e5b88', stroke: '#ffffff', strokeWidth: 2 }}
+                          stroke="#004e75"
+                          strokeWidth={2}
+                          strokeDasharray="5 4"
+                          dot={{ r: 3.5, fill: '#ffffff', stroke: '#004e75', strokeWidth: 2, strokeDasharray: '0' }}
+                          activeDot={{ r: 5.5, fill: '#004e75', stroke: '#ffffff', strokeWidth: 2.5, strokeDasharray: '0' }}
                           isAnimationActive={false}
                         />
                       </ComposedChart>
@@ -2546,111 +2598,102 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
             </div>
 
-            {/* Chart 2 (5 cols): Top 10 Branches by KPI Point Mix */}
+            {/* Chart 2 (5 cols): Executive Top-10 Ranked Leaderboard */}
             <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between">
-              <div className="px-4 py-2.5 border-b border-slate-200/90 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#1e5b88] shrink-0" aria-hidden />
-                  <h3 className="text-[13px] font-semibold text-slate-900">Leading Branches</h3>
-                  <span className="text-[12px] text-slate-600 font-medium">· {KPI_PERIOD_LABEL[period]}</span>
+              <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-[13px] font-semibold text-slate-900">
+                    Leading Branches <span className="text-slate-400 font-normal">· {KPI_PERIOD_LABEL[period]}</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">Top-10 Ranked Leaderboard</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setView('branches')}
-                  className="text-xs font-semibold text-[#1e5b88] hover:underline cursor-pointer"
+                  className="text-xs font-semibold text-[#004e75] hover:underline cursor-pointer"
                 >
                   View all ({filteredBranches.length}) →
                 </button>
               </div>
 
-              <div className="px-4 pt-3 pb-4">
-                <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 pb-2.5 text-[11px] font-semibold text-slate-700">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-[#22577A]" aria-hidden />
-                    <span>POS</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-[#4F518C]" aria-hidden />
-                    <span>Sound Box</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <QrCode className="w-3.5 h-3.5 text-teal-600" aria-hidden />
-                    <span>KHQR</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-amber-600" aria-hidden />
-                    <span>Credit Card</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <ClipboardList className="w-3.5 h-3.5 text-[#168AAD]" aria-hidden />
-                    <span>Merchant Visit</span>
-                  </span>
-                </div>
+              <div className="px-3.5 sm:px-4 py-3 flex-1 flex flex-col justify-between">
+                {topBranchChartData.length === 0 ? (
+                  <div className="h-[310px] flex items-center justify-center text-xs text-slate-400">
+                    No branch activity matching current filters.
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {(() => {
+                      const maxBranchVal = Math.max(
+                        1,
+                        ...topBranchChartData.map((b) => (isTaskMode ? b.totalTasks : b.totalPoints))
+                      );
+                      return topBranchChartData.map((b, idx) => {
+                        const totalVal = isTaskMode ? b.totalTasks : b.totalPoints;
+                        const isTop3 = idx < 3;
+                        const segments = [
+                          { label: 'POS', val: isTaskMode ? b.posTasks : b.posPoints, color: 'bg-[#004e75]' },
+                          { label: 'SB', val: isTaskMode ? b.sbTasks : b.sbPoints, color: 'bg-[#4F518C]' },
+                          { label: 'KHQR', val: isTaskMode ? b.khqrTasks : b.khqrPoints, color: 'bg-emerald-500' },
+                          { label: 'CC', val: isTaskMode ? b.ccTasks : b.ccPoints, color: 'bg-amber-500' },
+                          { label: 'MV', val: isTaskMode ? b.mvTasks : b.mvPoints, color: 'bg-sky-500' },
+                        ];
+                        const tipText = `${b.fullBranchName}: ${
+                          isTaskMode ? `${fmtInt(b.totalTasks)} tasks` : `${fmtPts(b.totalPoints)} pts`
+                        } (${segments.filter((s) => s.val > 0).map((s) => `${s.label} ${isTaskMode ? fmtInt(s.val) : fmtPts(s.val)}`).join(' · ')})`;
 
-                <div className="h-[280px] w-full">
-                  {topBranchChartData.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                      No branch activity matching current filters.
-                    </div>
-                  ) : (
-                    <MeasuredChart height={280} stagger={2}>{(chartW) => (
-                      <BarChart
-                        width={chartW}
-                        height={280}
-                        layout="vertical"
-                        data={topBranchChartData}
-                        margin={{ top: 4, right: 14, left: 0, bottom: 0 }}
-                        barCategoryGap="24%"
-                      >
-                        <defs>
-                          <linearGradient id="kpiBranchPosGrad" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#22577A" />
-                            <stop offset="100%" stopColor="#3d79a3" />
-                          </linearGradient>
-                          <linearGradient id="kpiBranchSbGrad" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#4F518C" />
-                            <stop offset="100%" stopColor="#6c6eb0" />
-                          </linearGradient>
-                          <linearGradient id="kpiBranchKhqrGrad" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#0d9488" />
-                            <stop offset="100%" stopColor="#14b8a6" />
-                          </linearGradient>
-                          <linearGradient id="kpiBranchCcGrad" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#f59e0b" />
-                            <stop offset="100%" stopColor="#fbbf24" />
-                          </linearGradient>
-                          <linearGradient id="kpiBranchMvGrad" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#168AAD" />
-                            <stop offset="100%" stopColor="#52b2df" />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                        <XAxis
-                          type="number"
-                          axisLine={{ stroke: '#e2e8f0' }}
-                          tickLine={false}
-                          tick={{ fontSize: 11, fill: '#64748b' }}
-                          tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))}
-                        />
-                        <YAxis
-                          type="category"
-                          dataKey="name"
-                          width={188}
-                          axisLine={false}
-                          tickLine={false}
-                          interval={0}
-                          tick={<BranchYAxisTick />}
-                        />
-                        <Tooltip content={<CustomBranchTooltip metricMode={metricMode} />} cursor={{ fill: 'rgba(0, 56, 87, 0.04)' }} isAnimationActive={false} />
-                        <Bar dataKey={isTaskMode ? 'posTasks' : 'posPoints'} name="POS Terminal" stackId="b" fill="url(#kpiBranchPosGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} isAnimationActive={false} />
-                        <Bar dataKey={isTaskMode ? 'sbTasks' : 'sbPoints'} name="Sound Box" stackId="b" fill="url(#kpiBranchSbGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} isAnimationActive={false} />
-                        <Bar dataKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} name="KHQR" stackId="b" fill="url(#kpiBranchKhqrGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} isAnimationActive={false} />
-                        <Bar dataKey={isTaskMode ? 'ccTasks' : 'ccPoints'} name="Credit Card" stackId="b" fill="url(#kpiBranchCcGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} isAnimationActive={false} />
-                        <Bar dataKey={isTaskMode ? 'mvTasks' : 'mvPoints'} name="Merchant Visit" stackId="b" fill="url(#kpiBranchMvGrad)" stroke="#ffffff" strokeWidth={1} maxBarSize={14} isAnimationActive={false} />
-                      </BarChart>
-                    )}</MeasuredChart>
-                  )}
-                </div>
+                        return (
+                          <div
+                            key={`${b.branchCode || b.name}-${idx}`}
+                            title={tipText}
+                            className={`flex items-center justify-between gap-2.5 px-2.5 py-1.5 rounded-xl border transition-colors ${
+                              isTop3
+                                ? 'bg-[#004e75]/[0.06] border-[#004e75]/15'
+                                : 'bg-transparent border-transparent hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span
+                                className={`w-6 text-center text-[10.5px] font-mono py-0.5 rounded-md shrink-0 ${
+                                  isTop3
+                                    ? 'bg-[#004e75] text-white font-bold'
+                                    : 'bg-slate-100 text-slate-600 font-semibold border border-slate-200/70'
+                                }`}
+                              >
+                                #{idx + 1}
+                              </span>
+                              <span className={`text-xs truncate ${isTop3 ? 'font-semibold text-slate-900' : 'font-medium text-slate-700'}`}>
+                                {b.branchName}
+                              </span>
+                              {b.branchCode && (
+                                <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-slate-200/80 text-slate-500 shrink-0">
+                                  {b.branchCode}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              <div className="h-2 w-20 sm:w-24 xl:w-28 rounded-full bg-slate-100 overflow-hidden flex">
+                                {segments.map((seg) => {
+                                  if (seg.val <= 0) return null;
+                                  const w = Math.max(2, (seg.val / maxBranchVal) * 100);
+                                  return <div key={seg.label} className={`h-full ${seg.color}`} style={{ width: `${w}%` }} />;
+                                })}
+                              </div>
+                              <span
+                                className={`font-figure text-xs tabular-nums min-w-[3.1rem] text-right ${
+                                  isTop3 ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'
+                                }`}
+                              >
+                                {isTaskMode ? fmtInt(totalVal) : fmtPts(totalVal)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -4788,48 +4831,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
 /* ───────────── Custom High-Readability Institutional Chart Tooltips & Axis Ticks ───────────── */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const BranchYAxisTick: React.FC<any> = React.memo(({ y, payload }: any) => {
-  const raw = String(payload?.value || '');
-  const p = payload?.payload;
-  const name = p?.branchName || (raw.match(/^(.*)\s+\(([^)]+)\)$/)?.[1] ?? raw);
-  const code = p?.branchCode || (raw.match(/^(.*)\s+\(([^)]+)\)$/)?.[2] ?? '');
-  const displayName = name.length > 22 ? `${name.slice(0, 21)}…` : name;
-
-  return (
-    <g transform={`translate(0,${y})`}>
-      {/* Branch Name left-aligned */}
-      <text
-        x={0}
-        y={0}
-        dy={3.5}
-        textAnchor="start"
-        fontSize={11}
-        fill="#0f172a"
-        fontWeight={500}
-      >
-        {displayName}
-      </text>
-
-      {/* Branch Code right-aligned in dedicated column for clean vertical alignment */}
-      {code && (
-        <text
-          x={176}
-          y={0}
-          dy={3.5}
-          textAnchor="end"
-          fontSize={10.5}
-          fill="#64748b"
-          fontWeight={400}
-          fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-        >
-          {`(${code})`}
-        </text>
-      )}
-    </g>
-  );
-});
-BranchYAxisTick.displayName = 'BranchYAxisTick';
+/* ───────────── Helper Sub-Components ───────────── */
 
 const TaskPtsCell: React.FC<{ tasks?: number; pts: number; mode?: KpiMetricMode }> = React.memo(({ tasks = 0, pts, mode = 'points' }) => {
   const isTasks = mode === 'tasks';
@@ -4885,17 +4887,17 @@ const CustomTrendTooltip: React.FC<any> = React.memo(({ active, payload, label, 
   const isTasks = metricMode === 'tasks';
   const tasksPerStaff = row.activeStaff > 0 ? Math.round((row.totalTasks / row.activeStaff) * 10) / 10 : 0;
   return (
-    <div className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-xl text-xs min-w-[238px] pointer-events-none">
+    <div className="rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-md p-3.5 shadow-xl text-xs min-w-[242px] pointer-events-none">
       <div className="flex items-center justify-between gap-4 pb-1.5 mb-2 border-b border-slate-100">
-        <span className="font-medium text-slate-900">{label}</span>
-        <span className="font-figure font-semibold text-[#003857] tabular-nums">
+        <span className="font-semibold text-slate-900">{label}</span>
+        <span className="font-figure font-bold text-[#004e75] tabular-nums">
           {isTasks ? `${fmtInt(row.totalTasks)} tasks` : `${fmtPts(row.totalPoints)} pts`}
         </span>
       </div>
       <KpiTooltipCategories row={row} isTasks={isTasks} />
       <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between gap-4 text-[11px] text-slate-500">
         <span>{row.activeStaff} active staff · {row.activeBranches} branches</span>
-        <span className="text-slate-700 shrink-0">
+        <span className="text-slate-700 font-medium shrink-0">
           {isTasks ? `${fmtPts(tasksPerStaff)} tasks/staff` : `${fmtPts(row.ptsPerStaff)} pts/staff`}
         </span>
       </div>
@@ -4903,32 +4905,6 @@ const CustomTrendTooltip: React.FC<any> = React.memo(({ active, payload, label, 
   );
 });
 CustomTrendTooltip.displayName = 'CustomTrendTooltip';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomBranchTooltip: React.FC<any> = React.memo(({ active, payload, metricMode = 'points' }: any) => {
-  if (!active || !payload || !payload.length) return null;
-  const row = payload[0]?.payload;
-  if (!row) return null;
-  const isTasks = metricMode === 'tasks';
-  return (
-    <div className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-xl text-xs min-w-[238px] pointer-events-none">
-      <div className="flex items-center justify-between gap-4 pb-1.5 mb-2 border-b border-slate-100">
-        <span className="font-medium text-slate-900 truncate max-w-[155px]">{row.fullBranchName}</span>
-        <span className="font-figure font-semibold text-[#003857] tabular-nums">
-          {isTasks ? `${fmtInt(row.totalTasks)} tasks` : `${fmtPts(row.totalPoints)} pts`}
-        </span>
-      </div>
-      <KpiTooltipCategories row={row} isTasks={isTasks} />
-      <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between gap-4 text-[11px] text-slate-500">
-        <span>{row.staffCount} active staff</span>
-        <span className="shrink-0 font-medium text-slate-700">
-          {isTasks ? `${fmtPts(row.totalPoints)} total pts` : `${fmtInt(row.totalTasks)} total tasks`}
-        </span>
-      </div>
-    </div>
-  );
-});
-CustomBranchTooltip.displayName = 'CustomBranchTooltip';
 
 /* ───────────── Helper Sub-Components ───────────── */
 
