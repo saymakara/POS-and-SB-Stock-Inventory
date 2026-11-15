@@ -448,13 +448,13 @@ interface ChannelMixCardProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-const CM_VB_W = 468;
-const CM_VB_H = 320;
-const CM_CX = CM_VB_W / 2;
-const CM_CY = CM_VB_H / 2 + 2;
-const CM_R_INNER = 64;
-const CM_R_OUTER = 96;
-const CM_R_TICK = CM_R_OUTER + 6;
+const CM_VB_W = 424;
+const CM_VB_H = 368;
+const CM_CX = 224;
+const CM_CY = 190;
+const CM_R_INNER = 80;
+const CM_R_OUTER = 122;
+const CM_R_TICK = CM_R_OUTER + 5;
 const CM_R_TRACK = (CM_R_INNER + CM_R_OUTER) / 2;
 const CM_TRACK_W = CM_R_OUTER - CM_R_INNER;
 
@@ -538,10 +538,10 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
       }
     }
 
-    const CALLOUT_H = 32;
-    const MIN_GAP = 46;
-    const Y_MIN = 22;
-    const Y_MAX = CM_VB_H - 22;
+    const CALLOUT_H = 30;
+    const MIN_GAP = 42;
+    const Y_MIN = 20;
+    const Y_MAX = CM_VB_H - 20;
 
     const placeSide = (side: 'left' | 'right'): ChannelCalloutLayout[] => {
       const group = items
@@ -582,8 +582,8 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             : Math.max(g.sx + 20, CM_CX + clearDx + 6);
         const ex =
           side === 'left'
-            ? Math.max(114, Math.min(CM_CX - 36, rawEx))
-            : Math.min(CM_VB_W - 114, Math.max(CM_CX + 36, rawEx));
+            ? Math.max(104, Math.min(CM_CX - 34, rawEx))
+            : Math.min(CM_VB_W - 104, Math.max(CM_CX + 34, rawEx));
         const qpx =
           side === 'left'
             ? Math.min(g.sx, Math.max(ex + 10, (g.sx + ex) / 2))
@@ -639,9 +639,9 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
         </div>
       </div>
 
-      <div className="px-2 sm:px-3 pt-1 pb-2 flex-1 flex items-center justify-center">
-        {/* Style 1: Curved Leaders + Floating Pill Callouts */}
-        <div className="relative w-full max-w-[468px] aspect-[468/320] flex items-center justify-center">
+      <div className="px-1.5 sm:px-2 pt-0 pb-2 flex-1 flex items-center justify-center">
+        {/* Style 1: Enlarged Donut + Curved Leaders + Floating Pill Callouts */}
+        <div className="relative w-full max-w-[500px] aspect-[424/368] flex items-center justify-center">
           <svg
             viewBox={`0 0 ${CM_VB_W} ${CM_VB_H}`}
             className="w-full h-full overflow-visible"
@@ -766,7 +766,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             }}
           >
             <span
-              className={`inline-flex items-center gap-1 text-[9.5px] font-bold tracking-wider uppercase truncate max-w-full ${
+              className={`inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-bold tracking-wider uppercase truncate max-w-full ${
                 isLight ? 'text-slate-500' : 'text-slate-400'
               }`}
             >
@@ -779,7 +779,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
               {focusedChannel ? formatChannelLabel(focusedChannel.shortLabel) : 'NO TASKS'}
             </span>
             <span
-              className={`text-[24px] sm:text-[27px] font-bold font-figure leading-none tracking-tight mt-1 tabular-nums ${
+              className={`text-[28px] sm:text-[32px] font-bold font-figure leading-none tracking-tight mt-1 tabular-nums ${
                 isLight ? 'text-slate-900' : 'text-white'
               }`}
             >
@@ -787,7 +787,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             </span>
             {focusedChannel && totalTasks > 0 && (
               <span
-                className={`text-[10px] font-figure font-semibold px-2 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap ${
+                className={`text-[10.5px] font-figure font-semibold px-2.5 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap ${
                   isLight ? 'bg-slate-100/95 text-slate-600' : 'bg-slate-800 text-slate-300'
                 }`}
               >
@@ -931,8 +931,8 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
               ? 'border-[#1e6091] bg-gradient-to-br from-[#eff6ff]/95 to-white shadow-[0_8px_22px_rgba(30,96,145,0.10)] ring-1 ring-[#1e6091]/25'
               : 'border-sky-400/75 bg-gradient-to-br from-sky-950/60 to-slate-900 shadow-[0_8px_22px_rgba(2,132,199,0.18)] ring-1 ring-sky-400/20'
             : isLight
-            ? 'border-slate-200/85 bg-white hover:border-[#1e6091]/55 hover:bg-slate-50/60'
-            : 'border-slate-800 bg-slate-900/65 hover:border-sky-500/45 hover:bg-slate-800/75'
+            ? 'border-slate-300/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] hover:border-[#1e6091]/55 hover:bg-slate-50/60'
+            : 'border-slate-700/85 bg-slate-900/65 hover:border-sky-500/45 hover:bg-slate-800/75'
         }`}
       >
         <div className="flex items-center justify-between gap-1.5 min-w-0">
@@ -3959,7 +3959,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         className="grid grid-cols-1 lg:grid-cols-12 gap-5"
         aria-label="System Operations & Telemetry"
       >
-        {/* Card 3A: Hardware Stock Lifecycle & Product Mix Visualization */}
+        {/* Card 3A: Hardware Readiness (3-Bucket Warehouse to Live Visualization) */}
         <section
           data-stock-card="hardware"
           className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}
@@ -3975,10 +3975,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </div>
               <div className="min-w-0">
                 <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  Hardware Stock Lifecycle
+                  Hardware Readiness
                 </h3>
                 <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  {fmtNum(hardwareSummary.total)} units · POS Terminal vs Sound Box
+                  {fmtNum(hardwareSummary.total)} units · Buffer, Setup &amp; Live
                 </p>
               </div>
             </div>
@@ -3997,249 +3997,202 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
           <div className="px-6 pb-5 flex-1 flex flex-col justify-between gap-3">
             {(() => {
-              const splitTotal = hardwareSummary.pos + hardwareSummary.sb;
-              const posShare = splitTotal > 0 ? Math.round((hardwareSummary.pos / splitTotal) * 100) : 0;
-              const sbShare = splitTotal > 0 ? 100 - posShare : 0;
-              const stages = [
-                {
-                  key: 'HQ_STOCK',
-                  label: 'HQ Stock',
-                  pos: hardwareSummary.posHq,
-                  sb: hardwareSummary.sbHq,
-                  total: hardwareSummary.hq,
-                  dotColor: CHANNEL_COLORS.pos,
-                  tab: 'inventory',
-                },
-                {
-                  key: 'BRANCH_RESERVE',
-                  label: 'Branch Reserve',
-                  pos: hardwareSummary.posReserve,
-                  sb: hardwareSummary.sbReserve,
-                  total: hardwareSummary.reserve,
-                  dotColor: CHANNEL_COLORS.khqr,
-                  tab: 'inventory',
-                },
-                {
-                  key: 'CONFIGURING',
-                  label: 'Push Config',
-                  pos: hardwareSummary.posConfig,
-                  sb: hardwareSummary.sbConfig,
-                  total: hardwareSummary.config,
-                  dotColor: CHANNEL_COLORS.cc,
-                  tab: 'push_configuring',
-                },
-                {
-                  key: 'COMPLETE',
-                  label: 'Deployed Live',
-                  pos: hardwareSummary.posInstalled,
-                  sb: hardwareSummary.sbInstalled,
-                  total: hardwareSummary.installed,
-                  dotColor: CHANNEL_COLORS.mv,
-                  tab: 'merchants',
-                },
-                {
-                  key: 'FAULTY',
-                  label: 'Faulty Units',
-                  pos: hardwareSummary.posFaulty,
-                  sb: hardwareSummary.sbFaulty,
-                  total: hardwareSummary.faulty,
-                  dotColor: '#e11d48',
-                  tab: 'inventory',
-                },
-                {
-                  key: 'LOST',
-                  label: 'Lost Units',
-                  pos: hardwareSummary.posLost,
-                  sb: hardwareSummary.sbLost,
-                  total: hardwareSummary.lost,
-                  dotColor: '#be123c',
-                  tab: 'inventory',
-                },
-              ];
-              const maxStage = Math.max(1, ...stages.map((s) => Math.max(s.total, s.pos + s.sb)));
+              const readyTotal = hardwareSummary.hq + hardwareSummary.reserve;
+              const readyPos = hardwareSummary.posHq + hardwareSummary.posReserve;
+              const readySb = hardwareSummary.sbHq + hardwareSummary.sbReserve;
+              const issueCount = hardwareSummary.faulty + hardwareSummary.lost;
 
               return (
                 <>
-                  {/* POS vs Sound Box fleet split */}
-                  <div className={`${kpiCardClass} rounded-[14px] px-3.5 py-2.5 space-y-2`}>
-                    <div className="flex items-center justify-between gap-2 text-[11px]">
-                      <button
-                        type="button"
-                        onClick={() => onNavigateTab?.('inventory_pos')}
-                        className="inline-flex items-center gap-1.5 min-w-0 cursor-pointer group"
-                      >
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.pos }} />
-                        <span className={`font-semibold whitespace-nowrap transition ${isLight ? 'text-slate-700 group-hover:text-[#184e77]' : 'text-slate-200 group-hover:text-sky-300'}`}>
-                          POS Terminal
-                        </span>
-                        <span className={`font-figure font-bold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                          {fmtNum(hardwareSummary.pos)}
-                        </span>
-                        {splitTotal > 0 && (
-                          <span className={`font-figure text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                            ({posShare}%)
-                          </span>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onNavigateTab?.('inventory_sb')}
-                        className="inline-flex items-center gap-1.5 min-w-0 cursor-pointer group"
-                      >
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.sb }} />
-                        <span className={`font-semibold whitespace-nowrap transition ${isLight ? 'text-slate-700 group-hover:text-[#4F518C]' : 'text-slate-200 group-hover:text-indigo-300'}`}>
-                          Sound Box
-                        </span>
-                        <span className={`font-figure font-bold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                          {fmtNum(hardwareSummary.sb)}
-                        </span>
-                        {splitTotal > 0 && (
-                          <span className={`font-figure text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                            ({sbShare}%)
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                    {splitTotal > 0 && (
-                      <div className="h-2 w-full flex items-center gap-[2px]">
-                        {hardwareSummary.pos > 0 && (
-                          <div
-                            data-stock-bar="pos-split"
-                            className="h-full rounded-l-full transition-all duration-300"
-                            style={{
-                              width: `${Math.max(3, (hardwareSummary.pos / splitTotal) * 100)}%`,
-                              backgroundColor: CHANNEL_COLORS.pos,
-                            }}
-                            title={`POS Terminal: ${fmtNum(hardwareSummary.pos)} (${posShare}%)`}
-                          />
-                        )}
-                        {hardwareSummary.sb > 0 && (
-                          <div
-                            data-stock-bar="sb-split"
-                            className="h-full rounded-r-full transition-all duration-300"
-                            style={{
-                              width: `${Math.max(3, (hardwareSummary.sb / splitTotal) * 100)}%`,
-                              backgroundColor: CHANNEL_COLORS.sb,
-                            }}
-                            title={`Sound Box: ${fmtNum(hardwareSummary.sb)} (${sbShare}%)`}
-                          />
-                        )}
+                  <div className="flex flex-col gap-2.5 flex-1 justify-center" aria-label="Hardware readiness buckets">
+                    {/* Bucket 1: Ready Stock Buffer (HQ + Branches) */}
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab?.('inventory')}
+                      title={`Ready Stock Buffer: ${fmtNum(hardwareSummary.hq)} HQ · ${fmtNum(hardwareSummary.reserve)} Branches (${fmtNum(readyPos)} POS · ${fmtNum(readySb)} SB)`}
+                      className={`w-full text-left ${kpiCardClass} rounded-[15px] px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer transition ${
+                        isLight ? 'hover:border-slate-300' : 'hover:border-slate-600'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className={`text-[12px] font-bold truncate ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
+                          1. Ready Stock Buffer
+                        </div>
+                        <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                          HQ <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.hq)}</strong> · Branches{' '}
+                          <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.reserve)}</strong>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                      <div className="text-right shrink-0">
+                        <div className={`text-[19px] font-extrabold font-figure tabular-nums leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {fmtNum(readyTotal)}
+                        </div>
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                          <span
+                            className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full ${
+                              isLight ? 'bg-[#184e77]/10 text-[#184e77]' : 'bg-[#184e77]/35 text-sky-200'
+                            }`}
+                          >
+                            POS {fmtNum(readyPos)}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full ${
+                              isLight ? 'bg-[#4F518C]/10 text-[#4F518C]' : 'bg-[#4F518C]/35 text-indigo-200'
+                            }`}
+                          >
+                            SB {fmtNum(readySb)}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
 
-                  {/* 6-Stage Stacked Horizontal Bar Graph */}
-                  <div className="space-y-2" aria-label="Hardware lifecycle stage chart">
-                    {stages.map((st) => {
-                      const rowCount = Math.max(st.total, st.pos + st.sb);
-                      const hasTypeSplit = st.pos + st.sb > 0;
-                      const posW = rowCount > 0 && st.pos > 0 ? Math.max(2, (st.pos / maxStage) * 100) : 0;
-                      const sbW = rowCount > 0 && st.sb > 0 ? Math.max(2, (st.sb / maxStage) * 100) : 0;
-                      const fallbackW = !hasTypeSplit && rowCount > 0 ? Math.max(2, (rowCount / maxStage) * 100) : 0;
-
-                      return (
-                        <button
-                          key={st.key}
-                          type="button"
-                          onClick={() => onNavigateTab?.(st.tab)}
-                          title={`${st.label}: ${fmtNum(rowCount)} units (${fmtNum(st.pos)} POS · ${fmtNum(st.sb)} SB)`}
-                          className={`w-full text-left rounded-lg px-2 py-1 -mx-2 transition cursor-pointer group ${
-                            isLight ? 'hover:bg-slate-50/90' : 'hover:bg-slate-800/45'
+                    {/* Bucket 2: Configuring / Push Setup */}
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab?.('push_configuring')}
+                      title={`Configuring / Push Setup: ${fmtNum(hardwareSummary.posConfig)} POS · ${fmtNum(hardwareSummary.sbConfig)} SB`}
+                      className={`w-full text-left ${kpiCardClass} rounded-[15px] px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer transition ${
+                        isLight ? 'hover:border-slate-300' : 'hover:border-slate-600'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className={`text-[12px] font-bold inline-flex items-center gap-2 max-w-full ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              hardwareSummary.config > 0 ? 'bg-amber-500' : isLight ? 'bg-slate-300' : 'bg-slate-600'
+                            }`}
+                          />
+                          <span className="truncate">2. Configuring / Push</span>
+                        </div>
+                        <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                          {queues.pushPend > 0
+                            ? `${fmtNum(queues.pushPend)} awaiting push dispatch`
+                            : 'In transit to merchant activation'}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div
+                          className={`text-[19px] font-extrabold font-figure tabular-nums leading-tight ${
+                            hardwareSummary.config > 0
+                              ? isLight
+                                ? 'text-amber-700'
+                                : 'text-amber-300'
+                              : isLight
+                                ? 'text-slate-400'
+                                : 'text-slate-500'
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2 text-[11px]">
-                            <span className="inline-flex items-center gap-1.5 min-w-0">
+                          {fmtNum(hardwareSummary.config)}
+                        </div>
+                        {(hardwareSummary.posConfig > 0 || hardwareSummary.sbConfig > 0) && (
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            {hardwareSummary.posConfig > 0 && (
                               <span
-                                className="w-1.5 h-1.5 rounded-full shrink-0"
-                                style={{ backgroundColor: st.dotColor }}
-                              />
-                              <span className={`font-semibold truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                                {st.label}
-                              </span>
-                            </span>
-                            <span className="inline-flex items-center gap-2 shrink-0 tabular-nums font-figure">
-                              {hasTypeSplit && (
-                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-                                  {fmtNum(st.pos)} POS · {fmtNum(st.sb)} SB
-                                </span>
-                              )}
-                              <span
-                                className={`font-bold ${
-                                  rowCount === 0
-                                    ? isLight
-                                      ? 'text-slate-400'
-                                      : 'text-slate-500'
-                                    : isLight
-                                      ? 'text-slate-900'
-                                      : 'text-white'
+                                className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full ${
+                                  isLight ? 'bg-[#184e77]/10 text-[#184e77]' : 'bg-[#184e77]/35 text-sky-200'
                                 }`}
                               >
-                                {fmtNum(rowCount)}
+                                POS {fmtNum(hardwareSummary.posConfig)}
                               </span>
-                            </span>
+                            )}
+                            {hardwareSummary.sbConfig > 0 && (
+                              <span
+                                className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full ${
+                                  isLight ? 'bg-[#4F518C]/10 text-[#4F518C]' : 'bg-[#4F518C]/35 text-indigo-200'
+                                }`}
+                              >
+                                SB {fmtNum(hardwareSummary.sbConfig)}
+                              </span>
+                            )}
                           </div>
-                          {rowCount > 0 && (
-                            <div
-                              data-hardware-stage-bar={st.key}
-                              className="mt-1 h-[6px] w-full flex items-center gap-[1.5px]"
-                            >
-                              {hasTypeSplit ? (
-                                <>
-                                  {st.pos > 0 && (
-                                    <div
-                                      className="h-full rounded-full transition-all duration-300"
-                                      style={{ width: `${posW}%`, backgroundColor: CHANNEL_COLORS.pos }}
-                                    />
-                                  )}
-                                  {st.sb > 0 && (
-                                    <div
-                                      className="h-full rounded-full transition-all duration-300"
-                                      style={{ width: `${sbW}%`, backgroundColor: CHANNEL_COLORS.sb }}
-                                    />
-                                  )}
-                                </>
-                              ) : (
-                                <div
-                                  className="h-full rounded-full transition-all duration-300"
-                                  style={{ width: `${fallbackW}%`, backgroundColor: st.dotColor }}
-                                />
-                              )}
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                        )}
+                      </div>
+                    </button>
 
-                  {/* Merchant binding & Push queue footer strip */}
-                  <div className={`pt-2 border-t flex items-center justify-between gap-2 text-[11px] ${kpiFooterBorderClass}`}>
+                    {/* Bucket 3: Deployed Live */}
                     <button
                       type="button"
                       onClick={() => onNavigateTab?.('merchants')}
-                      className={`inline-flex items-center gap-1 truncate cursor-pointer transition ${
+                      title={`Deployed Live: ${fmtNum(hardwareSummary.posInstalled)} POS · ${fmtNum(hardwareSummary.sbInstalled)} SB across ${fmtNum(hardwareSummary.uniqueMerchants)} MIDs`}
+                      className={`w-full text-left rounded-[15px] px-3.5 py-2.5 border flex items-center justify-between gap-3 cursor-pointer transition ${
+                        isLight
+                          ? 'bg-[#2d6a4f]/[0.045] border-[#2d6a4f]/25 hover:border-[#2d6a4f]/45'
+                          : 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-400/50'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className={`text-[12px] font-bold inline-flex items-center gap-2 ${isLight ? 'text-[#1b4332]' : 'text-emerald-200'}`}>
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.mv }} />
+                          <span>3. Deployed Live</span>
+                        </div>
+                        <div className={`text-[10.5px] mt-0.5 truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                          Bound across <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.uniqueMerchants)}</strong> active merchant MIDs
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className={`text-[19px] font-extrabold font-figure tabular-nums leading-tight ${isLight ? 'text-[#2d6a4f]' : 'text-emerald-300'}`}>
+                          {fmtNum(hardwareSummary.installed)}
+                        </div>
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                          <span
+                            className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full border ${
+                              isLight
+                                ? 'bg-white border-slate-300/90 text-[#184e77]'
+                                : 'bg-slate-900/60 border-slate-700 text-sky-200'
+                            }`}
+                          >
+                            {fmtNum(hardwareSummary.posInstalled)} POS
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold font-figure px-2 py-[2px] rounded-full border ${
+                              isLight
+                                ? 'bg-white border-slate-300/90 text-[#4F518C]'
+                                : 'bg-slate-900/60 border-slate-700 text-indigo-200'
+                            }`}
+                          >
+                            {fmtNum(hardwareSummary.sbInstalled)} SB
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Faulty / Lost health strip */}
+                  <div className={`pt-2 border-t flex items-center justify-between gap-2 text-[11px] ${kpiFooterBorderClass}`}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab?.('inventory')}
+                      className={`inline-flex items-center gap-3 cursor-pointer transition ${
                         isLight ? 'text-slate-600 hover:text-[#004e75]' : 'text-slate-300 hover:text-sky-300'
                       }`}
                     >
-                      <Store className="w-3 h-3 shrink-0" aria-hidden="true" />
                       <span>
-                        Bound: <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.boundDevices)}</strong> ·{' '}
-                        <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.uniqueMerchants)}</strong> MIDs
+                        Faulty:{' '}
+                        <strong className={`font-figure ${hardwareSummary.faulty > 0 ? (isLight ? 'text-rose-600' : 'text-rose-400') : (isLight ? 'text-slate-900' : 'text-white')}`}>
+                          {fmtNum(hardwareSummary.faulty)}
+                        </strong>
+                      </span>
+                      <span>
+                        Lost:{' '}
+                        <strong className={`font-figure ${hardwareSummary.lost > 0 ? (isLight ? 'text-rose-600' : 'text-rose-400') : (isLight ? 'text-slate-900' : 'text-white')}`}>
+                          {fmtNum(hardwareSummary.lost)}
+                        </strong>
                       </span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => onNavigateTab?.('push_configuring')}
-                      className={`font-figure font-semibold shrink-0 cursor-pointer transition ${
-                        queues.pushPend > 0
+                      onClick={() => onNavigateTab?.('inventory')}
+                      className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full cursor-pointer transition shrink-0 ${
+                        issueCount === 0
                           ? isLight
-                            ? 'text-amber-700 hover:text-amber-800'
-                            : 'text-amber-300 hover:text-amber-200'
+                            ? 'bg-emerald-100/90 text-emerald-700 hover:bg-emerald-200/80'
+                            : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
                           : isLight
-                            ? 'text-emerald-700'
-                            : 'text-emerald-300'
+                            ? 'bg-rose-100 text-rose-700 hover:bg-rose-200/80'
+                            : 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
                       }`}
                     >
-                      {fmtNum(queues.pushPend)} push queue
+                      {issueCount === 0 ? 'All Units Healthy' : `${fmtNum(issueCount)} Units Flagged`}
                     </button>
                   </div>
                 </>
