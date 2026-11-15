@@ -3,7 +3,6 @@ import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef,
 import { isFresh, markFresh } from '../utils/freshness';
 import { useKeptMemo } from '../utils/useKeptMemo';
 import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Check, X, PencilLine, PackagePlus, ArrowLeftRight, BatteryCharging, Wrench, PauseCircle, RotateCcw } from 'lucide-react';
-import { BigKpiCard } from './BigKpiCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -66,6 +65,14 @@ const KIND_CARD_META: Record<
   SB_MAINT: { icon: Wrench, accentColor: 'violet' },
   SB_RETURN: { icon: RotateCcw, accentColor: 'rose' },
 };
+const BAR_THEME = {
+  emerald: { bar: 'bg-emerald-500', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+  blue: { bar: 'bg-sky-500', text: 'text-sky-600', dot: 'bg-sky-500' },
+  amber: { bar: 'bg-amber-500', text: 'text-amber-600', dot: 'bg-amber-500' },
+  violet: { bar: 'bg-violet-500', text: 'text-violet-600', dot: 'bg-violet-500' },
+  orange: { bar: 'bg-orange-500', text: 'text-orange-600', dot: 'bg-orange-500' },
+  rose: { bar: 'bg-rose-500', text: 'text-rose-600', dot: 'bg-rose-500' },
+} as const;
 const formatKindSummarySub = (stat?: { total: number; pending: number; approved: number; rejected: number }) => {
   if (!stat || stat.total === 0) return 'No records yet';
   const parts: string[] = [];
@@ -427,7 +434,9 @@ export const FieldReviewTab: React.FC<Props> = ({
       else if (e.status === 'APPROVED') bucket.approved++;
       else if (e.status === 'REJECTED') bucket.rejected++;
     });
-    return { total, byKind };
+    let maxKind = 0;
+    Object.values(byKind).forEach((s) => { if (s.total > maxKind) maxKind = s.total; });
+    return { total, maxKind, byKind };
   }, [scoped, deviceType, typeFilter]);
 
   // Keep the sub-menu badges synchronized with the active scope's exact waiting count once full PENDING data + regions load
@@ -810,34 +819,67 @@ export const FieldReviewTab: React.FC<Props> = ({
             </button>
           </div>
         </div>
-        <div
-          className={`grid grid-cols-1 sm:grid-cols-2 ${
-            availableKinds.length <= 4
-              ? 'lg:grid-cols-4'
-              : availableKinds.length <= 6
-              ? 'lg:grid-cols-3 2xl:grid-cols-6'
-              : 'lg:grid-cols-4'
-          } gap-3.5 mt-6 pt-6 border-t border-slate-200/90`}
-        >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-2 mt-5 pt-5 border-t border-slate-200/90">
           {availableKinds.map((k) => {
             const stat = hero.byKind[k];
+            const totalN = stat?.total || 0;
             const meta = KIND_CARD_META[k] || {
               icon: deviceType === 'Sound Box' ? Volume2 : Cpu,
               accentColor: 'blue' as const,
             };
-            const pct = hero.total > 0 && stat?.total ? Math.round((stat.total / hero.total) * 100) : 0;
+            const colors = BAR_THEME[meta.accentColor];
+            const Icon = meta.icon;
+            const pct = hero.total > 0 && totalN > 0 ? Math.round((totalN / hero.total) * 100) : 0;
+            const barWidth =
+              !events || totalN === 0 || hero.maxKind === 0
+                ? 0
+                : Math.max(3, Math.round((totalN / hero.maxKind) * 100));
+            const isActive = recordTypeFilter === k;
+            const dimmed = recordTypeFilter !== 'ALL' && !isActive;
+
             return (
-              <BigKpiCard
+              <button
                 key={k}
-                label={KIND_LABEL[k] || k}
-                value={events ? (stat?.total || 0) : undefined}
-                icon={meta.icon}
-                sub={events ? formatKindSummarySub(stat) : 'Loading…'}
-                accentColor={meta.accentColor}
-                badge={events && hero.total > 0 ? `${pct}%` : undefined}
-                active={recordTypeFilter === k}
+                type="button"
+                aria-pressed={isActive}
                 onClick={() => setRecordTypeFilter((prev) => (prev === k ? 'ALL' : k))}
-              />
+                className={`group w-full text-left px-3 py-2 rounded-xl transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-white/95 ring-1 ring-[#004e75]/35 shadow-2xs'
+                    : 'hover:bg-white/60'
+                } ${dimmed ? 'opacity-55 hover:opacity-100' : ''}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${colors.dot}`} aria-hidden />
+                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#004e75]' : colors.text}`} aria-hidden />
+                    <span
+                      className={`text-xs sm:text-[13px] truncate ${
+                        isActive ? 'font-bold text-[#004e75]' : 'font-semibold text-slate-800'
+                      }`}
+                    >
+                      {KIND_LABEL[k] || k}
+                    </span>
+                    <span className="hidden sm:inline text-[11px] text-slate-500 truncate">
+                      {events ? formatKindSummarySub(stat) : 'Loading…'}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5 shrink-0 font-figure tabular-nums">
+                    <span className="text-sm sm:text-base font-bold text-slate-900">
+                      {events ? totalN.toLocaleString() : '—'}
+                    </span>
+                    <span className="text-[11px] font-medium text-slate-500 w-8 text-right">
+                      {events && hero.total > 0 ? `${pct}%` : ''}
+                    </span>
+                  </div>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-slate-200/80 overflow-hidden mt-1.5">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${isActive ? 'bg-[#004e75]' : colors.bar}`}
+                    style={{ width: `${barWidth}%` }}
+                  />
+                </div>
+              </button>
             );
           })}
         </div>
