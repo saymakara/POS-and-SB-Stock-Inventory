@@ -1203,7 +1203,7 @@ return (
             isLight ? 'bg-white border-slate-200/90' : 'bg-[#141822] border-slate-800'
           }`}>
             <div className="flex items-center gap-2.5">
-              <div className={`p-2 rounded-xl ${isLight ? 'bg-sky-50 text-[#22577A]' : 'bg-sky-950 text-sky-400'}`}>
+              <div className={`p-2 rounded-xl ${isLight ? 'bg-[#184e77]/10 text-[#184e77]' : 'bg-sky-950 text-sky-400'}`}>
                 <SendHorizontal className="w-4 h-4" />
               </div>
               <div>
@@ -1298,7 +1298,7 @@ return (
               className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none shadow-2xs ${
                 pushStatusFilter === 'WAITING'
                   ? isLight
-                    ? 'bg-white border-[#22577A] ring-2 ring-[#22577A]/30 shadow-sm'
+                    ? 'bg-white border-[#184e77] ring-2 ring-[#184e77]/30 shadow-sm'
                     : 'bg-slate-800 border-sky-400 ring-2 ring-sky-400/30 shadow-md'
                   : isLight
                     ? 'bg-white border-slate-200/90 hover:border-slate-300'
@@ -1324,8 +1324,8 @@ return (
               className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none shadow-2xs ${
                 (lockType === 'POS Terminal' ? typeFilter === 'POS Terminal' : typeFilter === 'Sound Box')
                   ? isLight
-                    ? 'bg-white border-[#22577A] ring-2 ring-[#22577A]/30 shadow-sm'
-                    : 'bg-slate-800 border-[#22577A] ring-2 ring-[#22577A]/30 shadow-md'
+                    ? 'bg-white border-[#184e77] ring-2 ring-[#184e77]/30 shadow-sm'
+                    : 'bg-slate-800 border-[#184e77] ring-2 ring-[#184e77]/30 shadow-md'
                   : isLight
                     ? 'bg-white border-slate-200/90 hover:border-slate-300'
                     : 'bg-[#141822] border-slate-800 hover:border-slate-700'
@@ -1334,7 +1334,7 @@ return (
             >
               <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                 <span className="flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full ${lockType === 'POS Terminal' ? 'bg-[#22577A]' : 'bg-[#4F518C]'}`} />
+                  <span className={`w-2 h-2 rounded-full ${lockType === 'POS Terminal' ? 'bg-[#184e77]' : 'bg-[#4F518C]'}`} />
                   {lockType === 'POS Terminal' ? 'POS Terminals' : 'Sound Boxes'}
                 </span>
                 <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
@@ -1497,8 +1497,8 @@ return (
               className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
                 typeFilter === 'POS Terminal'
                   ? isLight
-                    ? 'bg-white border-[#22577A] ring-2 ring-[#22577A]/30 shadow-sm'
-                    : 'bg-slate-800 border-[#22577A] ring-2 ring-[#22577A]/30 shadow-md'
+                    ? 'bg-white border-[#184e77] ring-2 ring-[#184e77]/30 shadow-sm'
+                    : 'bg-slate-800 border-[#184e77] ring-2 ring-[#184e77]/30 shadow-md'
                   : isLight
                     ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
                     : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
@@ -1507,7 +1507,7 @@ return (
             >
               <div className={`text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#22577A]" />
+                  <span className="w-2 h-2 rounded-full bg-[#184e77]" />
                   POS Terminals
                 </span>
                 <span className={`text-[10px] transition-colors ${isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-sky-300/70 group-hover:text-white'}`}>View Table ↓</span>
@@ -1522,8 +1522,8 @@ return (
               className={`group p-3.5 rounded-2xl border transition-all duration-150 text-left cursor-pointer active:scale-[0.98] outline-none ${
                 typeFilter === 'Sound Box'
                   ? isLight
-                    ? 'bg-white border-purple-400 ring-2 ring-purple-400/30 shadow-sm'
-                    : 'bg-slate-800 border-purple-400 ring-2 ring-purple-400/30 shadow-md'
+                    ? 'bg-white border-[#4F518C] ring-2 ring-[#4F518C]/30 shadow-sm'
+                    : 'bg-slate-800 border-[#4F518C] ring-2 ring-[#4F518C]/30 shadow-md'
                   : isLight
                     ? 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
                     : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
@@ -1860,7 +1860,7 @@ return (
                         <div className="flex items-center gap-1.5">
                           <span
                             className={`w-2 h-2 rounded-full shrink-0 ${
-                              isPos ? 'bg-[#22577A]' : 'bg-[#4F518C]'
+                              isPos ? 'bg-[#184e77]' : 'bg-[#4F518C]'
                             }`}
                             title={dev.type}
                           />
@@ -2183,7 +2183,7 @@ return (
                         <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex flex-col">
                           <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total Devices</span>
                           <span className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 mt-1">
-                            <SendHorizontal className="w-3.5 h-3.5 text-[#22577A]" />
+                            <SendHorizontal className="w-3.5 h-3.5 text-[#184e77]" />
                             {configuringDevices.length} {configuringDevices.length === 1 ? 'Unit' : 'Units'}
                           </span>
                           <span className="text-[10px] text-slate-500 mt-0.5">

@@ -261,7 +261,7 @@ const MaterialSummaryCardsStrip: React.FC<{
         >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${hardwareGroup === 'SB' ? 'bg-indigo-50 text-[#4F518C]' : 'bg-sky-50 text-[#155484]'}`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${hardwareGroup === 'SB' ? 'bg-[#4F518C]/10 text-[#4F518C]' : 'bg-[#184e77]/10 text-[#184e77]'}`}>
                 <HardwareIcon className="w-4 h-4" />
               </div>
               <span className="text-xs font-bold text-slate-800 truncate">{hardwareLabel}</span>
@@ -595,7 +595,7 @@ const ProductStockPageComponent: React.FC<{
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1.5 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
-              <Icon className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${group === 'POS' ? 'text-[#003857]' : 'text-[#4F518C]'}`} aria-hidden />
+              <Icon className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${group === 'POS' ? 'text-[#184e77]' : 'text-[#4F518C]'}`} aria-hidden />
               <span>{title}</span>
             </h1>
             <p className="text-xs sm:text-sm leading-relaxed text-slate-600">

@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { useSort, SortTh, type SortState } from '../utils/sort';
 import {
   Device,
   Branch,
@@ -58,7 +57,6 @@ import {
   QrCode,
   Store,
   CreditCard,
-  Smartphone,
   BatteryCharging,
   FileSpreadsheet,
   Building2,
@@ -114,7 +112,6 @@ interface DashboardTabProps {
 
 type DashPeriod = Extract<KpiPeriod, 'TODAY' | 'WEEK' | 'MONTH' | 'ALL'>;
 type ChartMode = 'VELOCITY' | 'HARDWARE_MONTHLY';
-type ActivityPanelMode = 'REQUISITIONS' | 'SERIALS';
 type TimeHorizon = '3M' | '6M' | '12M';
 
 const PERIOD_OPTIONS: { id: DashPeriod; label: string }[] = [
@@ -536,34 +533,24 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
 interface TopBranchesCardProps {
   isLight: boolean;
   cardClass: string;
-  segWrapClass: string;
   activePeriodLabel: string;
-  branchViewMode: 'GRAPH' | 'TABLE';
-  setBranchViewMode: (m: 'GRAPH' | 'TABLE') => void;
-  sortedBranches: BranchPerfRow[];
+  branches: BranchPerfRow[];
   maxBranchTasks: number;
-  brSort: SortState | null;
-  brToggle: (k: string) => void;
   onNavigateTab?: (tab: string) => void;
 }
 
 const TopBranchesCard = React.memo<TopBranchesCardProps>(({
   isLight,
   cardClass,
-  segWrapClass,
   activePeriodLabel,
-  branchViewMode,
-  setBranchViewMode,
-  sortedBranches,
+  branches,
   maxBranchTasks,
-  brSort,
-  brToggle,
   onNavigateTab,
 }) => {
   const [hoveredBranchCode, setHoveredBranchCode] = useState<string | null>(null);
   const hoveredBranch = useMemo(
-    () => (hoveredBranchCode ? sortedBranches.find((b) => b.code === hoveredBranchCode) || null : null),
-    [hoveredBranchCode, sortedBranches]
+    () => (hoveredBranchCode ? branches.find((b) => b.code === hoveredBranchCode) || null : null),
+    [hoveredBranchCode, branches]
   );
 
   return (
@@ -579,220 +566,130 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
           </div>
           <div className="min-w-0">
             <h3 className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              {branchViewMode === 'GRAPH'
-                ? 'Top Branches — Visual Performance Graph'
-                : 'Top Active Branches (All Channels)'}
+              Top Branches — Visual Performance Graph
             </h3>
             <p className="text-xs text-slate-500 truncate">
-              {branchViewMode === 'GRAPH'
-                ? `${activePeriodLabel} stacked cross-channel output · hover or click bar for detail`
-                : `${activePeriodLabel} cross-channel volume alongside current branch hardware reserve`}
+              {activePeriodLabel} stacked cross-channel output · hover or click bar for detail
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className={segWrapClass} role="tablist" aria-label="Branch View Mode">
-            {([
-              { id: 'GRAPH' as const, label: 'Graph View' },
-              { id: 'TABLE' as const, label: 'Table' },
-            ]).map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                role="tab"
-                aria-selected={branchViewMode === m.id}
-                onClick={() => setBranchViewMode(m.id)}
-                className={`px-3 py-1 rounded-full font-semibold cursor-pointer transition-colors duration-150 whitespace-nowrap ${
-                  branchViewMode === m.id
-                    ? isLight
-                      ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
-                      : 'bg-slate-800 text-white'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-
-          {onNavigateTab && (
-            <button
-              type="button"
-              onClick={() => onNavigateTab('branches')}
-              className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150"
-            >
-              All Branches <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-            </button>
-          )}
-        </div>
+        {onNavigateTab && (
+          <button
+            type="button"
+            onClick={() => onNavigateTab('branches')}
+            className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150"
+          >
+            All Branches <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
+        )}
       </div>
 
-      {branchViewMode === 'GRAPH' ? (
-        <div className="flex-1 flex flex-col justify-between px-6 pb-5 pt-1 gap-3">
-          <div className={`flex flex-wrap items-center justify-between gap-2 text-[11px] pb-2.5 border-b ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
-            <div className="flex flex-wrap items-center gap-3 text-slate-500">
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.khqr }} />KHQR</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.sb }} />Sound Box</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.pos }} />POS</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.mv }} />Visit</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.cc }} />CC</span>
-            </div>
-            <div className="text-[11px] font-medium text-slate-500 truncate max-w-full">
-              {hoveredBranch ? (
-                <span className="font-figure text-slate-700">
-                  <strong className="text-slate-900">Code {hoveredBranch.code}</strong> ·{' '}
-                  KHQR {fmtNum(hoveredBranch.khqr)} · POS {fmtNum(hoveredBranch.pos)} · SB {fmtNum(hoveredBranch.sb)} ·{' '}
-                  MV {fmtNum(hoveredBranch.mv)} · CC {fmtNum(hoveredBranch.cc)} · Res {fmtNum(hoveredBranch.reserve)}
-                </span>
-              ) : (
-                <span>Top {sortedBranches.length} Phnom Penh branches · scaled to peak branch</span>
-              )}
-            </div>
+      <div className="flex-1 flex flex-col justify-between px-6 pb-5 pt-1 gap-3">
+        <div className={`flex flex-wrap items-center justify-between gap-2 text-[11px] pb-2.5 border-b ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
+          <div className="flex flex-wrap items-center gap-3 text-slate-500">
+            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.khqr }} />KHQR</span>
+            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.sb }} />Sound Box</span>
+            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.pos }} />POS</span>
+            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.mv }} />Visit</span>
+            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.cc }} />CC</span>
           </div>
-
-          {sortedBranches.length === 0 ? (
-            <div className="py-10 text-center text-xs text-slate-400">
-              No branch activity found for the selected scope.
-            </div>
-          ) : (
-            <div className="space-y-2 flex-1 flex flex-col justify-center">
-              {sortedBranches.map((b, i) => {
-                const totalBarPct = b.totalTasks > 0 ? Math.max(1.5, (b.totalTasks / maxBranchTasks) * 100) : 0;
-                const brTot = Math.max(1, b.totalTasks);
-                const segs = [
-                  { key: 'khqr', val: b.khqr, color: CHANNEL_COLORS.khqr },
-                  { key: 'sb', val: b.sb, color: CHANNEL_COLORS.sb },
-                  { key: 'pos', val: b.pos, color: CHANNEL_COLORS.pos },
-                  { key: 'mv', val: b.mv, color: CHANNEL_COLORS.mv },
-                  { key: 'cc', val: b.cc, color: CHANNEL_COLORS.cc },
-                ].filter((s) => s.val > 0);
-                const isHovered = hoveredBranchCode === b.code;
-
-                return (
-                  <button
-                    key={b.code}
-                    type="button"
-                    data-branch-bar={b.code}
-                    onMouseEnter={() => setHoveredBranchCode(b.code)}
-                    onMouseLeave={() => setHoveredBranchCode(null)}
-                    onClick={() => onNavigateTab?.('branches')}
-                    title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} · KHQR ${fmtNum(b.khqr)} · POS ${fmtNum(b.pos)} · SB ${fmtNum(b.sb)} · MV ${fmtNum(b.mv)} · CC ${fmtNum(b.cc)} · Reserve ${fmtNum(b.reserve)}`}
-                    className={`w-full flex items-center gap-3 px-2 py-1 rounded-xl transition-colors duration-150 cursor-pointer group ${
-                      isHovered
-                        ? isLight
-                          ? 'bg-[#f3f6f9]'
-                          : 'bg-slate-800/70'
-                        : isLight
-                        ? 'hover:bg-slate-50/70'
-                        : 'hover:bg-slate-800/40'
-                    }`}
-                  >
-                    <div className="w-[175px] sm:w-[232px] xl:w-[248px] shrink-0 text-left flex items-center gap-2 min-w-0">
-                      <span
-                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-figure font-bold shrink-0 ${
-                          i === 0
-                            ? 'bg-[#1e6091] text-white'
-                            : i < 3
-                            ? 'bg-slate-200/80 text-slate-700'
-                            : 'text-slate-400'
-                        }`}
-                      >
-                        {i + 1}
-                      </span>
-                      <span className={`text-[12px] font-semibold group-hover:text-[#1e6091] transition-colors truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
-                        {b.name}
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-400 shrink-0 hidden sm:inline">
-                        Code {b.code}
-                      </span>
-                    </div>
-
-                    <div className={`flex-1 h-2.5 rounded-full overflow-hidden flex items-center ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
-                      {totalBarPct > 0 && (
-                        <div
-                          className="h-full rounded-full overflow-hidden flex gap-px transition-[width] duration-200"
-                          style={{ width: `${totalBarPct}%` }}
-                        >
-                          {segs.map((seg) => (
-                            <div
-                              key={seg.key}
-                              className="h-full"
-                              style={{ width: `${(seg.val / brTot) * 100}%`, backgroundColor: seg.color }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className={`w-[54px] shrink-0 text-right font-figure text-[12.5px] font-bold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                      {fmtNum(b.totalTasks)}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <div className="text-[11px] font-medium text-slate-500 truncate max-w-full">
+            {hoveredBranch ? (
+              <span className="font-figure text-slate-700">
+                <strong className="text-slate-900">Code {hoveredBranch.code}</strong> ·{' '}
+                KHQR {fmtNum(hoveredBranch.khqr)} · POS {fmtNum(hoveredBranch.pos)} · SB {fmtNum(hoveredBranch.sb)} ·{' '}
+                MV {fmtNum(hoveredBranch.mv)} · CC {fmtNum(hoveredBranch.cc)} · Res {fmtNum(hoveredBranch.reserve)}
+              </span>
+            ) : (
+              <span>Top {branches.length} Phnom Penh branches · scaled to peak branch</span>
+            )}
+          </div>
         </div>
-      ) : (
-        <div className="overflow-x-auto flex-1">
-          <table className="dash-light-table w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="text-[10.5px] tracking-wider uppercase font-bold">
-                <th className="py-2.5 pl-6 pr-2 w-10">#</th>
-                <SortTh k="name" sort={brSort} onSort={brToggle} className="py-2.5 px-2 font-bold">Branch</SortTh>
-                <SortTh k="khqr" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">KHQR</SortTh>
-                <SortTh k="pos" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">POS</SortTh>
-                <SortTh k="sb" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">SB</SortTh>
-                <SortTh k="mv" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">MV</SortTh>
-                <SortTh k="cc" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">CC</SortTh>
-                <SortTh k="reserve" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">Reserve</SortTh>
-                <SortTh k="total" sort={brSort} onSort={brToggle} align="right" className="py-2.5 pl-2 pr-6 font-bold">Tasks</SortTh>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {sortedBranches.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-10 text-center text-slate-400">
-                    No branch activity found for the selected scope.
-                  </td>
-                </tr>
-              ) : (
-                sortedBranches.map((b, i) => (
-                  <tr key={b.code} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-2.5 pl-6 pr-2">
-                      <span
-                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10.5px] font-figure font-bold ${
-                          i === 0
-                            ? 'bg-[#1e6091] text-white'
-                            : i < 3
-                            ? 'bg-slate-200/80 text-slate-700'
-                            : 'text-slate-400'
-                        }`}
+
+        {branches.length === 0 ? (
+          <div className="py-10 text-center text-xs text-slate-400">
+            No branch activity found for the selected scope.
+          </div>
+        ) : (
+          <div className="space-y-2 flex-1 flex flex-col justify-center">
+            {branches.map((b, i) => {
+              const totalBarPct = b.totalTasks > 0 ? Math.max(1.5, (b.totalTasks / maxBranchTasks) * 100) : 0;
+              const brTot = Math.max(1, b.totalTasks);
+              const segs = [
+                { key: 'khqr', val: b.khqr, color: CHANNEL_COLORS.khqr },
+                { key: 'sb', val: b.sb, color: CHANNEL_COLORS.sb },
+                { key: 'pos', val: b.pos, color: CHANNEL_COLORS.pos },
+                { key: 'mv', val: b.mv, color: CHANNEL_COLORS.mv },
+                { key: 'cc', val: b.cc, color: CHANNEL_COLORS.cc },
+              ].filter((s) => s.val > 0);
+              const isHovered = hoveredBranchCode === b.code;
+
+              return (
+                <button
+                  key={b.code}
+                  type="button"
+                  data-branch-bar={b.code}
+                  onMouseEnter={() => setHoveredBranchCode(b.code)}
+                  onMouseLeave={() => setHoveredBranchCode(null)}
+                  onClick={() => onNavigateTab?.('branches')}
+                  title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} · KHQR ${fmtNum(b.khqr)} · POS ${fmtNum(b.pos)} · SB ${fmtNum(b.sb)} · MV ${fmtNum(b.mv)} · CC ${fmtNum(b.cc)} · Reserve ${fmtNum(b.reserve)}`}
+                  className={`w-full flex items-center gap-3 px-2 py-1 rounded-xl transition-colors duration-150 cursor-pointer group ${
+                    isHovered
+                      ? isLight
+                        ? 'bg-[#f3f6f9]'
+                        : 'bg-slate-800/70'
+                      : isLight
+                      ? 'hover:bg-slate-50/70'
+                      : 'hover:bg-slate-800/40'
+                  }`}
+                >
+                  <div className="w-[175px] sm:w-[232px] xl:w-[248px] shrink-0 text-left flex items-center gap-2 min-w-0">
+                    <span
+                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-figure font-bold shrink-0 ${
+                        i === 0
+                          ? 'bg-[#1e6091] text-white'
+                          : i < 3
+                          ? 'bg-slate-200/80 text-slate-700'
+                          : 'text-slate-400'
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className={`text-[12px] font-semibold group-hover:text-[#1e6091] transition-colors truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
+                      {b.name}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400 shrink-0 hidden sm:inline">
+                      Code {b.code}
+                    </span>
+                  </div>
+
+                  <div className={`flex-1 h-2.5 rounded-full overflow-hidden flex items-center ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
+                    {totalBarPct > 0 && (
+                      <div
+                        className="h-full rounded-full overflow-hidden flex gap-px transition-[width] duration-200"
+                        style={{ width: `${totalBarPct}%` }}
                       >
-                        {i + 1}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <div className="font-bold text-slate-900 truncate max-w-[180px]">{b.name}</div>
-                      <div className="text-[10.5px] font-mono text-slate-400">Code {b.code}</div>
-                    </td>
-                    <td className="py-2.5 px-2 text-right font-figure font-semibold" style={{ color: CHANNEL_COLORS.khqr }}>{fmtNum(b.khqr)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure font-semibold" style={{ color: CHANNEL_COLORS.pos }}>{fmtNum(b.pos)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure font-semibold" style={{ color: CHANNEL_COLORS.sb }}>{fmtNum(b.sb)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-[#2d6a4f] font-semibold">{fmtNum(b.mv)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-[#b45309] font-semibold">{fmtNum(b.cc)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-slate-500">{fmtNum(b.reserve)}</td>
-                    <td className="py-2.5 pl-2 pr-6 text-right font-figure font-extrabold text-slate-900">
-                      {fmtNum(b.totalTasks)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                        {segs.map((seg) => (
+                          <div
+                            key={seg.key}
+                            className="h-full"
+                            style={{ width: `${(seg.val / brTot) * 100}%`, backgroundColor: seg.color }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={`w-[54px] shrink-0 text-right font-figure text-[12.5px] font-bold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {fmtNum(b.totalTasks)}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </section>
   );
 });
@@ -823,9 +720,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [period, setPeriod] = useState<DashPeriod>('MONTH');
   const [chartMode, setChartMode] = useState<ChartMode>('VELOCITY');
   const [timeHorizon, setTimeHorizon] = useState<TimeHorizon>('6M');
-  const [activityPanel, setActivityPanel] = useState<ActivityPanelMode>('REQUISITIONS');
-  const [branchViewMode, setBranchViewMode] = useState<'GRAPH' | 'TABLE'>('GRAPH');
-  const [assetViewMode, setAssetViewMode] = useState<'ALLOCATION' | 'SERIALS'>('ALLOCATION');
+  const [batteryViewMode, setBatteryViewMode] = useState<'STATUS' | 'WATCHLIST'>('STATUS');
 
   const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
   useEffect(() => {
@@ -1221,24 +1116,107 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [activeDevices, timeHorizon]);
 
-  // 24-Month POS Battery lifecycle health
+  // POS Terminal Battery lifecycle status (compliance, age cohorts, placement & oldest watchlist)
   const batterySummary = useMemo(() => {
     let healthy = 0;
     let replaceSoon = 0;
     let critical = 0;
     let noDate = 0;
+    let fresh0to11 = 0;
+    let mid12toWarn = 0;
+    let deployedHealthy = 0;
+    let deployedTotal = 0;
+    let poolHealthy = 0;
+    let poolTotal = 0;
+    let withSerial = 0;
+    let monthsSum = 0;
+    const watchlist: {
+      serial: string;
+      branchId: string;
+      model: string;
+      batterySerial?: string;
+      installedDate: string;
+      monthsUsed: number;
+      lifePercent: number;
+      status: 'HEALTHY' | 'DUE_SOON' | 'EXPIRED';
+    }[] = [];
+
     for (const d of activeDevices) {
       if (d.type !== 'POS Terminal') continue;
+      if (d.batterySerial?.trim()) withSerial++;
+      const isDeployed = d.stage === 'COMPLETE';
+      if (isDeployed) deployedTotal++;
+      else poolTotal++;
+
       if (!d.batteryInstalledDate && !d.stockInDate && !d.deployedDate) {
         noDate++;
         continue;
       }
-      const used = getBatteryLifecycleStatus(d, today).monthsUsed;
-      if (used >= batteryLifespanMonths) critical++;
-      else if (used >= batteryWarningMonths) replaceSoon++;
-      else healthy++;
+      const st = getBatteryLifecycleStatus(d, today);
+      const used = st.monthsUsed;
+      const rem = Math.max(0, batteryLifespanMonths - used);
+      const lifePercent = Math.max(0, Math.min(100, Math.round((rem / Math.max(1, batteryLifespanMonths)) * 100)));
+      monthsSum += used;
+
+      let status: 'HEALTHY' | 'DUE_SOON' | 'EXPIRED' = 'HEALTHY';
+      if (used >= batteryLifespanMonths) {
+        status = 'EXPIRED';
+        critical++;
+      } else if (used >= batteryWarningMonths) {
+        status = 'DUE_SOON';
+        replaceSoon++;
+      } else {
+        healthy++;
+        if (used < 12) fresh0to11++;
+        else mid12toWarn++;
+        if (isDeployed) deployedHealthy++;
+        else poolHealthy++;
+      }
+
+      if (watchlist.length < 7 || used > watchlist[watchlist.length - 1].monthsUsed) {
+        watchlist.push({
+          serial: d.serial,
+          branchId: d.branchId,
+          model: d.model,
+          batterySerial: d.batterySerial,
+          installedDate: st.installedDate,
+          monthsUsed: used,
+          lifePercent,
+          status,
+        });
+        watchlist.sort((a, b) => b.monthsUsed - a.monthsUsed || a.serial.localeCompare(b.serial));
+        if (watchlist.length > 7) watchlist.pop();
+      }
     }
-    return { healthy, replaceSoon, critical, noDate, total: healthy + replaceSoon + critical };
+
+    const total = healthy + replaceSoon + critical;
+    const avgMonthsUsed = total > 0 ? +(monthsSum / total).toFixed(1) : 0;
+    const avgLifePct =
+      total > 0
+        ? Math.max(
+            0,
+            Math.min(100, Math.round(((batteryLifespanMonths - avgMonthsUsed) / Math.max(1, batteryLifespanMonths)) * 100))
+          )
+        : 0;
+
+    return {
+      fleetTotal: total + noDate,
+      total,
+      healthy,
+      replaceSoon,
+      critical,
+      noDate,
+      fresh0to11,
+      mid12toWarn,
+      deployedHealthy,
+      deployedTotal,
+      poolHealthy,
+      poolTotal,
+      withSerial,
+      avgMonthsUsed,
+      avgLifePct,
+      watchlist,
+    };
   }, [activeDevices, today, batteryLifespanMonths, batteryWarningMonths]);
 
   // Scoped SIM counts following Phnom Penh + Active Staff Directory (same rules as SimCardTab)
@@ -1570,21 +1548,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       .slice(0, 10);
   }, [kpiData, branches, allDevices, devices, isAdminLike, ppDirectoryScope, ruleMap, branchScopedId]);
 
-  const { sorted: sortedBranches, sort: brSort, toggle: brToggle } = useSort<(typeof branchLeaderboard)[number]>(
-    branchLeaderboard,
-    {
-      code: (b) => Number(b.code) || b.code,
-      name: (b) => b.name,
-      pos: (b) => b.pos,
-      sb: (b) => b.sb,
-      khqr: (b) => b.khqr,
-      mv: (b) => b.mv,
-      cc: (b) => b.cc,
-      total: (b) => b.totalTasks,
-      reserve: (b) => b.reserve,
-    }
-  );
-
   // Recent updated serials (fast O(N) top-6 single-pass scan preserved)
   const recentDevices = useKeptMemo('dash.recent', () => {
     const getSortKey = (d: Device) => `${d.updatedAt || d.deployedDate || d.pushDate || d.stockInDate || ''}__${d.serial}`;
@@ -1681,82 +1644,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   }, [channelActivity.rows, channelActivity.totalTasks]);
 
   const maxBranchTasks = useMemo(
-    () => Math.max(1, ...sortedBranches.map((b) => b.totalTasks)),
-    [sortedBranches]
+    () => Math.max(1, ...branchLeaderboard.map((b) => b.totalTasks)),
+    [branchLeaderboard]
   );
-
-  const allocationRows = useMemo(() => {
-    const hwTot = Math.max(1, hardwareSummary.total);
-    const simTot = Math.max(1, materialsSummary.simTotal);
-    const batTot = Math.max(1, batterySummary.total);
-    const pct = (part: number, whole: number) => Math.round((part / Math.max(1, whole)) * 100);
-    return [
-      {
-        id: 'hardware',
-        title: `Hardware Stock (${fmtNum(hardwareSummary.total)})`,
-        rightText:
-          hardwareSummary.total > 0
-            ? `${pct(hardwareSummary.hq, hwTot)}% HQ · ${pct(hardwareSummary.reserve, hwTot)}% Res · ${pct(hardwareSummary.config, hwTot)}% Cfg`
-            : 'No units tracked',
-        subtext: `HQ ${fmtNum(hardwareSummary.hq)} · Reserve ${fmtNum(hardwareSummary.reserve)} · Config ${fmtNum(hardwareSummary.config)} · Live ${fmtNum(hardwareSummary.installed)}`,
-        icon: Boxes,
-        iconClass: 'bg-sky-500/15 text-sky-500',
-        segments:
-          hardwareSummary.total > 0
-            ? [
-                { key: 'hq', label: 'HQ', val: hardwareSummary.hq, pct: (hardwareSummary.hq / hwTot) * 100, color: 'bg-[#003857]' },
-                { key: 'res', label: 'Reserve', val: hardwareSummary.reserve, pct: (hardwareSummary.reserve / hwTot) * 100, color: 'bg-[#4f789d]' },
-                { key: 'cfg', label: 'Config', val: hardwareSummary.config, pct: (hardwareSummary.config / hwTot) * 100, color: 'bg-[#a3b3c6]' },
-                { key: 'live', label: 'Live', val: hardwareSummary.installed, pct: (hardwareSummary.installed / hwTot) * 100, color: 'bg-[#4a7369]' },
-              ]
-            : [],
-      },
-      {
-        id: 'sim',
-        title: `SIM Fleet (${fmtNum(materialsSummary.simTotal)} tracked)`,
-        rightText:
-          materialsSummary.simTotal > 0
-            ? `${pct(materialsSummary.simAtMerchant, simTot)}% Merchant Live`
-            : '0 tracked',
-        subtext: `${fmtNum(materialsSummary.simOnHand)} in stock · ${fmtNum(materialsSummary.simInTransit)} in transit · ${fmtNum(materialsSummary.simAtMerchant)} at merchant`,
-        icon: Smartphone,
-        iconClass: 'bg-teal-500/15 text-teal-500',
-        onClickTab: 'sim_cards',
-        segments:
-          materialsSummary.simTotal > 0
-            ? [
-                { key: 'stock', label: 'In Stock', val: materialsSummary.simOnHand, pct: (materialsSummary.simOnHand / simTot) * 100, color: 'bg-[#3b6992]' },
-                { key: 'transit', label: 'In Transit', val: materialsSummary.simInTransit, pct: (materialsSummary.simInTransit / simTot) * 100, color: 'bg-[#b99763]' },
-                { key: 'merchant', label: 'At Merchant', val: materialsSummary.simAtMerchant, pct: (materialsSummary.simAtMerchant / simTot) * 100, color: 'bg-[#003857]' },
-              ]
-            : [],
-      },
-      {
-        id: 'battery',
-        title: `${batteryLifespanMonths}M Battery SLA`,
-        rightText:
-          batterySummary.total > 0
-            ? `${pct(batterySummary.healthy, batTot)}% Healthy (${fmtNum(batterySummary.healthy)})`
-            : '0 dated',
-        subtext: `Healthy <${batteryWarningMonths}M: ${fmtNum(batterySummary.healthy)} · Due Soon: ${fmtNum(batterySummary.replaceSoon)} · Replace >=${batteryLifespanMonths}M: ${fmtNum(batterySummary.critical)}`,
-        icon: BatteryCharging,
-        iconClass:
-          batterySummary.critical > 0
-            ? 'bg-rose-500/15 text-rose-500'
-            : batterySummary.replaceSoon > 0
-              ? 'bg-amber-500/15 text-amber-500'
-              : 'bg-emerald-500/15 text-emerald-500',
-        segments:
-          batterySummary.total > 0
-            ? [
-                { key: 'healthy', label: 'Healthy', val: batterySummary.healthy, pct: (batterySummary.healthy / batTot) * 100, color: 'bg-[#4a7369]' },
-                { key: 'soon', label: 'Due Soon', val: batterySummary.replaceSoon, pct: (batterySummary.replaceSoon / batTot) * 100, color: 'bg-[#b99763]' },
-                { key: 'critical', label: 'Replace', val: batterySummary.critical, pct: (batterySummary.critical / batTot) * 100, color: 'bg-[#9e535c]' },
-              ]
-            : [],
-      },
-    ];
-  }, [hardwareSummary, materialsSummary, batterySummary, batteryLifespanMonths, batteryWarningMonths]);
 
   const isLight = theme !== 'dark';
   const iosCardClass = isLight
@@ -2204,40 +2094,46 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         />
       </div>
 
-      {/* ───────────── 4. ROW 2: TOP BRANCHES PERFORMANCE GRAPH + HARDWARE & SLA ALLOCATION ANALYTICS ───────────── */}
+      {/* ───────────── 4. ROW 2: TOP BRANCHES PERFORMANCE GRAPH + POS TERMINAL BATTERY STATUS ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left 8 Cols: Memoized Top Branches Performance Graph + Table */}
+        {/* Left 8 Cols: Memoized Top Branches Performance Graph */}
         <TopBranchesCard
           isLight={isLight}
           cardClass={iosCardClass}
-          segWrapClass={iosSegWrapClass}
           activePeriodLabel={activePeriodLabel}
-          branchViewMode={branchViewMode}
-          setBranchViewMode={setBranchViewMode}
-          sortedBranches={sortedBranches}
+          branches={branchLeaderboard}
           maxBranchTasks={maxBranchTasks}
-          brSort={brSort}
-          brToggle={brToggle}
           onNavigateTab={onNavigateTab}
         />
 
-        {/* Right 4 Cols: Hardware & SLA Allocation Analytics (with Stock Requests / Serials Toggle) */}
+        {/* Right 4 Cols: POS Terminal Battery Lifecycle Status */}
         <section className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
-          <div className="px-5 pt-4 pb-2.5 flex flex-wrap xl:flex-nowrap items-center justify-between gap-1.5">
+          <div className="px-5 pt-4 pb-2.5 flex flex-wrap xl:flex-nowrap items-center justify-between gap-2">
             <div className="min-w-0">
               <h3
-                className={`text-[14px] font-bold tracking-[-0.015em] truncate ${
+                data-battery-card-title
+                className={`text-[13.5px] font-bold tracking-[-0.015em] flex items-center gap-1.5 whitespace-nowrap ${
                   isLight ? 'text-slate-900' : 'text-white'
                 }`}
               >
-                Hardware &amp; SLA
+                <BatteryCharging
+                  className={`w-4 h-4 shrink-0 ${
+                    batterySummary.critical > 0
+                      ? isLight ? 'text-rose-600' : 'text-rose-400'
+                      : batterySummary.replaceSoon > 0
+                        ? isLight ? 'text-amber-600' : 'text-amber-400'
+                        : isLight ? 'text-[#2d6a4f]' : 'text-emerald-400'
+                  }`}
+                  aria-hidden="true"
+                />
+                <span>POS Battery Status</span>
               </h3>
               <p
                 className={`text-[11px] truncate ${
                   isLight ? 'text-slate-500' : 'text-slate-400'
                 }`}
               >
-                Allocation, SIM &amp; {batteryLifespanMonths}M SLA
+                {fmtNum(batterySummary.fleetTotal)} POS · {batteryLifespanMonths}M SLA
               </p>
             </div>
 
@@ -2245,20 +2141,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div
                 className={`${iosSegWrapClass} text-[10px] shrink-0`}
                 role="tablist"
-                aria-label="Asset View Mode"
+                aria-label="Battery View Mode"
               >
                 {([
-                  { id: 'ALLOCATION' as const, label: 'Analytics' },
-                  { id: 'SERIALS' as const, label: 'Serials' },
+                  { id: 'STATUS' as const, label: 'Status' },
+                  { id: 'WATCHLIST' as const, label: 'Watchlist' },
                 ]).map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     role="tab"
-                    aria-selected={assetViewMode === m.id}
-                    onClick={() => setAssetViewMode(m.id)}
+                    aria-selected={batteryViewMode === m.id}
+                    onClick={() => setBatteryViewMode(m.id)}
                     className={`px-2 py-0.5 rounded-full font-semibold cursor-pointer transition-all duration-150 whitespace-nowrap ${
-                      assetViewMode === m.id
+                      batteryViewMode === m.id
                         ? isLight
                           ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
                           : 'bg-slate-700 text-white shadow-xs'
@@ -2275,13 +2171,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               {onNavigateTab && (
                 <button
                   type="button"
-                  onClick={() =>
-                    onNavigateTab(
-                      assetViewMode === 'SERIALS' && activityPanel === 'REQUISITIONS'
-                        ? 'requisitions'
-                        : 'inventory'
-                    )
-                  }
+                  onClick={() => onNavigateTab('inventory')}
                   className={`text-[11px] font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
                     isLight
                       ? 'text-[#004e75] hover:text-[#003857]'
@@ -2294,50 +2184,101 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </div>
 
-          {assetViewMode === 'ALLOCATION' ? (
+          {batteryViewMode === 'STATUS' ? (
             <>
-              <div
-                className={`divide-y ${
-                  isLight ? 'divide-slate-100/90' : 'divide-slate-800/70'
-                } flex-1 flex flex-col justify-center`}
-              >
-                {allocationRows.map((row) => {
-                  const Icon = row.icon;
-                  const inner = (
-                    <>
-                      <div className="flex items-center justify-between gap-2 text-[11.5px]">
-                        <span
-                          className={`font-semibold flex items-center gap-2 min-w-0 truncate ${
-                            isLight ? 'text-slate-900' : 'text-slate-100'
-                          }`}
-                        >
-                          <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${row.iconClass}`}>
-                            <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+              {(() => {
+                const datedTot = Math.max(1, batterySummary.total);
+                const pctOf = (v: number, tot = datedTot) =>
+                  tot > 0 ? Math.round((v / tot) * 100) : 0;
+                const healthyPct = batterySummary.total > 0 ? pctOf(batterySummary.healthy) : 0;
+                const midLabelMax = Math.max(12, batteryWarningMonths - 1);
+                const warnLabelMax = Math.max(batteryWarningMonths, batteryLifespanMonths - 1);
+                const cohorts = [
+                  {
+                    key: 'fresh',
+                    label: 'Fresh (0–11M)',
+                    count: batterySummary.fresh0to11,
+                    color: '#2d6a4f',
+                  },
+                  {
+                    key: 'mid',
+                    label: `Mid-Life (12–${midLabelMax}M)`,
+                    count: batterySummary.mid12toWarn,
+                    color: '#1e6091',
+                  },
+                  {
+                    key: 'soon',
+                    label: `Due Soon (${batteryWarningMonths}–${warnLabelMax}M)`,
+                    count: batterySummary.replaceSoon,
+                    color: '#f59e0b',
+                  },
+                  {
+                    key: 'expired',
+                    label: `Expired (${batteryLifespanMonths}M+)`,
+                    count: batterySummary.critical,
+                    color: '#dc2626',
+                  },
+                ];
+
+                return (
+                  <div
+                    className={`divide-y ${
+                      isLight ? 'divide-slate-100/90' : 'divide-slate-800/70'
+                    } flex-1 flex flex-col justify-between`}
+                  >
+                    {/* Section 1: Compliance headline + stacked SLA bar + 3 status tiles */}
+                    <div className="px-5 py-3 space-y-2.5">
+                      <div className="flex items-end justify-between gap-2">
+                        <div className="flex items-baseline gap-2">
+                          <span
+                            className={`text-[28px] font-bold font-figure leading-none tracking-tight ${
+                              isLight ? 'text-slate-900' : 'text-white'
+                            }`}
+                          >
+                            {healthyPct}%
                           </span>
-                          <span className="truncate">{row.title}</span>
-                        </span>
-                        <span
-                          className={`font-figure font-semibold text-[10.5px] whitespace-nowrap shrink-0 ${
-                            isLight ? 'text-slate-600' : 'text-slate-300'
-                          }`}
-                        >
-                          {row.rightText}
-                        </span>
+                          <span
+                            className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-full ${
+                              batterySummary.critical > 0
+                                ? isLight ? 'bg-rose-50 text-rose-700' : 'bg-rose-500/15 text-rose-300'
+                                : batterySummary.replaceSoon > 0
+                                  ? isLight ? 'bg-amber-50 text-amber-800' : 'bg-amber-500/15 text-amber-300'
+                                  : isLight ? 'bg-[#2d6a4f]/10 text-[#2d6a4f]' : 'bg-emerald-500/15 text-emerald-300'
+                            }`}
+                          >
+                            Healthy &lt;{batteryWarningMonths}M
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-[11px] font-figure font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                            {batterySummary.avgLifePct}% avg life
+                          </div>
+                          <div className={`text-[10px] font-figure ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                            Avg {batterySummary.avgMonthsUsed}M / {batteryLifespanMonths}M
+                          </div>
+                        </div>
                       </div>
 
                       <div
-                        className={`h-2 w-full rounded-full ${
+                        className={`h-2.5 w-full rounded-full ${
                           isLight ? 'bg-slate-100' : 'bg-slate-800'
                         } overflow-hidden flex gap-0.5`}
                       >
-                        {row.segments.length > 0 ? (
-                          row.segments.map((seg) =>
+                        {batterySummary.total > 0 ? (
+                          [
+                            { key: 'healthy', val: batterySummary.healthy, color: '#2d6a4f', label: 'Healthy' },
+                            { key: 'soon', val: batterySummary.replaceSoon, color: '#f59e0b', label: 'Due Soon' },
+                            { key: 'expired', val: batterySummary.critical, color: '#dc2626', label: 'Expired' },
+                          ].map((seg) =>
                             seg.val > 0 ? (
                               <div
                                 key={seg.key}
-                                className={`h-full first:rounded-l-full last:rounded-r-full transition-all duration-300 ${seg.color}`}
-                                style={{ width: `${Math.max(1.5, seg.pct)}%` }}
-                                title={`${seg.label}: ${fmtNum(seg.val)} (${Math.round(seg.pct)}%)`}
+                                className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-300"
+                                style={{
+                                  width: `${Math.max(2, (seg.val / datedTot) * 100)}%`,
+                                  backgroundColor: seg.color,
+                                }}
+                                title={`${seg.label}: ${fmtNum(seg.val)} (${pctOf(seg.val)}%)`}
                               />
                             ) : null
                           )
@@ -2350,44 +2291,121 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         )}
                       </div>
 
-                      <div
-                        className={`flex flex-wrap items-center justify-between gap-1.5 text-[10.5px] ${
-                          isLight ? 'text-slate-500' : 'text-slate-400'
-                        }`}
-                      >
-                        <span className="truncate">{row.subtext}</span>
-                        {row.segments.length > 0 && (
-                          <div className="flex items-center gap-2 shrink-0">
-                            {row.segments.map((seg) => (
-                              <span key={seg.key} className="inline-flex items-center gap-1 text-[10px]">
-                                <i className={`w-1.5 h-1.5 rounded-full inline-block ${seg.color}`} />
-                                {seg.label}
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          {
+                            key: 'healthy',
+                            label: 'Healthy',
+                            count: batterySummary.healthy,
+                            share: pctOf(batterySummary.healthy),
+                            dot: '#2d6a4f',
+                          },
+                          {
+                            key: 'soon',
+                            label: 'Due Soon',
+                            count: batterySummary.replaceSoon,
+                            share: pctOf(batterySummary.replaceSoon),
+                            dot: '#f59e0b',
+                          },
+                          {
+                            key: 'expired',
+                            label: 'Expired',
+                            count: batterySummary.critical,
+                            share: pctOf(batterySummary.critical),
+                            dot: '#dc2626',
+                          },
+                        ].map((tile) => (
+                          <div
+                            key={tile.key}
+                            className={`rounded-xl px-2.5 py-2 border ${
+                              isLight
+                                ? 'bg-slate-50/80 border-slate-200/60'
+                                : 'bg-slate-800/45 border-slate-700/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 text-[10.5px] font-medium text-slate-500">
+                              <i
+                                className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
+                                style={{ backgroundColor: tile.dot }}
+                              />
+                              <span className="truncate">{tile.label}</span>
+                            </div>
+                            <div className="mt-1 flex items-baseline justify-between gap-1">
+                              <span className={`text-[15px] font-bold font-figure leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                {fmtNum(tile.count)}
                               </span>
-                            ))}
+                              <span className="text-[10px] font-figure text-slate-400">
+                                {batterySummary.total > 0 ? `${tile.share}%` : '—'}
+                              </span>
+                            </div>
                           </div>
-                        )}
+                        ))}
                       </div>
-                    </>
-                  );
-
-                  return row.onClickTab ? (
-                    <button
-                      key={row.id}
-                      type="button"
-                      onClick={() => onNavigateTab?.(row.onClickTab)}
-                      className={`w-full text-left px-5 py-3.5 space-y-1.5 transition cursor-pointer group ${
-                        isLight ? 'hover:bg-slate-50/75' : 'hover:bg-slate-800/40'
-                      }`}
-                    >
-                      {inner}
-                    </button>
-                  ) : (
-                    <div key={row.id} className="px-5 py-3.5 space-y-1.5">
-                      {inner}
                     </div>
-                  );
-                })}
-              </div>
+
+                    {/* Section 2: Age Cohort Breakdown */}
+                    <div className="px-5 py-3 space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                          Age Distribution
+                        </span>
+                        <span className="font-figure text-slate-400">
+                          {fmtNum(batterySummary.total)} dated
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {cohorts.map((c) => {
+                          const share = batterySummary.total > 0 ? Math.round((c.count / datedTot) * 100) : 0;
+                          const barW = c.count > 0 ? Math.max(3, (c.count / datedTot) * 100) : 0;
+                          return (
+                            <div key={c.key} className="space-y-0.5">
+                              <div className="flex items-center justify-between text-[10.5px]">
+                                <span className={isLight ? 'text-slate-600' : 'text-slate-300'}>
+                                  {c.label}
+                                </span>
+                                <span className={`font-figure font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                                  {fmtNum(c.count)}{' '}
+                                  <span className="text-slate-400 font-normal">({share}%)</span>
+                                </span>
+                              </div>
+                              <div className={`h-1.5 w-full rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
+                                {barW > 0 && (
+                                  <div
+                                    className="h-full rounded-full transition-all duration-300"
+                                    style={{ width: `${barW}%`, backgroundColor: c.color }}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Section 3: Placement split */}
+                    <div className="px-5 py-2.5 grid grid-cols-2 gap-3 text-[11px]">
+                      <div>
+                        <div className="text-slate-400 text-[10px]">Deployed Live</div>
+                        <div className={`font-figure font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {fmtNum(batterySummary.deployedTotal)}{' '}
+                          <span className="text-[10px] font-normal text-slate-500">
+                            ({fmtNum(batterySummary.deployedHealthy)} OK)
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-slate-400 text-[10px]">Branch / HQ Pool</div>
+                        <div className={`font-figure font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {fmtNum(batterySummary.poolTotal)}{' '}
+                          <span className="text-[10px] font-normal text-slate-500">
+                            ({fmtNum(batterySummary.poolHealthy)} OK)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Footer Summary Strip */}
               <div
@@ -2398,99 +2416,62 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 }`}
               >
                 <span>
-                  Materials:{' '}
-                  <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                    {fmtNum(materialsSummary.kitOnHand)}
-                  </strong>{' '}
-                  on hand ·{' '}
-                  <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                    {fmtNum(materialsSummary.kitInTransit)}
-                  </strong>{' '}
-                  transit
+                  {batterySummary.noDate > 0 ? (
+                    <>
+                      Undated:{' '}
+                      <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {fmtNum(batterySummary.noDate)}
+                      </strong>
+                    </>
+                  ) : (
+                    <>
+                      Battery S/N:{' '}
+                      <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {fmtNum(batterySummary.withSerial)}
+                      </strong>{' '}
+                      recorded
+                    </>
+                  )}
                 </span>
                 <button
                   type="button"
-                  onClick={() => {
-                    setAssetViewMode('SERIALS');
-                    setActivityPanel('REQUISITIONS');
-                  }}
+                  onClick={() => setBatteryViewMode('WATCHLIST')}
                   className={`font-semibold cursor-pointer transition inline-flex items-center gap-1 ${
                     isLight
-                      ? 'text-slate-700 hover:text-[#004e75]'
-                      : 'text-slate-300 hover:text-sky-400'
+                      ? 'text-[#004e75] hover:text-[#003857]'
+                      : 'text-sky-400 hover:text-sky-300'
                   }`}
                 >
-                  <span>Stock Requests:</span>
-                  <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                    {fmtNum(reqStats.pending.length)}
-                  </strong>
-                  <span>open</span>
+                  <span>
+                    {batterySummary.critical + batterySummary.replaceSoon > 0
+                      ? `Action Needed (${fmtNum(batterySummary.critical + batterySummary.replaceSoon)})`
+                      : `Oldest POS (${batterySummary.watchlist.length})`}
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>
             </>
           ) : (
             <div className="flex-1 flex flex-col">
               <div
-                className={`px-6 py-2.5 border-y flex items-center justify-between gap-2 ${
+                className={`px-5 py-2 border-y flex items-center justify-between gap-2 text-[11px] ${
                   isLight
-                    ? 'border-slate-100 bg-[#f9fafb]/70'
-                    : 'border-slate-800/70 bg-slate-900/40'
+                    ? 'border-slate-100 bg-[#f9fafb]/70 text-slate-500'
+                    : 'border-slate-800/70 bg-slate-900/40 text-slate-400'
                 }`}
               >
-                <div
-                  className={`${iosSegWrapClass} text-xs`}
-                  role="tablist"
-                  aria-label="Recent Requests or Serials"
-                >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activityPanel === 'REQUISITIONS'}
-                    onClick={() => setActivityPanel('REQUISITIONS')}
-                    className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer transition-all duration-150 inline-flex items-center gap-1.5 ${
-                      activityPanel === 'REQUISITIONS'
-                        ? isLight
-                          ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
-                          : 'bg-slate-700 text-white shadow-xs'
-                        : isLight
-                        ? 'text-slate-500 hover:text-slate-900'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <ScrollText className={`w-3.5 h-3.5 ${isLight ? 'text-amber-600' : 'text-amber-400'}`} aria-hidden="true" />
-                    <span>Stock Requests ({fmtNum(requisitions.length)})</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activityPanel === 'SERIALS'}
-                    onClick={() => setActivityPanel('SERIALS')}
-                    className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer transition-all duration-150 inline-flex items-center gap-1.5 ${
-                      activityPanel === 'SERIALS'
-                        ? isLight
-                          ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
-                          : 'bg-slate-700 text-white shadow-xs'
-                        : isLight
-                        ? 'text-slate-500 hover:text-slate-900'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Package className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} aria-hidden="true" />
-                    <span>Updated Serials</span>
-                  </button>
-                </div>
-
+                <span>Oldest POS batteries ({fmtNum(batterySummary.total)} dated)</span>
                 {onNavigateTab && (
                   <button
                     type="button"
-                    onClick={() => onNavigateTab(activityPanel === 'REQUISITIONS' ? 'requisitions' : 'inventory')}
-                    className={`text-[11.5px] font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition ${
+                    onClick={() => onNavigateTab('inventory')}
+                    className={`font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
                       isLight
                         ? 'text-[#004e75] hover:text-[#003857]'
                         : 'text-sky-400 hover:text-sky-300'
                     }`}
                   >
-                    View All <ArrowUpRight className="w-3 h-3" aria-hidden="true" />
+                    Inventory <ArrowUpRight className="w-3 h-3" aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -2500,127 +2481,62 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   isLight ? 'divide-slate-100/90' : 'divide-slate-800/70'
                 } flex-1 flex flex-col justify-center`}
               >
-                {activityPanel === 'REQUISITIONS' ? (
-                  requisitions.length === 0 ? (
-                    <div className="py-12 px-6 text-center text-xs text-slate-400">
-                      No stock requisitions submitted yet.
-                    </div>
-                  ) : (
-                    requisitions.slice(0, 7).map((req) => (
+                {batterySummary.watchlist.length === 0 ? (
+                  <div className="py-12 px-5 text-center text-xs text-slate-400">
+                    No POS battery install dates recorded yet.
+                  </div>
+                ) : (
+                  batterySummary.watchlist.map((item) => {
+                    const pillCls =
+                      item.status === 'EXPIRED'
+                        ? isLight
+                          ? 'bg-rose-50 text-rose-700 border-rose-200/80'
+                          : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                        : item.status === 'DUE_SOON'
+                          ? isLight
+                            ? 'bg-amber-50 text-amber-800 border-amber-200/80'
+                            : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                          : isLight
+                            ? 'bg-[#2d6a4f]/10 text-[#2d6a4f] border-[#2d6a4f]/20'
+                            : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+                    return (
                       <button
-                        key={req.reqId}
+                        key={item.serial}
                         type="button"
-                        onClick={() => onNavigateTab?.('requisitions')}
-                        className={`w-full text-left px-6 py-3 transition flex items-center justify-between gap-3 cursor-pointer group ${
+                        onClick={() => onSelectDevice(item.serial)}
+                        aria-label={`Open serial ${item.serial}`}
+                        className={`w-full text-left px-5 py-2.5 flex items-center justify-between gap-2.5 transition cursor-pointer group ${
                           isLight ? 'hover:bg-slate-50/75' : 'hover:bg-slate-800/40'
                         }`}
                       >
                         <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                          <div className="flex items-center gap-1.5 text-xs">
                             <span
-                              className={`font-mono font-bold transition ${
+                              className={`font-mono font-bold transition truncate ${
                                 isLight
                                   ? 'text-slate-900 group-hover:text-[#004e75]'
                                   : 'text-white group-hover:text-sky-400'
                               }`}
                             >
-                              {req.reqId}
+                              {item.serial}
                             </span>
                             <span className={isLight ? 'text-slate-300' : 'text-slate-600'}>·</span>
-                            <span className={`font-medium truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                              {req.branchName} ({req.branchId})
+                            <span className="font-mono text-[10.5px] text-slate-400 shrink-0">
+                              Code {item.branchId}
                             </span>
                           </div>
-                          <div className={`text-[11.5px] truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                            <strong className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                              {req.posQty}x POS · {req.sbQty}x Sound Box
-                            </strong>
-                            {req.reason ? ` — ${req.reason}` : ''}
+                          <div className={`text-[10.5px] truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                            Installed {item.installedDate || '—'}
+                            {item.batterySerial ? ` · ${item.batterySerial}` : ` · ${item.model}`}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                              req.status === 'RECEIVED'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
-                                : req.status === 'REJECTED'
-                                ? 'bg-rose-50 text-rose-700 border-rose-200/80'
-                                : req.status === 'PENDING_ADMIN'
-                                ? 'bg-amber-50 text-amber-800 border-amber-200/80'
-                                : 'bg-slate-100 text-slate-700 border-slate-200'
-                            }`}
-                          >
-                            {req.status}
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`text-[10px] font-figure font-semibold px-2 py-0.5 rounded-full border ${pillCls}`}>
+                            {item.monthsUsed}M / {batteryLifespanMonths}M
                           </span>
                           <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#004e75] transition" aria-hidden="true" />
                         </div>
-                      </button>
-                    ))
-                  )
-                ) : recentDevices.length === 0 ? (
-                  <div className="py-12 px-6 text-center text-xs text-slate-400">
-                    No hardware serial updates recorded yet.
-                  </div>
-                ) : (
-                  recentDevices.slice(0, 7).map((dev) => {
-                    const meta = STAGE_META[dev.stage];
-                    const cycleCount = (dev.history || []).length;
-                    return (
-                      <button
-                        key={dev.serial}
-                        type="button"
-                        onClick={() => onSelectDevice(dev.serial)}
-                        aria-label={`Open serial ${dev.serial}`}
-                        className={`w-full text-left px-6 py-2.5 flex items-center justify-between gap-3 transition cursor-pointer group ${
-                          isLight ? 'hover:bg-slate-50/75' : 'hover:bg-slate-800/40'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                              dev.type === 'POS Terminal'
-                                ? isLight
-                                  ? 'bg-sky-500/15 text-sky-600'
-                                  : 'bg-sky-500/20 text-sky-300'
-                                : isLight
-                                  ? 'bg-indigo-500/15 text-indigo-600'
-                                  : 'bg-indigo-500/20 text-indigo-300'
-                            }`}
-                          >
-                            {dev.type === 'POS Terminal' ? (
-                              <Cpu className="w-4 h-4" aria-hidden="true" />
-                            ) : (
-                              <Volume2 className="w-4 h-4" aria-hidden="true" />
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 text-xs">
-                              <span
-                                className={`font-mono font-bold transition ${
-                                  isLight
-                                    ? 'text-slate-900 group-hover:text-[#004e75]'
-                                    : 'text-white group-hover:text-sky-400'
-                                }`}
-                              >
-                                {dev.serial}
-                              </span>
-                              <span className={isLight ? 'text-slate-300' : 'text-slate-600'}>·</span>
-                              <span className={`font-mono text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                                Code {dev.branchId}
-                              </span>
-                              <span className={isLight ? 'text-slate-300' : 'text-slate-600'}>·</span>
-                              <span className="text-[11px] text-slate-400">{cycleCount} events</span>
-                            </div>
-                            <div className={`text-[11px] truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                              {dev.merchantName
-                                ? `${dev.merchantName}${dev.mid ? ` (${dev.mid})` : ''}`
-                                : dev.model}
-                            </div>
-                          </div>
-                        </div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${meta?.badgeClassLight || ''}`}>
-                          {meta?.short || dev.stage}
-                        </span>
                       </button>
                     );
                   })
@@ -2690,7 +2606,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 count: queues.posField,
                 tab: 'mobile_sync',
                 icon: Cpu,
-                iconCls: isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-300',
+                iconCls: isLight ? 'bg-[#184e77]/12 text-[#184e77]' : 'bg-[#184e77]/30 text-[#5cc8ff]',
               },
               {
                 key: 'sb_app',
@@ -2699,7 +2615,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 count: queues.sbField,
                 tab: 'mobile_sync_sb',
                 icon: Volume2,
-                iconCls: isLight ? 'bg-indigo-500/15 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300',
+                iconCls: isLight ? 'bg-[#4F518C]/12 text-[#4F518C]' : 'bg-[#4F518C]/30 text-[#a2a5e0]',
               },
               {
                 key: 'cc_app',
@@ -2827,7 +2743,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               >
                 <div className="flex items-center justify-between gap-1.5">
                   <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>POS Terminals</span>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center ${isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-300'}`}>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center ${isLight ? 'bg-[#184e77]/12 text-[#184e77]' : 'bg-[#184e77]/30 text-[#5cc8ff]'}`}>
                     <Cpu className="w-3 h-3" aria-hidden="true" />
                   </span>
                 </div>
@@ -2848,7 +2764,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               >
                 <div className="flex items-center justify-between gap-1.5">
                   <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Sound Boxes</span>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center ${isLight ? 'bg-indigo-500/15 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300'}`}>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center ${isLight ? 'bg-[#4F518C]/12 text-[#4F518C]' : 'bg-[#4F518C]/30 text-[#a2a5e0]'}`}>
                     <Volume2 className="w-3 h-3" aria-hidden="true" />
                   </span>
                 </div>
@@ -2863,7 +2779,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
             <div className={`${kpiCardClass} rounded-[16px] px-3.5 py-2.5 flex items-center justify-between gap-3`}>
               <div className="flex items-center gap-2.5 min-w-0">
-                <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-violet-500/15 text-violet-600' : 'bg-violet-500/20 text-violet-300'}`}>
+                <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-[#1e6091]/12 text-[#1e6091]' : 'bg-[#1e6091]/30 text-[#74b9ff]'}`}>
                   <Store className="w-3.5 h-3.5" aria-hidden="true" />
                 </span>
                 <div className="min-w-0">

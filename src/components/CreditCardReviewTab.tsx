@@ -35,7 +35,7 @@ const REVIEW_TABS: {
   accentColor: string;
   badgeTone: string;
 }[] = [
-  { v: '', label: 'All', Icon: CreditCard, accentColor: 'text-[#003857]', badgeTone: 'bg-slate-100 text-slate-800 border-slate-200' },
+  { v: '', label: 'All', Icon: CreditCard, accentColor: 'text-[#f59e0b]', badgeTone: 'bg-slate-100 text-slate-800 border-slate-200' },
   { v: 'PENDING', label: 'Waiting review', Icon: Clock, accentColor: 'text-amber-500', badgeTone: 'bg-amber-50 text-amber-700 border-amber-200' },
   { v: 'WAITING_DOCS', label: 'Waiting documents', Icon: Inbox, accentColor: 'text-sky-600', badgeTone: 'bg-sky-50 text-sky-700 border-sky-200' },   // (11 Nov 2026)
   { v: 'CONFIRMED', label: 'Confirmed', Icon: CheckCircle2, accentColor: 'text-emerald-600', badgeTone: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -184,7 +184,7 @@ export const CreditCardReviewTab: React.FC<Props> = ({ role, branches, triggerTo
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
-              <CreditCard className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+              <CreditCard className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#f59e0b]" aria-hidden />
               <span>Credit Card</span>
             </h1>
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">

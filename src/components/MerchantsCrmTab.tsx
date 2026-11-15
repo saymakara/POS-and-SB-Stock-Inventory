@@ -1035,7 +1035,7 @@ return (
                   yAxisId="left"
                   dataKey="posDeployed"
                   name="POS Terminal Deployed"
-                  fill="#22577A"
+                  fill="#184e77"
                   radius={[5, 5, 0, 0]}
                   barSize={22}
                 />
@@ -1220,8 +1220,8 @@ return (
                     </td>
                     <td className="whitespace-nowrap">
                       {m.posCount > 0 && (
-                        <div className="cell-main font-semibold flex items-center gap-1.5 text-[#22577A] dark:text-[#5cc8ff]">
-                          <Cpu className="w-3.5 h-3.5 text-[#22577A] shrink-0" aria-hidden />
+                        <div className="cell-main font-semibold flex items-center gap-1.5 text-[#184e77] dark:text-[#5cc8ff]">
+                          <Cpu className="w-3.5 h-3.5 text-[#184e77] shrink-0" aria-hidden />
                           <span>POS Terminal{m.posCount > 1 ? ` ×${m.posCount}` : ''}</span>
                         </div>
                       )}

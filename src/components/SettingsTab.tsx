@@ -1605,7 +1605,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               : 'text-slate-700 hover:text-slate-900'
                           }`}
                         >
-                          <Icon className={`w-3 h-3 shrink-0 transition-colors ${active ? 'text-white' : (dt === 'POS' ? 'text-sky-600' : 'text-indigo-600')}`} aria-hidden />
+                          <Icon className={`w-3 h-3 shrink-0 transition-colors ${active ? 'text-white' : (dt === 'POS' ? 'text-[#184e77]' : 'text-[#4F518C]')}`} aria-hidden />
                           <span>{dt === 'POS' ? 'POS Terminal' : 'Sound Box'}</span>
                         </button>
                       );

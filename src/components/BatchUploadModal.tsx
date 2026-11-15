@@ -1536,12 +1536,12 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2 text-xs">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#22577A]/10 dark:bg-[#22577A]/30 border border-[#22577A]/20 dark:border-[#22577A]/40 text-[#22577A] dark:text-[#5cc8ff] font-mono font-bold text-[11px]">
-                  <Cpu className="w-3 h-3 text-[#22577A] dark:text-[#5cc8ff]" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#184e77]/10 dark:bg-[#184e77]/30 border border-[#184e77]/20 dark:border-[#184e77]/40 text-[#184e77] dark:text-[#5cc8ff] font-mono font-bold text-[11px]">
+                  <Cpu className="w-3 h-3 text-[#184e77] dark:text-[#5cc8ff]" />
                   <span>{validPosCount} POS</span>
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#4F518C]/10 dark:bg-[#4F518C]/30 border border-[#4F518C]/20 dark:border-[#4F518C]/40 text-[#4F518C] dark:text-[#58b2e5] font-mono font-bold text-[11px]">
-                  <Volume2 className="w-3 h-3 text-[#4F518C] dark:text-[#58b2e5]" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#4F518C]/10 dark:bg-[#4F518C]/30 border border-[#4F518C]/20 dark:border-[#4F518C]/40 text-[#4F518C] dark:text-[#a2a5e0] font-mono font-bold text-[11px]">
+                  <Volume2 className="w-3 h-3 text-[#4F518C] dark:text-[#a2a5e0]" />
                   <span>{validSbCount} Sound Box</span>
                 </span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 font-mono font-bold text-[11px]">
@@ -1962,11 +1962,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     )}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-[#22577A] text-white">
+                        <span className="p-1.5 rounded-lg bg-[#184e77] text-white">
                           <Cpu className="w-4 h-4" />
                         </span>
                         <div>
-                          <div className="text-xs font-extrabold text-[#22577A] dark:text-[#5cc8ff]">
+                          <div className="text-xs font-extrabold text-[#184e77] dark:text-[#5cc8ff]">
                             Field 1: POS Terminal Serials
                           </div>
                           <div className="text-[10px] text-slate-500">
@@ -2082,7 +2082,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <Volume2 className="w-4 h-4" />
                         </span>
                         <div>
-                          <div className="text-xs font-extrabold text-[#4F518C] dark:text-[#58b2e5]">
+                          <div className="text-xs font-extrabold text-[#4F518C] dark:text-[#a2a5e0]">
                             Field 2: Sound Box Serials
                           </div>
                           <div className="text-[10px] text-slate-500">
@@ -2352,13 +2352,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <td className="py-1.5 px-3 whitespace-nowrap">
                             <div className="flex items-center gap-1.5">
                               {item.type === 'POS Terminal' ? (
-                                <Cpu className="w-3.5 h-3.5 text-[#22577A] shrink-0" />
+                                <Cpu className="w-3.5 h-3.5 text-[#184e77] shrink-0" />
                               ) : (
                                 <Volume2 className="w-3.5 h-3.5 text-[#4F518C] shrink-0" />
                               )}
                               <span
                                 className={`font-bold text-xs ${
-                                  item.type === 'Sound Box' ? 'text-[#4F518C]' : 'text-[#22577A]'
+                                  item.type === 'Sound Box' ? 'text-[#4F518C]' : 'text-[#184e77]'
                                 }`}
                               >
                                 {item.type}

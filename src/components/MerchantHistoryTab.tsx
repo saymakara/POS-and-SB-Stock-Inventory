@@ -339,7 +339,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <span className={`text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 POS Terminals
               </span>
-              <div className="w-8 h-8 rounded-lg bg-[#22577A]/12 text-[#22577A] dark:text-[#5cc8ff] flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-[#184e77]/12 text-[#184e77] dark:text-[#5cc8ff] flex items-center justify-center shrink-0">
                 <Cpu className="w-4 h-4" />
               </div>
             </div>
@@ -348,7 +348,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
             </div>
             <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
               <span>POS hardware units</span>
-              <span className="text-[#22577A] dark:text-[#5cc8ff] font-semibold font-figure">
+              <span className="text-[#184e77] dark:text-[#5cc8ff] font-semibold font-figure">
                 {stats.total > 0 ? `${Math.round((stats.posCount / stats.total) * 100)}%` : '0%'}
               </span>
             </div>
@@ -561,9 +561,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         >
                           {rec.serial}
                         </button>
-                        <div className={`cell-sub flex items-center gap-1 max-w-[160px] truncate ${rec.deviceType === 'Sound Box' ? 'text-[#4F518C] dark:text-[#a2a5e0] font-medium' : rec.deviceType === 'POS Terminal' ? 'text-[#22577A] dark:text-[#5cc8ff] font-medium' : ''}`} title={`${rec.deviceType}${rec.model ? ' · ' + rec.model : ''}`}>
+                        <div className={`cell-sub flex items-center gap-1 max-w-[160px] truncate ${rec.deviceType === 'Sound Box' ? 'text-[#4F518C] dark:text-[#a2a5e0] font-medium' : rec.deviceType === 'POS Terminal' ? 'text-[#184e77] dark:text-[#5cc8ff] font-medium' : ''}`} title={`${rec.deviceType}${rec.model ? ' · ' + rec.model : ''}`}>
                           {rec.deviceType === 'POS Terminal' ? (
-                            <Cpu className="w-3.5 h-3.5 text-[#22577A] dark:text-[#5cc8ff] shrink-0" aria-hidden />
+                            <Cpu className="w-3.5 h-3.5 text-[#184e77] dark:text-[#5cc8ff] shrink-0" aria-hidden />
                           ) : (
                             <Volume2 className="w-3.5 h-3.5 text-[#4F518C] dark:text-[#a2a5e0] shrink-0" aria-hidden />
                           )}
@@ -848,7 +848,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                       <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
                           selectedRecord.deviceType === 'POS Terminal'
-                            ? 'bg-[#22577A]/10 dark:bg-[#22577A]/30 text-[#22577A] dark:text-[#5cc8ff]'
+                            ? 'bg-[#184e77]/10 dark:bg-[#184e77]/30 text-[#184e77] dark:text-[#5cc8ff]'
                             : 'bg-[#4F518C]/10 dark:bg-[#4F518C]/30 text-[#4F518C] dark:text-[#a2a5e0]'
                         }`}>
                           {selectedRecord.deviceType === 'POS Terminal' ? (

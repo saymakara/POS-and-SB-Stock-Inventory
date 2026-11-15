@@ -218,7 +218,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
             <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
-              <QrCode className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#003857]" aria-hidden />
+              <QrCode className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-[#1e6091]" aria-hidden />
               <span>KHQR</span>
             </h1>
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">
@@ -373,7 +373,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
                     <PillMotion layoutId="qr-view-pill" aria-hidden className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs" transition={SPRING} />
                   )}
                   <span className="relative z-10 flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${v === 'entries' ? (active ? 'bg-emerald-300' : 'bg-emerald-600') : v === 'failed' ? (active ? 'bg-rose-300' : 'bg-rose-500') : v === 'wrong' ? (active ? 'bg-orange-300' : 'bg-orange-500') : (active ? 'bg-violet-300' : 'bg-violet-500')}`} aria-hidden />
+                    <span className={`w-2 h-2 rounded-full ${v === 'entries' ? (active ? 'bg-[#74b9ff]' : 'bg-[#1e6091]') : v === 'failed' ? (active ? 'bg-rose-300' : 'bg-rose-500') : v === 'wrong' ? (active ? 'bg-orange-300' : 'bg-orange-500') : (active ? 'bg-violet-300' : 'bg-violet-500')}`} aria-hidden />
                     <span>{label}</span>
                     {n !== undefined && (
                       <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20 text-white font-bold' : 'bg-white text-slate-700 border border-slate-200/80'}`}>

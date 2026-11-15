@@ -1242,7 +1242,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         {currentDevice?.type === 'POS Terminal' ? (
                           <Cpu className="w-3.5 h-3.5 text-[#5cc8ff]" />
                         ) : (
-                          <Volume2 className="w-3.5 h-3.5 text-purple-400" />
+                          <Volume2 className="w-3.5 h-3.5 text-[#a2a5e0]" />
                         )}
                         <span>Hardware &amp; Battery Serial</span>
                       </span>
@@ -1753,8 +1753,8 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
             >
               {[
                 { id: 'ALL', label: 'All Events', count: feedCounts.all, Icon: Wifi, accent: 'text-[#003857] dark:text-sky-400' },
-                { id: 'POS', label: 'POS Terminals', count: feedCounts.pos, Icon: Cpu, accent: 'text-sky-600 dark:text-sky-400' },
-                { id: 'SB', label: 'Sound Boxes', count: feedCounts.sb, Icon: Volume2, accent: 'text-indigo-600 dark:text-indigo-400' },
+                { id: 'POS', label: 'POS Terminals', count: feedCounts.pos, Icon: Cpu, accent: 'text-[#184e77] dark:text-[#5cc8ff]' },
+                { id: 'SB', label: 'Sound Boxes', count: feedCounts.sb, Icon: Volume2, accent: 'text-[#4F518C] dark:text-[#a2a5e0]' },
                 { id: 'DRIFT', label: 'Out-of-Sync Only', count: feedCounts.drift, Icon: AlertTriangle, accent: 'text-amber-500 dark:text-amber-400' },
               ].map((tab) => {
                 const active = feedFilter === tab.id;
@@ -1850,14 +1850,14 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                           <div
                             className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                               isPos
-                                ? 'bg-[#18191e] border-white/15 text-white shadow-xs'
-                                : 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400 shadow-xs'
+                                ? 'bg-[#184e77]/20 border-[#184e77]/40 text-white shadow-xs'
+                                : 'bg-[#4F518C]/20 border-[#4F518C]/35 text-[#a2a5e0] shadow-xs'
                             }`}
                           >
                             {isPos ? (
                               <Cpu className="w-4 h-4 text-[#5cc8ff]" />
                             ) : (
-                              <Volume2 className="w-4 h-4 text-purple-400" />
+                              <Volume2 className="w-4 h-4 text-[#a2a5e0]" />
                             )}
                           </div>
                           <div>

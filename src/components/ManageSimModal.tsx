@@ -666,9 +666,9 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5">
                                     {d.type === 'Sound Box' ? (
-                                      <Volume2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                                      <Volume2 className="w-3.5 h-3.5 text-[#4F518C] dark:text-[#a2a5e0] shrink-0" />
                                     ) : (
-                                      <Cpu className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                                      <Cpu className="w-3.5 h-3.5 text-[#184e77] dark:text-[#5cc8ff] shrink-0" />
                                     )}
                                     <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
                                       {d.serial}
@@ -699,9 +699,9 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="flex items-center gap-2">
                             {assignedDevice.type === 'Sound Box' ? (
-                              <Volume2 className="w-4 h-4 text-purple-600" />
+                              <Volume2 className="w-4 h-4 text-[#4F518C] dark:text-[#a2a5e0]" />
                             ) : (
-                              <Cpu className="w-4 h-4 text-sky-600" />
+                              <Cpu className="w-4 h-4 text-[#184e77] dark:text-[#5cc8ff]" />
                             )}
                             <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
                               {assignedDevice.serial}
@@ -852,7 +852,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         <tr>
                           <td className="py-2.5 font-medium text-slate-500">Assigned Hardware</td>
                           <td className="py-2.5 text-slate-700 dark:text-slate-300">{sim.deviceSerial || 'Unassigned'}</td>
-                          <td className="py-2.5 font-bold text-purple-700 dark:text-purple-400">
+                          <td className="py-2.5 font-bold text-[#4F518C] dark:text-[#a2a5e0]">
                             {assignedDeviceSerial ? `${assignedDevice?.type || 'Device'} (${assignedDeviceSerial})` : 'Unassigned (Pool)'}
                           </td>
                         </tr>

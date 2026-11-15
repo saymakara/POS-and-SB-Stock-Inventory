@@ -630,7 +630,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           {/* POS Terminal Count */}
                           <td className="py-3 px-3.5 text-center">
                             <div className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-800">
-                              <Cpu className="w-3.5 h-3.5 text-[#22577A] shrink-0" />
+                              <Cpu className="w-3.5 h-3.5 text-[#184e77] shrink-0" />
                               <span>{b.posCount}</span>
                             </div>
                           </td>
@@ -1093,12 +1093,12 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#22577A]/10 dark:bg-[#22577A]/30 border border-[#22577A]/20 dark:border-[#22577A]/40 text-[#22577A] dark:text-[#5cc8ff] font-mono font-bold text-[11px]">
-                        <Cpu className="w-3 h-3 text-[#22577A] dark:text-[#5cc8ff]" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#184e77]/10 dark:bg-[#184e77]/30 border border-[#184e77]/20 dark:border-[#184e77]/40 text-[#184e77] dark:text-[#5cc8ff] font-mono font-bold text-[11px]">
+                        <Cpu className="w-3 h-3 text-[#184e77] dark:text-[#5cc8ff]" />
                         <span>{inspectedBranch.posCount} POS</span>
                       </span>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#4F518C]/10 dark:bg-[#4F518C]/30 border border-[#4F518C]/20 dark:border-[#4F518C]/40 text-[#4F518C] dark:text-[#58b2e5] font-mono font-bold text-[11px]">
-                        <Volume2 className="w-3 h-3 text-[#4F518C] dark:text-[#58b2e5]" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#4F518C]/10 dark:bg-[#4F518C]/30 border border-[#4F518C]/20 dark:border-[#4F518C]/40 text-[#4F518C] dark:text-[#a2a5e0] font-mono font-bold text-[11px]">
+                        <Volume2 className="w-3 h-3 text-[#4F518C] dark:text-[#a2a5e0]" />
                         <span>{inspectedBranch.sbCount} Sound Box</span>
                       </span>
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 font-mono font-bold text-[11px]">

@@ -472,7 +472,13 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     const groupW = plotW / count;
     geomRef.current = { padLeft, groupW, count: items.length };
     const barW = Math.min(46, Math.max(10, groupW * 0.72));
-    const labelStep = Math.max(1, Math.ceil(items.length / (plotW < 420 ? 6 : 12)));
+    const xLabelFontPx = groupW >= 40 ? 10 : 9.5;
+    ctx.font = `600 ${xLabelFontPx}px ${chartFont}`;
+    const maxLabelW = items.reduce((mx, it) => Math.max(mx, ctx.measureText(it.label).width), 0);
+    const labelStep =
+      maxLabelW + 5 <= groupW
+        ? 1
+        : Math.max(2, Math.ceil((maxLabelW + 8) / Math.max(1, groupW)));
 
     // Hover highlight band + crisp subtle vertical guide
     if (hover && items[hover.idx]) {
@@ -545,7 +551,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
 
       if (idx % labelStep === 0 || idx === items.length - 1) {
         ctx.fillStyle = hover?.idx === idx ? (isLight ? '#0f172a' : '#ffffff') : axisColor;
-        ctx.font = `${hover?.idx === idx ? '700' : '600'} 10.5px ${chartFont}`;
+        ctx.font = `${hover?.idx === idx ? '700' : '600'} ${xLabelFontPx}px ${chartFont}`;
         const tw = ctx.measureText(item.label).width;
         const lx = Math.min(width - padRight - tw, Math.max(padLeft, cx - tw / 2));
         ctx.fillText(item.label, lx, height - 7);
