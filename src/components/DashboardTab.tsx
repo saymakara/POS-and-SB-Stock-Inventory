@@ -190,6 +190,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [chartMode, setChartMode] = useState<ChartMode>('VELOCITY');
   const [timeHorizon, setTimeHorizon] = useState<TimeHorizon>('6M');
   const [activityPanel, setActivityPanel] = useState<ActivityPanelMode>('REQUISITIONS');
+  const [branchViewMode, setBranchViewMode] = useState<'GRAPH' | 'TABLE'>('GRAPH');
+  const [assetViewMode, setAssetViewMode] = useState<'ALLOCATION' | 'SERIALS'>('ALLOCATION');
+  const [hoveredChannelId, setHoveredChannelId] = useState<string | null>(null);
+  const [hoveredBranchCode, setHoveredBranchCode] = useState<string | null>(null);
 
   const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
   useEffect(() => {
@@ -619,10 +623,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         {
           id: 'khqr',
           label: 'KHQR Onboarding & Replace',
+          shortLabel: 'KHQR',
           tab: 'mobile_sync_khqr',
           icon: QrCode,
           iconWrap: 'bg-emerald-500/10 text-emerald-700',
           barColor: 'bg-emerald-500',
+          hexColor: '#10b981',
           primaryValue: khqrCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(raw.khqrInstall)} new · ${fmtNum(raw.khqrReplace)} replace${raw.khqrMaterials > 0 ? ` · ${fmtNum(raw.khqrMaterials)} QR items` : ''}`,
@@ -631,10 +637,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         {
           id: 'sb',
           label: 'Sound Box Field & Stock',
+          shortLabel: 'Sound Box',
           tab: 'mobile_sync_sb',
           icon: Volume2,
           iconWrap: 'bg-[#4F518C]/10 text-[#4F518C]',
           barColor: 'bg-[#4F518C]',
+          hexColor: '#4F518C',
           primaryValue: sbCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(hardwareSummary.sb)} units in stock · ${fmtNum(queues.sbField)} awaiting review`,
@@ -643,10 +651,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         {
           id: 'pos',
           label: 'POS Terminal Field & Stock',
+          shortLabel: 'POS Terminal',
           tab: 'mobile_sync',
           icon: Cpu,
           iconWrap: 'bg-[#004e75]/10 text-[#004e75]',
           barColor: 'bg-[#004e75]',
+          hexColor: '#004e75',
           primaryValue: posCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(hardwareSummary.pos)} units in stock · ${fmtNum(queues.posField)} awaiting review`,
@@ -655,10 +665,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         {
           id: 'mv',
           label: 'Merchant Visit',
+          shortLabel: 'Merchant Visit',
           tab: 'mobile_sync_visit',
           icon: Store,
           iconWrap: 'bg-sky-500/10 text-sky-700',
           barColor: 'bg-sky-500',
+          hexColor: '#0284c7',
           primaryValue: mvCount,
           primaryUnit: 'visits',
           meta: 'Merchant check-ins & field onboarding visits',
@@ -667,10 +679,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         {
           id: 'cc',
           label: 'Credit Card Acquisition',
+          shortLabel: 'Credit Card',
           tab: 'mobile_sync_cc',
           icon: CreditCard,
           iconWrap: 'bg-amber-500/10 text-amber-700',
           barColor: 'bg-amber-500',
+          hexColor: '#f59e0b',
           primaryValue: ccCount,
           primaryUnit: 'onboarded',
           meta: `${fmtNum(ccSubmittedShow)} applications · ${fmtNum(queues.ccPend)} pending${ccCounts?.waitingDocs ? ` · ${fmtNum(ccCounts.waitingDocs)} waiting docs` : ''}`,
@@ -890,6 +904,121 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       avgStaff: activeDays > 0 ? Math.round(sumStaff / activeDays) : 0,
     };
   }, [velocitySeries]);
+
+  // Derived visual data for CEO Option 1 analytics (Donut ring, Queue load, Branch bar scaling, Asset allocation)
+  const DONUT_RADIUS = 44;
+  const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
+  const { donutSlices, leadChannel, focusedChannel } = useMemo(() => {
+    const total = channelActivity.totalTasks;
+    let accOffset = 0;
+    const slices = channelActivity.rows.map((r) => {
+      const dash = total > 0 && r.primaryValue > 0 ? (r.primaryValue / total) * DONUT_CIRC : 0;
+      const slice = {
+        ...r,
+        dash,
+        offset: accOffset,
+      };
+      accOffset += dash;
+      return slice;
+    });
+    const lead =
+      [...slices].sort((a, b) => b.primaryValue - a.primaryValue)[0] || slices[0];
+    const focused = (hoveredChannelId && slices.find((s) => s.id === hoveredChannelId)) || lead;
+    return { donutSlices: slices, leadChannel: lead, focusedChannel: focused };
+  }, [channelActivity.rows, channelActivity.totalTasks, hoveredChannelId, DONUT_CIRC]);
+
+  const queueSegments = useMemo(() => {
+    const segColors: Record<string, string> = {
+      pos: 'bg-[#004e75]',
+      sb: 'bg-[#4F518C]',
+      cc: 'bg-amber-500',
+      req: 'bg-teal-600',
+    };
+    const total = Math.max(1, queues.total);
+    return actionQueueRows.map((item) => ({
+      ...item,
+      barColor: segColors[item.id] || 'bg-slate-400',
+      pct: queues.total > 0 ? Math.round((item.count / total) * 100) : 0,
+    }));
+  }, [actionQueueRows, queues.total]);
+
+  const maxBranchTasks = useMemo(
+    () => Math.max(1, ...sortedBranches.map((b) => b.totalTasks)),
+    [sortedBranches]
+  );
+
+  const hoveredBranch = useMemo(
+    () => (hoveredBranchCode ? sortedBranches.find((b) => b.code === hoveredBranchCode) || null : null),
+    [hoveredBranchCode, sortedBranches]
+  );
+
+  const allocationRows = useMemo(() => {
+    const hwTot = Math.max(1, hardwareSummary.total);
+    const simTot = Math.max(1, materialsSummary.simTotal);
+    const batTot = Math.max(1, batterySummary.total);
+    const pct = (part: number, whole: number) => Math.round((part / Math.max(1, whole)) * 100);
+    return [
+      {
+        id: 'hardware',
+        title: `Hardware Stock Allocation (${fmtNum(hardwareSummary.total)} units)`,
+        rightText:
+          hardwareSummary.total > 0
+            ? `${pct(hardwareSummary.hq, hwTot)}% HQ · ${pct(hardwareSummary.reserve, hwTot)}% Res · ${pct(hardwareSummary.config, hwTot)}% Cfg`
+            : 'No units tracked',
+        subtext: `HQ ${fmtNum(hardwareSummary.hq)} · Reserve ${fmtNum(hardwareSummary.reserve)} · Config ${fmtNum(hardwareSummary.config)} · Live ${fmtNum(hardwareSummary.installed)}`,
+        icon: Boxes,
+        iconClass: 'text-[#004e75]',
+        segments:
+          hardwareSummary.total > 0
+            ? [
+                { key: 'hq', label: 'HQ', val: hardwareSummary.hq, pct: (hardwareSummary.hq / hwTot) * 100, color: 'bg-[#004e75]' },
+                { key: 'res', label: 'Reserve', val: hardwareSummary.reserve, pct: (hardwareSummary.reserve / hwTot) * 100, color: 'bg-sky-500' },
+                { key: 'cfg', label: 'Config', val: hardwareSummary.config, pct: (hardwareSummary.config / hwTot) * 100, color: 'bg-amber-500' },
+                { key: 'live', label: 'Live', val: hardwareSummary.installed, pct: (hardwareSummary.installed / hwTot) * 100, color: 'bg-emerald-500' },
+              ]
+            : [],
+      },
+      {
+        id: 'sim',
+        title: `SIM Card Fleet Distribution (${fmtNum(materialsSummary.simTotal)} tracked)`,
+        rightText:
+          materialsSummary.simTotal > 0
+            ? `${pct(materialsSummary.simAtMerchant, simTot)}% Merchant Live`
+            : '0 tracked',
+        subtext: `${fmtNum(materialsSummary.simOnHand)} in stock · ${fmtNum(materialsSummary.simInTransit)} in transit · ${fmtNum(materialsSummary.simAtMerchant)} at merchant`,
+        icon: Smartphone,
+        iconClass: 'text-teal-600',
+        onClickTab: 'sim_cards',
+        segments:
+          materialsSummary.simTotal > 0
+            ? [
+                { key: 'stock', label: 'In Stock', val: materialsSummary.simOnHand, pct: (materialsSummary.simOnHand / simTot) * 100, color: 'bg-teal-500' },
+                { key: 'transit', label: 'In Transit', val: materialsSummary.simInTransit, pct: (materialsSummary.simInTransit / simTot) * 100, color: 'bg-amber-500' },
+                { key: 'merchant', label: 'At Merchant', val: materialsSummary.simAtMerchant, pct: (materialsSummary.simAtMerchant / simTot) * 100, color: 'bg-emerald-500' },
+              ]
+            : [],
+      },
+      {
+        id: 'battery',
+        title: `${batteryLifespanMonths}M POS Battery SLA Compliance`,
+        rightText:
+          batterySummary.total > 0
+            ? `${pct(batterySummary.healthy, batTot)}% Healthy (${fmtNum(batterySummary.healthy)})`
+            : '0 dated',
+        subtext: `Healthy <${batteryWarningMonths}M: ${fmtNum(batterySummary.healthy)} · Due Soon: ${fmtNum(batterySummary.replaceSoon)} · Replace >=${batteryLifespanMonths}M: ${fmtNum(batterySummary.critical)}`,
+        icon: BatteryCharging,
+        iconClass: 'text-emerald-600',
+        segments:
+          batterySummary.total > 0
+            ? [
+                { key: 'healthy', label: 'Healthy', val: batterySummary.healthy, pct: (batterySummary.healthy / batTot) * 100, color: 'bg-emerald-500' },
+                { key: 'soon', label: 'Due Soon', val: batterySummary.replaceSoon, pct: (batterySummary.replaceSoon / batTot) * 100, color: 'bg-amber-500' },
+                { key: 'critical', label: 'Replace', val: batterySummary.critical, pct: (batterySummary.critical / batTot) * 100, color: 'bg-rose-500' },
+              ]
+            : [],
+      },
+    ];
+  }, [hardwareSummary, materialsSummary, batterySummary, batteryLifespanMonths, batteryWarningMonths]);
 
   const isLight = theme !== 'dark';
   const kpiCardClass = isLight
@@ -1130,177 +1259,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </section>
       </div>
 
-      {/* ───────────── 3. MIDDLE SPLIT: 5-CHANNEL SHARE MATRIX + HAIRLINE ACTION QUEUE ───────────── */}
+      {/* ───────────── 3. ROW 1: CROSS-CHANNEL DAILY VELOCITY + CHANNEL SHARE DONUT & QUEUE LOAD ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left 7 Cols: 5-Channel Portal Activity */}
+        {/* Left 7 Cols: Cross-Channel Daily Velocity & Active Staff */}
         <section className="lg:col-span-7 surface-card overflow-hidden flex flex-col">
-          <div className="sb-card-header-light px-6 py-3.5 flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900">
-                5-Channel Portal Activity
-              </h3>
-              <p className="text-xs text-slate-500">
-                Share &amp; throughput across KHQR, Sound Box, POS, Merchant Visit &amp; Credit Card
-              </p>
-            </div>
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('kpi_performance')}
-                className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
-              >
-                Full KPI <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-              </button>
-            )}
-          </div>
-
-          {/* Unified Channel Share Composition Ribbon */}
-          <div className="px-6 pt-3.5 pb-2 border-b border-slate-100/90">
-            <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1.5">
-              <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-400">
-                Channel Mix
-              </span>
-              <span className="font-figure font-semibold text-slate-600">
-                {fmtNum(channelActivity.totalTasks)} completed
-              </span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden flex gap-px">
-              {channelActivity.rows.map((row) =>
-                row.sharePct > 0 ? (
-                  <div
-                    key={row.id}
-                    className={`h-full transition-all duration-300 first:rounded-l-full last:rounded-r-full ${row.barColor}`}
-                    style={{ width: `${Math.max(1.2, row.sharePct)}%` }}
-                    title={`${row.label}: ${fmtNum(row.primaryValue)} (${row.sharePct}%)`}
-                  />
-                ) : null
-              )}
-            </div>
-          </div>
-
-          <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
-            {channelActivity.rows.map((row) => {
-              const Icon = row.icon;
-              return (
-                <button
-                  key={row.id}
-                  type="button"
-                  onClick={() => onNavigateTab?.(row.tab)}
-                  className="w-full text-left px-6 py-3 group flex items-center justify-between gap-4 hover:bg-slate-50/80 transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${row.iconWrap}`}>
-                      <Icon className="w-4 h-4" aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-bold text-slate-900 group-hover:text-[#004e75] transition truncate">
-                          {row.label}
-                        </span>
-                      </div>
-                      <div className="text-[11.5px] text-slate-500 truncate mt-0.5">{row.meta}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-semibold text-slate-500 bg-slate-100/90 px-2 py-0.5 rounded-full">
-                      {row.sharePct}%
-                    </span>
-                    <div className="text-right min-w-[82px]">
-                      <div className="text-[14px] font-figure font-extrabold text-slate-900 leading-tight">
-                        {fmtNum(row.primaryValue)}
-                      </div>
-                      <div className="text-[10.5px] text-slate-400 font-medium">{row.primaryUnit}</div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#004e75] group-hover:translate-x-0.5 transition" aria-hidden="true" />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Right 5 Cols: Action Queue — Needs Review (Clean Hairline Rows) */}
-        <section className="lg:col-span-5 surface-card overflow-hidden flex flex-col justify-between">
-          <div className="sb-card-header-light px-6 py-3.5 flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900">
-                Action Queue — Needs Review
-              </h3>
-              <p className="text-xs text-slate-500">
-                Pending approvals &amp; requisitions across the portal
-              </p>
-            </div>
-            <span
-              className={`text-[11px] font-figure font-bold px-2.5 py-0.5 rounded-full ${
-                queues.total > 0
-                  ? 'bg-amber-500/10 text-amber-800'
-                  : 'bg-emerald-500/10 text-emerald-700'
-              }`}
-            >
-              {fmtNum(queues.total)} waiting
-            </span>
-          </div>
-
-          <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
-            {actionQueueRows.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onNavigateTab?.(item.tab)}
-                className="w-full text-left px-6 py-3.5 group hover:bg-slate-50/80 flex items-center justify-between gap-3 transition cursor-pointer"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${item.dotClass}`} />
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-bold text-slate-900 group-hover:text-[#004e75] transition truncate">
-                      {item.label}
-                    </div>
-                    <div className="text-[11.5px] text-slate-500 truncate mt-0.5">{item.sub}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2.5 shrink-0">
-                  <span className={`font-figure text-xs font-bold px-2.5 py-0.5 rounded-full border ${item.badgeClass}`}>
-                    {fmtNum(item.count)}
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#004e75] group-hover:translate-x-0.5 transition" aria-hidden="true" />
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Secondary Operational Alerts Strip (Push Config + Open Lost) */}
-          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center justify-between gap-2 text-[11.5px]">
-            <button
-              type="button"
-              onClick={() => onNavigateTab?.('push_configuring')}
-              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#004e75] font-medium cursor-pointer transition"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#004e75]" aria-hidden="true" />
-              <span>Push Configuring Queue</span>
-              <strong className="font-figure text-slate-900 ml-0.5">{fmtNum(queues.pushPend)}</strong>
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigateTab?.(queues.lostOpen > 0 && (actionQueues?.lostSim || 0) > 0 ? 'sim_cards' : 'inventory')}
-              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-rose-700 font-medium cursor-pointer transition"
-            >
-              <AlertCircle className={`w-3.5 h-3.5 ${queues.lostOpen > 0 ? 'text-rose-600' : 'text-slate-400'}`} aria-hidden="true" />
-              <span>Open Lost Reports</span>
-              <strong className={`font-figure ml-0.5 ${queues.lostOpen > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
-                {fmtNum(queues.lostOpen)}
-              </strong>
-            </button>
-          </div>
-        </section>
-      </div>
-
-      {/* ───────────── 4. THIRD SPLIT: CROSS-CHANNEL VELOCITY CHART + INVENTORY & SIM HEALTH ───────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left 7 Cols: Cross-Channel Velocity vs Monthly Hardware Installs */}
-        <section className="lg:col-span-7 surface-card overflow-hidden flex flex-col">
-          <div className="sb-card-header-light px-5 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+          <div className="sb-card-header-light px-6 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 min-w-0">
               <TrendingUp className="w-4 h-4 text-[#003857] shrink-0" aria-hidden="true" />
               <div className="min-w-0">
@@ -1311,7 +1274,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 </h3>
                 <p className="text-xs text-slate-500 truncate">
                   {chartMode === 'VELOCITY'
-                    ? 'Daily 5-channel volume with active staff trendline'
+                    ? 'Daily 5-channel volume trajectory with active staff trendline'
                     : 'Completed merchant installs over selected horizon'}
                 </p>
               </div>
@@ -1386,7 +1349,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             )}
 
             {chartMode === 'VELOCITY' ? (
-              <CrossChannelVelocityChart items={velocitySeries} height={242} theme={theme} />
+              <CrossChannelVelocityChart items={velocitySeries} height={248} theme={theme} />
             ) : (
               <GroupedBarChart
                 labels={monthlyHardwareChart.labels}
@@ -1396,378 +1359,737 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 series2Label="Sound Box Installed"
                 series2Data={monthlyHardwareChart.sb}
                 series2Color="#4F518C"
-                height={242}
+                height={248}
                 theme={theme}
               />
             )}
           </div>
         </section>
 
-        {/* Right 5 Cols: Inventory, SIM, Materials & Battery Health */}
+        {/* Right 5 Cols: Channel Share Donut & Approval Backlog Graph */}
         <section className="lg:col-span-5 surface-card overflow-hidden flex flex-col justify-between">
           <div className="sb-card-header-light px-6 py-3.5 flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900">
-                Inventory, SIM &amp; Battery Health
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900 truncate">
+                Channel Mix &amp; Queue Load
               </h3>
-              <p className="text-xs text-slate-500">
-                Stock allocation, materials &amp; {batteryLifespanMonths}-month POS battery SLA
+              <p className="text-xs text-slate-500 truncate">
+                Contribution donut + approval weight
               </p>
             </div>
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('inventory')}
-                className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
-              >
-                Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-              </button>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[11px] font-figure font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap">
+                {fmtNum(channelActivity.totalTasks)} tasks
+              </span>
+              {onNavigateTab && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('kpi_performance')}
+                  className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
+                >
+                  Full KPI <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
-            {/* Row 1: Hardware Pipeline */}
-            <div className="px-6 py-3.5 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-900 flex items-center gap-2">
-                  <Boxes className="w-4 h-4 text-[#004e75]" aria-hidden="true" />
-                  POS &amp; Sound Box Pool
+          <div className="px-6 py-4 flex-1 flex flex-col justify-between gap-4">
+            {/* Top: Donut Ring + Interactive 5-Channel Legend */}
+            <div className="flex flex-col sm:flex-row items-center gap-5">
+              <div className="relative w-[132px] h-[132px] shrink-0 flex items-center justify-center">
+                <svg
+                  viewBox="0 0 116 116"
+                  className="w-full h-full overflow-visible"
+                  role="img"
+                  aria-label="5-Channel Contribution Donut Chart"
+                  data-testid="channel-mix-donut"
+                >
+                  <circle
+                    cx="58"
+                    cy="58"
+                    r={DONUT_RADIUS}
+                    fill="none"
+                    stroke={isLight ? '#f1f5f9' : '#1e293b'}
+                    strokeWidth="14"
+                  />
+                  {channelActivity.totalTasks > 0 &&
+                    donutSlices.map((slice) => {
+                      if (slice.dash <= 0) return null;
+                      const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
+                      const visibleDash = Math.max(1.5, slice.dash - 1.2);
+                      return (
+                        <circle
+                          key={slice.id}
+                          cx="58"
+                          cy="58"
+                          r={DONUT_RADIUS}
+                          fill="none"
+                          stroke={slice.hexColor}
+                          strokeWidth={isFocused ? 16 : 14}
+                          strokeDasharray={`${visibleDash} ${DONUT_CIRC}`}
+                          strokeDashoffset={-slice.offset}
+                          transform="rotate(-90 58 58)"
+                          className="cursor-pointer transition-all duration-200"
+                          onMouseEnter={() => setHoveredChannelId(slice.id)}
+                          onMouseLeave={() => setHoveredChannelId(null)}
+                          onClick={() => onNavigateTab?.(slice.tab)}
+                        >
+                          <title>{`${slice.label}: ${fmtNum(slice.primaryValue)} (${slice.sharePct}%)`}</title>
+                        </circle>
+                      );
+                    })}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-3">
+                  <span className="text-[19px] font-extrabold font-figure leading-none text-slate-900">
+                    {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
+                  </span>
+                  <span className="text-[8.5px] font-bold tracking-wider uppercase text-slate-500 mt-1 truncate max-w-[78px]">
+                    {focusedChannel ? `${focusedChannel.shortLabel} SHARE` : 'NO TASKS'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex-1 w-full space-y-1">
+                {donutSlices.map((row) => {
+                  const isActive = hoveredChannelId === row.id || (!hoveredChannelId && leadChannel?.id === row.id);
+                  return (
+                    <button
+                      key={row.id}
+                      type="button"
+                      onClick={() => onNavigateTab?.(row.tab)}
+                      onMouseEnter={() => setHoveredChannelId(row.id)}
+                      onMouseLeave={() => setHoveredChannelId(null)}
+                      title={row.meta}
+                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-left transition cursor-pointer ${
+                        isActive ? 'bg-slate-100/80' : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: row.hexColor }}
+                        />
+                        <span className="text-[12px] font-semibold text-slate-800 truncate">
+                          {row.shortLabel === 'Visit'
+                            ? 'Merchant Visit'
+                            : row.shortLabel === 'CC'
+                            ? 'Credit Card'
+                            : row.shortLabel === 'POS'
+                            ? 'POS Terminal'
+                            : row.shortLabel}
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10.5px] font-mono text-slate-400">
+                          {row.sharePct}%
+                        </span>
+                        <span className="text-[12.5px] font-figure font-extrabold text-slate-900 min-w-[44px] text-right">
+                          {row.id === 'cc' && channelActivity.ccSubmittedShow > 0
+                            ? `${fmtNum(row.primaryValue)} / ${fmtNum(channelActivity.ccSubmittedShow)}`
+                            : fmtNum(row.primaryValue)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bottom: Queue Load Distribution Bar + Clickable Pills */}
+            <div className="pt-3 border-t border-slate-100 space-y-2.5">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="font-bold text-slate-800">
+                  Queue Load Distribution ({fmtNum(queues.total)} Waiting)
                 </span>
-                <span className="font-figure font-extrabold text-slate-900">
-                  {fmtNum(hardwareSummary.total)} <span className="font-medium text-slate-400">units</span>
+                <span className="text-[11px] font-semibold text-amber-700 truncate">
+                  {queues.total > 0
+                    ? queueSegments
+                        .filter((s) => s.count > 0)
+                        .slice(0, 2)
+                        .map((s) => `${s.pct}% ${s.id.toUpperCase()}`)
+                        .join(' · ')
+                    : 'All Clear'}
                 </span>
               </div>
-              <div className="h-2 rounded-full bg-slate-100 overflow-hidden flex gap-px">
-                {hardwareSummary.total > 0 && (
-                  <>
-                    <div
-                      className="h-full bg-[#004e75] first:rounded-l-full"
-                      style={{ width: `${Math.max(2, (hardwareSummary.hq / hardwareSummary.total) * 100)}%` }}
-                      title={`HQ Stock: ${fmtNum(hardwareSummary.hq)}`}
-                    />
-                    <div
-                      className="h-full bg-sky-500"
-                      style={{ width: `${Math.max(2, (hardwareSummary.reserve / hardwareSummary.total) * 100)}%` }}
-                      title={`Branch Reserve: ${fmtNum(hardwareSummary.reserve)}`}
-                    />
-                    {hardwareSummary.installed > 0 && (
+
+              <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden flex gap-0.5">
+                {queues.total > 0 ? (
+                  queueSegments.map((seg) =>
+                    seg.count > 0 ? (
                       <div
-                        className="h-full bg-emerald-500 last:rounded-r-full"
-                        style={{ width: `${Math.max(2, (hardwareSummary.installed / hardwareSummary.total) * 100)}%` }}
-                        title={`Installed Live: ${fmtNum(hardwareSummary.installed)}`}
+                        key={seg.id}
+                        className={`h-full transition-all duration-300 first:rounded-l-full last:rounded-r-full ${seg.barColor}`}
+                        style={{ width: `${Math.max(2, seg.pct)}%` }}
+                        title={`${seg.label}: ${fmtNum(seg.count)} (${seg.pct}%)`}
                       />
-                    )}
-                  </>
+                    ) : null
+                  )
+                ) : (
+                  <div className="h-full w-full bg-emerald-500/20 rounded-full" />
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] text-slate-500">
-                <span className="inline-flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-[#004e75]" />HQ <strong className="font-figure text-slate-700">{fmtNum(hardwareSummary.hq)}</strong></span>
-                <span className="inline-flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-sky-500" />Reserve <strong className="font-figure text-slate-700">{fmtNum(hardwareSummary.reserve)}</strong></span>
-                <span>Config <strong className="font-figure text-slate-700">{fmtNum(hardwareSummary.config)}</strong></span>
-                <span className="inline-flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Live <strong className="font-figure text-emerald-700">{fmtNum(hardwareSummary.installed)}</strong></span>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {queueSegments.map((seg) => (
+                  <button
+                    key={seg.id}
+                    type="button"
+                    onClick={() => onNavigateTab?.(seg.tab)}
+                    title={`${seg.label} — ${seg.sub}`}
+                    className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border transition cursor-pointer hover:opacity-85 ${seg.badgeClass}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${seg.dotClass}`} />
+                    <span>
+                      {seg.id === 'pos'
+                        ? 'POS'
+                        : seg.id === 'sb'
+                        ? 'SB'
+                        : seg.id === 'cc'
+                        ? 'CC'
+                        : 'Stock Req'}
+                    </span>
+                    <span className="font-figure font-extrabold">{fmtNum(seg.count)}</span>
+                  </button>
+                ))}
               </div>
             </div>
+          </div>
 
-            {/* Row 2: SIM Cards */}
+          {/* Secondary Operational Alerts Strip (Push Config + Open Lost) */}
+          <div className="px-6 py-2.5 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center justify-between gap-2 text-[11.5px]">
             <button
               type="button"
-              onClick={() => onNavigateTab?.('sim_cards')}
-              className="w-full text-left px-6 py-3.5 hover:bg-slate-50/80 transition cursor-pointer group flex items-center justify-between gap-3"
+              onClick={() => onNavigateTab?.('push_configuring')}
+              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#004e75] font-medium cursor-pointer transition"
             >
-              <div>
-                <div className="text-xs font-bold text-slate-900 group-hover:text-[#004e75] transition flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-teal-600" aria-hidden="true" />
-                  SIM Card Control Hub
-                </div>
-                <div className="text-[11px] text-slate-500 mt-1">
-                  {fmtNum(materialsSummary.simOnHand)} in stock · {fmtNum(materialsSummary.simInTransit)} in transit ·{' '}
-                  {fmtNum(materialsSummary.simAtMerchant)} at merchant
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs font-figure font-extrabold text-slate-900">
-                  {fmtNum(materialsSummary.simTotal)} <span className="font-medium text-slate-400">tracked</span>
-                </span>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#004e75] transition" aria-hidden="true" />
-              </div>
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#004e75]" aria-hidden="true" />
+              <span>Push Configuring Queue</span>
+              <strong className="font-figure text-slate-900 ml-0.5">{fmtNum(queues.pushPend)}</strong>
             </button>
-
-            {/* Row 3: Materials & Accessories */}
-            <div className="px-6 py-3.5 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                  <Package className="w-4 h-4 text-[#4F518C]" aria-hidden="true" />
-                  Kit Accessories &amp; Materials
-                </div>
-                <div className="text-[11px] text-slate-500 mt-1">
-                  Battery, AC Adaptors, Stands, Docks ·{' '}
-                  <strong className="font-figure text-slate-700">{fmtNum(materialsSummary.kitOnHand)}</strong> on hand ·{' '}
-                  <strong className="font-figure text-slate-700">{fmtNum(materialsSummary.kitInTransit)}</strong> in transit
-                </div>
-              </div>
-              <span className="text-xs font-figure font-extrabold text-slate-900 shrink-0">
-                {materialsSummary.activeTypesCount} <span className="font-medium text-slate-400">types</span>
-              </span>
-            </div>
-
-            {/* Row 4: POS Battery SLA */}
-            <div className="px-6 py-3.5 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-900 flex items-center gap-2">
-                  <BatteryCharging className="w-4 h-4 text-emerald-600" aria-hidden="true" />
-                  POS Battery Health ({batteryLifespanMonths}M SLA)
-                </span>
-                <span className="text-[11px] font-mono text-slate-400">
-                  {fmtNum(batterySummary.total)} dated
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-xl bg-emerald-500/[0.06] border border-emerald-500/15 px-2 py-2">
-                  <div className="text-[13px] font-extrabold font-figure text-emerald-700">{fmtNum(batterySummary.healthy)}</div>
-                  <div className="text-[10px] font-medium text-slate-500">Healthy (&lt;{batteryWarningMonths}M)</div>
-                </div>
-                <div className="rounded-xl bg-amber-500/[0.06] border border-amber-500/15 px-2 py-2">
-                  <div className="text-[13px] font-extrabold font-figure text-amber-700">{fmtNum(batterySummary.replaceSoon)}</div>
-                  <div className="text-[10px] font-medium text-slate-500">Due Soon</div>
-                </div>
-                <div className="rounded-xl bg-rose-500/[0.06] border border-rose-500/15 px-2 py-2">
-                  <div className="text-[13px] font-extrabold font-figure text-rose-700">{fmtNum(batterySummary.critical)}</div>
-                  <div className="text-[10px] font-medium text-slate-500">Replace (≥{batteryLifespanMonths}M)</div>
-                </div>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => onNavigateTab?.(queues.lostOpen > 0 && (actionQueues?.lostSim || 0) > 0 ? 'sim_cards' : 'inventory')}
+              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-rose-700 font-medium cursor-pointer transition"
+            >
+              <AlertCircle className={`w-3.5 h-3.5 ${queues.lostOpen > 0 ? 'text-rose-600' : 'text-slate-400'}`} aria-hidden="true" />
+              <span>Open Lost Reports</span>
+              <strong className={`font-figure ml-0.5 ${queues.lostOpen > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
+                {fmtNum(queues.lostOpen)}
+              </strong>
+            </button>
           </div>
         </section>
       </div>
 
-      {/* ───────────── 5. BOTTOM SPLIT: TOP ACTIVE BRANCHES MATRIX + STOCK REQUESTS / RECENT SERIALS ───────────── */}
+      {/* ───────────── 4. ROW 2: TOP BRANCHES PERFORMANCE GRAPH + HARDWARE & SLA ALLOCATION ANALYTICS ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left 7 Cols: Top Active Branches Across All Channels */}
+        {/* Left 7 Cols: Top Branches — Visual Performance Graph (with Table Toggle) */}
         <section className="lg:col-span-7 surface-card overflow-hidden flex flex-col">
-          <div className="sb-card-header-light px-6 py-3.5 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <Building2 className="w-4 h-4 text-[#003857]" aria-hidden="true" />
-              <div>
-                <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900">
-                  Top Active Branches (All Channels)
+          <div className="sb-card-header-light px-6 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Building2 className="w-4 h-4 text-[#003857] shrink-0" aria-hidden="true" />
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900 truncate">
+                  {branchViewMode === 'GRAPH'
+                    ? 'Top Branches — Visual Performance Graph'
+                    : 'Top Active Branches (All Channels)'}
                 </h3>
-                <p className="text-xs text-slate-500">
-                  {activePeriodLabel} cross-channel volume alongside current branch hardware reserve
+                <p className="text-xs text-slate-500 truncate">
+                  {branchViewMode === 'GRAPH'
+                    ? `${activePeriodLabel} stacked cross-channel output · hover or click bar for detail`
+                    : `${activePeriodLabel} cross-channel volume alongside current branch hardware reserve`}
                 </p>
               </div>
             </div>
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('branches')}
-                className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
-              >
-                All Branches <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-              </button>
-            )}
-          </div>
 
-          <div className="overflow-x-auto flex-1">
-            <table className="dash-light-table w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="text-[10.5px] tracking-wider uppercase font-bold">
-                  <th className="py-2.5 pl-6 pr-2 w-10">#</th>
-                  <SortTh k="name" sort={brSort} onSort={brToggle} className="py-2.5 px-2 font-bold">Branch</SortTh>
-                  <SortTh k="khqr" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">KHQR</SortTh>
-                  <SortTh k="pos" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">POS</SortTh>
-                  <SortTh k="sb" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">SB</SortTh>
-                  <SortTh k="mv" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">MV</SortTh>
-                  <SortTh k="cc" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">CC</SortTh>
-                  <SortTh k="reserve" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">Reserve</SortTh>
-                  <SortTh k="total" sort={brSort} onSort={brToggle} align="right" className="py-2.5 pl-2 pr-6 font-bold">Tasks</SortTh>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sortedBranches.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-10 text-center text-slate-400">
-                      No branch activity found for the selected scope.
-                    </td>
-                  </tr>
-                ) : (
-                  sortedBranches.map((b, i) => (
-                    <tr key={b.code} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-2.5 pl-6 pr-2">
-                        <span
-                          className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10.5px] font-figure font-bold ${
-                            i === 0
-                              ? 'bg-[#003857] text-white'
-                              : i < 3
-                              ? 'bg-slate-200/80 text-slate-700'
-                              : 'text-slate-400'
-                          }`}
-                        >
-                          {i + 1}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-2">
-                        <div className="font-bold text-slate-900 truncate max-w-[180px]">{b.name}</div>
-                        <div className="text-[10.5px] font-mono text-slate-400">Code {b.code}</div>
-                      </td>
-                      <td className="py-2.5 px-2 text-right font-figure text-emerald-700 font-semibold">{fmtNum(b.khqr)}</td>
-                      <td className="py-2.5 px-2 text-right font-figure text-[#004e75] font-semibold">{fmtNum(b.pos)}</td>
-                      <td className="py-2.5 px-2 text-right font-figure text-[#4F518C] font-semibold">{fmtNum(b.sb)}</td>
-                      <td className="py-2.5 px-2 text-right font-figure text-sky-700 font-semibold">{fmtNum(b.mv)}</td>
-                      <td className="py-2.5 px-2 text-right font-figure text-amber-700 font-semibold">{fmtNum(b.cc)}</td>
-                      <td className="py-2.5 px-2 text-right font-figure text-slate-500">{fmtNum(b.reserve)}</td>
-                      <td className="py-2.5 pl-2 pr-6 text-right font-figure font-extrabold text-slate-900">
-                        {fmtNum(b.totalTasks)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+            <div className="flex items-center gap-2 shrink-0">
+              <div
+                className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200/80 text-[11px] shrink-0"
+                role="tablist"
+                aria-label="Branch View Mode"
+              >
+                {([
+                  { id: 'GRAPH' as const, label: 'Graph View' },
+                  { id: 'TABLE' as const, label: 'Table' },
+                ]).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={branchViewMode === m.id}
+                    onClick={() => setBranchViewMode(m.id)}
+                    className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition whitespace-nowrap ${
+                      branchViewMode === m.id ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
 
-        {/* Right 5 Cols: Latest Stock Requests & Recently Updated Serials */}
-        <section className="lg:col-span-5 surface-card overflow-hidden flex flex-col">
-          <div className="sb-card-header-light px-6 py-3 flex items-center justify-between gap-2">
-            <div
-              className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/70 text-xs"
-              role="tablist"
-              aria-label="Recent Requests or Serials"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activityPanel === 'REQUISITIONS'}
-                onClick={() => setActivityPanel('REQUISITIONS')}
-                className={`px-2.5 py-1 rounded-[9px] font-semibold cursor-pointer transition inline-flex items-center gap-1.5 ${
-                  activityPanel === 'REQUISITIONS'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <ScrollText className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Stock Requests ({fmtNum(requisitions.length)})</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activityPanel === 'SERIALS'}
-                onClick={() => setActivityPanel('SERIALS')}
-                className={`px-2.5 py-1 rounded-[9px] font-semibold cursor-pointer transition inline-flex items-center gap-1.5 ${
-                  activityPanel === 'SERIALS'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Package className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Updated Serials</span>
-              </button>
+              {onNavigateTab && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('branches')}
+                  className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
+                >
+                  All Branches <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+              )}
             </div>
-
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab(activityPanel === 'REQUISITIONS' ? 'requisitions' : 'inventory')}
-                className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
-              >
-                View All <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-              </button>
-            )}
           </div>
 
-          <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
-            {activityPanel === 'REQUISITIONS' ? (
-              requisitions.length === 0 ? (
-                <div className="py-12 px-6 text-center text-xs text-slate-400">
-                  No stock requisitions submitted yet.
+          {branchViewMode === 'GRAPH' ? (
+            <div className="flex-1 flex flex-col justify-between px-6 py-4 gap-3">
+              {/* Compact Legend + Dynamic Hover Breakdown Readout */}
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] pb-2 border-b border-slate-100">
+                <div className="flex flex-wrap items-center gap-3 text-slate-600">
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />KHQR</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#004e75] inline-block" />POS</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#4F518C] inline-block" />Sound Box</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-sky-500 inline-block" />Visit</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-amber-500 inline-block" />CC</span>
+                </div>
+                <div className="text-[11px] font-medium text-slate-500 truncate max-w-full">
+                  {hoveredBranch ? (
+                    <span className="font-figure text-slate-700">
+                      <strong className="text-slate-900">Code {hoveredBranch.code}</strong> ·{' '}
+                      KHQR {fmtNum(hoveredBranch.khqr)} · POS {fmtNum(hoveredBranch.pos)} · SB {fmtNum(hoveredBranch.sb)} ·{' '}
+                      MV {fmtNum(hoveredBranch.mv)} · CC {fmtNum(hoveredBranch.cc)} · Res {fmtNum(hoveredBranch.reserve)}
+                    </span>
+                  ) : (
+                    <span>Top {sortedBranches.length} Phnom Penh branches · scaled to peak branch</span>
+                  )}
+                </div>
+              </div>
+
+              {sortedBranches.length === 0 ? (
+                <div className="py-10 text-center text-xs text-slate-400">
+                  No branch activity found for the selected scope.
                 </div>
               ) : (
-                requisitions.slice(0, 7).map((req) => (
-                  <button
-                    key={req.reqId}
-                    type="button"
-                    onClick={() => onNavigateTab?.('requisitions')}
-                    className="w-full text-left px-6 py-3 hover:bg-slate-50/80 transition flex items-center justify-between gap-3 cursor-pointer group"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                        <span className="font-mono font-bold text-slate-900 group-hover:text-[#004e75] transition">{req.reqId}</span>
-                        <span className="text-slate-300">·</span>
-                        <span className="font-medium text-slate-600 truncate">
-                          {req.branchName} ({req.branchId})
-                        </span>
-                      </div>
-                      <div className="text-[11.5px] text-slate-500 truncate mt-0.5">
-                        <strong className="font-semibold text-slate-700">{req.posQty}x POS · {req.sbQty}x Sound Box</strong>
-                        {req.reason ? ` — ${req.reason}` : ''}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                          req.status === 'RECEIVED'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
-                            : req.status === 'REJECTED'
-                            ? 'bg-rose-50 text-rose-700 border-rose-200/80'
-                            : req.status === 'PENDING_ADMIN'
-                            ? 'bg-amber-50 text-amber-800 border-amber-200/80'
-                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                <div className="space-y-2.5 flex-1 flex flex-col justify-center">
+                  {sortedBranches.map((b, i) => {
+                    const totalBarPct = b.totalTasks > 0 ? Math.max(1.5, (b.totalTasks / maxBranchTasks) * 100) : 0;
+                    const brTot = Math.max(1, b.totalTasks);
+                    const segs = [
+                      { key: 'khqr', label: 'KHQR', val: b.khqr, color: 'bg-emerald-500' },
+                      { key: 'pos', label: 'POS', val: b.pos, color: 'bg-[#004e75]' },
+                      { key: 'sb', label: 'SB', val: b.sb, color: 'bg-[#4F518C]' },
+                      { key: 'mv', label: 'MV', val: b.mv, color: 'bg-sky-500' },
+                      { key: 'cc', label: 'CC', val: b.cc, color: 'bg-amber-500' },
+                    ].filter((s) => s.val > 0);
+                    const isHovered = hoveredBranchCode === b.code;
+
+                    return (
+                      <button
+                        key={b.code}
+                        type="button"
+                        data-branch-bar={b.code}
+                        onMouseEnter={() => setHoveredBranchCode(b.code)}
+                        onMouseLeave={() => setHoveredBranchCode(null)}
+                        onClick={() => onNavigateTab?.('branches')}
+                        title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} · KHQR ${fmtNum(b.khqr)} · POS ${fmtNum(b.pos)} · SB ${fmtNum(b.sb)} · MV ${fmtNum(b.mv)} · CC ${fmtNum(b.cc)} · Reserve ${fmtNum(b.reserve)}`}
+                        className={`w-full flex items-center gap-3 px-2 py-1 rounded-lg transition cursor-pointer group ${
+                          isHovered ? 'bg-slate-50' : 'hover:bg-slate-50/70'
                         }`}
                       >
-                        {req.status}
-                      </span>
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#004e75] transition" aria-hidden="true" />
-                    </div>
-                  </button>
-                ))
-              )
-            ) : recentDevices.length === 0 ? (
-              <div className="py-12 px-6 text-center text-xs text-slate-400">
-                No hardware serial updates recorded yet.
-              </div>
-            ) : (
-              recentDevices.slice(0, 7).map((dev) => {
-                const meta = STAGE_META[dev.stage];
-                const cycleCount = (dev.history || []).length;
-                return (
+                        <div className="w-[170px] sm:w-[215px] shrink-0 text-left flex items-center gap-2 min-w-0">
+                          <span
+                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-figure font-bold shrink-0 ${
+                              i === 0
+                                ? 'bg-[#003857] text-white'
+                                : i < 3
+                                ? 'bg-slate-200/80 text-slate-700'
+                                : 'text-slate-400'
+                            }`}
+                          >
+                            {i + 1}
+                          </span>
+                          <span className="text-[12px] font-bold text-slate-900 group-hover:text-[#004e75] transition truncate">
+                            {b.name}
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-400 shrink-0 hidden sm:inline">
+                            Code {b.code}
+                          </span>
+                        </div>
+
+                        <div className="flex-1 h-4 rounded-full bg-slate-100/90 overflow-hidden flex items-center">
+                          {totalBarPct > 0 && (
+                            <div
+                              className="h-full rounded-full overflow-hidden flex gap-px transition-all duration-300"
+                              style={{ width: `${totalBarPct}%` }}
+                            >
+                              {segs.map((seg) => (
+                                <div
+                                  key={seg.key}
+                                  className={`h-full ${seg.color}`}
+                                  style={{ width: `${(seg.val / brTot) * 100}%` }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="w-[54px] shrink-0 text-right font-figure text-[12.5px] font-extrabold text-slate-900 tabular-nums">
+                          {fmtNum(b.totalTasks)}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto flex-1">
+              <table className="dash-light-table w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="text-[10.5px] tracking-wider uppercase font-bold">
+                    <th className="py-2.5 pl-6 pr-2 w-10">#</th>
+                    <SortTh k="name" sort={brSort} onSort={brToggle} className="py-2.5 px-2 font-bold">Branch</SortTh>
+                    <SortTh k="khqr" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">KHQR</SortTh>
+                    <SortTh k="pos" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">POS</SortTh>
+                    <SortTh k="sb" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">SB</SortTh>
+                    <SortTh k="mv" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">MV</SortTh>
+                    <SortTh k="cc" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">CC</SortTh>
+                    <SortTh k="reserve" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">Reserve</SortTh>
+                    <SortTh k="total" sort={brSort} onSort={brToggle} align="right" className="py-2.5 pl-2 pr-6 font-bold">Tasks</SortTh>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {sortedBranches.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-10 text-center text-slate-400">
+                        No branch activity found for the selected scope.
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedBranches.map((b, i) => (
+                      <tr key={b.code} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-2.5 pl-6 pr-2">
+                          <span
+                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10.5px] font-figure font-bold ${
+                              i === 0
+                                ? 'bg-[#003857] text-white'
+                                : i < 3
+                                ? 'bg-slate-200/80 text-slate-700'
+                                : 'text-slate-400'
+                            }`}
+                          >
+                            {i + 1}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <div className="font-bold text-slate-900 truncate max-w-[180px]">{b.name}</div>
+                          <div className="text-[10.5px] font-mono text-slate-400">Code {b.code}</div>
+                        </td>
+                        <td className="py-2.5 px-2 text-right font-figure text-emerald-700 font-semibold">{fmtNum(b.khqr)}</td>
+                        <td className="py-2.5 px-2 text-right font-figure text-[#004e75] font-semibold">{fmtNum(b.pos)}</td>
+                        <td className="py-2.5 px-2 text-right font-figure text-[#4F518C] font-semibold">{fmtNum(b.sb)}</td>
+                        <td className="py-2.5 px-2 text-right font-figure text-sky-700 font-semibold">{fmtNum(b.mv)}</td>
+                        <td className="py-2.5 px-2 text-right font-figure text-amber-700 font-semibold">{fmtNum(b.cc)}</td>
+                        <td className="py-2.5 px-2 text-right font-figure text-slate-500">{fmtNum(b.reserve)}</td>
+                        <td className="py-2.5 pl-2 pr-6 text-right font-figure font-extrabold text-slate-900">
+                          {fmtNum(b.totalTasks)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* Right 5 Cols: Hardware & SLA Allocation Analytics (with Stock Requests / Serials Toggle) */}
+        <section className="lg:col-span-5 surface-card overflow-hidden flex flex-col justify-between">
+          <div className="sb-card-header-light px-6 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900 truncate">
+                Hardware &amp; SLA Allocation
+              </h3>
+              <p className="text-xs text-slate-500 truncate">
+                Stock pool, SIM fleet &amp; {batteryLifespanMonths}M battery SLA
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <div
+                className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200/80 text-[11px] shrink-0"
+                role="tablist"
+                aria-label="Asset View Mode"
+              >
+                {([
+                  { id: 'ALLOCATION' as const, label: 'Analytics' },
+                  { id: 'SERIALS' as const, label: 'Serials' },
+                ]).map((m) => (
                   <button
-                    key={dev.serial}
+                    key={m.id}
                     type="button"
-                    onClick={() => onSelectDevice(dev.serial)}
-                    aria-label={`Open serial ${dev.serial}`}
-                    className="w-full text-left px-6 py-2.5 hover:bg-slate-50/80 flex items-center justify-between gap-3 transition cursor-pointer group"
+                    role="tab"
+                    aria-selected={assetViewMode === m.id}
+                    onClick={() => setAssetViewMode(m.id)}
+                    className={`px-2 py-1 rounded-md font-semibold cursor-pointer transition whitespace-nowrap ${
+                      assetViewMode === m.id ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-slate-100/80 flex items-center justify-center shrink-0">
-                        {dev.type === 'POS Terminal' ? (
-                          <Cpu className="w-4 h-4 text-[#004e75]" aria-hidden="true" />
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              {onNavigateTab && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onNavigateTab(
+                      assetViewMode === 'SERIALS' && activityPanel === 'REQUISITIONS'
+                        ? 'requisitions'
+                        : 'inventory'
+                    )
+                  }
+                  className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
+                >
+                  Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {assetViewMode === 'ALLOCATION' ? (
+            <>
+              <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
+                {allocationRows.map((row) => {
+                  const Icon = row.icon;
+                  const inner = (
+                    <>
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-bold text-slate-900 flex items-center gap-2 min-w-0 truncate">
+                          <Icon className={`w-4 h-4 shrink-0 ${row.iconClass}`} aria-hidden="true" />
+                          <span className="truncate">{row.title}</span>
+                        </span>
+                        <span className="font-figure font-bold text-[11px] text-[#004e75] whitespace-nowrap shrink-0">
+                          {row.rightText}
+                        </span>
+                      </div>
+
+                      <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden flex gap-0.5">
+                        {row.segments.length > 0 ? (
+                          row.segments.map((seg) =>
+                            seg.val > 0 ? (
+                              <div
+                                key={seg.key}
+                                className={`h-full first:rounded-l-full last:rounded-r-full transition-all duration-300 ${seg.color}`}
+                                style={{ width: `${Math.max(1.5, seg.pct)}%` }}
+                                title={`${seg.label}: ${fmtNum(seg.val)} (${Math.round(seg.pct)}%)`}
+                              />
+                            ) : null
+                          )
                         ) : (
-                          <Volume2 className="w-4 h-4 text-[#4F518C]" aria-hidden="true" />
+                          <div className="h-full w-full bg-slate-200/70 rounded-full" />
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <span className="font-mono font-bold text-slate-900 group-hover:text-[#004e75] transition">{dev.serial}</span>
-                          <span className="text-slate-300">·</span>
-                          <span className="font-mono text-[11px] text-slate-500">Code {dev.branchId}</span>
-                          <span className="text-slate-300">·</span>
-                          <span className="text-[11px] text-slate-400">{cycleCount} events</span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                          {dev.merchantName
-                            ? `${dev.merchantName}${dev.mid ? ` (${dev.mid})` : ''}`
-                            : dev.model}
-                        </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                        <span className="truncate">{row.subtext}</span>
+                        {row.segments.length > 0 && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            {row.segments.map((seg) => (
+                              <span key={seg.key} className="inline-flex items-center gap-1 text-[10.5px]">
+                                <i className={`w-1.5 h-1.5 rounded-full inline-block ${seg.color}`} />
+                                {seg.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
+                    </>
+                  );
+
+                  return row.onClickTab ? (
+                    <button
+                      key={row.id}
+                      type="button"
+                      onClick={() => onNavigateTab?.(row.onClickTab)}
+                      className="w-full text-left px-6 py-4 space-y-2 hover:bg-slate-50/80 transition cursor-pointer group"
+                    >
+                      {inner}
+                    </button>
+                  ) : (
+                    <div key={row.id} className="px-6 py-4 space-y-2">
+                      {inner}
                     </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${meta?.badgeClassLight || ''}`}>
-                      {meta?.short || dev.stage}
-                    </span>
+                  );
+                })}
+              </div>
+
+              {/* Footer Summary Strip */}
+              <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-slate-600">
+                <span>
+                  Materials:{' '}
+                  <strong className="font-figure text-slate-900">{fmtNum(materialsSummary.kitOnHand)}</strong> on hand ·{' '}
+                  <strong className="font-figure text-slate-900">{fmtNum(materialsSummary.kitInTransit)}</strong> transit
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAssetViewMode('SERIALS');
+                    setActivityPanel('REQUISITIONS');
+                  }}
+                  className="font-semibold text-slate-700 hover:text-[#004e75] cursor-pointer transition inline-flex items-center gap-1"
+                >
+                  <span>Stock Requests:</span>
+                  <strong className="font-figure text-slate-900">
+                    {fmtNum(reqStats.pending.length)}
+                  </strong>
+                  <span>open</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col">
+              <div className="px-6 py-2.5 border-b border-slate-100 bg-slate-50/40 flex items-center justify-between gap-2">
+                <div
+                  className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/70 text-xs"
+                  role="tablist"
+                  aria-label="Recent Requests or Serials"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activityPanel === 'REQUISITIONS'}
+                    onClick={() => setActivityPanel('REQUISITIONS')}
+                    className={`px-2.5 py-1 rounded-[9px] font-semibold cursor-pointer transition inline-flex items-center gap-1.5 ${
+                      activityPanel === 'REQUISITIONS'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <ScrollText className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Stock Requests ({fmtNum(requisitions.length)})</span>
                   </button>
-                );
-              })
-            )}
-          </div>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activityPanel === 'SERIALS'}
+                    onClick={() => setActivityPanel('SERIALS')}
+                    className={`px-2.5 py-1 rounded-[9px] font-semibold cursor-pointer transition inline-flex items-center gap-1.5 ${
+                      activityPanel === 'SERIALS'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Package className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Updated Serials</span>
+                  </button>
+                </div>
+
+                {onNavigateTab && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTab(activityPanel === 'REQUISITIONS' ? 'requisitions' : 'inventory')}
+                    className="text-[11.5px] font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
+                  >
+                    View All <ArrowUpRight className="w-3 h-3" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+
+              <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
+                {activityPanel === 'REQUISITIONS' ? (
+                  requisitions.length === 0 ? (
+                    <div className="py-12 px-6 text-center text-xs text-slate-400">
+                      No stock requisitions submitted yet.
+                    </div>
+                  ) : (
+                    requisitions.slice(0, 7).map((req) => (
+                      <button
+                        key={req.reqId}
+                        type="button"
+                        onClick={() => onNavigateTab?.('requisitions')}
+                        className="w-full text-left px-6 py-3 hover:bg-slate-50/80 transition flex items-center justify-between gap-3 cursor-pointer group"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className="font-mono font-bold text-slate-900 group-hover:text-[#004e75] transition">{req.reqId}</span>
+                            <span className="text-slate-300">·</span>
+                            <span className="font-medium text-slate-600 truncate">
+                              {req.branchName} ({req.branchId})
+                            </span>
+                          </div>
+                          <div className="text-[11.5px] text-slate-500 truncate mt-0.5">
+                            <strong className="font-semibold text-slate-700">{req.posQty}x POS · {req.sbQty}x Sound Box</strong>
+                            {req.reason ? ` — ${req.reason}` : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              req.status === 'RECEIVED'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                                : req.status === 'REJECTED'
+                                ? 'bg-rose-50 text-rose-700 border-rose-200/80'
+                                : req.status === 'PENDING_ADMIN'
+                                ? 'bg-amber-50 text-amber-800 border-amber-200/80'
+                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {req.status}
+                          </span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#004e75] transition" aria-hidden="true" />
+                        </div>
+                      </button>
+                    ))
+                  )
+                ) : recentDevices.length === 0 ? (
+                  <div className="py-12 px-6 text-center text-xs text-slate-400">
+                    No hardware serial updates recorded yet.
+                  </div>
+                ) : (
+                  recentDevices.slice(0, 7).map((dev) => {
+                    const meta = STAGE_META[dev.stage];
+                    const cycleCount = (dev.history || []).length;
+                    return (
+                      <button
+                        key={dev.serial}
+                        type="button"
+                        onClick={() => onSelectDevice(dev.serial)}
+                        aria-label={`Open serial ${dev.serial}`}
+                        className="w-full text-left px-6 py-2.5 hover:bg-slate-50/80 flex items-center justify-between gap-3 transition cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100/80 flex items-center justify-center shrink-0">
+                            {dev.type === 'POS Terminal' ? (
+                              <Cpu className="w-4 h-4 text-[#004e75]" aria-hidden="true" />
+                            ) : (
+                              <Volume2 className="w-4 h-4 text-[#4F518C]" aria-hidden="true" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <span className="font-mono font-bold text-slate-900 group-hover:text-[#004e75] transition">{dev.serial}</span>
+                              <span className="text-slate-300">·</span>
+                              <span className="font-mono text-[11px] text-slate-500">Code {dev.branchId}</span>
+                              <span className="text-slate-300">·</span>
+                              <span className="text-[11px] text-slate-400">{cycleCount} events</span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                              {dev.merchantName
+                                ? `${dev.merchantName}${dev.mid ? ` (${dev.mid})` : ''}`
+                                : dev.model}
+                            </div>
+                          </div>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${meta?.badgeClassLight || ''}`}>
+                          {meta?.short || dev.stage}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </div>
