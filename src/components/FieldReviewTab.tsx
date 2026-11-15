@@ -49,15 +49,21 @@ const KIND_LABEL: Record<FieldEvent['kind'], string> = {
   POS_INACTIVE: 'POS in-active maintenance',
   POS_RETURN: 'POS returned & terminated',
 };
-const KIND_CARD_META: Record<string, React.ComponentType<{ className?: string }>> = {
-  INSTALL: PackagePlus,
-  REPLACE: ArrowLeftRight,
-  BATTERY: BatteryCharging,
-  POS_MAINT: Wrench,
-  POS_INACTIVE: PauseCircle,
-  POS_RETURN: RotateCcw,
-  SB_MAINT: Wrench,
-  SB_RETURN: RotateCcw,
+const KIND_CARD_META: Record<
+  string,
+  {
+    icon: React.ComponentType<{ className?: string }>;
+    iconCls: string;
+  }
+> = {
+  INSTALL: { icon: PackagePlus, iconCls: 'bg-emerald-50 text-emerald-600 border-emerald-200/80' },
+  REPLACE: { icon: ArrowLeftRight, iconCls: 'bg-sky-50 text-sky-600 border-sky-200/80' },
+  BATTERY: { icon: BatteryCharging, iconCls: 'bg-amber-50 text-amber-600 border-amber-200/80' },
+  POS_MAINT: { icon: Wrench, iconCls: 'bg-violet-50 text-violet-600 border-violet-200/80' },
+  POS_INACTIVE: { icon: PauseCircle, iconCls: 'bg-orange-50 text-orange-600 border-orange-200/80' },
+  POS_RETURN: { icon: RotateCcw, iconCls: 'bg-rose-50 text-rose-600 border-rose-200/80' },
+  SB_MAINT: { icon: Wrench, iconCls: 'bg-violet-50 text-violet-600 border-violet-200/80' },
+  SB_RETURN: { icon: RotateCcw, iconCls: 'bg-rose-50 text-rose-600 border-rose-200/80' },
 };
 const formatKindSummarySub = (stat?: { total: number; pending: number; approved: number; rejected: number }) => {
   if (!stat || stat.total === 0) return 'No records yet';
@@ -809,7 +815,11 @@ export const FieldReviewTab: React.FC<Props> = ({
           {availableKinds.map((k) => {
             const stat = hero.byKind[k];
             const totalN = stat?.total || 0;
-            const Icon = KIND_CARD_META[k] || (deviceType === 'Sound Box' ? Volume2 : Cpu);
+            const meta = KIND_CARD_META[k] || {
+              icon: deviceType === 'Sound Box' ? Volume2 : Cpu,
+              iconCls: 'bg-sky-50 text-sky-600 border-sky-200/80',
+            };
+            const Icon = meta.icon;
             const pct = hero.total > 0 && totalN > 0 ? Math.round((totalN / hero.total) * 100) : 0;
             const barWidth =
               !events || totalN === 0 || hero.maxKind === 0
@@ -833,10 +843,8 @@ export const FieldReviewTab: React.FC<Props> = ({
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span
-                      className={`w-6 h-6 rounded-lg inline-flex items-center justify-center border shrink-0 transition-colors ${
-                        isActive
-                          ? 'bg-[#004e75] text-white border-[#004e75] shadow-2xs'
-                          : 'bg-white/90 text-[#004e75] border-slate-200/80 shadow-2xs group-hover:border-[#004e75]/30'
+                      className={`w-6.5 h-6.5 rounded-lg inline-flex items-center justify-center border shrink-0 transition-transform shadow-2xs ${meta.iconCls} ${
+                        isActive ? 'scale-105' : 'group-hover:scale-105'
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" aria-hidden />
