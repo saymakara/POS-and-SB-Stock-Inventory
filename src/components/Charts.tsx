@@ -329,7 +329,7 @@ export const CHANNEL_COLORS = {
   khqr: '#1e6091', // Baltic Blue
   sb: '#4F518C',   // Deep Purple (KPI Performance Sound Box)
   pos: '#184e77',  // Yale Blue
-  mv: '#76c893',   // Emerald
+  mv: '#2d6a4f',   // Deep Forest Emerald
   cc: '#f59e0b',   // Amber / Yellow (KPI Performance Credit Card)
 } as const;
 

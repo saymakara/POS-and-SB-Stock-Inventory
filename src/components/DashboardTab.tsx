@@ -172,7 +172,7 @@ function sumRawInto(target: KpiRawCounts, src: KpiRawCounts): void {
   addExtraCounts(target, src);
 }
 
-const DONUT_RADIUS = 105;
+const DONUT_RADIUS = 94;
 const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
 
 interface ChannelSliceItem {
@@ -211,11 +211,11 @@ interface ChannelMixCardProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-const DONUT_VB_W = 456;
-const DONUT_VB_H = 274;
+const DONUT_VB_W = 396;
+const DONUT_VB_H = 304;
 const DONUT_CX = DONUT_VB_W / 2;
 const DONUT_CY = DONUT_VB_H / 2;
-const DONUT_SW = 24;
+const DONUT_SW = 20;
 const DONUT_R_OUTER = DONUT_RADIUS + DONUT_SW / 2;
 
 function formatChannelLabel(shortLabel: string): string {
@@ -243,13 +243,13 @@ function layoutDonutCallouts(slices: ChannelSliceItem[]): DonutCalloutGeom[] {
   const active = slices.filter((s) => s.dash > 0);
   if (active.length === 0) return [];
 
-  const R_TRACK_BASE = DONUT_R_OUTER + 7;
-  const TOP_PAD = 28;
-  const BOT_PAD = DONUT_VB_H - 26;
-  const TICK_X_LEFT = 95;
-  const TEXT_X_LEFT = 89;
-  const TICK_X_RIGHT = 361;
-  const TEXT_X_RIGHT = 367;
+  const R_TRACK_BASE = DONUT_R_OUTER + 5;
+  const TOP_PAD = 24;
+  const BOT_PAD = DONUT_VB_H - 24;
+  const TICK_X_LEFT = 87;
+  const TEXT_X_LEFT = 82;
+  const TICK_X_RIGHT = 309;
+  const TEXT_X_RIGHT = 314;
 
   const raw = active.map((slice) => {
     const midFrac = (slice.offset + slice.dash / 2) / DONUT_CIRC;
@@ -361,19 +361,19 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
       : fmtNum(slice.primaryValue);
 
   return (
-    <section className={`lg:col-span-5 ${cardClass} overflow-hidden flex flex-col justify-between`}>
-      <div className="px-6 pt-5 pb-1 flex items-center justify-between gap-2">
+    <section className={`lg:col-span-4 ${cardClass} overflow-hidden flex flex-col justify-between`}>
+      <div className="px-5 pt-4 pb-1 flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <h3 className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+          <h3 className={`text-sm sm:text-[14.5px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
             Channel Mix
           </h3>
-          <p className="text-xs text-slate-500 truncate">
-            5-channel performance breakdown
+          <p className="text-[11.5px] text-slate-500 truncate">
+            5-channel performance
           </p>
         </div>
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <span
-            className={`text-[11px] font-figure font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap ${
+            className={`text-[10.5px] font-figure font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
               isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
             }`}
           >
@@ -383,7 +383,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             <button
               type="button"
               onClick={() => onNavigateTab('kpi_performance')}
-              className={`text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150 ${
+              className={`text-[11.5px] font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition-colors duration-150 ${
                 isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
               }`}
             >
@@ -393,8 +393,8 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
         </div>
       </div>
 
-      <div className="px-3 pt-1 pb-3 flex-1 flex items-center justify-center">
-        <div className="relative w-full max-w-[476px] mx-auto aspect-[456/274] flex items-center justify-center">
+      <div className="px-2.5 pt-1 pb-3 flex-1 flex items-center justify-center">
+        <div className="relative w-full max-w-[396px] mx-auto aspect-[396/304] flex items-center justify-center">
           <svg
             viewBox={`0 0 ${DONUT_VB_W} ${DONUT_VB_H}`}
             className="w-full h-full overflow-visible"
@@ -491,7 +491,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
                     x={c.textX}
                     y={c.ly - 3}
                     textAnchor={anchor}
-                    fontSize="11"
+                    fontSize="10"
                     fontWeight="600"
                     fill={isLight ? '#0f172a' : '#f1f5f9'}
                   >
@@ -499,9 +499,9 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
                   </text>
                   <text
                     x={c.textX}
-                    y={c.ly + 10.5}
+                    y={c.ly + 9.5}
                     textAnchor={anchor}
-                    fontSize="10"
+                    fontSize="9.5"
                     fontWeight="600"
                     fill={isLight ? '#475569' : '#cbd5e1'}
                   >
@@ -515,14 +515,14 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
           </svg>
 
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
-            <span className={`text-[34px] sm:text-[38px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <span className={`text-[30px] sm:text-[32px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
             </span>
-            <span className={`text-[11px] font-semibold tracking-wider uppercase mt-1.5 truncate max-w-[152px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            <span className={`text-[10.5px] font-semibold tracking-wider uppercase mt-1.5 truncate max-w-[136px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               {focusedChannel ? formatChannelLabel(focusedChannel.shortLabel) : 'NO TASKS'}
             </span>
             {focusedChannel && totalTasks > 0 && (
-              <span className={`text-[11.5px] font-figure font-semibold mt-0.5 tabular-nums ${isLight ? 'text-[#004e75]' : 'text-sky-300'}`}>
+              <span className={`text-[11px] font-figure font-semibold mt-0.5 tabular-nums ${isLight ? 'text-[#004e75]' : 'text-sky-300'}`}>
                 {formatSliceCount(focusedChannel)} tasks
               </span>
             )}
@@ -567,7 +567,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
   );
 
   return (
-    <section className={`lg:col-span-7 ${cardClass} overflow-hidden flex flex-col`}>
+    <section className={`lg:col-span-8 ${cardClass} overflow-hidden flex flex-col`}>
       <div className="px-6 pt-5 pb-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
@@ -688,7 +688,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                         : 'hover:bg-slate-800/40'
                     }`}
                   >
-                    <div className="w-[170px] sm:w-[215px] shrink-0 text-left flex items-center gap-2 min-w-0">
+                    <div className="w-[175px] sm:w-[232px] xl:w-[248px] shrink-0 text-left flex items-center gap-2 min-w-0">
                       <span
                         className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-figure font-bold shrink-0 ${
                           i === 0
@@ -1457,8 +1457,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'Merchant Visit',
           tab: 'mobile_sync_visit',
           icon: Store,
-          iconWrap: 'bg-[#76c893]/15 text-[#2d6a4f]',
-          barColor: 'bg-[#76c893]',
+          iconWrap: 'bg-[#2d6a4f]/12 text-[#2d6a4f]',
+          barColor: 'bg-[#2d6a4f]',
           hexColor: CHANNEL_COLORS.mv,
           primaryValue: mvCount,
           primaryUnit: 'visits',
@@ -1693,7 +1693,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     return [
       {
         id: 'hardware',
-        title: `Hardware Stock Allocation (${fmtNum(hardwareSummary.total)} units)`,
+        title: `Hardware Stock (${fmtNum(hardwareSummary.total)})`,
         rightText:
           hardwareSummary.total > 0
             ? `${pct(hardwareSummary.hq, hwTot)}% HQ · ${pct(hardwareSummary.reserve, hwTot)}% Res · ${pct(hardwareSummary.config, hwTot)}% Cfg`
@@ -1713,7 +1713,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       },
       {
         id: 'sim',
-        title: `SIM Card Fleet Distribution (${fmtNum(materialsSummary.simTotal)} tracked)`,
+        title: `SIM Fleet (${fmtNum(materialsSummary.simTotal)} tracked)`,
         rightText:
           materialsSummary.simTotal > 0
             ? `${pct(materialsSummary.simAtMerchant, simTot)}% Merchant Live`
@@ -1733,7 +1733,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       },
       {
         id: 'battery',
-        title: `${batteryLifespanMonths}M POS Battery SLA Compliance`,
+        title: `${batteryLifespanMonths}M Battery SLA`,
         rightText:
           batterySummary.total > 0
             ? `${pct(batterySummary.healthy, batTot)}% Healthy (${fmtNum(batterySummary.healthy)})`
@@ -2013,10 +2013,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </section>
       </div>
 
-      {/* ───────────── 3. ROW 1: CROSS-CHANNEL DAILY VELOCITY + CHANNEL SHARE DONUT & QUEUE LOAD ───────────── */}
+      {/* ───────────── 3. ROW 1: CROSS-CHANNEL DAILY VELOCITY + CHANNEL SHARE DONUT ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left 7 Cols: Cross-Channel Daily Velocity & Active Staff */}
-        <section className={`lg:col-span-7 ${iosCardClass} overflow-hidden flex flex-col`}>
+        {/* Left 8 Cols: Cross-Channel Daily Velocity & Active Staff */}
+        <section className={`lg:col-span-8 ${iosCardClass} overflow-hidden flex flex-col`}>
           <div className="px-6 pt-5 pb-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
               <div
@@ -2192,7 +2192,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
         </section>
 
-        {/* Right 5 Cols: Memoized Channel Mix Donut */}
+        {/* Right 4 Cols: Memoized Channel Mix Donut */}
         <ChannelMixCard
           isLight={isLight}
           cardClass={iosCardClass}
@@ -2206,7 +2206,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
       {/* ───────────── 4. ROW 2: TOP BRANCHES PERFORMANCE GRAPH + HARDWARE & SLA ALLOCATION ANALYTICS ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left 7 Cols: Memoized Top Branches Performance Graph + Table */}
+        {/* Left 8 Cols: Memoized Top Branches Performance Graph + Table */}
         <TopBranchesCard
           isLight={isLight}
           cardClass={iosCardClass}
@@ -2221,29 +2221,29 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           onNavigateTab={onNavigateTab}
         />
 
-        {/* Right 5 Cols: Hardware & SLA Allocation Analytics (with Stock Requests / Serials Toggle) */}
-        <section className={`lg:col-span-5 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
-          <div className="px-6 pt-5 pb-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
+        {/* Right 4 Cols: Hardware & SLA Allocation Analytics (with Stock Requests / Serials Toggle) */}
+        <section className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
+          <div className="px-5 pt-4 pb-2.5 flex flex-wrap xl:flex-nowrap items-center justify-between gap-1.5">
             <div className="min-w-0">
               <h3
-                className={`text-[15px] font-bold tracking-[-0.015em] truncate ${
+                className={`text-[14px] font-bold tracking-[-0.015em] truncate ${
                   isLight ? 'text-slate-900' : 'text-white'
                 }`}
               >
-                Hardware &amp; SLA Allocation
+                Hardware &amp; SLA
               </h3>
               <p
-                className={`text-[12px] truncate ${
+                className={`text-[11px] truncate ${
                   isLight ? 'text-slate-500' : 'text-slate-400'
                 }`}
               >
-                Stock pool, SIM fleet &amp; {batteryLifespanMonths}M battery SLA
+                Allocation, SIM &amp; {batteryLifespanMonths}M SLA
               </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <div
-                className={`${iosSegWrapClass} text-[11px] shrink-0`}
+                className={`${iosSegWrapClass} text-[10px] shrink-0`}
                 role="tablist"
                 aria-label="Asset View Mode"
               >
@@ -2257,7 +2257,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     role="tab"
                     aria-selected={assetViewMode === m.id}
                     onClick={() => setAssetViewMode(m.id)}
-                    className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer transition-all duration-150 whitespace-nowrap ${
+                    className={`px-2 py-0.5 rounded-full font-semibold cursor-pointer transition-all duration-150 whitespace-nowrap ${
                       assetViewMode === m.id
                         ? isLight
                           ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
@@ -2282,7 +2282,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         : 'inventory'
                     )
                   }
-                  className={`text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition ${
+                  className={`text-[11px] font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
                     isLight
                       ? 'text-[#004e75] hover:text-[#003857]'
                       : 'text-sky-400 hover:text-sky-300'
@@ -2305,7 +2305,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   const Icon = row.icon;
                   const inner = (
                     <>
-                      <div className="flex items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center justify-between gap-2 text-[11.5px]">
                         <span
                           className={`font-semibold flex items-center gap-2 min-w-0 truncate ${
                             isLight ? 'text-slate-900' : 'text-slate-100'
@@ -2317,7 +2317,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           <span className="truncate">{row.title}</span>
                         </span>
                         <span
-                          className={`font-figure font-semibold text-[11px] whitespace-nowrap shrink-0 ${
+                          className={`font-figure font-semibold text-[10.5px] whitespace-nowrap shrink-0 ${
                             isLight ? 'text-slate-600' : 'text-slate-300'
                           }`}
                         >
@@ -2351,7 +2351,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       </div>
 
                       <div
-                        className={`flex flex-wrap items-center justify-between gap-2 text-[11px] ${
+                        className={`flex flex-wrap items-center justify-between gap-1.5 text-[10.5px] ${
                           isLight ? 'text-slate-500' : 'text-slate-400'
                         }`}
                       >
@@ -2359,7 +2359,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         {row.segments.length > 0 && (
                           <div className="flex items-center gap-2 shrink-0">
                             {row.segments.map((seg) => (
-                              <span key={seg.key} className="inline-flex items-center gap-1 text-[10.5px]">
+                              <span key={seg.key} className="inline-flex items-center gap-1 text-[10px]">
                                 <i className={`w-1.5 h-1.5 rounded-full inline-block ${seg.color}`} />
                                 {seg.label}
                               </span>
@@ -2375,14 +2375,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       key={row.id}
                       type="button"
                       onClick={() => onNavigateTab?.(row.onClickTab)}
-                      className={`w-full text-left px-6 py-4 space-y-2 transition cursor-pointer group ${
+                      className={`w-full text-left px-5 py-3.5 space-y-1.5 transition cursor-pointer group ${
                         isLight ? 'hover:bg-slate-50/75' : 'hover:bg-slate-800/40'
                       }`}
                     >
                       {inner}
                     </button>
                   ) : (
-                    <div key={row.id} className="px-6 py-4 space-y-2">
+                    <div key={row.id} className="px-5 py-3.5 space-y-1.5">
                       {inner}
                     </div>
                   );
@@ -2391,7 +2391,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
               {/* Footer Summary Strip */}
               <div
-                className={`px-6 py-3 border-t flex flex-wrap items-center justify-between gap-2 text-[11.5px] ${
+                className={`px-5 py-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-[11px] ${
                   isLight
                     ? 'border-slate-100 bg-[#f9fafb]/80 text-slate-500'
                     : 'border-slate-800/70 bg-slate-900/50 text-slate-400'
