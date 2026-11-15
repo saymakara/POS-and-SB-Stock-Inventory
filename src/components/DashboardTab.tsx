@@ -5,6 +5,7 @@ import {
   Device,
   Branch,
   Requisition,
+  User,
   UserRole,
   ThemeMode,
   LifecycleStage,
@@ -17,7 +18,10 @@ import { PillMotion } from './PillMotion';
 import { todayPP, lastMonthsPP } from '../utils/time';
 import { fmtNum } from '../utils/format';
 import { SPRING_TAB_PILL } from '../utils/animationRules';
-import { isPhnomPenhBranch, type FieldScope } from '../utils/fieldScope';
+import { buildPpDirectoryScope } from '../utils/fieldScope';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { getCachedStaff, loadStaff, onStaffList } from '../services/staffCache';
+import type { StaffAccount } from '../services/supabaseService';
 import {
   KpiPeriod,
   KpiDashboardData,
@@ -31,16 +35,12 @@ import {
 } from '../services/kpiService';
 import { fetchCcCounts, getCachedCcCounts, type CcCounts } from '../services/ccService';
 import {
-  fetchQrSummary,
-  fetchMvVisitSummary,
-  type QrSummary,
-  type MvVisitSummary,
-} from '../services/supabaseService';
-import {
   fetchMaterialBalances,
+  fetchSerialsPage,
   fetchSerialStatusCounts,
   MATERIALS,
   type MaterialBalance,
+  type MaterialSerial,
   type SerialStatus,
 } from '../services/materialsService';
 import {
@@ -63,6 +63,7 @@ import {
   AlertCircle,
   Boxes,
   ChevronRight,
+  MapPin,
 } from 'lucide-react';
 
 /** Battery policy defaults (same values as AppSettings defaults). App can pass the live settings values as props. */
@@ -85,6 +86,8 @@ interface DashboardTabProps {
   allDevices: Device[];
   branches: Branch[];
   requisitions: Requisition[];
+  users?: User[];
+  excludedDeviceSerials?: Set<string>;
   role: UserRole;
   selectedBranch: string;
   theme?: ThemeMode;
@@ -97,7 +100,6 @@ interface DashboardTabProps {
   batteryWarningMonths?: number;
   serverTotalDevices?: number | null;
   serverStageCounts?: Record<LifecycleStage, number>;
-  phoneReviewScope?: FieldScope;
   actionQueues?: DashboardActionQueues;
 }
 
@@ -166,6 +168,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   allDevices,
   branches,
   requisitions,
+  users = [],
+  excludedDeviceSerials,
   role,
   selectedBranch,
   theme = 'light',
@@ -176,7 +180,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   batteryWarningMonths = DEFAULT_BATTERY_WARNING_MONTHS,
   serverTotalDevices,
   serverStageCounts,
-  phoneReviewScope = 'PHNOM_PENH',
   actionQueues,
 }) => {
   const today = todayPP();
@@ -184,14 +187,29 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const branchScopedId = !isAdminLike ? (selectedBranch || '') : '';
 
   const [period, setPeriod] = useState<DashPeriod>('MONTH');
-  const [adminScope, setAdminScope] = useState<FieldScope>(
-    phoneReviewScope === 'ALL' ? 'ALL' : 'PHNOM_PENH'
-  );
   const [chartMode, setChartMode] = useState<ChartMode>('VELOCITY');
   const [timeHorizon, setTimeHorizon] = useState<TimeHorizon>('6M');
   const [activityPanel, setActivityPanel] = useState<ActivityPanelMode>('REQUISITIONS');
 
-  const effectiveScope: FieldScope = branchScopedId ? 'ALL' : isAdminLike ? adminScope : 'ALL';
+  const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
+  useEffect(() => {
+    const unsub = onStaffList(setCachedStaff);
+    if (isAdminLike && isSupabaseConfigured && !getCachedStaff()) {
+      void loadStaff({ maxAgeMs: 30000 }).then((x) => {
+        if (x) setCachedStaff(x);
+      });
+    }
+    return unsub;
+  }, [isAdminLike]);
+
+  // Dashboard always follows Phnom Penh + Active Staff Directory (matching KPI Performance & Inventory)
+  const directoryUsers =
+    isAdminLike || Boolean(cachedStaff?.length) || !isSupabaseConfigured ? users : [];
+  const ppDirectoryScope = useMemo(
+    () => buildPpDirectoryScope(branches, directoryUsers, cachedStaff),
+    [branches, directoryUsers, cachedStaff]
+  );
+
   const range = useMemo(() => kpiPeriodRange(period), [period]);
 
   const [kpiData, setKpiData] = useState<KpiDashboardData | null>(
@@ -200,10 +218,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [ccCounts, setCcCounts] = useState<CcCounts | null>(
     () => getCachedCcCounts(`${range.from || ''}|${range.to || ''}`) || null
   );
-  const [qrSummary, setQrSummary] = useState<QrSummary | null>(null);
-  const [mvSummary, setMvSummary] = useState<MvVisitSummary | null>(null);
   const [matBalances, setMatBalances] = useState<MaterialBalance[]>([]);
-  const [simCounts, setSimCounts] = useState<Record<SerialStatus, number> | null>(null);
+  const [simRows, setSimRows] = useState<MaterialSerial[] | null>(null);
+  const [simFallbackCounts, setSimFallbackCounts] = useState<Record<SerialStatus, number> | null>(null);
   const [syncing, setSyncing] = useState(false);
 
   const loadSeqRef = useRef(0);
@@ -216,23 +233,37 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       setSyncing(!hitKpi || force);
 
       const simBranchArg = branchScopedId || undefined;
-      const [kpiRes, ccRes, qrRes, mvRes, matRes, simRes] = await Promise.allSettled([
-        fetchKpiSummary(range.from, range.to, force),
-        fetchCcCounts(range.from, range.to, force ? 0 : 45000),
-        fetchQrSummary(range.from, range.to),
-        fetchMvVisitSummary(range.from, range.to),
-        fetchMaterialBalances(force),
-        fetchSerialStatusCounts('SIM', simBranchArg, force),
-      ]);
+      const isActive = () => seq === loadSeqRef.current;
 
-      if (seq !== loadSeqRef.current) return;
-      if (kpiRes.status === 'fulfilled') setKpiData(kpiRes.value);
-      if (ccRes.status === 'fulfilled' && ccRes.value) setCcCounts(ccRes.value);
-      if (qrRes.status === 'fulfilled' && qrRes.value) setQrSummary(qrRes.value);
-      if (mvRes.status === 'fulfilled' && mvRes.value) setMvSummary(mvRes.value);
-      if (matRes.status === 'fulfilled') setMatBalances(matRes.value);
-      if (simRes.status === 'fulfilled') setSimCounts(simRes.value);
-      setSyncing(false);
+      // Apply each source immediately on resolution so fast cards don't wait on slower queries,
+      // and retry KPI summary once if a cold computation transiently fails.
+      const kpiTask = fetchKpiSummary(range.from, range.to, force)
+        .catch(() => fetchKpiSummary(range.from, range.to, true))
+        .then((val) => {
+          if (isActive() && val) setKpiData(val);
+        });
+      const ccTask = fetchCcCounts(range.from, range.to, force ? 0 : 45000).then((val) => {
+        if (isActive() && val) setCcCounts(val);
+      });
+      const matTask = fetchMaterialBalances(force).then((val) => {
+        if (isActive()) setMatBalances(val);
+      });
+      const simTask = fetchSerialsPage({ code: 'SIM', branchId: simBranchArg, page: 1, pageSize: 1000 }, force).then(
+        async (res) => {
+          if (!isActive()) return;
+          if (res.total <= res.rows.length) {
+            setSimRows(res.rows);
+            setSimFallbackCounts(null);
+          } else {
+            setSimRows(null);
+            const fallback = await fetchSerialStatusCounts('SIM', simBranchArg, force);
+            if (isActive()) setSimFallbackCounts(fallback);
+          }
+        }
+      );
+
+      await Promise.allSettled([kpiTask, ccTask, matTask, simTask]);
+      if (isActive()) setSyncing(false);
     },
     [range.from, range.to, branchScopedId]
   );
@@ -241,17 +272,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     void loadCrossPortalData(false);
   }, [loadCrossPortalData]);
 
-  // Helper matching a branch ID / name against the selected scope cleanly
-  const isRowInScope = useCallback(
-    (branchId?: string | null, branchName?: string | null): boolean => {
-      const bid = String(branchId || '').trim();
-      if (branchScopedId) return bid === branchScopedId;
-      if (effectiveScope === 'ALL') return true;
-      return isPhnomPenhBranch({ id: bid, code: bid, name: String(branchName || '') });
-    },
-    [branchScopedId, effectiveScope]
-  );
-
   // Rule lookup map for KPI point valuation
   const ruleMap = useMemo(() => {
     const m = new Map<string, KpiPointRule>();
@@ -259,7 +279,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     return m;
   }, [kpiData]);
 
-  // Scoped cross-channel KPI totals computed from unified server KPI summary
+  // Scoped cross-channel KPI totals strictly matching Active Phnom Penh Staff Directory
   const scopedKpiTotals = useMemo(() => {
     const raw = buildEmptyRawCounts();
     let ccSubmitted = 0;
@@ -267,16 +287,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     const activeBranches = new Set<string>();
     const activeStaff = new Set<string>();
 
-    const staffList = kpiData?.staff || [];
-    for (const s of staffList) {
-      if (!isRowInScope(s.branchId, s.branchName)) continue;
+    for (const s of kpiData?.staff || []) {
+      const dir = ppDirectoryScope.resolveKpiStaff(s.staffId, s.staffName, s.branchId, s.branchName);
+      if (!dir) continue;
+      if (branchScopedId && dir.branchId !== branchScopedId) continue;
+
       sumRawInto(raw, s);
       ccSubmitted += s.ccSubmitted || 0;
       khqrFailed += s.khqrFailed || 0;
       const pts = computeKpiPoints(s, ruleMap);
       if (pts.totalTasks > 0) {
-        activeStaff.add(s.staffId);
-        if (s.branchId && s.branchId !== 'UNASSIGNED') activeBranches.add(s.branchId);
+        const staffKey = dir.empId || dir.name.toLowerCase();
+        if (staffKey) activeStaff.add(staffKey);
+        if (dir.branchId && dir.branchId !== 'UNASSIGNED') activeBranches.add(dir.branchId);
       }
     }
 
@@ -289,23 +312,39 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       activeBranchCount: activeBranches.size,
       activeStaffCount: activeStaff.size,
     };
-  }, [kpiData, isRowInScope, ruleMap]);
+  }, [kpiData, ppDirectoryScope, branchScopedId, ruleMap]);
 
   // 14-day / window Daily Cross-Channel Velocity time series (matches KPI Performance daily totals)
   const velocitySeries: CrossChannelDayPoint[] = useMemo(() => {
-    const dailyStaff = kpiData?.dailyStaff || [];
+    const fallbackKpi = !kpiData?.dailyStaff?.length
+      ? getCachedKpiSummary(kpiPeriodRange('MONTH').from, kpiPeriodRange('MONTH').to) ??
+        getCachedKpiSummary(null, null)
+      : undefined;
+    const dailyStaff = (kpiData?.dailyStaff?.length ? kpiData.dailyStaff : fallbackKpi?.dailyStaff) || [];
     const fromYmd = range.from ? range.from.slice(0, 10) : '';
     const toYmd = range.to ? range.to.slice(0, 10) : '';
     const byDay = new Map<
       string,
-      { pos: number; sb: number; khqr: number; mv: number; cc: number; staff: Set<string>; branches: Set<string> }
+      {
+        pos: number;
+        sb: number;
+        khqr: number;
+        mv: number;
+        cc: number;
+        staff: Set<string>;
+        branches: Set<string>;
+        staffCountHint?: number;
+        branchCountHint?: number;
+      }
     >();
 
     for (const ds of dailyStaff) {
       if (!ds.day) continue;
       if (fromYmd && ds.day < fromYmd) continue;
       if (toYmd && ds.day >= toYmd) continue;
-      if (!isRowInScope(ds.branchId, ds.branchName)) continue;
+      const dir = ppDirectoryScope.resolveKpiStaff(ds.staffId, ds.staffName, ds.branchId, ds.branchName);
+      if (!dir) continue;
+      if (branchScopedId && dir.branchId !== branchScopedId) continue;
 
       let b = byDay.get(ds.day);
       if (!b) {
@@ -318,8 +357,32 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       b.mv += Number(ds.mvTasks) || 0;
       b.cc += Number(ds.ccTasks) || 0;
       if ((ds.totalTasks || 0) > 0) {
-        if (ds.staffId) b.staff.add(ds.staffId);
-        if (ds.branchId && ds.branchId !== 'UNASSIGNED') b.branches.add(ds.branchId);
+        const staffKey = dir.empId || dir.name.toLowerCase();
+        if (staffKey) b.staff.add(staffKey);
+        if (dir.branchId && dir.branchId !== 'UNASSIGNED') b.branches.add(dir.branchId);
+      }
+    }
+
+    // Only use pre-aggregated daily buckets if per-staff data & directory filtering are both unavailable
+    if (dailyStaff.length === 0 && !ppDirectoryScope.hasDirectory && !branchScopedId) {
+      const dailyBuckets = (kpiData?.daily?.length ? kpiData.daily : fallbackKpi?.daily) || [];
+      for (const bucket of dailyBuckets) {
+        if (!bucket.period) continue;
+        if (fromYmd && bucket.period < fromYmd) continue;
+        if (toYmd && bucket.period >= toYmd) continue;
+        const pts = computeKpiPoints(bucket, ruleMap);
+        if (pts.totalTasks <= 0 && (bucket.activeStaff || 0) <= 0) continue;
+        byDay.set(bucket.period, {
+          pos: pts.posTasks,
+          sb: pts.sbTasks,
+          khqr: pts.khqrTasks,
+          mv: pts.mvTasks,
+          cc: pts.ccTasks,
+          staff: new Set(),
+          branches: new Set(),
+          staffCountHint: Number(bucket.activeStaff) || 0,
+          branchCountHint: Number(bucket.activeBranches) || 0,
+        });
       }
     }
 
@@ -343,16 +406,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         khqr: hit?.khqr || 0,
         mv: hit?.mv || 0,
         cc: hit?.cc || 0,
-        activeStaff: hit?.staff.size || 0,
-        activeBranches: hit?.branches.size || 0,
+        activeStaff: hit ? (hit.staffCountHint ?? hit.staff.size) : 0,
+        activeBranches: hit ? (hit.branchCountHint ?? hit.branches.size) : 0,
       };
     });
-  }, [kpiData, range.from, range.to, period, today, isRowInScope]);
+  }, [kpiData, range.from, range.to, period, today, ppDirectoryScope, branchScopedId, ruleMap]);
 
-  // Hardware & Inventory metrics
+  // Hardware & Inventory metrics (already scoped by App.tsx to Phnom Penh + Active Staff Directory)
   const hardwareSource = useMemo(
-    () => (effectiveScope === 'ALL' && !branchScopedId && allDevices.length > 0 ? allDevices : devices),
-    [effectiveScope, branchScopedId, allDevices, devices]
+    () => (branchScopedId ? devices : allDevices.length > 0 ? allDevices : devices),
+    [branchScopedId, allDevices, devices]
   );
   const activeDevices = useMemo(() => hardwareSource.filter((d) => !d.archived), [hardwareSource]);
 
@@ -437,6 +500,27 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     return { healthy, replaceSoon, critical, noDate, total: healthy + replaceSoon + critical };
   }, [activeDevices, today, batteryLifespanMonths, batteryWarningMonths]);
 
+  // Scoped SIM counts following Phnom Penh + Active Staff Directory (same rules as SimCardTab)
+  const simCounts = useMemo<Record<SerialStatus, number> | null>(() => {
+    if (!simRows) return simFallbackCounts;
+    const counts: Record<SerialStatus, number> = {
+      HQ_STOCK: 0,
+      IN_TRANSIT: 0,
+      BRANCH_RESERVE: 0,
+      AT_MERCHANT: 0,
+      LOST: 0,
+      FAULTY: 0,
+      WRITTEN_OFF: 0,
+    };
+    for (const r of simRows) {
+      if (branchScopedId && r.branchId !== branchScopedId) continue;
+      if (!ppDirectoryScope.isBranchInScope(r.branchId)) continue;
+      if (r.deviceSerial && excludedDeviceSerials?.has(r.deviceSerial.toUpperCase())) continue;
+      if (r.status in counts) counts[r.status] += 1;
+    }
+    return counts;
+  }, [simRows, simFallbackCounts, branchScopedId, ppDirectoryScope, excludedDeviceSerials]);
+
   // SIM & Materials Stock Summary
   const materialsSummary = useMemo(() => {
     const sim = simCounts || {
@@ -459,6 +543,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     for (const row of matBalances) {
       if (row.code === 'SIM') continue;
       if (branchScopedId && row.branchId !== branchScopedId) continue;
+      if (row.branchId !== '100' && !ppDirectoryScope.isBranchInScope(row.branchId)) continue;
       kitOnHand += row.onHand || 0;
       kitInTransit += row.inTransit || 0;
       kitAtMerchant += row.atMerchant || 0;
@@ -474,7 +559,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       kitAtMerchant,
       activeTypesCount: MATERIALS.length,
     };
-  }, [simCounts, matBalances, branchScopedId]);
+  }, [simCounts, matBalances, branchScopedId, ppDirectoryScope]);
 
   // Requisitions & Action Queue totals
   const reqStats = useMemo(() => {
@@ -504,35 +589,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [actionQueues, ccCounts, reqStats.pending.length]);
 
-  // Fallback-aware channel breakdown for display
+  // Strictly scoped 5-channel breakdown from Phnom Penh + Active Staff Directory KPI totals
   const channelActivity = useMemo(() => {
     const { computed, raw } = scopedKpiTotals;
-    const useServerDirectFallback = effectiveScope === 'ALL' && !branchScopedId && !kpiData?.staff?.length;
-    const khqrCount =
-      computed.khqrTasks > 0
-        ? computed.khqrTasks
-        : useServerDirectFallback && qrSummary
-        ? qrSummary.total
-        : 0;
+    const khqrCount = computed.khqrTasks;
     const sbCount = computed.sbTasks;
     const posCount = computed.posTasks;
-    const mvCount =
-      computed.mvTasks > 0
-        ? computed.mvTasks
-        : useServerDirectFallback && mvSummary
-        ? mvSummary.total
-        : 0;
-    const ccCount =
-      computed.ccTasks > 0
-        ? computed.ccTasks
-        : ccCounts && !branchScopedId && effectiveScope === 'ALL'
-        ? ccCounts.cards
-        : 0;
-
-    const ccSubmittedShow =
-      !branchScopedId && effectiveScope === 'ALL' && ccCounts
-        ? ccCounts.total
-        : Math.max(scopedKpiTotals.ccSubmitted, ccCount);
+    const mvCount = computed.mvTasks;
+    const ccCount = computed.ccTasks;
+    const ccSubmittedShow = Math.max(scopedKpiTotals.ccSubmitted, ccCount);
 
     const totalTasks = khqrCount + sbCount + posCount + mvCount + ccCount;
     const pctOfTotal = (n: number) =>
@@ -542,9 +607,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       totalTasks,
       totalPoints: computed.totalPoints,
       khqrCount,
-      khqrNew: raw.khqrInstall || (useServerDirectFallback && qrSummary ? qrSummary.install : 0),
-      khqrReplace: raw.khqrReplace || (useServerDirectFallback && qrSummary ? qrSummary.replace : 0),
-      khqrMaterials: raw.khqrMaterials || (useServerDirectFallback && qrSummary ? qrSummary.qr : 0),
+      khqrNew: raw.khqrInstall,
+      khqrReplace: raw.khqrReplace,
+      khqrMaterials: raw.khqrMaterials,
       sbCount,
       posCount,
       mvCount,
@@ -596,10 +661,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           barColor: 'bg-sky-500',
           primaryValue: mvCount,
           primaryUnit: 'visits',
-          meta:
-            mvSummary && mvSummary.total > 0 && effectiveScope === 'ALL'
-              ? `${fmtNum(mvSummary.withGps)} GPS tagged · ${fmtNum(mvSummary.branches)} active branches`
-              : 'Merchant check-ins & field onboarding visits',
+          meta: 'Merchant check-ins & field onboarding visits',
           sharePct: pctOfTotal(mvCount),
         },
         {
@@ -616,7 +678,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         },
       ],
     };
-  }, [scopedKpiTotals, effectiveScope, branchScopedId, kpiData, qrSummary, mvSummary, ccCounts, hardwareSummary.sb, hardwareSummary.pos, queues]);
+  }, [scopedKpiTotals, ccCounts, hardwareSummary.sb, hardwareSummary.pos, queues]);
 
   // Top Active Branches across ALL channels (merging branch stock counts alongside KPI activity!)
   const branchLeaderboard = useMemo(() => {
@@ -651,9 +713,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     >();
 
     for (const s of kpiData?.staff || []) {
-      const code = s.branchId || 'UNASSIGNED';
+      const dir = ppDirectoryScope.resolveKpiStaff(s.staffId, s.staffName, s.branchId, s.branchName);
+      if (!dir) continue;
+      const code = dir.branchId || 'UNASSIGNED';
       if (code === 'UNASSIGNED') continue;
-      if (!isRowInScope(code, s.branchName)) continue;
+      if (branchScopedId && code !== branchScopedId) continue;
       const pts = computeKpiPoints(s, ruleMap);
       const stock = stockByBranch.get(code);
       const row = agg.get(code) || {
@@ -680,7 +744,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     // Ensure branches with stock (or fallback offline mode) still appear if KPI list is sparse
     if (agg.size === 0) {
       for (const b of branches) {
-        if (b.code === '100') continue;
+        if (b.code === '100' || !ppDirectoryScope.isBranchInScope(b.code, b.name)) continue;
         if (branchScopedId && b.code !== branchScopedId) continue;
         const st = stockByBranch.get(b.code);
         agg.set(b.code, {
@@ -701,7 +765,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     return Array.from(agg.values())
       .sort((a, b) => b.totalTasks - a.totalTasks || b.installed - a.installed || b.reserve - a.reserve)
       .slice(0, 8);
-  }, [kpiData, branches, allDevices, devices, isAdminLike, isRowInScope, ruleMap, branchScopedId]);
+  }, [kpiData, branches, allDevices, devices, isAdminLike, ppDirectoryScope, ruleMap, branchScopedId]);
 
   const { sorted: sortedBranches, sort: brSort, toggle: brToggle } = useSort<(typeof branchLeaderboard)[number]>(
     branchLeaderboard,
@@ -756,9 +820,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const activePeriodLabel = PERIOD_OPTIONS.find((p) => p.id === period)?.label || 'This Month';
   const branchScopeDisplay = branchScopedId
     ? `Branch Code ${branchScopedId}`
-    : effectiveScope === 'PHNOM_PENH'
-    ? `Phnom Penh · ${branches.length} branches`
-    : `All Branches · ${scopedKpiTotals.activeBranchCount || branches.length} active`;
+    : `Phnom Penh · ${fmtNum(branches.length)} branches`;
 
   const actionQueueRows = [
     {
@@ -886,41 +948,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             })}
           </div>
 
-          {/* Scope Toggle (Admin HQ only) */}
+          {/* Directory Scope Badge (Admin HQ) */}
           {isAdminLike && !branchScopedId && (
-            <div
-              className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/70 gap-0.5"
-              role="tablist"
-              aria-label="Branch Data Scope"
+            <span
+              className="inline-flex items-center gap-1.5 text-xs rounded-xl border border-slate-200/90 bg-slate-100/80 px-2.5 py-1.5 text-slate-700 font-semibold whitespace-nowrap"
+              title="Scoped to active Phnom Penh staff from the Staff Directory"
             >
-              {([
-                { id: 'PHNOM_PENH' as const, label: 'Phnom Penh' },
-                { id: 'ALL' as const, label: 'All Branches' },
-              ]).map((s) => {
-                const active = adminScope === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setAdminScope(s.id)}
-                    className={`relative px-2.5 py-1 rounded-[9px] text-xs cursor-pointer transition-colors ${
-                      active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    {active && (
-                      <PillMotion
-                        layoutId="dash-scope-pill"
-                        transition={SPRING_TAB_PILL}
-                        className="absolute inset-0 rounded-[9px] tab-active-blue shadow-2xs pointer-events-none"
-                      />
-                    )}
-                    <span className="relative z-10">{s.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+              <MapPin className="w-3.5 h-3.5 text-[#003857] shrink-0" aria-hidden="true" />
+              <span>Phnom Penh · Staff Directory</span>
+            </span>
           )}
 
           <span className="hidden xl:block h-5 w-px bg-slate-200/90 mx-0.5" aria-hidden="true" />
@@ -949,110 +985,110 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
       </div>
 
-      {/* ───────────── 2. UNIFIED 4-COLUMN HAIRLINE KPI STRIP (OPTION 1) ───────────── */}
+      {/* ───────────── 2. 4 SEPARATE KPI SUMMARY CARDS (OPTION 1) ───────────── */}
       <section
-        className="surface-card overflow-hidden grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200/75 sm:[&>*:nth-child(n+3)]:border-t sm:[&>*:nth-child(n+3)]:border-slate-200/75 xl:[&>*:nth-child(n+3)]:border-t-0"
+        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
         aria-label="Key portal metrics"
       >
         {/* KPI 1: Field Tasks */}
-        <div className="px-6 py-5 flex flex-col justify-between gap-2">
-          <div className="flex items-center justify-between gap-2 min-h-[22px]">
-            <span className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-slate-400 whitespace-nowrap">
+        <div className="surface-card px-4.5 py-4 sm:px-5 sm:py-4.5 flex flex-col justify-between gap-2 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 min-h-[22px]">
+            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400 truncate">
               Field Tasks · {activePeriodLabel}
             </span>
-            <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap shrink-0">
+            <span className="text-[10.5px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap shrink-0">
               {fmtNum(Math.round(channelActivity.totalPoints))} pts
             </span>
           </div>
-          <div className="text-[28px] sm:text-[32px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
+          <div className="text-[28px] sm:text-[31px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
             <Odometer value={channelActivity.totalTasks} format duration={320} />
           </div>
-          <div className="text-xs text-slate-500">
-            <span className="font-medium text-slate-700">{fmtNum(scopedKpiTotals.activeBranchCount || branches.length)}</span> branches
-            <span className="mx-1.5 text-slate-300">·</span>
-            <span className="font-medium text-slate-700">{fmtNum(scopedKpiTotals.activeStaffCount)}</span> active staff
+          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span><span className="font-medium text-slate-700">{fmtNum(scopedKpiTotals.activeBranchCount || branches.length)}</span> branches</span>
+            <span className="text-slate-300" aria-hidden="true">·</span>
+            <span><span className="font-medium text-slate-700">{fmtNum(scopedKpiTotals.activeStaffCount)}</span> active staff</span>
           </div>
         </div>
 
         {/* KPI 2: Pending Approvals */}
-        <div className="px-6 py-5 flex flex-col justify-between gap-2">
-          <div className="flex items-center justify-between gap-2 min-h-[22px]">
-            <span className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-slate-400 whitespace-nowrap">
+        <div className="surface-card px-4.5 py-4 sm:px-5 sm:py-4.5 flex flex-col justify-between gap-2 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 min-h-[22px]">
+            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400 truncate">
               Pending Approvals
             </span>
             {queues.total > 0 ? (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-800 whitespace-nowrap shrink-0">
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-800 whitespace-nowrap shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 Action needed
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap shrink-0">
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 All clear
               </span>
             )}
           </div>
-          <div className="text-[28px] sm:text-[32px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
+          <div className="text-[28px] sm:text-[31px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
             <Odometer value={queues.total} format duration={320} />
           </div>
-          <div className="text-xs text-slate-500">
-            <span className="font-medium text-slate-700">{fmtNum(queues.appTotal)}</span> App Reviews
-            <span className="mx-1.5 text-slate-300">·</span>
-            <span className="font-medium text-slate-700">{fmtNum(queues.reqPend)}</span> Stock Requests
+          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span><span className="font-medium text-slate-700">{fmtNum(queues.appTotal)}</span> App Reviews</span>
+            <span className="text-slate-300" aria-hidden="true">·</span>
+            <span><span className="font-medium text-slate-700">{fmtNum(queues.reqPend)}</span> Stock Requests</span>
           </div>
         </div>
 
         {/* KPI 3: Hardware Pool */}
-        <div className="px-6 py-5 flex flex-col justify-between gap-2">
-          <div className="flex items-center justify-between gap-2 min-h-[22px]">
-            <span className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-slate-400 whitespace-nowrap">
+        <div className="surface-card px-4.5 py-4 sm:px-5 sm:py-4.5 flex flex-col justify-between gap-2 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 min-h-[22px]">
+            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400 truncate">
               Hardware Pool
             </span>
             {queues.pushPend > 0 ? (
               <button
                 type="button"
                 onClick={() => onNavigateTab?.('push_configuring')}
-                className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-[#004e75] hover:bg-sky-500/20 cursor-pointer transition whitespace-nowrap shrink-0"
+                className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-[#004e75] hover:bg-sky-500/20 cursor-pointer transition whitespace-nowrap shrink-0"
               >
                 {fmtNum(queues.pushPend)} push due
               </button>
             ) : (
-              <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap shrink-0">
+              <span className="text-[10.5px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap shrink-0">
                 {fmtNum(materialsSummary.simTotal)} SIM
               </span>
             )}
           </div>
-          <div className="text-[28px] sm:text-[32px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
+          <div className="text-[28px] sm:text-[31px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
             <Odometer value={hardwareSummary.total} format duration={320} />
           </div>
-          <div className="text-xs text-slate-500">
-            <span className="font-medium text-slate-700">{fmtNum(hardwareSummary.hq)}</span> HQ
-            <span className="mx-1.5 text-slate-300">·</span>
-            <span className="font-medium text-slate-700">{fmtNum(hardwareSummary.reserve)}</span> Reserve
-            <span className="mx-1.5 text-slate-300">·</span>
-            <span className="font-medium text-emerald-700">{fmtNum(hardwareSummary.installed)}</span> Live
+          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span><span className="font-medium text-slate-700">{fmtNum(hardwareSummary.hq)}</span> HQ</span>
+            <span className="text-slate-300" aria-hidden="true">·</span>
+            <span><span className="font-medium text-slate-700">{fmtNum(hardwareSummary.reserve)}</span> Reserve</span>
+            <span className="text-slate-300" aria-hidden="true">·</span>
+            <span className="font-medium text-emerald-700">{fmtNum(hardwareSummary.installed)} Live</span>
           </div>
         </div>
 
         {/* KPI 4: Merchant Outreach */}
-        <div className="px-6 py-5 flex flex-col justify-between gap-2">
-          <div className="flex items-center justify-between gap-2 min-h-[22px]">
-            <span className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-slate-400 whitespace-nowrap">
+        <div className="surface-card px-4.5 py-4 sm:px-5 sm:py-4.5 flex flex-col justify-between gap-2 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 min-h-[22px]">
+            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-slate-400 truncate">
               Merchant Outreach
             </span>
-            <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap shrink-0">
+            <span className="text-[10.5px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap shrink-0">
               {reachSharePct}% of tasks
             </span>
           </div>
-          <div className="text-[28px] sm:text-[32px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
+          <div className="text-[28px] sm:text-[31px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
             <Odometer value={reachTotal} format duration={320} />
           </div>
-          <div className="text-xs text-slate-500">
-            <span className="font-medium text-slate-700">{fmtNum(channelActivity.khqrCount)}</span> KHQR
-            <span className="mx-1.5 text-slate-300">·</span>
-            <span className="font-medium text-slate-700">{fmtNum(channelActivity.mvCount)}</span> Visits
-            <span className="mx-1.5 text-slate-300">·</span>
-            <span className="font-medium text-slate-700">{fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)}</span> Cards
+          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span><span className="font-medium text-slate-700">{fmtNum(channelActivity.khqrCount)}</span> KHQR</span>
+            <span className="text-slate-300" aria-hidden="true">·</span>
+            <span><span className="font-medium text-slate-700">{fmtNum(channelActivity.mvCount)}</span> Visits</span>
+            <span className="text-slate-300" aria-hidden="true">·</span>
+            <span><span className="font-medium text-slate-700">{fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)}</span> Cards</span>
           </div>
         </div>
       </section>

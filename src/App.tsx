@@ -4469,6 +4469,8 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       allDevices={ppScopedDevices}
                       branches={controlledBranches}
                       requisitions={scopedRequisitions}
+                      users={users}
+                      excludedDeviceSerials={excludedDeviceSerials}
                       role={role}
                       selectedBranch={selectedBranch}
                       theme={theme}
@@ -4477,7 +4479,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       onNavigateTab={handleSelectTab}
                       batteryLifespanMonths={appSettings.batteryLifespanMonths}
                       batteryWarningMonths={appSettings.batteryWarningMonths}
-                      phoneReviewScope={appSettings.phoneReviewScope || 'PHNOM_PENH'}
                       actionQueues={{
                         posFieldPending: isSupabaseConfigured ? pendingByType.pos : outOfSyncWebhooksCount,
                         sbFieldPending: isSupabaseConfigured ? pendingByType.sb : 0,

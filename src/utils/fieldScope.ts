@@ -191,12 +191,24 @@ export function isSystemPlaceholderStaff(raw?: string | null): boolean {
   return !s || SYSTEM_PLACEHOLDER_STAFF_RE.test(s);
 }
 
+export interface PpDirectoryMemberRef {
+  empId: string;
+  name: string;
+  branchId: string;
+}
+
 export interface PpDirectoryScope {
   hasDirectory: boolean;
   eligibleEmpIds: Set<string>;
   eligibleNames: Set<string>;
   isBranchInScope: (branchId?: string | null, branchName?: string | null) => boolean;
   isStaffInScope: (rawStaff?: string | null, staffId?: string | null) => boolean;
+  resolveKpiStaff: (
+    staffId?: string | null,
+    staffName?: string | null,
+    fallbackBranchId?: string | null,
+    fallbackBranchName?: string | null
+  ) => PpDirectoryMemberRef | null;
   isDeviceInScope: (
     d: Pick<Device, 'branchId' | 'branchName' | 'stage' | 'staff' | 'installedByStaff'>
   ) => boolean;
@@ -234,6 +246,8 @@ export function buildPpDirectoryScope(
   const locOverrides = loadStaffLocationOverrides();
   const eligibleEmpIds = new Set<string>();
   const eligibleNames = new Set<string>();
+  const memberByEmpId = new Map<string, PpDirectoryMemberRef>();
+  const memberByName = new Map<string, PpDirectoryMemberRef>();
 
   const registerIfEligible = (
     empIdRaw: string | null | undefined,
@@ -252,14 +266,22 @@ export function buildPpDirectoryScope(
     if (loc && !/phnom\s*penh|head\s*office/i.test(loc)) return;
     if (branchId && !isBranchInScope(branchId, '')) return;
 
+    const member: PpDirectoryMemberRef = { empId, name, branchId };
     if (empId) {
       eligibleEmpIds.add(empId);
       eligibleEmpIds.add(empId.toLowerCase());
+      memberByEmpId.set(empId, member);
+      memberByEmpId.set(empId.toLowerCase(), member);
     }
     if (name) {
-      eligibleNames.add(name.toLowerCase());
+      const nameLower = name.toLowerCase();
+      eligibleNames.add(nameLower);
+      if (!memberByName.has(nameLower)) memberByName.set(nameLower, member);
       const norm = normalizeStaffName(name).toLowerCase();
-      if (norm) eligibleNames.add(norm);
+      if (norm) {
+        eligibleNames.add(norm);
+        if (!memberByName.has(norm)) memberByName.set(norm, member);
+      }
     }
   };
 
@@ -278,6 +300,46 @@ export function buildPpDirectoryScope(
   const hasDirectory = hasCached || hasUsers;
   const aliases = getStaffAliases();
 
+  const findDirectoryMember = (rawStaff?: string | null, staffId?: string | null): PpDirectoryMemberRef | null => {
+    const idTrim = String(staffId || '').trim();
+    const rawTrim = String(rawStaff || '').trim();
+    const idActive = !isSystemPlaceholderStaff(idTrim) ? idTrim : '';
+    const rawActive = !isSystemPlaceholderStaff(rawTrim) ? rawTrim : '';
+    if (!idActive && !rawActive) return null;
+
+    if (idActive) {
+      const byId = memberByEmpId.get(idActive) || memberByEmpId.get(idActive.toLowerCase());
+      if (byId) return byId;
+    }
+    const embeddedId = rawActive ? extractEmpIdFromName(rawActive) : undefined;
+    if (embeddedId) {
+      const byEmbedded = memberByEmpId.get(embeddedId) || memberByEmpId.get(embeddedId.toLowerCase());
+      if (byEmbedded) return byEmbedded;
+    }
+    const norm = rawActive ? normalizeStaffName(rawActive) : '';
+    if (norm) {
+      const byNormId = memberByEmpId.get(norm.toLowerCase());
+      if (byNormId) return byNormId;
+    }
+    if (rawActive) {
+      const byRawName = memberByName.get(rawActive.toLowerCase());
+      if (byRawName) return byRawName;
+    }
+    if (norm) {
+      const byNormName = memberByName.get(norm.toLowerCase());
+      if (byNormName) return byNormName;
+    }
+    const aliasName =
+      (rawActive && aliases[rawActive.toLowerCase()]) ||
+      (norm && aliases[norm.toLowerCase()]) ||
+      '';
+    if (aliasName) {
+      const byAlias = memberByName.get(normalizeStaffName(aliasName).toLowerCase());
+      if (byAlias) return byAlias;
+    }
+    return null;
+  };
+
   const isStaffInScope = (rawStaff?: string | null, staffId?: string | null): boolean => {
     const idTrim = String(staffId || '').trim();
     const rawTrim = String(rawStaff || '').trim();
@@ -288,32 +350,30 @@ export function buildPpDirectoryScope(
     if (!hasDirectory) {
       return !REGIONAL_KEYWORD_REGEX.test(`${idActive} ${rawActive}`);
     }
+    return Boolean(findDirectoryMember(rawActive, idActive));
+  };
 
-    const embeddedId = rawActive ? extractEmpIdFromName(rawActive) : undefined;
-    const norm = rawActive ? normalizeStaffName(rawActive) : '';
-    if (idActive && (eligibleEmpIds.has(idActive) || eligibleEmpIds.has(idActive.toLowerCase()))) {
-      return true;
+  /**
+   * Resolves a KPI row against the active Phnom Penh Staff Directory (falling back to Phnom Penh
+   * branch matching only when no Staff Directory list is loaded).
+   */
+  const resolveKpiStaff = (
+    staffId?: string | null,
+    staffName?: string | null,
+    fallbackBranchId?: string | null,
+    fallbackBranchName?: string | null
+  ): PpDirectoryMemberRef | null => {
+    if (hasDirectory) {
+      return findDirectoryMember(staffName, staffId);
     }
-    if (embeddedId && (eligibleEmpIds.has(embeddedId) || eligibleEmpIds.has(embeddedId.toLowerCase()))) {
-      return true;
-    }
-    if (norm && eligibleEmpIds.has(norm.toLowerCase())) {
-      return true;
-    }
-    if (rawActive && eligibleNames.has(rawActive.toLowerCase())) {
-      return true;
-    }
-    if (norm && eligibleNames.has(norm.toLowerCase())) {
-      return true;
-    }
-    const aliasName =
-      (rawActive && aliases[rawActive.toLowerCase()]) ||
-      (norm && aliases[norm.toLowerCase()]) ||
-      '';
-    if (aliasName && eligibleNames.has(normalizeStaffName(aliasName).toLowerCase())) {
-      return true;
-    }
-    return false;
+    const idTrim = String(staffId || '').trim();
+    const rawTrim = String(staffName || '').trim();
+    const fbId = String(fallbackBranchId || '').trim();
+    const fbName = String(fallbackBranchName || '').trim();
+    if (REGIONAL_KEYWORD_REGEX.test(`${idTrim} ${rawTrim} ${fbId} ${fbName}`)) return null;
+    const hasBranch = (fbId && fbId.toUpperCase() !== 'UNASSIGNED') || Boolean(fbName);
+    if (!hasBranch || !isBranchInScope(fbId, fbName)) return null;
+    return { empId: idTrim, name: rawTrim || idTrim, branchId: fbId || 'UNASSIGNED' };
   };
 
   const isDeviceInScope = (
@@ -352,6 +412,7 @@ export function buildPpDirectoryScope(
     eligibleNames,
     isBranchInScope,
     isStaffInScope,
+    resolveKpiStaff,
     isDeviceInScope,
     isHistoryRecordInScope,
     isRequisitionInScope,
