@@ -1694,6 +1694,47 @@ export async function fetchAllFieldEvents(status: 'ALL' | FieldEventStatus = 'AL
   return out;
 }
 
+/** Fetch phone app field records within a YYYY-MM-DD Phnom Penh (+07:00) date window so historical dates beyond the initial 1,000 reviewed cap load on demand. */
+export async function fetchFieldEventsByDateRange(
+  fromYmd?: string,
+  toYmd?: string,
+  status: 'ALL' | FieldEventStatus = 'ALL'
+): Promise<FieldEvent[] | null> {
+  const out: FieldEvent[] = [];
+  const seenIds = new Set<number>();
+  const fromIso = fromYmd ? `${fromYmd}T00:00:00+07:00` : '';
+  const toIso = toYmd ? `${toYmd}T23:59:59.999+07:00` : '';
+  try {
+    for (let offset = 0; offset < 50000; offset += 1000) {
+      let q: any = supabase.from('field_events').select('*');
+      if (status !== 'ALL') q = q.eq('status', status);
+      if (fromIso) q = q.gte('received_at', fromIso);
+      if (toIso) q = q.lte('received_at', toIso);
+      const { data, error } = await q
+        .order('received_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(1000)
+        .range(offset, offset + 999);
+      if (error) throw error;
+      const rows = data || [];
+      let added = 0;
+      for (const r of rows) {
+        const mapped = mapFieldEvent(r);
+        if (!seenIds.has(mapped.id)) {
+          seenIds.add(mapped.id);
+          out.push(mapped);
+          added++;
+        }
+      }
+      if (added === 0 || rows.length < 1000) break;
+    }
+    return out;
+  } catch (err) {
+    await reportCaughtError('fetchFieldEventsByDateRange', err, { showPopup: false });
+    return null;
+  }
+}
+
 export async function fetchReviewedFieldEvents(limit = 1000, offset = 0): Promise<FieldEvent[] | null> {
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const safeOffset = Math.max(0, offset);

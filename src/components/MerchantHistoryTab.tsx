@@ -25,7 +25,6 @@ import {
   X,
   Phone,
   MapPin,
-  AlertTriangle,
   UserCheck,
   Copy,
   Check,
@@ -33,11 +32,9 @@ import {
   Hash,
   CreditCard,
   Wrench,
-  Plus,
 } from 'lucide-react';
 import { csvFile } from '../utils/csv';
 import { hasKhmer, isValidMid, serviceLength, statusText } from '../utils/display';
-import { newRecordId } from '../utils/ids';
 import { CopyableRecordId } from './CopyableRecordId';
 import { formatBranchName } from '../utils/format';
 import { todayPP } from '../utils/time';
@@ -66,8 +63,6 @@ interface MerchantHistoryTabProps {
 }
 
 
-const statusForReason = (_reason: string): HistoricalMerchantRecord['status'] => 'RETURNED';
-
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '-');
 
 /** Whole months between two YYYY-MM-DD dates; 0 when either date is missing or the order is wrong. */
@@ -86,11 +81,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   role,
   selectedBranch,
   theme = 'light',
-  devices = [],
-  operatorLabel = '',
-  onAddRecord,
   onClearAll,
-  onReturnDeviceStock,
   onSelectDevice,
   onToast,
 }) => {
@@ -114,88 +105,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   const [reasonFilter, setReasonFilter] = useState<string>('ALL');
   const [selectedRecord, setSelectedRecord] =
     useState<HistoricalMerchantRecord | null>(null);
-  const [isLogReturnModalOpen, setIsLogReturnModalOpen] = useState(false);
-
-  const defaultFormBranch =
-    role === 'BRANCH'
-      ? selectedBranch
-      : selectedBranch && selectedBranch !== 'ALL'
-      ? selectedBranch
-      : branches[0]?.code || '';
-
-  // Form state for logging a historical return (every field starts empty – nothing is pre-filled with sample data)
-  const [formMerchantName, setFormMerchantName] = useState('');
-  const [formMid, setFormMid] = useState('');
-  const [formTid, setFormTid] = useState('');
-  const [formPhone, setFormPhone] = useState('');
-  const [formAddress, setFormAddress] = useState('');
-  const [formType, setFormType] = useState<'POS Terminal' | 'Sound Box'>('POS Terminal');
-  const [formModel, setFormModel] = useState('');
-  const [formSerial, setFormSerial] = useState('');
-  const [formBatterySerial, setFormBatterySerial] = useState('');
-  const [formBranchId, setFormBranchId] = useState(defaultFormBranch);
-  const [formInstallDate, setFormInstallDate] = useState('');
-  const [formReturnDate, setFormReturnDate] = useState(() => todayPP());
-  const [formReturnDestination, setFormReturnDestination] = useState<'BRANCH_RESERVE' | 'HQ_STOCK'>('BRANCH_RESERVE');
-  const [formReason, setFormReason] = useState('Merchant Closed Business');
-  const [formNotes, setFormNotes] = useState('');
-  const [formError, setFormError] = useState('');
-
-  const formDevice = useMemo(() => {
-    const s = formSerial.trim().toUpperCase();
-    if (!s) return undefined;
-    return devices.find((d) => d.serial.trim().toUpperCase() === s);
-  }, [devices, formSerial]);
-
-  const datalistDevices = useMemo(() => {
-    if (!isLogReturnModalOpen) return [];
-    const q = formSerial.trim().toUpperCase();
-    const scoped = devices.filter((d) => role !== 'BRANCH' || d.branchId === selectedBranch);
-    if (!q) return scoped.slice(0, 50);
-    return scoped.filter((d) => d.serial.toUpperCase().includes(q)).slice(0, 50);
-  }, [devices, isLogReturnModalOpen, formSerial, role, selectedBranch]);
-
-  const resetForm = () => {
-    setFormMerchantName('');
-    setFormMid('');
-    setFormTid('');
-    setFormPhone('');
-    setFormAddress('');
-    setFormType('POS Terminal');
-    setFormModel('');
-    setFormSerial('');
-    setFormBatterySerial('');
-    setFormBranchId(defaultFormBranch);
-    setFormInstallDate('');
-    setFormReturnDate(todayPP());
-    setFormReturnDestination('BRANCH_RESERVE');
-    setFormReason('Merchant Closed Business');
-    setFormNotes('');
-    setFormError('');
-  };
-
-  const openLogReturn = () => {
-    resetForm();
-    setIsLogReturnModalOpen(true);
-  };
-
-  // Fill the form from the device list when the typed serial is a known unit (real data only).
-  const fillFromDevice = () => {
-    const d = formDevice;
-    if (!d) return;
-    setFormType(d.type);
-    if (!formModel.trim()) setFormModel(d.model || '');
-    if (!formBatterySerial.trim()) setFormBatterySerial(d.batterySerial || '');
-    if (!formMerchantName.trim()) setFormMerchantName(d.merchantName || '');
-    if (!formMid.trim()) setFormMid((d.mid || '').replace(/\D/g, '').slice(0, 15));
-    if (!formTid.trim()) setFormTid(d.tid || '');
-    if (!formPhone.trim()) setFormPhone(d.merchantPhone || '');
-    if (!formAddress.trim()) setFormAddress(d.address || '');
-    if (!formInstallDate && /^\d{4}-\d{2}-\d{2}/.test(d.deployedDate || '')) {
-      setFormInstallDate(d.deployedDate.slice(0, 10));
-    }
-    if (role !== 'BRANCH' && d.branchId) setFormBranchId(d.branchId);
-  };
 
   // Branch map
   const branchMap = useMemo(() => {
@@ -357,85 +266,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
     }
   };
 
-  // Handle logging a new return record
-  const handleLogSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formMerchantName.trim()) {
-      setFormError('Please enter the merchant name.');
-      return;
-    }
-    const cleanMid = formMid.replace(/\D/g, '').slice(0, 15);
-    if (cleanMid.length !== 15) {
-      setFormError('MID must be exactly 15 digits.');
-      return;
-    }
-    const serial = formSerial.trim().toUpperCase();
-    if (!serial) {
-      setFormError('Please enter the terminal serial.');
-      return;
-    }
-    if (!formReturnDate) {
-      setFormError('Please enter the return date.');
-      return;
-    }
-    if (formInstallDate && formInstallDate > formReturnDate) {
-      setFormError('The installation date is after the return date.');
-      return;
-    }
-    if (formReturnDate > todayPP()) {
-      setFormError('The return date cannot be in the future.');
-      return;
-    }
-
-    const newRecord: HistoricalMerchantRecord = {
-      recordId: newRecordId('MREC'),
-      merchantName: formMerchantName.trim(),
-      merchantPhone: formPhone.trim(),
-      address: formAddress.trim(),
-      mid: cleanMid,
-      tid: formTid.trim().toUpperCase(),
-      deviceType: formType,
-      model: formModel.trim() || formDevice?.model || '',
-      serial: formDevice?.serial || serial,
-      batterySerial: formType === 'POS Terminal' ? formBatterySerial.trim() || undefined : undefined,
-      branchId: formBranchId,
-      branchName: branchMap.get(formBranchId) || `Branch ${formBranchId}`,
-      installedDate: formInstallDate,
-      returnedDate: formReturnDate,
-      activeDurationMonths: monthsBetween(formInstallDate, formReturnDate),
-      returnReason: formReason,
-      status: statusForReason(formReason),
-      handledByStaff: operatorLabel.trim(),
-      returnedByStaff: operatorLabel.trim() || undefined,
-      // A return logged here is not yet settled; settlement is confirmed elsewhere.
-      settlementFinalized: false,
-      notes: formNotes.trim(),
-    };
-
-    if (onAddRecord) {
-      onAddRecord(newRecord);
-    }
-    // Only a unit that exists in the device list is moved back to stock.
-    if (formDevice && onReturnDeviceStock) {
-      onReturnDeviceStock(
-        formDevice.serial,
-        formReturnDestination,
-        formBranchId,
-        formReason
-      );
-    }
-    if (onToast) {
-      onToast(
-        formDevice
-          ? `Logged return record for ${newRecord.merchantName} (${newRecord.mid})`
-          : `Logged return record for ${newRecord.merchantName} (${newRecord.mid}). Serial ${serial} is not in the device list, so no stock was moved.`
-      );
-    }
-
-    setIsLogReturnModalOpen(false);
-    resetForm();
-  };
-
   return (
     <div className="flex flex-col gap-4">
       {/* Top Hero Banner & 5 Summary Cards (matching Merchant Deployment size & format) */}
@@ -460,16 +290,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            {onAddRecord && (
-              <button
-                type="button"
-                onClick={openLogReturn}
-                className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-2xs active:scale-[0.98] transition-all cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700"
-              >
-                <Plus className="w-3.5 h-3.5 shrink-0" />
-                <span>Log Return</span>
-              </button>
-            )}
             <button
               type="button"
               onClick={handleExportCsv}
@@ -1302,311 +1122,6 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           </div>
         )}
       </AnimatePresence>
-
-      {/* Log Return Modal */}
-      <AnimatePresence>
-        {isLogReturnModalOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setIsLogReturnModalOpen(false); }}>
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-              className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden bg-white text-zinc-900 rounded-l-lg"
-            >
-              <div className="px-6 py-4.5 bg-[#155484] rounded-tl-lg border-b border-white/10 text-white flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <RotateCcw className="w-5 h-5 text-white" />
-                  <h3 className="text-base font-extrabold text-white">
-                    Log Merchant Device Return / Decommission
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsLogReturnModalOpen(false)}
-                  aria-label="Close log return dialog"
-                  title="Close"
-                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={handleLogSubmit} className="flex-1 p-6 space-y-3.5 text-xs overflow-y-auto custom-scrollbar">
-                {formError && (
-                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 font-bold text-xs flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>{formError}</span>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                    Merchant Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formMerchantName}
-                    onChange={(e) => setFormMerchantName(e.target.value)}
-                    placeholder="Merchant business name"
-                    aria-label="Merchant name"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-medium border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                      MID *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      maxLength={15}
-                      value={formMid}
-                      onChange={(e) => {
-                        const clean = e.target.value.replace(/\D/g, '').slice(0, 15);
-                        setFormMid(clean);
-                      }}
-                      placeholder="15-digit MID"
-                      aria-label="MID"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                    />
-                    <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
-                      {formMid.length}/15 digits
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                      Terminal ID (TID)
-                    </label>
-                    <input
-                      type="text"
-                      value={formTid}
-                      onChange={(e) => setFormTid(e.target.value)}
-                      placeholder="Issued TID (optional)"
-                      aria-label="Terminal ID"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                      Device Type
-                    </label>
-                    <select
-                      value={formType}
-                      onChange={(e) => setFormType(e.target.value as 'POS Terminal' | 'Sound Box')}
-                      aria-label="Device type"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                    >
-                      <option value="POS Terminal">POS Terminal</option>
-                      <option value="Sound Box">Sound Box</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                      Branch Code
-                    </label>
-                    <select
-                      value={formBranchId}
-                      onChange={(e) => setFormBranchId(e.target.value)}
-                      disabled={role === 'BRANCH'}
-                      aria-label="Branch code"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                    >
-                      {branches.map((b) => (
-                        <option key={b.code} value={b.code}>
-                          Code {b.code} — {b.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                      Terminal Serial *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formSerial}
-                      onChange={(e) => setFormSerial(e.target.value)}
-                      onBlur={fillFromDevice}
-                      list="history-device-serials"
-                      placeholder="Unit serial number"
-                      aria-label="Terminal serial"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                    />
-                    <div className={`text-[10px] mt-0.5 ${formSerial.trim() && !formDevice ? 'text-amber-600' : 'text-slate-400'}`}>
-                      {!formSerial.trim()
-                        ? 'Pick a serial from the device list to fill in its details.'
-                        : formDevice
-                        ? `In device list: ${formDevice.model} (Code ${formDevice.branchId})`
-                        : 'Not in device list — the record is saved, but no stock is moved.'}
-                    </div>
-                    <datalist id="history-device-serials">
-                      {datalistDevices.map((d) => (
-                        <option key={d.serial} value={d.serial}>
-                          {d.model} • Code {d.branchId}
-                        </option>
-                      ))}
-                    </datalist>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                      Model
-                    </label>
-                    <input
-                      type="text"
-                      value={formModel}
-                      onChange={(e) => setFormModel(e.target.value)}
-                      placeholder="Device model"
-                      aria-label="Device model"
-                      className="w-full px-3 py-2 rounded-xl text-xs border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                    />
-                  </div>
-                  {formType === 'POS Terminal' && (
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                        Battery Serial Number
-                      </label>
-                      <input
-                        type="text"
-                        value={formBatterySerial}
-                        onChange={(e) => setFormBatterySerial(e.target.value)}
-                        placeholder="Battery serial (if known)"
-                        aria-label="Battery serial"
-                        className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                      Installation Date
-                    </label>
-                    <input
-                      type="date"
-                      value={formInstallDate}
-                      max={formReturnDate || todayPP()}
-                      onChange={(e) => setFormInstallDate(e.target.value)}
-                      aria-label="Installation date"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                      Return / Decommission Date
-                    </label>
-                    <input
-                      type="date"
-                      value={formReturnDate}
-                      max={todayPP()}
-                      required
-                      onChange={(e) => setFormReturnDate(e.target.value)}
-                      aria-label="Return date"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                    Return Reason
-                  </label>
-                  <select
-                    value={formReason}
-                    onChange={(e) => setFormReason(e.target.value)}
-                    aria-label="Return reason"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                  >
-                    <option value="Merchant Closed Business">Merchant Closed Business</option>
-                    <option value="Contract Ended — Merchant Relocated">Contract Ended — Merchant Relocated</option>
-                    <option value="Upgraded from Sound Box to POS Terminal">Upgraded from Sound Box to POS Terminal</option>
-                    <option value="Voluntary Return — Switch to Online KHQR Only">Voluntary Return — Switch to Online KHQR Only</option>
-                    <option value="Degraded Battery (≥24M) & Merchant Inactivity">Degraded Battery (≥24M) &amp; Merchant Inactivity</option>
-                    <option value="Franchise Ownership Transfer / Account Closed">Franchise Ownership Transfer / Account Closed</option>
-                    <option value="Seasonal Merchant Return">Seasonal Merchant Return</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1.5">
-                    Physical Hardware Return Destination *
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormReturnDestination('BRANCH_RESERVE')}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                        formReturnDestination === 'BRANCH_RESERVE'
-                          ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
-                          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
-                      }`}
-                    >
-                      <Building2 className="w-3.5 h-3.5" />
-                      <span>Branch Reserve (Code {formBranchId})</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormReturnDestination('HQ_STOCK')}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                        formReturnDestination === 'HQ_STOCK'
-                          ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
-                          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
-                      }`}
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Admin HQ Stock (Code 100)</span>
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Recorded as <strong>{statusForReason(formReason)}</strong>. Device will be cleared from active merchant and returned to {formReturnDestination === 'HQ_STOCK' ? 'HQ Central Warehouse (Branch 100)' : `Branch ${formBranchId} Reserve`}.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                    Notes / Inspection Remarks
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={formNotes}
-                    onChange={(e) => setFormNotes(e.target.value)}
-                    aria-label="Notes"
-                    placeholder="Condition of hardware, accessories returned, power adaptor, clearance notes..."
-                    className="w-full px-3 py-2 rounded-xl text-xs border outline-none bg-slate-50 border-slate-200 text-zinc-900"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2.5 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsLogReturnModalOpen(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-sm cursor-pointer transition"
-                  >
-                    Save Return Record
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-            </AnimatePresence>
           </>,
           document.body
         )}

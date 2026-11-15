@@ -2,7 +2,7 @@ import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { isFresh, markFresh } from '../utils/freshness';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Check, X, PencilLine, PackagePlus, ArrowLeftRight, BatteryCharging, Wrench, PauseCircle, RotateCcw } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Check, X, PencilLine, PackagePlus, ArrowLeftRight, BatteryCharging, Wrench, PauseCircle, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
 import { useSort, SortState } from '../utils/sort';
@@ -17,6 +17,7 @@ import {
   fetchAllPendingFieldEvents,
   fetchReviewedFieldEvents,
   fetchAllFieldEvents,
+  fetchFieldEventsByDateRange,
   subscribeToFieldEvents,
   approveFieldEvent,
   rejectFieldEvent,
@@ -30,6 +31,7 @@ import { downloadCsv, csvTime } from '../utils/exportCsv';
 import { CopyableRecordId } from './CopyableRecordId';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { PillMotion } from './PillMotion';
+import { todayPP } from '../utils/time';
 
 /**
  * Phone App Review.
@@ -104,6 +106,58 @@ const fmtTime = (iso: string | null) => {
   if (!iso) return '';
   const d = new Date(iso);
   return isNaN(d.getTime()) ? iso : FMT_TIME.format(d);
+};
+
+const FMT_DAY_SHORT = new Intl.DateTimeFormat('en-GB', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+const FMT_DAY_MONTH = new Intl.DateTimeFormat('en-GB', {
+  day: '2-digit',
+  month: 'short',
+  timeZone: 'UTC',
+});
+const shiftYmd = (ymd: string, deltaDays: number): string => {
+  const [y, m, d] = ymd.split('-').map(Number);
+  if (!y || !m || !d) return ymd;
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+};
+const monthBoundsPP = (todayYmd: string, monthOffset: number): { from: string; to: string } => {
+  const [y, m] = todayYmd.split('-').map(Number);
+  const start = new Date(Date.UTC(y, m - 1 + monthOffset, 1));
+  const end = monthOffset === 0 ? null : new Date(Date.UTC(y, m + monthOffset, 0));
+  const from = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  const to = end
+    ? `${end.getUTCFullYear()}-${String(end.getUTCMonth() + 1).padStart(2, '0')}-${String(end.getUTCDate()).padStart(2, '0')}`
+    : todayYmd;
+  return { from, to };
+};
+const normalizeDateRange = (from: string, to: string): { from: string; to: string } => {
+  if (from && to && from > to) return { from: to, to: from };
+  return { from, to };
+};
+const formatYmd = (ymd: string, withYear = true): string => {
+  if (!ymd) return '';
+  const dt = new Date(`${ymd}T00:00:00Z`);
+  if (isNaN(dt.getTime())) return ymd;
+  return withYear ? FMT_DAY_SHORT.format(dt) : FMT_DAY_MONTH.format(dt);
+};
+const formatDateFilterLabel = (from: string, to: string, todayYmd: string): string => {
+  if (!from && !to) return 'All Dates';
+  const yest = shiftYmd(todayYmd, -1);
+  if (from && from === to) {
+    if (from === todayYmd) return `Today · ${formatYmd(from, false)}`;
+    if (from === yest) return `Yesterday · ${formatYmd(from, false)}`;
+    return formatYmd(from, true);
+  }
+  if (from && to) {
+    const sameYear = from.slice(0, 4) === to.slice(0, 4);
+    return `${formatYmd(from, !sameYear)} – ${formatYmd(to, true)}`;
+  }
+  return from ? `From ${formatYmd(from, true)}` : `Up to ${formatYmd(to, true)}`;
 };
 
 interface Props {
@@ -258,6 +312,14 @@ export const FieldReviewTab: React.FC<Props> = ({
   const [filter, setFilter] = useState<Filter>('PENDING');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(deviceType || 'ALL');
   const [recordTypeFilter, setRecordTypeFilter] = useState<RecordTypeFilter>('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [dateMenuOpen, setDateMenuOpen] = useState(false);
+  const [dateLoading, setDateLoading] = useState(false);
+  const dateMenuRef = useRef<HTMLDivElement | null>(null);
+  const reviewedCapHitRef = useRef<boolean>(false);
+  const oldestReviewedYmdRef = useRef<string>('');
+  const fetchedDateRangesRef = useRef<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -326,6 +388,19 @@ export const FieldReviewTab: React.FC<Props> = ({
       if (!pending && !reviewed) {
         setLoadError('The records could not be loaded. Please check the connection and tap Refresh.');
         return;
+      }
+      if (reviewed) {
+        reviewedCapHitRef.current = reviewed.length >= 1000;
+        let oldest = '';
+        for (const ev of reviewed) {
+          if (!ev.receivedAt) continue;
+          const dt = new Date(ev.receivedAt);
+          if (isNaN(dt.getTime())) continue;
+          const ymd = todayPP(dt);
+          if (!oldest || ymd < oldest) oldest = ymd;
+        }
+        oldestReviewedYmdRef.current = oldest;
+        fetchedDateRangesRef.current.clear();
       }
       startTransition(() => {
         setEvents((prev) => {
@@ -401,22 +476,105 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   const scoped = useMemo(() => (events || []).filter(inScope), [events, inScope]);
 
+  const todayYmd = todayPP();
+  const effRange = useMemo(() => normalizeDateRange(dateFrom, dateTo), [dateFrom, dateTo]);
+  const hasDateFilter = Boolean(effRange.from || effRange.to);
+  const dateLabel = useMemo(
+    () => formatDateFilterLabel(effRange.from, effRange.to, todayYmd),
+    [effRange.from, effRange.to, todayYmd]
+  );
+
+  // Close date picker popover on outside pointerdown or Escape
+  useEffect(() => {
+    if (!dateMenuOpen) return;
+    const onDown = (ev: MouseEvent) => {
+      if (dateMenuRef.current && !dateMenuRef.current.contains(ev.target as Node)) {
+        setDateMenuOpen(false);
+      }
+    };
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') setDateMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [dateMenuOpen]);
+
+  // Precompute Phnom Penh YYYY-MM-DD per event id once when `events` changes
+  const dateById = useKeptMemo('field.dateById', () => {
+    const m = new Map<number, string>();
+    (events || []).forEach((e) => {
+      if (!e.receivedAt) return;
+      const d = new Date(e.receivedAt);
+      if (!isNaN(d.getTime())) m.set(e.id, todayPP(d));
+    });
+    return m;
+  }, [events]);
+
+  // If user selects an older date beyond the initial 1,000 reviewed cap, load that date window on demand
+  useEffect(() => {
+    if (!hasDateFilter) return;
+    const needsFetch =
+      reviewedCapHitRef.current &&
+      (!effRange.from || !oldestReviewedYmdRef.current || effRange.from <= oldestReviewedYmdRef.current);
+    if (!needsFetch) return;
+    const key = `${effRange.from}|${effRange.to}`;
+    if (fetchedDateRangesRef.current.has(key)) return;
+    let alive = true;
+    setDateLoading(true);
+    fetchFieldEventsByDateRange(effRange.from || undefined, effRange.to || undefined, 'ALL')
+      .then((rows) => {
+        if (!alive) return;
+        fetchedDateRangesRef.current.add(key);
+        if (!rows || rows.length === 0) return;
+        startTransition(() => {
+          setEvents((prev) => {
+            const list = prev || [];
+            const seen = new Set(list.map((x) => x.id));
+            const extra = rows.filter((r) => !seen.has(r.id));
+            return extra.length ? [...list, ...extra] : list;
+          });
+        });
+      })
+      .finally(() => {
+        if (alive) setDateLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [hasDateFilter, effRange.from, effRange.to]);
+
+  const dateScoped = useMemo(() => {
+    if (!hasDateFilter) return scoped;
+    const { from, to } = effRange;
+    return scoped.filter((e) => {
+      const ymd = dateById.get(e.id);
+      if (!ymd) return false;
+      if (from && ymd < from) return false;
+      if (to && ymd > to) return false;
+      return true;
+    });
+  }, [scoped, hasDateFilter, effRange, dateById]);
+
   const counts = useMemo(() => {
     const c = { PENDING: 0, APPROVED: 0, REJECTED: 0, ALL: 0 };
-    scoped.forEach((e) => {
+    dateScoped.forEach((e) => {
       if (deviceType && devType(e) !== deviceType) return;
       c.ALL++;
       if (e.status === 'PENDING' || e.status === 'APPROVED' || e.status === 'REJECTED') c[e.status]++;
     });
     return c;
-  }, [scoped, deviceType]);
+  }, [dateScoped, deviceType]);
 
-  // (5 Nov 2026) Record Type summary breakdown for the hero cards (active scope & selected device type)
+  // (5 Nov 2026) Record Type summary breakdown for the hero cards (active scope, selected date & device type)
   const hero = useMemo(() => {
     const byKind: Record<string, { total: number; pending: number; approved: number; rejected: number }> = {};
     let total = 0;
     const effectiveType = deviceType || (typeFilter !== 'ALL' ? typeFilter : undefined);
-    scoped.forEach((e) => {
+    dateScoped.forEach((e) => {
       if (effectiveType && devType(e) !== effectiveType) return;
       if (e.status !== 'APPROVED' && e.status !== 'PENDING' && e.status !== 'REJECTED') return;
       total++;
@@ -429,7 +587,7 @@ export const FieldReviewTab: React.FC<Props> = ({
     let maxKind = 0;
     Object.values(byKind).forEach((s) => { if (s.total > maxKind) maxKind = s.total; });
     return { total, maxKind, byKind };
-  }, [scoped, deviceType, typeFilter]);
+  }, [dateScoped, deviceType, typeFilter]);
 
   // Keep the sub-menu badges synchronized with the active scope's exact waiting count once full PENDING data + regions load
   const pendingByType = useMemo(() => {
@@ -474,9 +632,9 @@ export const FieldReviewTab: React.FC<Props> = ({
       POS_INACTIVE: 0,
       POS_RETURN: 0,
     };
-    const len = scoped.length;
+    const len = dateScoped.length;
     for (let i = 0; i < len; i++) {
-      const e = scoped[i];
+      const e = dateScoped[i];
       if (filter !== 'ALL' && e.status !== filter) continue;
       if (typeFilter !== 'ALL' && devType(e) !== typeFilter) continue;
       c.ALL++;
@@ -484,28 +642,28 @@ export const FieldReviewTab: React.FC<Props> = ({
       else c[e.kind] = 1;
     }
     return c;
-  }, [scoped, filter, typeFilter]);
+  }, [dateScoped, filter, typeFilter]);
 
   const typeCounts = useMemo(() => {
     const c = { pos: 0, sb: 0 };
-    const len = scoped.length;
+    const len = dateScoped.length;
     for (let i = 0; i < len; i++) {
-      const e = scoped[i];
+      const e = dateScoped[i];
       if (filter !== 'ALL' && e.status !== filter) continue;
       if (recordTypeFilter !== 'ALL' && e.kind !== recordTypeFilter) continue;
       if (e.deviceType === 'Sound Box') c.sb++;
       else c.pos++;
     }
     return c;
-  }, [scoped, filter, recordTypeFilter]);
+  }, [dateScoped, filter, recordTypeFilter]);
 
   const shownBase = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     const hasQ = Boolean(q);
     const result: FieldEvent[] = [];
-    const len = scoped.length;
+    const len = dateScoped.length;
     for (let i = 0; i < len; i++) {
-      const e = scoped[i];
+      const e = dateScoped[i];
       if (filter !== 'ALL' && e.status !== filter) continue;
       if (recordTypeFilter !== 'ALL' && e.kind !== recordTypeFilter) continue;
       if (typeFilter !== 'ALL' && devType(e) !== typeFilter) continue;
@@ -531,7 +689,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         b.sourceRecordId.localeCompare(a.sourceRecordId) ||
         a.unitNo - b.unitNo
     );
-  }, [scoped, filter, typeFilter, recordTypeFilter, deferredQuery]);
+  }, [dateScoped, filter, typeFilter, recordTypeFilter, deferredQuery]);
 
   const { sorted: shown, sort, toggle: toggleSort } = useSort(shownBase, {
     type: (e) => e.deviceType,
@@ -544,14 +702,26 @@ export const FieldReviewTab: React.FC<Props> = ({
     date: (e) => e.receivedAt,
   });
 
-  const pg = usePager(shown.length, [filter, typeFilter, recordTypeFilter, deferredQuery, activeScope, sort]);
+  const pg = usePager(shown.length, [filter, typeFilter, recordTypeFilter, deferredQuery, activeScope, effRange.from, effRange.to, sort]);
 
   // (31 Oct 2026) Export CSV: every record on the server that matches the filters (the screen keeps the latest 1,000)
   const exportCsv = useCallback(async () => {
-    const all = await fetchAllFieldEvents(filter === 'ALL' ? 'ALL' : filter);
+    const all = hasDateFilter
+      ? (await fetchFieldEventsByDateRange(effRange.from || undefined, effRange.to || undefined, filter === 'ALL' ? 'ALL' : filter)) || []
+      : await fetchAllFieldEvents(filter === 'ALL' ? 'ALL' : filter);
     const q = query.trim().toLowerCase();
     const list = all
       .filter(inScope)
+      .filter((e) => {
+        if (!hasDateFilter) return true;
+        if (!e.receivedAt) return false;
+        const dt = new Date(e.receivedAt);
+        if (isNaN(dt.getTime())) return false;
+        const ymd = todayPP(dt);
+        if (effRange.from && ymd < effRange.from) return false;
+        if (effRange.to && ymd > effRange.to) return false;
+        return true;
+      })
       .filter((e) => recordTypeFilter === 'ALL' || e.kind === recordTypeFilter)
       .filter((e) => typeFilter === 'ALL' || devType(e) === typeFilter)
       .filter((e) => !q || [e.serial, e.oldSerial, e.sourceRecordId, e.mid, e.tid, e.outletName, e.terminalName, e.staffName, e.staffId, e.branchText]
@@ -566,7 +736,7 @@ export const FieldReviewTab: React.FC<Props> = ({
         e.latitude, e.longitude, (e.issues || []).map((i) => i.text).join(' | '), STATUS_LABEL[e.status] || e.status, e.reviewedByName,
         csvTime(e.reviewedAt), e.reviewNote, e.remarks]));
     return list.length;
-  }, [filter, query, inScope, recordTypeFilter, typeFilter]);
+  }, [filter, query, inScope, recordTypeFilter, typeFilter, hasDateFilter, effRange.from, effRange.to]);
 
   const shownPending = useMemo(() => shown.filter(selectable), [shown, selectable]);   // (the selectable rows shown)
   const selectedAll = useMemo(() => shownPending.filter((e) => selected.has(e.id)), [shownPending, selected]);
@@ -790,6 +960,17 @@ export const FieldReviewTab: React.FC<Props> = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
                 {live ? 'Live' : 'Connected'}
               </span>
+              {hasDateFilter && (
+                <button
+                  type="button"
+                  onClick={() => setDateMenuOpen((o) => !o)}
+                  title="Currently viewing records for this date filter — click to change or clear"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#004e75]/10 text-[#004e75] border border-[#004e75]/25 tracking-normal hover:bg-[#004e75]/15 transition-colors cursor-pointer"
+                >
+                  <Calendar className="w-3 h-3 shrink-0" aria-hidden />
+                  <span>{dateLabel}</span>
+                </button>
+              )}
             </h1>
             <p className="text-sm sm:text-base leading-relaxed text-slate-600">
               {deviceType === 'Sound Box'
@@ -978,7 +1159,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               value={recordTypeFilter}
               onChange={(e) => setRecordTypeFilter(e.target.value as RecordTypeFilter)}
               aria-label="Filter by record type"
-              className="btn-press appearance-none pl-3 pr-8 py-1.5 rounded-xl text-xs font-medium border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-[#004e75] focus:ring-2 focus:ring-[#004e75]/10 transition-all cursor-pointer min-w-[195px] max-w-[270px]"
+              className="btn-press appearance-none pl-3 pr-7 py-1.5 rounded-xl text-xs font-medium border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 outline-none focus:border-[#004e75] focus:ring-2 focus:ring-[#004e75]/10 transition-all cursor-pointer min-w-[165px] max-w-[235px]"
             >
               <option value="ALL">All Record Types ({kindCounts.ALL || 0})</option>
               {availableKinds.map((k) => (
@@ -990,7 +1171,215 @@ export const FieldReviewTab: React.FC<Props> = ({
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" aria-hidden />
           </div>
 
-          <div className="relative flex-1 min-w-[200px]">
+          {/* Date Selector & Quick Range Popover */}
+          <div ref={dateMenuRef} className="relative inline-flex items-center shrink-0">
+            <div className="inline-flex items-center">
+              <button
+                type="button"
+                onClick={() => setDateMenuOpen((v) => !v)}
+                aria-expanded={dateMenuOpen}
+                aria-haspopup="dialog"
+                aria-label="Filter by date"
+                className={`btn-press inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border transition-all cursor-pointer whitespace-nowrap ${
+                  hasDateFilter
+                    ? 'rounded-l-xl bg-[#004e75]/10 border-[#004e75]/35 text-[#004e75] font-semibold hover:bg-[#004e75]/15'
+                    : 'rounded-xl bg-white hover:bg-slate-50 text-slate-700 border-slate-200 font-medium'
+                }`}
+              >
+                {dateLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-[#004e75]" aria-hidden />
+                ) : (
+                  <Calendar className={`w-3.5 h-3.5 shrink-0 ${hasDateFilter ? 'text-[#004e75]' : 'text-slate-500'}`} aria-hidden />
+                )}
+                <span>{dateLabel}</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 shrink-0 transition-transform duration-150 ${
+                    dateMenuOpen ? 'rotate-180' : ''
+                  } ${hasDateFilter ? 'text-[#004e75]/80' : 'text-slate-400'}`}
+                  aria-hidden
+                />
+              </button>
+              {hasDateFilter && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateFrom('');
+                    setDateTo('');
+                    setDateMenuOpen(false);
+                  }}
+                  aria-label="Clear date filter"
+                  title="Show all dates"
+                  className="btn-press px-2 py-1.5 rounded-r-xl border border-l-0 border-[#004e75]/35 bg-[#004e75]/10 text-[#004e75] hover:bg-[#004e75]/20 transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" aria-hidden />
+                </button>
+              )}
+            </div>
+
+            {dateMenuOpen && (
+              <div
+                role="dialog"
+                aria-label="Select date or date range"
+                className="absolute left-0 top-full mt-2 w-[320px] sm:w-[348px] bg-white rounded-2xl border border-slate-200 shadow-xl p-3.5 z-40 space-y-3"
+              >
+                <div>
+                  <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                    Quick View
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(() => {
+                      const yest = shiftYmd(todayYmd, -1);
+                      const w7 = shiftYmd(todayYmd, -6);
+                      const thisM = monthBoundsPP(todayYmd, 0);
+                      const lastM = monthBoundsPP(todayYmd, -1);
+                      const presets = [
+                        { label: 'All Dates', from: '', to: '' },
+                        { label: 'Today', from: todayYmd, to: todayYmd },
+                        { label: 'Yesterday', from: yest, to: yest },
+                        { label: 'Last 7 Days', from: w7, to: todayYmd },
+                        { label: 'This Month', from: thisM.from, to: thisM.to },
+                        { label: 'Last Month', from: lastM.from, to: lastM.to },
+                      ];
+                      return presets.map((p) => {
+                        const active =
+                          (!p.from && !p.to && !hasDateFilter) ||
+                          (Boolean(p.from) && effRange.from === p.from && effRange.to === p.to);
+                        return (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => {
+                              setDateFrom(p.from);
+                              setDateTo(p.to);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+                              active
+                                ? 'bg-[#004e75] text-white border-[#004e75] font-semibold shadow-2xs'
+                                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                <div className="pt-2.5 border-t border-slate-100">
+                  <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                    Select Specific Date
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const base = effRange.from && effRange.from === effRange.to ? effRange.from : todayYmd;
+                        const prevDay = shiftYmd(base, -1);
+                        setDateFrom(prevDay);
+                        setDateTo(prevDay);
+                      }}
+                      aria-label="Previous day"
+                      title="Previous day"
+                      className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer shrink-0"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" aria-hidden />
+                    </button>
+                    <input
+                      type="date"
+                      value={effRange.from && effRange.from === effRange.to ? effRange.from : ''}
+                      max={todayYmd}
+                      onChange={(ev) => {
+                        const v = ev.target.value;
+                        setDateFrom(v);
+                        setDateTo(v);
+                      }}
+                      aria-label="Select date"
+                      className="flex-1 min-w-0 px-2.5 py-1.5 rounded-xl text-xs font-mono border border-slate-200 bg-slate-50 text-slate-800 outline-none focus:border-[#004e75] focus:ring-2 focus:ring-[#004e75]/10"
+                    />
+                    <button
+                      type="button"
+                      disabled={Boolean(effRange.from && effRange.from === effRange.to && effRange.from >= todayYmd)}
+                      onClick={() => {
+                        const base = effRange.from && effRange.from === effRange.to ? effRange.from : todayYmd;
+                        const nextDay = shiftYmd(base, 1);
+                        const clamped = nextDay > todayYmd ? todayYmd : nextDay;
+                        setDateFrom(clamped);
+                        setDateTo(clamped);
+                      }}
+                      aria-label="Next day"
+                      title="Next day"
+                      className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none text-slate-600 transition-colors cursor-pointer shrink-0"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" aria-hidden />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2.5 border-t border-slate-100">
+                  <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                    Custom Date Range
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">From</label>
+                      <input
+                        type="date"
+                        value={dateFrom}
+                        max={dateTo || todayYmd}
+                        onChange={(ev) => setDateFrom(ev.target.value)}
+                        aria-label="From date"
+                        className="w-full px-2 py-1.5 rounded-xl text-[11.5px] font-mono border border-slate-200 bg-slate-50 text-slate-800 outline-none focus:border-[#004e75] focus:ring-2 focus:ring-[#004e75]/10"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">To</label>
+                      <input
+                        type="date"
+                        value={dateTo}
+                        min={dateFrom || undefined}
+                        max={todayYmd}
+                        onChange={(ev) => setDateTo(ev.target.value)}
+                        aria-label="To date"
+                        className="w-full px-2 py-1.5 rounded-xl text-[11.5px] font-mono border border-slate-200 bg-slate-50 text-slate-800 outline-none focus:border-[#004e75] focus:ring-2 focus:ring-[#004e75]/10"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-medium text-slate-500 tabular-nums">
+                    {dateLoading
+                      ? 'Loading records…'
+                      : `${counts.ALL.toLocaleString()} record${counts.ALL === 1 ? '' : 's'} matched`}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {hasDateFilter && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDateFrom('');
+                          setDateTo('');
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setDateMenuOpen(false)}
+                      className="px-3 py-1 rounded-lg text-[11px] font-semibold bg-[#004e75] text-white hover:bg-[#003c5a] transition-colors cursor-pointer shadow-2xs"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="relative flex-1 min-w-[155px]">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               value={query}
@@ -1002,12 +1391,15 @@ export const FieldReviewTab: React.FC<Props> = ({
           </div>
           <ClearFiltersButton
             className="!px-3 !py-1.5 !rounded-xl !text-xs !gap-1.5 shrink-0"
-            active={!!query || typeFilter !== (deviceType || 'ALL') || filter !== 'PENDING' || recordTypeFilter !== 'ALL'}
+            active={!!query || typeFilter !== (deviceType || 'ALL') || filter !== 'PENDING' || recordTypeFilter !== 'ALL' || hasDateFilter}
             onClear={() => {
               setQuery('');
               setTypeFilter(deviceType || 'ALL');
               setFilter('PENDING');
               setRecordTypeFilter('ALL');
+              setDateFrom('');
+              setDateTo('');
+              setDateMenuOpen(false);
             }}
           />
 
@@ -1158,18 +1550,34 @@ export const FieldReviewTab: React.FC<Props> = ({
           )}
 
           {events && shown.length === 0 && (
-            <div className="p-10 text-center text-sm font-semibold text-slate-500">
-              {filter !== 'PENDING' && !reviewedReady
-                ? 'Loading earlier records…'
-                : filter === 'PENDING'
-                ? 'Nothing is waiting for review in this view.'
-                : 'No records match the current filters.'}
+            <div className="p-10 text-center text-sm font-semibold text-slate-500 space-y-2">
+              {dateLoading || (filter !== 'PENDING' && !reviewedReady) ? (
+                <span>Loading earlier records…</span>
+              ) : hasDateFilter && filter === 'PENDING' && counts.ALL > 0 ? (
+                <div className="flex flex-col items-center gap-2.5">
+                  <span>
+                    No waiting records for <span className="text-slate-800 font-bold">{dateLabel}</span> —{' '}
+                    {counts.ALL.toLocaleString()} reviewed record{counts.ALL === 1 ? '' : 's'} found.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFilter('ALL')}
+                    className="btn-press inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#004e75] text-white hover:bg-[#003c5a] transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <span>View All ({counts.ALL.toLocaleString()})</span>
+                  </button>
+                </div>
+              ) : filter === 'PENDING' ? (
+                <span>Nothing is waiting for review in this view.</span>
+              ) : (
+                <span>No records match the current filters.</span>
+              )}
             </div>
           )}
 
           <div
             data-page-content
-            key={`${filter}-${typeFilter}-${activeScope}`}
+            key={`${filter}-${typeFilter}-${activeScope}-${effRange.from}-${effRange.to}`}
             className="divide-y divide-slate-200/90 page-glide-in"
           >
             {visibleRows.map((e, idx) => (

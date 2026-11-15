@@ -321,7 +321,7 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
 
 // ───────────── In-memory & Session cache (0ms instant tab opening & instant switching) ─────────────
 const summaryCache = new Map<string, KpiDashboardData>();
-const SESSION_CACHE_PREFIX = 'kpi_summary_cache_v2_';
+const SESSION_CACHE_PREFIX = 'kpi_summary_cache_v3_';
 let owner: string | null | undefined;
 
 export interface KpiSettingsData {
