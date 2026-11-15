@@ -244,8 +244,14 @@ interface KpiTargetComparisonDonutProps {
   totalWorkDays: number;
 }
 
-const KPI_DONUT_VB = 216;
-const KPI_DONUT_C = KPI_DONUT_VB / 2;
+const KT_VB_W = 440;
+const KT_VB_H = 356;
+const KT_CX = KT_VB_W / 2;
+const KT_CY = KT_VB_H / 2 + 2;
+const KT_R_TICK = 136;
+const KT_R_OUTER = 126;
+const KT_R_INNER = 82;
+const KT_R_HUB = 73;
 
 const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   periodLabel,
@@ -304,6 +310,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         dot: actualColor,
         top: 'Actual',
         pct: `${achievementPct}%`,
+        ratio: `${fmtPts(safeActual)} / ${fmtPts(safeTarget)} pts`,
         pill: { text: `${fmtPts(safeActual)} pts`, color: actualColor, bg: `${actualColor}18` },
       };
     }
@@ -312,6 +319,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         dot: '#94a3b8',
         top: 'Remaining',
         pct: `${gapPct}%`,
+        ratio: `${fmtPts(gapPts)} of ${fmtPts(safeTarget)} pts`,
         pill: { text: `${fmtPts(gapPts)} left`, color: '#475569', bg: 'rgba(148, 163, 184, 0.16)' },
       };
     }
@@ -321,6 +329,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         dot: '#0f172a',
         top: 'Pace Rate',
         pct: `${paceAttainmentPct}%`,
+        ratio: `${fmtPts(safeActual)} vs ${fmtPts(expectedPacePts)} pts`,
         pill: {
           text: `${paceDeltaPts >= 0 ? '+' : '-'}${fmtPts(Math.abs(paceDeltaPts))} pts`,
           color: paceCol,
@@ -333,6 +342,7 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         dot: '#475569',
         top: targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel,
         pct: '100%',
+        ratio: `${fmtPts(safeTarget)} pts goal`,
         pill: { text: `${fmtPts(safeTarget)} pts`, color: '#334155', bg: 'rgba(15, 23, 42, 0.08)' },
       };
     }
@@ -340,16 +350,60 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       dot: statusBadge.dot,
       top: 'Achievement',
       pct: `${achievementPct}%`,
+      ratio: `${fmtPts(safeActual)} / ${fmtPts(safeTarget)} pts`,
       pill: isMet
         ? { text: `+${fmtPts(surplusPts)} surplus`, color: '#2d6a4f', bg: 'rgba(45, 106, 79, 0.12)' }
         : { text: `${fmtPts(gapPts)} left`, color: '#1e6091', bg: 'rgba(30, 96, 145, 0.12)' },
     };
   })();
 
-  const actualBarWidth = safeTarget > 0 ? Math.max(safeActual > 0 ? 3 : 0, Math.min(100, (safeActual / safeTarget) * 100)) : 0;
-  const paceBarWidth = Math.max(0, Math.min(100, expectedPacePct));
   const targetTitle = targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel;
   const paceLabel = showPacing ? `Expected Pace · Day ${elapsedWorkDays}/${totalWorkDays}` : 'Expected Pace';
+
+  // Radial leader coordinates so Target, Actual, and Pace frame the enlarged donut cleanly with generous border margins
+  const targetAnchorAngle = -Math.PI * 0.78;
+  const targetStart = {
+    x: KT_CX + (KT_R_OUTER - 1) * Math.cos(targetAnchorAngle),
+    y: KT_CY + (KT_R_OUTER - 1) * Math.sin(targetAnchorAngle),
+  };
+  const targetBend = {
+    x: KT_CX + (KT_R_TICK + 7) * Math.cos(targetAnchorAngle),
+    y: KT_CY + (KT_R_TICK + 7) * Math.sin(targetAnchorAngle),
+  };
+  const targetEnd = { x: 138, y: 38 };
+
+  const actualRawMid = startAngle + actualFrac * fullCircle * 0.5;
+  const actualAnchorAngle =
+    isMet || actualFrac >= 0.7
+      ? -Math.PI * 0.22
+      : actualFrac > 0.01
+        ? Math.max(startAngle + 0.16, Math.min(0.28, actualRawMid))
+        : startAngle + 0.16;
+  const actualStart = {
+    x: KT_CX + (KT_R_OUTER - 1) * Math.cos(actualAnchorAngle),
+    y: KT_CY + (KT_R_OUTER - 1) * Math.sin(actualAnchorAngle),
+  };
+  const actualBend = {
+    x: KT_CX + (KT_R_TICK + 7) * Math.cos(actualAnchorAngle),
+    y: KT_CY + (KT_R_TICK + 7) * Math.sin(actualAnchorAngle),
+  };
+  const actualEnd = { x: KT_VB_W - 138, y: 38 };
+
+  const paceAnchorAngle = hasPacingTick ? pacingTickAngle : Math.PI * 0.72;
+  const paceSide: 'left' | 'right' = Math.cos(paceAnchorAngle) > 0.15 ? 'right' : 'left';
+  const paceStartR = hasPacingTick ? KT_R_OUTER + 5 : KT_R_OUTER - 1;
+  const paceStart = {
+    x: KT_CX + paceStartR * Math.cos(paceAnchorAngle),
+    y: KT_CY + paceStartR * Math.sin(paceAnchorAngle),
+  };
+  const paceBend =
+    Math.sin(paceAnchorAngle) > 0.85
+      ? { x: KT_CX + (paceSide === 'left' ? -36 : 36), y: KT_CY + KT_R_TICK + 10 }
+      : {
+          x: KT_CX + (KT_R_TICK + 7) * Math.cos(paceAnchorAngle),
+          y: KT_CY + (KT_R_TICK + 7) * Math.sin(paceAnchorAngle),
+        };
+  const paceEnd = { x: paceSide === 'left' ? 136 : KT_VB_W - 136, y: KT_VB_H - 38 };
 
   return (
     <div
@@ -372,288 +426,313 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
         </span>
       </div>
 
-      <div className="px-4 sm:px-5 py-3 flex-1 flex flex-col justify-between gap-2.5">
-        {/* Actual Achievement vs Monthly Target Data Strip */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-xl bg-sky-50/60 border border-sky-200/60 px-3 py-2">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              Actual Achievement
-            </div>
-            <div className="flex items-baseline justify-between gap-1.5 mt-1">
-              <span className="font-figure text-[17px] font-bold text-slate-900 tabular-nums leading-none">
-                {fmtPts(safeActual)}
-              </span>
-              <span className="text-[11px] font-figure font-bold tabular-nums whitespace-nowrap" style={{ color: actualColor }}>
-                {achievementPct}%
-              </span>
-            </div>
-          </div>
+      <div className="px-2 sm:px-3 py-1.5 flex-1 flex items-center justify-center">
+        {/* Enlarged Precision Donut + Radial Target/Actual/Pace Callouts (fit cleanly without boxed strips or stacked bars) */}
+        <div className="relative w-full max-w-[460px] aspect-[440/356] flex items-center justify-center">
+          <svg
+            viewBox={`0 0 ${KT_VB_W} ${KT_VB_H}`}
+            className="w-full h-full overflow-visible"
+            role="img"
+            aria-label={`${targetTitle} vs Actual Achievement Donut Chart: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
+            data-testid="kpi-target-donut-svg"
+          >
+            {/* Outer instrument bezel */}
+            <circle
+              cx={KT_CX}
+              cy={KT_CY}
+              r={KT_R_TICK}
+              fill="none"
+              stroke="rgba(15, 23, 42, 0.13)"
+              strokeWidth="2.5"
+              strokeDasharray="1.5 11.33"
+            />
 
-          <div className="rounded-xl bg-slate-50/90 border border-slate-200/80 px-3 py-2">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 truncate">
-              {targetTitle}
-            </div>
-            <div className="flex items-baseline justify-between gap-1.5 mt-1">
-              <span className="font-figure text-[17px] font-bold text-slate-900 tabular-nums leading-none">
-                {fmtPts(safeTarget)}
-              </span>
-              <span className={`text-[10.5px] font-medium tabular-nums whitespace-nowrap ${isMet ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
-                {isMet ? `+${fmtPts(surplusPts)} pts` : `${fmtPts(gapPts)} left`}
-              </span>
-            </div>
-          </div>
-        </div>
+            {/* Base Track (100% Target Ring) */}
+            <circle
+              cx={KT_CX}
+              cy={KT_CY}
+              r={(KT_R_INNER + KT_R_OUTER) / 2}
+              fill="none"
+              stroke="rgba(15, 23, 42, 0.055)"
+              strokeWidth={KT_R_OUTER - KT_R_INNER}
+            />
 
-        {/* Sculpted Precision Target vs Actual Donut */}
-        <div className="flex-1 flex items-center justify-center py-0.5">
-          <div className="relative w-[196px] h-[196px] sm:w-[208px] sm:h-[208px] flex items-center justify-center">
-            <svg
-              viewBox={`0 0 ${KPI_DONUT_VB} ${KPI_DONUT_VB}`}
-              className="w-full h-full overflow-visible"
-              role="img"
-              aria-label={`${targetTitle} vs Actual Achievement Donut Chart: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
-              data-testid="kpi-target-donut-svg"
-            >
-              {/* Outer instrument bezel */}
+            {/* Full Ring when Target Met (>= 100%) */}
+            {safeTarget > 0 && isMet && (
               <circle
-                cx={KPI_DONUT_C}
-                cy={KPI_DONUT_C}
-                r={103}
+                data-kpi-target-slice="actual"
+                cx={KT_CX}
+                cy={KT_CY}
+                r={(KT_R_INNER + KT_R_OUTER) / 2}
                 fill="none"
-                stroke="rgba(15, 23, 42, 0.13)"
-                strokeWidth="2.5"
-                strokeDasharray="1.5 11.33"
-              />
-
-              {/* Base Track (100% Target Ring) */}
-              <circle
-                cx={KPI_DONUT_C}
-                cy={KPI_DONUT_C}
-                r={81}
-                fill="none"
-                stroke="rgba(15, 23, 42, 0.055)"
-                strokeWidth={22}
-              />
-
-              {/* Full Ring when Target Met (>= 100%) */}
-              {safeTarget > 0 && isMet && (
-                <circle
-                  data-kpi-target-slice="actual"
-                  cx={KPI_DONUT_C}
-                  cy={KPI_DONUT_C}
-                  r={81}
-                  fill="none"
-                  stroke={actualColor}
-                  strokeWidth={hoveredKey === 'actual' ? 26 : 22}
-                  className="cursor-pointer transition-all duration-150"
-                  onMouseEnter={() => setHoveredKey('actual')}
-                  onMouseLeave={() => setHoveredKey(null)}
-                >
-                  <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
-                </circle>
-              )}
-
-              {/* Split Actual Achievement vs Remaining Target Arcs */}
-              {safeTarget > 0 && !isMet && (
-                <>
-                  {gapFrac > 0.002 && (
-                    <path
-                      data-kpi-target-slice="remaining"
-                      d={buildAnnularArcPath(
-                        KPI_DONUT_C,
-                        KPI_DONUT_C,
-                        hoveredKey === 'remaining' ? 68 : 70,
-                        hoveredKey === 'remaining' ? 96 : 92,
-                        remainingStartAngle + gapTrim / 2,
-                        remainingEndAngle - gapTrim / 2
-                      )}
-                      fill="#e2e8f0"
-                      opacity={hoveredKey !== null && hoveredKey !== 'remaining' ? 0.45 : 1}
-                      style={{ transition: 'opacity 150ms ease' }}
-                      className="cursor-pointer"
-                      onMouseEnter={() => setHoveredKey('remaining')}
-                      onMouseLeave={() => setHoveredKey(null)}
-                    >
-                      <title>{`Remaining to Target: ${fmtPts(gapPts)} pts (${gapPct}%)`}</title>
-                    </path>
-                  )}
-
-                  {actualFrac > 0.002 && (
-                    <path
-                      data-kpi-target-slice="actual"
-                      d={buildAnnularArcPath(
-                        KPI_DONUT_C,
-                        KPI_DONUT_C,
-                        hoveredKey === 'actual' ? 68 : 70,
-                        hoveredKey === 'actual' ? 96 : 92,
-                        startAngle + gapTrim / 2,
-                        actualEndAngle - gapTrim / 2
-                      )}
-                      fill={actualColor}
-                      opacity={hoveredKey !== null && hoveredKey !== 'actual' ? 0.42 : 1}
-                      style={{
-                        filter: hoveredKey === 'actual' ? `drop-shadow(0 4px 10px ${actualColor}48)` : undefined,
-                        transition: 'opacity 150ms ease, filter 150ms ease',
-                      }}
-                      className="cursor-pointer"
-                      onMouseEnter={() => setHoveredKey('actual')}
-                      onMouseLeave={() => setHoveredKey(null)}
-                    >
-                      <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
-                    </path>
-                  )}
-                </>
-              )}
-
-              {/* Expected Pace Benchmark Needle Marker on Ring */}
-              {hasPacingTick && (
-                <g
-                  className="cursor-pointer"
-                  onMouseEnter={() => setHoveredKey('pace')}
-                  onMouseLeave={() => setHoveredKey(null)}
-                >
-                  <line
-                    x1={KPI_DONUT_C + 67 * Math.cos(pacingTickAngle)}
-                    y1={KPI_DONUT_C + 67 * Math.sin(pacingTickAngle)}
-                    x2={KPI_DONUT_C + 98 * Math.cos(pacingTickAngle)}
-                    y2={KPI_DONUT_C + 98 * Math.sin(pacingTickAngle)}
-                    stroke="#0f172a"
-                    strokeWidth={hoveredKey === 'pace' ? 3 : 2.25}
-                    strokeLinecap="round"
-                  />
-                  <circle
-                    cx={KPI_DONUT_C + 101 * Math.cos(pacingTickAngle)}
-                    cy={KPI_DONUT_C + 101 * Math.sin(pacingTickAngle)}
-                    r={hoveredKey === 'pace' ? 4 : 3}
-                    fill="#0f172a"
-                    stroke="#ffffff"
-                    strokeWidth="1.25"
-                  />
-                  <title>{`${paceLabel}: ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`}</title>
-                </g>
-              )}
-
-              {/* Elevated Center Hub */}
-              <circle
-                cx={KPI_DONUT_C}
-                cy={KPI_DONUT_C}
-                r={64}
-                fill="#ffffff"
-                stroke="rgba(15, 23, 42, 0.075)"
-                strokeWidth="1.25"
-              />
-            </svg>
-
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-6">
-              <span className="inline-flex items-center gap-1 text-[8.5px] font-bold tracking-wider uppercase text-slate-500 max-w-[92px] truncate">
-                <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ backgroundColor: centerReadout.dot }} />
-                <span className="truncate">{centerReadout.top}</span>
-              </span>
-              <span className="text-[24px] sm:text-[26px] font-bold font-figure leading-none tracking-tight text-slate-900 mt-1 tabular-nums">
-                {centerReadout.pct}
-              </span>
-              <span
-                className="text-[8.5px] font-figure font-semibold px-2 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap max-w-[104px] truncate"
-                style={{ color: centerReadout.pill.color, backgroundColor: centerReadout.pill.bg }}
+                stroke={actualColor}
+                strokeWidth={hoveredKey === 'actual' ? KT_R_OUTER - KT_R_INNER + 6 : KT_R_OUTER - KT_R_INNER}
+                className="cursor-pointer transition-all duration-150"
+                onMouseEnter={() => setHoveredKey('actual')}
+                onMouseLeave={() => setHoveredKey(null)}
               >
-                {centerReadout.pill.text}
-              </span>
-            </div>
-          </div>
-        </div>
+                <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
+              </circle>
+            )}
 
-        {/* Comparison Breakdown: Data, Percentage & Pace */}
-        <div className="flex flex-col gap-1.5 pt-2.5 border-t border-slate-100">
-          {/* 1. Actual Achievement Row */}
-          <div
-            data-kpi-comparison-row="actual"
-            onMouseEnter={() => setHoveredKey('actual')}
-            onMouseLeave={() => setHoveredKey(null)}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors duration-150 ${
-              hoveredKey === 'actual' ? 'bg-sky-50/70 border-sky-200/80' : 'border-transparent hover:bg-slate-50/80'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: actualColor }} />
-            <span className="text-[11px] font-semibold text-slate-800 whitespace-nowrap w-[124px] shrink-0">
-              Actual Achievement
-            </span>
-            <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden min-w-[40px]">
-              <span
-                className="block h-full rounded-full transition-all duration-200"
-                style={{ width: `${actualBarWidth}%`, backgroundColor: actualColor }}
+            {/* Split Actual Achievement vs Remaining Target Arcs */}
+            {safeTarget > 0 && !isMet && (
+              <>
+                {gapFrac > 0.002 && (
+                  <path
+                    data-kpi-target-slice="remaining"
+                    d={buildAnnularArcPath(
+                      KT_CX,
+                      KT_CY,
+                      hoveredKey === 'remaining' || hoveredKey === 'target' ? KT_R_INNER - 2 : KT_R_INNER,
+                      hoveredKey === 'remaining' || hoveredKey === 'target' ? KT_R_OUTER + 4 : KT_R_OUTER,
+                      remainingStartAngle + gapTrim / 2,
+                      remainingEndAngle - gapTrim / 2
+                    )}
+                    fill="#e2e8f0"
+                    opacity={hoveredKey !== null && hoveredKey !== 'remaining' && hoveredKey !== 'target' ? 0.48 : 1}
+                    style={{ transition: 'opacity 150ms ease' }}
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredKey('remaining')}
+                    onMouseLeave={() => setHoveredKey(null)}
+                  >
+                    <title>{`Remaining to Target: ${fmtPts(gapPts)} pts (${gapPct}%)`}</title>
+                  </path>
+                )}
+
+                {actualFrac > 0.002 && (
+                  <path
+                    data-kpi-target-slice="actual"
+                    d={buildAnnularArcPath(
+                      KT_CX,
+                      KT_CY,
+                      hoveredKey === 'actual' ? KT_R_INNER - 3 : KT_R_INNER,
+                      hoveredKey === 'actual' ? KT_R_OUTER + 5 : KT_R_OUTER,
+                      startAngle + gapTrim / 2,
+                      actualEndAngle - gapTrim / 2
+                    )}
+                    fill={actualColor}
+                    opacity={hoveredKey !== null && hoveredKey !== 'actual' ? 0.42 : 1}
+                    style={{
+                      filter: hoveredKey === 'actual' ? `drop-shadow(0 4px 12px ${actualColor}48)` : undefined,
+                      transition: 'opacity 150ms ease, filter 150ms ease',
+                    }}
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredKey('actual')}
+                    onMouseLeave={() => setHoveredKey(null)}
+                  >
+                    <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
+                  </path>
+                )}
+              </>
+            )}
+
+            {/* Expected Pace Benchmark Needle Marker on Ring */}
+            {hasPacingTick && (
+              <g
+                className="cursor-pointer"
+                onMouseEnter={() => setHoveredKey('pace')}
+                onMouseLeave={() => setHoveredKey(null)}
+              >
+                <line
+                  x1={KT_CX + (KT_R_INNER - 3) * Math.cos(pacingTickAngle)}
+                  y1={KT_CY + (KT_R_INNER - 3) * Math.sin(pacingTickAngle)}
+                  x2={KT_CX + (KT_R_OUTER + 6) * Math.cos(pacingTickAngle)}
+                  y2={KT_CY + (KT_R_OUTER + 6) * Math.sin(pacingTickAngle)}
+                  stroke="#0f172a"
+                  strokeWidth={hoveredKey === 'pace' ? 3.25 : 2.5}
+                  strokeLinecap="round"
+                />
+                <circle
+                  cx={KT_CX + (KT_R_OUTER + 9) * Math.cos(pacingTickAngle)}
+                  cy={KT_CY + (KT_R_OUTER + 9) * Math.sin(pacingTickAngle)}
+                  r={hoveredKey === 'pace' ? 4.5 : 3.5}
+                  fill="#0f172a"
+                  stroke="#ffffff"
+                  strokeWidth="1.25"
+                />
+                <title>{`${paceLabel}: ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`}</title>
+              </g>
+            )}
+
+            {/* Thin Radial Leader Lines to Target, Actual & Pace Callouts */}
+            <g opacity={hoveredKey !== null && hoveredKey !== 'target' ? 0.35 : 0.85} style={{ transition: 'opacity 150ms ease' }}>
+              <polyline
+                points={`${targetStart.x.toFixed(1)},${targetStart.y.toFixed(1)} ${targetBend.x.toFixed(1)},${targetBend.y.toFixed(1)} ${targetEnd.x.toFixed(1)},${targetEnd.y.toFixed(1)}`}
+                fill="none"
+                stroke="#94a3b8"
+                strokeWidth={hoveredKey === 'target' ? 1.8 : 1.25}
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-            </span>
-            <span className="text-[10.5px] font-figure font-semibold text-slate-600 tabular-nums whitespace-nowrap shrink-0">
-              {fmtPts(safeActual)} pts
-            </span>
-            <span className="w-[46px] text-right text-[11px] font-figure font-bold text-slate-900 tabular-nums shrink-0">
-              {achievementPct}%
-            </span>
-          </div>
+              <circle cx={targetEnd.x} cy={targetEnd.y} r={hoveredKey === 'target' ? 3.2 : 2.4} fill="#64748b" stroke="#ffffff" strokeWidth="1" />
+            </g>
 
-          {/* 2. Expected Pace Row */}
-          <div
-            data-kpi-comparison-row="pace"
-            onMouseEnter={() => setHoveredKey('pace')}
-            onMouseLeave={() => setHoveredKey(null)}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors duration-150 ${
-              hoveredKey === 'pace' ? 'bg-slate-100/80 border-slate-300/80' : 'border-transparent hover:bg-slate-50/80'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-slate-900 shrink-0" />
-            <span className="text-[11px] font-semibold text-slate-800 whitespace-nowrap w-[124px] shrink-0 truncate" title={paceLabel}>
-              {showPacing ? `Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Expected Pace'}
-            </span>
-            <span className="relative flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden min-w-[40px]">
-              <span
-                className="block h-full rounded-full bg-slate-900/75 transition-all duration-200"
-                style={{ width: `${paceBarWidth}%` }}
+            <g opacity={hoveredKey !== null && hoveredKey !== 'actual' ? 0.35 : 0.9} style={{ transition: 'opacity 150ms ease' }}>
+              <polyline
+                points={`${actualStart.x.toFixed(1)},${actualStart.y.toFixed(1)} ${actualBend.x.toFixed(1)},${actualBend.y.toFixed(1)} ${actualEnd.x.toFixed(1)},${actualEnd.y.toFixed(1)}`}
+                fill="none"
+                stroke={actualColor}
+                strokeWidth={hoveredKey === 'actual' ? 1.8 : 1.25}
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
+              <circle cx={actualEnd.x} cy={actualEnd.y} r={hoveredKey === 'actual' ? 3.2 : 2.4} fill={actualColor} stroke="#ffffff" strokeWidth="1" />
+            </g>
+
+            <g opacity={hoveredKey !== null && hoveredKey !== 'pace' ? 0.35 : 0.85} style={{ transition: 'opacity 150ms ease' }}>
+              <polyline
+                points={`${paceStart.x.toFixed(1)},${paceStart.y.toFixed(1)} ${paceBend.x.toFixed(1)},${paceBend.y.toFixed(1)} ${paceEnd.x.toFixed(1)},${paceEnd.y.toFixed(1)}`}
+                fill="none"
+                stroke="#0f172a"
+                strokeDasharray={hasPacingTick ? undefined : '2.5 2.5'}
+                strokeWidth={hoveredKey === 'pace' ? 1.8 : 1.25}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx={paceEnd.x} cy={paceEnd.y} r={hoveredKey === 'pace' ? 3.2 : 2.4} fill="#0f172a" stroke="#ffffff" strokeWidth="1" />
+            </g>
+
+            {/* Elevated Center Hub (must remain the last <circle> inside SVG) */}
+            <circle
+              cx={KT_CX}
+              cy={KT_CY}
+              r={KT_R_HUB}
+              fill="#ffffff"
+              stroke="rgba(15, 23, 42, 0.08)"
+              strokeWidth="1.25"
+            />
+          </svg>
+
+          {/* Center Readout: Achievement % + Actual / Target pts + Left/Surplus */}
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center px-2"
+            style={{
+              left: `${(KT_CX / KT_VB_W) * 100}%`,
+              top: `${(KT_CY / KT_VB_H) * 100}%`,
+              width: `${((KT_R_HUB * 1.66) / KT_VB_W) * 100}%`,
+            }}
+          >
+            <span className="inline-flex items-center gap-1 text-[8.5px] font-bold tracking-wider uppercase text-slate-500 max-w-full whitespace-nowrap">
+              <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ backgroundColor: centerReadout.dot }} />
+              <span>{centerReadout.top}</span>
             </span>
-            <span className="text-[10.5px] font-figure font-semibold text-slate-600 tabular-nums whitespace-nowrap shrink-0">
-              {fmtPts(expectedPacePts)} pts
+            <span className="text-[24px] sm:text-[28px] font-bold font-figure leading-none tracking-tight text-slate-900 mt-1 tabular-nums">
+              {centerReadout.pct}
             </span>
-            <span className="w-[46px] text-right text-[11px] font-figure font-bold text-slate-900 tabular-nums shrink-0">
-              {expectedPacePct}%
+            <span className="text-[9.5px] font-figure font-semibold text-slate-500 mt-1 tabular-nums whitespace-nowrap max-w-full">
+              {centerReadout.ratio}
+            </span>
+            <span
+              className="text-[8.5px] font-figure font-semibold px-2 py-0.5 rounded-full mt-1 tabular-nums whitespace-nowrap max-w-full"
+              style={{ color: centerReadout.pill.color, backgroundColor: centerReadout.pill.bg }}
+            >
+              {centerReadout.pill.text}
             </span>
           </div>
 
-          {/* 3. Monthly Target Row */}
-          <div
+          {/* 1. Monthly Target Radial Callout (Upper-Left) */}
+          <button
+            type="button"
             data-kpi-comparison-row="target"
             onMouseEnter={() => setHoveredKey('target')}
             onMouseLeave={() => setHoveredKey(null)}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors duration-150 ${
-              hoveredKey === 'target' ? 'bg-slate-100/80 border-slate-200' : 'border-transparent hover:bg-slate-50/80'
+            onFocus={() => setHoveredKey('target')}
+            onBlur={() => setHoveredKey(null)}
+            style={{
+              right: `${((KT_VB_W - (targetEnd.x - 5)) / KT_VB_W) * 100}%`,
+              top: `${(targetEnd.y / KT_VB_H) * 100}%`,
+              transform: 'translateY(-50%)',
+            }}
+            className={`absolute px-1.5 py-1 rounded-lg border transition-colors duration-150 cursor-pointer flex flex-col items-end text-right leading-tight ${
+              hoveredKey === 'target' ? 'bg-slate-100/90 border-slate-300 shadow-2xs' : 'border-transparent hover:bg-slate-50/90'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-slate-300 shrink-0" />
-            <span className="text-[11px] font-semibold text-slate-800 whitespace-nowrap w-[124px] shrink-0">
-              {targetTitle}
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-semibold text-slate-600 whitespace-nowrap">
+              <span>{targetTitle}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
             </span>
-            <span className="flex-1 h-1.5 rounded-full bg-slate-200/85 overflow-hidden min-w-[40px]" />
-            <span className="text-[10.5px] font-figure font-semibold text-slate-600 tabular-nums whitespace-nowrap shrink-0">
+            <span className="text-[12.5px] sm:text-[13.5px] font-figure font-bold text-slate-900 tabular-nums whitespace-nowrap mt-0.5">
               {fmtPts(safeTarget)} pts
             </span>
-            <span className="w-[46px] text-right text-[11px] font-figure font-bold text-slate-900 tabular-nums shrink-0">
-              100%
+            <span className="text-[9.5px] font-figure font-semibold text-slate-500 tabular-nums whitespace-nowrap">
+              100% · {isMet ? `+${fmtPts(surplusPts)} surplus` : `${fmtPts(gapPts)} left`}
             </span>
-          </div>
+          </button>
 
-          {/* Pace Attainment Summary Bar */}
-          <div className="mt-1 px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/80 flex items-center justify-between gap-2 text-[11px]">
-            <span className="font-semibold text-slate-600">
-              Pace Attainment{' '}
-              <span className="font-figure font-bold text-slate-900 tabular-nums">({paceAttainmentPct}%)</span>
+          {/* 2. Actual Achievement Radial Callout (Upper-Right) */}
+          <button
+            type="button"
+            data-kpi-comparison-row="actual"
+            onMouseEnter={() => setHoveredKey('actual')}
+            onMouseLeave={() => setHoveredKey(null)}
+            onFocus={() => setHoveredKey('actual')}
+            onBlur={() => setHoveredKey(null)}
+            style={{
+              left: `${((actualEnd.x + 5) / KT_VB_W) * 100}%`,
+              top: `${(actualEnd.y / KT_VB_H) * 100}%`,
+              transform: 'translateY(-50%)',
+            }}
+            className={`absolute px-1.5 py-1 rounded-lg border transition-colors duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
+              hoveredKey === 'actual' ? 'bg-sky-50/90 border-sky-200 shadow-2xs' : 'border-transparent hover:bg-slate-50/90'
+            }`}
+          >
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-semibold text-slate-600 whitespace-nowrap">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: actualColor }} />
+              <span>Actual Achievement</span>
+            </span>
+            <span className="text-[12.5px] sm:text-[13.5px] font-figure font-bold text-slate-900 tabular-nums whitespace-nowrap mt-0.5">
+              {fmtPts(safeActual)} pts
+            </span>
+            <span className="text-[10px] font-figure font-bold tabular-nums whitespace-nowrap" style={{ color: actualColor }}>
+              {achievementPct}% of target
+            </span>
+          </button>
+
+          {/* 3. Pace Radial Callout (Lower-Left or Lower-Right following Pace Needle) */}
+          <button
+            type="button"
+            data-kpi-comparison-row="pace"
+            onMouseEnter={() => setHoveredKey('pace')}
+            onMouseLeave={() => setHoveredKey(null)}
+            onFocus={() => setHoveredKey('pace')}
+            onBlur={() => setHoveredKey(null)}
+            style={
+              paceSide === 'left'
+                ? {
+                    right: `${((KT_VB_W - (paceEnd.x - 5)) / KT_VB_W) * 100}%`,
+                    top: `${(paceEnd.y / KT_VB_H) * 100}%`,
+                    transform: 'translateY(-50%)',
+                  }
+                : {
+                    left: `${((paceEnd.x + 5) / KT_VB_W) * 100}%`,
+                    top: `${(paceEnd.y / KT_VB_H) * 100}%`,
+                    transform: 'translateY(-50%)',
+                  }
+            }
+            className={`absolute px-1.5 py-1 rounded-lg border transition-colors duration-150 cursor-pointer flex flex-col leading-tight ${
+              paceSide === 'left' ? 'items-end text-right' : 'items-start text-left'
+            } ${
+              hoveredKey === 'pace' ? 'bg-slate-100/90 border-slate-300 shadow-2xs' : 'border-transparent hover:bg-slate-50/90'
+            }`}
+          >
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-semibold text-slate-600 whitespace-nowrap">
+              {paceSide === 'right' && <span className="w-1.5 h-1.5 rounded-full bg-slate-900 shrink-0" />}
+              <span>{showPacing ? `Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Expected Pace'}</span>
+              {paceSide === 'left' && <span className="w-1.5 h-1.5 rounded-full bg-slate-900 shrink-0" />}
+            </span>
+            <span className="text-[12.5px] sm:text-[13.5px] font-figure font-bold text-slate-900 tabular-nums whitespace-nowrap mt-0.5">
+              {fmtPts(expectedPacePts)} pts{' '}
+              <span className="text-[10.5px] font-semibold text-slate-500">· {expectedPacePct}%</span>
             </span>
             <span
-              className={`font-figure font-bold tabular-nums whitespace-nowrap ${
+              className={`text-[9.5px] font-figure font-bold tabular-nums whitespace-nowrap ${
                 isAheadOfPace ? 'text-emerald-700' : 'text-amber-700'
               }`}
             >
-              {paceDeltaPts >= 0 ? `+${fmtPts(paceDeltaPts)} pts ahead` : `-${fmtPts(Math.abs(paceDeltaPts))} pts behind`}
+              {paceAttainmentPct}% pace ({paceDeltaPts >= 0 ? `+${fmtPts(paceDeltaPts)}` : `-${fmtPts(Math.abs(paceDeltaPts))}`})
             </span>
-          </div>
+          </button>
         </div>
       </div>
     </div>

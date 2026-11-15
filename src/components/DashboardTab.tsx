@@ -385,10 +385,24 @@ interface ChannelMixCardProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-const DONUT_VB_SIZE = 216;
-const DONUT_CENTER = DONUT_VB_SIZE / 2;
-const DONUT_R_TRACK = 76;
-const DONUT_TRACK_W = 24;
+const CM_VB_W = 428;
+const CM_VB_H = 342;
+const CM_CX = CM_VB_W / 2;
+const CM_CY = CM_VB_H / 2 + 1;
+const CM_R_TICK = 122;
+const CM_R_TRACK = 91;
+const CM_TRACK_W = 38;
+
+interface ChannelCalloutLayout {
+  slice: ChannelSliceItem;
+  side: 'left' | 'right';
+  sx: number;
+  sy: number;
+  mx: number;
+  my: number;
+  ex: number;
+  ey: number;
+}
 
 function formatChannelLabel(shortLabel: string): string {
   if (shortLabel === 'Visit') return 'Merchant Visit';
@@ -425,6 +439,101 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
       : focusedChannel.hexColor
     : '#1e6091';
 
+  const calloutLayouts = useMemo<ChannelCalloutLayout[]>(() => {
+    const items = donutSlices.map((slice, idx) => {
+      const hasSlice = totalTasks > 0 && slice.dash > 0;
+      const midAngle = hasSlice
+        ? -Math.PI / 2 + ((slice.offset + slice.dash * 0.5) / DONUT_CIRC) * Math.PI * 2
+        : -Math.PI / 2 + (idx / Math.max(1, donutSlices.length)) * Math.PI * 2;
+      const anchorR = hasSlice ? 108 : CM_R_TICK - 2;
+      return {
+        slice,
+        midAngle,
+        sx: CM_CX + anchorR * Math.cos(midAngle),
+        sy: CM_CY + anchorR * Math.sin(midAngle),
+        side: (Math.cos(midAngle) >= 0 ? 'right' : 'left') as 'left' | 'right',
+        targetY: CM_CY + (CM_R_TICK + 28) * Math.sin(midAngle),
+      };
+    });
+
+    // Balance sides if >= 4 callouts land on one hemisphere (e.g. KHQR > 50% dominates right+bottom).
+    const leftItems = items.filter((it) => it.side === 'left');
+    const rightItems = items.filter((it) => it.side === 'right');
+    if (leftItems.length >= 4 && rightItems.length <= 1) {
+      const topMost = [...leftItems].sort((a, b) => Math.abs(Math.cos(a.midAngle)) - Math.abs(Math.cos(b.midAngle)))[0];
+      if (topMost) {
+        topMost.side = 'right';
+        topMost.targetY = topMost.sy < CM_CY ? 20 : CM_VB_H - 20;
+      }
+    } else if (rightItems.length >= 4 && leftItems.length <= 1) {
+      const topMost = [...rightItems].sort((a, b) => Math.abs(Math.cos(a.midAngle)) - Math.abs(Math.cos(b.midAngle)))[0];
+      if (topMost) {
+        topMost.side = 'left';
+        topMost.targetY = topMost.sy < CM_CY ? 20 : CM_VB_H - 20;
+      }
+    }
+
+    const CALLOUT_H = 26;
+    const MIN_GAP = 48;
+    const Y_MIN = 20;
+    const Y_MAX = CM_VB_H - 20;
+
+    const placeSide = (side: 'left' | 'right'): ChannelCalloutLayout[] => {
+      const group = items
+        .filter((it) => it.side === side)
+        .sort((a, b) => a.targetY - b.targetY);
+      if (!group.length) return [];
+
+      const ys = group.map((g) => Math.max(Y_MIN, Math.min(Y_MAX, g.targetY)));
+      for (let i = 1; i < ys.length; i++) {
+        if (ys[i] - ys[i - 1] < MIN_GAP) ys[i] = ys[i - 1] + MIN_GAP;
+      }
+      if (ys[ys.length - 1] > Y_MAX) {
+        ys[ys.length - 1] = Y_MAX;
+        for (let i = ys.length - 2; i >= 0; i--) {
+          if (ys[i + 1] - ys[i] < MIN_GAP) ys[i] = ys[i + 1] - MIN_GAP;
+        }
+      }
+      for (let i = 0; i < ys.length; i++) {
+        ys[i] = Math.max(Y_MIN, Math.min(Y_MAX, ys[i]));
+      }
+
+      return group.map((g, i) => {
+        const ey = ys[i];
+        const dyNearest =
+          ey + CALLOUT_H / 2 < CM_CY
+            ? CM_CY - (ey + CALLOUT_H / 2)
+            : ey - CALLOUT_H / 2 > CM_CY
+              ? ey - CALLOUT_H / 2 - CM_CY
+              : 0;
+        const minRingR = CM_R_TICK + 6;
+        const clearDx =
+          dyNearest >= minRingR
+            ? 30
+            : Math.sqrt(Math.max(0, minRingR * minRingR - dyNearest * dyNearest));
+        const rawEx = side === 'left' ? CM_CX - clearDx - 4 : CM_CX + clearDx + 4;
+        const ex =
+          side === 'left'
+            ? Math.max(88, Math.min(CM_CX - 30, rawEx))
+            : Math.min(CM_VB_W - 88, Math.max(CM_CX + 30, rawEx));
+        const mx = CM_CX + (CM_R_TICK + 6) * Math.cos(g.midAngle);
+        const my = CM_CY + (CM_R_TICK + 6) * Math.sin(g.midAngle);
+        return {
+          slice: g.slice,
+          side,
+          sx: g.sx,
+          sy: g.sy,
+          mx,
+          my,
+          ex,
+          ey,
+        };
+      });
+    };
+
+    return [...placeSide('left'), ...placeSide('right')];
+  }, [donutSlices, totalTasks]);
+
   return (
     <section className={`lg:col-span-4 ${cardClass} overflow-hidden flex flex-col justify-between`}>
       <div className="px-5 pt-4 pb-1 flex items-center justify-between gap-2">
@@ -433,7 +542,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             Channel Mix
           </h3>
           <p className="text-[11.5px] text-slate-500 truncate">
-            5-channel share & breakdown
+            5-channel share
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -458,212 +567,244 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
         </div>
       </div>
 
-      <div className="px-5 pt-1 pb-4 flex-1 flex flex-col justify-between gap-2.5">
-        {/* Modern Layered Precision Donut Ring */}
-        <div className="flex-1 flex items-center justify-center py-0.5">
-          <div className="relative w-[184px] h-[184px] sm:w-[192px] sm:h-[192px] flex items-center justify-center">
-            <svg
-              viewBox={`0 0 ${DONUT_VB_SIZE} ${DONUT_VB_SIZE}`}
-              className="w-full h-full overflow-visible"
-              role="img"
-              aria-label="5-Channel Performance Donut Chart"
-              data-testid="channel-mix-donut"
+      <div className="px-2 sm:px-3 pt-1 pb-2 flex-1 flex items-center justify-center">
+        {/* Enlarged Precision Donut Ring + Radial Callout Leaders (no bottom bar list) */}
+        <div className="relative w-full max-w-[448px] aspect-[428/342] flex items-center justify-center">
+          <svg
+            viewBox={`0 0 ${CM_VB_W} ${CM_VB_H}`}
+            className="w-full h-full overflow-visible"
+            role="img"
+            aria-label="5-Channel Performance Donut Chart"
+            data-testid="channel-mix-donut"
+          >
+            {/* Outer precision gauge tick bezel */}
+            <circle
+              cx={CM_CX}
+              cy={CM_CY}
+              r={CM_R_TICK}
+              fill="none"
+              stroke={isLight ? 'rgba(15, 23, 42, 0.13)' : 'rgba(148, 163, 184, 0.22)'}
+              strokeWidth="2.5"
+              strokeDasharray="1.5 11.33"
+            />
+
+            {/* Recessed donut track */}
+            <circle
+              cx={CM_CX}
+              cy={CM_CY}
+              r={CM_R_TRACK}
+              fill="none"
+              stroke={isLight ? 'rgba(15, 23, 42, 0.045)' : 'rgba(148, 163, 184, 0.12)'}
+              strokeWidth={CM_TRACK_W}
+            />
+
+            {/* Sculpted separated annular sectors */}
+            {totalTasks > 0 && activeSlices.length === 1 && (
+              <circle
+                data-donut-slice={activeSlices[0].id}
+                cx={CM_CX}
+                cy={CM_CY}
+                r={CM_R_TRACK}
+                fill="none"
+                stroke={activeSlices[0].hexColor}
+                strokeWidth={hoveredChannelId === activeSlices[0].id ? CM_TRACK_W + 5 : CM_TRACK_W}
+                className="cursor-pointer transition-all duration-150"
+                onMouseEnter={() => setHoveredChannelId(activeSlices[0].id)}
+                onMouseLeave={() => setHoveredChannelId(null)}
+                onClick={() => onNavigateTab?.(activeSlices[0].tab)}
+              />
+            )}
+
+            {totalTasks > 0 &&
+              activeSlices.length > 1 &&
+              activeSlices.map((slice) => {
+                const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
+                const isDimmed = hoveredChannelId !== null && hoveredChannelId !== slice.id;
+                const spanRad = (slice.dash / DONUT_CIRC) * Math.PI * 2;
+                const gapTrim = Math.min(0.032, spanRad * 0.22);
+                const startRad = -Math.PI / 2 + (slice.offset / DONUT_CIRC) * Math.PI * 2 + gapTrim / 2;
+                const endRad = startRad + spanRad - gapTrim;
+                const rInner = isFocused ? 68 : 72;
+                const rOuter = isFocused ? 116 : 111;
+                const d = buildAnnularArcPath(CM_CX, CM_CY, rInner, rOuter, startRad, endRad);
+                return (
+                  <path
+                    key={slice.id}
+                    data-donut-slice={slice.id}
+                    d={d}
+                    fill={slice.hexColor}
+                    opacity={isDimmed ? 0.32 : 1}
+                    style={{
+                      filter: isFocused ? `drop-shadow(0 4px 10px ${slice.hexColor}55)` : undefined,
+                      transition: 'opacity 150ms ease, filter 150ms ease',
+                    }}
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredChannelId(slice.id)}
+                    onMouseLeave={() => setHoveredChannelId(null)}
+                    onClick={() => onNavigateTab?.(slice.tab)}
+                  >
+                    <title>{`${slice.label}: ${fmtNum(slice.primaryValue)} (${slice.sharePct}%)`}</title>
+                  </path>
+                );
+              })}
+
+            {/* Thin elbow leader lines to perimeter channel callouts */}
+            {calloutLayouts.map((c) => {
+              const isHovered = hoveredChannelId === c.slice.id;
+              const isDimmed = hoveredChannelId !== null && hoveredChannelId !== c.slice.id;
+              const lineColor = !isLight && c.slice.id === 'khqr' ? '#38bdf8' : c.slice.hexColor;
+              return (
+                <g
+                  key={`leader-${c.slice.id}`}
+                  opacity={isDimmed ? 0.25 : isHovered ? 1 : 0.78}
+                  style={{ transition: 'opacity 150ms ease' }}
+                >
+                  <polyline
+                    points={`${c.sx.toFixed(1)},${c.sy.toFixed(1)} ${c.mx.toFixed(1)},${c.my.toFixed(1)} ${c.ex.toFixed(1)},${c.ey.toFixed(1)}`}
+                    fill="none"
+                    stroke={lineColor}
+                    strokeWidth={isHovered ? 1.8 : 1.15}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle
+                    cx={c.ex}
+                    cy={c.ey}
+                    r={isHovered ? 3 : 2.25}
+                    fill={lineColor}
+                    stroke={isLight ? '#ffffff' : '#0f172a'}
+                    strokeWidth="1"
+                  />
+                </g>
+              );
+            })}
+
+            {/* Elevated central frosted hub ring */}
+            <circle
+              cx={CM_CX}
+              cy={CM_CY}
+              r={64}
+              fill={isLight ? '#ffffff' : '#0f172a'}
+              stroke={isLight ? 'rgba(15, 23, 42, 0.07)' : 'rgba(148, 163, 184, 0.16)'}
+              strokeWidth="1.25"
+            />
+          </svg>
+
+          {/* Center Interactive Focus Readout */}
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center px-2"
+            style={{
+              left: `${(CM_CX / CM_VB_W) * 100}%`,
+              top: `${(CM_CY / CM_VB_H) * 100}%`,
+              width: `${((64 * 1.72) / CM_VB_W) * 100}%`,
+            }}
+          >
+            <span
+              className={`inline-flex items-center gap-1 text-[9.5px] font-bold tracking-wider uppercase truncate max-w-full ${
+                isLight ? 'text-slate-500' : 'text-slate-400'
+              }`}
             >
-              {/* Subtle outer precision gauge tick bezel */}
-              <circle
-                cx={DONUT_CENTER}
-                cy={DONUT_CENTER}
-                r={98}
-                fill="none"
-                stroke={isLight ? 'rgba(15, 23, 42, 0.14)' : 'rgba(148, 163, 184, 0.22)'}
-                strokeWidth="2.5"
-                strokeDasharray="1.5 11.33"
-              />
-
-              {/* Recessed donut track */}
-              <circle
-                cx={DONUT_CENTER}
-                cy={DONUT_CENTER}
-                r={DONUT_R_TRACK}
-                fill="none"
-                stroke={isLight ? 'rgba(15, 23, 42, 0.045)' : 'rgba(148, 163, 184, 0.12)'}
-                strokeWidth={DONUT_TRACK_W}
-              />
-
-              {/* Sculpted separated annular sectors */}
-              {totalTasks > 0 && activeSlices.length === 1 && (
-                <circle
-                  data-donut-slice={activeSlices[0].id}
-                  cx={DONUT_CENTER}
-                  cy={DONUT_CENTER}
-                  r={DONUT_R_TRACK}
-                  fill="none"
-                  stroke={activeSlices[0].hexColor}
-                  strokeWidth={hoveredChannelId === activeSlices[0].id ? DONUT_TRACK_W + 4 : DONUT_TRACK_W}
-                  className="cursor-pointer transition-all duration-150"
-                  onMouseEnter={() => setHoveredChannelId(activeSlices[0].id)}
-                  onMouseLeave={() => setHoveredChannelId(null)}
-                  onClick={() => onNavigateTab?.(activeSlices[0].tab)}
+              {focusedChannel && (
+                <i
+                  className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
+                  style={{ backgroundColor: focusedAccent }}
                 />
               )}
-
-              {totalTasks > 0 &&
-                activeSlices.length > 1 &&
-                activeSlices.map((slice) => {
-                  const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
-                  const isDimmed = hoveredChannelId !== null && hoveredChannelId !== slice.id;
-                  const spanRad = (slice.dash / DONUT_CIRC) * Math.PI * 2;
-                  const gapTrim = Math.min(0.032, spanRad * 0.22);
-                  const startRad = -Math.PI / 2 + (slice.offset / DONUT_CIRC) * Math.PI * 2 + gapTrim / 2;
-                  const endRad = startRad + spanRad - gapTrim;
-                  const rInner = isFocused ? 62 : 64;
-                  const rOuter = isFocused ? 92 : 88;
-                  const d = buildAnnularArcPath(DONUT_CENTER, DONUT_CENTER, rInner, rOuter, startRad, endRad);
-                  return (
-                    <path
-                      key={slice.id}
-                      data-donut-slice={slice.id}
-                      d={d}
-                      fill={slice.hexColor}
-                      opacity={isDimmed ? 0.32 : 1}
-                      style={{
-                        filter: isFocused ? `drop-shadow(0 4px 10px ${slice.hexColor}55)` : undefined,
-                        transition: 'opacity 150ms ease, filter 150ms ease',
-                      }}
-                      className="cursor-pointer"
-                      onMouseEnter={() => setHoveredChannelId(slice.id)}
-                      onMouseLeave={() => setHoveredChannelId(null)}
-                      onClick={() => onNavigateTab?.(slice.tab)}
-                    >
-                      <title>{`${slice.label}: ${fmtNum(slice.primaryValue)} (${slice.sharePct}%)`}</title>
-                    </path>
-                  );
-                })}
-
-              {/* Elevated central frosted hub ring */}
-              <circle
-                cx={DONUT_CENTER}
-                cy={DONUT_CENTER}
-                r={56}
-                fill={isLight ? '#ffffff' : '#0f172a'}
-                stroke={isLight ? 'rgba(15, 23, 42, 0.07)' : 'rgba(148, 163, 184, 0.16)'}
-                strokeWidth="1.25"
-              />
-            </svg>
-
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-3">
+              {focusedChannel ? formatChannelLabel(focusedChannel.shortLabel) : 'NO TASKS'}
+            </span>
+            <span
+              className={`text-[26px] sm:text-[29px] font-bold font-figure leading-none tracking-tight mt-1 tabular-nums ${
+                isLight ? 'text-slate-900' : 'text-white'
+              }`}
+            >
+              {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
+            </span>
+            {focusedChannel && totalTasks > 0 && (
               <span
-                className={`inline-flex items-center gap-1 text-[9.5px] font-bold tracking-wider uppercase truncate max-w-[116px] ${
-                  isLight ? 'text-slate-500' : 'text-slate-400'
-                }`}
+                className="text-[10px] font-figure font-semibold px-2 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap"
+                style={{
+                  color: focusedAccent,
+                  backgroundColor: isLight ? `${focusedAccent}14` : `${focusedAccent}28`,
+                }}
               >
-                {focusedChannel && (
-                  <i
-                    className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
-                    style={{ backgroundColor: focusedAccent }}
-                  />
-                )}
-                {focusedChannel ? formatChannelLabel(focusedChannel.shortLabel) : 'NO TASKS'}
+                {formatSliceCount(focusedChannel)} tasks
               </span>
-              <span
-                className={`text-[28px] sm:text-[31px] font-bold font-figure leading-none tracking-tight mt-1 ${
-                  isLight ? 'text-slate-900' : 'text-white'
-                }`}
-              >
-                {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
-              </span>
-              {focusedChannel && totalTasks > 0 && (
-                <span
-                  className="text-[10.5px] font-figure font-semibold px-2 py-0.5 rounded-full mt-1.5 tabular-nums"
-                  style={{
-                    color: focusedAccent,
-                    backgroundColor: isLight ? `${focusedAccent}14` : `${focusedAccent}28`,
-                  }}
-                >
-                  {formatSliceCount(focusedChannel)} tasks
-                </span>
-              )}
-            </div>
+            )}
           </div>
-        </div>
 
-        {/* Sleek 5-Channel Share Bars & Quick Drill-Down */}
-        <div
-          className={`flex flex-col gap-1 pt-2.5 border-t ${
-            isLight ? 'border-slate-100' : 'border-slate-800/80'
-          }`}
-        >
-          {donutSlices.map((slice) => {
-            const isHovered = hoveredChannelId === slice.id;
-            const isDimmed = hoveredChannelId !== null && hoveredChannelId !== slice.id;
-            const barWidth = slice.primaryValue > 0 ? Math.max(3, slice.sharePct) : 0;
-            const label = formatChannelLabel(slice.shortLabel);
+          {/* 5 Perimeter Callout Badges (aligned directly to leader endpoints) */}
+          {calloutLayouts.map((c) => {
+            const isHovered = hoveredChannelId === c.slice.id;
+            const isDimmed = hoveredChannelId !== null && hoveredChannelId !== c.slice.id;
+            const label = formatChannelLabel(c.slice.shortLabel);
+            const accent = !isLight && c.slice.id === 'khqr' ? '#38bdf8' : c.slice.hexColor;
+            const posStyle: React.CSSProperties =
+              c.side === 'left'
+                ? {
+                    right: `${((CM_VB_W - (c.ex - 4)) / CM_VB_W) * 100}%`,
+                    top: `${(c.ey / CM_VB_H) * 100}%`,
+                    transform: 'translateY(-50%)',
+                  }
+                : {
+                    left: `${((c.ex + 4) / CM_VB_W) * 100}%`,
+                    top: `${(c.ey / CM_VB_H) * 100}%`,
+                    transform: 'translateY(-50%)',
+                  };
+
             return (
               <button
-                key={slice.id}
+                key={c.slice.id}
                 type="button"
-                data-donut-callout={slice.id}
-                aria-label={`${label}: ${slice.sharePct}%, ${formatSliceCount(slice)}`}
-                onMouseEnter={() => setHoveredChannelId(slice.id)}
+                data-donut-callout={c.slice.id}
+                aria-label={`${label}: ${c.slice.sharePct}%, ${formatSliceCount(c.slice)}`}
+                onMouseEnter={() => setHoveredChannelId(c.slice.id)}
                 onMouseLeave={() => setHoveredChannelId(null)}
-                onFocus={() => setHoveredChannelId(slice.id)}
+                onFocus={() => setHoveredChannelId(c.slice.id)}
                 onBlur={() => setHoveredChannelId(null)}
-                onClick={() => onNavigateTab?.(slice.tab)}
-                className={`w-full flex items-center gap-2 px-2 py-1 rounded-lg border text-left transition-all duration-150 cursor-pointer ${
+                onClick={() => onNavigateTab?.(c.slice.tab)}
+                style={{
+                  ...posStyle,
+                  ...(isHovered
+                    ? {
+                        borderColor: `${accent}55`,
+                        backgroundColor: isLight ? `${accent}10` : `${accent}24`,
+                      }
+                    : undefined),
+                }}
+                className={`absolute px-1 py-0.5 rounded-md border transition-all duration-150 cursor-pointer flex flex-col leading-tight ${
+                  c.side === 'left' ? 'items-end text-right' : 'items-start text-left'
+                } ${
                   isHovered
                     ? isLight
                       ? 'shadow-2xs'
                       : 'shadow-sm'
                     : isLight
-                      ? 'border-transparent hover:bg-slate-50/80'
-                      : 'border-transparent hover:bg-slate-800/60'
-                } ${isDimmed ? 'opacity-45' : ''}`}
-                style={
-                  isHovered
-                    ? {
-                        borderColor: `${slice.hexColor}55`,
-                        backgroundColor: isLight ? `${slice.hexColor}10` : `${slice.hexColor}22`,
-                      }
-                    : undefined
-                }
+                      ? 'border-transparent hover:bg-slate-50/90'
+                      : 'border-transparent hover:bg-slate-800/70'
+                } ${isDimmed ? 'opacity-40' : ''}`}
               >
                 <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: slice.hexColor }}
-                />
-                <span
-                  className={`text-[11.5px] font-semibold whitespace-nowrap shrink-0 w-[96px] ${
-                    isLight ? 'text-slate-700' : 'text-slate-200'
+                  className={`inline-flex items-center gap-1 text-[9.5px] sm:text-[10px] font-semibold whitespace-nowrap ${
+                    isLight ? 'text-slate-800' : 'text-slate-100'
                   }`}
                 >
-                  {label}
+                  {c.side === 'right' && (
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+                  )}
+                  <span>{label}</span>
+                  {c.side === 'left' && (
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+                  )}
                 </span>
                 <span
-                  className={`flex-1 h-1.5 rounded-full overflow-hidden min-w-[36px] ${
-                    isLight ? 'bg-slate-100' : 'bg-slate-800'
-                  }`}
-                >
-                  <span
-                    className="block h-full rounded-full transition-all duration-200"
-                    style={{
-                      width: `${barWidth}%`,
-                      backgroundColor: slice.hexColor,
-                    }}
-                  />
-                </span>
-                <span
-                  className={`text-[11px] font-figure font-semibold tabular-nums whitespace-nowrap shrink-0 ${
+                  className={`text-[9px] sm:text-[9.5px] font-figure font-semibold tabular-nums whitespace-nowrap ${
                     isLight ? 'text-slate-500' : 'text-slate-400'
                   }`}
                 >
-                  {formatSliceCount(slice)}
-                </span>
-                <span
-                  className={`w-[40px] text-right text-[11px] font-figure font-bold tabular-nums shrink-0 ${
-                    isLight ? 'text-slate-900' : 'text-white'
-                  }`}
-                >
-                  {slice.sharePct}%
+                  <strong className={isLight ? 'text-slate-900 font-bold' : 'text-white font-bold'}>
+                    {c.slice.sharePct}%
+                  </strong>{' '}
+                  · {formatSliceCount(c.slice)}
                 </span>
               </button>
             );
@@ -734,16 +875,16 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
           <div className="flex flex-wrap items-center gap-3 text-slate-500">
             <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.khqr }} />KHQR</span>
             <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.sb }} />Sound Box</span>
-            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.pos }} />POS</span>
-            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.mv }} />Visit</span>
-            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.cc }} />CC</span>
+            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.pos }} />POS Terminal</span>
+            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.mv }} />Merchant Visit</span>
+            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.cc }} />Credit Card</span>
           </div>
           <div className="text-[11px] font-medium text-slate-500 truncate max-w-full">
             {hoveredBranch ? (
               <span className="font-figure text-slate-700">
                 <strong className="text-slate-900">Code {hoveredBranch.code}</strong> ·{' '}
-                KHQR {fmtNum(hoveredBranch.khqr)} · POS {fmtNum(hoveredBranch.pos)} · SB {fmtNum(hoveredBranch.sb)} ·{' '}
-                MV {fmtNum(hoveredBranch.mv)} · CC {fmtNum(hoveredBranch.cc)} · Res {fmtNum(hoveredBranch.reserve)}
+                KHQR {fmtNum(hoveredBranch.khqr)} · POS Terminal {fmtNum(hoveredBranch.pos)} · Sound Box {fmtNum(hoveredBranch.sb)} ·{' '}
+                Merchant Visit {fmtNum(hoveredBranch.mv)} · Credit Card {fmtNum(hoveredBranch.cc)} · Reserve {fmtNum(hoveredBranch.reserve)}
               </span>
             ) : (
               <span>Top {branches.length} Phnom Penh branches · scaled to peak branch</span>
@@ -777,7 +918,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                   onMouseEnter={() => setHoveredBranchCode(b.code)}
                   onMouseLeave={() => setHoveredBranchCode(null)}
                   onClick={() => onNavigateTab?.('branches')}
-                  title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} · KHQR ${fmtNum(b.khqr)} · POS ${fmtNum(b.pos)} · SB ${fmtNum(b.sb)} · MV ${fmtNum(b.mv)} · CC ${fmtNum(b.cc)} · Reserve ${fmtNum(b.reserve)}`}
+                  title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} · KHQR ${fmtNum(b.khqr)} · POS Terminal ${fmtNum(b.pos)} · Sound Box ${fmtNum(b.sb)} · Merchant Visit ${fmtNum(b.mv)} · Credit Card ${fmtNum(b.cc)} · Reserve ${fmtNum(b.reserve)}`}
                   className={`w-full flex items-center gap-3 px-2 py-1 rounded-xl transition-colors duration-150 cursor-pointer group ${
                     isHovered
                       ? isLight
@@ -847,8 +988,8 @@ const VELOCITY_DOCK_CHANNELS: ReadonlyArray<{
 }> = [
   { key: 'khqr', label: 'KHQR', color: CHANNEL_COLORS.khqr },
   { key: 'sb', label: 'Sound Box', color: CHANNEL_COLORS.sb },
-  { key: 'pos', label: 'POS', color: CHANNEL_COLORS.pos },
-  { key: 'mv', label: 'Visit', color: CHANNEL_COLORS.mv },
+  { key: 'pos', label: 'POS Terminal', color: CHANNEL_COLORS.pos },
+  { key: 'mv', label: 'Merchant Visit', color: CHANNEL_COLORS.mv },
   { key: 'cc', label: 'Credit Card', color: CHANNEL_COLORS.cc },
 ];
 
@@ -928,7 +1069,7 @@ const VelocityChannelDock = React.memo<VelocityChannelDockProps>(({
       data-velocity-channel-dock="true"
       role="group"
       aria-label="Filter velocity trend by channel"
-      className={`grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2.5 border-t ${
+      className={`grid grid-cols-2 sm:grid-cols-5 gap-1.5 pt-2.5 border-t ${
         isLight ? 'border-slate-100' : 'border-slate-800/80'
       }`}
     >
@@ -942,7 +1083,7 @@ const VelocityChannelDock = React.memo<VelocityChannelDockProps>(({
             type="button"
             aria-pressed={isSelected}
             onClick={() => onSelectChannel(isSelected ? 'ALL' : ch.key)}
-            className={`group text-left rounded-xl px-2.5 py-2 border transition-all duration-150 cursor-pointer flex flex-col justify-between gap-1.5 min-w-0 ${
+            className={`group text-left rounded-xl px-2 py-2 border transition-all duration-150 cursor-pointer flex flex-col justify-between gap-1.5 min-w-0 ${
               isSelected
                 ? isLight
                   ? 'shadow-xs'
@@ -960,9 +1101,9 @@ const VelocityChannelDock = React.memo<VelocityChannelDockProps>(({
                 : undefined
             }
           >
-            <div className="flex items-center justify-between gap-1.5 min-w-0">
+            <div className="flex items-center justify-between gap-1 min-w-0">
               <span
-                className={`inline-flex items-center gap-1.5 text-[11px] font-semibold truncate ${
+                className={`inline-flex items-center gap-1.5 text-[10.5px] font-semibold min-w-0 ${
                   isLight ? 'text-slate-700' : 'text-slate-200'
                 }`}
               >
@@ -972,26 +1113,28 @@ const VelocityChannelDock = React.memo<VelocityChannelDockProps>(({
                 />
                 <span className="truncate">{ch.label}</span>
               </span>
-              <span
-                className={`text-[10.5px] font-figure font-semibold tabular-nums shrink-0 ${
-                  isLight ? 'text-slate-500' : 'text-slate-400'
-                }`}
-                style={isSelected ? { color: isLight ? ch.color : undefined } : undefined}
-              >
-                {ch.sharePct}%
-              </span>
             </div>
 
             <div className="flex items-end justify-between gap-1.5 min-w-0">
-              <span
-                className={`text-[15px] font-bold font-figure leading-none tabular-nums truncate ${
-                  isLight ? 'text-slate-900' : 'text-white'
-                }`}
-              >
-                {fmtNum(ch.count)}
-              </span>
+              <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
+                <span
+                  className={`text-[15px] font-bold font-figure leading-none tabular-nums ${
+                    isLight ? 'text-slate-900' : 'text-white'
+                  }`}
+                >
+                  {fmtNum(ch.count)}
+                </span>
+                <span
+                  className={`text-[10px] font-figure font-semibold tabular-nums leading-none ${
+                    isLight ? 'text-slate-500' : 'text-slate-400'
+                  }`}
+                  style={isSelected ? { color: isLight ? ch.color : undefined } : undefined}
+                >
+                  {ch.sharePct}%
+                </span>
+              </div>
               <svg
-                width="46"
+                width="42"
                 height="18"
                 viewBox="0 0 46 18"
                 className="shrink-0 overflow-visible"
@@ -3071,7 +3214,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   Hardware Stock Lifecycle
                 </h3>
                 <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  {fmtNum(hardwareSummary.total)} units · POS vs Sound Box
+                  {fmtNum(hardwareSummary.total)} units · POS Terminal vs Sound Box
                 </p>
               </div>
             </div>
@@ -3163,7 +3306,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.pos }} />
                         <span className={`font-semibold whitespace-nowrap transition ${isLight ? 'text-slate-700 group-hover:text-[#184e77]' : 'text-slate-200 group-hover:text-sky-300'}`}>
-                          POS
+                          POS Terminal
                         </span>
                         <span className={`font-figure font-bold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
                           {fmtNum(hardwareSummary.pos)}
