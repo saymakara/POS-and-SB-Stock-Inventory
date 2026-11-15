@@ -427,17 +427,17 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     ctx.clearRect(0, 0, width, height);
 
     const isLight = theme === 'light';
-    const gridColor = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.08)';
+    const gridColor = isLight ? 'rgba(148, 163, 184, 0.16)' : 'rgba(255,255,255,0.08)';
     const axisColor = isLight ? '#64748b' : '#94a3b8';
-    const rightAxisColor = isLight ? '#334155' : '#94a3b8';
-    const staffStroke = isLight ? '#1e293b' : '#cbd5e1';
+    const rightAxisColor = isLight ? '#475569' : '#94a3b8';
+    const staffStroke = isLight ? '#1e293b' : '#e2e8f0';
     const dotFill = isLight ? '#ffffff' : '#0f172a';
     const chartFont = '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif';
 
-    const padLeft = 40;
-    const padRight = 36;
-    const padTop = 14;
-    const padBottom = 28;
+    const padLeft = 36;
+    const padRight = 32;
+    const padTop = 26;
+    const padBottom = 26;
     const plotW = Math.max(120, width - padLeft - padRight);
     const plotH = Math.max(80, height - padTop - padBottom);
 
@@ -451,7 +451,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       const y = padTop + plotH - ratio * plotH;
       ctx.save();
       ctx.strokeStyle = i === 0 ? (isLight ? '#cbd5e1' : 'rgba(255,255,255,0.16)') : gridColor;
-      if (i > 0) ctx.setLineDash([3, 3]);
+      if (i > 0) ctx.setLineDash([2, 4]);
       ctx.beginPath();
       ctx.moveTo(padLeft, y);
       ctx.lineTo(width - padRight, y);
@@ -471,17 +471,21 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     const count = Math.max(1, items.length);
     const groupW = plotW / count;
     geomRef.current = { padLeft, groupW, count: items.length };
-    const barW = Math.min(28, Math.max(8, groupW * 0.56));
+    const barW = Math.min(46, Math.max(10, groupW * 0.72));
     const labelStep = Math.max(1, Math.ceil(items.length / (plotW < 420 ? 6 : 12)));
 
-    // Hover highlight band + crisp vertical guide
+    // Hover highlight band + crisp subtle vertical guide
     if (hover && items[hover.idx]) {
+      const bandX = padLeft + hover.idx * groupW + 2;
+      const bandW = Math.max(barW + 4, groupW - 4);
       const hx = padLeft + hover.idx * groupW + groupW / 2;
-      ctx.fillStyle = isLight ? 'rgba(0, 78, 117, 0.035)' : 'rgba(56, 189, 248, 0.06)';
-      ctx.fillRect(padLeft + hover.idx * groupW, padTop, groupW, plotH);
       ctx.save();
-      ctx.strokeStyle = isLight ? 'rgba(148, 163, 184, 0.55)' : 'rgba(148, 163, 184, 0.35)';
+      ctx.fillStyle = isLight ? 'rgba(30, 96, 145, 0.05)' : 'rgba(56, 189, 248, 0.07)';
+      roundRectPath(ctx, bandX, padTop - 4, bandW, plotH + 8, 8);
+      ctx.fill();
+      ctx.strokeStyle = isLight ? 'rgba(148, 163, 184, 0.45)' : 'rgba(148, 163, 184, 0.32)';
       ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(hx, padTop);
       ctx.lineTo(hx, padTop + plotH);
@@ -489,59 +493,150 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       ctx.restore();
     }
 
-    // Stacked bars
+    // Track peak day to render a clean peak value badge on top of the tallest stack
+    let peakIdx = -1;
+    let peakTotal = 0;
+    let peakTopY = padTop + plotH;
+
+    // Stacked bars with larger width, rounded capsule tips & subtle inter-segment spacing
     items.forEach((item, idx) => {
       const cx = padLeft + idx * groupW + groupW / 2;
       const bx = cx - barW / 2;
       let curY = padTop + plotH;
+      const dayTotal = item.pos + item.sb + item.khqr + item.mv + item.cc;
+      const isDimmed = hover !== null && hover.idx !== idx;
+
+      ctx.save();
+      if (isDimmed) ctx.globalAlpha = 0.46;
 
       const activeSegs = CHANNEL_SERIES.filter((s) => item[s.key] > 0);
-      activeSegs.forEach((s, sIdx) => {
-        const val = item[s.key];
-        const segH = Math.max(1.5, (val / taskScale.max) * plotH);
-        const topY = curY - segH;
-        const isTop = sIdx === activeSegs.length - 1;
-        ctx.fillStyle = s.color;
-        roundRectPath(ctx, bx, topY, barW, segH, isTop ? [4, 4, 0, 0] : 0);
+      const segGap = 1.5;
+      if (activeSegs.length === 0) {
+        ctx.fillStyle = isLight ? 'rgba(148, 163, 184, 0.18)' : 'rgba(148, 163, 184, 0.16)';
+        roundRectPath(ctx, bx, padTop + plotH - 2, barW, 2, 1);
         ctx.fill();
-        if (sIdx > 0) {
-          ctx.fillStyle = isLight ? '#ffffff' : '#0f172a';
-          ctx.fillRect(bx, curY - 1, barW, 1);
-        }
-        curY = topY;
-      });
+      } else {
+        activeSegs.forEach((s, sIdx) => {
+          const val = item[s.key];
+          const rawH = Math.max(2, (val / taskScale.max) * plotH);
+          const drawH = sIdx < activeSegs.length - 1 ? Math.max(1.5, rawH - segGap) : rawH;
+          const topY = curY - rawH;
+          const isBottom = sIdx === 0;
+          const isTop = sIdx === activeSegs.length - 1;
+          const r: [number, number, number, number] = [
+            isTop ? 6 : 2,
+            isTop ? 6 : 2,
+            isBottom ? 3 : 2,
+            isBottom ? 3 : 2,
+          ];
+          ctx.fillStyle = s.color;
+          roundRectPath(ctx, bx, curY - drawH, barW, drawH, r);
+          ctx.fill();
+          curY = topY;
+        });
+      }
+      ctx.restore();
+
+      if (dayTotal > peakTotal) {
+        peakTotal = dayTotal;
+        peakIdx = idx;
+        peakTopY = curY;
+      }
 
       if (idx % labelStep === 0 || idx === items.length - 1) {
-        ctx.fillStyle = axisColor;
-        ctx.font = `600 10.5px ${chartFont}`;
+        ctx.fillStyle = hover?.idx === idx ? (isLight ? '#0f172a' : '#ffffff') : axisColor;
+        ctx.font = `${hover?.idx === idx ? '700' : '600'} 10.5px ${chartFont}`;
         const tw = ctx.measureText(item.label).width;
         const lx = Math.min(width - padRight - tw, Math.max(padLeft, cx - tw / 2));
-        ctx.fillText(item.label, lx, height - 8);
+        ctx.fillText(item.label, lx, height - 7);
       }
     });
 
-    // Dashed Active Staff overlay line
+    // Peak badge cleanly anchored above the highest bar
+    if (peakIdx >= 0 && peakTotal > 0 && hover === null) {
+      const px = padLeft + peakIdx * groupW + groupW / 2;
+      const label = fmt(peakTotal);
+      ctx.font = `700 10px ${chartFont}`;
+      const tw = ctx.measureText(label).width;
+      const bw = tw + 12;
+      const bh = 18;
+      const bx = Math.min(width - padRight - bw, Math.max(padLeft, px - bw / 2));
+      const by = Math.max(2, peakTopY - bh - 5);
+      ctx.save();
+      ctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.9)';
+      ctx.strokeStyle = isLight ? 'rgba(148, 163, 184, 0.35)' : 'rgba(148, 163, 184, 0.25)';
+      ctx.lineWidth = 1;
+      roundRectPath(ctx, bx, by, bw, bh, 9);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = isLight ? '#0f172a' : '#f8fafc';
+      ctx.fillText(label, bx + 6, by + 12.5);
+      ctx.restore();
+    }
+
+    // Smooth monotonic spline + soft area wash for Active Staff trendline
     if (items.length > 0 && items.some((d) => d.activeStaff > 0)) {
+      const pts = items.map((item, idx) => ({
+        x: padLeft + idx * groupW + groupW / 2,
+        y: padTop + plotH - (item.activeStaff / staffScale.max) * plotH,
+        val: item.activeStaff,
+      }));
+
+      // Monotonic slopes prevent bezier overshoot on flat zero-weekend segments
+      const slopes = pts.map((_, i) => {
+        if (pts.length === 1) return 0;
+        if (i === 0) return (pts[1].y - pts[0].y) / Math.max(1, pts[1].x - pts[0].x);
+        if (i === pts.length - 1) return (pts[i].y - pts[i - 1].y) / Math.max(1, pts[i].x - pts[i - 1].x);
+        const sPrev = (pts[i].y - pts[i - 1].y) / Math.max(1, pts[i].x - pts[i - 1].x);
+        const sNext = (pts[i + 1].y - pts[i].y) / Math.max(1, pts[i + 1].x - pts[i].x);
+        if (sPrev * sNext <= 0) return 0;
+        return (sPrev + sNext) / 2;
+      });
+
+      const traceCurve = () => {
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 0; i < pts.length - 1; i++) {
+          const dx = (pts[i + 1].x - pts[i].x) / 3;
+          ctx.bezierCurveTo(
+            pts[i].x + dx,
+            pts[i].y + slopes[i] * dx,
+            pts[i + 1].x - dx,
+            pts[i + 1].y - slopes[i + 1] * dx,
+            pts[i + 1].x,
+            pts[i + 1].y
+          );
+        }
+      };
+
+      // Soft area tint under the staff curve
+      ctx.save();
+      traceCurve();
+      ctx.lineTo(pts[pts.length - 1].x, padTop + plotH);
+      ctx.lineTo(pts[0].x, padTop + plotH);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+      grad.addColorStop(0, isLight ? 'rgba(15, 23, 42, 0.065)' : 'rgba(226, 232, 240, 0.09)');
+      grad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+
+      // Refined trendline stroke
       ctx.save();
       ctx.strokeStyle = staffStroke;
       ctx.lineWidth = 2;
-      ctx.setLineDash([5, 4]);
-      ctx.beginPath();
-      items.forEach((item, idx) => {
-        const cx = padLeft + idx * groupW + groupW / 2;
-        const cy = padTop + plotH - (item.activeStaff / staffScale.max) * plotH;
-        if (idx === 0) ctx.moveTo(cx, cy);
-        else ctx.lineTo(cx, cy);
-      });
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      traceCurve();
       ctx.stroke();
       ctx.restore();
 
-      items.forEach((item, idx) => {
-        const cx = padLeft + idx * groupW + groupW / 2;
-        const cy = padTop + plotH - (item.activeStaff / staffScale.max) * plotH;
+      pts.forEach((pt, idx) => {
         const isHov = hover?.idx === idx;
+        if (pt.val === 0 && !isHov) return;
         ctx.beginPath();
-        ctx.arc(cx, cy, isHov ? 4.5 : 3, 0, Math.PI * 2);
+        ctx.arc(pt.x, pt.y, isHov ? 4.5 : 3, 0, Math.PI * 2);
         ctx.fillStyle = isHov ? staffStroke : dotFill;
         ctx.fill();
         ctx.lineWidth = 2;

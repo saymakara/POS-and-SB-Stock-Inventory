@@ -1567,7 +1567,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
     return Array.from(agg.values())
       .sort((a, b) => b.totalTasks - a.totalTasks || b.installed - a.installed || b.reserve - a.reserve)
-      .slice(0, 8);
+      .slice(0, 10);
   }, [kpiData, branches, allDevices, devices, isAdminLike, ppDirectoryScope, ruleMap, branchScopedId]);
 
   const { sorted: sortedBranches, sort: brSort, toggle: brToggle } = useSort<(typeof branchLeaderboard)[number]>(
@@ -2102,40 +2102,72 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </div>
 
-          <div className="px-6 pt-1 pb-5 flex-1 flex flex-col justify-between">
+          <div className="px-6 pt-1 pb-5 flex-1 flex flex-col justify-between gap-2">
             {chartMode === 'VELOCITY' && (
               <div
-                className={`flex flex-wrap items-center justify-between gap-2 pb-2.5 text-[11px] ${
-                  isLight ? 'text-slate-500' : 'text-slate-400'
+                className={`flex flex-wrap items-center justify-between gap-1.5 pb-1 text-[10.5px] ${
+                  isLight ? 'text-slate-600' : 'text-slate-300'
                 }`}
               >
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.pos }} />POS</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.sb }} />Sound Box</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.khqr }} />KHQR</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.mv }} />Merchant Visit</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.cc }} />Credit Card</span>
+                <div className="flex flex-wrap items-center gap-1">
+                  {([
+                    { label: 'POS', color: CHANNEL_COLORS.pos },
+                    { label: 'Sound Box', color: CHANNEL_COLORS.sb },
+                    { label: 'KHQR', color: CHANNEL_COLORS.khqr },
+                    { label: 'Merchant Visit', color: CHANNEL_COLORS.mv },
+                    { label: 'Credit Card', color: CHANNEL_COLORS.cc },
+                  ] as const).map((item) => (
+                    <span
+                      key={item.label}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10.5px] font-medium whitespace-nowrap ${
+                        isLight
+                          ? 'bg-slate-50/90 border-slate-200/70 text-slate-700'
+                          : 'bg-slate-800/70 border-slate-700/70 text-slate-200'
+                      }`}
+                    >
+                      <i
+                        className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      {item.label}
+                    </span>
+                  ))}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 shrink-0">
                   {velocityPeak.peakVal > 0 && (
-                    <span className="hidden xl:inline-flex items-center gap-1 font-medium">
+                    <span
+                      className={`hidden xl:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium whitespace-nowrap ${
+                        isLight
+                          ? 'bg-slate-100/90 text-slate-600'
+                          : 'bg-slate-800 text-slate-300'
+                      }`}
+                    >
                       Peak{' '}
-                      <strong className={`font-figure ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                      <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
                         {fmtNum(velocityPeak.peakVal)}
                       </strong>{' '}
-                      ({velocityPeak.peakLabel})
+                      <span className="opacity-75">· {velocityPeak.peakLabel}</span>
                     </span>
                   )}
                   <span
-                    className={`inline-flex items-center gap-1.5 font-semibold ${
-                      isLight ? 'text-slate-700' : 'text-slate-300'
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold ${
+                      isLight
+                        ? 'bg-white border-slate-200/80 text-slate-800'
+                        : 'bg-slate-800 border-slate-700 text-slate-200'
                     }`}
                   >
-                    <span
-                      className={`w-3.5 border-t-2 border-dashed inline-block ${
-                        isLight ? 'border-slate-700' : 'border-slate-300'
-                      }`}
-                    />
+                    <span className="relative inline-flex items-center justify-center w-3.5 h-2">
+                      <span
+                        className={`w-3.5 border-t-[2px] inline-block ${
+                          isLight ? 'border-slate-800' : 'border-slate-200'
+                        }`}
+                      />
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full border-[1.5px] absolute ${
+                          isLight ? 'bg-white border-slate-800' : 'bg-slate-900 border-slate-200'
+                        }`}
+                      />
+                    </span>
                     Active staff
                   </span>
                 </div>
@@ -2143,7 +2175,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             )}
 
             {chartMode === 'VELOCITY' ? (
-              <CrossChannelVelocityChart items={velocitySeries} height={248} theme={theme} />
+              <CrossChannelVelocityChart items={velocitySeries} height={308} theme={theme} />
             ) : (
               <GroupedBarChart
                 labels={monthlyHardwareChart.labels}
@@ -2153,7 +2185,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 series2Label="Sound Box Installed"
                 series2Data={monthlyHardwareChart.sb}
                 series2Color={CHANNEL_COLORS.sb}
-                height={248}
+                height={308}
                 theme={theme}
               />
             )}
