@@ -15,12 +15,14 @@ import {
   CrossChannelVelocityChart,
   CrossChannelDayPoint,
   CHANNEL_COLORS,
+  VELOCITY_CALENDAR_COLORS,
   buildAnnularArcPath,
   type VelocityChannelKey,
 } from './Charts';
 import { Odometer } from './Odometer';
 import { PillMotion } from './PillMotion';
 import { todayPP, lastMonthsPP } from '../utils/time';
+import { getCambodiaHoliday, isWeekendDay } from '../utils/cambodiaHolidays';
 import { fmtNum } from '../utils/format';
 import { SPRING_TAB_PILL } from '../utils/animationRules';
 import { buildPpDirectoryScope } from '../utils/fieldScope';
@@ -829,14 +831,188 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
   cardClass,
   activePeriodLabel,
   branches,
-  maxBranchTasks,
+  maxBranchTasks: _maxBranchTasks,
   onNavigateTab,
 }) => {
   const [hoveredBranchCode, setHoveredBranchCode] = useState<string | null>(null);
-  const hoveredBranch = useMemo(
-    () => (hoveredBranchCode ? branches.find((b) => b.code === hoveredBranchCode) || null : null),
+  const totalTopTasks = useMemo(
+    () => branches.reduce((sum, b) => sum + b.totalTasks, 0),
+    [branches]
+  );
+  const inspectedBranch = useMemo(
+    () => (hoveredBranchCode ? branches.find((b) => b.code === hoveredBranchCode) : null) || branches[0] || null,
     [hoveredBranchCode, branches]
   );
+
+  const inspectedSharePct = useMemo(() => {
+    if (!inspectedBranch || totalTopTasks <= 0) return '0.0';
+    return ((inspectedBranch.totalTasks / totalTopTasks) * 100).toFixed(1);
+  }, [inspectedBranch, totalTopTasks]);
+
+  const leadBranch = branches[0] || null;
+  const midBranches = branches.slice(1, 3);
+  const compactBranches = branches.slice(3);
+
+  const renderChannelBar = (b: BranchPerfRow, heightClass: string) => {
+    const brTot = Math.max(1, b.totalTasks);
+    const segs = [
+      { key: 'khqr', val: b.khqr, color: CHANNEL_COLORS.khqr },
+      { key: 'sb', val: b.sb, color: CHANNEL_COLORS.sb },
+      { key: 'pos', val: b.pos, color: CHANNEL_COLORS.pos },
+      { key: 'mv', val: b.mv, color: CHANNEL_COLORS.mv },
+      { key: 'cc', val: b.cc, color: CHANNEL_COLORS.cc },
+    ].filter((s) => s.val > 0);
+
+    return (
+      <div
+        className={`w-full ${heightClass} rounded-full overflow-hidden flex gap-px ${
+          isLight ? 'bg-slate-100' : 'bg-slate-800'
+        }`}
+      >
+        {segs.map((seg) => (
+          <div
+            key={seg.key}
+            className="h-full transition-[width] duration-200"
+            style={{ width: `${(seg.val / brTot) * 100}%`, backgroundColor: seg.color }}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const renderTile = (b: BranchPerfRow, rankIdx: number, tier: 'hero' | 'mid' | 'compact') => {
+    const isActive = inspectedBranch?.code === b.code;
+    const sharePct = totalTopTasks > 0 ? ((b.totalTasks / totalTopTasks) * 100).toFixed(1) : '0.0';
+    const isHero = tier === 'hero';
+    const isCompact = tier === 'compact';
+
+    return (
+      <button
+        key={b.code}
+        type="button"
+        data-branch-bar={b.code}
+        onMouseEnter={() => setHoveredBranchCode(b.code)}
+        onMouseLeave={() => setHoveredBranchCode(null)}
+        onFocus={() => setHoveredBranchCode(b.code)}
+        onBlur={() => setHoveredBranchCode(null)}
+        onClick={() => onNavigateTab?.('branches')}
+        title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} (${sharePct}%) · KHQR ${fmtNum(b.khqr)} · Sound Box ${fmtNum(b.sb)} · POS Terminal ${fmtNum(b.pos)} · Merchant Visit ${fmtNum(b.mv)} · Credit Card ${fmtNum(b.cc)} · Reserve ${fmtNum(b.reserve)}`}
+        className={`w-full h-full text-left rounded-2xl border flex flex-col justify-between transition-all duration-150 cursor-pointer group ${
+          isHero ? 'p-4' : isCompact ? 'px-2.5 py-2' : 'p-3'
+        } ${
+          isActive
+            ? isLight
+              ? 'border-[#1e6091] bg-gradient-to-br from-[#eff6ff]/95 to-white shadow-[0_8px_22px_rgba(30,96,145,0.10)] ring-1 ring-[#1e6091]/25'
+              : 'border-sky-400/75 bg-gradient-to-br from-sky-950/60 to-slate-900 shadow-[0_8px_22px_rgba(2,132,199,0.18)] ring-1 ring-sky-400/20'
+            : isLight
+            ? 'border-slate-200/85 bg-white hover:border-[#1e6091]/55 hover:bg-slate-50/60'
+            : 'border-slate-800 bg-slate-900/65 hover:border-sky-500/45 hover:bg-slate-800/75'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span
+              className={`inline-flex items-center justify-center rounded-full text-[10px] font-figure font-bold shrink-0 ${
+                isHero ? 'w-5 h-5' : 'w-[18px] h-[18px]'
+              } ${
+                rankIdx === 0
+                  ? 'bg-[#1e6091] text-white'
+                  : rankIdx < 3
+                  ? isLight
+                    ? 'bg-slate-200/85 text-slate-700'
+                    : 'bg-slate-700 text-slate-200'
+                  : isLight
+                  ? 'bg-slate-100 text-slate-500'
+                  : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {rankIdx + 1}
+            </span>
+            <span
+              className={`font-bold tracking-[-0.01em] truncate transition-colors ${
+                isHero ? 'text-[13px]' : isCompact ? 'text-[11.5px]' : 'text-[12px]'
+              } ${
+                isActive
+                  ? isLight
+                    ? 'text-[#004e75]'
+                    : 'text-sky-200'
+                  : isLight
+                  ? 'text-slate-900 group-hover:text-[#1e6091]'
+                  : 'text-slate-100 group-hover:text-sky-300'
+              }`}
+            >
+              {b.name}
+            </span>
+          </div>
+
+          {isHero && (
+            <span
+              className={`text-[10px] font-figure font-bold px-1.5 py-0.5 rounded-full shrink-0 tabular-nums ${
+                isActive
+                  ? isLight
+                    ? 'bg-[#1e6091]/12 text-[#1e6091]'
+                    : 'bg-sky-400/20 text-sky-300'
+                  : isLight
+                  ? 'bg-slate-100 text-slate-600'
+                  : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {sharePct}%
+            </span>
+          )}
+        </div>
+
+        <div className={`flex items-baseline justify-between gap-1.5 ${isHero ? 'my-3' : isCompact ? 'my-1' : 'my-2'}`}>
+          <div className="flex items-baseline gap-1.5 min-w-0">
+            <span
+              className={`font-figure font-extrabold tracking-[-0.03em] tabular-nums leading-none ${
+                isHero ? 'text-[28px] sm:text-[32px]' : isCompact ? 'text-[16.5px]' : 'text-[20px]'
+              } ${isLight ? 'text-slate-900' : 'text-white'}`}
+            >
+              {fmtNum(b.totalTasks)}
+            </span>
+            {isHero ? (
+              <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                tasks
+              </span>
+            ) : (
+              <span
+                className={`text-[10px] font-figure font-semibold tabular-nums ${
+                  isActive
+                    ? isLight
+                      ? 'text-[#1e6091]'
+                      : 'text-sky-300'
+                    : isLight
+                    ? 'text-slate-500'
+                    : 'text-slate-400'
+                }`}
+              >
+                {sharePct}%
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-mono text-slate-400 shrink-0">Code {b.code}</span>
+        </div>
+
+        <div className="space-y-1.5">
+          {renderChannelBar(b, isHero ? 'h-2.5' : isCompact ? 'h-1.5' : 'h-2')}
+          {isHero && (
+            <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10.5px] pt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+              <span>
+                KHQR <strong className="font-figure">{fmtNum(b.khqr)}</strong>
+              </span>
+              <span>
+                POS Terminal <strong className="font-figure">{fmtNum(b.pos)}</strong>
+              </span>
+              <span>
+                Sound Box <strong className="font-figure">{fmtNum(b.sb)}</strong>
+              </span>
+            </div>
+          )}
+        </div>
+      </button>
+    );
+  };
 
   return (
     <section className={`lg:col-span-8 ${cardClass} overflow-hidden flex flex-col`}>
@@ -854,7 +1030,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
               Top Branches — Visual Performance Graph
             </h3>
             <p className="text-xs text-slate-500 truncate">
-              {activePeriodLabel} stacked cross-channel output · hover or click bar for detail
+              {activePeriodLabel} proportional Bento output share · hover to inspect or click to view branches
             </p>
           </div>
         </div>
@@ -871,7 +1047,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
       </div>
 
       <div className="flex-1 flex flex-col justify-between px-6 pb-5 pt-1 gap-3">
-        <div className={`flex flex-wrap items-center justify-between gap-2 text-[11px] pb-2.5 border-b ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
+        <div className={`flex flex-wrap items-center justify-between gap-2 text-[11px] pb-2 border-b ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
           <div className="flex flex-wrap items-center gap-3 text-slate-500">
             <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.khqr }} />KHQR</span>
             <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.sb }} />Sound Box</span>
@@ -879,17 +1055,9 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
             <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.mv }} />Merchant Visit</span>
             <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.cc }} />Credit Card</span>
           </div>
-          <div className="text-[11px] font-medium text-slate-500 truncate max-w-full">
-            {hoveredBranch ? (
-              <span className="font-figure text-slate-700">
-                <strong className="text-slate-900">Code {hoveredBranch.code}</strong> ·{' '}
-                KHQR {fmtNum(hoveredBranch.khqr)} · POS Terminal {fmtNum(hoveredBranch.pos)} · Sound Box {fmtNum(hoveredBranch.sb)} ·{' '}
-                Merchant Visit {fmtNum(hoveredBranch.mv)} · Credit Card {fmtNum(hoveredBranch.cc)} · Reserve {fmtNum(hoveredBranch.reserve)}
-              </span>
-            ) : (
-              <span>Top {branches.length} Phnom Penh branches · scaled to peak branch</span>
-            )}
-          </div>
+          <span className="text-[11px] font-medium text-slate-500">
+            Top {branches.length} Phnom Penh branches · {fmtNum(totalTopTasks)} tasks
+          </span>
         </div>
 
         {branches.length === 0 ? (
@@ -897,81 +1065,91 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
             No branch activity found for the selected scope.
           </div>
         ) : (
-          <div className="space-y-2 flex-1 flex flex-col justify-center">
-            {branches.map((b, i) => {
-              const totalBarPct = b.totalTasks > 0 ? Math.max(1.5, (b.totalTasks / maxBranchTasks) * 100) : 0;
-              const brTot = Math.max(1, b.totalTasks);
-              const segs = [
-                { key: 'khqr', val: b.khqr, color: CHANNEL_COLORS.khqr },
-                { key: 'sb', val: b.sb, color: CHANNEL_COLORS.sb },
-                { key: 'pos', val: b.pos, color: CHANNEL_COLORS.pos },
-                { key: 'mv', val: b.mv, color: CHANNEL_COLORS.mv },
-                { key: 'cc', val: b.cc, color: CHANNEL_COLORS.cc },
-              ].filter((s) => s.val > 0);
-              const isHovered = hoveredBranchCode === b.code;
+          <div className="flex-1 flex flex-col justify-between gap-3">
+            {/* Proportional 3-Tier Bento Treemap Grid */}
+            <div
+              className={`grid grid-cols-1 gap-2.5 flex-1 ${
+                midBranches.length === 0 && compactBranches.length === 0
+                  ? 'md:grid-cols-1'
+                  : compactBranches.length === 0
+                  ? 'md:grid-cols-2'
+                  : 'md:grid-cols-[1.12fr_0.92fr_1.96fr]'
+              }`}
+            >
+              {leadBranch && <div>{renderTile(leadBranch, 0, 'hero')}</div>}
 
-              return (
-                <button
-                  key={b.code}
-                  type="button"
-                  data-branch-bar={b.code}
-                  onMouseEnter={() => setHoveredBranchCode(b.code)}
-                  onMouseLeave={() => setHoveredBranchCode(null)}
-                  onClick={() => onNavigateTab?.('branches')}
-                  title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} · KHQR ${fmtNum(b.khqr)} · POS Terminal ${fmtNum(b.pos)} · Sound Box ${fmtNum(b.sb)} · Merchant Visit ${fmtNum(b.mv)} · Credit Card ${fmtNum(b.cc)} · Reserve ${fmtNum(b.reserve)}`}
-                  className={`w-full flex items-center gap-3 px-2 py-1 rounded-xl transition-colors duration-150 cursor-pointer group ${
-                    isHovered
-                      ? isLight
-                        ? 'bg-[#f3f6f9]'
-                        : 'bg-slate-800/70'
-                      : isLight
-                      ? 'hover:bg-slate-50/70'
-                      : 'hover:bg-slate-800/40'
-                  }`}
-                >
-                  <div className="w-[175px] sm:w-[232px] xl:w-[248px] shrink-0 text-left flex items-center gap-2 min-w-0">
-                    <span
-                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-figure font-bold shrink-0 ${
-                        i === 0
-                          ? 'bg-[#1e6091] text-white'
-                          : i < 3
-                          ? 'bg-slate-200/80 text-slate-700'
-                          : 'text-slate-400'
-                      }`}
-                    >
-                      {i + 1}
-                    </span>
-                    <span className={`text-[12px] font-semibold group-hover:text-[#1e6091] transition-colors truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
-                      {b.name}
-                    </span>
-                    <span className="text-[10px] font-mono text-slate-400 shrink-0 hidden sm:inline">
-                      Code {b.code}
-                    </span>
-                  </div>
+              {midBranches.length > 0 && (
+                <div className={`grid ${midBranches.length === 1 ? 'grid-rows-1' : 'grid-rows-2'} gap-2.5`}>
+                  {midBranches.map((b, idx) => renderTile(b, idx + 1, 'mid'))}
+                </div>
+              )}
 
-                  <div className="flex-1 h-2.5 rounded-full overflow-hidden flex items-center">
-                    {totalBarPct > 0 && (
-                      <div
-                        className="h-full rounded-full overflow-hidden flex gap-px transition-[width] duration-200"
-                        style={{ width: `${totalBarPct}%` }}
-                      >
-                        {segs.map((seg) => (
-                          <div
-                            key={seg.key}
-                            className="h-full"
-                            style={{ width: `${(seg.val / brTot) * 100}%`, backgroundColor: seg.color }}
-                          />
-                        ))}
+              {compactBranches.length > 0 && (
+                <div className="grid grid-cols-2 gap-2">
+                  {compactBranches.map((b, idx) => {
+                    const isTrailingOdd = compactBranches.length % 2 === 1 && idx === compactBranches.length - 1;
+                    return (
+                      <div key={b.code} className={isTrailingOdd ? 'col-span-2' : ''}>
+                        {renderTile(b, idx + 3, 'compact')}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-                  <div className={`w-[54px] shrink-0 text-right font-figure text-[12.5px] font-bold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                    {fmtNum(b.totalTasks)}
-                  </div>
-                </button>
-              );
-            })}
+            {/* Selected / Hovered Branch Channel Inspector Strip */}
+            {inspectedBranch && (
+              <div
+                data-branch-inspector={inspectedBranch.code}
+                className={`rounded-xl border px-3.5 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 text-[11px] ${
+                  isLight
+                    ? 'bg-slate-50/90 border-slate-200/80 text-slate-600'
+                    : 'bg-slate-800/65 border-slate-700/80 text-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`font-bold truncate ${
+                      isLight ? 'text-[#004e75]' : 'text-sky-300'
+                    }`}
+                  >
+                    {hoveredBranchCode ? 'Inspecting' : 'Leader'}: {inspectedBranch.name}
+                  </span>
+                  <span className="text-[10.5px] font-mono text-slate-400 shrink-0">
+                    Code {inspectedBranch.code}
+                  </span>
+                  <span
+                    className={`font-figure font-bold shrink-0 ${
+                      isLight ? 'text-slate-900' : 'text-white'
+                    }`}
+                  >
+                    {fmtNum(inspectedBranch.totalTasks)} tasks ({inspectedSharePct}%)
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-figure">
+                  <span>
+                    KHQR <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.khqr)}</strong>
+                  </span>
+                  <span>
+                    Sound Box <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.sb)}</strong>
+                  </span>
+                  <span>
+                    POS Terminal <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.pos)}</strong>
+                  </span>
+                  <span>
+                    Merchant Visit <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.mv)}</strong>
+                  </span>
+                  <span>
+                    Credit Card <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.cc)}</strong>
+                  </span>
+                  <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>
+                    Reserve <strong className={isLight ? 'text-slate-800' : 'text-slate-200'}>{fmtNum(inspectedBranch.reserve)}</strong>
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1483,8 +1661,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
     }
 
+    const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const workingDaysMode = kpiData?.targets?.workingDaysMode;
+
     return daysOut.map((ymd) => {
       const hit = byDay.get(ymd);
+      const parsedMs = Date.parse(`${ymd}T00:00:00Z`);
+      const utcDay = Number.isNaN(parsedMs) ? -1 : new Date(parsedMs).getUTCDay();
+      const holidayName = getCambodiaHoliday(ymd);
+      const isWeekend =
+        utcDay >= 0
+          ? workingDaysMode === 'mon_sat'
+            ? utcDay === 0
+            : isWeekendDay(ymd)
+          : false;
       return {
         label: fmtShortDay(ymd),
         fullLabel: ymd,
@@ -1496,6 +1686,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         activeStaff: hit ? (hit.staffCountHint ?? hit.staff.size) : 0,
         activeBranches: hit ? (hit.branchCountHint ?? hit.branches.size) : 0,
         isFuture: ymd > today,
+        isWeekend,
+        holidayName,
+        dayOfWeek: utcDay >= 0 ? weekdayNames[utcDay] : undefined,
       };
     });
   }, [kpiData, range.from, range.to, period, today, ppDirectoryScope, branchScopedId, ruleMap]);
@@ -2612,6 +2805,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   ? channelActivity.totalTasks
                   : channelTotals[velocityChannel];
               const staffStrokeColor = isLight ? CHANNEL_COLORS.sb : '#a2a5e0';
+              const weekendDaysCount = velocitySeries.filter((d) => d.isWeekend && !d.holidayName).length;
+              const holidayDaysList = velocitySeries.filter((d) => Boolean(d.holidayName));
+              const showCalendarLegend =
+                velocitySeries.length > 1 || weekendDaysCount > 0 || holidayDaysList.length > 0;
+              const holidayLegendTitle =
+                holidayDaysList.length > 0
+                  ? holidayDaysList.map((d) => `${d.label}: ${d.holidayName}`).join(' · ')
+                  : 'Cambodia public holidays';
 
               return (
                 <>
@@ -2671,6 +2872,90 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         </span>
                         Active staff
                       </span>
+
+                      {showCalendarLegend && (
+                        <>
+                          {(velocitySeries.length > 1 || weekendDaysCount > 0) && (
+                            <span
+                              title="Saturday & Sunday weekend bands"
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-medium whitespace-nowrap ${
+                                isLight
+                                  ? 'bg-slate-50/90 border-slate-200/80 text-slate-600'
+                                  : 'bg-slate-800/70 border-slate-700/80 text-slate-300'
+                              }`}
+                            >
+                              <span
+                                className={`w-3 h-3 rounded-[3px] border relative overflow-hidden shrink-0 ${
+                                  isLight
+                                    ? 'bg-slate-200/70 border-slate-300/90'
+                                    : 'bg-slate-700/70 border-slate-500/70'
+                                }`}
+                              >
+                                <span
+                                  className="block w-full h-[2.5px]"
+                                  style={{
+                                    background: isLight
+                                      ? VELOCITY_CALENDAR_COLORS.weekendLight
+                                      : VELOCITY_CALENDAR_COLORS.weekendDark,
+                                  }}
+                                />
+                              </span>
+                              <span>Weekend</span>
+                              {weekendDaysCount > 0 && (
+                                <span
+                                  className={`font-figure font-semibold tabular-nums ${
+                                    isLight ? 'text-slate-700' : 'text-slate-200'
+                                  }`}
+                                >
+                                  {weekendDaysCount}d
+                                </span>
+                              )}
+                            </span>
+                          )}
+
+                          {(velocitySeries.length > 1 || holidayDaysList.length > 0) && (
+                            <span
+                              title={holidayLegendTitle}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-medium whitespace-nowrap ${
+                                isLight
+                                  ? holidayDaysList.length > 0
+                                    ? 'bg-rose-50/85 border-rose-200/85 text-rose-700'
+                                    : 'bg-slate-50/70 border-slate-200/80 text-slate-500'
+                                  : holidayDaysList.length > 0
+                                  ? 'bg-rose-950/45 border-rose-800/70 text-rose-300'
+                                  : 'bg-slate-800/60 border-slate-700/80 text-slate-400'
+                              }`}
+                            >
+                              <span
+                                className={`w-3 h-3 rounded-[3px] border border-dashed relative overflow-hidden shrink-0 ${
+                                  isLight
+                                    ? 'bg-rose-500/15 border-rose-400/70'
+                                    : 'bg-rose-400/20 border-rose-400/65'
+                                }`}
+                              >
+                                <span
+                                  className="block w-full h-[2.5px]"
+                                  style={{
+                                    background: isLight
+                                      ? VELOCITY_CALENDAR_COLORS.holidayLight
+                                      : VELOCITY_CALENDAR_COLORS.holidayDark,
+                                  }}
+                                />
+                              </span>
+                              <span>Holiday</span>
+                              {holidayDaysList.length > 0 && (
+                                <span
+                                  className={`font-figure font-semibold tabular-nums ${
+                                    isLight ? 'text-rose-800' : 'text-rose-200'
+                                  }`}
+                                >
+                                  {holidayDaysList.length}d
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </>
+                      )}
 
                       {velocityChannel !== 'ALL' && (
                         <button

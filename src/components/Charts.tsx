@@ -350,7 +350,17 @@ export interface CrossChannelDayPoint {
   activeStaff: number;
   activeBranches?: number;
   isFuture?: boolean;
+  isWeekend?: boolean;
+  holidayName?: string | null;
+  dayOfWeek?: string;
 }
+
+export const VELOCITY_CALENDAR_COLORS = {
+  weekendLight: '#64748b',
+  weekendDark: '#94a3b8',
+  holidayLight: '#e11d48',
+  holidayDark: '#fb7185',
+} as const;
 
 export type VelocityChannelKey = 'ALL' | 'pos' | 'sb' | 'khqr' | 'mv' | 'cc';
 
@@ -491,7 +501,13 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
   const summary = useMemo(() => {
     if (ariaLabel) return ariaLabel;
     if (!items.length || !hasData) return 'Cross-channel velocity chart. No data for this period.';
-    return `Cross-channel velocity across ${items.length} periods.`;
+    const weekendCount = items.filter((d) => d.isWeekend && !d.holidayName).length;
+    const holidayCount = items.filter((d) => Boolean(d.holidayName)).length;
+    const calSuffix =
+      items.length > 1 && (weekendCount > 0 || holidayCount > 0)
+        ? ` Includes ${weekendCount} weekend days and ${holidayCount} public holidays.`
+        : '';
+    return `Cross-channel velocity across ${items.length} periods.${calSuffix}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ariaLabel, dataKey, hasData]);
 
@@ -536,6 +552,97 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
 
     const { taskScale, staffScale } = chartScales;
 
+    const count = Math.max(1, items.length);
+    const groupW = plotW / count;
+    geomRef.current = { padLeft, groupW, count: items.length };
+
+    // 0. Group contiguous Weekend & Cambodia Public Holiday bands (daily/multi-day series)
+    type DayKind = 'work' | 'weekend' | 'holiday';
+    const getDayKind = (d: CrossChannelDayPoint): DayKind =>
+      d.holidayName ? 'holiday' : d.isWeekend ? 'weekend' : 'work';
+    interface NonWorkBand {
+      kind: 'weekend' | 'holiday';
+      startIdx: number;
+      endIdx: number;
+      holidayName?: string | null;
+      bx: number;
+      bw: number;
+    }
+    const nonWorkBands: NonWorkBand[] = [];
+    if (items.length > 1) {
+      const bandInset = groupW >= 14 ? 1.5 : 0.75;
+      let i = 0;
+      while (i < items.length) {
+        const kind = getDayKind(items[i]);
+        if (kind === 'work') {
+          i++;
+          continue;
+        }
+        let j = i;
+        while (j + 1 < items.length && getDayKind(items[j + 1]) === kind) {
+          j++;
+        }
+        const bx = padLeft + i * groupW + bandInset;
+        const bw = Math.max(4, (j - i + 1) * groupW - bandInset * 2);
+        nonWorkBands.push({
+          kind,
+          startIdx: i,
+          endIdx: j,
+          holidayName: items[i].holidayName,
+          bx,
+          bw,
+        });
+        i = j + 1;
+      }
+
+      nonWorkBands.forEach((band) => {
+        ctx.save();
+        const colGrad = ctx.createLinearGradient(0, padTop, 0, baseY);
+        if (band.kind === 'holiday') {
+          colGrad.addColorStop(0, isLight ? 'rgba(244, 63, 94, 0.115)' : 'rgba(251, 113, 133, 0.165)');
+          colGrad.addColorStop(1, isLight ? 'rgba(244, 63, 94, 0.035)' : 'rgba(251, 113, 133, 0.055)');
+        } else {
+          colGrad.addColorStop(0, isLight ? 'rgba(100, 116, 139, 0.095)' : 'rgba(148, 163, 184, 0.13)');
+          colGrad.addColorStop(1, isLight ? 'rgba(100, 116, 139, 0.035)' : 'rgba(148, 163, 184, 0.045)');
+        }
+        roundRectPath(ctx, band.bx, padTop, band.bw, plotH, 4);
+        ctx.fillStyle = colGrad;
+        ctx.fill();
+
+        if (band.kind === 'holiday') {
+          ctx.setLineDash([2.5, 2.5]);
+          ctx.strokeStyle = isLight ? 'rgba(225, 29, 72, 0.28)' : 'rgba(251, 113, 133, 0.34)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = isLight ? 'rgba(148, 163, 184, 0.22)' : 'rgba(148, 163, 184, 0.18)';
+          ctx.lineWidth = 0.75;
+          ctx.stroke();
+        }
+
+        // Crisp top accent bar distinguishing Holiday vs Weekend columns
+        ctx.setLineDash([]);
+        roundRectPath(
+          ctx,
+          band.bx + 0.5,
+          padTop,
+          Math.max(2, band.bw - 1),
+          band.kind === 'holiday' ? 2.5 : 2,
+          1.25
+        );
+        ctx.fillStyle =
+          band.kind === 'holiday'
+            ? isLight
+              ? 'rgba(225, 29, 72, 0.78)'
+              : 'rgba(251, 113, 133, 0.85)'
+            : isLight
+            ? 'rgba(100, 116, 139, 0.45)'
+            : 'rgba(148, 163, 184, 0.50)';
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
     // Horizontal dashed grid + Left/Right axes
     ctx.font = `600 10.5px ${chartFont}`;
     ctx.lineWidth = 1;
@@ -561,9 +668,6 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       ctx.fillText(String(rv), width - padRight + 6, y + 3);
     }
 
-    const count = Math.max(1, items.length);
-    const groupW = plotW / count;
-    geomRef.current = { padLeft, groupW, count: items.length };
     const xLabelFontPx = groupW >= 40 ? 10 : groupW >= 20 ? 9.5 : 9;
     ctx.font = `600 ${xLabelFontPx}px ${chartFont}`;
     const maxLabelW = items.reduce((mx, it) => Math.max(mx, ctx.measureText(it.label).width), 0);
@@ -590,14 +694,26 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       ctx.restore();
     }
 
-    // X-axis date labels + faint baseline anchor dots on upcoming days
+    // X-axis date labels + baseline markers for Holidays / Weekends / Upcoming days
     items.forEach((item, idx) => {
       const cx = padLeft + idx * groupW + groupW / 2;
-      if (item.isFuture) {
+      const isHol = Boolean(item.holidayName);
+      const isWknd = Boolean(item.isWeekend) && !isHol;
+      if (isHol || isWknd || item.isFuture) {
         ctx.save();
-        ctx.fillStyle = isLight ? 'rgba(148, 163, 184, 0.35)' : 'rgba(148, 163, 184, 0.25)';
+        ctx.fillStyle = isHol
+          ? isLight
+            ? 'rgba(225, 29, 72, 0.72)'
+            : 'rgba(251, 113, 133, 0.78)'
+          : isWknd
+          ? isLight
+            ? 'rgba(100, 116, 139, 0.58)'
+            : 'rgba(148, 163, 184, 0.52)'
+          : isLight
+          ? 'rgba(148, 163, 184, 0.35)'
+          : 'rgba(148, 163, 184, 0.25)';
         ctx.beginPath();
-        ctx.arc(cx, baseY, 1.5, 0, Math.PI * 2);
+        ctx.arc(cx, baseY, isHol ? 2.2 : isWknd ? 1.8 : 1.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
@@ -605,8 +721,21 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       const isLast = idx === lastIdx;
       const collidesWithLast = !isLast && (lastIdx - idx) * groupW < maxLabelW + 6;
       if ((idx % labelStep === 0 && !collidesWithLast) || isLast) {
-        ctx.fillStyle = hover?.idx === idx ? (isLight ? '#0f172a' : '#ffffff') : axisColor;
-        ctx.font = `${hover?.idx === idx ? '700' : '600'} ${xLabelFontPx}px ${chartFont}`;
+        ctx.fillStyle =
+          hover?.idx === idx
+            ? isLight
+              ? '#0f172a'
+              : '#ffffff'
+            : isHol
+            ? isLight
+              ? VELOCITY_CALENDAR_COLORS.holidayLight
+              : VELOCITY_CALENDAR_COLORS.holidayDark
+            : isWknd
+            ? isLight
+              ? '#475569'
+              : '#cbd5e1'
+            : axisColor;
+        ctx.font = `${hover?.idx === idx || isHol ? '700' : '600'} ${xLabelFontPx}px ${chartFont}`;
         const tw = ctx.measureText(item.label).width;
         const lx = Math.min(width - padRight - tw, Math.max(padLeft, cx - tw / 2));
         ctx.fillText(item.label, lx, height - 7);
@@ -740,6 +869,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     });
 
     // Peak callout pill cleanly anchored above peak node when idle
+    let peakBox: { bx: number; by: number; bw: number; bh: number } | null = null;
     if (peakIdx >= 0 && peakTotal > 0 && hover === null) {
       const px = padLeft + peakIdx * groupW + groupW / 2;
       const label = fmt(peakTotal);
@@ -749,6 +879,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       const bh = 18;
       const bx = Math.min(width - padRight - bw, Math.max(padLeft, px - bw / 2));
       const by = Math.max(2, peakY - bh - 7);
+      peakBox = { bx, by, bw, bh };
       ctx.save();
       ctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(15, 23, 42, 0.92)';
       ctx.strokeStyle = hexToRgba(primaryStroke, 0.35);
@@ -759,6 +890,72 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       ctx.fillStyle = isLight ? '#0f172a' : '#f8fafc';
       ctx.fillText(label, bx + 6, by + 12.5);
       ctx.restore();
+    }
+
+    // Crisp top-gutter pills identifying Weekend & Holiday columns cleanly above gridline
+    if (nonWorkBands.length > 0) {
+      ctx.font = `700 8.5px ${chartFont}`;
+      nonWorkBands.forEach((band) => {
+        const candidates =
+          band.kind === 'holiday'
+            ? [
+                band.holidayName ? band.holidayName.replace(/\s*\(.*?\)/g, '').trim() : '',
+                'Holiday',
+                'Hol',
+                'H',
+              ].filter(Boolean)
+            : ['Weekend', 'Wknd', 'W'];
+
+        let chosen: string | null = null;
+        let textW = 0;
+        for (const c of candidates) {
+          const w = ctx.measureText(c).width;
+          if (w + 7 <= band.bw + 2) {
+            chosen = c;
+            textW = w;
+            break;
+          }
+        }
+        if (!chosen) return;
+
+        const pw = Math.min(band.bw + 4, textW + 8);
+        const ph = 14;
+        const px = Math.max(padLeft, Math.min(width - padRight - pw, band.bx + (band.bw - pw) / 2));
+        const py = 5;
+
+        if (
+          peakBox &&
+          peakBox.by <= py + ph + 3 &&
+          px < peakBox.bx + peakBox.bw + 4 &&
+          px + pw > peakBox.bx - 4
+        ) {
+          return;
+        }
+
+        ctx.save();
+        roundRectPath(ctx, px, py, pw, ph, 4);
+        if (band.kind === 'holiday') {
+          ctx.fillStyle = isLight ? 'rgba(255, 241, 242, 0.96)' : 'rgba(76, 5, 25, 0.85)';
+          ctx.strokeStyle = isLight ? 'rgba(244, 63, 94, 0.40)' : 'rgba(251, 113, 133, 0.45)';
+        } else {
+          ctx.fillStyle = isLight ? 'rgba(248, 250, 252, 0.96)' : 'rgba(30, 41, 59, 0.88)';
+          ctx.strokeStyle = isLight ? 'rgba(148, 163, 184, 0.42)' : 'rgba(148, 163, 184, 0.35)';
+        }
+        ctx.lineWidth = 0.85;
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle =
+          band.kind === 'holiday'
+            ? isLight
+              ? '#be123c'
+              : '#fda4af'
+            : isLight
+            ? '#475569'
+            : '#cbd5e1';
+        ctx.fillText(chosen, px + (pw - textW) / 2, py + 10);
+        ctx.restore();
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataKey, height, theme, containerWidth, hover, primarySeriesMeta]);
@@ -829,6 +1026,39 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
               {fmt(hoverHeadlineVal)} tasks
             </span>
           </div>
+          {(hoverItem.holidayName || hoverItem.isWeekend) && (
+            <div
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 mb-1.5 rounded-md border text-[10px] font-semibold ${
+                hoverItem.holidayName
+                  ? isLight
+                    ? 'bg-rose-50 border-rose-200/90 text-rose-700'
+                    : 'bg-rose-950/60 border-rose-800/70 text-rose-300'
+                  : isLight
+                  ? 'bg-slate-100/90 border-slate-200/90 text-slate-600'
+                  : 'bg-slate-800/90 border-slate-700 text-slate-300'
+              }`}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{
+                  background: hoverItem.holidayName
+                    ? isLight
+                      ? VELOCITY_CALENDAR_COLORS.holidayLight
+                      : VELOCITY_CALENDAR_COLORS.holidayDark
+                    : isLight
+                    ? VELOCITY_CALENDAR_COLORS.weekendLight
+                    : VELOCITY_CALENDAR_COLORS.weekendDark,
+                }}
+              />
+              <span>
+                {hoverItem.holidayName
+                  ? `Holiday${hoverItem.dayOfWeek ? ` (${hoverItem.dayOfWeek})` : ''} · ${hoverItem.holidayName}${
+                      hoverItem.isWeekend ? ' · Weekend' : ''
+                    }`
+                  : `Weekend${hoverItem.dayOfWeek ? ` · ${hoverItem.dayOfWeek}` : ''}`}
+              </span>
+            </div>
+          )}
           <div className="space-y-0.5">
             {CHANNEL_SERIES.map((s) =>
               hoverItem[s.key] > 0 ? (
