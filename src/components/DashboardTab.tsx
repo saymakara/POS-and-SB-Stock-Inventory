@@ -166,7 +166,7 @@ function sumRawInto(target: KpiRawCounts, src: KpiRawCounts): void {
   addExtraCounts(target, src);
 }
 
-const DONUT_RADIUS = 72;
+const DONUT_RADIUS = 105;
 const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
 
 interface ChannelSliceItem {
@@ -205,6 +205,134 @@ interface ChannelMixCardProps {
   onNavigateTab?: (tab: string) => void;
 }
 
+const DONUT_VB_W = 456;
+const DONUT_VB_H = 274;
+const DONUT_CX = DONUT_VB_W / 2;
+const DONUT_CY = DONUT_VB_H / 2;
+const DONUT_SW = 24;
+const DONUT_R_OUTER = DONUT_RADIUS + DONUT_SW / 2;
+
+function formatChannelLabel(shortLabel: string): string {
+  if (shortLabel === 'Visit') return 'Merchant Visit';
+  if (shortLabel === 'CC') return 'Credit Card';
+  if (shortLabel === 'POS') return 'POS Terminal';
+  return shortLabel;
+}
+
+interface DonutCalloutGeom {
+  slice: ChannelSliceItem;
+  side: 'left' | 'right';
+  ax: number;
+  ay: number;
+  ox: number;
+  oy: number;
+  kx: number;
+  lx: number;
+  ly: number;
+  textX: number;
+  displayName: string;
+}
+
+function layoutDonutCallouts(slices: ChannelSliceItem[]): DonutCalloutGeom[] {
+  const active = slices.filter((s) => s.dash > 0);
+  if (active.length === 0) return [];
+
+  const R_TRACK_BASE = DONUT_R_OUTER + 7;
+  const TOP_PAD = 28;
+  const BOT_PAD = DONUT_VB_H - 26;
+  const TICK_X_LEFT = 95;
+  const TEXT_X_LEFT = 89;
+  const TICK_X_RIGHT = 361;
+  const TEXT_X_RIGHT = 367;
+
+  const raw = active.map((slice) => {
+    const midFrac = (slice.offset + slice.dash / 2) / DONUT_CIRC;
+    const theta = midFrac * Math.PI * 2 - Math.PI / 2;
+    const cos = Math.cos(theta);
+    const sin = Math.sin(theta);
+    const side: 'left' | 'right' = cos >= 0 ? 'right' : 'left';
+    const ax = DONUT_CX + DONUT_R_OUTER * cos;
+    const ay = DONUT_CY + DONUT_R_OUTER * sin;
+    const ox = DONUT_CX + R_TRACK_BASE * cos;
+    const oy = DONUT_CY + R_TRACK_BASE * sin;
+    return {
+      slice,
+      side,
+      cos,
+      sin,
+      ax,
+      ay,
+      ox,
+      oy,
+      ly: Math.max(TOP_PAD, Math.min(BOT_PAD, oy)),
+    };
+  });
+
+  const relaxSide = (items: typeof raw, side: 'left' | 'right'): DonutCalloutGeom[] => {
+    if (items.length === 0) return [];
+    const sorted = [...items].sort((a, b) => a.oy - b.oy);
+    const maxSpan = BOT_PAD - TOP_PAD;
+    const gap = sorted.length > 1 ? Math.min(46, Math.floor(maxSpan / (sorted.length - 1))) : 0;
+
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].ly < sorted[i - 1].ly + gap) {
+        sorted[i].ly = sorted[i - 1].ly + gap;
+      }
+    }
+    if (sorted[sorted.length - 1].ly > BOT_PAD) {
+      sorted[sorted.length - 1].ly = BOT_PAD;
+      for (let i = sorted.length - 2; i >= 0; i--) {
+        if (sorted[i].ly > sorted[i + 1].ly - gap) {
+          sorted[i].ly = sorted[i + 1].ly - gap;
+        }
+      }
+    }
+
+    // Separate closely clustered top tracks (e.g. CC & Merchant Visit near 12 o'clock)
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && Math.abs(sorted[i].oy - sorted[i - 1].oy) < 8 && sorted[i].oy <= DONUT_CY) {
+        sorted[i].oy = sorted[i - 1].oy + 8;
+        sorted[i].ox = DONUT_CX + (R_TRACK_BASE + 2) * sorted[i].cos;
+      }
+      if (i === 0 && sorted.length > 1 && sorted[0].oy < 22 && Math.abs(sorted[1].oy - sorted[0].oy) < 9) {
+        const extra = 6;
+        sorted[0].ox = DONUT_CX + (R_TRACK_BASE + extra) * sorted[0].cos;
+        sorted[0].oy = DONUT_CY + (R_TRACK_BASE + extra) * sorted[0].sin;
+      }
+    }
+
+    const upperCount = sorted.filter((it) => it.oy <= DONUT_CY).length;
+    return sorted.map((it, idx) => {
+      const upperSide = it.oy <= DONUT_CY;
+      const trackStep = upperSide ? idx : Math.max(0, sorted.length - 1 - idx);
+      const safeStep = Math.min(3, upperSide ? trackStep : Math.min(idx - upperCount + 1, sorted.length - 1 - idx));
+      const rawKx = side === 'left' ? TICK_X_LEFT + 3 + safeStep * 3 : TICK_X_RIGHT - 3 - safeStep * 3;
+      const kx = side === 'left' ? Math.min(it.ox, rawKx) : Math.max(it.ox, rawKx);
+      const lx = side === 'left' ? TICK_X_LEFT : TICK_X_RIGHT;
+      const textX = side === 'left' ? TEXT_X_LEFT : TEXT_X_RIGHT;
+
+      return {
+        slice: it.slice,
+        side,
+        ax: it.ax,
+        ay: it.ay,
+        ox: it.ox,
+        oy: it.oy,
+        kx,
+        lx,
+        ly: it.ly,
+        textX,
+        displayName: formatChannelLabel(it.slice.shortLabel),
+      };
+    });
+  };
+
+  return [
+    ...relaxSide(raw.filter((r) => r.side === 'left'), 'left'),
+    ...relaxSide(raw.filter((r) => r.side === 'right'), 'right'),
+  ];
+}
+
 const ChannelMixCard = React.memo<ChannelMixCardProps>(({
   isLight,
   cardClass,
@@ -219,16 +347,22 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
     () => (hoveredChannelId ? donutSlices.find((s) => s.id === hoveredChannelId) : undefined) || leadChannel,
     [hoveredChannelId, donutSlices, leadChannel]
   );
+  const callouts = useMemo(() => (totalTasks > 0 ? layoutDonutCallouts(donutSlices) : []), [donutSlices, totalTasks]);
+
+  const formatSliceCount = (slice: ChannelSliceItem) =>
+    slice.id === 'cc' && ccSubmittedShow > 0
+      ? `${fmtNum(slice.primaryValue)}/${fmtNum(ccSubmittedShow)}`
+      : fmtNum(slice.primaryValue);
 
   return (
     <section className={`lg:col-span-5 ${cardClass} overflow-hidden flex flex-col justify-between`}>
-      <div className="px-6 pt-5 pb-2 flex items-center justify-between gap-2">
+      <div className="px-6 pt-5 pb-1 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h3 className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
             Channel Mix
           </h3>
           <p className="text-xs text-slate-500 truncate">
-            5-channel contribution breakdown
+            5-channel performance breakdown
           </p>
         </div>
         <div className="flex items-center gap-2.5 shrink-0">
@@ -253,110 +387,139 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
         </div>
       </div>
 
-      <div className="px-6 pt-3 pb-6 flex-1 flex flex-col justify-center">
-        <div className="flex flex-col sm:flex-row items-center gap-4 xl:gap-5">
-          <div className="relative w-[176px] h-[176px] xl:w-[196px] xl:h-[196px] shrink-0 flex items-center justify-center">
-            <svg
-              viewBox="0 0 180 180"
-              className="w-full h-full overflow-visible"
-              role="img"
-              aria-label="5-Channel Contribution Donut Chart"
-              data-testid="channel-mix-donut"
-            >
-              <circle
-                cx="90"
-                cy="90"
-                r={DONUT_RADIUS}
-                fill="none"
-                stroke={isLight ? 'rgba(15,23,42,0.045)' : '#1e293b'}
-                strokeWidth="15"
-              />
-              {totalTasks > 0 &&
-                donutSlices.map((slice) => {
-                  if (slice.dash <= 0) return null;
-                  const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
-                  const visibleDash = slice.dash > 2.4 ? slice.dash - 1.8 : slice.dash;
-                  return (
-                    <circle
-                      key={slice.id}
-                      cx="90"
-                      cy="90"
-                      r={DONUT_RADIUS}
-                      fill="none"
-                      stroke={slice.hexColor}
-                      strokeWidth={isFocused ? 18 : 15}
-                      strokeDasharray={`${visibleDash} ${DONUT_CIRC}`}
-                      strokeDashoffset={-slice.offset}
-                      transform="rotate(-90 90 90)"
-                      opacity={hoveredChannelId && hoveredChannelId !== slice.id ? 0.42 : 1}
-                      className="cursor-pointer transition-[stroke-width,opacity] duration-150"
-                      onMouseEnter={() => setHoveredChannelId(slice.id)}
-                      onMouseLeave={() => setHoveredChannelId(null)}
-                      onClick={() => onNavigateTab?.(slice.tab)}
-                    >
-                      <title>{`${slice.label}: ${fmtNum(slice.primaryValue)} (${slice.sharePct}%)`}</title>
-                    </circle>
-                  );
-                })}
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-5">
-              <span className={`text-[28px] xl:text-[31px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
-              </span>
-              <span className="text-[10px] font-semibold tracking-wider uppercase text-slate-400 mt-1.5 truncate max-w-[116px]">
-                {focusedChannel ? `${focusedChannel.shortLabel} SHARE` : 'NO TASKS'}
-              </span>
-            </div>
-          </div>
+      <div className="px-3 pt-1 pb-3 flex-1 flex items-center justify-center">
+        <div className="relative w-full max-w-[476px] mx-auto aspect-[456/274] flex items-center justify-center">
+          <svg
+            viewBox={`0 0 ${DONUT_VB_W} ${DONUT_VB_H}`}
+            className="w-full h-full overflow-visible"
+            role="img"
+            aria-label="5-Channel Performance Donut Chart"
+            data-testid="channel-mix-donut"
+          >
+            <circle
+              cx={DONUT_CX}
+              cy={DONUT_CY}
+              r={DONUT_RADIUS}
+              fill="none"
+              stroke={isLight ? 'rgba(15,23,42,0.045)' : '#1e293b'}
+              strokeWidth={DONUT_SW}
+            />
+            {totalTasks > 0 &&
+              donutSlices.map((slice) => {
+                if (slice.dash <= 0) return null;
+                const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
+                const visibleDash = slice.dash > 4.2 ? slice.dash - 2.0 : Math.max(2.4, slice.dash - 0.8);
+                return (
+                  <circle
+                    key={slice.id}
+                    cx={DONUT_CX}
+                    cy={DONUT_CY}
+                    r={DONUT_RADIUS}
+                    fill="none"
+                    stroke={slice.hexColor}
+                    strokeWidth={isFocused ? DONUT_SW + 3 : DONUT_SW}
+                    strokeDasharray={`${visibleDash} ${DONUT_CIRC}`}
+                    strokeDashoffset={-slice.offset}
+                    transform={`rotate(-90 ${DONUT_CX} ${DONUT_CY})`}
+                    opacity={hoveredChannelId && hoveredChannelId !== slice.id ? 0.35 : 1}
+                    className="cursor-pointer transition-[stroke-width,opacity] duration-150"
+                    onMouseEnter={() => setHoveredChannelId(slice.id)}
+                    onMouseLeave={() => setHoveredChannelId(null)}
+                    onClick={() => onNavigateTab?.(slice.tab)}
+                  >
+                    <title>{`${slice.label}: ${fmtNum(slice.primaryValue)} (${slice.sharePct}%)`}</title>
+                  </circle>
+                );
+              })}
 
-          <div className={`w-full sm:w-auto sm:flex-1 min-w-0 divide-y ${isLight ? 'divide-slate-100/85' : 'divide-slate-800/70'}`}>
-            {donutSlices.map((row) => {
-              const isHovered = hoveredChannelId === row.id;
-              const isDimmed = hoveredChannelId !== null && hoveredChannelId !== row.id;
+            {callouts.map((c) => {
+              const isHovered = hoveredChannelId === c.slice.id;
+              const isDimmed = hoveredChannelId !== null && hoveredChannelId !== c.slice.id;
+              const anchor = c.side === 'left' ? 'end' : 'start';
+              const strokeColor = !isLight && c.slice.id === 'khqr' ? '#38bdf8' : c.slice.hexColor;
+              const pts = `${c.ax.toFixed(1)},${c.ay.toFixed(1)} ${c.ox.toFixed(1)},${c.oy.toFixed(1)} ${c.kx.toFixed(1)},${c.oy.toFixed(1)} ${c.kx.toFixed(1)},${c.ly.toFixed(1)} ${c.lx.toFixed(1)},${c.ly.toFixed(1)}`;
               return (
-                <button
-                  key={row.id}
-                  type="button"
-                  onClick={() => onNavigateTab?.(row.tab)}
-                  onMouseEnter={() => setHoveredChannelId(row.id)}
+                <g
+                  key={c.slice.id}
+                  data-donut-callout={c.slice.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${c.displayName}: ${c.slice.sharePct}%, ${formatSliceCount(c.slice)}`}
+                  className="cursor-pointer outline-none"
+                  opacity={isDimmed ? 0.35 : 1}
+                  style={{ transition: 'opacity 150ms ease' }}
+                  onMouseEnter={() => setHoveredChannelId(c.slice.id)}
                   onMouseLeave={() => setHoveredChannelId(null)}
-                  title={row.meta}
-                  className={`w-full flex items-center justify-between gap-2 px-1.5 py-2.5 rounded-xl text-left transition-all duration-150 cursor-pointer ${
-                    isHovered
-                      ? isLight
-                        ? 'bg-slate-50/95'
-                        : 'bg-slate-800/60'
-                      : ''
-                  } ${isDimmed ? 'opacity-50' : 'opacity-100'}`}
+                  onFocus={() => setHoveredChannelId(c.slice.id)}
+                  onBlur={() => setHoveredChannelId(null)}
+                  onClick={() => onNavigateTab?.(c.slice.tab)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onNavigateTab?.(c.slice.tab);
+                    }
+                  }}
                 >
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: row.hexColor }}
-                    />
-                    <span className={`text-[12.5px] font-medium truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                      {row.shortLabel === 'Visit'
-                        ? 'Merchant Visit'
-                        : row.shortLabel === 'CC'
-                        ? 'Credit Card'
-                        : row.shortLabel === 'POS'
-                        ? 'POS Terminal'
-                        : row.shortLabel}
-                    </span>
-                  </span>
-                  <span className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] font-figure text-slate-400 tabular-nums">
-                      {row.sharePct}%
-                    </span>
-                    <span className={`text-[12.5px] font-figure font-semibold tabular-nums text-right ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                      {row.id === 'cc' && ccSubmittedShow > 0
-                        ? `${fmtNum(row.primaryValue)}/${fmtNum(ccSubmittedShow)}`
-                        : fmtNum(row.primaryValue)}
-                    </span>
-                  </span>
-                </button>
+                  <rect
+                    x={c.side === 'left' ? 0 : c.lx - 4}
+                    y={c.ly - 17}
+                    width={c.side === 'left' ? c.lx + 4 : DONUT_VB_W - c.lx + 4}
+                    height={34}
+                    fill="transparent"
+                  />
+                  <polyline
+                    points={pts}
+                    fill="none"
+                    stroke={strokeColor}
+                    strokeWidth={isHovered ? 1.6 : 1.15}
+                    strokeOpacity={isHovered ? 0.95 : 0.65}
+                    strokeLinejoin="round"
+                  />
+                  <circle
+                    cx={c.lx}
+                    cy={c.ly}
+                    r={isHovered ? 3.2 : 2.4}
+                    fill={strokeColor}
+                  />
+                  <text
+                    x={c.textX}
+                    y={c.ly - 3}
+                    textAnchor={anchor}
+                    fontSize="11"
+                    fontWeight="600"
+                    fill={isLight ? '#0f172a' : '#f1f5f9'}
+                  >
+                    {c.displayName}
+                  </text>
+                  <text
+                    x={c.textX}
+                    y={c.ly + 10.5}
+                    textAnchor={anchor}
+                    fontSize="10"
+                    fontWeight="600"
+                    fill={isLight ? '#475569' : '#cbd5e1'}
+                  >
+                    <tspan fill={isLight ? '#0f172a' : '#f8fafc'}>{`${c.slice.sharePct}%`}</tspan>
+                    <tspan fill={isLight ? '#94a3b8' : '#64748b'}>{' · '}</tspan>
+                    <tspan fill={isLight ? '#64748b' : '#94a3b8'}>{formatSliceCount(c.slice)}</tspan>
+                  </text>
+                </g>
               );
             })}
+          </svg>
+
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
+            <span className={`text-[34px] sm:text-[38px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
+            </span>
+            <span className={`text-[11px] font-semibold tracking-wider uppercase mt-1.5 truncate max-w-[152px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              {focusedChannel ? formatChannelLabel(focusedChannel.shortLabel) : 'NO TASKS'}
+            </span>
+            {focusedChannel && totalTasks > 0 && (
+              <span className={`text-[11.5px] font-figure font-semibold mt-0.5 tabular-nums ${isLight ? 'text-[#004e75]' : 'text-sky-300'}`}>
+                {formatSliceCount(focusedChannel)} tasks
+              </span>
+            )}
           </div>
         </div>
       </div>
