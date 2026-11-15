@@ -401,7 +401,13 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
     <section className={`lg:col-span-7 ${cardClass} overflow-hidden flex flex-col`}>
       <div className="px-6 pt-5 pb-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5 min-w-0">
-          <Building2 className={`w-4 h-4 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} aria-hidden="true" />
+          <div
+            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+              isLight ? 'bg-indigo-500/15 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300'
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" aria-hidden="true" />
+          </div>
           <div className="min-w-0">
             <h3 className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {branchViewMode === 'GRAPH'
@@ -1436,7 +1442,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             : 'No units tracked',
         subtext: `HQ ${fmtNum(hardwareSummary.hq)} · Reserve ${fmtNum(hardwareSummary.reserve)} · Config ${fmtNum(hardwareSummary.config)} · Live ${fmtNum(hardwareSummary.installed)}`,
         icon: Boxes,
-        iconClass: 'text-slate-500',
+        iconClass: 'bg-sky-500/15 text-sky-500',
         segments:
           hardwareSummary.total > 0
             ? [
@@ -1456,7 +1462,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             : '0 tracked',
         subtext: `${fmtNum(materialsSummary.simOnHand)} in stock · ${fmtNum(materialsSummary.simInTransit)} in transit · ${fmtNum(materialsSummary.simAtMerchant)} at merchant`,
         icon: Smartphone,
-        iconClass: 'text-slate-500',
+        iconClass: 'bg-teal-500/15 text-teal-500',
         onClickTab: 'sim_cards',
         segments:
           materialsSummary.simTotal > 0
@@ -1476,7 +1482,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             : '0 dated',
         subtext: `Healthy <${batteryWarningMonths}M: ${fmtNum(batterySummary.healthy)} · Due Soon: ${fmtNum(batterySummary.replaceSoon)} · Replace >=${batteryLifespanMonths}M: ${fmtNum(batterySummary.critical)}`,
         icon: BatteryCharging,
-        iconClass: 'text-slate-500',
+        iconClass:
+          batterySummary.critical > 0
+            ? 'bg-rose-500/15 text-rose-500'
+            : batterySummary.replaceSoon > 0
+              ? 'bg-amber-500/15 text-amber-500'
+              : 'bg-emerald-500/15 text-emerald-500',
         segments:
           batterySummary.total > 0
             ? [
@@ -1516,8 +1527,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       >
         <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
           <div className="space-y-1 min-w-0">
-            <h1 className={`text-2xl sm:text-[26px] font-bold tracking-tight flex items-center gap-2.5 leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              <BarChart3 className={`w-6 h-6 sm:w-7 sm:h-7 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} aria-hidden="true" />
+            <h1 className={`text-2xl sm:text-[26px] font-bold tracking-tight flex items-center gap-3 leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <span
+                className={`w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 shadow-xs ${
+                  isLight
+                    ? 'bg-gradient-to-br from-[#005bb5] to-[#0ea5e9] text-white'
+                    : 'bg-gradient-to-br from-sky-500 to-indigo-500 text-white'
+                }`}
+              >
+                <BarChart3 className="w-5 h-5" aria-hidden="true" />
+              </span>
               <span>
                 {branchScopedId
                   ? `Branch Code ${branchScopedId} Operations Overview`
@@ -1586,7 +1605,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 }`}
                 title="Scoped to active Phnom Penh staff from the Staff Directory"
               >
-                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} aria-hidden="true" />
+                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-rose-500' : 'text-rose-400'}`} aria-hidden="true" />
                 <span>Phnom Penh · Staff Directory</span>
               </span>
             )}
@@ -1601,7 +1620,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               }`}
               title="Refresh live summary counts"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLight ? 'text-slate-500' : 'text-slate-400'} ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
+              <RefreshCw className={`w-3.5 h-3.5 ${isLight ? 'text-sky-600' : 'text-sky-400'} ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
               <span>Sync</span>
             </button>
 
@@ -1616,7 +1635,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 }`}
                 title="Export Reports & Data"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-slate-600" aria-hidden="true" />
+                <FileSpreadsheet className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} aria-hidden="true" />
                 <span>Export</span>
               </button>
             )}
@@ -1635,8 +1654,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Field Tasks · {activePeriodLabel}
                 </span>
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-slate-200/70 text-slate-700' : 'bg-slate-800 text-slate-300'}`}>
-                  <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-300'}`}>
+                  <TrendingUp className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
               <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
@@ -1657,12 +1676,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   Pending Approvals
                 </span>
                 {queues.total > 0 ? (
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-[#b99763]/15 text-[#8a6a3b]' : 'bg-[#b99763]/20 text-[#d4b078]'}`}>
-                    <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-amber-500/15 text-amber-600' : 'bg-amber-500/20 text-amber-300'}`}>
+                    <AlertCircle className="w-4 h-4" aria-hidden="true" />
                   </div>
                 ) : (
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-slate-200/70 text-slate-700' : 'bg-slate-800 text-slate-300'}`}>
-                    <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-emerald-500/15 text-emerald-600' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                    <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                   </div>
                 )}
               </div>
@@ -1687,8 +1706,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Hardware Pool
                 </span>
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-slate-200/70 text-slate-700' : 'bg-slate-800 text-slate-300'}`}>
-                  <Boxes className="w-3.5 h-3.5" aria-hidden="true" />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-emerald-500/15 text-emerald-600' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                  <Boxes className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
               <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
@@ -1720,8 +1739,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Merchant Outreach
                 </span>
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-slate-200/70 text-slate-700' : 'bg-slate-800 text-slate-300'}`}>
-                  <Store className="w-3.5 h-3.5" aria-hidden="true" />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-violet-500/15 text-violet-600' : 'bg-violet-500/20 text-violet-300'}`}>
+                  <Store className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
               <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
@@ -1744,7 +1763,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div className="flex items-center gap-2.5 min-w-0">
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                  isLight ? 'bg-[#003857]/8 text-[#003857]' : 'bg-sky-500/15 text-sky-400'
+                  isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-300'
                 }`}
               >
                 <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
@@ -2002,7 +2021,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                             isLight ? 'text-slate-900' : 'text-slate-100'
                           }`}
                         >
-                          <Icon className={`w-4 h-4 shrink-0 ${row.iconClass}`} aria-hidden="true" />
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${row.iconClass}`}>
+                            <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+                          </span>
                           <span className="truncate">{row.title}</span>
                         </span>
                         <span
@@ -2146,7 +2167,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    <ScrollText className="w-3.5 h-3.5" aria-hidden="true" />
+                    <ScrollText className={`w-3.5 h-3.5 ${isLight ? 'text-amber-600' : 'text-amber-400'}`} aria-hidden="true" />
                     <span>Stock Requests ({fmtNum(requisitions.length)})</span>
                   </button>
                   <button
@@ -2164,7 +2185,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    <Package className="w-3.5 h-3.5" aria-hidden="true" />
+                    <Package className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} aria-hidden="true" />
                     <span>Updated Serials</span>
                   </button>
                 </div>
@@ -2267,13 +2288,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         <div className="flex items-center gap-3 min-w-0">
                           <div
                             className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                              isLight ? 'bg-slate-100/90' : 'bg-slate-800'
+                              dev.type === 'POS Terminal'
+                                ? isLight
+                                  ? 'bg-sky-500/15 text-sky-600'
+                                  : 'bg-sky-500/20 text-sky-300'
+                                : isLight
+                                  ? 'bg-indigo-500/15 text-indigo-600'
+                                  : 'bg-indigo-500/20 text-indigo-300'
                             }`}
                           >
                             {dev.type === 'POS Terminal' ? (
-                              <Cpu className="w-4 h-4 text-[#004e75]" aria-hidden="true" />
+                              <Cpu className="w-4 h-4" aria-hidden="true" />
                             ) : (
-                              <Volume2 className="w-4 h-4 text-[#4F518C]" aria-hidden="true" />
+                              <Volume2 className="w-4 h-4" aria-hidden="true" />
                             )}
                           </div>
                           <div className="min-w-0">
