@@ -166,7 +166,7 @@ function sumRawInto(target: KpiRawCounts, src: KpiRawCounts): void {
   addExtraCounts(target, src);
 }
 
-const DONUT_RADIUS = 62;
+const DONUT_RADIUS = 72;
 const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
 
 interface ChannelSliceItem {
@@ -180,18 +180,6 @@ interface ChannelSliceItem {
   sharePct: number;
   dash: number;
   offset: number;
-}
-
-interface QueueSegItem {
-  id: string;
-  label: string;
-  sub: string;
-  count: number;
-  tab: string;
-  badgeClass: string;
-  dotClass: string;
-  barColor: string;
-  pct: number;
 }
 
 interface BranchPerfRow {
@@ -214,9 +202,6 @@ interface ChannelMixCardProps {
   leadChannel: ChannelSliceItem | undefined;
   totalTasks: number;
   ccSubmittedShow: number;
-  queues: { total: number; pushPend: number; lostOpen: number };
-  lostSimCount: number;
-  queueSegments: QueueSegItem[];
   onNavigateTab?: (tab: string) => void;
 }
 
@@ -227,9 +212,6 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
   leadChannel,
   totalTasks,
   ccSubmittedShow,
-  queues,
-  lostSimCount,
-  queueSegments,
   onNavigateTab,
 }) => {
   const [hoveredChannelId, setHoveredChannelId] = useState<string | null>(null);
@@ -243,10 +225,10 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
       <div className="px-6 pt-5 pb-2 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h3 className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-            Channel Mix &amp; Queue Load
+            Channel Mix
           </h3>
           <p className="text-xs text-slate-500 truncate">
-            Contribution donut + approval weight
+            5-channel contribution breakdown
           </p>
         </div>
         <div className="flex items-center gap-2.5 shrink-0">
@@ -271,42 +253,42 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
         </div>
       </div>
 
-      <div className="px-6 py-2.5 flex-1 flex flex-col justify-between gap-4">
-        <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6 my-auto">
-          <div className="relative w-[168px] h-[168px] xl:w-[180px] xl:h-[180px] shrink-0 flex items-center justify-center">
+      <div className="px-6 pt-3 pb-6 flex-1 flex flex-col justify-center">
+        <div className="flex flex-col sm:flex-row items-center gap-4 xl:gap-5">
+          <div className="relative w-[176px] h-[176px] xl:w-[196px] xl:h-[196px] shrink-0 flex items-center justify-center">
             <svg
-              viewBox="0 0 160 160"
+              viewBox="0 0 180 180"
               className="w-full h-full overflow-visible"
               role="img"
               aria-label="5-Channel Contribution Donut Chart"
               data-testid="channel-mix-donut"
             >
               <circle
-                cx="80"
-                cy="80"
+                cx="90"
+                cy="90"
                 r={DONUT_RADIUS}
                 fill="none"
                 stroke={isLight ? 'rgba(15,23,42,0.045)' : '#1e293b'}
-                strokeWidth="14"
+                strokeWidth="15"
               />
               {totalTasks > 0 &&
                 donutSlices.map((slice) => {
                   if (slice.dash <= 0) return null;
                   const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
-                  const visibleDash = slice.dash > 2.2 ? slice.dash - 1.6 : slice.dash;
+                  const visibleDash = slice.dash > 2.4 ? slice.dash - 1.8 : slice.dash;
                   return (
                     <circle
                       key={slice.id}
-                      cx="80"
-                      cy="80"
+                      cx="90"
+                      cy="90"
                       r={DONUT_RADIUS}
                       fill="none"
                       stroke={slice.hexColor}
-                      strokeWidth={isFocused ? 16.5 : 14}
+                      strokeWidth={isFocused ? 18 : 15}
                       strokeDasharray={`${visibleDash} ${DONUT_CIRC}`}
                       strokeDashoffset={-slice.offset}
-                      transform="rotate(-90 80 80)"
-                      opacity={hoveredChannelId && hoveredChannelId !== slice.id ? 0.45 : 1}
+                      transform="rotate(-90 90 90)"
+                      opacity={hoveredChannelId && hoveredChannelId !== slice.id ? 0.42 : 1}
                       className="cursor-pointer transition-[stroke-width,opacity] duration-150"
                       onMouseEnter={() => setHoveredChannelId(slice.id)}
                       onMouseLeave={() => setHoveredChannelId(null)}
@@ -317,17 +299,17 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
                   );
                 })}
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
-              <span className={`text-[24px] xl:text-[26px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-5">
+              <span className={`text-[28px] xl:text-[31px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
               </span>
-              <span className="text-[9.5px] font-semibold tracking-wider uppercase text-slate-400 mt-1.5 truncate max-w-[104px]">
+              <span className="text-[10px] font-semibold tracking-wider uppercase text-slate-400 mt-1.5 truncate max-w-[116px]">
                 {focusedChannel ? `${focusedChannel.shortLabel} SHARE` : 'NO TASKS'}
               </span>
             </div>
           </div>
 
-          <div className={`flex-1 w-full divide-y ${isLight ? 'divide-slate-100/80' : 'divide-slate-800/70'}`}>
+          <div className={`w-full sm:w-auto sm:flex-1 min-w-0 divide-y ${isLight ? 'divide-slate-100/85' : 'divide-slate-800/70'}`}>
             {donutSlices.map((row) => {
               const isHovered = hoveredChannelId === row.id;
               const isDimmed = hoveredChannelId !== null && hoveredChannelId !== row.id;
@@ -339,15 +321,15 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
                   onMouseEnter={() => setHoveredChannelId(row.id)}
                   onMouseLeave={() => setHoveredChannelId(null)}
                   title={row.meta}
-                  className={`w-full flex items-center justify-between gap-2 px-2 py-2 rounded-lg text-left transition-all duration-150 cursor-pointer ${
+                  className={`w-full flex items-center justify-between gap-2 px-1.5 py-2.5 rounded-xl text-left transition-all duration-150 cursor-pointer ${
                     isHovered
                       ? isLight
-                        ? 'bg-slate-50/90'
+                        ? 'bg-slate-50/95'
                         : 'bg-slate-800/60'
                       : ''
-                  } ${isDimmed ? 'opacity-55' : 'opacity-100'}`}
+                  } ${isDimmed ? 'opacity-50' : 'opacity-100'}`}
                 >
-                  <span className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex items-center gap-2 min-w-0">
                     <span
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: row.hexColor }}
@@ -362,11 +344,11 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
                         : row.shortLabel}
                     </span>
                   </span>
-                  <span className="flex items-center gap-2.5 shrink-0">
+                  <span className="flex items-center gap-2 shrink-0">
                     <span className="text-[11px] font-figure text-slate-400 tabular-nums">
                       {row.sharePct}%
                     </span>
-                    <span className={`text-[13px] font-figure font-semibold tabular-nums min-w-[44px] text-right ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    <span className={`text-[12.5px] font-figure font-semibold tabular-nums text-right ${isLight ? 'text-slate-900' : 'text-white'}`}>
                       {row.id === 'cc' && ccSubmittedShow > 0
                         ? `${fmtNum(row.primaryValue)}/${fmtNum(ccSubmittedShow)}`
                         : fmtNum(row.primaryValue)}
@@ -377,92 +359,6 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             })}
           </div>
         </div>
-
-        <div className={`pt-3.5 border-t space-y-2.5 ${isLight ? 'border-slate-100/90' : 'border-slate-800'}`}>
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <span className={`font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
-              Queue Load Distribution{' '}
-              <span className="font-normal text-slate-400">({fmtNum(queues.total)} Waiting)</span>
-            </span>
-            <span className={`text-[11px] font-figure font-medium truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              {queues.total > 0
-                ? queueSegments
-                    .filter((s) => s.count > 0)
-                    .slice(0, 2)
-                    .map((s) => `${s.pct}% ${s.id.toUpperCase()}`)
-                    .join(' · ')
-                : 'All Clear'}
-            </span>
-          </div>
-
-          <div className={`h-1.5 w-full rounded-full overflow-hidden flex gap-0.5 ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
-            {queues.total > 0 ? (
-              queueSegments.map((seg) =>
-                seg.count > 0 ? (
-                  <div
-                    key={seg.id}
-                    className={`h-full transition-[width] duration-200 first:rounded-l-full last:rounded-r-full ${seg.barColor}`}
-                    style={{ width: `${Math.max(2, seg.pct)}%` }}
-                    title={`${seg.label}: ${fmtNum(seg.count)} (${seg.pct}%)`}
-                  />
-                ) : null
-              )
-            ) : (
-              <div className="h-full w-full bg-emerald-500/20 rounded-full" />
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-0.5">
-            {queueSegments.map((seg) => (
-              <button
-                key={seg.id}
-                type="button"
-                onClick={() => onNavigateTab?.(seg.tab)}
-                title={`${seg.label} — ${seg.sub}`}
-                className={`inline-flex items-center gap-1.5 text-[11.5px] py-0.5 px-1.5 -mx-1.5 rounded-md transition-colors duration-150 cursor-pointer ${
-                  isLight ? 'hover:bg-slate-50 text-slate-600' : 'hover:bg-slate-800/60 text-slate-400'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${seg.dotClass}`} />
-                <span className="font-medium">
-                  {seg.id === 'pos'
-                    ? 'POS'
-                    : seg.id === 'sb'
-                    ? 'SB'
-                    : seg.id === 'cc'
-                    ? 'CC'
-                    : 'Stock Req'}
-                </span>
-                <span className={`font-figure font-semibold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  {fmtNum(seg.count)}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className={`mx-6 py-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-[11.5px] ${isLight ? 'border-slate-100/90' : 'border-slate-800/80'}`}>
-        <button
-          type="button"
-          onClick={() => onNavigateTab?.('push_configuring')}
-          className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-800 font-medium cursor-pointer transition-colors duration-150"
-        >
-          <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />
-          <span>Push Configuring Queue</span>
-          <strong className={`font-figure ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(queues.pushPend)}</strong>
-        </button>
-        <button
-          type="button"
-          onClick={() => onNavigateTab?.(queues.lostOpen > 0 && lostSimCount > 0 ? 'sim_cards' : 'inventory')}
-          className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-800 font-medium cursor-pointer transition-colors duration-150"
-        >
-          <AlertCircle className={`w-3.5 h-3.5 ${queues.lostOpen > 0 ? 'text-[#9e535c]' : 'text-slate-400'}`} aria-hidden="true" />
-          <span>Open Lost Reports</span>
-          <strong className={`font-figure ml-0.5 ${queues.lostOpen > 0 ? 'text-[#9e535c]' : isLight ? 'text-slate-900' : 'text-white'}`}>
-            {fmtNum(queues.lostOpen)}
-          </strong>
-        </button>
       </div>
     </section>
   );
@@ -1465,48 +1361,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     ? `Branch Code ${branchScopedId}`
     : `Phnom Penh · ${fmtNum(branches.length)} branches`;
 
-  const actionQueueRows = useMemo(
-    () => [
-      {
-        id: 'sb',
-        label: 'Sound Box Field App',
-        sub: 'Installations, swaps & operational support',
-        count: queues.sbField,
-        tab: 'mobile_sync_sb',
-        badgeClass: 'bg-slate-100 text-slate-700 border-slate-200/80',
-        dotClass: 'bg-[#64748b]',
-      },
-      {
-        id: 'pos',
-        label: 'POS Terminal Field App',
-        sub: 'Installations, battery changes & maintenance',
-        count: queues.posField,
-        tab: 'mobile_sync',
-        badgeClass: 'bg-slate-100 text-[#003857] border-slate-200/80',
-        dotClass: 'bg-[#003857]',
-      },
-      {
-        id: 'cc',
-        label: 'Credit Card Review',
-        sub: ccCounts?.waitingDocs ? `${fmtNum(ccCounts.waitingDocs)} waiting documents at HQ` : 'Pending Card Center & document verification',
-        count: queues.ccPend,
-        tab: 'mobile_sync_cc',
-        badgeClass: queues.ccPend > 0 ? 'bg-[#b99763]/10 text-[#8a6a3b] border-[#b99763]/30' : 'bg-slate-100 text-slate-600 border-slate-200/80',
-        dotClass: 'bg-[#b99763]',
-      },
-      {
-        id: 'req',
-        label: 'Branch Stock Requests',
-        sub: `${fmtNum(reqStats.received)} received · ${fmtNum(reqStats.rejected)} rejected`,
-        count: queues.reqPend,
-        tab: 'requisitions',
-        badgeClass: 'bg-slate-100 text-slate-700 border-slate-200/80',
-        dotClass: 'bg-[#a3b3c6]',
-      },
-    ],
-    [queues.sbField, queues.posField, queues.ccPend, queues.reqPend, ccCounts?.waitingDocs, reqStats.received, reqStats.rejected]
-  );
-
   const reachTotal =
     channelActivity.khqrCount + channelActivity.mvCount + channelActivity.ccSubmittedShow;
   const reachSharePct =
@@ -1561,21 +1415,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       [...slices].sort((a, b) => b.primaryValue - a.primaryValue)[0] || slices[0];
     return { donutSlices: slices, leadChannel: lead };
   }, [channelActivity.rows, channelActivity.totalTasks]);
-
-  const queueSegments: QueueSegItem[] = useMemo(() => {
-    const segColors: Record<string, string> = {
-      pos: 'bg-[#003857]',
-      sb: 'bg-[#64748b]',
-      cc: 'bg-[#b99763]',
-      req: 'bg-[#a3b3c6]',
-    };
-    const total = Math.max(1, queues.total);
-    return actionQueueRows.map((item) => ({
-      ...item,
-      barColor: segColors[item.id] || 'bg-slate-400',
-      pct: queues.total > 0 ? Math.round((item.count / total) * 100) : 0,
-    }));
-  }, [actionQueueRows, queues.total]);
 
   const maxBranchTasks = useMemo(
     () => Math.max(1, ...sortedBranches.map((b) => b.totalTasks)),
@@ -2044,7 +1883,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
         </section>
 
-        {/* Right 5 Cols: Memoized Channel Share Donut & Approval Backlog Graph */}
+        {/* Right 5 Cols: Memoized Channel Mix Donut */}
         <ChannelMixCard
           isLight={isLight}
           cardClass={iosCardClass}
@@ -2052,9 +1891,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           leadChannel={leadChannel}
           totalTasks={channelActivity.totalTasks}
           ccSubmittedShow={channelActivity.ccSubmittedShow}
-          queues={queues}
-          lostSimCount={actionQueues?.lostSim || 0}
-          queueSegments={queueSegments}
           onNavigateTab={onNavigateTab}
         />
       </div>
