@@ -326,11 +326,11 @@ interface CrossChannelVelocityChartProps {
 }
 
 const CHANNEL_SERIES = [
-  { key: 'pos' as const, label: 'POS Terminal', color: '#004e75' },
-  { key: 'sb' as const, label: 'Sound Box', color: '#4F518C' },
-  { key: 'khqr' as const, label: 'KHQR', color: '#10b981' },
-  { key: 'mv' as const, label: 'Merchant Visit', color: '#0284c7' },
-  { key: 'cc' as const, label: 'Credit Card', color: '#f59e0b' },
+  { key: 'pos' as const, label: 'POS Terminal', color: '#3b6992' },
+  { key: 'sb' as const, label: 'Sound Box', color: '#64748b' },
+  { key: 'khqr' as const, label: 'KHQR', color: '#003857' },
+  { key: 'mv' as const, label: 'Merchant Visit', color: '#a3b3c6' },
+  { key: 'cc' as const, label: 'Credit Card', color: '#b99763' },
 ];
 
 /**
@@ -421,8 +421,8 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     const isLight = theme === 'light';
     const gridColor = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.08)';
     const axisColor = isLight ? '#64748b' : '#94a3b8';
-    const rightAxisColor = isLight ? '#004e75' : '#38bdf8';
-    const staffStroke = isLight ? '#004e75' : '#38bdf8';
+    const rightAxisColor = isLight ? '#334155' : '#94a3b8';
+    const staffStroke = isLight ? '#1e293b' : '#cbd5e1';
     const dotFill = isLight ? '#ffffff' : '#0f172a';
     const chartFont = '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif';
 

@@ -166,7 +166,7 @@ function sumRawInto(target: KpiRawCounts, src: KpiRawCounts): void {
   addExtraCounts(target, src);
 }
 
-const DONUT_RADIUS = 44;
+const DONUT_RADIUS = 62;
 const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
 
 interface ChannelSliceItem {
@@ -240,7 +240,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
 
   return (
     <section className={`lg:col-span-5 ${cardClass} overflow-hidden flex flex-col justify-between`}>
-      <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
+      <div className="px-6 pt-5 pb-2 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h3 className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
             Channel Mix &amp; Queue Load
@@ -249,15 +249,21 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             Contribution donut + approval weight
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] font-figure font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <span
+            className={`text-[11px] font-figure font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap ${
+              isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
+            }`}
+          >
             {fmtNum(totalTasks)} tasks
           </span>
           {onNavigateTab && (
             <button
               type="button"
               onClick={() => onNavigateTab('kpi_performance')}
-              className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150"
+              className={`text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150 ${
+                isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+              }`}
             >
               Full KPI <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -265,42 +271,43 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
         </div>
       </div>
 
-      <div className="px-6 py-3 flex-1 flex flex-col justify-between gap-4">
-        <div className="flex flex-col sm:flex-row items-center gap-5">
-          <div className="relative w-[130px] h-[130px] shrink-0 flex items-center justify-center">
+      <div className="px-6 py-2.5 flex-1 flex flex-col justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6 my-auto">
+          <div className="relative w-[168px] h-[168px] xl:w-[180px] xl:h-[180px] shrink-0 flex items-center justify-center">
             <svg
-              viewBox="0 0 116 116"
+              viewBox="0 0 160 160"
               className="w-full h-full overflow-visible"
               role="img"
               aria-label="5-Channel Contribution Donut Chart"
               data-testid="channel-mix-donut"
             >
               <circle
-                cx="58"
-                cy="58"
+                cx="80"
+                cy="80"
                 r={DONUT_RADIUS}
                 fill="none"
-                stroke={isLight ? 'rgba(15,23,42,0.055)' : '#1e293b'}
-                strokeWidth="12"
+                stroke={isLight ? 'rgba(15,23,42,0.045)' : '#1e293b'}
+                strokeWidth="14"
               />
               {totalTasks > 0 &&
                 donutSlices.map((slice) => {
                   if (slice.dash <= 0) return null;
                   const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
-                  const visibleDash = Math.max(1.5, slice.dash - 1.2);
+                  const visibleDash = slice.dash > 2.2 ? slice.dash - 1.6 : slice.dash;
                   return (
                     <circle
                       key={slice.id}
-                      cx="58"
-                      cy="58"
+                      cx="80"
+                      cy="80"
                       r={DONUT_RADIUS}
                       fill="none"
                       stroke={slice.hexColor}
-                      strokeWidth={isFocused ? 14.5 : 12}
+                      strokeWidth={isFocused ? 16.5 : 14}
                       strokeDasharray={`${visibleDash} ${DONUT_CIRC}`}
                       strokeDashoffset={-slice.offset}
-                      transform="rotate(-90 58 58)"
-                      className="cursor-pointer transition-[stroke-width] duration-150"
+                      transform="rotate(-90 80 80)"
+                      opacity={hoveredChannelId && hoveredChannelId !== slice.id ? 0.45 : 1}
+                      className="cursor-pointer transition-[stroke-width,opacity] duration-150"
                       onMouseEnter={() => setHoveredChannelId(slice.id)}
                       onMouseLeave={() => setHoveredChannelId(null)}
                       onClick={() => onNavigateTab?.(slice.tab)}
@@ -310,19 +317,20 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
                   );
                 })}
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-3">
-              <span className={`text-[19px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
+              <span className={`text-[24px] xl:text-[26px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
               </span>
-              <span className="text-[8.5px] font-bold tracking-wider uppercase text-slate-500 mt-1 truncate max-w-[78px]">
+              <span className="text-[9.5px] font-semibold tracking-wider uppercase text-slate-400 mt-1.5 truncate max-w-[104px]">
                 {focusedChannel ? `${focusedChannel.shortLabel} SHARE` : 'NO TASKS'}
               </span>
             </div>
           </div>
 
-          <div className="flex-1 w-full space-y-1">
+          <div className={`flex-1 w-full divide-y ${isLight ? 'divide-slate-100/80' : 'divide-slate-800/70'}`}>
             {donutSlices.map((row) => {
-              const isActive = hoveredChannelId === row.id || (!hoveredChannelId && leadChannel?.id === row.id);
+              const isHovered = hoveredChannelId === row.id;
+              const isDimmed = hoveredChannelId !== null && hoveredChannelId !== row.id;
               return (
                 <button
                   key={row.id}
@@ -331,22 +339,20 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
                   onMouseEnter={() => setHoveredChannelId(row.id)}
                   onMouseLeave={() => setHoveredChannelId(null)}
                   title={row.meta}
-                  className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl text-left transition-colors duration-150 cursor-pointer ${
-                    isActive
+                  className={`w-full flex items-center justify-between gap-2 px-2 py-2 rounded-lg text-left transition-all duration-150 cursor-pointer ${
+                    isHovered
                       ? isLight
-                        ? 'bg-[#f3f6f9]'
-                        : 'bg-slate-800/70'
-                      : isLight
-                      ? 'hover:bg-slate-50/90'
-                      : 'hover:bg-slate-800/40'
-                  }`}
+                        ? 'bg-slate-50/90'
+                        : 'bg-slate-800/60'
+                      : ''
+                  } ${isDimmed ? 'opacity-55' : 'opacity-100'}`}
                 >
-                  <span className="flex items-center gap-2 min-w-0">
+                  <span className="flex items-center gap-2.5 min-w-0">
                     <span
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: row.hexColor }}
                     />
-                    <span className={`text-[12px] font-semibold truncate ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                    <span className={`text-[12.5px] font-medium truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
                       {row.shortLabel === 'Visit'
                         ? 'Merchant Visit'
                         : row.shortLabel === 'CC'
@@ -357,12 +363,12 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
                     </span>
                   </span>
                   <span className="flex items-center gap-2.5 shrink-0">
-                    <span className="text-[10.5px] font-mono text-slate-400">
+                    <span className="text-[11px] font-figure text-slate-400 tabular-nums">
                       {row.sharePct}%
                     </span>
-                    <span className={`text-[12.5px] font-figure font-bold min-w-[44px] text-right ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    <span className={`text-[13px] font-figure font-semibold tabular-nums min-w-[44px] text-right ${isLight ? 'text-slate-900' : 'text-white'}`}>
                       {row.id === 'cc' && ccSubmittedShow > 0
-                        ? `${fmtNum(row.primaryValue)} / ${fmtNum(ccSubmittedShow)}`
+                        ? `${fmtNum(row.primaryValue)}/${fmtNum(ccSubmittedShow)}`
                         : fmtNum(row.primaryValue)}
                     </span>
                   </span>
@@ -372,12 +378,13 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
           </div>
         </div>
 
-        <div className={`pt-3.5 border-t space-y-2.5 ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
+        <div className={`pt-3.5 border-t space-y-2.5 ${isLight ? 'border-slate-100/90' : 'border-slate-800'}`}>
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className={`font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
-              Queue Load Distribution ({fmtNum(queues.total)} Waiting)
+              Queue Load Distribution{' '}
+              <span className="font-normal text-slate-400">({fmtNum(queues.total)} Waiting)</span>
             </span>
-            <span className="text-[11px] font-semibold text-amber-700 truncate">
+            <span className={`text-[11px] font-figure font-medium truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               {queues.total > 0
                 ? queueSegments
                     .filter((s) => s.count > 0)
@@ -388,7 +395,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             </span>
           </div>
 
-          <div className={`h-2 w-full rounded-full overflow-hidden flex gap-0.5 ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
+          <div className={`h-1.5 w-full rounded-full overflow-hidden flex gap-0.5 ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
             {queues.total > 0 ? (
               queueSegments.map((seg) =>
                 seg.count > 0 ? (
@@ -405,17 +412,19 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-0.5">
             {queueSegments.map((seg) => (
               <button
                 key={seg.id}
                 type="button"
                 onClick={() => onNavigateTab?.(seg.tab)}
                 title={`${seg.label} — ${seg.sub}`}
-                className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-opacity duration-150 cursor-pointer hover:opacity-85 ${seg.badgeClass}`}
+                className={`inline-flex items-center gap-1.5 text-[11.5px] py-0.5 px-1.5 -mx-1.5 rounded-md transition-colors duration-150 cursor-pointer ${
+                  isLight ? 'hover:bg-slate-50 text-slate-600' : 'hover:bg-slate-800/60 text-slate-400'
+                }`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${seg.dotClass}`} />
-                <span>
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${seg.dotClass}`} />
+                <span className="font-medium">
                   {seg.id === 'pos'
                     ? 'POS'
                     : seg.id === 'sb'
@@ -424,31 +433,33 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
                     ? 'CC'
                     : 'Stock Req'}
                 </span>
-                <span className="font-figure font-bold">{fmtNum(seg.count)}</span>
+                <span className={`font-figure font-semibold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {fmtNum(seg.count)}
+                </span>
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      <div className={`px-6 py-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-[11.5px] ${isLight ? 'border-slate-100 bg-[#f9fafb]' : 'border-slate-800 bg-slate-900/40'}`}>
+      <div className={`mx-6 py-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-[11.5px] ${isLight ? 'border-slate-100/90' : 'border-slate-800/80'}`}>
         <button
           type="button"
           onClick={() => onNavigateTab?.('push_configuring')}
-          className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#004e75] font-medium cursor-pointer transition-colors duration-150"
+          className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-800 font-medium cursor-pointer transition-colors duration-150"
         >
-          <CheckCircle2 className="w-3.5 h-3.5 text-[#004e75]" aria-hidden="true" />
+          <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />
           <span>Push Configuring Queue</span>
           <strong className={`font-figure ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(queues.pushPend)}</strong>
         </button>
         <button
           type="button"
           onClick={() => onNavigateTab?.(queues.lostOpen > 0 && lostSimCount > 0 ? 'sim_cards' : 'inventory')}
-          className="inline-flex items-center gap-1.5 text-slate-600 hover:text-rose-700 font-medium cursor-pointer transition-colors duration-150"
+          className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-800 font-medium cursor-pointer transition-colors duration-150"
         >
-          <AlertCircle className={`w-3.5 h-3.5 ${queues.lostOpen > 0 ? 'text-rose-600' : 'text-slate-400'}`} aria-hidden="true" />
+          <AlertCircle className={`w-3.5 h-3.5 ${queues.lostOpen > 0 ? 'text-[#9e535c]' : 'text-slate-400'}`} aria-hidden="true" />
           <span>Open Lost Reports</span>
-          <strong className={`font-figure ml-0.5 ${queues.lostOpen > 0 ? 'text-rose-700' : isLight ? 'text-slate-900' : 'text-white'}`}>
+          <strong className={`font-figure ml-0.5 ${queues.lostOpen > 0 ? 'text-[#9e535c]' : isLight ? 'text-slate-900' : 'text-white'}`}>
             {fmtNum(queues.lostOpen)}
           </strong>
         </button>
@@ -550,11 +561,11 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
         <div className="flex-1 flex flex-col justify-between px-6 pb-5 pt-1 gap-3">
           <div className={`flex flex-wrap items-center justify-between gap-2 text-[11px] pb-2.5 border-b ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
             <div className="flex flex-wrap items-center gap-3 text-slate-500">
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />KHQR</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#004e75] inline-block" />POS</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#4F518C] inline-block" />Sound Box</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-sky-500 inline-block" />Visit</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-amber-500 inline-block" />CC</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#003857] inline-block" />KHQR</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#3b6992] inline-block" />POS</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#64748b] inline-block" />Sound Box</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#a3b3c6] inline-block" />Visit</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#b99763] inline-block" />CC</span>
             </div>
             <div className="text-[11px] font-medium text-slate-500 truncate max-w-full">
               {hoveredBranch ? (
@@ -579,11 +590,11 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                 const totalBarPct = b.totalTasks > 0 ? Math.max(1.5, (b.totalTasks / maxBranchTasks) * 100) : 0;
                 const brTot = Math.max(1, b.totalTasks);
                 const segs = [
-                  { key: 'khqr', val: b.khqr, color: 'bg-emerald-500' },
-                  { key: 'pos', val: b.pos, color: 'bg-[#004e75]' },
-                  { key: 'sb', val: b.sb, color: 'bg-[#4F518C]' },
-                  { key: 'mv', val: b.mv, color: 'bg-sky-500' },
-                  { key: 'cc', val: b.cc, color: 'bg-amber-500' },
+                  { key: 'khqr', val: b.khqr, color: 'bg-[#003857]' },
+                  { key: 'pos', val: b.pos, color: 'bg-[#3b6992]' },
+                  { key: 'sb', val: b.sb, color: 'bg-[#64748b]' },
+                  { key: 'mv', val: b.mv, color: 'bg-[#a3b3c6]' },
+                  { key: 'cc', val: b.cc, color: 'bg-[#b99763]' },
                 ].filter((s) => s.val > 0);
                 const isHovered = hoveredBranchCode === b.code;
 
@@ -695,11 +706,11 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                       <div className="font-bold text-slate-900 truncate max-w-[180px]">{b.name}</div>
                       <div className="text-[10.5px] font-mono text-slate-400">Code {b.code}</div>
                     </td>
-                    <td className="py-2.5 px-2 text-right font-figure text-emerald-700 font-semibold">{fmtNum(b.khqr)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-[#004e75] font-semibold">{fmtNum(b.pos)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-[#4F518C] font-semibold">{fmtNum(b.sb)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-sky-700 font-semibold">{fmtNum(b.mv)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-amber-700 font-semibold">{fmtNum(b.cc)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-[#003857] font-semibold">{fmtNum(b.khqr)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-[#3b6992] font-semibold">{fmtNum(b.pos)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-slate-600 font-semibold">{fmtNum(b.sb)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-slate-500 font-semibold">{fmtNum(b.mv)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-[#8a6a3b] font-semibold">{fmtNum(b.cc)}</td>
                     <td className="py-2.5 px-2 text-right font-figure text-slate-500">{fmtNum(b.reserve)}</td>
                     <td className="py-2.5 pl-2 pr-6 text-right font-figure font-extrabold text-slate-900">
                       {fmtNum(b.totalTasks)}
@@ -1244,9 +1255,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'KHQR',
           tab: 'mobile_sync_khqr',
           icon: QrCode,
-          iconWrap: 'bg-emerald-500/10 text-emerald-700',
-          barColor: 'bg-emerald-500',
-          hexColor: '#10b981',
+          iconWrap: 'bg-[#003857]/10 text-[#003857]',
+          barColor: 'bg-[#003857]',
+          hexColor: '#003857',
           primaryValue: khqrCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(raw.khqrInstall)} new · ${fmtNum(raw.khqrReplace)} replace${raw.khqrMaterials > 0 ? ` · ${fmtNum(raw.khqrMaterials)} QR items` : ''}`,
@@ -1258,9 +1269,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'Sound Box',
           tab: 'mobile_sync_sb',
           icon: Volume2,
-          iconWrap: 'bg-[#4F518C]/10 text-[#4F518C]',
-          barColor: 'bg-[#4F518C]',
-          hexColor: '#4F518C',
+          iconWrap: 'bg-slate-500/10 text-slate-600',
+          barColor: 'bg-[#64748b]',
+          hexColor: '#64748b',
           primaryValue: sbCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(hardwareSummary.sb)} units in stock · ${fmtNum(queues.sbField)} awaiting review`,
@@ -1272,9 +1283,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'POS Terminal',
           tab: 'mobile_sync',
           icon: Cpu,
-          iconWrap: 'bg-[#004e75]/10 text-[#004e75]',
-          barColor: 'bg-[#004e75]',
-          hexColor: '#004e75',
+          iconWrap: 'bg-[#3b6992]/10 text-[#3b6992]',
+          barColor: 'bg-[#3b6992]',
+          hexColor: '#3b6992',
           primaryValue: posCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(hardwareSummary.pos)} units in stock · ${fmtNum(queues.posField)} awaiting review`,
@@ -1286,9 +1297,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'Merchant Visit',
           tab: 'mobile_sync_visit',
           icon: Store,
-          iconWrap: 'bg-sky-500/10 text-sky-700',
-          barColor: 'bg-sky-500',
-          hexColor: '#0284c7',
+          iconWrap: 'bg-slate-400/15 text-slate-600',
+          barColor: 'bg-[#a3b3c6]',
+          hexColor: '#a3b3c6',
           primaryValue: mvCount,
           primaryUnit: 'visits',
           meta: 'Merchant check-ins & field onboarding visits',
@@ -1300,9 +1311,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'Credit Card',
           tab: 'mobile_sync_cc',
           icon: CreditCard,
-          iconWrap: 'bg-amber-500/10 text-amber-700',
-          barColor: 'bg-amber-500',
-          hexColor: '#f59e0b',
+          iconWrap: 'bg-[#b99763]/15 text-[#8a6a3b]',
+          barColor: 'bg-[#b99763]',
+          hexColor: '#b99763',
           primaryValue: ccCount,
           primaryUnit: 'onboarded',
           meta: `${fmtNum(ccSubmittedShow)} applications · ${fmtNum(queues.ccPend)} pending${ccCounts?.waitingDocs ? ` · ${fmtNum(ccCounts.waitingDocs)} waiting docs` : ''}`,
@@ -1462,8 +1473,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         sub: 'Installations, swaps & operational support',
         count: queues.sbField,
         tab: 'mobile_sync_sb',
-        badgeClass: queues.sbField > 0 ? 'bg-indigo-50/80 text-[#4F518C] border-indigo-200/70' : 'bg-emerald-50/80 text-emerald-700 border-emerald-200/70',
-        dotClass: 'bg-[#4F518C]',
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-200/80',
+        dotClass: 'bg-[#64748b]',
       },
       {
         id: 'pos',
@@ -1471,8 +1482,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         sub: 'Installations, battery changes & maintenance',
         count: queues.posField,
         tab: 'mobile_sync',
-        badgeClass: queues.posField > 0 ? 'bg-sky-50/80 text-[#004e75] border-sky-200/70' : 'bg-emerald-50/80 text-emerald-700 border-emerald-200/70',
-        dotClass: 'bg-[#004e75]',
+        badgeClass: 'bg-slate-100 text-[#003857] border-slate-200/80',
+        dotClass: 'bg-[#003857]',
       },
       {
         id: 'cc',
@@ -1480,8 +1491,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         sub: ccCounts?.waitingDocs ? `${fmtNum(ccCounts.waitingDocs)} waiting documents at HQ` : 'Pending Card Center & document verification',
         count: queues.ccPend,
         tab: 'mobile_sync_cc',
-        badgeClass: queues.ccPend > 0 ? 'bg-amber-50/80 text-amber-800 border-amber-200/70' : 'bg-emerald-50/80 text-emerald-700 border-emerald-200/70',
-        dotClass: 'bg-amber-500',
+        badgeClass: queues.ccPend > 0 ? 'bg-[#b99763]/10 text-[#8a6a3b] border-[#b99763]/30' : 'bg-slate-100 text-slate-600 border-slate-200/80',
+        dotClass: 'bg-[#b99763]',
       },
       {
         id: 'req',
@@ -1489,8 +1500,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         sub: `${fmtNum(reqStats.received)} received · ${fmtNum(reqStats.rejected)} rejected`,
         count: queues.reqPend,
         tab: 'requisitions',
-        badgeClass: queues.reqPend > 0 ? 'bg-teal-50/80 text-teal-800 border-teal-200/70' : 'bg-emerald-50/80 text-emerald-700 border-emerald-200/70',
-        dotClass: 'bg-teal-600',
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-200/80',
+        dotClass: 'bg-[#a3b3c6]',
       },
     ],
     [queues.sbField, queues.posField, queues.ccPend, queues.reqPend, ccCounts?.waitingDocs, reqStats.received, reqStats.rejected]
@@ -1553,10 +1564,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   const queueSegments: QueueSegItem[] = useMemo(() => {
     const segColors: Record<string, string> = {
-      pos: 'bg-[#004e75]',
-      sb: 'bg-[#4F518C]',
-      cc: 'bg-amber-500',
-      req: 'bg-teal-600',
+      pos: 'bg-[#003857]',
+      sb: 'bg-[#64748b]',
+      cc: 'bg-[#b99763]',
+      req: 'bg-[#a3b3c6]',
     };
     const total = Math.max(1, queues.total);
     return actionQueueRows.map((item) => ({
@@ -1586,14 +1597,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             : 'No units tracked',
         subtext: `HQ ${fmtNum(hardwareSummary.hq)} · Reserve ${fmtNum(hardwareSummary.reserve)} · Config ${fmtNum(hardwareSummary.config)} · Live ${fmtNum(hardwareSummary.installed)}`,
         icon: Boxes,
-        iconClass: 'text-[#004e75]',
+        iconClass: 'text-slate-500',
         segments:
           hardwareSummary.total > 0
             ? [
-                { key: 'hq', label: 'HQ', val: hardwareSummary.hq, pct: (hardwareSummary.hq / hwTot) * 100, color: 'bg-[#004e75]' },
-                { key: 'res', label: 'Reserve', val: hardwareSummary.reserve, pct: (hardwareSummary.reserve / hwTot) * 100, color: 'bg-sky-500' },
-                { key: 'cfg', label: 'Config', val: hardwareSummary.config, pct: (hardwareSummary.config / hwTot) * 100, color: 'bg-amber-500' },
-                { key: 'live', label: 'Live', val: hardwareSummary.installed, pct: (hardwareSummary.installed / hwTot) * 100, color: 'bg-emerald-500' },
+                { key: 'hq', label: 'HQ', val: hardwareSummary.hq, pct: (hardwareSummary.hq / hwTot) * 100, color: 'bg-[#003857]' },
+                { key: 'res', label: 'Reserve', val: hardwareSummary.reserve, pct: (hardwareSummary.reserve / hwTot) * 100, color: 'bg-[#4f789d]' },
+                { key: 'cfg', label: 'Config', val: hardwareSummary.config, pct: (hardwareSummary.config / hwTot) * 100, color: 'bg-[#a3b3c6]' },
+                { key: 'live', label: 'Live', val: hardwareSummary.installed, pct: (hardwareSummary.installed / hwTot) * 100, color: 'bg-[#4a7369]' },
               ]
             : [],
       },
@@ -1606,14 +1617,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             : '0 tracked',
         subtext: `${fmtNum(materialsSummary.simOnHand)} in stock · ${fmtNum(materialsSummary.simInTransit)} in transit · ${fmtNum(materialsSummary.simAtMerchant)} at merchant`,
         icon: Smartphone,
-        iconClass: 'text-teal-600',
+        iconClass: 'text-slate-500',
         onClickTab: 'sim_cards',
         segments:
           materialsSummary.simTotal > 0
             ? [
-                { key: 'stock', label: 'In Stock', val: materialsSummary.simOnHand, pct: (materialsSummary.simOnHand / simTot) * 100, color: 'bg-teal-500' },
-                { key: 'transit', label: 'In Transit', val: materialsSummary.simInTransit, pct: (materialsSummary.simInTransit / simTot) * 100, color: 'bg-amber-500' },
-                { key: 'merchant', label: 'At Merchant', val: materialsSummary.simAtMerchant, pct: (materialsSummary.simAtMerchant / simTot) * 100, color: 'bg-emerald-500' },
+                { key: 'stock', label: 'In Stock', val: materialsSummary.simOnHand, pct: (materialsSummary.simOnHand / simTot) * 100, color: 'bg-[#3b6992]' },
+                { key: 'transit', label: 'In Transit', val: materialsSummary.simInTransit, pct: (materialsSummary.simInTransit / simTot) * 100, color: 'bg-[#b99763]' },
+                { key: 'merchant', label: 'At Merchant', val: materialsSummary.simAtMerchant, pct: (materialsSummary.simAtMerchant / simTot) * 100, color: 'bg-[#003857]' },
               ]
             : [],
       },
@@ -1626,13 +1637,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             : '0 dated',
         subtext: `Healthy <${batteryWarningMonths}M: ${fmtNum(batterySummary.healthy)} · Due Soon: ${fmtNum(batterySummary.replaceSoon)} · Replace >=${batteryLifespanMonths}M: ${fmtNum(batterySummary.critical)}`,
         icon: BatteryCharging,
-        iconClass: 'text-emerald-600',
+        iconClass: 'text-slate-500',
         segments:
           batterySummary.total > 0
             ? [
-                { key: 'healthy', label: 'Healthy', val: batterySummary.healthy, pct: (batterySummary.healthy / batTot) * 100, color: 'bg-emerald-500' },
-                { key: 'soon', label: 'Due Soon', val: batterySummary.replaceSoon, pct: (batterySummary.replaceSoon / batTot) * 100, color: 'bg-amber-500' },
-                { key: 'critical', label: 'Replace', val: batterySummary.critical, pct: (batterySummary.critical / batTot) * 100, color: 'bg-rose-500' },
+                { key: 'healthy', label: 'Healthy', val: batterySummary.healthy, pct: (batterySummary.healthy / batTot) * 100, color: 'bg-[#4a7369]' },
+                { key: 'soon', label: 'Due Soon', val: batterySummary.replaceSoon, pct: (batterySummary.replaceSoon / batTot) * 100, color: 'bg-[#b99763]' },
+                { key: 'critical', label: 'Replace', val: batterySummary.critical, pct: (batterySummary.critical / batTot) * 100, color: 'bg-[#9e535c]' },
               ]
             : [],
       },
@@ -1766,7 +1777,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 }`}
                 title="Export Reports & Data"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                <FileSpreadsheet className="w-3.5 h-3.5 text-slate-600" aria-hidden="true" />
                 <span>Export</span>
               </button>
             )}
@@ -1785,7 +1796,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Field Tasks · {activePeriodLabel}
                 </span>
-                <div className="w-7 h-7 rounded-full bg-[#003857]/10 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-slate-200/70 text-slate-700' : 'bg-slate-800 text-slate-300'}`}>
                   <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
                 </div>
               </div>
@@ -1795,7 +1806,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
               <span>{fmtNum(scopedKpiTotals.activeBranchCount || branches.length)} branches · {fmtNum(scopedKpiTotals.activeStaffCount)} staff</span>
-              <span className="font-semibold text-emerald-600 whitespace-nowrap">{fmtNum(Math.round(channelActivity.totalPoints))} pts</span>
+              <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{fmtNum(Math.round(channelActivity.totalPoints))} pts</span>
             </div>
           </div>
 
@@ -1807,11 +1818,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   Pending Approvals
                 </span>
                 {queues.total > 0 ? (
-                  <div className="w-7 h-7 rounded-full bg-amber-500/12 text-amber-600 flex items-center justify-center shrink-0">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-[#b99763]/15 text-[#8a6a3b]' : 'bg-[#b99763]/20 text-[#d4b078]'}`}>
                     <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
                   </div>
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-emerald-500/12 text-emerald-600 flex items-center justify-center shrink-0">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-slate-200/70 text-slate-700' : 'bg-slate-800 text-slate-300'}`}>
                     <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
                   </div>
                 )}
@@ -1823,9 +1834,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
               <span>{fmtNum(queues.appTotal)} App · {fmtNum(queues.reqPend)} Stock Req</span>
               {queues.total > 0 ? (
-                <span className="font-semibold text-amber-600 whitespace-nowrap">Action needed</span>
+                <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-[#8a6a3b]' : 'text-[#d4b078]'}`}>Action needed</span>
               ) : (
-                <span className="font-semibold text-emerald-600 whitespace-nowrap">All clear</span>
+                <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-[#4a7369]' : 'text-slate-300'}`}>All clear</span>
               )}
             </div>
           </div>
@@ -1837,7 +1848,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Hardware Pool
                 </span>
-                <div className="w-7 h-7 rounded-full bg-emerald-500/12 text-emerald-600 flex items-center justify-center shrink-0">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-slate-200/70 text-slate-700' : 'bg-slate-800 text-slate-300'}`}>
                   <Boxes className="w-3.5 h-3.5" aria-hidden="true" />
                 </div>
               </div>
@@ -1851,12 +1862,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <button
                   type="button"
                   onClick={() => onNavigateTab?.('push_configuring')}
-                  className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#004e75]' : 'text-sky-300'}`}
+                  className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
                 >
                   {fmtNum(queues.pushPend)} push
                 </button>
               ) : (
-                <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-[#002f49]' : 'text-slate-200'}`}>
+                <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
                   {fmtNum(materialsSummary.simTotal)} SIM
                 </span>
               )}
@@ -1870,7 +1881,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Merchant Outreach
                 </span>
-                <div className="w-7 h-7 rounded-full bg-sky-500/12 text-[#004e75] dark:text-sky-300 flex items-center justify-center shrink-0">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-slate-200/70 text-slate-700' : 'bg-slate-800 text-slate-300'}`}>
                   <Store className="w-3.5 h-3.5" aria-hidden="true" />
                 </div>
               </div>
@@ -1880,7 +1891,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
               <span>{fmtNum(channelActivity.khqrCount)} KHQR · {fmtNum(channelActivity.mvCount)} Visits · {fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)} CC</span>
-              <span className="font-semibold text-sky-600 whitespace-nowrap">{reachSharePct}%</span>
+              <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}>{reachSharePct}%</span>
             </div>
           </div>
         </section>
@@ -1983,11 +1994,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 }`}
               >
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#004e75] inline-block" />POS</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#4F518C] inline-block" />Sound Box</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />KHQR</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-sky-500 inline-block" />Merchant Visit</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-amber-500 inline-block" />Credit Card</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#3b6992] inline-block" />POS</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#64748b] inline-block" />Sound Box</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#003857] inline-block" />KHQR</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#a3b3c6] inline-block" />Merchant Visit</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#b99763] inline-block" />Credit Card</span>
                 </div>
                 <div className="flex items-center gap-3">
                   {velocityPeak.peakVal > 0 && (
@@ -2001,12 +2012,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   )}
                   <span
                     className={`inline-flex items-center gap-1.5 font-semibold ${
-                      isLight ? 'text-[#004e75]' : 'text-sky-400'
+                      isLight ? 'text-slate-700' : 'text-slate-300'
                     }`}
                   >
                     <span
                       className={`w-3.5 border-t-2 border-dashed inline-block ${
-                        isLight ? 'border-[#004e75]' : 'border-sky-400'
+                        isLight ? 'border-slate-700' : 'border-slate-300'
                       }`}
                     />
                     Active staff
@@ -2022,10 +2033,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 labels={monthlyHardwareChart.labels}
                 series1Label="POS Terminal Installed"
                 series1Data={monthlyHardwareChart.pos}
-                series1Color="#004e75"
+                series1Color="#003857"
                 series2Label="Sound Box Installed"
                 series2Data={monthlyHardwareChart.sb}
-                series2Color="#4F518C"
+                series2Color="#889bae"
                 height={248}
                 theme={theme}
               />
@@ -2159,8 +2170,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           <span className="truncate">{row.title}</span>
                         </span>
                         <span
-                          className={`font-figure font-bold text-[11px] whitespace-nowrap shrink-0 ${
-                            isLight ? 'text-[#004e75]' : 'text-sky-400'
+                          className={`font-figure font-semibold text-[11px] whitespace-nowrap shrink-0 ${
+                            isLight ? 'text-slate-600' : 'text-slate-300'
                           }`}
                         >
                           {row.rightText}
