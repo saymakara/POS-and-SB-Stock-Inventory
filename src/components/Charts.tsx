@@ -316,6 +316,7 @@ export interface CrossChannelDayPoint {
   cc: number;
   activeStaff: number;
   activeBranches?: number;
+  isFuture?: boolean;
 }
 
 interface CrossChannelVelocityChartProps {
@@ -471,8 +472,8 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     const count = Math.max(1, items.length);
     const groupW = plotW / count;
     geomRef.current = { padLeft, groupW, count: items.length };
-    const barW = Math.min(46, Math.max(10, groupW * 0.72));
-    const xLabelFontPx = groupW >= 40 ? 10 : 9.5;
+    const barW = Math.min(44, Math.max(6, groupW * 0.68));
+    const xLabelFontPx = groupW >= 40 ? 10 : groupW >= 20 ? 9.5 : 9;
     ctx.font = `600 ${xLabelFontPx}px ${chartFont}`;
     const maxLabelW = items.reduce((mx, it) => Math.max(mx, ctx.measureText(it.label).width), 0);
     const labelStep =
@@ -518,7 +519,13 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       const activeSegs = CHANNEL_SERIES.filter((s) => item[s.key] > 0);
       const segGap = 1.5;
       if (activeSegs.length === 0) {
-        ctx.fillStyle = isLight ? 'rgba(148, 163, 184, 0.18)' : 'rgba(148, 163, 184, 0.16)';
+        ctx.fillStyle = item.isFuture
+          ? isLight
+            ? 'rgba(148, 163, 184, 0.11)'
+            : 'rgba(148, 163, 184, 0.10)'
+          : isLight
+          ? 'rgba(148, 163, 184, 0.18)'
+          : 'rgba(148, 163, 184, 0.16)';
         roundRectPath(ctx, bx, padTop + plotH - 2, barW, 2, 1);
         ctx.fill();
       } else {
@@ -549,7 +556,10 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
         peakTopY = curY;
       }
 
-      if (idx % labelStep === 0 || idx === items.length - 1) {
+      const lastIdx = items.length - 1;
+      const isLast = idx === lastIdx;
+      const collidesWithLast = !isLast && (lastIdx - idx) * groupW < maxLabelW + 6;
+      if ((idx % labelStep === 0 && !collidesWithLast) || isLast) {
         ctx.fillStyle = hover?.idx === idx ? (isLight ? '#0f172a' : '#ffffff') : axisColor;
         ctx.font = `${hover?.idx === idx ? '700' : '600'} ${xLabelFontPx}px ${chartFont}`;
         const tw = ctx.measureText(item.label).width;
@@ -580,9 +590,11 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       ctx.restore();
     }
 
-    // Smooth monotonic spline + soft area wash for Active Staff trendline
-    if (items.length > 0 && items.some((d) => d.activeStaff > 0)) {
-      const pts = items.map((item, idx) => ({
+    // Smooth monotonic spline + soft area wash for Active Staff trendline (stops at latest non-future day)
+    const activeEndCount = items.reduce((last, d, i) => (!d.isFuture ? i + 1 : last), 0);
+    const activeItems = items.slice(0, activeEndCount);
+    if (activeItems.length > 0 && activeItems.some((d) => d.activeStaff > 0)) {
+      const pts = activeItems.map((item, idx) => ({
         x: padLeft + idx * groupW + groupW / 2,
         y: padTop + plotH - (item.activeStaff / staffScale.max) * plotH,
         val: item.activeStaff,
@@ -720,8 +732,9 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
           </div>
           <div className="flex items-center justify-between gap-3 pt-1 mt-1 border-t border-slate-100 text-[10.5px] text-slate-500">
             <span>
-              {fmt(hoverItem.activeStaff)} staff
-              {hoverItem.activeBranches ? ` · ${hoverItem.activeBranches} branches` : ''}
+              {hoverItem.isFuture && hoverTotal === 0 && hoverItem.activeStaff === 0
+                ? 'Upcoming day'
+                : `${fmt(hoverItem.activeStaff)} staff${hoverItem.activeBranches ? ` · ${hoverItem.activeBranches} branches` : ''}`}
             </span>
             {hoverItem.activeStaff > 0 && (
               <span className="font-figure font-semibold text-[#004e75]">

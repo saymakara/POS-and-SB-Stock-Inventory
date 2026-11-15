@@ -43,6 +43,7 @@ import {
   getCachedSerialsPage,
   getCachedSerialStatusCounts,
   MATERIALS,
+  type MaterialCode,
   type MaterialBalance,
   type MaterialSerial,
   type SerialStatus,
@@ -68,9 +69,6 @@ import {
   ChevronRight,
   MapPin,
   Activity,
-  Users,
-  ShieldCheck,
-  Layers,
 } from 'lucide-react';
 
 /** Battery policy defaults (same values as AppSettings defaults). App can pass the live settings values as props. */
@@ -169,7 +167,7 @@ function sumRawInto(target: KpiRawCounts, src: KpiRawCounts): void {
   addExtraCounts(target, src);
 }
 
-const DONUT_RADIUS = 94;
+const DONUT_RADIUS = 116;
 const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
 
 interface ChannelSliceItem {
@@ -208,11 +206,11 @@ interface ChannelMixCardProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-const DONUT_VB_W = 396;
-const DONUT_VB_H = 304;
+const DONUT_VB_W = 452;
+const DONUT_VB_H = 332;
 const DONUT_CX = DONUT_VB_W / 2;
 const DONUT_CY = DONUT_VB_H / 2;
-const DONUT_SW = 20;
+const DONUT_SW = 26;
 const DONUT_R_OUTER = DONUT_RADIUS + DONUT_SW / 2;
 
 function formatChannelLabel(shortLabel: string): string {
@@ -240,13 +238,13 @@ function layoutDonutCallouts(slices: ChannelSliceItem[]): DonutCalloutGeom[] {
   const active = slices.filter((s) => s.dash > 0);
   if (active.length === 0) return [];
 
-  const R_TRACK_BASE = DONUT_R_OUTER + 5;
-  const TOP_PAD = 24;
-  const BOT_PAD = DONUT_VB_H - 24;
-  const TICK_X_LEFT = 87;
-  const TEXT_X_LEFT = 82;
-  const TICK_X_RIGHT = 309;
-  const TEXT_X_RIGHT = 314;
+  const R_TRACK_BASE = DONUT_R_OUTER + 4;
+  const TOP_PAD = 22;
+  const BOT_PAD = DONUT_VB_H - 22;
+  const TICK_X_LEFT = 85;
+  const TEXT_X_LEFT = 80;
+  const TICK_X_RIGHT = 367;
+  const TEXT_X_RIGHT = 372;
 
   const raw = active.map((slice) => {
     const midFrac = (slice.offset + slice.dash / 2) / DONUT_CIRC;
@@ -275,7 +273,7 @@ function layoutDonutCallouts(slices: ChannelSliceItem[]): DonutCalloutGeom[] {
     if (items.length === 0) return [];
     const sorted = [...items].sort((a, b) => a.oy - b.oy);
     const maxSpan = BOT_PAD - TOP_PAD;
-    const gap = sorted.length > 1 ? Math.min(46, Math.floor(maxSpan / (sorted.length - 1))) : 0;
+    const gap = sorted.length > 1 ? Math.min(52, Math.floor(maxSpan / (sorted.length - 1))) : 0;
 
     for (let i = 1; i < sorted.length; i++) {
       if (sorted[i].ly < sorted[i - 1].ly + gap) {
@@ -390,8 +388,8 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
         </div>
       </div>
 
-      <div className="px-2.5 pt-1 pb-3 flex-1 flex items-center justify-center">
-        <div className="relative w-full max-w-[396px] mx-auto aspect-[396/304] flex items-center justify-center">
+      <div className="px-2 pt-0.5 pb-2 flex-1 flex items-center justify-center">
+        <div className="relative w-full max-w-[540px] max-h-[400px] mx-auto aspect-[452/332] flex items-center justify-center">
           <svg
             viewBox={`0 0 ${DONUT_VB_W} ${DONUT_VB_H}`}
             className="w-full h-full overflow-visible"
@@ -512,14 +510,14 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
           </svg>
 
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
-            <span className={`text-[30px] sm:text-[32px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <span className={`text-[34px] sm:text-[38px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
             </span>
-            <span className={`text-[10.5px] font-semibold tracking-wider uppercase mt-1.5 truncate max-w-[136px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            <span className={`text-[11px] font-semibold tracking-wider uppercase mt-1.5 truncate max-w-[164px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               {focusedChannel ? formatChannelLabel(focusedChannel.shortLabel) : 'NO TASKS'}
             </span>
             {focusedChannel && totalTasks > 0 && (
-              <span className={`text-[11px] font-figure font-semibold mt-0.5 tabular-nums ${isLight ? 'text-[#004e75]' : 'text-sky-300'}`}>
+              <span className={`text-[12px] font-figure font-semibold mt-0.5 tabular-nums ${isLight ? 'text-[#004e75]' : 'text-sky-300'}`}>
                 {formatSliceCount(focusedChannel)} tasks
               </span>
             )}
@@ -664,7 +662,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                     </span>
                   </div>
 
-                  <div className={`flex-1 h-2.5 rounded-full overflow-hidden flex items-center ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
+                  <div className="flex-1 h-2.5 rounded-full overflow-hidden flex items-center">
                     {totalBarPct > 0 && (
                       <div
                         className="h-full rounded-full overflow-hidden flex gap-px transition-[width] duration-200"
@@ -913,15 +911,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [kpiData, ppDirectoryScope, branchScopedId, ruleMap]);
 
-  // 14-day / window Daily Cross-Channel Velocity time series (matches KPI Performance daily totals)
+  // Full-month (or period-scoped) Daily Cross-Channel Velocity time series (matches KPI Performance daily totals)
   const velocitySeries: CrossChannelDayPoint[] = useMemo(() => {
     const fallbackKpi = !kpiData?.dailyStaff?.length
       ? getCachedKpiSummary(kpiPeriodRange('MONTH').from, kpiPeriodRange('MONTH').to) ??
         getCachedKpiSummary(null, null)
       : undefined;
     const dailyStaff = (kpiData?.dailyStaff?.length ? kpiData.dailyStaff : fallbackKpi?.dailyStaff) || [];
-    const fromYmd = range.from ? range.from.slice(0, 10) : '';
-    const toYmd = range.to ? range.to.slice(0, 10) : '';
+    const fromYmd = range.from ? todayPP(new Date(range.from)) : '';
+    const toYmd = range.to ? todayPP(new Date(range.to)) : '';
     const byDay = new Map<
       string,
       {
@@ -985,14 +983,28 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
     }
 
-    // Build contiguous 14-day window ending today (or last recorded day in range) for crisp chart spacing
-    const endYmd = period === 'ALL' || !toYmd ? today : addDaysYmd(toYmd, -1);
-    const windowDays = period === 'TODAY' ? 1 : period === 'WEEK' || period === 'ALL' ? 14 : 15;
+    // Build contiguous period window: full calendar month for MONTH (day 1 to last day of month),
+    // full Mon–Sun week for WEEK, single day for TODAY, and rolling 30 days for ALL
     const daysOut: string[] = [];
-    for (let i = windowDays - 1; i >= 0; i--) {
-      const ymd = addDaysYmd(endYmd, -i);
-      if (fromYmd && ymd < fromYmd) continue;
-      daysOut.push(ymd);
+    if (period === 'TODAY') {
+      daysOut.push(today);
+    } else if (period === 'WEEK') {
+      const weekStart = fromYmd || addDaysYmd(today, -6);
+      for (let i = 0; i < 7; i++) {
+        daysOut.push(addDaysYmd(weekStart, i));
+      }
+    } else if (period === 'MONTH') {
+      const [yy, mm] = today.split('-').map(Number);
+      const daysInMonth =
+        yy > 0 && mm >= 1 && mm <= 12 ? new Date(Date.UTC(yy, mm, 0)).getUTCDate() : 30;
+      const monthPrefix = `${yy}-${String(mm).padStart(2, '0')}`;
+      for (let d = 1; d <= daysInMonth; d++) {
+        daysOut.push(`${monthPrefix}-${String(d).padStart(2, '0')}`);
+      }
+    } else {
+      for (let i = 29; i >= 0; i--) {
+        daysOut.push(addDaysYmd(today, -i));
+      }
     }
 
     return daysOut.map((ymd) => {
@@ -1007,6 +1019,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         cc: hit?.cc || 0,
         activeStaff: hit ? (hit.staffCountHint ?? hit.staff.size) : 0,
         activeBranches: hit ? (hit.branchCountHint ?? hit.branches.size) : 0,
+        isFuture: ymd > today,
       };
     });
   }, [kpiData, range.from, range.to, period, today, ppDirectoryScope, branchScopedId, ruleMap]);
@@ -1025,10 +1038,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     let posReserve = 0;
     let posConfig = 0;
     let posInstalled = 0;
+    let posFaulty = 0;
+    let posLost = 0;
     let sbHq = 0;
     let sbReserve = 0;
     let sbConfig = 0;
     let sbInstalled = 0;
+    let sbFaulty = 0;
+    let sbLost = 0;
     let boundDevices = 0;
     const uniqueMidSet = new Set<string>();
     const localStages: Record<LifecycleStage, number> = {
@@ -1048,12 +1065,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         else if (d.stage === 'BRANCH_RESERVE') sbReserve++;
         else if (d.stage === 'CONFIGURING') sbConfig++;
         else if (d.stage === 'COMPLETE') sbInstalled++;
+        else if (d.stage === 'FAULTY') sbFaulty++;
+        else if (d.stage === 'LOST') sbLost++;
       } else {
         pos++;
         if (d.stage === 'HQ_STOCK') posHq++;
         else if (d.stage === 'BRANCH_RESERVE') posReserve++;
         else if (d.stage === 'CONFIGURING') posConfig++;
         else if (d.stage === 'COMPLETE') posInstalled++;
+        else if (d.stage === 'FAULTY') posFaulty++;
+        else if (d.stage === 'LOST') posLost++;
       }
       if (d.stage in localStages) localStages[d.stage]++;
       const merchantKey = (d.mid || d.merchantName || '').trim().toUpperCase();
@@ -1077,10 +1098,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       posReserve,
       posConfig,
       posInstalled,
+      posFaulty,
+      posLost,
       sbHq,
       sbReserve,
       sbConfig,
       sbInstalled,
+      sbFaulty,
+      sbLost,
       boundDevices,
       uniqueMerchants: uniqueMidSet.size,
       hq: stages.HQ_STOCK || 0,
@@ -1251,31 +1276,77 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       FAULTY: 0,
       WRITTEN_OFF: 0,
     };
-    const simOnHand = (sim.HQ_STOCK || 0) + (sim.BRANCH_RESERVE || 0);
+    const simHq = sim.HQ_STOCK || 0;
+    const simReserve = sim.BRANCH_RESERVE || 0;
+    const simOnHand = simHq + simReserve;
     const simInTransit = sim.IN_TRANSIT || 0;
     const simAtMerchant = sim.AT_MERCHANT || 0;
-    const simTotal = simOnHand + simInTransit + simAtMerchant + (sim.LOST || 0) + (sim.FAULTY || 0);
+    const simFaulty = sim.FAULTY || 0;
+    const simLost = sim.LOST || 0;
+    const simWrittenOff = sim.WRITTEN_OFF || 0;
+    const simBad = simFaulty + simLost + simWrittenOff;
+    const simTotal = simOnHand + simInTransit + simAtMerchant + simBad;
 
     let kitOnHand = 0;
     let kitInTransit = 0;
     let kitAtMerchant = 0;
+    const kitByCode = new Map<MaterialCode, { onHand: number; inTransit: number; atMerchant: number }>();
+    for (const m of MATERIALS) {
+      if (m.code !== 'SIM') {
+        kitByCode.set(m.code, { onHand: 0, inTransit: 0, atMerchant: 0 });
+      }
+    }
+
     for (const row of matBalances) {
       if (row.code === 'SIM') continue;
       if (branchScopedId && row.branchId !== branchScopedId) continue;
       if (row.branchId !== '100' && !ppDirectoryScope.isBranchInScope(row.branchId)) continue;
-      kitOnHand += row.onHand || 0;
-      kitInTransit += row.inTransit || 0;
-      kitAtMerchant += row.atMerchant || 0;
+      const oh = row.onHand || 0;
+      const tr = row.inTransit || 0;
+      const mch = row.atMerchant || 0;
+      kitOnHand += oh;
+      kitInTransit += tr;
+      kitAtMerchant += mch;
+      const entry = kitByCode.get(row.code);
+      if (entry) {
+        entry.onHand += oh;
+        entry.inTransit += tr;
+        entry.atMerchant += mch;
+      }
     }
+
+    const kitSkus = MATERIALS.filter((m) => m.code !== 'SIM').map((m) => {
+      const c = kitByCode.get(m.code) || { onHand: 0, inTransit: 0, atMerchant: 0 };
+      const total = c.onHand + c.inTransit + c.atMerchant;
+      return {
+        code: m.code,
+        name: m.name,
+        short: m.short,
+        deviceType: m.deviceType,
+        tracking: m.tracking,
+        onHand: c.onHand,
+        inTransit: c.inTransit,
+        atMerchant: c.atMerchant,
+        total,
+      };
+    });
 
     return {
       simTotal,
+      simHq,
+      simReserve,
       simOnHand,
       simInTransit,
       simAtMerchant,
+      simFaulty,
+      simLost,
+      simWrittenOff,
+      simBad,
       kitOnHand,
       kitInTransit,
       kitAtMerchant,
+      kitTotal: kitOnHand + kitInTransit + kitAtMerchant,
+      kitSkus,
       activeTypesCount: MATERIALS.length,
     };
   }, [simCounts, matBalances, branchScopedId, ppDirectoryScope]);
@@ -1307,40 +1378,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       total: appTotal + reqPend,
     };
   }, [actionQueues, ccCounts, reqStats.pending.length]);
-
-  const systemDirectoryStats = useMemo(() => {
-    let totalDirectoryStaff = 0;
-    if (cachedStaff && cachedStaff.length > 0) {
-      for (const a of cachedStaff) {
-        if (a.active === false) continue;
-        if (!ppDirectoryScope.isBranchInScope(a.branchId, a.location)) continue;
-        if (branchScopedId && a.branchId !== branchScopedId) continue;
-        totalDirectoryStaff++;
-      }
-    } else if (directoryUsers.length > 0) {
-      for (const u of directoryUsers) {
-        if (u.status === 'Suspended') continue;
-        if (!ppDirectoryScope.isBranchInScope(u.branchId, u.location)) continue;
-        if (branchScopedId && u.branchId !== branchScopedId) continue;
-        totalDirectoryStaff++;
-      }
-    }
-    const dirFallback = totalDirectoryStaff || ppDirectoryScope.eligibleEmpIds.size || scopedKpiTotals.activeStaffCount;
-    const ppBranches = branches.filter((b) => {
-      if (!ppDirectoryScope.isBranchInScope(b.code, b.name)) return false;
-      if (branchScopedId && b.code !== branchScopedId) return false;
-      return true;
-    }).length;
-    const branchDenominator = ppBranches || scopedKpiTotals.activeBranchCount || 1;
-    const staffPct = Math.min(100, Math.round((scopedKpiTotals.activeStaffCount / Math.max(1, dirFallback)) * 100));
-    const branchPct = Math.min(100, Math.round((scopedKpiTotals.activeBranchCount / branchDenominator) * 100));
-    return {
-      totalDirectoryStaff: dirFallback,
-      totalBranches: branchDenominator,
-      staffPct,
-      branchPct,
-    };
-  }, [cachedStaff, directoryUsers, branches, branchScopedId, ppDirectoryScope, scopedKpiTotals.activeStaffCount, scopedKpiTotals.activeBranchCount]);
 
   const systemTelemetry = useMemo(() => {
     const snap = getPerfSnapshot();
@@ -2552,290 +2589,575 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         className="grid grid-cols-1 lg:grid-cols-12 gap-5"
         aria-label="System Operations & Telemetry"
       >
-        {/* Card 3A: Operational Queues & Pipeline Watchlist */}
-        <section className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
+        {/* Card 3A: Hardware Stock Lifecycle & Product Mix Visualization */}
+        <section
+          data-stock-card="hardware"
+          className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}
+        >
           <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                  queues.total + queues.pushPend > 0
-                    ? isLight
-                      ? 'bg-amber-500/15 text-amber-600'
-                      : 'bg-amber-500/20 text-amber-300'
-                    : isLight
-                      ? 'bg-emerald-500/15 text-emerald-600'
-                      : 'bg-emerald-500/20 text-emerald-300'
+                  isLight ? 'bg-[#184e77]/12 text-[#184e77]' : 'bg-[#184e77]/30 text-[#5cc8ff]'
                 }`}
               >
-                {queues.total + queues.pushPend > 0 ? (
-                  <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                ) : (
-                  <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
-                )}
+                <Boxes className="w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  System Queues &amp; Alerts
+                  Hardware Stock Lifecycle
                 </h3>
                 <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  Approval backlog &amp; asset recovery
-                </p>
-              </div>
-            </div>
-            <span
-              className={`text-[11px] font-figure font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
-                queues.total + queues.pushPend > 0
-                  ? isLight
-                    ? 'bg-amber-500/12 text-amber-700'
-                    : 'bg-amber-500/20 text-amber-300'
-                  : isLight
-                    ? 'bg-emerald-500/12 text-emerald-700'
-                    : 'bg-emerald-500/20 text-emerald-300'
-              }`}
-            >
-              {fmtNum(queues.total + queues.pushPend)} active
-            </span>
-          </div>
-
-          <div className={`divide-y flex-1 ${isLight ? 'divide-slate-100/85' : 'divide-slate-800/70'}`}>
-            {[
-              {
-                key: 'pos_app',
-                label: 'POS App Review',
-                sub: 'Field events awaiting check',
-                count: queues.posField,
-                tab: 'mobile_sync',
-                icon: Cpu,
-                iconCls: isLight ? 'bg-[#184e77]/12 text-[#184e77]' : 'bg-[#184e77]/30 text-[#5cc8ff]',
-              },
-              {
-                key: 'sb_app',
-                label: 'Sound Box Review',
-                sub: 'Audio box tasks awaiting check',
-                count: queues.sbField,
-                tab: 'mobile_sync_sb',
-                icon: Volume2,
-                iconCls: isLight ? 'bg-[#4F518C]/12 text-[#4F518C]' : 'bg-[#4F518C]/30 text-[#a2a5e0]',
-              },
-              {
-                key: 'cc_app',
-                label: 'Credit Card Review',
-                sub: ccCounts?.waitingDocs ? `${fmtNum(ccCounts.waitingDocs)} waiting docs` : 'Submitted acquisitions',
-                count: queues.ccPend,
-                tab: 'mobile_sync_cc',
-                icon: CreditCard,
-                iconCls: isLight ? 'bg-amber-500/15 text-amber-600' : 'bg-amber-500/20 text-amber-300',
-              },
-              {
-                key: 'req_open',
-                label: 'Stock Requisitions',
-                sub: `${fmtNum(reqStats.received)} received · ${fmtNum(reqStats.total)} total`,
-                count: queues.reqPend,
-                tab: 'requisitions',
-                icon: ScrollText,
-                iconCls: isLight ? 'bg-violet-500/15 text-violet-600' : 'bg-violet-500/20 text-violet-300',
-              },
-              {
-                key: 'push_cfg',
-                label: 'Push Configuring',
-                sub: `${fmtNum(actionQueues?.pushPosPending ?? 0)} POS · ${fmtNum(actionQueues?.pushSbPending ?? 0)} SB`,
-                count: queues.pushPend,
-                tab: 'push_configuring',
-                icon: Package,
-                iconCls: isLight ? 'bg-teal-500/15 text-teal-600' : 'bg-teal-500/20 text-teal-300',
-              },
-              {
-                key: 'recovery',
-                label: 'Faulty & Lost Assets',
-                sub: `${fmtNum(hardwareSummary.faulty)} faulty · ${fmtNum(hardwareSummary.lost)} lost HW · ${fmtNum(actionQueues?.lostSim ?? 0)} SIM`,
-                count: hardwareSummary.faulty + hardwareSummary.lost + (actionQueues?.lostSim ?? 0),
-                tab: 'inventory',
-                icon: AlertCircle,
-                iconCls: isLight ? 'bg-rose-500/15 text-rose-600' : 'bg-rose-500/20 text-rose-300',
-              },
-            ].map((q) => {
-              const QIcon = q.icon;
-              return (
-                <button
-                  key={q.key}
-                  type="button"
-                  onClick={() => onNavigateTab?.(q.tab)}
-                  className={`w-full text-left px-6 py-2.5 flex items-center justify-between gap-2.5 transition cursor-pointer group ${
-                    isLight ? 'hover:bg-slate-50/80' : 'hover:bg-slate-800/45'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${q.iconCls}`}>
-                      <QIcon className="w-3.5 h-3.5" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0">
-                      <div className={`text-xs font-semibold truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
-                        {q.label}
-                      </div>
-                      <div className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {q.sub}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span
-                      className={`text-[11px] font-figure font-bold px-2 py-0.5 rounded-full tabular-nums ${
-                        q.count > 0
-                          ? isLight
-                            ? 'bg-slate-100 text-slate-900'
-                            : 'bg-slate-800 text-white'
-                          : isLight
-                            ? 'bg-emerald-500/10 text-emerald-700'
-                            : 'bg-emerald-500/15 text-emerald-300'
-                      }`}
-                    >
-                      {q.count > 0 ? fmtNum(q.count) : 'Clear'}
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#004e75] transition" aria-hidden="true" />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Card 3B: Device Fleet, Merchants & Network Scope */}
-        <section className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
-          <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                  isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-300'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  Fleet, Merchants &amp; Network
-                </h3>
-                <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  POS vs SB, MIDs &amp; branch coverage
+                  {fmtNum(hardwareSummary.total)} units · POS vs Sound Box
                 </p>
               </div>
             </div>
             {onNavigateTab && (
               <button
                 type="button"
-                onClick={() => onNavigateTab('merchants')}
-                className={`text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition ${
+                onClick={() => onNavigateTab('inventory')}
+                className={`text-xs font-semibold inline-flex items-center gap-0.5 shrink-0 cursor-pointer transition ${
                   isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
                 }`}
               >
-                Merchants <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             )}
           </div>
 
-          <div className="px-6 pb-5 space-y-3.5 flex-1 flex flex-col justify-between">
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => onNavigateTab?.('inventory_pos')}
-                className={`${kpiCardClass} rounded-[16px] p-3 text-left transition cursor-pointer ${
-                  isLight ? 'hover:bg-slate-100/80' : 'hover:bg-slate-800/70'
+          <div className="px-6 pb-5 flex-1 flex flex-col justify-between gap-3">
+            {(() => {
+              const splitTotal = hardwareSummary.pos + hardwareSummary.sb;
+              const posShare = splitTotal > 0 ? Math.round((hardwareSummary.pos / splitTotal) * 100) : 0;
+              const sbShare = splitTotal > 0 ? 100 - posShare : 0;
+              const stages = [
+                {
+                  key: 'HQ_STOCK',
+                  label: 'HQ Stock',
+                  pos: hardwareSummary.posHq,
+                  sb: hardwareSummary.sbHq,
+                  total: hardwareSummary.hq,
+                  dotColor: CHANNEL_COLORS.pos,
+                  tab: 'inventory',
+                },
+                {
+                  key: 'BRANCH_RESERVE',
+                  label: 'Branch Reserve',
+                  pos: hardwareSummary.posReserve,
+                  sb: hardwareSummary.sbReserve,
+                  total: hardwareSummary.reserve,
+                  dotColor: CHANNEL_COLORS.khqr,
+                  tab: 'inventory',
+                },
+                {
+                  key: 'CONFIGURING',
+                  label: 'Push Config',
+                  pos: hardwareSummary.posConfig,
+                  sb: hardwareSummary.sbConfig,
+                  total: hardwareSummary.config,
+                  dotColor: CHANNEL_COLORS.cc,
+                  tab: 'push_configuring',
+                },
+                {
+                  key: 'COMPLETE',
+                  label: 'Deployed Live',
+                  pos: hardwareSummary.posInstalled,
+                  sb: hardwareSummary.sbInstalled,
+                  total: hardwareSummary.installed,
+                  dotColor: CHANNEL_COLORS.mv,
+                  tab: 'merchants',
+                },
+                {
+                  key: 'FAULTY',
+                  label: 'Faulty Units',
+                  pos: hardwareSummary.posFaulty,
+                  sb: hardwareSummary.sbFaulty,
+                  total: hardwareSummary.faulty,
+                  dotColor: '#e11d48',
+                  tab: 'inventory',
+                },
+                {
+                  key: 'LOST',
+                  label: 'Lost Units',
+                  pos: hardwareSummary.posLost,
+                  sb: hardwareSummary.sbLost,
+                  total: hardwareSummary.lost,
+                  dotColor: '#be123c',
+                  tab: 'inventory',
+                },
+              ];
+              const maxStage = Math.max(1, ...stages.map((s) => Math.max(s.total, s.pos + s.sb)));
+
+              return (
+                <>
+                  {/* POS vs Sound Box fleet split */}
+                  <div className={`${kpiCardClass} rounded-[14px] px-3.5 py-2.5 space-y-2`}>
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab?.('inventory_pos')}
+                        className="inline-flex items-center gap-1.5 min-w-0 cursor-pointer group"
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.pos }} />
+                        <span className={`font-semibold whitespace-nowrap transition ${isLight ? 'text-slate-700 group-hover:text-[#184e77]' : 'text-slate-200 group-hover:text-sky-300'}`}>
+                          POS
+                        </span>
+                        <span className={`font-figure font-bold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {fmtNum(hardwareSummary.pos)}
+                        </span>
+                        {splitTotal > 0 && (
+                          <span className={`font-figure text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                            ({posShare}%)
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab?.('inventory_sb')}
+                        className="inline-flex items-center gap-1.5 min-w-0 cursor-pointer group"
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHANNEL_COLORS.sb }} />
+                        <span className={`font-semibold whitespace-nowrap transition ${isLight ? 'text-slate-700 group-hover:text-[#4F518C]' : 'text-slate-200 group-hover:text-indigo-300'}`}>
+                          Sound Box
+                        </span>
+                        <span className={`font-figure font-bold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {fmtNum(hardwareSummary.sb)}
+                        </span>
+                        {splitTotal > 0 && (
+                          <span className={`font-figure text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                            ({sbShare}%)
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                    {splitTotal > 0 && (
+                      <div className="h-2 w-full flex items-center gap-[2px]">
+                        {hardwareSummary.pos > 0 && (
+                          <div
+                            data-stock-bar="pos-split"
+                            className="h-full rounded-l-full transition-all duration-300"
+                            style={{
+                              width: `${Math.max(3, (hardwareSummary.pos / splitTotal) * 100)}%`,
+                              backgroundColor: CHANNEL_COLORS.pos,
+                            }}
+                            title={`POS Terminal: ${fmtNum(hardwareSummary.pos)} (${posShare}%)`}
+                          />
+                        )}
+                        {hardwareSummary.sb > 0 && (
+                          <div
+                            data-stock-bar="sb-split"
+                            className="h-full rounded-r-full transition-all duration-300"
+                            style={{
+                              width: `${Math.max(3, (hardwareSummary.sb / splitTotal) * 100)}%`,
+                              backgroundColor: CHANNEL_COLORS.sb,
+                            }}
+                            title={`Sound Box: ${fmtNum(hardwareSummary.sb)} (${sbShare}%)`}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 6-Stage Stacked Horizontal Bar Graph */}
+                  <div className="space-y-2" aria-label="Hardware lifecycle stage chart">
+                    {stages.map((st) => {
+                      const rowCount = Math.max(st.total, st.pos + st.sb);
+                      const hasTypeSplit = st.pos + st.sb > 0;
+                      const posW = rowCount > 0 && st.pos > 0 ? Math.max(2, (st.pos / maxStage) * 100) : 0;
+                      const sbW = rowCount > 0 && st.sb > 0 ? Math.max(2, (st.sb / maxStage) * 100) : 0;
+                      const fallbackW = !hasTypeSplit && rowCount > 0 ? Math.max(2, (rowCount / maxStage) * 100) : 0;
+
+                      return (
+                        <button
+                          key={st.key}
+                          type="button"
+                          onClick={() => onNavigateTab?.(st.tab)}
+                          title={`${st.label}: ${fmtNum(rowCount)} units (${fmtNum(st.pos)} POS · ${fmtNum(st.sb)} SB)`}
+                          className={`w-full text-left rounded-lg px-2 py-1 -mx-2 transition cursor-pointer group ${
+                            isLight ? 'hover:bg-slate-50/90' : 'hover:bg-slate-800/45'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 text-[11px]">
+                            <span className="inline-flex items-center gap-1.5 min-w-0">
+                              <span
+                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                                style={{ backgroundColor: st.dotColor }}
+                              />
+                              <span className={`font-semibold truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                                {st.label}
+                              </span>
+                            </span>
+                            <span className="inline-flex items-center gap-2 shrink-0 tabular-nums font-figure">
+                              {hasTypeSplit && (
+                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                                  {fmtNum(st.pos)} POS · {fmtNum(st.sb)} SB
+                                </span>
+                              )}
+                              <span
+                                className={`font-bold ${
+                                  rowCount === 0
+                                    ? isLight
+                                      ? 'text-slate-400'
+                                      : 'text-slate-500'
+                                    : isLight
+                                      ? 'text-slate-900'
+                                      : 'text-white'
+                                }`}
+                              >
+                                {fmtNum(rowCount)}
+                              </span>
+                            </span>
+                          </div>
+                          {rowCount > 0 && (
+                            <div
+                              data-hardware-stage-bar={st.key}
+                              className="mt-1 h-[6px] w-full flex items-center gap-[1.5px]"
+                            >
+                              {hasTypeSplit ? (
+                                <>
+                                  {st.pos > 0 && (
+                                    <div
+                                      className="h-full rounded-full transition-all duration-300"
+                                      style={{ width: `${posW}%`, backgroundColor: CHANNEL_COLORS.pos }}
+                                    />
+                                  )}
+                                  {st.sb > 0 && (
+                                    <div
+                                      className="h-full rounded-full transition-all duration-300"
+                                      style={{ width: `${sbW}%`, backgroundColor: CHANNEL_COLORS.sb }}
+                                    />
+                                  )}
+                                </>
+                              ) : (
+                                <div
+                                  className="h-full rounded-full transition-all duration-300"
+                                  style={{ width: `${fallbackW}%`, backgroundColor: st.dotColor }}
+                                />
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Merchant binding & Push queue footer strip */}
+                  <div className={`pt-2 border-t flex items-center justify-between gap-2 text-[11px] ${kpiFooterBorderClass}`}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab?.('merchants')}
+                      className={`inline-flex items-center gap-1 truncate cursor-pointer transition ${
+                        isLight ? 'text-slate-600 hover:text-[#004e75]' : 'text-slate-300 hover:text-sky-300'
+                      }`}
+                    >
+                      <Store className="w-3 h-3 shrink-0" aria-hidden="true" />
+                      <span>
+                        Bound: <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.boundDevices)}</strong> ·{' '}
+                        <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(hardwareSummary.uniqueMerchants)}</strong> MIDs
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab?.('push_configuring')}
+                      className={`font-figure font-semibold shrink-0 cursor-pointer transition ${
+                        queues.pushPend > 0
+                          ? isLight
+                            ? 'text-amber-700 hover:text-amber-800'
+                            : 'text-amber-300 hover:text-amber-200'
+                          : isLight
+                            ? 'text-emerald-700'
+                            : 'text-emerald-300'
+                      }`}
+                    >
+                      {fmtNum(queues.pushPend)} push queue
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </section>
+
+        {/* Card 3B: SIM Card Fleet, Kit Materials & Stock Requisitions Visualization */}
+        <section
+          data-stock-card="materials"
+          className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}
+        >
+          <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                  isLight ? 'bg-[#2d6a4f]/15 text-[#2d6a4f]' : 'bg-emerald-500/20 text-emerald-300'
                 }`}
               >
-                <div className="flex items-center justify-between gap-1.5">
-                  <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>POS Terminals</span>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center ${isLight ? 'bg-[#184e77]/12 text-[#184e77]' : 'bg-[#184e77]/30 text-[#5cc8ff]'}`}>
-                    <Cpu className="w-3 h-3" aria-hidden="true" />
-                  </span>
-                </div>
-                <div className={`text-lg font-bold font-figure tabular-nums mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  {fmtNum(hardwareSummary.pos)}
-                </div>
-                <div className={`text-[10px] leading-snug mt-1 tabular-nums ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  {fmtNum(hardwareSummary.posHq)} HQ · {fmtNum(hardwareSummary.posReserve)} Res · {fmtNum(hardwareSummary.posInstalled)} Live
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onNavigateTab?.('inventory_sb')}
-                className={`${kpiCardClass} rounded-[16px] p-3 text-left transition cursor-pointer ${
-                  isLight ? 'hover:bg-slate-100/80' : 'hover:bg-slate-800/70'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-1.5">
-                  <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Sound Boxes</span>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center ${isLight ? 'bg-[#4F518C]/12 text-[#4F518C]' : 'bg-[#4F518C]/30 text-[#a2a5e0]'}`}>
-                    <Volume2 className="w-3 h-3" aria-hidden="true" />
-                  </span>
-                </div>
-                <div className={`text-lg font-bold font-figure tabular-nums mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  {fmtNum(hardwareSummary.sb)}
-                </div>
-                <div className={`text-[10px] leading-snug mt-1 tabular-nums ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  {fmtNum(hardwareSummary.sbHq)} HQ · {fmtNum(hardwareSummary.sbReserve)} Res · {fmtNum(hardwareSummary.sbInstalled)} Live
-                </div>
-              </button>
+                <Package className="w-3.5 h-3.5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  SIM &amp; Materials Stock
+                </h3>
+                <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  SIM fleet, 5 kit SKUs &amp; requisitions
+                </p>
+              </div>
             </div>
+            {onNavigateTab && (
+              <div className="flex items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('sim_cards')}
+                  className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
+                    isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                  }`}
+                >
+                  SIM <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('requisitions')}
+                  className={`text-xs font-semibold inline-flex items-center gap-0.5 cursor-pointer transition ${
+                    isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                  }`}
+                >
+                  Req <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+              </div>
+            )}
+          </div>
 
-            <div className={`${kpiCardClass} rounded-[16px] px-3.5 py-2.5 flex items-center justify-between gap-3`}>
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-[#1e6091]/12 text-[#1e6091]' : 'bg-[#1e6091]/30 text-[#74b9ff]'}`}>
-                  <Store className="w-3.5 h-3.5" aria-hidden="true" />
-                </span>
-                <div className="min-w-0">
-                  <div className={`text-xs font-semibold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                    Merchant Binding &amp; KHQR Volume
+          <div className="px-6 pb-5 flex-1 flex flex-col justify-between gap-3">
+            {(() => {
+              const simSegs = [
+                { key: 'HQ', label: 'HQ', count: materialsSummary.simHq, color: CHANNEL_COLORS.pos },
+                { key: 'RES', label: 'Res', count: materialsSummary.simReserve, color: CHANNEL_COLORS.sb },
+                { key: 'TR', label: 'Transit', count: materialsSummary.simInTransit, color: CHANNEL_COLORS.cc },
+                { key: 'MCH', label: 'Merchant', count: materialsSummary.simAtMerchant, color: CHANNEL_COLORS.mv },
+                { key: 'BAD', label: 'Lost/Faulty', count: materialsSummary.simBad, color: '#e11d48' },
+              ];
+              const simMerchantPct =
+                materialsSummary.simTotal > 0
+                  ? Math.round((materialsSummary.simAtMerchant / materialsSummary.simTotal) * 100)
+                  : 0;
+              const maxKitSku = Math.max(1, ...materialsSummary.kitSkus.map((s) => s.total));
+              const reqPendingCount = reqStats.pending.length;
+
+              return (
+                <>
+                  {/* SIM Card Fleet Stacked Distribution */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTab?.('sim_cards')}
+                    className={`w-full text-left ${kpiCardClass} rounded-[14px] px-3.5 py-2.5 space-y-2 transition cursor-pointer ${
+                      isLight ? 'hover:bg-slate-100/80' : 'hover:bg-slate-800/70'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className={`font-semibold truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                        SIM Card Fleet · <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(materialsSummary.simTotal)}</strong> serials
+                      </span>
+                      <span className={`font-figure font-semibold shrink-0 ${isLight ? 'text-[#2d6a4f]' : 'text-emerald-300'}`}>
+                        {simMerchantPct}% Live
+                      </span>
+                    </div>
+                    {materialsSummary.simTotal > 0 && (
+                      <div
+                        data-stock-bar="sim-fleet"
+                        className="h-2 w-full flex items-center gap-[1.5px]"
+                      >
+                        {simSegs.map(
+                          (seg) =>
+                            seg.count > 0 && (
+                              <div
+                                key={seg.key}
+                                className="h-full rounded-full transition-all duration-300"
+                                style={{
+                                  width: `${Math.max(2, (seg.count / materialsSummary.simTotal) * 100)}%`,
+                                  backgroundColor: seg.color,
+                                }}
+                                title={`${seg.label}: ${fmtNum(seg.count)}`}
+                              />
+                            )
+                        )}
+                      </div>
+                    )}
+                    <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] font-figure tabular-nums ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {simSegs.map((seg) => (
+                        <span key={seg.key} className="inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                          <span>{seg.label}</span>
+                          <strong className={isLight ? 'text-slate-800' : 'text-slate-200'}>{fmtNum(seg.count)}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+
+                  {/* Kit Materials Stock by SKU (5 SKUs) */}
+                  <div className="space-y-1.5" aria-label="Kit materials stock chart">
+                    <div className="flex items-center justify-between gap-2 text-[10.5px]">
+                      <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                        Kit Materials ({fmtNum(materialsSummary.kitTotal)} units)
+                      </span>
+                      <span className={`inline-flex items-center gap-2 shrink-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CHANNEL_COLORS.pos }} /> Stock
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CHANNEL_COLORS.cc }} /> Transit
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CHANNEL_COLORS.mv }} /> Merchant
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {materialsSummary.kitSkus.map((sku) => {
+                        const targetTab = sku.deviceType === 'SB' ? 'inventory_sb' : 'inventory_pos';
+                        return (
+                          <button
+                            key={sku.code}
+                            type="button"
+                            onClick={() => onNavigateTab?.(targetTab)}
+                            title={`${sku.name} (${sku.deviceType}): ${fmtNum(sku.onHand)} stock · ${fmtNum(sku.inTransit)} transit · ${fmtNum(sku.atMerchant)} merchant`}
+                            className={`w-full text-left rounded-lg px-2 py-1 -mx-2 transition cursor-pointer ${
+                              isLight ? 'hover:bg-slate-50/90' : 'hover:bg-slate-800/45'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2 text-[11px]">
+                              <span className="inline-flex items-center gap-1.5 min-w-0">
+                                <span className={`font-semibold truncate ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                                  {sku.name}
+                                </span>
+                                <span
+                                  className={`text-[9px] font-bold px-1.5 py-[1px] rounded uppercase shrink-0 ${
+                                    sku.deviceType === 'SB'
+                                      ? isLight
+                                        ? 'bg-[#4F518C]/12 text-[#4F518C]'
+                                        : 'bg-[#4F518C]/30 text-[#a2a5e0]'
+                                      : isLight
+                                        ? 'bg-[#184e77]/12 text-[#184e77]'
+                                        : 'bg-[#184e77]/30 text-[#5cc8ff]'
+                                  }`}
+                                >
+                                  {sku.deviceType}
+                                </span>
+                              </span>
+                              <span className="inline-flex items-center gap-2 shrink-0 tabular-nums font-figure">
+                                {sku.total > 0 && (
+                                  <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    {fmtNum(sku.onHand)} · {fmtNum(sku.inTransit)} tr · {fmtNum(sku.atMerchant)} mch
+                                  </span>
+                                )}
+                                <span
+                                  className={`font-bold ${
+                                    sku.total === 0
+                                      ? isLight
+                                        ? 'text-slate-400'
+                                        : 'text-slate-500'
+                                      : isLight
+                                        ? 'text-slate-900'
+                                        : 'text-white'
+                                  }`}
+                                >
+                                  {fmtNum(sku.total)}
+                                </span>
+                              </span>
+                            </div>
+                            {sku.total > 0 && (
+                              <div
+                                data-material-sku-bar={sku.code}
+                                className="mt-1 h-[5.5px] w-full flex items-center gap-[1.5px]"
+                              >
+                                {sku.onHand > 0 && (
+                                  <div
+                                    className="h-full rounded-full transition-all duration-300"
+                                    style={{
+                                      width: `${Math.max(2, (sku.onHand / maxKitSku) * 100)}%`,
+                                      backgroundColor: CHANNEL_COLORS.pos,
+                                    }}
+                                  />
+                                )}
+                                {sku.inTransit > 0 && (
+                                  <div
+                                    className="h-full rounded-full transition-all duration-300"
+                                    style={{
+                                      width: `${Math.max(2, (sku.inTransit / maxKitSku) * 100)}%`,
+                                      backgroundColor: CHANNEL_COLORS.cc,
+                                    }}
+                                  />
+                                )}
+                                {sku.atMerchant > 0 && (
+                                  <div
+                                    className="h-full rounded-full transition-all duration-300"
+                                    style={{
+                                      width: `${Math.max(2, (sku.atMerchant / maxKitSku) * 100)}%`,
+                                      backgroundColor: CHANNEL_COLORS.mv,
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                    {fmtNum(hardwareSummary.boundDevices)} bound devices · {fmtNum(channelActivity.khqrNew)} new / {fmtNum(channelActivity.khqrReplace)} repl QR
-                  </div>
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className={`text-base font-bold font-figure tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  {fmtNum(hardwareSummary.uniqueMerchants)}
-                </div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">MIDs</div>
-              </div>
-            </div>
 
-            <div className="space-y-2.5 pt-0.5">
-              <div>
-                <div className="flex items-center justify-between text-[11.5px] mb-1">
-                  <span className={`font-semibold inline-flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                    <Users className={`w-3.5 h-3.5 ${isLight ? 'text-sky-600' : 'text-sky-400'}`} aria-hidden="true" />
-                    Staff Activity Participation
-                  </span>
-                  <span className={`font-figure font-semibold tabular-nums ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                    {fmtNum(scopedKpiTotals.activeStaffCount)} / {fmtNum(systemDirectoryStats.totalDirectoryStaff)} ({systemDirectoryStats.staffPct}%)
-                  </span>
-                </div>
-                <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
-                  <div
-                    className="h-full rounded-full bg-[#003857] transition-all duration-300"
-                    style={{ width: `${Math.max(systemDirectoryStats.staffPct, scopedKpiTotals.activeStaffCount > 0 ? 4 : 0)}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between text-[11.5px] mb-1">
-                  <span className={`font-semibold inline-flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
-                    <Building2 className={`w-3.5 h-3.5 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} aria-hidden="true" />
-                    Phnom Penh Branch Reporting
-                  </span>
-                  <span className={`font-figure font-semibold tabular-nums ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                    {fmtNum(scopedKpiTotals.activeBranchCount)} / {fmtNum(systemDirectoryStats.totalBranches)} ({systemDirectoryStats.branchPct}%)
-                  </span>
-                </div>
-                <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
-                  <div
-                    className="h-full rounded-full bg-[#3b6992] transition-all duration-300"
-                    style={{ width: `${Math.max(systemDirectoryStats.branchPct, scopedKpiTotals.activeBranchCount > 0 ? 4 : 0)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
+                  {/* Stock Requisitions Pipeline Bar */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTab?.('requisitions')}
+                    className={`w-full text-left pt-2 border-t space-y-1.5 cursor-pointer group ${kpiFooterBorderClass}`}
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className={`font-semibold inline-flex items-center gap-1.5 ${isLight ? 'text-slate-700 group-hover:text-[#004e75]' : 'text-slate-200 group-hover:text-sky-300'}`}>
+                        <ScrollText className="w-3 h-3 shrink-0" aria-hidden="true" />
+                        Stock Requisitions ({fmtNum(reqStats.total)})
+                      </span>
+                      <span className={`font-figure text-[10.5px] tabular-nums shrink-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        <strong className={reqPendingCount > 0 ? (isLight ? 'text-amber-700' : 'text-amber-300') : ''}>{fmtNum(reqPendingCount)}</strong> pend ·{' '}
+                        <strong className={isLight ? 'text-[#2d6a4f]' : 'text-emerald-300'}>{fmtNum(reqStats.received)}</strong> recv ·{' '}
+                        <strong className={reqStats.rejected > 0 ? (isLight ? 'text-rose-600' : 'text-rose-400') : ''}>{fmtNum(reqStats.rejected)}</strong> rej
+                      </span>
+                    </div>
+                    {reqStats.total > 0 && (
+                      <div
+                        data-stock-bar="requisitions"
+                        className="h-1.5 w-full flex items-center gap-[1.5px]"
+                      >
+                        {reqPendingCount > 0 && (
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${Math.max(3, (reqPendingCount / reqStats.total) * 100)}%`,
+                              backgroundColor: CHANNEL_COLORS.cc,
+                            }}
+                          />
+                        )}
+                        {reqStats.received > 0 && (
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${Math.max(3, (reqStats.received / reqStats.total) * 100)}%`,
+                              backgroundColor: CHANNEL_COLORS.mv,
+                            }}
+                          />
+                        )}
+                        {reqStats.rejected > 0 && (
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${Math.max(3, (reqStats.rejected / reqStats.total) * 100)}%`,
+                              backgroundColor: '#e11d48',
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </button>
+                </>
+              );
+            })()}
           </div>
         </section>
 
