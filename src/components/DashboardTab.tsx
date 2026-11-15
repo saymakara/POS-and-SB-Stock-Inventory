@@ -448,12 +448,12 @@ interface ChannelMixCardProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-const CM_VB_W = 424;
-const CM_VB_H = 368;
-const CM_CX = 224;
-const CM_CY = 190;
-const CM_R_INNER = 80;
-const CM_R_OUTER = 122;
+const CM_VB_W = 468;
+const CM_VB_H = 356;
+const CM_CX = 238;
+const CM_CY = 180;
+const CM_R_INNER = 92;
+const CM_R_OUTER = 116;
 const CM_R_TICK = CM_R_OUTER + 5;
 const CM_R_TRACK = (CM_R_INNER + CM_R_OUTER) / 2;
 const CM_TRACK_W = CM_R_OUTER - CM_R_INNER;
@@ -582,8 +582,8 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             : Math.max(g.sx + 20, CM_CX + clearDx + 6);
         const ex =
           side === 'left'
-            ? Math.max(104, Math.min(CM_CX - 34, rawEx))
-            : Math.min(CM_VB_W - 104, Math.max(CM_CX + 34, rawEx));
+            ? Math.max(98, Math.min(CM_CX - 34, rawEx))
+            : Math.min(CM_VB_W - 98, Math.max(CM_CX + 34, rawEx));
         const qpx =
           side === 'left'
             ? Math.min(g.sx, Math.max(ex + 10, (g.sx + ex) / 2))
@@ -640,8 +640,8 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
       </div>
 
       <div className="px-1.5 sm:px-2 pt-0 pb-2 flex-1 flex items-center justify-center">
-        {/* Style 1: Enlarged Donut + Curved Leaders + Floating Pill Callouts */}
-        <div className="relative w-full max-w-[500px] aspect-[424/368] flex items-center justify-center">
+        {/* Style 1: Slim Enlarged Donut + Curved Leaders + Floating Pill Callouts */}
+        <div className="relative w-full max-w-[500px] aspect-[468/356] flex items-center justify-center">
           <svg
             viewBox={`0 0 ${CM_VB_W} ${CM_VB_H}`}
             className="w-full h-full overflow-visible"
