@@ -967,7 +967,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             badge: '1 Msg',
             title: 'Consolidate devices per staff member into 1 Telegram message + CSV file',
             icon: 'csv' as const,
-            activeIconCls: isLight ? 'text-white/90' : 'text-emerald-400',
+            activeIconCls: 'text-white',
+            inactiveIconCls: 'text-emerald-600 dark:text-emerald-400',
           },
           {
             mode: 'total_csv_all' as const,
@@ -975,7 +976,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             badge: '1 File',
             title: 'Combine all devices across all staff into 1 single CSV file and message',
             icon: 'csv' as const,
-            activeIconCls: isLight ? 'text-white/90' : 'text-teal-400',
+            activeIconCls: 'text-white',
+            inactiveIconCls: 'text-sky-600 dark:text-sky-400',
           },
           {
             mode: 'single_alert' as const,
@@ -983,7 +985,8 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             badge: undefined,
             title: 'Send individual 1-device alert without attached CSV file',
             icon: 'send' as const,
-            activeIconCls: isLight ? 'text-white/90' : 'text-sky-400',
+            activeIconCls: 'text-white',
+            inactiveIconCls: 'text-amber-500 dark:text-amber-400',
           },
         ]
       ).map((opt) => {
@@ -999,7 +1002,7 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors duration-200 cursor-pointer select-none outline-none ${
               active
                 ? isLight ? 'text-white' : 'text-sky-300'
-                : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
+                : isLight ? 'text-slate-700 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             {active && (
@@ -1015,16 +1018,16 @@ export const PushConfiguringTab: React.FC<PushConfiguringTabProps> = React.memo(
             )}
             <span className="relative z-10 inline-flex items-center gap-1.5">
               {opt.icon === 'csv' ? (
-                <FileSpreadsheet className={`w-3.5 h-3.5 transition-colors ${active ? opt.activeIconCls : 'text-slate-400'}`} />
+                <FileSpreadsheet className={`w-3.5 h-3.5 transition-colors ${active ? opt.activeIconCls : opt.inactiveIconCls}`} />
               ) : (
-                <Send className={`w-3 h-3 transition-colors ${active ? opt.activeIconCls : 'text-slate-400'}`} />
+                <Send className={`w-3.5 h-3.5 transition-colors ${active ? opt.activeIconCls : opt.inactiveIconCls}`} />
               )}
               <span>{opt.label}</span>
               {opt.badge && (
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums transition-colors ${
                   active
                     ? isLight ? 'bg-white/20 text-white' : 'bg-slate-700 text-sky-200'
-                    : isLight ? 'bg-slate-200/80 text-slate-600' : 'bg-slate-800 text-slate-400'
+                    : isLight ? 'bg-white text-slate-700 border border-slate-200/80' : 'bg-slate-800 text-slate-400'
                 }`}>
                   {opt.badge}
                 </span>

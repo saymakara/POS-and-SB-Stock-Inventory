@@ -69,6 +69,8 @@ import {
   Edit2,
   Activity,
   Target,
+  Cpu,
+  Volume2,
 } from 'lucide-react';
 
 export type SettingsSubTab =
@@ -583,26 +585,28 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           role="tablist"
         >
           {([
-            { id: 'policy' as const, label: 'MID & Battery Policy', icon: ShieldCheck },
+            { id: 'policy' as const, label: 'MID & Battery Policy', icon: ShieldCheck, accent: 'text-[#003857] dark:text-sky-400' },
             {
               id: 'kpi' as const,
               label: 'KPI Points & Rules',
               icon: Target,
+              accent: 'text-amber-500 dark:text-amber-400',
               badge: kpiRules.length > 0 ? kpiRules.length : undefined,
             },
-            { id: 'brand_logo' as const, label: 'Brand & Logo', icon: Sparkles },
-            { id: 'hardware' as const, label: 'Serial Standards & Allocation', icon: Layers },
-            { id: 'sla' as const, label: 'SLA & Turnaround', icon: Clock },
+            { id: 'brand_logo' as const, label: 'Brand & Logo', icon: Sparkles, accent: 'text-indigo-600 dark:text-indigo-400' },
+            { id: 'hardware' as const, label: 'Serial Standards & Allocation', icon: Layers, accent: 'text-sky-600 dark:text-sky-400' },
+            { id: 'sla' as const, label: 'SLA & Turnaround', icon: Clock, accent: 'text-orange-500 dark:text-orange-400' },
             {
               id: 'customFields' as const,
               label: 'Custom & Dynamic Fields',
               icon: SlidersHorizontal,
+              accent: 'text-teal-600 dark:text-teal-400',
               badge: `${currentCustomFields.filter((f) => f.enabled).length} Active`,
             },
-            { id: 'data' as const, label: 'Data Backup, Export & Reset', icon: Database },
-            { id: 'security' as const, label: 'Security, Branding & Telegram', icon: Lock },
-            { id: 'health' as const, label: 'System Health', icon: Activity },
-          ]).map(({ id, label, icon: Icon, badge }) => {
+            { id: 'data' as const, label: 'Data Backup, Export & Reset', icon: Database, accent: 'text-blue-600 dark:text-blue-400' },
+            { id: 'security' as const, label: 'Security, Branding & Telegram', icon: Lock, accent: 'text-rose-600 dark:text-rose-400' },
+            { id: 'health' as const, label: 'System Health', icon: Activity, accent: 'text-emerald-600 dark:text-emerald-400' },
+          ]).map(({ id, label, icon: Icon, accent, badge }) => {
             const isActive = activeSubTab === id;
             return (
               <button
@@ -614,7 +618,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 className={`relative px-3.5 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 whitespace-nowrap cursor-pointer select-none outline-none ${
                   isActive
                     ? 'text-white'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {isActive && (
@@ -626,14 +630,14 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   />
                 )}
                 <span className="relative z-10 flex items-center gap-2">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                  <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-white' : accent}`} />
                   <span>{label}</span>
                   {badge !== undefined && (
                     <span
-                      className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                      className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full font-extrabold transition-colors ${
                         isActive
                           ? 'bg-white/20 text-white'
-                          : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300'
+                          : 'bg-white text-slate-700 border border-slate-200/80 dark:bg-slate-700/60 dark:text-slate-300'
                       }`}
                     >
                       {badge}
@@ -1586,21 +1590,23 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <Sparkles className="w-3.5 h-3.5 text-[#155484]" />
                     <span>Live Form Preview</span>
                   </div>
-                  <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/80 shadow-2xs">
+                  <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/80 shadow-2xs gap-0.5">
                     {(['POS', 'SOUND_BOX'] as const).map((dt) => {
                       const active = simulatorDeviceType === dt;
+                      const Icon = dt === 'POS' ? Cpu : Volume2;
                       return (
                         <button
                           key={dt}
                           type="button"
                           onClick={() => setSimulatorDeviceType(dt)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                             active
-                              ? 'tab-active-blue shadow-xs'
-                              : 'text-slate-600 hover:text-slate-900'
+                              ? 'tab-active-blue text-white shadow-xs'
+                              : 'text-slate-700 hover:text-slate-900'
                           }`}
                         >
-                          {dt === 'POS' ? 'POS Terminal' : 'Sound Box'}
+                          <Icon className={`w-3 h-3 shrink-0 transition-colors ${active ? 'text-white' : (dt === 'POS' ? 'text-sky-600' : 'text-indigo-600')}`} aria-hidden />
+                          <span>{dt === 'POS' ? 'POS Terminal' : 'Sound Box'}</span>
                         </button>
                       );
                     })}

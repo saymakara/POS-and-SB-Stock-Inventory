@@ -2,7 +2,7 @@ import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { isFresh, markFresh } from '../utils/freshness';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Users, Check, X, PencilLine } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, XCircle, Trash2, AlertTriangle, Ban, Loader2, ChevronDown, MapPin, ScanLine, Cpu, Volume2, ArrowDown, ArrowUp, ChevronsUpDown, Clock, Check, X, PencilLine, PackagePlus, ArrowLeftRight, BatteryCharging, Wrench, PauseCircle, RotateCcw } from 'lucide-react';
 import { BigKpiCard } from './BigKpiCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { Branch, Device, UserRole } from '../types';
@@ -49,6 +49,30 @@ const KIND_LABEL: Record<FieldEvent['kind'], string> = {
   POS_MAINT: 'POS operational support',
   POS_INACTIVE: 'POS in-active maintenance',
   POS_RETURN: 'POS returned & terminated',
+};
+const KIND_CARD_META: Record<
+  string,
+  {
+    icon: React.ComponentType<{ className?: string }>;
+    accentColor: 'blue' | 'emerald' | 'rose' | 'amber' | 'violet' | 'orange';
+  }
+> = {
+  INSTALL: { icon: PackagePlus, accentColor: 'emerald' },
+  REPLACE: { icon: ArrowLeftRight, accentColor: 'blue' },
+  BATTERY: { icon: BatteryCharging, accentColor: 'amber' },
+  POS_MAINT: { icon: Wrench, accentColor: 'violet' },
+  POS_INACTIVE: { icon: PauseCircle, accentColor: 'orange' },
+  POS_RETURN: { icon: RotateCcw, accentColor: 'rose' },
+  SB_MAINT: { icon: Wrench, accentColor: 'violet' },
+  SB_RETURN: { icon: RotateCcw, accentColor: 'rose' },
+};
+const formatKindSummarySub = (stat?: { total: number; pending: number; approved: number; rejected: number }) => {
+  if (!stat || stat.total === 0) return 'No records yet';
+  const parts: string[] = [];
+  if (stat.pending > 0 || (stat.approved === 0 && stat.rejected === 0)) parts.push(`${stat.pending.toLocaleString()} waiting`);
+  if (stat.approved > 0) parts.push(`${stat.approved.toLocaleString()} approved`);
+  else if (stat.rejected > 0) parts.push(`${stat.rejected.toLocaleString()} rejected`);
+  return parts.join(' · ');
 };
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'Waiting',
@@ -388,19 +412,23 @@ export const FieldReviewTab: React.FC<Props> = ({
     return c;
   }, [scoped, deviceType]);
 
-  // (5 Nov 2026) the figures of the page header (same layout as KHQR): this device type, in the active scope
+  // (5 Nov 2026) Record Type summary breakdown for the hero cards (active scope & selected device type)
   const hero = useMemo(() => {
-    const kinds = new Map<string, number>(); const staff = new Set<string>(); let warn = 0; let block = 0;
+    const byKind: Record<string, { total: number; pending: number; approved: number; rejected: number }> = {};
+    let total = 0;
+    const effectiveType = deviceType || (typeFilter !== 'ALL' ? typeFilter : undefined);
     scoped.forEach((e) => {
-      if (deviceType && devType(e) !== deviceType) return;
+      if (effectiveType && devType(e) !== effectiveType) return;
       if (e.status !== 'APPROVED' && e.status !== 'PENDING' && e.status !== 'REJECTED') return;
-      kinds.set(e.kind, (kinds.get(e.kind) || 0) + 1);
-      if (e.staffId || e.staffName) staff.add(String(e.staffId || e.staffName));
-      if (e.status === 'PENDING') { if (hasBlock(e)) block++; else if (hasWarn(e)) warn++; }
+      total++;
+      const bucket = byKind[e.kind] || (byKind[e.kind] = { total: 0, pending: 0, approved: 0, rejected: 0 });
+      bucket.total++;
+      if (e.status === 'PENDING') bucket.pending++;
+      else if (e.status === 'APPROVED') bucket.approved++;
+      else if (e.status === 'REJECTED') bucket.rejected++;
     });
-    const top = Array.from(kinds.entries()).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, n]) => `${n.toLocaleString()} ${(KIND_LABEL[k as FieldEvent['kind']] || k).toLowerCase()}`);
-    return { staff: staff.size, warn, block, top };
-  }, [scoped, deviceType]);
+    return { total, byKind };
+  }, [scoped, deviceType, typeFilter]);
 
   // Keep the sub-menu badges synchronized with the active scope's exact waiting count once full PENDING data + regions load
   const pendingByType = useMemo(() => {
@@ -721,10 +749,10 @@ export const FieldReviewTab: React.FC<Props> = ({
           )}
           <span>{label}</span>{' '}
           <span
-            className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md transition-colors ${
+            className={`font-mono text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${
               active
                 ? 'bg-white/20 text-white font-bold'
-                : 'bg-slate-200/60 text-slate-500'
+                : 'bg-white text-slate-700 border border-slate-200/80'
             }`}
           >
             ({n})
@@ -782,17 +810,36 @@ export const FieldReviewTab: React.FC<Props> = ({
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3.5 mt-6 pt-6 border-t border-slate-200/90">
-          <BigKpiCard label="Waiting review" value={events ? counts.PENDING : undefined} icon={Clock}
-            sub={hero.block ? `${hero.block.toLocaleString()} blocked · ${hero.warn.toLocaleString()} with warnings` : hero.warn ? `${hero.warn.toLocaleString()} with warnings to check` : 'Approve or reject each record'}
-            accentColor="amber" onClick={() => setFilter('PENDING')} />
-          <BigKpiCard label="Approved" value={events ? counts.APPROVED : undefined} icon={CheckCircle2} sub="Stock updated from the record" accentColor="emerald" onClick={() => setFilter('APPROVED')} />
-          <BigKpiCard label="Rejected" value={events ? counts.REJECTED : undefined} icon={XCircle} sub="Sent back with a reason" accentColor="rose" onClick={() => setFilter('REJECTED')} />
-          <BigKpiCard label="All records" value={events ? counts.ALL : undefined} icon={deviceType === 'Sound Box' ? Volume2 : Cpu}
-            sub={hero.top.length ? hero.top.join(' · ') : 'Every record received'} accentColor="blue" onClick={() => setFilter('ALL')} />
-          <BigKpiCard label="With warnings" value={events ? hero.warn + hero.block : undefined} icon={AlertTriangle}
-            sub="Waiting records the system flagged" accentColor="orange" badge={hero.block ? `${hero.block} blocked` : undefined} />
-          <BigKpiCard label="Staff" value={events ? hero.staff : undefined} icon={Users} sub="Sent at least one record" accentColor="violet" />
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 ${
+            availableKinds.length <= 4
+              ? 'lg:grid-cols-4'
+              : availableKinds.length <= 6
+              ? 'lg:grid-cols-3 2xl:grid-cols-6'
+              : 'lg:grid-cols-4'
+          } gap-3.5 mt-6 pt-6 border-t border-slate-200/90`}
+        >
+          {availableKinds.map((k) => {
+            const stat = hero.byKind[k];
+            const meta = KIND_CARD_META[k] || {
+              icon: deviceType === 'Sound Box' ? Volume2 : Cpu,
+              accentColor: 'blue' as const,
+            };
+            const pct = hero.total > 0 && stat?.total ? Math.round((stat.total / hero.total) * 100) : 0;
+            return (
+              <BigKpiCard
+                key={k}
+                label={KIND_LABEL[k] || k}
+                value={events ? (stat?.total || 0) : undefined}
+                icon={meta.icon}
+                sub={events ? formatKindSummarySub(stat) : 'Loading…'}
+                accentColor={meta.accentColor}
+                badge={events && hero.total > 0 ? `${pct}%` : undefined}
+                active={recordTypeFilter === k}
+                onClick={() => setRecordTypeFilter((prev) => (prev === k ? 'ALL' : k))}
+              />
+            );
+          })}
         </div>
       </section>
 
@@ -804,18 +851,21 @@ export const FieldReviewTab: React.FC<Props> = ({
         <div className="flex flex-wrap lg:flex-nowrap items-center gap-1 min-w-0">
           {/* Segmented status tabs */}
           <div className="relative inline-flex items-center p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/90 gap-0.5 max-w-full overflow-x-auto no-scrollbar [&>*]:shrink-0 shrink-0">
-            {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as Filter[]).map((f) => {
+            {([
+              { f: 'PENDING' as Filter, label: 'Waiting', Icon: Clock, accent: 'text-amber-500' },
+              { f: 'APPROVED' as Filter, label: 'Approved', Icon: CheckCircle2, accent: 'text-emerald-600' },
+              { f: 'REJECTED' as Filter, label: 'Rejected', Icon: XCircle, accent: 'text-rose-600' },
+              { f: 'ALL' as Filter, label: 'All', Icon: ScanLine, accent: 'text-[#003857]' },
+            ]).map(({ f, label, Icon, accent }) => {
               const isActive = filter === f;
-              const label =
-                f === 'PENDING' ? 'Waiting' : f === 'ALL' ? 'All' : f === 'APPROVED' ? 'Approved' : 'Rejected';
               return (
                 <button
                   key={f}
                   type="button"
                   onClick={() => setFilter(f)}
                   aria-pressed={isActive}
-                  className={`relative px-1.5 py-1 rounded-md text-[11px] font-medium flex items-center gap-0.5 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
-                    isActive ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
+                  className={`relative px-2 py-1 rounded-md text-[11px] font-medium flex items-center gap-1 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
+                    isActive ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900'
                   }`}
                 >
                   {isActive && (
@@ -826,13 +876,14 @@ export const FieldReviewTab: React.FC<Props> = ({
                       transition={SPRING}
                     />
                   )}
-                  <span className="relative z-10 flex items-center gap-0.5">
+                  <span className="relative z-10 flex items-center gap-1">
+                    <Icon className={`w-3 h-3 shrink-0 transition-colors ${isActive ? 'text-white' : accent}`} aria-hidden />
                     <span>{label}</span>{' '}
                     <span
-                      className={`font-mono text-[10px] px-0.5 py-0.5 rounded transition-colors ${
+                      className={`font-mono text-[10px] px-1 py-0.2 rounded-full transition-colors ${
                         isActive
                           ? 'bg-white/20 text-white font-bold'
-                          : 'bg-slate-200/60 text-slate-500'
+                          : 'bg-white text-slate-700 border border-slate-200/80'
                       }`}
                     >
                       ({counts[f]})

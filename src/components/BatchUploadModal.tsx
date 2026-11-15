@@ -2216,10 +2216,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           role="tab"
                           aria-selected={stageFilter === 'ALL'}
                           onClick={() => setStageFilter('ALL')}
-                          className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none ${
+                          className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
                             stageFilter === 'ALL'
                               ? 'text-white'
-                              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                              : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                           }`}
                         >
                           {stageFilter === 'ALL' && (
@@ -2230,6 +2230,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               transition={SPRING_TAB_PILL}
                             />
                           )}
+                          <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${stageFilter === 'ALL' ? 'bg-white' : 'bg-[#003857]'}`} aria-hidden />
                           <span className="relative z-10">All ({activeStagedBatch.length})</span>
                         </button>
                         {(['HQ_STOCK', 'BRANCH_RESERVE', 'CONFIGURING', 'COMPLETE'] as IntakeCycle[]).map((cKey) => {
@@ -2237,6 +2238,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           if (count === 0) return null;
                           const cDef = CYCLE_SCHEMAS[cKey];
                           const isActive = stageFilter === cKey;
+                          const stageDot =
+                            cKey === 'HQ_STOCK' ? 'bg-slate-500' :
+                            cKey === 'BRANCH_RESERVE' ? 'bg-sky-500' :
+                            cKey === 'CONFIGURING' ? 'bg-amber-500' :
+                            'bg-emerald-500';
                           return (
                             <button
                               key={cKey}
@@ -2244,10 +2250,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                               role="tab"
                               aria-selected={isActive}
                               onClick={() => setStageFilter(cKey)}
-                              className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none ${
+                              className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
                                 isActive
                                   ? 'text-white'
-                                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                               }`}
                             >
                               {isActive && (
@@ -2258,6 +2264,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                                   transition={SPRING_TAB_PILL}
                                 />
                               )}
+                              <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${isActive ? 'bg-white' : stageDot}`} aria-hidden />
                               <span className="relative z-10">{cDef.tag} ({count})</span>
                             </button>
                           );

@@ -715,6 +715,16 @@ return (
           <div className="flex items-center flex-wrap gap-2.5 shrink-0">
             <button
               type="button"
+              onClick={handleExportCsv}
+              disabled={filteredMerchants.length === 0}
+              className="btn btn-secondary"
+              title="Export Merchant 360 Registry Table to CSV (matching table columns)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Export CSV</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setShowTrendChart((prev) => !prev)}
               className={`group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all duration-150 font-bold text-xs sm:text-sm border shadow-2xs cursor-pointer ${
                 showTrendChart
@@ -868,10 +878,10 @@ return (
                 role="tab"
                 aria-selected={trendChartMode === 'POS_VS_SB'}
                 onClick={() => setTrendChartMode('POS_VS_SB')}
-                className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none ${
+                className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
                   trendChartMode === 'POS_VS_SB'
                     ? 'text-white'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {trendChartMode === 'POS_VS_SB' && (
@@ -882,6 +892,7 @@ return (
                     transition={SPRING_TAB_PILL}
                   />
                 )}
+                <Cpu className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${trendChartMode === 'POS_VS_SB' ? 'text-white' : 'text-sky-600'}`} aria-hidden />
                 <span className="relative z-10">POS vs. Sound Box</span>
               </button>
               <button
@@ -889,10 +900,10 @@ return (
                 role="tab"
                 aria-selected={trendChartMode === 'BY_MID_STACKED'}
                 onClick={() => setTrendChartMode('BY_MID_STACKED')}
-                className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none ${
+                className={`relative px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
                   trendChartMode === 'BY_MID_STACKED'
                     ? 'text-white'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {trendChartMode === 'BY_MID_STACKED' && (
@@ -903,6 +914,7 @@ return (
                     transition={SPRING_TAB_PILL}
                   />
                 )}
+                <Store className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${trendChartMode === 'BY_MID_STACKED' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
                 <span className="relative z-10">Per-MID Comparison</span>
               </button>
             </div>
@@ -918,10 +930,10 @@ return (
                 role="tab"
                 aria-selected={trendHorizon === '6M'}
                 onClick={() => setTrendHorizon('6M')}
-                className={`relative px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer select-none outline-none ${
+                className={`relative px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
                   trendHorizon === '6M'
                     ? 'text-white'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {trendHorizon === '6M' && (
@@ -932,6 +944,7 @@ return (
                     transition={SPRING_TAB_PILL}
                   />
                 )}
+                <Clock className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${trendHorizon === '6M' ? 'text-white' : 'text-amber-500'}`} aria-hidden />
                 <span className="relative z-10">6M</span>
               </button>
               <button
@@ -939,10 +952,10 @@ return (
                 role="tab"
                 aria-selected={trendHorizon === '12M'}
                 onClick={() => setTrendHorizon('12M')}
-                className={`relative px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer select-none outline-none ${
+                className={`relative px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
                   trendHorizon === '12M'
                     ? 'text-white'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {trendHorizon === '12M' && (
@@ -953,6 +966,7 @@ return (
                     transition={SPRING_TAB_PILL}
                   />
                 )}
+                <BarChart3 className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${trendHorizon === '12M' ? 'text-white' : 'text-[#003857]'}`} aria-hidden />
                 <span className="relative z-10">12M</span>
               </button>
             </div>
@@ -1160,26 +1174,6 @@ return (
 
       {/* Merchant 360 Registry Table (22 Oct 2026: one clean style, Khmer in Battambang) */}
       <div className={`${cardClass} border rounded-xl overflow-hidden`}>
-        <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-black uppercase tracking-wider text-[#003857] dark:text-sky-400">
-              Merchant 360 Registry
-            </span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
-              {fmtNum(filteredMerchants.length)} Merchant{filteredMerchants.length === 1 ? '' : 's'}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            disabled={filteredMerchants.length === 0}
-            className="btn btn-secondary"
-            title="Export Merchant 360 Registry Table to CSV (matching table columns)"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Export CSV</span>
-          </button>
-        </div>
         <div className="overflow-x-auto overflow-y-hidden">
           <table className="data-table min-w-[900px]">
             <thead className="glass-table-thead">

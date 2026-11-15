@@ -405,11 +405,11 @@ const SimCardTabComponent: React.FC<{
             aria-label="Select Device Type"
           >
             {([
-              { id: 'ALL' as const, label: 'All Types', icon: CreditCard, count: typeCounts.ALL },
-              { id: 'POS' as const, label: 'POS Terminal', icon: Cpu, count: typeCounts.POS },
-              { id: 'SOUND_BOX' as const, label: 'Sound Box', icon: Volume2, count: typeCounts.SOUND_BOX },
-              { id: 'UNASSIGNED' as const, label: 'Available Pool', icon: Layers, count: typeCounts.UNASSIGNED },
-            ]).map(({ id, label, icon: Icon, count }) => {
+              { id: 'ALL' as const, label: 'All Types', icon: CreditCard, count: typeCounts.ALL, accent: 'text-[#003857] dark:text-sky-400' },
+              { id: 'POS' as const, label: 'POS Terminal', icon: Cpu, count: typeCounts.POS, accent: 'text-sky-600 dark:text-sky-400' },
+              { id: 'SOUND_BOX' as const, label: 'Sound Box', icon: Volume2, count: typeCounts.SOUND_BOX, accent: 'text-indigo-600 dark:text-indigo-400' },
+              { id: 'UNASSIGNED' as const, label: 'Available Pool', icon: Layers, count: typeCounts.UNASSIGNED, accent: 'text-emerald-600 dark:text-emerald-400' },
+            ]).map(({ id, label, icon: Icon, count, accent }) => {
               const active = hardwareFilter === id;
               return (
                 <button
@@ -421,7 +421,7 @@ const SimCardTabComponent: React.FC<{
                   className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none flex items-center gap-1.5 ${
                     active
                       ? 'text-white'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   {active && (
@@ -431,13 +431,13 @@ const SimCardTabComponent: React.FC<{
                       className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
                     />
                   )}
-                  <Icon className={`w-3.5 h-3.5 relative z-10 ${active ? 'text-white' : 'text-slate-500'}`} />
+                  <Icon className={`w-3.5 h-3.5 relative z-10 transition-colors ${active ? 'text-white' : accent}`} />
                   <span className="relative z-10">{label}</span>
                   <span
-                    className={`relative z-10 text-[10px] px-1.5 py-0.5 rounded-md font-mono font-normal ${
+                    className={`relative z-10 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium transition-colors ${
                       active
                         ? 'bg-white/20 text-white font-bold'
-                        : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300'
+                        : 'bg-white text-slate-700 border border-slate-200/80 dark:bg-slate-700/60 dark:text-slate-300'
                     }`}
                   >
                     {count}

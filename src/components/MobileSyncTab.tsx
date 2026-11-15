@@ -853,21 +853,30 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                 {
                   id: 'ALL',
                   label: `Flagged (${reconciliationReport.totalDiscrepancies})`,
+                  Icon: Scale,
+                  accent: 'text-[#003857] dark:text-sky-400',
                 },
                 {
                   id: 'CRITICAL',
                   label: `Critical (${reconciliationReport.criticalCount})`,
+                  Icon: AlertOctagon,
+                  accent: 'text-rose-600 dark:text-rose-400',
                 },
                 {
                   id: 'WARNING',
                   label: `Warnings (${reconciliationReport.warningCount})`,
+                  Icon: AlertTriangle,
+                  accent: 'text-amber-500 dark:text-amber-400',
                 },
                 {
                   id: 'VERIFIED',
                   label: `Aligned (${reconciliationReport.verifiedMatches.length})`,
+                  Icon: CheckCircle2,
+                  accent: 'text-emerald-600 dark:text-emerald-400',
                 },
               ].map((tab) => {
                 const isActive = reconciliationFilter === tab.id;
+                const Icon = tab.Icon;
                 return (
                   <button
                     key={tab.id}
@@ -875,10 +884,10 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => setReconciliationFilter(tab.id as any)}
-                    className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none ${
+                    className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
                       isActive
                         ? 'text-white'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     {isActive && (
@@ -889,6 +898,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         transition={SPRING_TAB_PILL}
                       />
                     )}
+                    <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${isActive ? 'text-white' : tab.accent}`} aria-hidden />
                     <span className="relative z-10">{tab.label}</span>
                   </button>
                 );
@@ -1742,12 +1752,13 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
               aria-label="Feed filter"
             >
               {[
-                { id: 'ALL', label: 'All Events', count: feedCounts.all },
-                { id: 'POS', label: 'POS Terminals', count: feedCounts.pos },
-                { id: 'SB', label: 'Sound Boxes', count: feedCounts.sb },
-                { id: 'DRIFT', label: 'Out-of-Sync Only', count: feedCounts.drift },
+                { id: 'ALL', label: 'All Events', count: feedCounts.all, Icon: Wifi, accent: 'text-[#003857] dark:text-sky-400' },
+                { id: 'POS', label: 'POS Terminals', count: feedCounts.pos, Icon: Cpu, accent: 'text-sky-600 dark:text-sky-400' },
+                { id: 'SB', label: 'Sound Boxes', count: feedCounts.sb, Icon: Volume2, accent: 'text-indigo-600 dark:text-indigo-400' },
+                { id: 'DRIFT', label: 'Out-of-Sync Only', count: feedCounts.drift, Icon: AlertTriangle, accent: 'text-amber-500 dark:text-amber-400' },
               ].map((tab) => {
                 const active = feedFilter === tab.id;
+                const Icon = tab.Icon;
                 return (
                   <button
                     key={tab.id}
@@ -1758,7 +1769,7 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                     className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer select-none outline-none ${
                       active
                         ? 'text-white'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     {active && (
@@ -1769,14 +1780,15 @@ export const MobileSyncTab: React.FC<MobileSyncTabProps> = ({
                         transition={SPRING_TAB_PILL}
                       />
                     )}
+                    <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${active ? 'text-white' : tab.accent}`} aria-hidden />
                     <span className="relative z-10">{tab.label}</span>
                     <span
-                      className={`relative z-10 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                      className={`relative z-10 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold transition-colors ${
                         active
                           ? 'bg-white/20 text-white'
                           : tab.id === 'DRIFT' && tab.count > 0
-                          ? 'bg-amber-500/20 text-amber-500'
-                          : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200/80'
+                          : 'bg-white text-slate-700 border border-slate-200/80 dark:bg-slate-700/60 dark:text-slate-300'
                       }`}
                     >
                       {tab.count}

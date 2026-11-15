@@ -496,13 +496,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             >
               {(
                 [
-                  { id: 'MONTHLY_INSTALLS', label: 'Monthly Installations' },
-                  { id: 'HARDWARE_MIX', label: 'POS vs Soundbox Mix' },
-                  { id: 'BRANCH_LEADERBOARD', label: 'Branch Code Velocity' },
-                  { id: 'SLA_CYCLE', label: 'Stage Ageing' },
-                ] as { id: PerformanceViewMode; label: string }[]
+                  { id: 'MONTHLY_INSTALLS', label: 'Monthly Installations', Icon: BarChart3, accent: 'text-[#003857] dark:text-sky-400' },
+                  { id: 'HARDWARE_MIX', label: 'POS vs Soundbox Mix', Icon: Cpu, accent: 'text-sky-600 dark:text-sky-400' },
+                  { id: 'BRANCH_LEADERBOARD', label: 'Branch Code Velocity', Icon: Building2, accent: 'text-emerald-600 dark:text-emerald-400' },
+                  { id: 'SLA_CYCLE', label: 'Stage Ageing', Icon: Clock, accent: 'text-amber-500 dark:text-amber-400' },
+                ] as { id: PerformanceViewMode; label: string; Icon: React.ElementType; accent: string }[]
               ).map((mode) => {
                 const active = perfViewMode === mode.id;
+                const Icon = mode.Icon;
                 return (
                   <button
                     key={mode.id}
@@ -510,10 +511,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     role="tab"
                     aria-selected={active}
                     onClick={() => setPerfViewMode(mode.id)}
-                    className={`relative px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer select-none outline-none ${
+                    className={`relative px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
                       active
                         ? 'text-white'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     {active && (
@@ -523,6 +524,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
                       />
                     )}
+                    <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${active ? 'text-white' : mode.accent}`} aria-hidden />
                     <span className="relative z-10">{mode.label}</span>
                   </button>
                 );
@@ -536,10 +538,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             >
               {(
                 [
-                  { id: '6M', label: '6 Months' },
-                  { id: '12M', label: '12 Months' },
-                  { id: '3M', label: '3 Months' },
-                ] as { id: TimeHorizon; label: string }[]
+                  { id: '6M', label: '6 Months', accent: 'text-sky-600 dark:text-sky-400' },
+                  { id: '12M', label: '12 Months', accent: 'text-[#003857] dark:text-sky-300' },
+                  { id: '3M', label: '3 Months', accent: 'text-emerald-600 dark:text-emerald-400' },
+                ] as { id: TimeHorizon; label: string; accent: string }[]
               ).map((h) => {
                 const isSelected = timeHorizon === h.id;
                 return (
@@ -549,10 +551,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     role="tab"
                     aria-selected={isSelected}
                     onClick={() => setTimeHorizon(h.id)}
-                    className={`relative px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer select-none outline-none ${
+                    className={`relative px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer select-none outline-none inline-flex items-center gap-1.5 ${
                       isSelected
                         ? 'text-white'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     {isSelected && (
@@ -562,6 +564,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
                       />
                     )}
+                    <Calendar className={`relative z-10 w-3 h-3 shrink-0 transition-colors ${isSelected ? 'text-white' : h.accent}`} aria-hidden />
                     <span className="relative z-10">{h.label}</span>
                   </button>
                 );

@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import {
   Boxes, Cpu, Volume2, RefreshCw, Loader2, PackagePlus, PencilLine, Upload,
-  Download, Package, Battery, Dock, Smartphone, Plug, Search, Copy, Check, Building2, AlertTriangle
+  Download, Package, Battery, Dock, Smartphone, Plug, Search, Copy, Check, Building2, AlertTriangle, SendHorizontal
 } from 'lucide-react';
 import { Branch, UserRole, Device, User } from '../types';
 import { Pager } from './Pager';
@@ -145,6 +145,8 @@ export const ProductViewToggle: React.FC<{
       {views.map((v) => {
         const n = v === 'PUSH' ? pushCount || 0 : 0;
         const isSelected = view === v;
+        const Icon = v === 'UNITS' ? (group === 'POS' ? Cpu : Volume2) : SendHorizontal;
+        const inactiveIconColor = v === 'UNITS' ? 'text-[#003857] dark:text-sky-400' : 'text-amber-500';
         return (
           <button
             key={v}
@@ -161,9 +163,10 @@ export const ProductViewToggle: React.FC<{
             title={v === 'PUSH' && n ? `${n} unit(s) waiting to be pushed` : undefined}
             className="relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer select-none"
           >
+            <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors duration-200 ${isSelected ? 'text-white' : inactiveIconColor}`} aria-hidden />
             <span
               className={`relative z-10 font-semibold transition-colors duration-200 ease-out ${
-                isSelected ? 'text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                isSelected ? 'text-white' : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {v === 'UNITS' ? 'Units' : 'Push Configuring'}
@@ -173,7 +176,7 @@ export const ProductViewToggle: React.FC<{
                 className={`relative z-10 text-[10.5px] font-bold px-1.5 py-0.5 rounded-full tabular-nums transition-colors duration-200 ease-out ${
                   isSelected
                     ? 'bg-white/20 text-white'
-                    : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                    : 'bg-white text-slate-700 border border-slate-200/80 dark:bg-slate-700 dark:text-slate-200'
                 }`}
               >
                 {n}
@@ -1497,10 +1500,10 @@ const MaterialStockPanelComponent: React.FC<{
               type="button"
               aria-pressed={activeLedgerView === 'DEPLOYMENTS'}
               onClick={() => React.startTransition(() => setActiveLedgerView('DEPLOYMENTS'))}
-              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
+              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none inline-flex items-center gap-1.5 ${
                 activeLedgerView === 'DEPLOYMENTS'
                   ? 'text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-700 hover:text-slate-900'
               }`}
             >
               {activeLedgerView === 'DEPLOYMENTS' && (
@@ -1511,16 +1514,17 @@ const MaterialStockPanelComponent: React.FC<{
                   transition={SPRING_TAB_PILL}
                 />
               )}
+              <Package className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${activeLedgerView === 'DEPLOYMENTS' ? 'text-white' : 'text-[#003857]'}`} aria-hidden />
               <span className="relative z-10">Inventory ({combinedItems.length})</span>
             </button>
             <button
               type="button"
               aria-pressed={activeLedgerView === 'BALANCES'}
               onClick={() => React.startTransition(() => setActiveLedgerView('BALANCES'))}
-              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none ${
+              className={`relative px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors select-none outline-none inline-flex items-center gap-1.5 ${
                 activeLedgerView === 'BALANCES'
                   ? 'text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-700 hover:text-slate-900'
               }`}
             >
               {activeLedgerView === 'BALANCES' && (
@@ -1531,6 +1535,7 @@ const MaterialStockPanelComponent: React.FC<{
                   transition={SPRING_TAB_PILL}
                 />
               )}
+              <Building2 className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${activeLedgerView === 'BALANCES' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
               <span className="relative z-10">Branch Stock ({branchBalanceRows.length})</span>
             </button>
           </div>
@@ -1942,7 +1947,10 @@ export const LostTable: React.FC<{
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-slate-100">
         <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-rose-600" />{title}</h3>
         <div className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs text-xs font-semibold select-none gap-1" role="tablist">
-          {([['OPEN', 'Open'], ['', 'All']] as const).map(([v, l]) => {
+          {([
+            { v: 'OPEN', l: 'Open', Icon: AlertTriangle, accent: 'text-amber-500' },
+            { v: '', l: 'All', Icon: Boxes, accent: 'text-[#003857]' },
+          ] as const).map(({ v, l, Icon, accent }) => {
             const isSelected = filter === v;
             return (
               <button
@@ -1951,10 +1959,10 @@ export const LostTable: React.FC<{
                 role="tab"
                 aria-selected={isSelected}
                 onClick={() => onFilter(v)}
-                className={`relative px-3 py-1 rounded-lg cursor-pointer select-none transition-colors duration-150 outline-none ${
+                className={`relative px-3 py-1 rounded-lg cursor-pointer select-none transition-colors duration-150 outline-none inline-flex items-center gap-1.5 ${
                   isSelected
                     ? 'text-white font-bold'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {isSelected && (
@@ -1964,6 +1972,7 @@ export const LostTable: React.FC<{
                     transition={SPRING_TAB_PILL}
                   />
                 )}
+                <Icon className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-colors ${isSelected ? 'text-white' : accent}`} aria-hidden />
                 <span className="relative z-10">{l}</span>
               </button>
             );

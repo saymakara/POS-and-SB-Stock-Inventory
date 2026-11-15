@@ -448,10 +448,10 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               aria-label="Branch status filter"
             >
               {[
-                { id: 'ALL' as const, label: 'All', count: undefined },
-                { id: 'HEALTHY' as const, label: 'Healthy', count: undefined },
-                { id: 'LOW_RESERVE' as const, label: 'Low Reserve', count: metrics.lowReserveCount },
-              ].map(({ id, label, count }) => {
+                { id: 'ALL' as const, label: 'All', count: undefined, Icon: Building2, accent: 'text-[#003857] dark:text-sky-400' },
+                { id: 'HEALTHY' as const, label: 'Healthy', count: undefined, Icon: CheckCircle2, accent: 'text-emerald-600 dark:text-emerald-400' },
+                { id: 'LOW_RESERVE' as const, label: 'Low Reserve', count: metrics.lowReserveCount, Icon: AlertTriangle, accent: 'text-amber-500 dark:text-amber-400' },
+              ].map(({ id, label, count, Icon, accent }) => {
                 const isActive = statusFilter === id;
                 return (
                   <button
@@ -463,9 +463,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     className={`relative px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer select-none outline-none flex items-center gap-1.5 ${
                       isActive
                         ? 'text-white'
-                        : id === 'LOW_RESERVE'
-                        ? 'text-amber-700 dark:text-amber-400 hover:text-amber-800'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     {isActive && (
@@ -476,13 +474,14 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                         transition={SPRING_TAB_PILL}
                       />
                     )}
+                    <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${isActive ? 'text-white' : accent}`} aria-hidden />
                     <span className="relative z-10">{label}</span>
                     {count !== undefined && count > 0 && (
                       <span
-                        className={`relative z-10 font-mono text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                        className={`relative z-10 font-mono text-[10px] px-1.5 py-0.2 rounded-full font-bold transition-colors ${
                           isActive
                             ? 'bg-white/20 text-white'
-                            : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                            : 'bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200/80'
                         }`}
                       >
                         {count}
@@ -500,9 +499,9 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
               aria-label="View switcher"
             >
               {[
-                { id: 'TABLE' as const, label: 'Table', icon: List },
-                { id: 'GRID' as const, label: 'Cards', icon: LayoutGrid },
-              ].map(({ id, label, icon: Icon }) => {
+                { id: 'TABLE' as const, label: 'Table', icon: List, accent: 'text-[#003857] dark:text-sky-400' },
+                { id: 'GRID' as const, label: 'Cards', icon: LayoutGrid, accent: 'text-sky-600 dark:text-sky-400' },
+              ].map(({ id, label, icon: Icon, accent }) => {
                 const isActive = displayLayout === id;
                 return (
                   <button
@@ -514,7 +513,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     className={`relative px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer select-none outline-none ${
                       isActive
                         ? 'text-white'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                     }`}
                     title={id === 'TABLE' ? 'Table View (by Branch)' : 'Cards Grid'}
                   >
@@ -526,7 +525,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                         transition={SPRING_TAB_PILL}
                       />
                     )}
-                    <Icon className="w-3.5 h-3.5 relative z-10" />
+                    <Icon className={`w-3.5 h-3.5 relative z-10 transition-colors ${isActive ? 'text-white' : accent}`} />
                     <span className="relative z-10">{label}</span>
                   </button>
                 );

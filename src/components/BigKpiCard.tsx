@@ -8,6 +8,7 @@ interface BigKpiCardProps {
   icon: React.ComponentType<{ className?: string }>;
   accentColor: 'blue' | 'emerald' | 'rose' | 'amber' | 'violet' | 'orange';
   badge?: string;
+  active?: boolean;
   onClick?: () => void;
   /** @deprecated No longer rendered (clean look) */
   actionLabel?: string;
@@ -20,6 +21,7 @@ export const BigKpiCard: React.FC<BigKpiCardProps> = ({
   icon: Icon,
   accentColor,
   badge,
+  active = false,
   onClick,
 }) => {
   const isClickable = !!onClick;
@@ -54,14 +56,18 @@ export const BigKpiCard: React.FC<BigKpiCardProps> = ({
 
   return (
     <Tag
-      {...(isClickable ? { type: 'button', onClick, title: label } : {})}
-      className={`relative flex flex-col justify-between p-5 rounded-2xl border border-slate-200/90 bg-white shadow-2xs transition-all duration-200 text-left ${
+      {...(isClickable ? { type: 'button', onClick, title: label, 'aria-pressed': active } : {})}
+      className={`relative flex flex-col justify-between p-5 rounded-2xl border bg-white transition-all duration-200 text-left ${
+        active
+          ? 'border-[#004e75] ring-2 ring-[#004e75]/15 shadow-sm'
+          : 'border-slate-200/90 shadow-2xs'
+      } ${
         isClickable ? 'cursor-pointer hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 group' : 'hover:border-slate-300 hover:shadow-xs'
       }`}
     >
       {/* Top row: Category Label + Icon Badge */}
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
+      <div className="flex items-center justify-between gap-2.5 min-h-[2.5rem]">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider leading-snug line-clamp-2" title={label}>
           {label}
         </span>
         <div className={`w-9.5 h-9.5 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform ${isClickable ? 'group-hover:scale-105' : ''} ${theme.iconBg}`}>

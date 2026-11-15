@@ -437,26 +437,24 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Signature Hero Header Banner with 5 Integrated KPI Metrics */}
+    <div className="flex flex-col gap-4">
+      {/* Top Hero Banner & 5 Summary Cards (matching Merchant Deployment size & format) */}
       <section
         className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 border shadow-sm ${
           isLight
             ? 'bg-slate-100 border-slate-200/90 text-slate-900'
-            : 'bg-gradient-to-br from-slate-900 via-[#001f3f] to-slate-950 text-white border-slate-800'
+            : 'bg-[#161a24] border-slate-800 text-slate-100'
         }`}
         aria-label="Historical Merchant Records header"
       >
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2.5 max-w-3xl">
-            <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3.5 text-slate-900 dark:text-white leading-tight">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#003857] text-white flex items-center justify-center shadow-sm shrink-0">
-                <Store className="w-6 h-6 sm:w-6.5 sm:h-6.5 text-white" aria-hidden />
-              </div>
+          <div className="space-y-2 max-w-3xl">
+            <h1 className={`text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight flex items-center gap-3 ${isLight ? 'text-slate-900' : 'text-white'} leading-tight`}>
+              <Store className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} aria-hidden />
               <span>Historical Merchant Records</span>
             </h1>
 
-            <p className="text-sm sm:text-base leading-relaxed text-slate-600 dark:text-slate-300">
+            <p className={`text-sm sm:text-base leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
               Complete institutional registry of merchants previously deployed with POS Terminals &amp; Sound Boxes that have since returned devices or ceased operation.
             </p>
           </div>
@@ -466,26 +464,26 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
               <button
                 type="button"
                 onClick={openLogReturn}
-                className="group relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-sm hover:shadow-md active:scale-[0.98] transition-all cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white border border-[#002a42]"
+                className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-2xs active:scale-[0.98] transition-all cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700"
               >
-                <Plus className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" />
+                <Plus className="w-3.5 h-3.5 shrink-0" />
                 <span>Log Return</span>
               </button>
             )}
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200/90 shadow-2xs transition active:scale-[0.98] cursor-pointer dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
+              className="btn btn-secondary"
               title="Export Merchant Decommission History Table to CSV (matching table columns)"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>Export CSV</span>
             </button>
             {onClearAll && records.length > 0 && (
               <button
                 type="button"
                 onClick={() => { if (window.confirm(`Delete all ${records.length} Merchant History record(s)?\n\nThis cannot be undone.`)) onClearAll(); }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-rose-700 bg-white hover:bg-rose-50 border border-rose-200 shadow-2xs transition active:scale-[0.98] cursor-pointer dark:bg-slate-800 dark:text-rose-400 dark:border-rose-900/60"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-rose-700 bg-white hover:bg-rose-50 border border-rose-200 shadow-2xs transition active:scale-[0.98] cursor-pointer dark:bg-slate-800 dark:text-rose-400 dark:border-rose-900/60"
                 title="Clear all records"
               >
                 <span>Clear All History</span>
@@ -494,204 +492,198 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           </div>
         </div>
 
-        {/* 5 Analytical Metric Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 mt-6 pt-6 border-t border-slate-200/90 dark:border-slate-800">
+        {/* 5 Analytical Metric Cards (matching Merchant Deployment card format) */}
+        <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 mt-6 pt-6 border-t ${isLight ? 'border-slate-200/90' : 'border-slate-800'}`}>
           {/* Card 1: Total Decommissioned */}
-          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-white dark:bg-slate-900 shadow-2xs border-slate-200/90 dark:border-slate-800 text-left hover:border-slate-300 transition-all">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+          <div className={`rounded-2xl p-4 flex flex-col justify-between shadow-2xs border ${isLight ? 'bg-white border-slate-200/80' : 'bg-[#1e293b] border-slate-700/80'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 Total Decommissioned
               </span>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 bg-gradient-to-br from-slate-50 to-slate-100 text-[#003857] border-slate-200/90 shadow-2xs dark:from-slate-700 dark:to-slate-800 dark:text-sky-300 dark:border-slate-600">
-                <RotateCcw className="w-5 h-5" />
+              <div className="w-8 h-8 rounded-lg bg-[#003857]/12 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
+                <RotateCcw className="w-4 h-4" />
               </div>
             </div>
-            <div className="font-figure text-3xl sm:text-[34px] font-extrabold tracking-tight tabular-nums text-slate-900 dark:text-white my-2.5 leading-none">
+            <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {stats.total.toLocaleString()}
             </div>
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span className="truncate font-medium text-slate-600 dark:text-slate-300">Historical returns</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/60 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 shrink-0">
-                Archival
-              </span>
+            <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+              <span>Historical returns</span>
+              <span className="text-[#003857] dark:text-[#7cc4ed] font-semibold">Archival</span>
             </div>
           </div>
 
           {/* Card 2: POS Terminals Returned */}
-          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-white dark:bg-slate-900 shadow-2xs border-slate-200/90 dark:border-slate-800 text-left hover:border-slate-300 transition-all">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+          <div className={`rounded-2xl p-4 flex flex-col justify-between shadow-2xs border ${isLight ? 'bg-white border-slate-200/80' : 'bg-[#1e293b] border-slate-700/80'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 POS Terminals
               </span>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 bg-[#22577A]/10 text-[#22577A] border-[#22577A]/20 shadow-2xs dark:bg-[#22577A]/30 dark:text-[#5cc8ff] dark:border-[#22577A]/40">
-                <Cpu className="w-5 h-5" />
+              <div className="w-8 h-8 rounded-lg bg-[#22577A]/12 text-[#22577A] dark:text-[#5cc8ff] flex items-center justify-center shrink-0">
+                <Cpu className="w-4 h-4" />
               </div>
             </div>
-            <div className="font-figure text-3xl sm:text-[34px] font-extrabold tracking-tight tabular-nums text-slate-900 dark:text-white my-2.5 leading-none">
+            <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {stats.posCount.toLocaleString()}
             </div>
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span className="truncate font-medium text-slate-600 dark:text-slate-300">POS hardware units</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#22577A]/10 text-[#22577A] border border-[#22577A]/20 dark:bg-[#22577A]/30 dark:text-[#5cc8ff] dark:border-[#22577A]/40 shrink-0">
+            <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+              <span>POS hardware units</span>
+              <span className="text-[#22577A] dark:text-[#5cc8ff] font-semibold font-figure">
                 {stats.total > 0 ? `${Math.round((stats.posCount / stats.total) * 100)}%` : '0%'}
               </span>
             </div>
           </div>
 
           {/* Card 3: Sound Boxes Returned */}
-          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-white dark:bg-slate-900 shadow-2xs border-slate-200/90 dark:border-slate-800 text-left hover:border-slate-300 transition-all">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+          <div className={`rounded-2xl p-4 flex flex-col justify-between shadow-2xs border ${isLight ? 'bg-white border-slate-200/80' : 'bg-[#1e293b] border-slate-700/80'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 Sound Boxes
               </span>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 bg-[#4F518C]/10 text-[#4F518C] border-[#4F518C]/20 shadow-2xs dark:bg-[#4F518C]/30 dark:text-[#a2a5e0] dark:border-[#4F518C]/40">
-                <Volume2 className="w-5 h-5" />
+              <div className="w-8 h-8 rounded-lg bg-[#4F518C]/12 text-[#4F518C] dark:text-[#a2a5e0] flex items-center justify-center shrink-0">
+                <Volume2 className="w-4 h-4" />
               </div>
             </div>
-            <div className="font-figure text-3xl sm:text-[34px] font-extrabold tracking-tight tabular-nums text-slate-900 dark:text-white my-2.5 leading-none">
+            <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {stats.sbCount.toLocaleString()}
             </div>
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span className="truncate font-medium text-slate-600 dark:text-slate-300">Audio broadcast units</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#4F518C]/10 text-[#4F518C] border border-[#4F518C]/20 dark:bg-[#4F518C]/30 dark:text-[#58b2e5] dark:border-[#4F518C]/40 shrink-0">
+            <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+              <span>Audio broadcast units</span>
+              <span className="text-[#4F518C] dark:text-[#a2a5e0] font-semibold font-figure">
                 {stats.total > 0 ? `${Math.round((stats.sbCount / stats.total) * 100)}%` : '0%'}
               </span>
             </div>
           </div>
 
           {/* Card 4: Avg. Active Lifespan */}
-          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-white dark:bg-slate-900 shadow-2xs border-slate-200/90 dark:border-slate-800 text-left hover:border-slate-300 transition-all">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+          <div className={`rounded-2xl p-4 flex flex-col justify-between shadow-2xs border ${isLight ? 'bg-white border-slate-200/80' : 'bg-[#1e293b] border-slate-700/80'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 Avg. Active Lifespan
               </span>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 bg-gradient-to-br from-emerald-50 to-teal-100/90 text-emerald-700 border-emerald-200/80 shadow-2xs dark:from-emerald-950/40 dark:to-teal-900/40 dark:text-emerald-300 dark:border-emerald-800">
-                <Clock className="w-5 h-5" />
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/12 text-emerald-500 flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4" />
               </div>
             </div>
-            <div className="font-figure text-3xl sm:text-[34px] font-extrabold tracking-tight tabular-nums text-slate-900 dark:text-white my-2.5 leading-none">
+            <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {stats.monthsN > 0 ? stats.avgDuration : '—'}{' '}
-              <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Mos</span>
+              <span className="text-sm font-bold text-slate-400">Mos</span>
             </div>
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span className="truncate font-medium text-slate-600 dark:text-slate-300">Average lifespan</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 shrink-0">
-                {stats.monthsN} records
-              </span>
+            <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+              <span>Average lifespan</span>
+              <span className="text-emerald-500 font-semibold font-figure">{stats.monthsN} records</span>
             </div>
           </div>
 
           {/* Card 5: Closed Business Ratio */}
-          <div className="relative flex flex-col justify-between p-5 rounded-2xl border bg-white dark:bg-slate-900 shadow-2xs border-slate-200/90 dark:border-slate-800 text-left hover:border-slate-300 transition-all col-span-2 sm:col-span-1">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+          <div className={`rounded-2xl p-4 flex flex-col justify-between shadow-2xs border col-span-2 sm:col-span-1 ${isLight ? 'bg-white border-slate-200/80' : 'bg-[#1e293b] border-slate-700/80'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 Closure Ratio
               </span>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 bg-gradient-to-br from-rose-50 to-pink-100/90 text-rose-700 border-rose-200/80 shadow-2xs dark:from-rose-950/40 dark:to-pink-900/40 dark:text-rose-300 dark:border-rose-800">
-                <Store className="w-5 h-5" />
+              <div className="w-8 h-8 rounded-lg bg-rose-500/12 text-rose-500 flex items-center justify-center shrink-0">
+                <Store className="w-4 h-4" />
               </div>
             </div>
-            <div className="font-figure text-3xl sm:text-[34px] font-extrabold tracking-tight tabular-nums text-slate-900 dark:text-white my-2.5 leading-none">
+            <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {stats.total > 0
                 ? `${Math.round((stats.closedCount / stats.total) * 100)}%`
                 : '0%'}
             </div>
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span className="truncate font-medium text-slate-600 dark:text-slate-300">Ceased business</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 shrink-0">
-                {stats.closedCount} closures
-              </span>
+            <div className="flex items-center justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+              <span>Ceased business</span>
+              <span className="text-rose-500 font-semibold font-figure">{stats.closedCount} closures</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Search & Filter Toolbar */}
-      <div className="surface-card p-4 rounded-2xl shadow-xs space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-          {/* Search, with Clear filters right next to it */}
-          <div className="md:col-span-5 flex items-center gap-2">
-          <div className="relative flex-1 min-w-0">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={showFullContact ? 'Search historical merchant, 15D MID, hardware serial, phone...' : 'Search historical merchant, 15D MID, hardware serial...'}
-              aria-label="Search historical merchant records"
-              className="w-full pl-9 pr-3.5 py-2 rounded-xl text-xs font-medium border outline-none bg-slate-50 border-slate-200 text-zinc-900 focus:bg-white focus:border-zinc-700 transition"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                aria-label="Clear search"
-                title="Clear search"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-            <ClearFiltersButton
-              active={!!searchQuery || typeFilter !== 'ALL' || reasonFilter !== 'ALL' || branchFilter !== (role === 'BRANCH' ? selectedBranch : 'ALL')}
-              onClear={() => { setSearchQuery(''); setTypeFilter('ALL'); setReasonFilter('ALL'); setBranchFilter(role === 'BRANCH' ? selectedBranch : 'ALL'); }} />
-          </div>
-
-          {/* Branch Code Filter */}
-          <div className="md:col-span-3">
-            <select
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              disabled={role === 'BRANCH'}
-              aria-label="Branch filter"
-              className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer disabled:opacity-60"
+      {/* Filter & Search Bar (matching Merchant Deployment size & format) */}
+      <div
+        className={`border rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 ${
+          isLight ? 'bg-white border-slate-200/80' : 'bg-[#1e293b] border-slate-700/80'
+        }`}
+      >
+        <div className="relative sm:col-span-2 lg:col-span-1">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={showFullContact ? 'Search historical merchant, 15D MID, serial, phone...' : 'Search historical merchant, 15D MID, serial...'}
+            aria-label="Search historical merchant records"
+            className={`w-full rounded-xl pl-8 pr-3 py-2 text-xs border focus:outline-none ${
+              isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+            }`}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear search"
+              title="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer"
             >
-              <option value="ALL">All Branch Codes (Nationwide)</option>
-              {branches.map((b) => (
-                <option key={b.code} value={b.code}>
-                  Branch Code {b.code} — {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Device Type Filter */}
-          <div className="md:col-span-2">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              aria-label="Device type filter"
-              className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer"
-            >
-              <option value="ALL">All Devices</option>
-              <option value="POS Terminal">POS Terminal</option>
-              <option value="Sound Box">Sound Box</option>
-            </select>
-          </div>
-
-          {/* Return Reason Filter */}
-          <div className="md:col-span-2">
-            <select
-              value={reasonFilter}
-              onChange={(e) => setReasonFilter(e.target.value)}
-              aria-label="Return reason filter"
-              className="w-full px-3 py-2 rounded-xl text-xs font-normal border outline-none bg-slate-50 border-slate-200 text-zinc-800 focus:bg-white cursor-pointer"
-            >
-              <option value="ALL">All Return Reasons</option>
-              <option value="Closed">Merchant Closed</option>
-              <option value="Relocated">Merchant Relocated</option>
-              <option value="Upgraded">Upgraded Hardware</option>
-              <option value="Voluntary">Voluntary KHQR Switch</option>
-              <option value="Battery">Battery Expiry / Inactive</option>
-              <option value="Seasonal">Seasonal End</option>
-            </select>
-          </div>
+              ✕
+            </button>
+          )}
         </div>
+
+        <select
+          value={branchFilter}
+          onChange={(e) => setBranchFilter(e.target.value)}
+          disabled={role === 'BRANCH'}
+          aria-label="Branch filter"
+          className={`rounded-xl px-3 py-2 text-xs border focus:outline-none cursor-pointer disabled:opacity-60 ${
+            isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+          }`}
+        >
+          <option value="ALL">All Branch Codes (Nationwide)</option>
+          {branches.map((b) => (
+            <option key={b.code} value={b.code}>
+              Branch Code {b.code} — {b.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          aria-label="Device type filter"
+          className={`rounded-xl px-3 py-2 text-xs border focus:outline-none cursor-pointer ${
+            isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+          }`}
+        >
+          <option value="ALL">All Devices</option>
+          <option value="POS Terminal">POS Terminal</option>
+          <option value="Sound Box">Sound Box</option>
+        </select>
+
+        <select
+          value={reasonFilter}
+          onChange={(e) => setReasonFilter(e.target.value)}
+          aria-label="Return reason filter"
+          className={`rounded-xl px-3 py-2 text-xs border focus:outline-none cursor-pointer ${
+            isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+          }`}
+        >
+          <option value="ALL">All Return Reasons</option>
+          <option value="Closed">Merchant Closed</option>
+          <option value="Relocated">Merchant Relocated</option>
+          <option value="Upgraded">Upgraded Hardware</option>
+          <option value="Voluntary">Voluntary KHQR Switch</option>
+          <option value="Battery">Battery Expiry / Inactive</option>
+          <option value="Seasonal">Seasonal End</option>
+        </select>
+
+        <ClearFiltersButton
+          active={!!searchQuery || typeFilter !== 'ALL' || reasonFilter !== 'ALL' || branchFilter !== (role === 'BRANCH' ? selectedBranch : 'ALL')}
+          onClear={() => { setSearchQuery(''); setTypeFilter('ALL'); setReasonFilter('ALL'); setBranchFilter(role === 'BRANCH' ? selectedBranch : 'ALL'); }}
+        />
       </div>
 
       {/* Main Historical Merchants Table (22 Oct 2026: one clean style, Khmer in Battambang, figures from real dates) */}
-      <div className="surface-card shadow-md rounded-2xl overflow-hidden border border-slate-200/80">
+      <div className={`border rounded-xl overflow-hidden ${isLight ? 'bg-white border-slate-200/80' : 'bg-[#1e293b] border-slate-700/80'}`}>
         <div className="overflow-x-auto overflow-y-hidden">
           <table className="data-table min-w-[900px]">
             <thead className="glass-table-thead">

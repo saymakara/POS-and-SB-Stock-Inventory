@@ -366,17 +366,17 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
                   aria-selected={active}
                   onClick={() => setView(v)}
                   className={`relative px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer select-none outline-none ${
-                    active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
+                    active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900'
                   }`}
                 >
                   {active && (
                     <PillMotion layoutId="qr-view-pill" aria-hidden className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs" transition={SPRING} />
                   )}
                   <span className="relative z-10 flex items-center gap-1.5">
-                    {v !== 'entries' && <span className={`w-2 h-2 rounded-full ${v === 'failed' ? (active ? 'bg-rose-300' : 'bg-rose-500') : v === 'wrong' ? (active ? 'bg-orange-300' : 'bg-orange-500') : (active ? 'bg-violet-300' : 'bg-violet-500')}`} aria-hidden />}
+                    <span className={`w-2 h-2 rounded-full ${v === 'entries' ? (active ? 'bg-emerald-300' : 'bg-emerald-600') : v === 'failed' ? (active ? 'bg-rose-300' : 'bg-rose-500') : v === 'wrong' ? (active ? 'bg-orange-300' : 'bg-orange-500') : (active ? 'bg-violet-300' : 'bg-violet-500')}`} aria-hidden />
                     <span>{label}</span>
                     {n !== undefined && (
-                      <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded-md ${active ? 'bg-white/20 text-white font-bold' : 'bg-slate-200/60 text-slate-500'}`}>
+                      <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20 text-white font-bold' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
                         ({n.toLocaleString()})
                       </span>
                     )}

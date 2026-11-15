@@ -2053,12 +2053,12 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
     [branches]
   );
 
-  const navTabs: { id: KpiView; label: string; Icon: React.ElementType; count?: number }[] = [
-    { id: 'all', label: 'Overview', Icon: BarChart3 },
-    { id: 'staff', label: 'Staff KPI', Icon: Users, count: filteredStaff.length },
-    { id: 'branches', label: 'Branch KPI', Icon: Building2, count: filteredBranches.length },
-    { id: 'timeline', label: 'Performance Trend', Icon: Calendar },
-    { id: 'top10', label: 'Top 10 Leaderboard', Icon: Trophy },
+  const navTabs: { id: KpiView; label: string; Icon: React.ElementType; accentColor: string; count?: number }[] = [
+    { id: 'all', label: 'Overview', Icon: BarChart3, accentColor: 'text-[#003857]' },
+    { id: 'staff', label: 'Staff KPI', Icon: Users, accentColor: 'text-sky-600', count: filteredStaff.length },
+    { id: 'branches', label: 'Branch KPI', Icon: Building2, accentColor: 'text-emerald-600', count: filteredBranches.length },
+    { id: 'timeline', label: 'Performance Trend', Icon: Calendar, accentColor: 'text-indigo-600' },
+    { id: 'top10', label: 'Top 10 Leaderboard', Icon: Trophy, accentColor: 'text-amber-500' },
   ];
 
   const showSection = (sec: KpiView) => view === 'all' || view === sec;
@@ -2129,9 +2129,9 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               aria-label="KPI metric mode"
             >
               {([
-                ['points', 'By Points'],
-                ['tasks', 'Task Count'],
-              ] as const).map(([m, label]) => {
+                { m: 'points' as const, label: 'By Points', Icon: Award, accent: 'text-amber-500' },
+                { m: 'tasks' as const, label: 'Task Count', Icon: CheckSquare, accent: 'text-emerald-600' },
+              ]).map(({ m, label, Icon, accent }) => {
                 const active = metricMode === m;
                 return (
                   <button
@@ -2140,7 +2140,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     role="tab"
                     aria-selected={active}
                     onClick={() => handleMetricModeChange(m)}
-                    className={`relative px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 ${
+                    className={`relative px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5 ${
                       active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
                     }`}
                   >
@@ -2151,6 +2151,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                       />
                     )}
+                    <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${active ? 'text-white' : accent}`} aria-hidden />
                     <span className="relative z-10">{label}</span>
                   </button>
                 );
@@ -2299,7 +2300,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       transition={SPRING}
                     />
                   )}
-                  <Icon className="w-3.5 h-3.5 relative z-10 shrink-0" aria-hidden />
+                  <Icon className={`w-3.5 h-3.5 relative z-10 shrink-0 transition-colors ${active ? 'text-white' : t.accentColor}`} aria-hidden />
                   <span className="relative z-10">{t.label}</span>
                   {t.count !== undefined && (
                     <span
@@ -2405,11 +2406,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
 
                 <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/90 gap-0.5" role="tablist" aria-label="Chart granularity">
                   {([
-                    ['daily', 'Daily'],
-                    ['weekly', 'Weekly'],
-                    ['monthly', 'Monthly'],
-                    ['quarterly', 'Quarterly'],
-                  ] as const).map(([g, label]) => {
+                    { g: 'daily' as const, label: 'Daily', dot: 'bg-sky-500' },
+                    { g: 'weekly' as const, label: 'Weekly', dot: 'bg-emerald-500' },
+                    { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#003857]' },
+                    { g: 'quarterly' as const, label: 'Quarterly', dot: 'bg-amber-500' },
+                  ]).map(({ g, label, dot }) => {
                     const active = granularity === g;
                     return (
                       <button
@@ -2419,7 +2420,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         aria-selected={active}
                         onClick={() => setGranularity(g)}
                         aria-pressed={active}
-                        className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors ${
+                        className={`relative px-2.5 py-1 rounded-lg text-[11px] cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
                           active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
                         }`}
                       >
@@ -2430,6 +2431,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                           />
                         )}
+                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${active ? 'bg-white' : dot}`} aria-hidden />
                         <span className="relative z-10">{label}</span>
                       </button>
                     );
@@ -2825,7 +2827,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
                                 />
                               )}
-                              <LayoutGrid className="w-3.5 h-3.5 relative z-10" />
+                              <LayoutGrid className={`w-3.5 h-3.5 relative z-10 transition-colors ${subCatViewMode === 'cards' ? 'text-white' : 'text-sky-600'}`} />
                               <span className="hidden sm:inline relative z-10">Cards</span>
                             </button>
                             <button
@@ -2836,7 +2838,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                               className={`relative px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors select-none outline-none ${
                                 subCatViewMode === 'table'
                                   ? 'text-white font-semibold'
-                                  : 'text-slate-600 hover:text-slate-900'
+                                  : 'text-slate-700 hover:text-slate-900'
                               }`}
                               title="Detailed Table View"
                             >
@@ -2847,7 +2849,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                                   className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
                                 />
                               )}
-                              <List className="w-3.5 h-3.5 relative z-10" />
+                              <List className={`w-3.5 h-3.5 relative z-10 transition-colors ${subCatViewMode === 'table' ? 'text-white' : 'text-emerald-600'}`} />
                               <span className="hidden sm:inline relative z-10">Table</span>
                             </button>
                           </div>
@@ -3191,7 +3193,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
-                  <Users className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Users className={`w-3.5 h-3.5 relative z-10 transition-colors ${leaderboardMode === 'staff' ? 'text-white' : 'text-sky-600'}`} aria-hidden />
                   <span className="relative z-10">Top 10 Staff</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-medium ${leaderboardMode === 'staff' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
                     {top10Data.staff.length}
@@ -3214,7 +3216,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
-                  <Building2 className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Building2 className={`w-3.5 h-3.5 relative z-10 transition-colors ${leaderboardMode === 'branch' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
                   <span className="relative z-10">Top 10 Branches</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums font-medium ${leaderboardMode === 'branch' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80'}`}>
                     {top10Data.branches.length}
@@ -3575,11 +3577,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               )}
               <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/90 text-[11px] gap-0.5" role="tablist" aria-label="Timeline granularity">
               {([
-                ['daily', 'Daily'],
-                ['weekly', 'Weekly'],
-                ['monthly', 'Monthly'],
-                ['quarterly', 'Quarterly'],
-              ] as const).map(([g, label]) => {
+                { g: 'daily' as const, label: 'Daily', dot: 'bg-sky-500' },
+                { g: 'weekly' as const, label: 'Weekly', dot: 'bg-emerald-500' },
+                { g: 'monthly' as const, label: 'Monthly', dot: 'bg-[#003857]' },
+                { g: 'quarterly' as const, label: 'Quarterly', dot: 'bg-amber-500' },
+              ]).map(({ g, label, dot }) => {
                 const active = granularity === g;
                 return (
                   <button
@@ -3588,7 +3590,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     role="tab"
                     aria-selected={active}
                     onClick={() => setGranularity(g)}
-                    className={`relative px-3 py-1 rounded-lg cursor-pointer transition-colors ${
+                    className={`relative px-3 py-1 rounded-lg cursor-pointer transition-colors inline-flex items-center gap-1.5 ${
                       active ? 'text-white font-semibold' : 'text-slate-700 hover:text-slate-900 font-medium'
                     }`}
                   >
@@ -3599,6 +3601,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                       />
                     )}
+                    <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${active ? 'bg-white' : dot}`} aria-hidden />
                     <span className="relative z-10">{label}</span>
                   </button>
                 );
@@ -3727,7 +3730,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
-                  <Users className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Users className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'staff' && staffSubView === 'summary' ? 'text-white' : 'text-sky-600'}`} aria-hidden />
                   <span className="relative z-10">KPI by Staff</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
                     {filteredStaff.length}
@@ -3749,7 +3752,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
-                  <Building2 className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Building2 className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'branch' && branchSubView === 'summary' ? 'text-white' : 'text-emerald-600'}`} aria-hidden />
                   <span className="relative z-10">KPI by Branch</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'summary' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
                     {filteredBranches.length}
@@ -3771,7 +3774,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
-                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Calendar className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'staff' && staffSubView === 'daily' ? 'text-white' : 'text-amber-500'}`} aria-hidden />
                   <span className="relative z-10">Staff Daily Tasks</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'staff' && staffSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
                     1–{matrixDays.length}d
@@ -3793,7 +3796,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
-                  <Calendar className="w-3.5 h-3.5 relative z-10" aria-hidden />
+                  <Calendar className={`w-3.5 h-3.5 relative z-10 transition-colors ${tableMode === 'branch' && branchSubView === 'daily' ? 'text-white' : 'text-indigo-600'}`} aria-hidden />
                   <span className="relative z-10">Branch Daily Tasks</span>
                   <span className={`relative z-10 text-[10px] px-1.5 py-0.2 rounded-full font-figure tabular-nums ${tableMode === 'branch' && branchSubView === 'daily' ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200/80 font-medium'}`}>
                     1–{matrixDays.length}d
@@ -3883,8 +3886,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         role="tab"
                         aria-selected={staffLevelFilter === 'all'}
                         onClick={() => setStaffLevelFilter('all')}
-                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                          staffLevelFilter === 'all' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                          staffLevelFilter === 'all' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
                         }`}
                       >
                         {staffLevelFilter === 'all' && (
@@ -3894,6 +3897,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
                           />
                         )}
+                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${staffLevelFilter === 'all' ? 'bg-white' : 'bg-[#003857]'}`} aria-hidden />
                         <span className="relative z-10">All ({enrichedStaff.length})</span>
                       </button>
                       <button
@@ -3901,8 +3905,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         role="tab"
                         aria-selected={staffLevelFilter === 'field'}
                         onClick={() => setStaffLevelFilter('field')}
-                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                          staffLevelFilter === 'field' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                          staffLevelFilter === 'field' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
                         }`}
                       >
                         {staffLevelFilter === 'field' && (
@@ -3912,6 +3916,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
                           />
                         )}
+                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${staffLevelFilter === 'field' ? 'bg-white' : 'bg-emerald-500'}`} aria-hidden />
                         <span className="relative z-10">Field Officers ({enrichedStaff.filter((s) => !s.isManagement).length})</span>
                       </button>
                       <button
@@ -3919,8 +3924,8 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                         role="tab"
                         aria-selected={staffLevelFilter === 'management'}
                         onClick={() => setStaffLevelFilter('management')}
-                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                          staffLevelFilter === 'management' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+                        className={`relative px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                          staffLevelFilter === 'management' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
                         }`}
                         title="Management level staff (Branch Managers, Supervisors, Team Leads, Admins) who oversee operations and are exempt from field KPIs"
                       >
@@ -3931,6 +3936,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                             className="absolute inset-0 rounded-md tab-active-blue shadow-2xs pointer-events-none"
                           />
                         )}
+                        <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${staffLevelFilter === 'management' ? 'bg-white' : 'bg-amber-500'}`} aria-hidden />
                         <span className="relative z-10">Management ({enrichedStaff.filter((s) => s.isManagement).length})</span>
                       </button>
                     </div>
