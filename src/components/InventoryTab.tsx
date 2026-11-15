@@ -113,7 +113,6 @@ interface InventoryTabProps {
 export const InventoryTab: React.FC<InventoryTabProps> = ({
   lockType,
   viewToggle,
-  stockScopeControl,
   materialSummaryStrip,
   heroControlsContainer,
   devices,
@@ -673,10 +672,33 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     </AnimatePresence>
   );
 
+  const branchFilterControl = isAdminLike ? (
+    <select
+      value={branchFilter}
+      onChange={(e) => {
+        onBranchFilterChange(e.target.value);
+        setCurrentPage(1);
+      }}
+      className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+    >
+      <option value="ALL">All Branch Codes</option>
+      {branches.map((b) => (
+        <option key={b.code} value={b.code}>
+          Branch Code {b.code} — {b.name}
+        </option>
+      ))}
+    </select>
+  ) : (
+    <div className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-white border-slate-200/90 text-zinc-900">
+      <Building2 className="w-3.5 h-3.5" />
+      <span>Scoped to Branch Code: {selectedBranch}</span>
+    </div>
+  );
+
   const filterBarNode = (
     <div className="space-y-2.5">
       {/* Row 1: Search + Dropdown Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${lockType ? 'lg:grid-cols-4' : 'md:grid-cols-3 lg:grid-cols-5'}`}>
         <div className="relative">
           <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -691,26 +713,28 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           />
         </div>
 
-        <div className="relative">
-          <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <select
-            value={stageFilter}
-            onChange={(e) => {
-              onStageFilterChange(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full pl-8 pr-2.5 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-          >
-            <option value="ALL">All Lifecycle Stages</option>
-            {STAGE_ORDER.map((s) => (
-              <option key={s} value={s}>
-                {STAGE_META[s].label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!lockType && (
+          <div className="relative">
+            <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <select
+              value={stageFilter}
+              onChange={(e) => {
+                onStageFilterChange(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-8 pr-2.5 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+            >
+              <option value="ALL">All Lifecycle Stages</option>
+              {STAGE_ORDER.map((s) => (
+                <option key={s} value={s}>
+                  {STAGE_META[s].label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        {!lockType ? (
+        {!lockType && (
           <select
             value={typeFilter}
             onChange={(e) => {
@@ -723,7 +747,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             <option value="POS Terminal">POS Terminal (Wizar POS Q2 Pro)</option>
             <option value="Sound Box">Sound Box (QR Audio)</option>
           </select>
-        ) : stockScopeControl}
+        )}
 
         <select
           value={midDeviceFilter}
@@ -753,35 +777,18 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           <option value="DUE_SOON">🟡 Due Soon (21-23M)</option>
           <option value="HEALTHY">🟢 Healthy (&lt;21M)</option>
         </select>
+
+        {lockType && branchFilterControl}
       </div>
 
-      {/* Row 2: Branch Filter + Clear Filters on left, Action Buttons (when merged into Hero Backdrop) on right */}
+      {/* Row 2: Clear Filters (and Branch Filter when unlocked) on left, Action Buttons on right */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
-          <div className="flex-1 min-w-[200px] max-w-xs">
-            {isAdminLike ? (
-              <select
-                value={branchFilter}
-                onChange={(e) => {
-                  onBranchFilterChange(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">All Branch Codes</option>
-                {branches.map((b) => (
-                  <option key={b.code} value={b.code}>
-                    Branch Code {b.code} — {b.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-white border-slate-200/90 text-zinc-900">
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Scoped to Branch Code: {selectedBranch}</span>
-              </div>
-            )}
-          </div>
+          {!lockType && (
+            <div className="flex-1 min-w-[200px] max-w-xs">
+              {branchFilterControl}
+            </div>
+          )}
           <ClearFiltersButton
             active={!!searchQuery || stageFilter !== 'ALL' || (!lockType && typeFilter !== 'ALL') || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}
             onClear={() => {
@@ -924,22 +931,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       )}
 
       {/* Clean Hardware Serial Ledger Table */}
-        <div className="px-4 py-2.5 bg-white border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-black uppercase tracking-wider text-[#003857] dark:text-sky-400">
-              Hardware Serial Ledger
-            </span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
-              {effectiveTotalCount.toLocaleString()} Serial{effectiveTotalCount === 1 ? '' : 's'}
-            </span>
-            {selectedSns.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
-                {selectedSns.length} selected
-              </span>
-            )}
-          </div>
-        </div>
-
         <div className="overflow-x-auto overflow-y-hidden">
           <table className="data-table min-w-[960px]">
             <thead className="glass-table-thead">

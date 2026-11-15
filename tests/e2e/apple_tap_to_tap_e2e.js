@@ -144,7 +144,7 @@ const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_T
     const lat = Math.round(performance.now() - tV);
     ok(lat < 500, `POS Terminal View -> ${view}: ${lat} ms`);
   }
-  await p.locator('[aria-label="Filter Stock Type or Material"]').selectOption('ALL');
+  await p.locator('section[aria-label="POS Terminal overview"]').getByRole('button', { name: /Battery/ }).click();
   await sleep(200);
   ok(await p.locator('[aria-label="Select Material Category"]').isVisible(), 'In-place Material filter switches cleanly inside Units');
   await p.locator('[aria-label="Select Material Category"]').selectOption('HARDWARE');
