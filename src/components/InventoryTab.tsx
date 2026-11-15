@@ -231,7 +231,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
 
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const isLight = theme !== 'dark';
-  const cardClass = isLight ? 'surface-card-light text-[#002f49]' : 'surface-card-dark text-slate-100';
   const today = todayPP();
   const [showExportMenu, setShowExportMenu] = useState(false);
   const stageCounts = useMemo(() => {
@@ -816,16 +815,14 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
           </div>
         </div>
         {materialSummaryStrip}
-      </div>
-
-
 
       {/* GUIDED REQUISITION FULFILLMENT BANNER */}
       {fulfillingRequisition && isAdminLike && (
+        <div className="p-3 bg-slate-50/60 border-b border-slate-200/90">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl p-4 border shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-[#003857] text-white border-sky-400/30"
+          className="rounded-2xl p-4 border shadow-md flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-[#003857] text-white border-sky-400/30"
         >
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
@@ -906,12 +903,11 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             )}
           </div>
         </motion.div>
+        </div>
       )}
 
-
-      {/* Clean Hardware Serial Ledger Table (Matching Merchant Deployment style) */}
-      <div className={`${cardClass} border border-slate-200/90 dark:border-slate-800 rounded-xl overflow-hidden`}>
-        <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+      {/* Clean Hardware Serial Ledger Table */}
+        <div className="px-4 py-2.5 bg-white border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase tracking-wider text-[#003857] dark:text-sky-400">
               Hardware Serial Ledger

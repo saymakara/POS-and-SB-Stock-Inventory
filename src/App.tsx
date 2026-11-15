@@ -44,7 +44,7 @@ import { PipelineBar } from './components/PipelineBar';
 import { KpiCards } from './components/KpiCards';
 import { DashboardTab } from './components/DashboardTab';
 import { InventoryTab } from './components/InventoryTab';
-import { ProductStockPage, ProductViewToggle } from './components/MaterialStockPanel';
+import { ProductStockPage } from './components/MaterialStockPanel';
 import type { SettingsSubTab } from './components/SettingsTab';
 import { SignInPage } from './components/SignInPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -4559,24 +4559,12 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
 
 
                   {(shownTab === 'inventory' || shownTab === 'inventory_pos' || shownTab === 'inventory_sb') && (() => {
-                    const viewToggle = shownTab !== 'inventory' ? (
-                      <ProductViewToggle
-                        view={productView}
-                        onViewChange={setProductView}
-                        group={shownTab === 'inventory_pos' ? 'POS' : 'SB'}
-                        pushCount={shownTab === 'inventory_pos' ? unpushedByType.pos : unpushedByType.sb}
-                        lostCount={shownTab === 'inventory_pos' ? lostCounts.pos : lostCounts.sb}
-                        hasPush={true}
-                      />
-                    ) : undefined;
-
                     const renderUnitsNode = (ctx?: {
                       stockScopeControl?: React.ReactNode;
                       materialSummaryStrip?: React.ReactNode | null;
                     }) => (
                     <InventoryTab
                       lockType={shownTab !== 'inventory'}
-                      viewToggle={viewToggle}
                       stockScopeControl={ctx?.stockScopeControl}
                       materialSummaryStrip={ctx?.materialSummaryStrip}
                       onReturnDevice={(sn) => { setWorkflowPreset('RETURN'); setEditingDeviceSerial(sn); }}
@@ -4646,6 +4634,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         }}
                         theme={theme}
                         noPadding
+                        embedded
                       />
                     );
 
@@ -4684,7 +4673,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         push={
                           <PushConfiguringTab
                             hideHero
-                            viewToggle={viewToggle}
                             devices={scopedDevices.filter((d) => d.type === (shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'))}
                             lockType={shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'}
                             branches={phnomPenhBranches}

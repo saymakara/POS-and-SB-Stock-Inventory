@@ -134,7 +134,7 @@ export const ProductViewToggle: React.FC<{
       ref={listRef}
       role="tablist"
       aria-label={`${group} views`}
-      className="relative inline-flex p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs shrink-0 select-none"
+      className="relative inline-flex p-1 rounded-xl bg-white dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs shrink-0 select-none"
     >
       <div
         ref={pillRef}
@@ -202,6 +202,7 @@ const MaterialSummaryCardsStrip: React.FC<{
   onSelectHardware?: () => void;
   lostCount?: number;
   onOpenLostMaterials?: () => void;
+  embedded?: boolean;
 }> = ({
   codes,
   summaries,
@@ -212,8 +213,9 @@ const MaterialSummaryCardsStrip: React.FC<{
   onSelectHardware,
   lostCount = 0,
   onOpenLostMaterials,
+  embedded = false,
 }) => (
-  <div className="px-4 py-3 bg-slate-50/70 border-b border-slate-200/90 space-y-2.5">
+  <div className={embedded ? 'space-y-3' : 'px-4 py-3 bg-slate-50/70 border-b border-slate-200/90 space-y-2.5'}>
     {lostCount > 0 && onOpenLostMaterials && (
       <div className="flex items-center justify-end">
         <button
@@ -231,11 +233,11 @@ const MaterialSummaryCardsStrip: React.FC<{
         <button
           type="button"
           onClick={onSelectHardware}
-          className={`flex flex-col justify-between text-left p-4 rounded-xl border transition-all active:scale-[0.985] ${
+          className={`flex flex-col justify-between text-left ${embedded ? 'p-3.5' : 'p-4'} rounded-2xl border transition-all active:scale-[0.985] ${
             onSelectHardware ? 'cursor-pointer' : 'cursor-default'
           } ${
             isHardwareSelected
-              ? 'bg-white border-[#155484] ring-1 ring-[#155484]/30 shadow-xs'
+              ? 'bg-white border-[#155484] ring-1 ring-[#155484]/25 shadow-xs'
               : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
           }`}
         >
@@ -260,14 +262,14 @@ const MaterialSummaryCardsStrip: React.FC<{
             <span className="text-[11px] text-slate-500 font-normal">Units</span>
           </div>
 
-          <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-3 gap-1 text-[11px] text-slate-600 font-normal">
-            <span title="Admin HQ Stock" className="truncate">
+          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-x-1.5 gap-y-0.5 flex-wrap text-[10.5px] text-slate-600 font-normal">
+            <span title="Admin HQ Stock" className="whitespace-nowrap">
               In Stock: <span className="font-semibold text-[#003857]">{hardwareSummary.adminStock.toLocaleString()}</span>
             </span>
-            <span title="Branch Reserve" className="truncate text-center">
+            <span title="Branch Reserve" className="whitespace-nowrap">
               Reserve: <span className="font-semibold text-sky-700">{hardwareSummary.branchReserve.toLocaleString()}</span>
             </span>
-            <span title="Installed Live / Configuring" className="truncate text-right">
+            <span title="Installed Live / Configuring" className="whitespace-nowrap">
               Live: <span className="font-semibold text-emerald-700">{hardwareSummary.live.toLocaleString()}</span>
             </span>
           </div>
@@ -283,9 +285,9 @@ const MaterialSummaryCardsStrip: React.FC<{
             key={c}
             type="button"
             onClick={() => onSelectCode(c)}
-            className={`flex flex-col justify-between text-left p-4 rounded-xl border transition-all cursor-pointer active:scale-[0.985] ${
+            className={`flex flex-col justify-between text-left ${embedded ? 'p-3.5' : 'p-4'} rounded-2xl border transition-all cursor-pointer active:scale-[0.985] ${
               isSelected
-                ? 'bg-white border-[#155484] ring-1 ring-[#155484]/30 shadow-xs'
+                ? 'bg-white border-[#155484] ring-1 ring-[#155484]/25 shadow-xs'
                 : 'bg-white hover:bg-slate-50/80 border-slate-200/90 shadow-2xs'
             }`}
           >
@@ -316,14 +318,14 @@ const MaterialSummaryCardsStrip: React.FC<{
               <span className="text-[11px] text-slate-500 font-normal">Controlled</span>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-3 gap-1 text-[11px] text-slate-600 font-normal">
-              <span title="Available In Stock (Head Office)" className="truncate">
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-x-1.5 gap-y-0.5 flex-wrap text-[10.5px] text-slate-600 font-normal">
+              <span title="Available In Stock (Head Office)" className="whitespace-nowrap">
                 In Stock: <span className="font-semibold text-[#003857]">{summary.adminStock.toLocaleString()}</span>
               </span>
-              <span title="Under Branch Reserve" className="truncate text-center">
+              <span title="Under Branch Reserve" className="whitespace-nowrap">
                 Reserve: <span className="font-semibold text-sky-700">{summary.branchReserve.toLocaleString()}</span>
               </span>
-              <span title="Bundled with Device (Serial & MID)" className="truncate text-right">
+              <span title="Bundled with Device (Serial & MID)" className="whitespace-nowrap">
                 Bundled: <span className="font-semibold text-emerald-700">{summary.deployed.toLocaleString()}</span>
               </span>
             </div>
@@ -471,29 +473,35 @@ const ProductStockPageComponent: React.FC<{
 
   const materialSummaryStrip = group === 'POS' ? (
     <MaterialSummaryCardsStrip
+      embedded
       codes={matsForGroup.map((m) => m.code)}
       summaries={materialSnap.summaries}
-      selectedCode={unitsScope === 'MATERIAL' ? selectedMaterialCode : null}
+      selectedCode={view === 'UNITS' && unitsScope === 'MATERIAL' ? selectedMaterialCode : null}
       hardwareSummary={computedHardwareSummary}
-      isHardwareSelected={unitsScope === 'HARDWARE'}
-      onSelectHardware={() => React.startTransition(() => setUnitsScope('HARDWARE'))}
+      isHardwareSelected={view === 'UNITS' && unitsScope === 'HARDWARE'}
+      onSelectHardware={() => {
+        if (view !== 'UNITS') onViewChange('UNITS');
+        React.startTransition(() => setUnitsScope('HARDWARE'));
+      }}
       lostCount={lostCount}
-      onOpenLostMaterials={() =>
+      onOpenLostMaterials={() => {
+        if (view !== 'UNITS') onViewChange('UNITS');
         React.startTransition(() => {
           setSelectedMaterialCode('ALL');
           setUnitsScope('MATERIAL');
-        })
-      }
-      onSelectCode={(code) =>
+        });
+      }}
+      onSelectCode={(code) => {
+        if (view !== 'UNITS') onViewChange('UNITS');
         React.startTransition(() => {
           setSelectedMaterialCode(code);
           setUnitsScope('MATERIAL');
-        })
-      }
+        });
+      }}
     />
   ) : null;
 
-  const hardwareNode = renderUnits ? renderUnits({ stockScopeControl, materialSummaryStrip }) : units;
+  const hardwareNode = renderUnits ? renderUnits({ stockScopeControl, materialSummaryStrip: null }) : units;
   const unifiedUnitsNode = (
     <div className="w-full">
       <div hidden={unitsScope !== 'HARDWARE'} className="w-full">
@@ -511,7 +519,6 @@ const ProductStockPageComponent: React.FC<{
             devices={devices}
             users={users}
             excludedSerials={excludedSerials}
-            viewToggle={viewToggle}
             selectedCode={selectedMaterialCode}
             onSelectedCodeChange={setSelectedMaterialCode}
             onSwitchToUnits={() => React.startTransition(() => setUnitsScope('HARDWARE'))}
@@ -551,16 +558,38 @@ const ProductStockPageComponent: React.FC<{
   }, [view]);
 
   return (
-    <div className="flex flex-col gap-3.5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2.5 text-lg sm:text-xl font-extrabold text-slate-900">
-          <Icon className={`w-5 h-5 ${group === 'POS' ? 'text-[#22577A]' : 'text-[#4F518C]'}`} aria-hidden />{title}
-        </h2>
-      </div>
+    <div className="flex flex-col gap-4 apple-tab-panel">
+      {/* Soft Slate Hero Backdrop (matching Push Configuring Hub / KHQR / KPI Performance) */}
+      <section
+        className="relative overflow-hidden rounded-3xl p-5 sm:p-7 border shadow-sm bg-slate-100 border-slate-200/90 text-slate-900 space-y-5"
+        aria-label={`${title} overview`}
+      >
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-3 text-slate-900 leading-tight">
+              <Icon className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${group === 'POS' ? 'text-[#003857]' : 'text-[#4F518C]'}`} aria-hidden />
+              <span>{title}</span>
+            </h1>
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
+              {group === 'POS'
+                ? 'Hardware inventory, controlled accessories, branch reserve, and push configuring across Phnom Penh.'
+                : 'Sound Box stock inventory, branch reserve, push configuring queue, and live merchant deployments.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {viewToggle}
+          </div>
+        </div>
 
-      {/* Frame: PipelineBar & KpiCards remain anchored across all views */}
-      {pipelineBar}
-      {kpiCards}
+        {/* Stage Pills & Summary Strip stay cleanly anchored inside the backdrop */}
+        {pipelineBar}
+        {(materialSummaryStrip || kpiCards) && (
+          <div className="pt-5 border-t border-slate-200/90 space-y-4">
+            {materialSummaryStrip}
+            {kpiCards && <div className="[&>.kpi-strip]:mb-0">{kpiCards}</div>}
+          </div>
+        )}
+      </section>
 
       {/* (7 Nov 2026) Each view is built the first time it is opened and then kept (hidden while another view shows):
           switching back is instant, the page never collapses or jumps, and nothing is built twice. The view just

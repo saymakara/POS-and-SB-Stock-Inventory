@@ -32,6 +32,7 @@ interface PipelineBarProps {
   /** (5 Nov 2026) on a product page the first chip names the product ("All POS Terminal") */
   allLabel?: string;
   noPadding?: boolean;
+  embedded?: boolean;
 }
 
 export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
@@ -42,6 +43,7 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
   theme = 'light',
   allLabel,
   noPadding = false,
+  embedded = false,
 }) => {
   const isLight = theme === 'light';
 
@@ -104,8 +106,12 @@ export const PipelineBar: React.FC<PipelineBarProps> = React.memo(({
     <section className={`w-full ${noPadding ? '' : 'px-4 sm:px-6 pt-3'}`}>
       <div
         className={`${
-          isLight ? 'surface-card-light' : 'surface-card-dark'
-        } p-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar`}
+          embedded
+            ? 'bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-1.5'
+            : isLight
+            ? 'surface-card-light p-2'
+            : 'surface-card-dark p-2'
+        } flex items-center justify-between gap-2 overflow-x-auto no-scrollbar`}
       >
         <div className="flex items-center gap-1.5 flex-1 min-w-max">
           {visibleStages.map((s) => {
