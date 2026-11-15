@@ -358,8 +358,8 @@ export interface CrossChannelDayPoint {
 export const VELOCITY_CALENDAR_COLORS = {
   weekendLight: '#64748b',
   weekendDark: '#94a3b8',
-  holidayLight: '#e11d48',
-  holidayDark: '#fb7185',
+  holidayLight: '#d97706',
+  holidayDark: '#fbbf24',
 } as const;
 
 export type VelocityChannelKey = 'ALL' | 'pos' | 'sb' | 'khqr' | 'mv' | 'cc';
@@ -599,8 +599,8 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
         ctx.save();
         const colGrad = ctx.createLinearGradient(0, padTop, 0, baseY);
         if (band.kind === 'holiday') {
-          colGrad.addColorStop(0, isLight ? 'rgba(244, 63, 94, 0.115)' : 'rgba(251, 113, 133, 0.165)');
-          colGrad.addColorStop(1, isLight ? 'rgba(244, 63, 94, 0.035)' : 'rgba(251, 113, 133, 0.055)');
+          colGrad.addColorStop(0, isLight ? 'rgba(245, 158, 11, 0.14)' : 'rgba(251, 191, 36, 0.17)');
+          colGrad.addColorStop(1, isLight ? 'rgba(245, 158, 11, 0.04)' : 'rgba(251, 191, 36, 0.06)');
         } else {
           colGrad.addColorStop(0, isLight ? 'rgba(100, 116, 139, 0.095)' : 'rgba(148, 163, 184, 0.13)');
           colGrad.addColorStop(1, isLight ? 'rgba(100, 116, 139, 0.035)' : 'rgba(148, 163, 184, 0.045)');
@@ -611,7 +611,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
 
         if (band.kind === 'holiday') {
           ctx.setLineDash([2.5, 2.5]);
-          ctx.strokeStyle = isLight ? 'rgba(225, 29, 72, 0.28)' : 'rgba(251, 113, 133, 0.34)';
+          ctx.strokeStyle = isLight ? 'rgba(217, 119, 6, 0.34)' : 'rgba(251, 191, 36, 0.36)';
           ctx.lineWidth = 1;
           ctx.stroke();
         } else {
@@ -633,8 +633,8 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
         ctx.fillStyle =
           band.kind === 'holiday'
             ? isLight
-              ? 'rgba(225, 29, 72, 0.78)'
-              : 'rgba(251, 113, 133, 0.85)'
+              ? 'rgba(217, 119, 6, 0.85)'
+              : 'rgba(251, 191, 36, 0.88)'
             : isLight
             ? 'rgba(100, 116, 139, 0.45)'
             : 'rgba(148, 163, 184, 0.50)';
@@ -703,8 +703,8 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
         ctx.save();
         ctx.fillStyle = isHol
           ? isLight
-            ? 'rgba(225, 29, 72, 0.72)'
-            : 'rgba(251, 113, 133, 0.78)'
+            ? 'rgba(217, 119, 6, 0.78)'
+            : 'rgba(251, 191, 36, 0.82)'
           : isWknd
           ? isLight
             ? 'rgba(100, 116, 139, 0.58)'
@@ -935,8 +935,8 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
         ctx.save();
         roundRectPath(ctx, px, py, pw, ph, 4);
         if (band.kind === 'holiday') {
-          ctx.fillStyle = isLight ? 'rgba(255, 241, 242, 0.96)' : 'rgba(76, 5, 25, 0.85)';
-          ctx.strokeStyle = isLight ? 'rgba(244, 63, 94, 0.40)' : 'rgba(251, 113, 133, 0.45)';
+          ctx.fillStyle = isLight ? 'rgba(255, 251, 235, 0.96)' : 'rgba(69, 26, 3, 0.88)';
+          ctx.strokeStyle = isLight ? 'rgba(245, 158, 11, 0.48)' : 'rgba(251, 191, 36, 0.48)';
         } else {
           ctx.fillStyle = isLight ? 'rgba(248, 250, 252, 0.96)' : 'rgba(30, 41, 59, 0.88)';
           ctx.strokeStyle = isLight ? 'rgba(148, 163, 184, 0.42)' : 'rgba(148, 163, 184, 0.35)';
@@ -948,8 +948,8 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
         ctx.fillStyle =
           band.kind === 'holiday'
             ? isLight
-              ? '#be123c'
-              : '#fda4af'
+              ? '#b45309'
+              : '#fcd34d'
             : isLight
             ? '#475569'
             : '#cbd5e1';
@@ -1031,8 +1031,8 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
               className={`inline-flex items-center gap-1.5 px-2 py-0.5 mb-1.5 rounded-md border text-[10px] font-semibold ${
                 hoverItem.holidayName
                   ? isLight
-                    ? 'bg-rose-50 border-rose-200/90 text-rose-700'
-                    : 'bg-rose-950/60 border-rose-800/70 text-rose-300'
+                    ? 'bg-amber-50 border-amber-200/90 text-amber-800'
+                    : 'bg-amber-950/60 border-amber-800/70 text-amber-300'
                   : isLight
                   ? 'bg-slate-100/90 border-slate-200/90 text-slate-600'
                   : 'bg-slate-800/90 border-slate-700 text-slate-300'

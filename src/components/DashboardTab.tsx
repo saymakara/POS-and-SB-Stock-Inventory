@@ -32,7 +32,6 @@ import { getCachedAudit } from '../services/auditCache';
 import { getPerfSnapshot, percentile } from '../utils/perfMonitor';
 import type { StaffAccount } from '../services/supabaseService';
 import {
-  KpiPeriod,
   KpiDashboardData,
   KpiRawCounts,
   KpiPointRule,
@@ -75,6 +74,9 @@ import {
   AlertCircle,
   Boxes,
   ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  Calendar,
   MapPin,
   Activity,
 } from 'lucide-react';
@@ -116,11 +118,10 @@ interface DashboardTabProps {
   actionQueues?: DashboardActionQueues;
 }
 
-type DashPeriod = Extract<KpiPeriod, 'TODAY' | 'WEEK' | 'MONTH' | 'ALL'>;
+type DashViewMode = 'DATE' | 'MONTH' | 'ALL';
 
-const PERIOD_OPTIONS: { id: DashPeriod; label: string }[] = [
-  { id: 'TODAY', label: 'Today' },
-  { id: 'WEEK', label: 'Week' },
+const VIEW_MODE_OPTIONS: { id: DashViewMode; label: string }[] = [
+  { id: 'DATE', label: 'Date' },
   { id: 'MONTH', label: 'Month' },
   { id: 'ALL', label: 'All' },
 ];
@@ -134,10 +135,70 @@ function fmtShortDay(ymd: string): string {
   return `${SHORT_MONTHS[mIdx] || parts[1]} ${parts[2]}`;
 }
 
+function fmtLongDay(ymd: string): string {
+  const parts = ymd.split('-');
+  if (parts.length !== 3) return ymd;
+  const mIdx = Number(parts[1]) - 1;
+  return `${SHORT_MONTHS[mIdx] || parts[1]} ${parts[2]}, ${parts[0]}`;
+}
+
+function fmtMonthLabel(ym: string): string {
+  const [yy, mm] = ym.split('-').map(Number);
+  if (!yy || !mm || mm < 1 || mm > 12) return ym;
+  return `${SHORT_MONTHS[mm - 1]} ${yy}`;
+}
+
 function addDaysYmd(ymd: string, delta: number): string {
   const t = Date.parse(`${ymd}T00:00:00Z`);
   if (Number.isNaN(t)) return ymd;
   return new Date(t + delta * 86400000).toISOString().slice(0, 10);
+}
+
+function diffDaysYmd(fromYmd: string, toYmd: string): number {
+  const a = Date.parse(`${fromYmd}T00:00:00Z`);
+  const b = Date.parse(`${toYmd}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86400000);
+}
+
+function shiftMonthYm(ym: string, delta: number): string {
+  const [yy, mm] = ym.split('-').map(Number);
+  if (!yy || !mm) return ym;
+  const d = new Date(Date.UTC(yy, mm - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthDaysCount(ym: string): number {
+  const [yy, mm] = ym.split('-').map(Number);
+  if (!yy || mm < 1 || mm > 12) return 30;
+  return new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+}
+
+function weekMondayYmd(ymd: string): string {
+  const [yy, mm, dd] = ymd.split('-').map(Number);
+  const utc = new Date(Date.UTC(yy, mm - 1, dd));
+  const mondayOffset = (utc.getUTCDay() + 6) % 7;
+  return addDaysYmd(ymd, -mondayOffset);
+}
+
+function startOfPP(ymd: string): string {
+  return new Date(`${ymd}T00:00:00+07:00`).toISOString();
+}
+
+function endOfDayPP(ymd: string): string {
+  return new Date(`${ymd}T23:59:59+07:00`).toISOString();
+}
+
+function formatDateButtonLabel(fromYmd: string, toYmd: string, todayYmd: string): string {
+  if (fromYmd === toYmd) {
+    if (fromYmd === todayYmd) return `Today · ${fmtShortDay(fromYmd)}`;
+    if (fromYmd === addDaysYmd(todayYmd, -1)) return `Yesterday · ${fmtShortDay(fromYmd)}`;
+    return fmtLongDay(fromYmd);
+  }
+  if (fromYmd.slice(0, 4) === toYmd.slice(0, 4)) {
+    return `${fmtShortDay(fromYmd)} – ${fmtShortDay(toYmd)}`;
+  }
+  return `${fmtLongDay(fromYmd)} – ${fmtLongDay(toYmd)}`;
 }
 
 function buildEmptyRawCounts(): KpiRawCounts {
@@ -387,21 +448,23 @@ interface ChannelMixCardProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-const CM_VB_W = 428;
-const CM_VB_H = 342;
+const CM_VB_W = 468;
+const CM_VB_H = 320;
 const CM_CX = CM_VB_W / 2;
-const CM_CY = CM_VB_H / 2 + 1;
-const CM_R_TICK = 122;
-const CM_R_TRACK = 91;
-const CM_TRACK_W = 38;
+const CM_CY = CM_VB_H / 2 + 2;
+const CM_R_INNER = 64;
+const CM_R_OUTER = 96;
+const CM_R_TICK = CM_R_OUTER + 6;
+const CM_R_TRACK = (CM_R_INNER + CM_R_OUTER) / 2;
+const CM_TRACK_W = CM_R_OUTER - CM_R_INNER;
 
 interface ChannelCalloutLayout {
   slice: ChannelSliceItem;
   side: 'left' | 'right';
   sx: number;
   sy: number;
-  mx: number;
-  my: number;
+  qpx: number;
+  qpy: number;
   ex: number;
   ey: number;
 }
@@ -447,14 +510,14 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
       const midAngle = hasSlice
         ? -Math.PI / 2 + ((slice.offset + slice.dash * 0.5) / DONUT_CIRC) * Math.PI * 2
         : -Math.PI / 2 + (idx / Math.max(1, donutSlices.length)) * Math.PI * 2;
-      const anchorR = hasSlice ? 108 : CM_R_TICK - 2;
+      const anchorR = hasSlice ? CM_R_OUTER + 5 : CM_R_OUTER;
       return {
         slice,
         midAngle,
         sx: CM_CX + anchorR * Math.cos(midAngle),
         sy: CM_CY + anchorR * Math.sin(midAngle),
         side: (Math.cos(midAngle) >= 0 ? 'right' : 'left') as 'left' | 'right',
-        targetY: CM_CY + (CM_R_TICK + 28) * Math.sin(midAngle),
+        targetY: CM_CY + (CM_R_OUTER + 34) * Math.sin(midAngle),
       };
     });
 
@@ -465,20 +528,20 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
       const topMost = [...leftItems].sort((a, b) => Math.abs(Math.cos(a.midAngle)) - Math.abs(Math.cos(b.midAngle)))[0];
       if (topMost) {
         topMost.side = 'right';
-        topMost.targetY = topMost.sy < CM_CY ? 20 : CM_VB_H - 20;
+        topMost.targetY = topMost.sy < CM_CY ? 24 : CM_VB_H - 24;
       }
     } else if (rightItems.length >= 4 && leftItems.length <= 1) {
       const topMost = [...rightItems].sort((a, b) => Math.abs(Math.cos(a.midAngle)) - Math.abs(Math.cos(b.midAngle)))[0];
       if (topMost) {
         topMost.side = 'left';
-        topMost.targetY = topMost.sy < CM_CY ? 20 : CM_VB_H - 20;
+        topMost.targetY = topMost.sy < CM_CY ? 24 : CM_VB_H - 24;
       }
     }
 
-    const CALLOUT_H = 26;
-    const MIN_GAP = 48;
-    const Y_MIN = 20;
-    const Y_MAX = CM_VB_H - 20;
+    const CALLOUT_H = 32;
+    const MIN_GAP = 46;
+    const Y_MIN = 22;
+    const Y_MAX = CM_VB_H - 22;
 
     const placeSide = (side: 'left' | 'right'): ChannelCalloutLayout[] => {
       const group = items
@@ -511,22 +574,27 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
         const minRingR = CM_R_TICK + 6;
         const clearDx =
           dyNearest >= minRingR
-            ? 30
+            ? 36
             : Math.sqrt(Math.max(0, minRingR * minRingR - dyNearest * dyNearest));
-        const rawEx = side === 'left' ? CM_CX - clearDx - 4 : CM_CX + clearDx + 4;
+        const rawEx =
+          side === 'left'
+            ? Math.min(g.sx - 20, CM_CX - clearDx - 6)
+            : Math.max(g.sx + 20, CM_CX + clearDx + 6);
         const ex =
           side === 'left'
-            ? Math.max(88, Math.min(CM_CX - 30, rawEx))
-            : Math.min(CM_VB_W - 88, Math.max(CM_CX + 30, rawEx));
-        const mx = CM_CX + (CM_R_TICK + 6) * Math.cos(g.midAngle);
-        const my = CM_CY + (CM_R_TICK + 6) * Math.sin(g.midAngle);
+            ? Math.max(114, Math.min(CM_CX - 36, rawEx))
+            : Math.min(CM_VB_W - 114, Math.max(CM_CX + 36, rawEx));
+        const qpx =
+          side === 'left'
+            ? Math.min(g.sx, Math.max(ex + 10, (g.sx + ex) / 2))
+            : Math.max(g.sx, Math.min(ex - 10, (g.sx + ex) / 2));
         return {
           slice: g.slice,
           side,
           sx: g.sx,
           sy: g.sy,
-          mx,
-          my,
+          qpx,
+          qpy: ey,
           ex,
           ey,
         };
@@ -535,6 +603,8 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
 
     return [...placeSide('left'), ...placeSide('right')];
   }, [donutSlices, totalTasks]);
+
+  const shadowFilterId = useId();
 
   return (
     <section className={`lg:col-span-4 ${cardClass} overflow-hidden flex flex-col justify-between`}>
@@ -570,8 +640,8 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
       </div>
 
       <div className="px-2 sm:px-3 pt-1 pb-2 flex-1 flex items-center justify-center">
-        {/* Enlarged Precision Donut Ring + Radial Callout Leaders (no bottom bar list) */}
-        <div className="relative w-full max-w-[448px] aspect-[428/342] flex items-center justify-center">
+        {/* Style 1: Curved Leaders + Floating Pill Callouts */}
+        <div className="relative w-full max-w-[468px] aspect-[468/320] flex items-center justify-center">
           <svg
             viewBox={`0 0 ${CM_VB_W} ${CM_VB_H}`}
             className="w-full h-full overflow-visible"
@@ -579,16 +649,11 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             aria-label="5-Channel Performance Donut Chart"
             data-testid="channel-mix-donut"
           >
-            {/* Outer precision gauge tick bezel */}
-            <circle
-              cx={CM_CX}
-              cy={CM_CY}
-              r={CM_R_TICK}
-              fill="none"
-              stroke={isLight ? 'rgba(15, 23, 42, 0.13)' : 'rgba(148, 163, 184, 0.22)'}
-              strokeWidth="2.5"
-              strokeDasharray="1.5 11.33"
-            />
+            <defs>
+              <filter id={shadowFilterId} x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#1e6091" floodOpacity={isLight ? '0.16' : '0.32'} />
+              </filter>
+            </defs>
 
             {/* Recessed donut track */}
             <circle
@@ -601,56 +666,58 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             />
 
             {/* Sculpted separated annular sectors */}
-            {totalTasks > 0 && activeSlices.length === 1 && (
-              <circle
-                data-donut-slice={activeSlices[0].id}
-                cx={CM_CX}
-                cy={CM_CY}
-                r={CM_R_TRACK}
-                fill="none"
-                stroke={activeSlices[0].hexColor}
-                strokeWidth={hoveredChannelId === activeSlices[0].id ? CM_TRACK_W + 5 : CM_TRACK_W}
-                className="cursor-pointer transition-all duration-150"
-                onMouseEnter={() => setHoveredChannelId(activeSlices[0].id)}
-                onMouseLeave={() => setHoveredChannelId(null)}
-                onClick={() => onNavigateTab?.(activeSlices[0].tab)}
-              />
-            )}
+            <g filter={`url(#${shadowFilterId})`}>
+              {totalTasks > 0 && activeSlices.length === 1 && (
+                <circle
+                  data-donut-slice={activeSlices[0].id}
+                  cx={CM_CX}
+                  cy={CM_CY}
+                  r={CM_R_TRACK}
+                  fill="none"
+                  stroke={activeSlices[0].hexColor}
+                  strokeWidth={hoveredChannelId === activeSlices[0].id ? CM_TRACK_W + 4 : CM_TRACK_W}
+                  className="cursor-pointer transition-all duration-150"
+                  onMouseEnter={() => setHoveredChannelId(activeSlices[0].id)}
+                  onMouseLeave={() => setHoveredChannelId(null)}
+                  onClick={() => onNavigateTab?.(activeSlices[0].tab)}
+                />
+              )}
 
-            {totalTasks > 0 &&
-              activeSlices.length > 1 &&
-              activeSlices.map((slice) => {
-                const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
-                const isDimmed = hoveredChannelId !== null && hoveredChannelId !== slice.id;
-                const spanRad = (slice.dash / DONUT_CIRC) * Math.PI * 2;
-                const gapTrim = Math.min(0.032, spanRad * 0.22);
-                const startRad = -Math.PI / 2 + (slice.offset / DONUT_CIRC) * Math.PI * 2 + gapTrim / 2;
-                const endRad = startRad + spanRad - gapTrim;
-                const rInner = isFocused ? 68 : 72;
-                const rOuter = isFocused ? 116 : 111;
-                const d = buildAnnularArcPath(CM_CX, CM_CY, rInner, rOuter, startRad, endRad);
-                return (
-                  <path
-                    key={slice.id}
-                    data-donut-slice={slice.id}
-                    d={d}
-                    fill={slice.hexColor}
-                    opacity={isDimmed ? 0.32 : 1}
-                    style={{
-                      filter: isFocused ? `drop-shadow(0 4px 10px ${slice.hexColor}55)` : undefined,
-                      transition: 'opacity 150ms ease, filter 150ms ease',
-                    }}
-                    className="cursor-pointer"
-                    onMouseEnter={() => setHoveredChannelId(slice.id)}
-                    onMouseLeave={() => setHoveredChannelId(null)}
-                    onClick={() => onNavigateTab?.(slice.tab)}
-                  >
-                    <title>{`${slice.label}: ${fmtNum(slice.primaryValue)} (${slice.sharePct}%)`}</title>
-                  </path>
-                );
-              })}
+              {totalTasks > 0 &&
+                activeSlices.length > 1 &&
+                activeSlices.map((slice) => {
+                  const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
+                  const isDimmed = hoveredChannelId !== null && hoveredChannelId !== slice.id;
+                  const spanRad = (slice.dash / DONUT_CIRC) * Math.PI * 2;
+                  const gapTrim = Math.min(0.032, spanRad * 0.22);
+                  const startRad = -Math.PI / 2 + (slice.offset / DONUT_CIRC) * Math.PI * 2 + gapTrim / 2;
+                  const endRad = startRad + spanRad - gapTrim;
+                  const rInner = isFocused ? CM_R_INNER - 3 : CM_R_INNER;
+                  const rOuter = isFocused ? CM_R_OUTER + 4 : CM_R_OUTER;
+                  const d = buildAnnularArcPath(CM_CX, CM_CY, rInner, rOuter, startRad, endRad);
+                  return (
+                    <path
+                      key={slice.id}
+                      data-donut-slice={slice.id}
+                      d={d}
+                      fill={slice.hexColor}
+                      opacity={isDimmed ? 0.32 : 1}
+                      style={{
+                        filter: isFocused ? `drop-shadow(0 4px 10px ${slice.hexColor}55)` : undefined,
+                        transition: 'opacity 150ms ease, filter 150ms ease',
+                      }}
+                      className="cursor-pointer"
+                      onMouseEnter={() => setHoveredChannelId(slice.id)}
+                      onMouseLeave={() => setHoveredChannelId(null)}
+                      onClick={() => onNavigateTab?.(slice.tab)}
+                    >
+                      <title>{`${slice.label}: ${fmtNum(slice.primaryValue)} (${slice.sharePct}%)`}</title>
+                    </path>
+                  );
+                })}
+            </g>
 
-            {/* Thin elbow leader lines to perimeter channel callouts */}
+            {/* Smooth curved Bezier leader lines anchored at slice rim */}
             {calloutLayouts.map((c) => {
               const isHovered = hoveredChannelId === c.slice.id;
               const isDimmed = hoveredChannelId !== null && hoveredChannelId !== c.slice.id;
@@ -658,24 +725,21 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
               return (
                 <g
                   key={`leader-${c.slice.id}`}
-                  opacity={isDimmed ? 0.25 : isHovered ? 1 : 0.78}
+                  opacity={isDimmed ? 0.24 : isHovered ? 1 : 0.72}
                   style={{ transition: 'opacity 150ms ease' }}
                 >
-                  <polyline
-                    points={`${c.sx.toFixed(1)},${c.sy.toFixed(1)} ${c.mx.toFixed(1)},${c.my.toFixed(1)} ${c.ex.toFixed(1)},${c.ey.toFixed(1)}`}
+                  <path
+                    d={`M ${c.sx.toFixed(1)} ${c.sy.toFixed(1)} Q ${c.qpx.toFixed(1)} ${c.qpy.toFixed(1)} ${c.ex.toFixed(1)} ${c.ey.toFixed(1)}`}
                     fill="none"
                     stroke={lineColor}
-                    strokeWidth={isHovered ? 1.8 : 1.15}
+                    strokeWidth={isHovered ? 1.85 : 1.35}
                     strokeLinecap="round"
-                    strokeLinejoin="round"
                   />
                   <circle
-                    cx={c.ex}
-                    cy={c.ey}
-                    r={isHovered ? 3 : 2.25}
+                    cx={c.sx}
+                    cy={c.sy}
+                    r={isHovered ? 3.2 : 2.5}
                     fill={lineColor}
-                    stroke={isLight ? '#ffffff' : '#0f172a'}
-                    strokeWidth="1"
                   />
                 </g>
               );
@@ -685,10 +749,10 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             <circle
               cx={CM_CX}
               cy={CM_CY}
-              r={64}
+              r={CM_R_INNER - 5}
               fill={isLight ? '#ffffff' : '#0f172a'}
-              stroke={isLight ? 'rgba(15, 23, 42, 0.07)' : 'rgba(148, 163, 184, 0.16)'}
-              strokeWidth="1.25"
+              stroke={isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(148, 163, 184, 0.18)'}
+              strokeWidth="1"
             />
           </svg>
 
@@ -698,7 +762,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             style={{
               left: `${(CM_CX / CM_VB_W) * 100}%`,
               top: `${(CM_CY / CM_VB_H) * 100}%`,
-              width: `${((64 * 1.72) / CM_VB_W) * 100}%`,
+              width: `${(((CM_R_INNER - 5) * 1.72) / CM_VB_W) * 100}%`,
             }}
           >
             <span
@@ -715,7 +779,7 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
               {focusedChannel ? formatChannelLabel(focusedChannel.shortLabel) : 'NO TASKS'}
             </span>
             <span
-              className={`text-[26px] sm:text-[29px] font-bold font-figure leading-none tracking-tight mt-1 tabular-nums ${
+              className={`text-[24px] sm:text-[27px] font-bold font-figure leading-none tracking-tight mt-1 tabular-nums ${
                 isLight ? 'text-slate-900' : 'text-white'
               }`}
             >
@@ -723,18 +787,16 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             </span>
             {focusedChannel && totalTasks > 0 && (
               <span
-                className="text-[10px] font-figure font-semibold px-2 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap"
-                style={{
-                  color: focusedAccent,
-                  backgroundColor: isLight ? `${focusedAccent}14` : `${focusedAccent}28`,
-                }}
+                className={`text-[10px] font-figure font-semibold px-2 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap ${
+                  isLight ? 'bg-slate-100/95 text-slate-600' : 'bg-slate-800 text-slate-300'
+                }`}
               >
                 {formatSliceCount(focusedChannel)} tasks
               </span>
             )}
           </div>
 
-          {/* 5 Perimeter Callout Badges (aligned directly to leader endpoints) */}
+          {/* 5 Floating Pill Callout Badges */}
           {calloutLayouts.map((c) => {
             const isHovered = hoveredChannelId === c.slice.id;
             const isDimmed = hoveredChannelId !== null && hoveredChannelId !== c.slice.id;
@@ -743,12 +805,12 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
             const posStyle: React.CSSProperties =
               c.side === 'left'
                 ? {
-                    right: `${((CM_VB_W - (c.ex - 4)) / CM_VB_W) * 100}%`,
+                    right: `${((CM_VB_W - c.ex) / CM_VB_W) * 100}%`,
                     top: `${(c.ey / CM_VB_H) * 100}%`,
                     transform: 'translateY(-50%)',
                   }
                 : {
-                    left: `${((c.ex + 4) / CM_VB_W) * 100}%`,
+                    left: `${(c.ex / CM_VB_W) * 100}%`,
                     top: `${(c.ey / CM_VB_H) * 100}%`,
                     transform: 'translateY(-50%)',
                   };
@@ -768,42 +830,33 @@ const ChannelMixCard = React.memo<ChannelMixCardProps>(({
                   ...posStyle,
                   ...(isHovered
                     ? {
-                        borderColor: `${accent}55`,
-                        backgroundColor: isLight ? `${accent}10` : `${accent}24`,
+                        borderColor: accent,
+                        backgroundColor: isLight ? '#ffffff' : `${accent}24`,
                       }
                     : undefined),
                 }}
-                className={`absolute px-1 py-0.5 rounded-md border transition-all duration-150 cursor-pointer flex flex-col leading-tight ${
-                  c.side === 'left' ? 'items-end text-right' : 'items-start text-left'
-                } ${
+                className={`absolute px-2 py-1 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-start text-left leading-tight ${
                   isHovered
-                    ? isLight
-                      ? 'shadow-2xs'
-                      : 'shadow-sm'
+                    ? 'shadow-sm'
                     : isLight
-                      ? 'border-transparent hover:bg-slate-50/90'
-                      : 'border-transparent hover:bg-slate-800/70'
+                      ? 'bg-slate-50/95 border-slate-200/90 hover:bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]'
+                      : 'bg-slate-800/90 border-slate-700/85 hover:bg-slate-800 shadow-xs'
                 } ${isDimmed ? 'opacity-40' : ''}`}
               >
                 <span
-                  className={`inline-flex items-center gap-1 text-[9.5px] sm:text-[10px] font-semibold whitespace-nowrap ${
-                    isLight ? 'text-slate-800' : 'text-slate-100'
+                  className={`inline-flex items-center gap-1.5 text-[9.5px] sm:text-[10px] font-bold whitespace-nowrap ${
+                    isLight ? 'text-slate-900' : 'text-slate-100'
                   }`}
                 >
-                  {c.side === 'right' && (
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
-                  )}
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
                   <span>{label}</span>
-                  {c.side === 'left' && (
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
-                  )}
                 </span>
                 <span
-                  className={`text-[9px] sm:text-[9.5px] font-figure font-semibold tabular-nums whitespace-nowrap ${
+                  className={`text-[9px] sm:text-[9.5px] font-figure font-semibold tabular-nums whitespace-nowrap pl-3 ${
                     isLight ? 'text-slate-500' : 'text-slate-400'
                   }`}
                 >
-                  <strong className={isLight ? 'text-slate-900 font-bold' : 'text-white font-bold'}>
+                  <strong className="font-bold" style={{ color: isLight ? '#1e6091' : '#38bdf8' }}>
                     {c.slice.sharePct}%
                   </strong>{' '}
                   · {formatSliceCount(c.slice)}
@@ -853,35 +906,8 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
   const midBranches = branches.slice(1, 3);
   const compactBranches = branches.slice(3);
 
-  const renderChannelBar = (b: BranchPerfRow, heightClass: string) => {
-    const brTot = Math.max(1, b.totalTasks);
-    const segs = [
-      { key: 'khqr', val: b.khqr, color: CHANNEL_COLORS.khqr },
-      { key: 'sb', val: b.sb, color: CHANNEL_COLORS.sb },
-      { key: 'pos', val: b.pos, color: CHANNEL_COLORS.pos },
-      { key: 'mv', val: b.mv, color: CHANNEL_COLORS.mv },
-      { key: 'cc', val: b.cc, color: CHANNEL_COLORS.cc },
-    ].filter((s) => s.val > 0);
-
-    return (
-      <div
-        className={`w-full ${heightClass} rounded-full overflow-hidden flex gap-px ${
-          isLight ? 'bg-slate-100' : 'bg-slate-800'
-        }`}
-      >
-        {segs.map((seg) => (
-          <div
-            key={seg.key}
-            className="h-full transition-[width] duration-200"
-            style={{ width: `${(seg.val / brTot) * 100}%`, backgroundColor: seg.color }}
-          />
-        ))}
-      </div>
-    );
-  };
-
   const renderTile = (b: BranchPerfRow, rankIdx: number, tier: 'hero' | 'mid' | 'compact') => {
-    const isActive = inspectedBranch?.code === b.code;
+    const isActive = hoveredBranchCode === b.code;
     const sharePct = totalTopTasks > 0 ? ((b.totalTasks / totalTopTasks) * 100).toFixed(1) : '0.0';
     const isHero = tier === 'hero';
     const isCompact = tier === 'compact';
@@ -912,11 +938,13 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
         <div className="flex items-center justify-between gap-1.5 min-w-0">
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             <span
-              className={`inline-flex items-center justify-center rounded-full text-[10px] font-figure font-bold shrink-0 ${
+              className={`inline-flex items-center justify-center rounded-full text-[10px] font-figure font-bold shrink-0 transition-colors ${
                 isHero ? 'w-5 h-5' : 'w-[18px] h-[18px]'
               } ${
-                rankIdx === 0
-                  ? 'bg-[#1e6091] text-white'
+                isActive
+                  ? isLight
+                    ? 'bg-[#1e6091] text-white'
+                    : 'bg-sky-500 text-slate-950'
                   : rankIdx < 3
                   ? isLight
                     ? 'bg-slate-200/85 text-slate-700'
@@ -994,22 +1022,19 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
           <span className="text-[10px] font-mono text-slate-400 shrink-0">Code {b.code}</span>
         </div>
 
-        <div className="space-y-1.5">
-          {renderChannelBar(b, isHero ? 'h-2.5' : isCompact ? 'h-1.5' : 'h-2')}
-          {isHero && (
-            <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10.5px] pt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              <span>
-                KHQR <strong className="font-figure">{fmtNum(b.khqr)}</strong>
-              </span>
-              <span>
-                POS Terminal <strong className="font-figure">{fmtNum(b.pos)}</strong>
-              </span>
-              <span>
-                Sound Box <strong className="font-figure">{fmtNum(b.sb)}</strong>
-              </span>
-            </div>
-          )}
-        </div>
+        {isHero && (
+          <div className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10.5px] pt-1 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+            <span>
+              KHQR <strong className="font-figure">{fmtNum(b.khqr)}</strong>
+            </span>
+            <span>
+              POS Terminal <strong className="font-figure">{fmtNum(b.pos)}</strong>
+            </span>
+            <span>
+              Sound Box <strong className="font-figure">{fmtNum(b.sb)}</strong>
+            </span>
+          </div>
+        )}
       </button>
     );
   };
@@ -1030,35 +1055,32 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
               Top Branches — Visual Performance Graph
             </h3>
             <p className="text-xs text-slate-500 truncate">
-              {activePeriodLabel} proportional Bento output share · hover to inspect or click to view branches
+              {activePeriodLabel} Bento output share · hover to inspect or click to view branches
             </p>
           </div>
         </div>
 
-        {onNavigateTab && (
-          <button
-            type="button"
-            onClick={() => onNavigateTab('branches')}
-            className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150"
+        <div className="flex items-center gap-2.5 shrink-0">
+          <span
+            className={`text-[10.5px] font-figure font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap ${
+              isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
+            }`}
           >
-            All Branches <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-          </button>
-        )}
+            Top {branches.length} · {fmtNum(totalTopTasks)} tasks
+          </span>
+          {onNavigateTab && (
+            <button
+              type="button"
+              onClick={() => onNavigateTab('branches')}
+              className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150"
+            >
+              All Branches <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col justify-between px-6 pb-5 pt-1 gap-3">
-        <div className={`flex flex-wrap items-center justify-between gap-2 text-[11px] pb-2 border-b ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
-          <div className="flex flex-wrap items-center gap-3 text-slate-500">
-            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.khqr }} />KHQR</span>
-            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.sb }} />Sound Box</span>
-            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.pos }} />POS Terminal</span>
-            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.mv }} />Merchant Visit</span>
-            <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.cc }} />Credit Card</span>
-          </div>
-          <span className="text-[11px] font-medium text-slate-500">
-            Top {branches.length} Phnom Penh branches · {fmtNum(totalTopTasks)} tasks
-          </span>
-        </div>
 
         {branches.length === 0 ? (
           <div className="py-10 text-center text-xs text-slate-400">
@@ -1367,12 +1389,49 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   actionQueues,
 }) => {
   const today = todayPP();
+  const currentMonth = today.slice(0, 7);
   const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
   const branchScopedId = !isAdminLike ? (selectedBranch || '') : '';
 
-  const [period, setPeriod] = useState<DashPeriod>('MONTH');
+  const [viewMode, setViewMode] = useState<DashViewMode>('MONTH');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => todayPP().slice(0, 7));
+  const [dateFrom, setDateFrom] = useState<string>(() => todayPP());
+  const [dateTo, setDateTo] = useState<string>(() => todayPP());
+  const [dateMenuOpen, setDateMenuOpen] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement | null>(null);
   const [velocityChannel, setVelocityChannel] = useState<VelocityChannelKey>('ALL');
   const [batteryViewMode, setBatteryViewMode] = useState<'STATUS' | 'WATCHLIST'>('STATUS');
+
+  useEffect(() => {
+    if (!dateMenuOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
+        setDateMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDateMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [dateMenuOpen]);
+
+  const availableMonths = useMemo(() => {
+    const anchor = new Date(`${today}T12:00:00+07:00`);
+    return lastMonthsPP(24, Number.isNaN(anchor.getTime()) ? new Date() : anchor).reverse();
+  }, [today]);
+
+  const minMonthKey = availableMonths[availableMonths.length - 1]?.key || currentMonth;
+
+  const activeMonth = useMemo(() => {
+    if (selectedMonth > currentMonth) return currentMonth;
+    if (selectedMonth < minMonthKey) return minMonthKey;
+    return selectedMonth;
+  }, [selectedMonth, currentMonth, minMonthKey]);
 
   const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
   useEffect(() => {
@@ -1393,13 +1452,80 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     [branches, directoryUsers, cachedStaff]
   );
 
-  const range = useMemo(() => kpiPeriodRange(period), [period]);
+  const range = useMemo(() => {
+    if (viewMode === 'ALL') {
+      return {
+        kpiFrom: null as string | null,
+        kpiTo: null as string | null,
+        ccFrom: null as string | null,
+        ccTo: null as string | null,
+        fromYmd: '',
+        toYmd: '',
+        label: 'All time',
+      };
+    }
+
+    if (viewMode === 'MONTH') {
+      const daysInMonth = monthDaysCount(activeMonth);
+      const fromYmd = `${activeMonth}-01`;
+      const toYmd = `${activeMonth}-${String(daysInMonth).padStart(2, '0')}`;
+      const isCurrent = activeMonth === currentMonth;
+      if (isCurrent) {
+        const cur = kpiPeriodRange('MONTH');
+        return {
+          kpiFrom: cur.from,
+          kpiTo: null,
+          ccFrom: cur.from,
+          ccTo: null,
+          fromYmd,
+          toYmd,
+          label: fmtMonthLabel(activeMonth),
+        };
+      }
+      const startIso = startOfPP(fromYmd);
+      return {
+        kpiFrom: startIso,
+        kpiTo: endOfDayPP(toYmd),
+        ccFrom: startIso,
+        ccTo: startOfPP(addDaysYmd(toYmd, 1)),
+        fromYmd,
+        toYmd,
+        label: fmtMonthLabel(activeMonth),
+      };
+    }
+
+    const rawFrom = dateFrom || today;
+    const rawTo = dateTo || rawFrom;
+    const effFrom = rawFrom <= rawTo ? rawFrom : rawTo;
+    const effTo = rawFrom <= rawTo ? rawTo : rawFrom;
+    const startIso = startOfPP(effFrom);
+    let label: string;
+    if (effFrom === effTo) {
+      if (effFrom === today) label = 'Today';
+      else if (effFrom === addDaysYmd(today, -1)) label = 'Yesterday';
+      else label = fmtLongDay(effFrom);
+    } else if (effFrom.slice(0, 4) === effTo.slice(0, 4)) {
+      label = `${fmtShortDay(effFrom)} – ${fmtShortDay(effTo)}`;
+    } else {
+      label = `${fmtLongDay(effFrom)} – ${fmtLongDay(effTo)}`;
+    }
+
+    return {
+      kpiFrom: startIso,
+      kpiTo: endOfDayPP(effTo),
+      ccFrom: startIso,
+      ccTo: startOfPP(addDaysYmd(effTo, 1)),
+      fromYmd: effFrom,
+      toYmd: effTo,
+      label,
+    };
+  }, [viewMode, activeMonth, currentMonth, dateFrom, dateTo, today]);
 
   const [kpiData, setKpiData] = useState<KpiDashboardData | null>(
-    () => getCachedKpiSummary(range.from, range.to) || getCachedKpiSummary(null, null) || null
+    () => getCachedKpiSummary(range.kpiFrom, range.kpiTo) || getCachedKpiSummary(null, null) || null
   );
   const [ccCounts, setCcCounts] = useState<CcCounts | null>(
-    () => getCachedCcCounts(`${range.from || ''}|${range.to || ''}`) || null
+    () => getCachedCcCounts(`${range.ccFrom || ''}|${range.ccTo || ''}`) || null
   );
   // Instant 0ms cache hydration for materials & SIMs on tab revisit
   const [matBalances, setMatBalances] = useState<MaterialBalance[]>(
@@ -1427,25 +1553,25 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     async (force = false) => {
       const seq = ++periodSeqRef.current;
       const isActive = () => seq === periodSeqRef.current;
-      const hitKpi = !force ? getCachedKpiSummary(range.from, range.to) : undefined;
-      const hitCc = !force ? getCachedCcCounts(`${range.from || ''}|${range.to || ''}`) : undefined;
+      const hitKpi = !force ? getCachedKpiSummary(range.kpiFrom, range.kpiTo) : undefined;
+      const hitCc = !force ? getCachedCcCounts(`${range.ccFrom || ''}|${range.ccTo || ''}`) : undefined;
       if (hitKpi) setKpiData(hitKpi);
       if (hitCc) setCcCounts(hitCc);
       setSyncing(!hitKpi || force);
 
-      const kpiTask = fetchKpiSummary(range.from, range.to, force)
-        .catch(() => fetchKpiSummary(range.from, range.to, true))
+      const kpiTask = fetchKpiSummary(range.kpiFrom, range.kpiTo, force)
+        .catch(() => fetchKpiSummary(range.kpiFrom, range.kpiTo, true))
         .then((val) => {
           if (isActive() && val) setKpiData(val);
         });
-      const ccTask = fetchCcCounts(range.from, range.to, force ? 0 : 45000).then((val) => {
+      const ccTask = fetchCcCounts(range.ccFrom, range.ccTo, force ? 0 : 45000).then((val) => {
         if (isActive() && val) setCcCounts(val);
       });
 
       await Promise.allSettled([kpiTask, ccTask]);
       if (isActive()) setSyncing(false);
     },
-    [range.from, range.to]
+    [range.kpiFrom, range.kpiTo, range.ccFrom, range.ccTo]
   );
 
   // Period-independent material & SIM fleet loader
@@ -1491,20 +1617,40 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     void loadInventoryAndSims(false);
   }, [loadInventoryAndSims]);
 
-  // Idle background warm-up of sibling periods so Today/Week switches swap in 0ms
+  // Idle background warm-up of Today, All time, and previous month so Date/All/Month switches swap in 0ms
   useEffect(() => {
     if (!isSupabaseConfigured || !kpiData || syncing) return;
     let cancelled = false;
     const warm = () => {
       if (cancelled) return;
-      for (const p of ['TODAY', 'WEEK'] as const) {
-        if (p === period) continue;
-        const r = kpiPeriodRange(p);
-        if (!getCachedKpiSummary(r.from, r.to)) {
-          void fetchKpiSummary(r.from, r.to, false).catch(() => {});
+      const prevMonth = shiftMonthYm(currentMonth, -1);
+      const prevEnd = `${prevMonth}-${String(monthDaysCount(prevMonth)).padStart(2, '0')}`;
+      const candidates = [
+        {
+          kpiFrom: startOfPP(today),
+          kpiTo: endOfDayPP(today),
+          ccFrom: startOfPP(today),
+          ccTo: startOfPP(addDaysYmd(today, 1)),
+        },
+        {
+          kpiFrom: null as string | null,
+          kpiTo: null as string | null,
+          ccFrom: null as string | null,
+          ccTo: null as string | null,
+        },
+        {
+          kpiFrom: startOfPP(`${prevMonth}-01`),
+          kpiTo: endOfDayPP(prevEnd),
+          ccFrom: startOfPP(`${prevMonth}-01`),
+          ccTo: startOfPP(addDaysYmd(prevEnd, 1)),
+        },
+      ];
+      for (const c of candidates) {
+        if (!getCachedKpiSummary(c.kpiFrom, c.kpiTo)) {
+          void fetchKpiSummary(c.kpiFrom, c.kpiTo, false).catch(() => {});
         }
-        if (!getCachedCcCounts(`${r.from || ''}|${r.to || ''}`)) {
-          void fetchCcCounts(r.from, r.to, 45000).catch(() => {});
+        if (!getCachedCcCounts(`${c.ccFrom || ''}|${c.ccTo || ''}`)) {
+          void fetchCcCounts(c.ccFrom, c.ccTo, 45000).catch(() => {});
         }
       }
     };
@@ -1521,7 +1667,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [kpiData, syncing, period]);
+  }, [kpiData, syncing, today, currentMonth]);
 
   // Rule lookup map for KPI point valuation
   const ruleMap = useMemo(() => {
@@ -1565,15 +1711,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [kpiData, ppDirectoryScope, branchScopedId, ruleMap]);
 
-  // Full-month (or period-scoped) Daily Cross-Channel Velocity time series (matches KPI Performance daily totals)
+  // Full-month (or date/range-scoped) Daily Cross-Channel Velocity time series (matches KPI Performance daily totals)
   const velocitySeries: CrossChannelDayPoint[] = useMemo(() => {
     const fallbackKpi = !kpiData?.dailyStaff?.length
       ? getCachedKpiSummary(kpiPeriodRange('MONTH').from, kpiPeriodRange('MONTH').to) ??
         getCachedKpiSummary(null, null)
       : undefined;
     const dailyStaff = (kpiData?.dailyStaff?.length ? kpiData.dailyStaff : fallbackKpi?.dailyStaff) || [];
-    const fromYmd = range.from ? todayPP(new Date(range.from)) : '';
-    const toYmd = range.to ? todayPP(new Date(range.to)) : '';
+    const { fromYmd, toYmd } = range;
     const byDay = new Map<
       string,
       {
@@ -1592,7 +1737,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     for (const ds of dailyStaff) {
       if (!ds.day) continue;
       if (fromYmd && ds.day < fromYmd) continue;
-      if (toYmd && ds.day >= toYmd) continue;
+      if (toYmd && ds.day > toYmd) continue;
       const dir = ppDirectoryScope.resolveKpiStaff(ds.staffId, ds.staffName, ds.branchId, ds.branchName);
       if (!dir) continue;
       if (branchScopedId && dir.branchId !== branchScopedId) continue;
@@ -1620,7 +1765,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       for (const bucket of dailyBuckets) {
         if (!bucket.period) continue;
         if (fromYmd && bucket.period < fromYmd) continue;
-        if (toYmd && bucket.period >= toYmd) continue;
+        if (toYmd && bucket.period > toYmd) continue;
         const pts = computeKpiPoints(bucket, ruleMap);
         if (pts.totalTasks <= 0 && (bucket.activeStaff || 0) <= 0) continue;
         byDay.set(bucket.period, {
@@ -1637,23 +1782,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
     }
 
-    // Build contiguous period window: full calendar month for MONTH (day 1 to last day of month),
-    // full Mon–Sun week for WEEK, single day for TODAY, and rolling 30 days for ALL
+    // Build contiguous period window: selected calendar month for MONTH (day 1 to last day of month),
+    // selected date / range for DATE, and rolling 30 days for ALL
     const daysOut: string[] = [];
-    if (period === 'TODAY') {
-      daysOut.push(today);
-    } else if (period === 'WEEK') {
-      const weekStart = fromYmd || addDaysYmd(today, -6);
-      for (let i = 0; i < 7; i++) {
-        daysOut.push(addDaysYmd(weekStart, i));
+    if (viewMode === 'DATE') {
+      const span = Math.max(0, diffDaysYmd(fromYmd, toYmd));
+      const loopStart = span > 180 ? addDaysYmd(toYmd, -179) : fromYmd;
+      const count = Math.max(0, diffDaysYmd(loopStart, toYmd));
+      for (let i = 0; i <= count; i++) {
+        daysOut.push(addDaysYmd(loopStart, i));
       }
-    } else if (period === 'MONTH') {
-      const [yy, mm] = today.split('-').map(Number);
-      const daysInMonth =
-        yy > 0 && mm >= 1 && mm <= 12 ? new Date(Date.UTC(yy, mm, 0)).getUTCDate() : 30;
-      const monthPrefix = `${yy}-${String(mm).padStart(2, '0')}`;
+    } else if (viewMode === 'MONTH') {
+      const daysInMonth = monthDaysCount(activeMonth);
       for (let d = 1; d <= daysInMonth; d++) {
-        daysOut.push(`${monthPrefix}-${String(d).padStart(2, '0')}`);
+        daysOut.push(`${activeMonth}-${String(d).padStart(2, '0')}`);
       }
     } else {
       for (let i = 29; i >= 0; i--) {
@@ -1691,7 +1833,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         dayOfWeek: utcDay >= 0 ? weekdayNames[utcDay] : undefined,
       };
     });
-  }, [kpiData, range.from, range.to, period, today, ppDirectoryScope, branchScopedId, ruleMap]);
+  }, [kpiData, range.fromYmd, range.toYmd, viewMode, activeMonth, today, ppDirectoryScope, branchScopedId, ruleMap]);
 
   // Hardware & Inventory metrics (already scoped by App.tsx to Phnom Penh + Active Staff Directory)
   const hardwareSource = useMemo(
@@ -2265,7 +2407,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     return top;
   }, [activeDevices]);
 
-  const activePeriodLabel = PERIOD_OPTIONS.find((p) => p.id === period)?.label || 'This Month';
+  const activePeriodLabel = range.label;
   const branchScopeDisplay = branchScopedId
     ? `Branch Code ${branchScopedId}`
     : `Phnom Penh · ${fmtNum(branches.length)} branches`;
@@ -2346,9 +2488,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   const kpiSparklines = useMemo(() => {
     const activePeriodDays = velocitySeries.filter((p) => !p.isFuture);
-    // When TODAY (1 day) is selected, build a trailing 14-day curve from cached monthly dailyStaff so the mini graph still displays movement
+    // When a single day is selected, build a trailing 14-day curve anchored on that date so the mini graph still displays movement
     let sparkDays = activePeriodDays;
     if (sparkDays.length <= 1) {
+      const sparkAnchor = range.toYmd && range.toYmd < today ? range.toYmd : today;
       const monthFallback =
         (kpiData?.dailyStaff?.length ? kpiData.dailyStaff : undefined) ??
         getCachedKpiSummary(kpiPeriodRange('MONTH').from, kpiPeriodRange('MONTH').to)?.dailyStaff ??
@@ -2356,7 +2499,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         [];
       const byDayMap = new Map<string, CrossChannelDayPoint>();
       for (let i = 13; i >= 0; i--) {
-        const ymd = addDaysYmd(today, -i);
+        const ymd = addDaysYmd(sparkAnchor, -i);
         byDayMap.set(ymd, {
           label: fmtShortDay(ymd),
           fullLabel: ymd,
@@ -2420,22 +2563,59 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       hardware: analyzeSparkTrend(hwVals, { isLight, unitLabel: '6M fleet' }),
       outreach: analyzeSparkTrend(reachVals, { isLight, unitLabel: 'merchant outreach' }),
     };
-  }, [velocitySeries, kpiData?.dailyStaff, today, ppDirectoryScope, branchScopedId, requisitions, activeDevices, hardwareSummary.total, isLight]);
+  }, [velocitySeries, kpiData?.dailyStaff, range.toYmd, today, ppDirectoryScope, branchScopedId, requisitions, activeDevices, hardwareSummary.total, isLight]);
+
+  const effDateFrom = range.fromYmd || today;
+  const effDateTo = range.toYmd || effDateFrom;
+  const isSingleDateSelected = viewMode === 'DATE' && effDateFrom === effDateTo;
+  const dateStepDays = isSingleDateSelected ? 1 : Math.max(1, diffDaysYmd(effDateFrom, effDateTo) + 1);
+  const canStepDateForward = isSingleDateSelected
+    ? effDateTo < today
+    : addDaysYmd(effDateFrom, dateStepDays) <= today;
+
+  const stepSelectedDate = (direction: -1 | 1) => {
+    const delta = direction * dateStepDays;
+    if (isSingleDateSelected) {
+      const candidate = addDaysYmd(effDateFrom, delta);
+      const clamped = candidate > today ? today : candidate;
+      setDateFrom(clamped);
+      setDateTo(clamped);
+      return;
+    }
+    const nextFrom = addDaysYmd(effDateFrom, delta);
+    const nextTo = addDaysYmd(effDateTo, delta);
+    if (direction > 0 && nextFrom > today) return;
+    setDateFrom(nextFrom);
+    setDateTo(nextTo > today ? today : nextTo);
+  };
+
+  const stepSelectedMonth = (direction: -1 | 1) => {
+    const next = shiftMonthYm(activeMonth, direction);
+    if (next > currentMonth) {
+      setSelectedMonth(currentMonth);
+    } else if (next < minMonthKey) {
+      setSelectedMonth(minMonthKey);
+    } else {
+      setSelectedMonth(next);
+    }
+  };
+
+  const dateButtonLabel = formatDateButtonLabel(effDateFrom, effDateTo, today);
 
   return (
     <div className="space-y-5 apple-tab-panel" aria-label="Executive Operations Overview">
       {/* ───────────── 1 & 2. iOS MINIMAL HERO + 4 INSET KPI SQUIRCLES ───────────── */}
       <div
         data-hero-backdrop="dashboard"
-        className={`relative overflow-hidden rounded-3xl p-5 sm:p-6 border ${
+        className={`relative ${dateMenuOpen ? 'z-30' : ''} rounded-3xl p-5 sm:p-6 border ${
           isLight
             ? 'bg-white border-slate-200/75 text-slate-900 shadow-[0_1px_10px_rgba(15,23,42,0.025)]'
             : 'bg-[#161a24] border-slate-800 text-slate-100'
         }`}
       >
-        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="relative z-20 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
           <div className="space-y-1 min-w-0">
-            <h1 className={`text-2xl sm:text-[26px] font-bold tracking-tight flex items-center gap-3 leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <h1 className={`text-xl sm:text-[22px] 2xl:text-[25px] sm:whitespace-nowrap font-bold tracking-tight flex items-center gap-2.5 leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
               <span
                 className={`w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 shadow-xs ${
                   isLight
@@ -2451,15 +2631,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   : 'Executive Operations Overview'}
               </span>
             </h1>
-            <p className={`text-sm leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
+            <p className={`text-[13.5px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
               <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>{branchScopeDisplay}</span>
               <span className="mx-1.5 text-slate-400" aria-hidden="true">·</span>
               <span>{fmtNum(scopedKpiTotals.activeStaffCount)} active staff across 5 field channels</span>
             </p>
           </div>
 
-          <div className="flex flex-wrap xl:flex-nowrap xl:justify-end items-center gap-2 shrink-0">
-            {/* iOS Period Pill Switcher */}
+          <div className="flex flex-wrap xl:flex-nowrap xl:justify-end items-center gap-1.5 shrink-0">
+            {/* iOS View Mode Switcher: Date / Month (default: current month) / All */}
             <div
               className={`inline-flex items-center p-1 rounded-full border gap-0.5 ${
                 isLight
@@ -2469,16 +2649,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               role="tablist"
               aria-label="Dashboard Time Period"
             >
-              {PERIOD_OPTIONS.map((opt) => {
-                const active = period === opt.id;
+              {VIEW_MODE_OPTIONS.map((opt) => {
+                const active = viewMode === opt.id;
                 return (
                   <button
                     key={opt.id}
                     type="button"
                     role="tab"
                     aria-selected={active}
-                    onClick={() => setPeriod(opt.id)}
-                    className={`relative px-3 py-1 rounded-full text-xs cursor-pointer transition-colors duration-150 ${
+                    onClick={() => {
+                      setViewMode(opt.id);
+                      if (opt.id !== 'DATE') setDateMenuOpen(false);
+                    }}
+                    className={`relative px-2.5 py-1 rounded-full text-xs cursor-pointer transition-colors duration-150 ${
                       active
                         ? isLight
                           ? 'text-slate-900 font-bold'
@@ -2503,10 +2686,306 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               })}
             </div>
 
+            {/* Contextual Month Selector (shown when Month view is active) */}
+            {viewMode === 'MONTH' && (
+              <div
+                className={`inline-flex items-center p-0.5 rounded-full border gap-0.5 ${
+                  isLight
+                    ? 'bg-[#f8f9fb] border-slate-200/80 text-slate-700'
+                    : 'bg-slate-900/80 border-slate-700 text-slate-200'
+                }`}
+              >
+                <button
+                  type="button"
+                  disabled={activeMonth <= minMonthKey}
+                  onClick={() => stepSelectedMonth(-1)}
+                  aria-label="Previous month"
+                  title="Previous month"
+                  className={`p-1 rounded-full transition-colors cursor-pointer disabled:opacity-35 disabled:pointer-events-none ${
+                    isLight ? 'hover:bg-slate-200/70 text-slate-600' : 'hover:bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+                <div className="relative inline-flex items-center">
+                  <Calendar
+                    className={`w-3.5 h-3.5 ml-1.5 pointer-events-none shrink-0 ${
+                      isLight ? 'text-[#004e75]' : 'text-sky-400'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <select
+                    aria-label="Select month"
+                    value={activeMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    style={{ colorScheme: isLight ? 'light' : 'dark' }}
+                    className={`appearance-none bg-transparent pl-1.5 pr-5 py-1 text-xs font-semibold outline-none cursor-pointer ${
+                      isLight ? 'text-slate-800' : 'text-slate-100'
+                    }`}
+                  >
+                    {availableMonths.map((m) => (
+                      <option
+                        key={m.key}
+                        value={m.key}
+                        className={isLight ? 'bg-white text-slate-800' : 'bg-slate-900 text-slate-100'}
+                      >
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    className={`w-3 h-3 absolute right-1.5 pointer-events-none ${
+                      isLight ? 'text-slate-500' : 'text-slate-400'
+                    }`}
+                    aria-hidden="true"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={activeMonth >= currentMonth}
+                  onClick={() => stepSelectedMonth(1)}
+                  aria-label="Next month"
+                  title="Next month"
+                  className={`p-1 rounded-full transition-colors cursor-pointer disabled:opacity-35 disabled:pointer-events-none ${
+                    isLight ? 'hover:bg-slate-200/70 text-slate-600' : 'hover:bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+              </div>
+            )}
+
+            {/* Contextual Date / Date-Range Selector (shown when Date view is active) */}
+            {viewMode === 'DATE' && (
+              <div ref={datePickerRef} className="relative">
+                <div
+                  className={`inline-flex items-center p-0.5 rounded-full border gap-0.5 ${
+                    isLight
+                      ? 'bg-[#f8f9fb] border-slate-200/80 text-slate-700'
+                      : 'bg-slate-900/80 border-slate-700 text-slate-200'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => stepSelectedDate(-1)}
+                    aria-label="Previous date"
+                    title="Previous date"
+                    className={`p-1 rounded-full transition-colors cursor-pointer ${
+                      isLight ? 'hover:bg-slate-200/70 text-slate-600' : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDateMenuOpen((v) => !v)}
+                    aria-expanded={dateMenuOpen}
+                    aria-haspopup="dialog"
+                    aria-label="Select specific date or range"
+                    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap ${
+                      isLight ? 'hover:bg-slate-200/60 text-slate-800' : 'hover:bg-slate-800 text-slate-100'
+                    }`}
+                  >
+                    <Calendar
+                      className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-[#004e75]' : 'text-sky-400'}`}
+                      aria-hidden="true"
+                    />
+                    <span>{dateButtonLabel}</span>
+                    <ChevronDown
+                      className={`w-3 h-3 shrink-0 transition-transform duration-150 ${
+                        dateMenuOpen ? 'rotate-180' : ''
+                      } ${isLight ? 'text-slate-500' : 'text-slate-400'}`}
+                      aria-hidden="true"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canStepDateForward}
+                    onClick={() => stepSelectedDate(1)}
+                    aria-label="Next date"
+                    title="Next date"
+                    className={`p-1 rounded-full transition-colors cursor-pointer disabled:opacity-35 disabled:pointer-events-none ${
+                      isLight ? 'hover:bg-slate-200/70 text-slate-600' : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                </div>
+
+                {dateMenuOpen && (
+                  <div
+                    role="dialog"
+                    aria-label="Select Dashboard Date"
+                    className={`absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-[min(336px,calc(100vw-2.5rem))] rounded-2xl border shadow-xl p-3.5 z-50 space-y-3 ${
+                      isLight
+                        ? 'bg-white border-slate-200/90 text-slate-800'
+                        : 'bg-[#1a1f2c] border-slate-700 text-slate-100'
+                    }`}
+                  >
+                    <div>
+                      <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                        Quick Picks
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(() => {
+                          const yest = addDaysYmd(today, -1);
+                          const wkStart = weekMondayYmd(today);
+                          const wkEnd = addDaysYmd(wkStart, 6);
+                          const presets = [
+                            { label: 'Today', from: today, to: today },
+                            { label: 'Yesterday', from: yest, to: yest },
+                            { label: 'This Week', from: wkStart, to: wkEnd },
+                            { label: 'Last 7 Days', from: addDaysYmd(today, -6), to: today },
+                            { label: 'Last 30 Days', from: addDaysYmd(today, -29), to: today },
+                          ];
+                          return presets.map((p) => {
+                            const active = effDateFrom === p.from && effDateTo === p.to;
+                            return (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => {
+                                  setDateFrom(p.from);
+                                  setDateTo(p.to);
+                                  setDateMenuOpen(false);
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+                                  active
+                                    ? isLight
+                                      ? 'bg-[#004e75] text-white border-[#004e75] font-semibold shadow-2xs'
+                                      : 'bg-sky-600 text-white border-sky-500 font-semibold shadow-2xs'
+                                    : isLight
+                                      ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                                      : 'bg-slate-800/80 hover:bg-slate-800 text-slate-200 border-slate-700'
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+
+                    <div className={`pt-2.5 border-t ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
+                      <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                        Select Specific Date
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="date"
+                          value={isSingleDateSelected ? effDateFrom : ''}
+                          max={today}
+                          aria-label="Select date"
+                          style={{ colorScheme: isLight ? 'light' : 'dark' }}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (!v) return;
+                            const clamped = v > today ? today : v;
+                            setDateFrom(clamped);
+                            setDateTo(clamped);
+                          }}
+                          className={`flex-1 min-w-0 px-2.5 py-1.5 rounded-xl text-xs font-mono border outline-none ${
+                            isLight
+                              ? 'border-slate-200 bg-slate-50 text-slate-800 focus:border-[#004e75]'
+                              : 'border-slate-700 bg-slate-900 text-slate-100 focus:border-sky-500'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDateFrom(today);
+                            setDateTo(today);
+                          }}
+                          className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border cursor-pointer shrink-0 ${
+                            isLight
+                              ? 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
+                              : 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
+                          }`}
+                        >
+                          Today
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className={`pt-2.5 border-t ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
+                      <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                        Custom Date Range
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">From</label>
+                          <input
+                            type="date"
+                            value={dateFrom}
+                            max={dateTo || today}
+                            aria-label="From date"
+                            style={{ colorScheme: isLight ? 'light' : 'dark' }}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (!v) return;
+                              const clamped = v > today ? today : v;
+                              setDateFrom(clamped);
+                              if (clamped > dateTo) setDateTo(clamped);
+                            }}
+                            className={`w-full px-2 py-1.5 rounded-xl text-[11px] font-mono border outline-none ${
+                              isLight
+                                ? 'border-slate-200 bg-slate-50 text-slate-800 focus:border-[#004e75]'
+                                : 'border-slate-700 bg-slate-900 text-slate-100 focus:border-sky-500'
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">To</label>
+                          <input
+                            type="date"
+                            value={dateTo}
+                            min={dateFrom || undefined}
+                            max={today}
+                            aria-label="To date"
+                            style={{ colorScheme: isLight ? 'light' : 'dark' }}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (!v) return;
+                              const clamped = v > today ? today : v;
+                              setDateTo(clamped);
+                              if (clamped < dateFrom) setDateFrom(clamped);
+                            }}
+                            className={`w-full px-2 py-1.5 rounded-xl text-[11px] font-mono border outline-none ${
+                              isLight
+                                ? 'border-slate-200 bg-slate-50 text-slate-800 focus:border-[#004e75]'
+                                : 'border-slate-700 bg-slate-900 text-slate-100 focus:border-sky-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`pt-2 border-t flex items-center justify-between ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
+                      <span className="text-[11px] text-slate-400 tabular-nums">
+                        {dateButtonLabel}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setDateMenuOpen(false)}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-semibold cursor-pointer ${
+                          isLight
+                            ? 'bg-slate-900 text-white hover:bg-slate-800'
+                            : 'bg-sky-600 text-white hover:bg-sky-500'
+                        }`}
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Directory Scope Badge (Admin HQ) */}
             {isAdminLike && !branchScopedId && (
               <span
-                className={`inline-flex items-center gap-1.5 text-xs rounded-full border px-3.5 py-1.5 font-semibold whitespace-nowrap ${
+                className={`inline-flex items-center gap-1.5 text-[11.5px] rounded-full border px-2.5 py-1 font-semibold whitespace-nowrap ${
                   isLight
                     ? 'border-slate-200/70 bg-[#f8f9fb] text-slate-700'
                     : 'border-slate-700 bg-slate-900/80 text-slate-200'
@@ -2521,7 +3000,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <button
               type="button"
               onClick={() => void handleSyncAll()}
-              className={`btn-press px-3.5 py-1.5 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
+              className={`btn-press px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
                 isLight
                   ? 'border-slate-200/70 bg-[#f8f9fb] hover:bg-slate-100 text-slate-700'
                   : 'border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-200'
@@ -2536,7 +3015,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <button
                 type="button"
                 onClick={onOpenExportModal}
-                className={`btn-press px-3.5 py-1.5 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
+                className={`btn-press px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
                   isLight
                     ? 'border-slate-200/70 bg-[#f8f9fb] hover:bg-slate-100 text-slate-800'
                     : 'border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-100'
@@ -2919,18 +3398,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-medium whitespace-nowrap ${
                                 isLight
                                   ? holidayDaysList.length > 0
-                                    ? 'bg-rose-50/85 border-rose-200/85 text-rose-700'
+                                    ? 'bg-amber-50/90 border-amber-200/90 text-amber-800'
                                     : 'bg-slate-50/70 border-slate-200/80 text-slate-500'
                                   : holidayDaysList.length > 0
-                                  ? 'bg-rose-950/45 border-rose-800/70 text-rose-300'
+                                  ? 'bg-amber-950/45 border-amber-800/70 text-amber-300'
                                   : 'bg-slate-800/60 border-slate-700/80 text-slate-400'
                               }`}
                             >
                               <span
                                 className={`w-3 h-3 rounded-[3px] border border-dashed relative overflow-hidden shrink-0 ${
                                   isLight
-                                    ? 'bg-rose-500/15 border-rose-400/70'
-                                    : 'bg-rose-400/20 border-rose-400/65'
+                                    ? 'bg-amber-500/15 border-amber-400/75'
+                                    : 'bg-amber-400/20 border-amber-400/65'
                                 }`}
                               >
                                 <span
@@ -2946,7 +3425,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               {holidayDaysList.length > 0 && (
                                 <span
                                   className={`font-figure font-semibold tabular-nums ${
-                                    isLight ? 'text-rose-800' : 'text-rose-200'
+                                    isLight ? 'text-amber-900' : 'text-amber-200'
                                   }`}
                                 >
                                   {holidayDaysList.length}d
