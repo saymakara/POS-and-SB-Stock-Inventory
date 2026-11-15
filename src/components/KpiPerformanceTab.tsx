@@ -7,7 +7,7 @@ import {
   ClipboardList, LayoutGrid, List, MapPin,
 } from 'lucide-react';
 import {
-  Bar, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart, Line,
+  Area, XAxis, YAxis, Tooltip, CartesianGrid, ComposedChart,
 } from 'recharts';
 import { Branch, User, UserRole } from '../types';
 import { Pager } from './Pager';
@@ -233,31 +233,15 @@ function remapMetricSortKey(key: string, next: KpiMetricMode, allowStaffPerRatio
   return key;
 }
 
-interface KpiTargetDonutChannel {
-  key: 'khqr' | 'sb' | 'pos' | 'mv' | 'cc';
-  category: KpiCategory;
-  label: string;
-  color: string;
-  pts: number;
-  tasks: number;
-}
-
 interface KpiTargetComparisonDonutProps {
   periodLabel: string;
   targetLabel: string;
   actualPoints: number;
   targetPoints: number;
-  totalTasks: number;
-  activeBranchCount: number;
-  branchesOnTarget: number;
-  showPacingTick: boolean;
+  showPacing: boolean;
   pacingRatio: number;
   elapsedWorkDays: number;
   totalWorkDays: number;
-  channels: KpiTargetDonutChannel[];
-  activeCategoryFilter: 'ALL' | KpiCategory;
-  onSelectCategory: (cat: 'ALL' | KpiCategory) => void;
-  onViewBranches: () => void;
 }
 
 const KPI_DONUT_VB = 216;
@@ -268,95 +252,104 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
   targetLabel,
   actualPoints,
   targetPoints,
-  totalTasks,
-  activeBranchCount,
-  branchesOnTarget,
-  showPacingTick,
+  showPacing,
   pacingRatio,
   elapsedWorkDays,
   totalWorkDays,
-  channels,
-  activeCategoryFilter,
-  onSelectCategory,
-  onViewBranches,
 }) => {
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [hoveredKey, setHoveredKey] = useState<'actual' | 'remaining' | 'pace' | 'target' | null>(null);
   const safeTarget = Math.max(0, targetPoints);
   const safeActual = Math.max(0, actualPoints);
   const gapPts = Math.max(0, safeTarget - safeActual);
   const surplusPts = Math.max(0, safeActual - safeTarget);
   const isMet = safeTarget > 0 && safeActual >= safeTarget;
   const achievementPct = safeTarget > 0 ? Math.min(999, Math.round((safeActual / safeTarget) * 1000) / 10) : 0;
+  const gapPct = safeTarget > 0 ? Math.max(0, Math.round((gapPts / safeTarget) * 1000) / 10) : 0;
 
-  const isAheadOfPace = !isMet && showPacingTick && safeTarget > 0 && (safeActual / safeTarget) >= pacingRatio;
+  const effectivePaceRatio = showPacing ? Math.min(1, Math.max(0.01, pacingRatio)) : 1;
+  const expectedPacePct = Math.round(effectivePaceRatio * 1000) / 10;
+  const expectedPacePts = Math.round(safeTarget * effectivePaceRatio * 10) / 10;
+  const paceDeltaPts = Math.round((safeActual - expectedPacePts) * 10) / 10;
+  const paceAttainmentPct = expectedPacePts > 0
+    ? Math.min(999, Math.round((safeActual / expectedPacePts) * 1000) / 10)
+    : 0;
+  const isAheadOfPace = safeTarget > 0 && safeActual >= expectedPacePts;
+
   const statusBadge = isMet
     ? { label: 'Target Met', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200/80', dot: '#2d6a4f' }
     : isAheadOfPace
       ? { label: 'Ahead of Pace', cls: 'bg-sky-50 text-[#1e6091] border-sky-200/80', dot: '#1e6091' }
-      : { label: 'In Progress', cls: 'bg-amber-50 text-amber-700 border-amber-200/80', dot: '#f59e0b' };
+      : { label: 'Behind Pace', cls: 'bg-amber-50 text-amber-700 border-amber-200/80', dot: '#f59e0b' };
 
-  const slices = useMemo(() => {
-    const denom = Math.max(safeTarget, safeActual);
-    if (denom <= 0) return [];
-    const list: Array<{
-      key: string;
-      label: string;
-      color: string;
-      pts: number;
-      tasks: number;
-      frac: number;
-      category?: KpiCategory;
-    }> = [];
-    for (const ch of channels) {
-      if (ch.pts <= 0) continue;
-      list.push({
-        key: ch.key,
-        label: ch.label,
-        color: ch.color,
-        pts: ch.pts,
-        tasks: ch.tasks,
-        frac: ch.pts / denom,
-        category: ch.category,
-      });
+  const actualColor = isMet ? '#2d6a4f' : '#1e6091';
+  const denom = Math.max(safeTarget, safeActual);
+  const actualFrac = safeTarget > 0 ? Math.min(1, safeActual / Math.max(safeTarget, safeActual)) : 0;
+  const gapFrac = safeTarget > 0 && gapPts > 0 ? gapPts / denom : 0;
+
+  const startAngle = -Math.PI / 2;
+  const fullCircle = Math.PI * 2;
+  const hasGapSlice = !isMet && gapFrac > 0.002 && actualFrac > 0.002;
+  const gapTrim = hasGapSlice ? Math.min(0.026, actualFrac * fullCircle * 0.2, gapFrac * fullCircle * 0.2) : 0;
+
+  const actualEndAngle = startAngle + actualFrac * fullCircle;
+  const remainingStartAngle = actualEndAngle;
+  const remainingEndAngle = startAngle + fullCircle;
+
+  const pacingTickAngle = startAngle + effectivePaceRatio * fullCircle;
+  const hasPacingTick = showPacing && safeTarget > 0 && effectivePaceRatio > 0 && effectivePaceRatio < 1;
+
+  const centerReadout = (() => {
+    if (hoveredKey === 'actual') {
+      return {
+        dot: actualColor,
+        top: 'Actual',
+        pct: `${achievementPct}%`,
+        pill: { text: `${fmtPts(safeActual)} pts`, color: actualColor, bg: `${actualColor}18` },
+      };
     }
-    if (gapPts > 0) {
-      list.push({
-        key: 'remaining',
-        label: 'Remaining Gap',
-        color: '#e2e8f0',
-        pts: gapPts,
-        tasks: 0,
-        frac: gapPts / denom,
-      });
+    if (hoveredKey === 'remaining') {
+      return {
+        dot: '#94a3b8',
+        top: 'Remaining',
+        pct: `${gapPct}%`,
+        pill: { text: `${fmtPts(gapPts)} left`, color: '#475569', bg: 'rgba(148, 163, 184, 0.16)' },
+      };
     }
-    let accRad = -Math.PI / 2;
-    return list.map((item) => {
-      const spanRad = item.frac * Math.PI * 2;
-      const startRad = accRad;
-      accRad += spanRad;
-      return { ...item, startRad, spanRad };
-    });
-  }, [channels, safeTarget, safeActual, gapPts]);
+    if (hoveredKey === 'pace') {
+      const paceCol = isAheadOfPace ? '#1e6091' : '#d97706';
+      return {
+        dot: '#0f172a',
+        top: 'Pace Rate',
+        pct: `${paceAttainmentPct}%`,
+        pill: {
+          text: `${paceDeltaPts >= 0 ? '+' : '-'}${fmtPts(Math.abs(paceDeltaPts))} pts`,
+          color: paceCol,
+          bg: isAheadOfPace ? 'rgba(30, 96, 145, 0.12)' : 'rgba(245, 158, 11, 0.14)',
+        },
+      };
+    }
+    if (hoveredKey === 'target') {
+      return {
+        dot: '#475569',
+        top: targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel,
+        pct: '100%',
+        pill: { text: `${fmtPts(safeTarget)} pts`, color: '#334155', bg: 'rgba(15, 23, 42, 0.08)' },
+      };
+    }
+    return {
+      dot: statusBadge.dot,
+      top: 'Achievement',
+      pct: `${achievementPct}%`,
+      pill: isMet
+        ? { text: `+${fmtPts(surplusPts)} surplus`, color: '#2d6a4f', bg: 'rgba(45, 106, 79, 0.12)' }
+        : { text: `${fmtPts(gapPts)} left`, color: '#1e6091', bg: 'rgba(30, 96, 145, 0.12)' },
+    };
+  })();
 
-  const hoveredSlice = hoveredKey ? slices.find((s) => s.key === hoveredKey) || null : null;
-  const centerTop = hoveredSlice
-    ? { dot: hoveredSlice.key === 'remaining' ? '#94a3b8' : hoveredSlice.color, text: hoveredSlice.label }
-    : { dot: statusBadge.dot, text: 'Of Target' };
-  const centerPct = hoveredSlice
-    ? safeTarget > 0
-      ? `${Math.min(999, Math.round((hoveredSlice.pts / safeTarget) * 1000) / 10)}%`
-      : '0%'
-    : `${achievementPct}%`;
-  const centerPill = hoveredSlice
-    ? hoveredSlice.key === 'remaining'
-      ? { text: `${fmtPts(gapPts)} left`, color: '#475569', bg: 'rgba(148, 163, 184, 0.16)' }
-      : { text: `${fmtPts(hoveredSlice.pts)} pts · ${fmtInt(hoveredSlice.tasks)}`, color: hoveredSlice.color, bg: `${hoveredSlice.color}18` }
-    : isMet
-      ? { text: `+${fmtPts(surplusPts)} surplus`, color: '#2d6a4f', bg: 'rgba(45, 106, 79, 0.12)' }
-      : { text: `${fmtPts(gapPts)} to target`, color: '#1e6091', bg: 'rgba(30, 96, 145, 0.12)' };
-
-  const denomForBars = Math.max(safeTarget, safeActual, 1);
-  const pacingTickAngle = -Math.PI / 2 + Math.min(1, Math.max(0, pacingRatio)) * Math.PI * 2;
+  const actualBarWidth = safeTarget > 0 ? Math.max(safeActual > 0 ? 3 : 0, Math.min(100, (safeActual / safeTarget) * 100)) : 0;
+  const paceBarWidth = Math.max(0, Math.min(100, expectedPacePct));
+  const targetTitle = targetLabel === 'Monthly target' ? 'Monthly Target' : targetLabel;
+  const paceLabel = showPacing ? `Expected Pace · Day ${elapsedWorkDays}/${totalWorkDays}` : 'Expected Pace';
 
   return (
     <div
@@ -366,68 +359,59 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
       <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <h3 className="text-[13px] font-semibold text-slate-900 truncate">
-            {targetLabel === 'Monthly target' ? 'Monthly Target vs Actual' : `${targetLabel} vs Actual`}{' '}
+            {targetTitle} vs Actual Achievement{' '}
             <span className="text-slate-400 font-normal">· {periodLabel}</span>
           </h3>
           <p className="text-[11px] text-slate-500 truncate">
-            Actual output vs {fmtInt(activeBranchCount)} active branches’ {targetLabel.toLowerCase()}
+            Target attainment, achievement percentage &amp; expected pace
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10.5px] font-semibold ${statusBadge.cls}`}>
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: statusBadge.dot }} />
-            {statusBadge.label}
-          </span>
-          <button
-            type="button"
-            onClick={onViewBranches}
-            className="text-xs font-semibold text-[#004e75] hover:underline cursor-pointer whitespace-nowrap"
-          >
-            Branches ({activeBranchCount}) →
-          </button>
-        </div>
+        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[10.5px] font-semibold shrink-0 ${statusBadge.cls}`}>
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: statusBadge.dot }} />
+          {statusBadge.label}
+        </span>
       </div>
 
       <div className="px-4 sm:px-5 py-3 flex-1 flex flex-col justify-between gap-2.5">
-        {/* Actual vs Monthly Target Comparison Strip */}
+        {/* Actual Achievement vs Monthly Target Data Strip */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-xl bg-sky-50/60 border border-sky-200/60 px-3 py-1.5">
+          <div className="rounded-xl bg-sky-50/60 border border-sky-200/60 px-3 py-2">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              Actual Points
+              Actual Achievement
             </div>
-            <div className="flex items-baseline justify-between gap-1.5 mt-0.5">
+            <div className="flex items-baseline justify-between gap-1.5 mt-1">
               <span className="font-figure text-[17px] font-bold text-slate-900 tabular-nums leading-none">
                 {fmtPts(safeActual)}
               </span>
-              <span className="text-[10.5px] font-medium text-slate-500 tabular-nums whitespace-nowrap">
-                {fmtInt(totalTasks)} tasks
+              <span className="text-[11px] font-figure font-bold tabular-nums whitespace-nowrap" style={{ color: actualColor }}>
+                {achievementPct}%
               </span>
             </div>
           </div>
 
-          <div className="rounded-xl bg-slate-50/90 border border-slate-200/80 px-3 py-1.5">
+          <div className="rounded-xl bg-slate-50/90 border border-slate-200/80 px-3 py-2">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 truncate">
-              {targetLabel}
+              {targetTitle}
             </div>
-            <div className="flex items-baseline justify-between gap-1.5 mt-0.5">
+            <div className="flex items-baseline justify-between gap-1.5 mt-1">
               <span className="font-figure text-[17px] font-bold text-slate-900 tabular-nums leading-none">
                 {fmtPts(safeTarget)}
               </span>
-              <span className="text-[10.5px] font-medium text-slate-500 tabular-nums whitespace-nowrap">
-                {branchesOnTarget}/{activeBranchCount} ≥100%
+              <span className={`text-[10.5px] font-medium tabular-nums whitespace-nowrap ${isMet ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
+                {isMet ? `+${fmtPts(surplusPts)} pts` : `${fmtPts(gapPts)} left`}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Sculpted Precision Target Donut */}
+        {/* Sculpted Precision Target vs Actual Donut */}
         <div className="flex-1 flex items-center justify-center py-0.5">
           <div className="relative w-[196px] h-[196px] sm:w-[208px] sm:h-[208px] flex items-center justify-center">
             <svg
               viewBox={`0 0 ${KPI_DONUT_VB} ${KPI_DONUT_VB}`}
               className="w-full h-full overflow-visible"
               role="img"
-              aria-label={`Monthly Target vs Actual Donut Chart: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points)`}
+              aria-label={`${targetTitle} vs Actual Achievement Donut Chart: ${achievementPct}% achieved (${fmtPts(safeActual)} of ${fmtPts(safeTarget)} points), Expected pace ${expectedPacePct}%`}
               data-testid="kpi-target-donut-svg"
             >
               {/* Outer instrument bezel */}
@@ -451,67 +435,101 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
                 strokeWidth={22}
               />
 
-              {/* Channel + Remaining Gap Arcs */}
-              {slices.length === 1 && (
+              {/* Full Ring when Target Met (>= 100%) */}
+              {safeTarget > 0 && isMet && (
                 <circle
-                  data-kpi-target-slice={slices[0].key}
+                  data-kpi-target-slice="actual"
                   cx={KPI_DONUT_C}
                   cy={KPI_DONUT_C}
                   r={81}
                   fill="none"
-                  stroke={slices[0].color}
-                  strokeWidth={hoveredKey === slices[0].key ? 26 : 22}
+                  stroke={actualColor}
+                  strokeWidth={hoveredKey === 'actual' ? 26 : 22}
                   className="cursor-pointer transition-all duration-150"
-                  onMouseEnter={() => setHoveredKey(slices[0].key)}
+                  onMouseEnter={() => setHoveredKey('actual')}
                   onMouseLeave={() => setHoveredKey(null)}
-                  onClick={() => slices[0].category && onSelectCategory(activeCategoryFilter === slices[0].category ? 'ALL' : slices[0].category)}
-                />
+                >
+                  <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
+                </circle>
               )}
 
-              {slices.length > 1 &&
-                slices.map((s) => {
-                  const isFocused = hoveredKey === s.key || (s.category && activeCategoryFilter === s.category);
-                  const isDimmed = hoveredKey !== null && hoveredKey !== s.key;
-                  const gapTrim = Math.min(0.028, s.spanRad * 0.22);
-                  const a0 = s.startRad + gapTrim / 2;
-                  const a1 = s.startRad + s.spanRad - gapTrim;
-                  const rIn = isFocused ? 68 : 70;
-                  const rOut = isFocused ? 96 : 92;
-                  const d = buildAnnularArcPath(KPI_DONUT_C, KPI_DONUT_C, rIn, rOut, a0, a1);
-                  return (
+              {/* Split Actual Achievement vs Remaining Target Arcs */}
+              {safeTarget > 0 && !isMet && (
+                <>
+                  {gapFrac > 0.002 && (
                     <path
-                      key={s.key}
-                      data-kpi-target-slice={s.key}
-                      d={d}
-                      fill={s.color}
-                      opacity={isDimmed ? 0.34 : 1}
+                      data-kpi-target-slice="remaining"
+                      d={buildAnnularArcPath(
+                        KPI_DONUT_C,
+                        KPI_DONUT_C,
+                        hoveredKey === 'remaining' ? 68 : 70,
+                        hoveredKey === 'remaining' ? 96 : 92,
+                        remainingStartAngle + gapTrim / 2,
+                        remainingEndAngle - gapTrim / 2
+                      )}
+                      fill="#e2e8f0"
+                      opacity={hoveredKey !== null && hoveredKey !== 'remaining' ? 0.45 : 1}
+                      style={{ transition: 'opacity 150ms ease' }}
+                      className="cursor-pointer"
+                      onMouseEnter={() => setHoveredKey('remaining')}
+                      onMouseLeave={() => setHoveredKey(null)}
+                    >
+                      <title>{`Remaining to Target: ${fmtPts(gapPts)} pts (${gapPct}%)`}</title>
+                    </path>
+                  )}
+
+                  {actualFrac > 0.002 && (
+                    <path
+                      data-kpi-target-slice="actual"
+                      d={buildAnnularArcPath(
+                        KPI_DONUT_C,
+                        KPI_DONUT_C,
+                        hoveredKey === 'actual' ? 68 : 70,
+                        hoveredKey === 'actual' ? 96 : 92,
+                        startAngle + gapTrim / 2,
+                        actualEndAngle - gapTrim / 2
+                      )}
+                      fill={actualColor}
+                      opacity={hoveredKey !== null && hoveredKey !== 'actual' ? 0.42 : 1}
                       style={{
-                        filter: isFocused && s.key !== 'remaining' ? `drop-shadow(0 4px 10px ${s.color}48)` : undefined,
+                        filter: hoveredKey === 'actual' ? `drop-shadow(0 4px 10px ${actualColor}48)` : undefined,
                         transition: 'opacity 150ms ease, filter 150ms ease',
                       }}
                       className="cursor-pointer"
-                      onMouseEnter={() => setHoveredKey(s.key)}
+                      onMouseEnter={() => setHoveredKey('actual')}
                       onMouseLeave={() => setHoveredKey(null)}
-                      onClick={() => s.category && onSelectCategory(activeCategoryFilter === s.category ? 'ALL' : s.category)}
                     >
-                      <title>{`${s.label}: ${fmtPts(s.pts)} pts (${safeTarget > 0 ? Math.round((s.pts / safeTarget) * 1000) / 10 : 0}% of target)`}</title>
+                      <title>{`Actual Achievement: ${fmtPts(safeActual)} pts (${achievementPct}% of ${fmtPts(safeTarget)} target)`}</title>
                     </path>
-                  );
-                })}
+                  )}
+                </>
+              )}
 
-              {/* Expected Pacing Marker Tick (mid-month elapsed workdays benchmark) */}
-              {showPacingTick && !isMet && safeTarget > 0 && pacingRatio > 0 && pacingRatio < 1 && (
-                <g pointerEvents="none">
+              {/* Expected Pace Benchmark Needle Marker on Ring */}
+              {hasPacingTick && (
+                <g
+                  className="cursor-pointer"
+                  onMouseEnter={() => setHoveredKey('pace')}
+                  onMouseLeave={() => setHoveredKey(null)}
+                >
                   <line
-                    x1={KPI_DONUT_C + 68 * Math.cos(pacingTickAngle)}
-                    y1={KPI_DONUT_C + 68 * Math.sin(pacingTickAngle)}
+                    x1={KPI_DONUT_C + 67 * Math.cos(pacingTickAngle)}
+                    y1={KPI_DONUT_C + 67 * Math.sin(pacingTickAngle)}
                     x2={KPI_DONUT_C + 98 * Math.cos(pacingTickAngle)}
                     y2={KPI_DONUT_C + 98 * Math.sin(pacingTickAngle)}
                     stroke="#0f172a"
-                    strokeWidth="2"
+                    strokeWidth={hoveredKey === 'pace' ? 3 : 2.25}
                     strokeLinecap="round"
                   />
-                  <title>{`Expected pace: ${Math.round(pacingRatio * 100)}% (Day ${elapsedWorkDays}/${totalWorkDays})`}</title>
+                  <circle
+                    cx={KPI_DONUT_C + 101 * Math.cos(pacingTickAngle)}
+                    cy={KPI_DONUT_C + 101 * Math.sin(pacingTickAngle)}
+                    r={hoveredKey === 'pace' ? 4 : 3}
+                    fill="#0f172a"
+                    stroke="#ffffff"
+                    strokeWidth="1.25"
+                  />
+                  <title>{`${paceLabel}: ${expectedPacePct}% (${fmtPts(expectedPacePts)} pts)`}</title>
                 </g>
               )}
 
@@ -528,67 +546,114 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
 
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-6">
               <span className="inline-flex items-center gap-1 text-[8.5px] font-bold tracking-wider uppercase text-slate-500 max-w-[92px] truncate">
-                <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ backgroundColor: centerTop.dot }} />
-                <span className="truncate">{centerTop.text}</span>
+                <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ backgroundColor: centerReadout.dot }} />
+                <span className="truncate">{centerReadout.top}</span>
               </span>
               <span className="text-[24px] sm:text-[26px] font-bold font-figure leading-none tracking-tight text-slate-900 mt-1 tabular-nums">
-                {centerPct}
+                {centerReadout.pct}
               </span>
               <span
                 className="text-[8.5px] font-figure font-semibold px-2 py-0.5 rounded-full mt-1.5 tabular-nums whitespace-nowrap max-w-[104px] truncate"
-                style={{ color: centerPill.color, backgroundColor: centerPill.bg }}
+                style={{ color: centerReadout.pill.color, backgroundColor: centerReadout.pill.bg }}
               >
-                {centerPill.text}
+                {centerReadout.pill.text}
               </span>
             </div>
           </div>
         </div>
 
-        {/* 5-Channel Contribution Breakdown Toward Target */}
-        <div className="flex flex-col gap-1 pt-2 border-t border-slate-100">
-          {channels.map((ch) => {
-            const isHovered = hoveredKey === ch.key || activeCategoryFilter === ch.category;
-            const isDimmed = hoveredKey !== null && hoveredKey !== ch.key;
-            const pctOfTarget = safeTarget > 0 ? Math.round((ch.pts / safeTarget) * 1000) / 10 : 0;
-            const barWidth = ch.pts > 0 ? Math.max(3, Math.min(100, (ch.pts / denomForBars) * 100)) : 0;
-            return (
-              <button
-                key={ch.key}
-                type="button"
-                data-kpi-target-channel={ch.key}
-                onMouseEnter={() => setHoveredKey(ch.key)}
-                onMouseLeave={() => setHoveredKey(null)}
-                onFocus={() => setHoveredKey(ch.key)}
-                onBlur={() => setHoveredKey(null)}
-                onClick={() => onSelectCategory(activeCategoryFilter === ch.category ? 'ALL' : ch.category)}
-                className={`w-full flex items-center gap-2 px-2 py-1 rounded-lg border text-left transition-all duration-150 cursor-pointer ${
-                  isHovered ? 'shadow-2xs' : 'border-transparent hover:bg-slate-50/80'
-                } ${isDimmed ? 'opacity-45' : ''}`}
-                style={
-                  isHovered
-                    ? { borderColor: `${ch.color}55`, backgroundColor: `${ch.color}10` }
-                    : undefined
-                }
-              >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ch.color }} />
-                <span className="text-[11px] font-semibold text-slate-700 whitespace-nowrap w-[90px] shrink-0">
-                  {ch.label}
-                </span>
-                <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden min-w-[36px]">
-                  <span
-                    className="block h-full rounded-full transition-all duration-200"
-                    style={{ width: `${barWidth}%`, backgroundColor: ch.color }}
-                  />
-                </span>
-                <span className="text-[10.5px] font-figure font-semibold text-slate-500 tabular-nums whitespace-nowrap shrink-0">
-                  {fmtPts(ch.pts)}
-                </span>
-                <span className="w-[40px] text-right text-[11px] font-figure font-bold text-slate-900 tabular-nums shrink-0">
-                  {pctOfTarget}%
-                </span>
-              </button>
-            );
-          })}
+        {/* Comparison Breakdown: Data, Percentage & Pace */}
+        <div className="flex flex-col gap-1.5 pt-2.5 border-t border-slate-100">
+          {/* 1. Actual Achievement Row */}
+          <div
+            data-kpi-comparison-row="actual"
+            onMouseEnter={() => setHoveredKey('actual')}
+            onMouseLeave={() => setHoveredKey(null)}
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors duration-150 ${
+              hoveredKey === 'actual' ? 'bg-sky-50/70 border-sky-200/80' : 'border-transparent hover:bg-slate-50/80'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: actualColor }} />
+            <span className="text-[11px] font-semibold text-slate-800 whitespace-nowrap w-[124px] shrink-0">
+              Actual Achievement
+            </span>
+            <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden min-w-[40px]">
+              <span
+                className="block h-full rounded-full transition-all duration-200"
+                style={{ width: `${actualBarWidth}%`, backgroundColor: actualColor }}
+              />
+            </span>
+            <span className="text-[10.5px] font-figure font-semibold text-slate-600 tabular-nums whitespace-nowrap shrink-0">
+              {fmtPts(safeActual)} pts
+            </span>
+            <span className="w-[46px] text-right text-[11px] font-figure font-bold text-slate-900 tabular-nums shrink-0">
+              {achievementPct}%
+            </span>
+          </div>
+
+          {/* 2. Expected Pace Row */}
+          <div
+            data-kpi-comparison-row="pace"
+            onMouseEnter={() => setHoveredKey('pace')}
+            onMouseLeave={() => setHoveredKey(null)}
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors duration-150 ${
+              hoveredKey === 'pace' ? 'bg-slate-100/80 border-slate-300/80' : 'border-transparent hover:bg-slate-50/80'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-slate-900 shrink-0" />
+            <span className="text-[11px] font-semibold text-slate-800 whitespace-nowrap w-[124px] shrink-0 truncate" title={paceLabel}>
+              {showPacing ? `Pace (Day ${elapsedWorkDays}/${totalWorkDays})` : 'Expected Pace'}
+            </span>
+            <span className="relative flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden min-w-[40px]">
+              <span
+                className="block h-full rounded-full bg-slate-900/75 transition-all duration-200"
+                style={{ width: `${paceBarWidth}%` }}
+              />
+            </span>
+            <span className="text-[10.5px] font-figure font-semibold text-slate-600 tabular-nums whitespace-nowrap shrink-0">
+              {fmtPts(expectedPacePts)} pts
+            </span>
+            <span className="w-[46px] text-right text-[11px] font-figure font-bold text-slate-900 tabular-nums shrink-0">
+              {expectedPacePct}%
+            </span>
+          </div>
+
+          {/* 3. Monthly Target Row */}
+          <div
+            data-kpi-comparison-row="target"
+            onMouseEnter={() => setHoveredKey('target')}
+            onMouseLeave={() => setHoveredKey(null)}
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-colors duration-150 ${
+              hoveredKey === 'target' ? 'bg-slate-100/80 border-slate-200' : 'border-transparent hover:bg-slate-50/80'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-slate-300 shrink-0" />
+            <span className="text-[11px] font-semibold text-slate-800 whitespace-nowrap w-[124px] shrink-0">
+              {targetTitle}
+            </span>
+            <span className="flex-1 h-1.5 rounded-full bg-slate-200/85 overflow-hidden min-w-[40px]" />
+            <span className="text-[10.5px] font-figure font-semibold text-slate-600 tabular-nums whitespace-nowrap shrink-0">
+              {fmtPts(safeTarget)} pts
+            </span>
+            <span className="w-[46px] text-right text-[11px] font-figure font-bold text-slate-900 tabular-nums shrink-0">
+              100%
+            </span>
+          </div>
+
+          {/* Pace Attainment Summary Bar */}
+          <div className="mt-1 px-3 py-1.5 rounded-xl bg-slate-50/90 border border-slate-200/80 flex items-center justify-between gap-2 text-[11px]">
+            <span className="font-semibold text-slate-600">
+              Pace Attainment{' '}
+              <span className="font-figure font-bold text-slate-900 tabular-nums">({paceAttainmentPct}%)</span>
+            </span>
+            <span
+              className={`font-figure font-bold tabular-nums whitespace-nowrap ${
+                isAheadOfPace ? 'text-emerald-700' : 'text-amber-700'
+              }`}
+            >
+              {paceDeltaPts >= 0 ? `+${fmtPts(paceDeltaPts)} pts ahead` : `-${fmtPts(Math.abs(paceDeltaPts))} pts behind`}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -2750,8 +2815,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Chart 1 (7 cols): Executive Point Velocity + Dashed Staff Spline */}
-            <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between">
+            {/* Chart 1 (7 cols): Style 1 — Twin Smooth Area Spline + Active Staff Ribbon */}
+            <div
+              data-testid="kpi-velocity-chart-card"
+              className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between"
+            >
               <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
@@ -2826,30 +2894,29 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
 
               <div className="px-4 sm:px-5 pt-3 pb-4">
-                <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 pb-2.5 text-[11px] font-semibold text-slate-600">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#184e77]" aria-hidden />
-                    <span>POS Terminal</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#4F518C]" aria-hidden />
-                    <span>Sound Box</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#1e6091]" aria-hidden />
-                    <span>KHQR</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#f59e0b]" aria-hidden />
-                    <span>Credit Card</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#2d6a4f]" aria-hidden />
-                    <span>Merchant Visit</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 ml-auto text-[#334155] font-medium">
-                    <span className="w-4 border-t-2 border-dashed border-[#334155] inline-block" aria-hidden />
-                    <span>Active staff (right)</span>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 pb-2.5 text-[11px] font-semibold text-slate-600">
+                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
+                    <span className="inline-flex items-center gap-1.5 text-[#1e6091]">
+                      <span className="w-4 border-t-[2.5px] border-[#1e6091] inline-block rounded-full" aria-hidden />
+                      <span>{isTaskMode ? 'Total Tasks (left)' : 'Total Points (left)'}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-[#334155]">
+                      <span className="w-4 border-t-2 border-dashed border-[#334155] inline-block" aria-hidden />
+                      <span>Active staff (right)</span>
+                    </span>
+                  </div>
+                  <span
+                    className="inline-flex items-center gap-1 text-[10.5px] font-medium text-slate-400"
+                    title="Hover any point for 5-channel breakdown"
+                  >
+                    <span className="inline-flex items-center -space-x-0.5 mr-0.5" aria-hidden>
+                      <span className="w-2 h-2 rounded-full bg-[#1e6091] ring-1 ring-white" />
+                      <span className="w-2 h-2 rounded-full bg-[#4F518C] ring-1 ring-white" />
+                      <span className="w-2 h-2 rounded-full bg-[#184e77] ring-1 ring-white" />
+                      <span className="w-2 h-2 rounded-full bg-[#2d6a4f] ring-1 ring-white" />
+                      <span className="w-2 h-2 rounded-full bg-[#f59e0b] ring-1 ring-white" />
+                    </span>
+                    <span>Hover point for channel split</span>
                   </span>
                 </div>
 
@@ -2860,33 +2927,22 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                     </div>
                   ) : (
                     <MeasuredChart height={268}>{(chartW) => (
-                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 10, right: 6, left: -14, bottom: 0 }} barGap={4}>
+                      <ComposedChart width={chartW} height={268} data={reversedTimeSeries} margin={{ top: 12, right: 6, left: -12, bottom: 0 }}>
                         <defs>
-                          <linearGradient id="kpiPosGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#1e6091" />
-                            <stop offset="100%" stopColor="#184e77" />
+                          <linearGradient id="kpiSplineAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#1e6091" stopOpacity={0.34} />
+                            <stop offset="65%" stopColor="#1e6091" stopOpacity={0.1} />
+                            <stop offset="100%" stopColor="#1e6091" stopOpacity={0.01} />
                           </linearGradient>
-                          <linearGradient id="kpiSbGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#6567a8" />
-                            <stop offset="100%" stopColor="#4F518C" />
-                          </linearGradient>
-                          <linearGradient id="kpiKhqrGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#2673ad" />
-                            <stop offset="100%" stopColor="#1e6091" />
-                          </linearGradient>
-                          <linearGradient id="kpiCcGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#fbbf24" />
-                            <stop offset="100%" stopColor="#f59e0b" />
-                          </linearGradient>
-                          <linearGradient id="kpiMvGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#3b8262" />
-                            <stop offset="100%" stopColor="#2d6a4f" />
+                          <linearGradient id="kpiStaffRibbonGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#334155" stopOpacity={0.08} />
+                            <stop offset="100%" stopColor="#334155" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 4" stroke="rgba(148, 163, 184, 0.25)" vertical={false} />
                         <XAxis
                           dataKey="label"
-                          axisLine={{ stroke: '#e2e8f0' }}
+                          axisLine={{ stroke: '#cbd5e1' }}
                           tickLine={false}
                           tick={{ fontSize: 11, fill: '#64748b' }}
                           dy={4}
@@ -2907,13 +2963,41 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           tick={{ fontSize: 11, fill: '#334155' }}
                           width={32}
                         />
-                        <Tooltip content={<CustomTrendTooltip metricMode={metricMode} />} cursor={{ fill: 'rgba(0, 78, 117, 0.04)' }} isAnimationActive={false} />
-                        <Bar yAxisId="left" dataKey={isTaskMode ? 'posTasks' : 'posPoints'} name="POS Terminal" stackId="pts" fill="url(#kpiPosGrad)" stroke="#ffffff" strokeWidth={1} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
-                        <Bar yAxisId="left" dataKey={isTaskMode ? 'sbTasks' : 'sbPoints'} name="Sound Box" stackId="pts" fill="url(#kpiSbGrad)" stroke="#ffffff" strokeWidth={1} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
-                        <Bar yAxisId="left" dataKey={isTaskMode ? 'khqrTasks' : 'khqrPoints'} name="KHQR" stackId="pts" fill="url(#kpiKhqrGrad)" stroke="#ffffff" strokeWidth={1} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
-                        <Bar yAxisId="left" dataKey={isTaskMode ? 'ccTasks' : 'ccPoints'} name="Credit Card" stackId="pts" fill="url(#kpiCcGrad)" stroke="#ffffff" strokeWidth={1} radius={[2, 2, 0, 0]} maxBarSize={26} isAnimationActive={false} />
-                        <Bar yAxisId="left" dataKey={isTaskMode ? 'mvTasks' : 'mvPoints'} name="Merchant Visit" stackId="pts" fill="url(#kpiMvGrad)" stroke="#ffffff" strokeWidth={1} radius={[4, 4, 0, 0]} maxBarSize={26} isAnimationActive={false} />
-                        <Line
+                        <Tooltip
+                          content={<CustomTrendTooltip metricMode={metricMode} />}
+                          cursor={{ stroke: '#94a3b8', strokeDasharray: '3 3', strokeWidth: 1.25 }}
+                          isAnimationActive={false}
+                        />
+                        <Area
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey={isTaskMode ? 'totalTasks' : 'totalPoints'}
+                          name={isTaskMode ? 'Total Tasks' : 'Total Points'}
+                          stroke="#1e6091"
+                          strokeWidth={2.5}
+                          fill="url(#kpiSplineAreaGrad)"
+                          dot={(dotProps: { cx?: number; cy?: number; value?: number; index?: number }) => {
+                            const val = Number(dotProps.value || 0);
+                            if (val <= 0 || dotProps.cx == null || dotProps.cy == null) {
+                              return <g key={`pt-empty-${dotProps.index}`} />;
+                            }
+                            const isPeak = velocitySummary.peakVal > 0 && Math.abs(val - velocitySummary.peakVal) < 0.05;
+                            return (
+                              <circle
+                                key={`pt-dot-${dotProps.index}`}
+                                cx={dotProps.cx}
+                                cy={dotProps.cy}
+                                r={isPeak ? 4.2 : 3}
+                                fill={isPeak ? '#1e6091' : '#ffffff'}
+                                stroke={isPeak ? '#ffffff' : '#1e6091'}
+                                strokeWidth={2}
+                              />
+                            );
+                          }}
+                          activeDot={{ r: 5.5, fill: '#1e6091', stroke: '#ffffff', strokeWidth: 2.5 }}
+                          isAnimationActive={false}
+                        />
+                        <Area
                           yAxisId="right"
                           type="monotone"
                           dataKey="activeStaff"
@@ -2921,8 +3005,25 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                           stroke="#334155"
                           strokeWidth={2}
                           strokeDasharray="5 4"
-                          dot={{ r: 3.5, fill: '#ffffff', stroke: '#334155', strokeWidth: 2, strokeDasharray: '0' }}
-                          activeDot={{ r: 5.5, fill: '#334155', stroke: '#ffffff', strokeWidth: 2.5, strokeDasharray: '0' }}
+                          fill="url(#kpiStaffRibbonGrad)"
+                          dot={(dotProps: { cx?: number; cy?: number; value?: number; index?: number }) => {
+                            const val = Number(dotProps.value || 0);
+                            if (val <= 0 || dotProps.cx == null || dotProps.cy == null) {
+                              return <g key={`st-empty-${dotProps.index}`} />;
+                            }
+                            return (
+                              <circle
+                                key={`st-dot-${dotProps.index}`}
+                                cx={dotProps.cx}
+                                cy={dotProps.cy}
+                                r={3}
+                                fill="#ffffff"
+                                stroke="#334155"
+                                strokeWidth={1.8}
+                              />
+                            );
+                          }}
+                          activeDot={{ r: 5.2, fill: '#334155', stroke: '#ffffff', strokeWidth: 2.2 }}
                           isAnimationActive={false}
                         />
                       </ComposedChart>
@@ -2932,29 +3033,16 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
               </div>
             </div>
 
-            {/* Chart 2 (5 cols): Monthly Target vs Actual Precision Donut */}
+            {/* Chart 2 (5 cols): Monthly Target vs Actual Achievement & Pace Donut */}
             <KpiTargetComparisonDonut
               periodLabel={KPI_PERIOD_LABEL[period]}
               targetLabel={activeTargets.label}
               actualPoints={totals.totalPoints}
               targetPoints={totals.totalBranchTargetPoints}
-              totalTasks={totals.totalTasks}
-              activeBranchCount={totals.activeBranchCount}
-              branchesOnTarget={totals.branchesOnTarget}
-              showPacingTick={period === 'MONTH'}
+              showPacing={period === 'MONTH' || period === 'ALL'}
               pacingRatio={pacingInfo.pacingRatio}
               elapsedWorkDays={pacingInfo.elapsedWorkDays}
               totalWorkDays={pacingInfo.totalWorkDays}
-              channels={[
-                { key: 'khqr', category: 'KHQR', label: 'KHQR', color: '#1e6091', pts: totals.khqrPoints, tasks: totals.khqrTasks },
-                { key: 'sb', category: 'Sound Box', label: 'Sound Box', color: '#4F518C', pts: totals.sbPoints, tasks: totals.sbTasks },
-                { key: 'pos', category: 'POS Terminal', label: 'POS Terminal', color: '#184e77', pts: totals.posPoints, tasks: totals.posTasks },
-                { key: 'mv', category: 'Merchant Visit', label: 'Merchant Visit', color: '#2d6a4f', pts: totals.mvPoints, tasks: totals.mvTasks },
-                { key: 'cc', category: 'Credit Card', label: 'Credit Card', color: '#f59e0b', pts: totals.ccPoints, tasks: totals.ccTasks },
-              ]}
-              activeCategoryFilter={categoryFilter}
-              onSelectCategory={setCategoryFilter}
-              onViewBranches={() => setView('branches')}
             />
           </div>
         </section>
