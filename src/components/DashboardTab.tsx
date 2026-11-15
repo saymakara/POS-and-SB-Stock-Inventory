@@ -12,7 +12,7 @@ import {
   getBatteryLifecycleStatus,
 } from '../types';
 import { STAGE_META } from '../data/initialData';
-import { GroupedBarChart, CrossChannelVelocityChart, CrossChannelDayPoint } from './Charts';
+import { GroupedBarChart, CrossChannelVelocityChart, CrossChannelDayPoint, CHANNEL_COLORS } from './Charts';
 import { Odometer } from './Odometer';
 import { PillMotion } from './PillMotion';
 import { todayPP, lastMonthsPP } from '../utils/time';
@@ -632,11 +632,11 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
         <div className="flex-1 flex flex-col justify-between px-6 pb-5 pt-1 gap-3">
           <div className={`flex flex-wrap items-center justify-between gap-2 text-[11px] pb-2.5 border-b ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
             <div className="flex flex-wrap items-center gap-3 text-slate-500">
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#003857] inline-block" />KHQR</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#3b6992] inline-block" />POS</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#64748b] inline-block" />Sound Box</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#a3b3c6] inline-block" />Visit</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#b99763] inline-block" />CC</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.khqr }} />KHQR</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.sb }} />Sound Box</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.pos }} />POS</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.mv }} />Visit</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.cc }} />CC</span>
             </div>
             <div className="text-[11px] font-medium text-slate-500 truncate max-w-full">
               {hoveredBranch ? (
@@ -661,11 +661,11 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                 const totalBarPct = b.totalTasks > 0 ? Math.max(1.5, (b.totalTasks / maxBranchTasks) * 100) : 0;
                 const brTot = Math.max(1, b.totalTasks);
                 const segs = [
-                  { key: 'khqr', val: b.khqr, color: 'bg-[#003857]' },
-                  { key: 'pos', val: b.pos, color: 'bg-[#3b6992]' },
-                  { key: 'sb', val: b.sb, color: 'bg-[#64748b]' },
-                  { key: 'mv', val: b.mv, color: 'bg-[#a3b3c6]' },
-                  { key: 'cc', val: b.cc, color: 'bg-[#b99763]' },
+                  { key: 'khqr', val: b.khqr, color: CHANNEL_COLORS.khqr },
+                  { key: 'sb', val: b.sb, color: CHANNEL_COLORS.sb },
+                  { key: 'pos', val: b.pos, color: CHANNEL_COLORS.pos },
+                  { key: 'mv', val: b.mv, color: CHANNEL_COLORS.mv },
+                  { key: 'cc', val: b.cc, color: CHANNEL_COLORS.cc },
                 ].filter((s) => s.val > 0);
                 const isHovered = hoveredBranchCode === b.code;
 
@@ -692,7 +692,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                       <span
                         className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-figure font-bold shrink-0 ${
                           i === 0
-                            ? 'bg-[#003857] text-white'
+                            ? 'bg-[#1e6091] text-white'
                             : i < 3
                             ? 'bg-slate-200/80 text-slate-700'
                             : 'text-slate-400'
@@ -700,7 +700,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                       >
                         {i + 1}
                       </span>
-                      <span className={`text-[12px] font-semibold group-hover:text-[#004e75] transition-colors truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
+                      <span className={`text-[12px] font-semibold group-hover:text-[#1e6091] transition-colors truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
                         {b.name}
                       </span>
                       <span className="text-[10px] font-mono text-slate-400 shrink-0 hidden sm:inline">
@@ -717,8 +717,8 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                           {segs.map((seg) => (
                             <div
                               key={seg.key}
-                              className={`h-full ${seg.color}`}
-                              style={{ width: `${(seg.val / brTot) * 100}%` }}
+                              className="h-full"
+                              style={{ width: `${(seg.val / brTot) * 100}%`, backgroundColor: seg.color }}
                             />
                           ))}
                         </div>
@@ -764,7 +764,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                       <span
                         className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10.5px] font-figure font-bold ${
                           i === 0
-                            ? 'bg-[#003857] text-white'
+                            ? 'bg-[#1e6091] text-white'
                             : i < 3
                             ? 'bg-slate-200/80 text-slate-700'
                             : 'text-slate-400'
@@ -777,11 +777,11 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                       <div className="font-bold text-slate-900 truncate max-w-[180px]">{b.name}</div>
                       <div className="text-[10.5px] font-mono text-slate-400">Code {b.code}</div>
                     </td>
-                    <td className="py-2.5 px-2 text-right font-figure text-[#003857] font-semibold">{fmtNum(b.khqr)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-[#3b6992] font-semibold">{fmtNum(b.pos)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-slate-600 font-semibold">{fmtNum(b.sb)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-slate-500 font-semibold">{fmtNum(b.mv)}</td>
-                    <td className="py-2.5 px-2 text-right font-figure text-[#8a6a3b] font-semibold">{fmtNum(b.cc)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure font-semibold" style={{ color: CHANNEL_COLORS.khqr }}>{fmtNum(b.khqr)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure font-semibold" style={{ color: CHANNEL_COLORS.pos }}>{fmtNum(b.pos)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure font-semibold" style={{ color: CHANNEL_COLORS.sb }}>{fmtNum(b.sb)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-[#2d6a4f] font-semibold">{fmtNum(b.mv)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-[#b45309] font-semibold">{fmtNum(b.cc)}</td>
                     <td className="py-2.5 px-2 text-right font-figure text-slate-500">{fmtNum(b.reserve)}</td>
                     <td className="py-2.5 pl-2 pr-6 text-right font-figure font-extrabold text-slate-900">
                       {fmtNum(b.totalTasks)}
@@ -1415,9 +1415,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'KHQR',
           tab: 'mobile_sync_khqr',
           icon: QrCode,
-          iconWrap: 'bg-[#003857]/10 text-[#003857]',
-          barColor: 'bg-[#003857]',
-          hexColor: '#003857',
+          iconWrap: 'bg-[#1e6091]/10 text-[#1e6091]',
+          barColor: 'bg-[#1e6091]',
+          hexColor: CHANNEL_COLORS.khqr,
           primaryValue: khqrCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(raw.khqrInstall)} new · ${fmtNum(raw.khqrReplace)} replace${raw.khqrMaterials > 0 ? ` · ${fmtNum(raw.khqrMaterials)} QR items` : ''}`,
@@ -1429,9 +1429,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'Sound Box',
           tab: 'mobile_sync_sb',
           icon: Volume2,
-          iconWrap: 'bg-slate-500/10 text-slate-600',
-          barColor: 'bg-[#64748b]',
-          hexColor: '#64748b',
+          iconWrap: 'bg-[#4F518C]/10 text-[#4F518C]',
+          barColor: 'bg-[#4F518C]',
+          hexColor: CHANNEL_COLORS.sb,
           primaryValue: sbCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(hardwareSummary.sb)} units in stock · ${fmtNum(queues.sbField)} awaiting review`,
@@ -1443,9 +1443,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'POS Terminal',
           tab: 'mobile_sync',
           icon: Cpu,
-          iconWrap: 'bg-[#3b6992]/10 text-[#3b6992]',
-          barColor: 'bg-[#3b6992]',
-          hexColor: '#3b6992',
+          iconWrap: 'bg-[#184e77]/10 text-[#184e77]',
+          barColor: 'bg-[#184e77]',
+          hexColor: CHANNEL_COLORS.pos,
           primaryValue: posCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(hardwareSummary.pos)} units in stock · ${fmtNum(queues.posField)} awaiting review`,
@@ -1457,9 +1457,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'Merchant Visit',
           tab: 'mobile_sync_visit',
           icon: Store,
-          iconWrap: 'bg-slate-400/15 text-slate-600',
-          barColor: 'bg-[#a3b3c6]',
-          hexColor: '#a3b3c6',
+          iconWrap: 'bg-[#76c893]/15 text-[#2d6a4f]',
+          barColor: 'bg-[#76c893]',
+          hexColor: CHANNEL_COLORS.mv,
           primaryValue: mvCount,
           primaryUnit: 'visits',
           meta: 'Merchant check-ins & field onboarding visits',
@@ -1471,9 +1471,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           shortLabel: 'Credit Card',
           tab: 'mobile_sync_cc',
           icon: CreditCard,
-          iconWrap: 'bg-[#b99763]/15 text-[#8a6a3b]',
-          barColor: 'bg-[#b99763]',
-          hexColor: '#b99763',
+          iconWrap: 'bg-[#f59e0b]/15 text-[#b45309]',
+          barColor: 'bg-[#f59e0b]',
+          hexColor: CHANNEL_COLORS.cc,
           primaryValue: ccCount,
           primaryUnit: 'onboarded',
           meta: `${fmtNum(ccSubmittedShow)} applications · ${fmtNum(queues.ccPend)} pending${ccCounts?.waitingDocs ? ` · ${fmtNum(ccCounts.waitingDocs)} waiting docs` : ''}`,
@@ -2058,7 +2058,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       onClick={() => setTimeHorizon(h)}
                       className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer transition-all duration-150 whitespace-nowrap ${
                         timeHorizon === h
-                          ? 'bg-[#003857] text-white shadow-2xs'
+                          ? 'bg-[#1e6091] text-white shadow-2xs'
                           : isLight
                           ? 'text-slate-600 hover:text-slate-900'
                           : 'text-slate-400 hover:text-white'
@@ -2110,11 +2110,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 }`}
               >
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#3b6992] inline-block" />POS</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#64748b] inline-block" />Sound Box</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#003857] inline-block" />KHQR</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#a3b3c6] inline-block" />Merchant Visit</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#b99763] inline-block" />Credit Card</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.pos }} />POS</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.sb }} />Sound Box</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.khqr }} />KHQR</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.mv }} />Merchant Visit</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CHANNEL_COLORS.cc }} />Credit Card</span>
                 </div>
                 <div className="flex items-center gap-3">
                   {velocityPeak.peakVal > 0 && (
@@ -2149,10 +2149,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 labels={monthlyHardwareChart.labels}
                 series1Label="POS Terminal Installed"
                 series1Data={monthlyHardwareChart.pos}
-                series1Color="#003857"
+                series1Color={CHANNEL_COLORS.pos}
                 series2Label="Sound Box Installed"
                 series2Data={monthlyHardwareChart.sb}
-                series2Color="#889bae"
+                series2Color={CHANNEL_COLORS.sb}
                 height={248}
                 theme={theme}
               />

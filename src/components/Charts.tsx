@@ -325,12 +325,20 @@ interface CrossChannelVelocityChartProps {
   ariaLabel?: string;
 }
 
+export const CHANNEL_COLORS = {
+  khqr: '#1e6091', // Baltic Blue
+  sb: '#4F518C',   // Deep Purple (KPI Performance Sound Box)
+  pos: '#184e77',  // Yale Blue
+  mv: '#76c893',   // Emerald
+  cc: '#f59e0b',   // Amber / Yellow (KPI Performance Credit Card)
+} as const;
+
 const CHANNEL_SERIES = [
-  { key: 'pos' as const, label: 'POS Terminal', color: '#3b6992' },
-  { key: 'sb' as const, label: 'Sound Box', color: '#64748b' },
-  { key: 'khqr' as const, label: 'KHQR', color: '#003857' },
-  { key: 'mv' as const, label: 'Merchant Visit', color: '#a3b3c6' },
-  { key: 'cc' as const, label: 'Credit Card', color: '#b99763' },
+  { key: 'pos' as const, label: 'POS Terminal', color: CHANNEL_COLORS.pos },
+  { key: 'sb' as const, label: 'Sound Box', color: CHANNEL_COLORS.sb },
+  { key: 'khqr' as const, label: 'KHQR', color: CHANNEL_COLORS.khqr },
+  { key: 'mv' as const, label: 'Merchant Visit', color: CHANNEL_COLORS.mv },
+  { key: 'cc' as const, label: 'Credit Card', color: CHANNEL_COLORS.cc },
 ];
 
 /**
