@@ -1,5 +1,6 @@
 import { ClearFiltersButton } from './ClearFiltersButton';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSort, SortTh } from '../utils/sort';
 import { useKeptMemo } from '../utils/useKeptMemo';
 import { isFresh } from '../utils/freshness';
@@ -106,6 +107,7 @@ interface InventoryTabProps {
     search?: string;
     archived?: boolean;
   }) => Promise<{ rows: Device[]; total: number } | null>;
+  heroControlsContainer?: HTMLElement | null;
 }
 
 export const InventoryTab: React.FC<InventoryTabProps> = ({
@@ -113,6 +115,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
   viewToggle,
   stockScopeControl,
   materialSummaryStrip,
+  heroControlsContainer,
   devices,
   allDevices = [],
   branches,
@@ -546,274 +549,288 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     setPendingBulkAction(null);
   };
 
-  return (
-    <div className="space-y-3">
-      {/* Executive Serial Inventory Command Card */}
-      <div className="surface-card rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm">
-        {/* Top Header Strip - System Grey Palette */}
-        <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-4 py-2.5 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
-              <Boxes className="w-4 h-4 text-slate-700 dark:text-slate-200" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
-                  {showArchivedView
-                    ? 'Removed / Archived Serials'
-                    : 'Stock Inventory & Multi-Branch Ledger'}
-                </h2>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Select multiple serials (e.g. Select 10) to batch-assign to a Branch Code or return to Admin HQ Stock
-              </p>
-            </div>
+  const actionButtons = (
+    <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+      {!showArchivedView && visibleDevices.length > 0 && (
+        <motion.button
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={handleSelectTenUnits}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
+          title="Quick-select 10 serials to assign to a Branch Code"
+        >
+          <CheckSquare className="w-3.5 h-3.5 text-slate-600" />
+          <span>Select 10 Units</span>
+        </motion.button>
+      )}
+
+      {selectedSns.length > 0 && (
+        <motion.button
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setSelectedSns([])}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition cursor-pointer shadow-2xs"
+          title="Clear all selected serials"
+        >
+          <X className="w-3.5 h-3.5" />
+          <span>Clear ({selectedSns.length})</span>
+        </motion.button>
+      )}
+
+      <motion.button
+        whileHover={{ y: -1 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={() => {
+          setShowArchivedView((prev) => !prev);
+          setSelectedSns([]);
+        }}
+        title={showArchivedView ? 'Showing the units removed from the dashboard – tap to show the active stock again' : 'Show the units removed from the dashboard'}
+        data-archived={showArchivedView}
+        className={`hidden ${
+          showArchivedView
+            ? 'bg-amber-400 text-zinc-900 border-amber-300'
+            : 'bg-white/12 hover:bg-white/20 text-white border-white/20'
+        }`}
+      >
+        <ArchiveRestore className="w-3.5 h-3.5" />
+        <span>
+          {`Removed from Dashboard (${archivedCount})`}
+        </span>
+        {archivedCount > 0 && !showArchivedView && (
+          <span className="w-2 h-2 rounded-full natural-red-point" />
+        )}
+      </motion.button>
+
+      {!isAdminLike && (
+        <motion.button
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={onOpenReqModal}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-2xs transition cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5 text-slate-600" />
+          <span>Request HQ Stock</span>
+        </motion.button>
+      )}
+
+      <motion.button
+        whileHover={{ y: -1 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={() => setShowExportMenu((v) => !v)}
+        aria-expanded={showExportMenu}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
+      >
+        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+        <span>Export CSV</span>
+      </motion.button>
+
+      {isAdminLike && (onOpenBatchModal || onOpenImportModal) && (
+        <motion.button
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => {
+            if (onOpenBatchModal) onOpenBatchModal();
+            else if (onOpenImportModal) onOpenImportModal();
+          }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 transition cursor-pointer shadow-2xs"
+          title="Upload CSV formatted as the inventory table"
+        >
+          <Upload className="w-3.5 h-3.5 text-slate-600" />
+          <span>Upload CSV</span>
+        </motion.button>
+      )}
+    </div>
+  );
+
+  const exportMenuNode = (
+    <AnimatePresence initial={false}>
+      {showExportMenu && (
+        <motion.div
+          initial={{ y: -8, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -8, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
+          className={`overflow-hidden ${
+            heroControlsContainer
+              ? 'rounded-xl border border-slate-200/90 bg-white shadow-2xs'
+              : 'border-b border-slate-200 bg-white'
+          }`}
+        >
+          <div className="px-4 py-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-600 mr-1">Export CSV for</span>
+            <button type="button" onClick={() => { onExportCsv(); setShowExportMenu(false); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#003857] bg-[#003857] text-white hover:bg-[#002a42] cursor-pointer">
+              All shown ({devices.length})
+            </button>
+            {STAGE_ORDER.map((s) => (
+              <button key={s} type="button" disabled={(stageCounts[s] || 0) === 0} onClick={() => { onExportCsv(s); setShowExportMenu(false); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+                {STAGE_META[s].short} ({stageCounts[s] || 0})
+              </button>
+            ))}
           </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
-          <div className="flex flex-wrap items-center gap-1.5">
-
-            {!showArchivedView && visibleDevices.length > 0 && (
-              <motion.button
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={handleSelectTenUnits}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
-                title="Quick-select 10 serials to assign to a Branch Code"
-              >
-                <CheckSquare className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                <span>Select 10 Units</span>
-              </motion.button>
-            )}
-
-            {selectedSns.length > 0 && (
-              <motion.button
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setSelectedSns([])}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition cursor-pointer shadow-2xs"
-                title="Clear all selected serials"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Clear ({selectedSns.length})</span>
-              </motion.button>
-            )}
-
-            <motion.button
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => {
-                setShowArchivedView((prev) => !prev);
-                setSelectedSns([]);
-              }}
-              title={showArchivedView ? 'Showing the units removed from the dashboard – tap to show the active stock again' : 'Show the units removed from the dashboard'}
-              data-archived={showArchivedView}
-              className={`hidden ${
-                showArchivedView
-                  ? 'bg-amber-400 text-zinc-900 border-amber-300'
-                  : 'bg-white/12 hover:bg-white/20 text-white border-white/20'
-              }`}
-            >
-              <ArchiveRestore className="w-3.5 h-3.5" />
-              <span>
-                {`Removed from Dashboard (${archivedCount})`}
-              </span>
-              {archivedCount > 0 && !showArchivedView && (
-                <span className="w-2 h-2 rounded-full natural-red-point" />
-              )}
-            </motion.button>
-
-            {!isAdminLike && (
-              <motion.button
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={onOpenReqModal}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-2xs transition cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                <span>Request HQ Stock</span>
-              </motion.button>
-            )}
-
-            <motion.button
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setShowExportMenu((v) => !v)}
-              aria-expanded={showExportMenu}
-              className="btn btn-secondary"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Export CSV</span>
-            </motion.button>
-
-            {isAdminLike && (onOpenBatchModal || onOpenImportModal) && (
-              <motion.button
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => {
-                  if (onOpenBatchModal) onOpenBatchModal();
-                  else if (onOpenImportModal) onOpenImportModal();
-                }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
-                title="Upload CSV formatted as the inventory table"
-              >
-                <Upload className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
-                <span>Upload CSV</span>
-              </motion.button>
-            )}
-          </div>
+  const filterBarNode = (
+    <div className="space-y-2.5">
+      {/* Row 1: Search + Dropdown Filters */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              onSearchChange(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search Serial SN, Merchant, TID, Branch Code..."
+            className="w-full pl-8 pr-2.5 py-2 rounded-xl text-xs font-semibold border bg-white border-slate-200/90 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
+          />
         </div>
 
-        {/* Export by status */}
-        <AnimatePresence initial={false}>
-          {showExportMenu && (
-            <motion.div
-              initial={{ y: -8, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -8, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
-              className="overflow-hidden border-b border-slate-200 bg-white"
-            >
-              <div className="px-4 py-3 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-slate-600 mr-1">Export CSV for</span>
-                <button type="button" onClick={() => { onExportCsv(); setShowExportMenu(false); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#003857] bg-[#003857] text-white hover:bg-[#002a42] cursor-pointer">
-                  All shown ({devices.length})
-                </button>
-                {STAGE_ORDER.map((s) => (
-                  <button key={s} type="button" disabled={(stageCounts[s] || 0) === 0} onClick={() => { onExportCsv(s); setShowExportMenu(false); }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
-                    {STAGE_META[s].short} ({stageCounts[s] || 0})
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div className="relative">
+          <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <select
+            value={stageFilter}
+            onChange={(e) => {
+              onStageFilterChange(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full pl-8 pr-2.5 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+          >
+            <option value="ALL">All Lifecycle Stages</option>
+            {STAGE_ORDER.map((s) => (
+              <option key={s} value={s}>
+                {STAGE_META[s].label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        {/* Filter & Search Bar - Compact 2-Row Layout */}
-        <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/90 space-y-2">
-          {/* Row 1: Search + Dropdown Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  onSearchChange(e.target.value);
-                  setCurrentPage(1);
-                }}
-                placeholder="Search Serial SN, Merchant, TID, Branch Code..."
-                className="w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
-              />
-            </div>
+        {!lockType ? (
+          <select
+            value={typeFilter}
+            onChange={(e) => {
+              onTypeFilterChange(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+          >
+            <option value="ALL">All Hardware Types</option>
+            <option value="POS Terminal">POS Terminal (Wizar POS Q2 Pro)</option>
+            <option value="Sound Box">Sound Box (QR Audio)</option>
+          </select>
+        ) : stockScopeControl}
 
-            <div className="relative">
-              <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <select
+          value={midDeviceFilter}
+          onChange={(e) => {
+            setMidDeviceFilter(e.target.value as 'ALL' | 'SINGLE' | 'MULTIPLE');
+            setCurrentPage(1);
+          }}
+          className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+          title="Filter by number of devices linked to MID"
+        >
+          <option value="ALL">All MIDs (Any Count)</option>
+          <option value="SINGLE">1 Device per MID (Standard)</option>
+          <option value="MULTIPLE">2+ Devices per MID (In Swap/Change)</option>
+        </select>
+
+        <select
+          value={batteryFilter}
+          onChange={(e) => {
+            setBatteryFilter(e.target.value as any);
+            setCurrentPage(1);
+          }}
+          className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+          title="Filter by POS Terminal 24-Month Battery Lifecycle"
+        >
+          <option value="ALL">All Battery Cycles</option>
+          <option value="EXPIRED">🔴 Expired (&ge;24M Change Required)</option>
+          <option value="DUE_SOON">🟡 Due Soon (21-23M)</option>
+          <option value="HEALTHY">🟢 Healthy (&lt;21M)</option>
+        </select>
+      </div>
+
+      {/* Row 2: Branch Filter + Clear Filters on left, Action Buttons (when merged into Hero Backdrop) on right */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
+          <div className="flex-1 min-w-[200px] max-w-xs">
+            {isAdminLike ? (
               <select
-                value={stageFilter}
+                value={branchFilter}
                 onChange={(e) => {
-                  onStageFilterChange(e.target.value);
+                  onBranchFilterChange(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
               >
-                <option value="ALL">All Lifecycle Stages</option>
-                {STAGE_ORDER.map((s) => (
-                  <option key={s} value={s}>
-                    {STAGE_META[s].label}
+                <option value="ALL">All Branch Codes</option>
+                {branches.map((b) => (
+                  <option key={b.code} value={b.code}>
+                    Branch Code {b.code} — {b.name}
                   </option>
                 ))}
               </select>
-            </div>
-
-            {!lockType ? (
-              <select
-                value={typeFilter}
-                onChange={(e) => {
-                  onTypeFilterChange(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">All Hardware Types</option>
-                <option value="POS Terminal">POS Terminal (Wizar POS Q2 Pro)</option>
-                <option value="Sound Box">Sound Box (QR Audio)</option>
-              </select>
-            ) : stockScopeControl}
-
-            <select
-              value={midDeviceFilter}
-              onChange={(e) => {
-                setMidDeviceFilter(e.target.value as 'ALL' | 'SINGLE' | 'MULTIPLE');
-                setCurrentPage(1);
-              }}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-              title="Filter by number of devices linked to MID"
-            >
-              <option value="ALL">All MIDs (Any Count)</option>
-              <option value="SINGLE">1 Device per MID (Standard)</option>
-              <option value="MULTIPLE">2+ Devices per MID (In Swap/Change)</option>
-            </select>
-
-            <select
-              value={batteryFilter}
-              onChange={(e) => {
-                setBatteryFilter(e.target.value as any);
-                setCurrentPage(1);
-              }}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-              title="Filter by POS Terminal 24-Month Battery Lifecycle"
-            >
-              <option value="ALL">All Battery Cycles</option>
-              <option value="EXPIRED">🔴 Expired (&ge;24M Change Required)</option>
-              <option value="DUE_SOON">🟡 Due Soon (21-23M)</option>
-              <option value="HEALTHY">🟢 Healthy (&lt;21M)</option>
-            </select>
+            ) : (
+              <div className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold border flex items-center gap-2 bg-white border-slate-200/90 text-zinc-900">
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Scoped to Branch Code: {selectedBranch}</span>
+              </div>
+            )}
           </div>
-
-          {/* Row 2: Branch Filter on left, Clear Filters + viewToggle on right */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex-1 min-w-[200px] max-w-xs">
-              {isAdminLike ? (
-                <select
-                  value={branchFilter}
-                  onChange={(e) => {
-                    onBranchFilterChange(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
-                >
-                  <option value="ALL">All Branch Codes</option>
-                  {branches.map((b) => (
-                    <option key={b.code} value={b.code}>
-                      Branch Code {b.code} — {b.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold border flex items-center gap-2 bg-zinc-900/5 border-zinc-300 text-zinc-900">
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Scoped to Branch Code: {selectedBranch}</span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <ClearFiltersButton
-                active={!!searchQuery || stageFilter !== 'ALL' || (!lockType && typeFilter !== 'ALL') || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}
-                onClear={() => {
-                  onSearchChange(''); onStageFilterChange('ALL'); if (!lockType) onTypeFilterChange('ALL');
-                  if (isAdminLike) onBranchFilterChange('ALL');
-                  setBatteryFilter('ALL'); setMidDeviceFilter('ALL'); setCurrentPage(1);
-                }}
-              />
-              {viewToggle && (
-                <div className="flex items-center">
-                  {viewToggle}
-                </div>
-              )}
-            </div>
-          </div>
+          <ClearFiltersButton
+            active={!!searchQuery || stageFilter !== 'ALL' || (!lockType && typeFilter !== 'ALL') || batteryFilter !== 'ALL' || midDeviceFilter !== 'ALL' || (isAdminLike && branchFilter !== 'ALL')}
+            onClear={() => {
+              onSearchChange(''); onStageFilterChange('ALL'); if (!lockType) onTypeFilterChange('ALL');
+              if (isAdminLike) onBranchFilterChange('ALL');
+              setBatteryFilter('ALL'); setMidDeviceFilter('ALL'); setCurrentPage(1);
+            }}
+          />
         </div>
+        {heroControlsContainer ? actionButtons : (viewToggle && <div className="flex items-center">{viewToggle}</div>)}
+      </div>
+      {heroControlsContainer && exportMenuNode}
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      {heroControlsContainer && createPortal(filterBarNode, heroControlsContainer)}
+
+      {/* Executive Serial Inventory Command Card */}
+      <div className="surface-card rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm">
+        {!heroControlsContainer && (
+          <>
+            <div className="bg-slate-100 dark:bg-slate-800/90 border-b border-slate-200/90 dark:border-slate-700/80 px-4 py-2.5 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 shadow-2xs">
+                  <Boxes className="w-4 h-4 text-slate-700 dark:text-slate-200" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+                      {showArchivedView
+                        ? 'Removed / Archived Serials'
+                        : 'Stock Inventory & Multi-Branch Ledger'}
+                    </h2>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Select multiple serials (e.g. Select 10) to batch-assign to a Branch Code or return to Admin HQ Stock
+                  </p>
+                </div>
+              </div>
+              {actionButtons}
+            </div>
+            {exportMenuNode}
+            <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/90">
+              {filterBarNode}
+            </div>
+          </>
+        )}
         {materialSummaryStrip}
 
       {/* GUIDED REQUISITION FULFILLMENT BANNER */}

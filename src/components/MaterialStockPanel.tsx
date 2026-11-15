@@ -193,12 +193,21 @@ export interface HardwareSummaryMetric {
   live: number;
 }
 
+const STRIP_LG_COLS: Record<number, string> = {
+  1: 'lg:grid-cols-1',
+  2: 'lg:grid-cols-2',
+  3: 'lg:grid-cols-3',
+  4: 'lg:grid-cols-4',
+  5: 'lg:grid-cols-5',
+};
+
 const MaterialSummaryCardsStrip: React.FC<{
   codes: MaterialCode[];
   summaries: Partial<Record<MaterialCode, MaterialSummaryMetric>>;
   selectedCode: MaterialCode | 'ALL' | null;
   onSelectCode: (code: MaterialCode) => void;
   hardwareSummary?: HardwareSummaryMetric;
+  hardwareGroup?: DeviceGroup;
   isHardwareSelected?: boolean;
   onSelectHardware?: () => void;
   lostCount?: number;
@@ -210,12 +219,17 @@ const MaterialSummaryCardsStrip: React.FC<{
   selectedCode,
   onSelectCode,
   hardwareSummary,
+  hardwareGroup = 'POS',
   isHardwareSelected = false,
   onSelectHardware,
   lostCount = 0,
   onOpenLostMaterials,
   embedded = false,
-}) => (
+}) => {
+  const cardCount = Math.min(5, Math.max(1, codes.length + (hardwareSummary ? 1 : 0)));
+  const HardwareIcon = hardwareGroup === 'SB' ? Volume2 : Cpu;
+  const hardwareLabel = hardwareGroup === 'SB' ? 'Sound Box' : 'POS Terminal';
+  return (
   <div className={embedded ? 'space-y-3' : 'px-4 py-3 bg-slate-50/70 border-b border-slate-200/90 space-y-2.5'}>
     {lostCount > 0 && onOpenLostMaterials && (
       <div className="flex items-center justify-end">
@@ -229,7 +243,7 @@ const MaterialSummaryCardsStrip: React.FC<{
         </button>
       </div>
     )}
-    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${hardwareSummary ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${STRIP_LG_COLS[cardCount] || 'lg:grid-cols-4'}`}>
       {hardwareSummary && (
         <button
           type="button"
@@ -244,10 +258,10 @@ const MaterialSummaryCardsStrip: React.FC<{
         >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-sky-50 text-[#155484]">
-                <Cpu className="w-4 h-4" />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${hardwareGroup === 'SB' ? 'bg-indigo-50 text-[#4F518C]' : 'bg-sky-50 text-[#155484]'}`}>
+                <HardwareIcon className="w-4 h-4" />
               </div>
-              <span className="text-xs font-bold text-slate-800 truncate">POS Terminal</span>
+              <span className="text-xs font-bold text-slate-800 truncate">{hardwareLabel}</span>
             </div>
             {isHardwareSelected && (
               <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[#155484] text-white shrink-0">
@@ -335,7 +349,8 @@ const MaterialSummaryCardsStrip: React.FC<{
       })}
     </div>
   </div>
-);
+  );
+};
 
 const ProductStockPageComponent: React.FC<{
   group: DeviceGroup;
@@ -347,6 +362,7 @@ const ProductStockPageComponent: React.FC<{
   renderUnits?: (ctx: {
     stockScopeControl: React.ReactNode;
     materialSummaryStrip: React.ReactNode | null;
+    heroControlsContainer?: HTMLElement | null;
   }) => React.ReactNode;
   push?: React.ReactNode;
   pushCount?: number;
@@ -391,7 +407,7 @@ const ProductStockPageComponent: React.FC<{
     total: number;
   }>({ summaries: {}, total: 0 });
   const [matPrewarmed, setMatPrewarmed] = useState(false);
-  const [heroMaterialSlot, setHeroMaterialSlot] = useState<HTMLDivElement | null>(null);
+  const [heroUnitControlsSlot, setHeroUnitControlsSlot] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setUnitsScope('HARDWARE');
@@ -442,7 +458,7 @@ const ProductStockPageComponent: React.FC<{
           }
         });
       }}
-      className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+      className="px-3 py-2 rounded-xl text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
       title="Filter between Hardware Units and Material stock in-place"
     >
       <option value="HARDWARE">Hardware Units</option>
@@ -462,20 +478,21 @@ const ProductStockPageComponent: React.FC<{
   );
 
   const computedHardwareSummary = useMemo<HardwareSummaryMetric | undefined>(() => {
-    if (group !== 'POS') return undefined;
     if (hardwareSummary) return hardwareSummary;
-    const pos = devices.filter((d) => !d.archived && d.type === 'POS Terminal');
+    const targetType = group === 'POS' ? 'POS Terminal' : 'Sound Box';
+    const rows = devices.filter((d) => !d.archived && d.type === targetType);
     return {
-      total: pos.length,
-      adminStock: pos.filter((d) => d.stage === 'HQ_STOCK').length,
-      branchReserve: pos.filter((d) => d.stage === 'BRANCH_RESERVE').length,
-      live: pos.filter((d) => d.stage === 'COMPLETE' || d.stage === 'CONFIGURING').length,
+      total: rows.length,
+      adminStock: rows.filter((d) => d.stage === 'HQ_STOCK').length,
+      branchReserve: rows.filter((d) => d.stage === 'BRANCH_RESERVE').length,
+      live: rows.filter((d) => d.stage === 'COMPLETE' || d.stage === 'CONFIGURING').length,
     };
   }, [group, hardwareSummary, devices]);
 
-  const materialSummaryStrip = group === 'POS' ? (
+  const materialSummaryStrip = (
     <MaterialSummaryCardsStrip
       embedded
+      hardwareGroup={group}
       codes={matsForGroup.map((m) => m.code)}
       summaries={materialSnap.summaries}
       selectedCode={view === 'UNITS' && unitsScope === 'MATERIAL' ? selectedMaterialCode : null}
@@ -501,9 +518,15 @@ const ProductStockPageComponent: React.FC<{
         });
       }}
     />
-  ) : null;
+  );
 
-  const hardwareNode = renderUnits ? renderUnits({ stockScopeControl, materialSummaryStrip: null }) : units;
+  const hardwareNode = renderUnits
+    ? renderUnits({
+        stockScopeControl,
+        materialSummaryStrip: null,
+        heroControlsContainer: view === 'UNITS' && unitsScope === 'HARDWARE' ? heroUnitControlsSlot : null,
+      })
+    : units;
   const unifiedUnitsNode = (
     <div className="w-full">
       <div hidden={unitsScope !== 'HARDWARE'} className="w-full">
@@ -525,7 +548,7 @@ const ProductStockPageComponent: React.FC<{
             onSelectedCodeChange={setSelectedMaterialCode}
             onSwitchToUnits={() => React.startTransition(() => setUnitsScope('HARDWARE'))}
             onSummariesChange={handleSummariesChange}
-            heroControlsContainer={view === 'UNITS' && unitsScope === 'MATERIAL' ? heroMaterialSlot : null}
+            heroControlsContainer={view === 'UNITS' && unitsScope === 'MATERIAL' ? heroUnitControlsSlot : null}
           />
         </div>
       )}
@@ -591,8 +614,8 @@ const ProductStockPageComponent: React.FC<{
             {kpiCards && <div className="[&>.kpi-strip]:mb-0">{kpiCards}</div>}
           </div>
         )}
-        {view === 'UNITS' && unitsScope === 'MATERIAL' && (
-          <div ref={setHeroMaterialSlot} className="pt-4 border-t border-slate-200/90 space-y-3" />
+        {view === 'UNITS' && (
+          <div ref={setHeroUnitControlsSlot} className="pt-4 border-t border-slate-200/90 space-y-3" />
         )}
       </section>
 

@@ -4562,11 +4562,13 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                     const renderUnitsNode = (ctx?: {
                       stockScopeControl?: React.ReactNode;
                       materialSummaryStrip?: React.ReactNode | null;
+                      heroControlsContainer?: HTMLElement | null;
                     }) => (
                     <InventoryTab
                       lockType={shownTab !== 'inventory'}
                       stockScopeControl={ctx?.stockScopeControl}
                       materialSummaryStrip={ctx?.materialSummaryStrip}
+                      heroControlsContainer={ctx?.heroControlsContainer}
                       onReturnDevice={(sn) => { setWorkflowPreset('RETURN'); setEditingDeviceSerial(sn); }}
                       devices={filteredInventory}
                       allDevices={scopedDevices}
@@ -4638,26 +4640,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       />
                     );
 
-                    const kpiCardsNode = shownTab === 'inventory_pos' ? undefined : (
-                      <KpiCards
-                        devices={scopedDevices}
-                        deviceType={productType || undefined}
-                        theme={theme}
-                        activeStageFilter={stageFilter}
-                        serverStatsByStage={useRawServerSummary ? serverStageSummary?.byStage : undefined}
-                        serverTotal={useRawServerSummary ? serverStageSummary?.all : undefined}
-                        historicalMerchants={ppScopedHistory}
-                        onOpenHistoryTab={() => handleSelectTab('merchant_history')}
-                        onSelectStage={(st) => {
-                          setStageFilter(st);
-                          if (activeTab !== stockTabForStage && st !== 'ALL') {
-                            if (stockTabForStage !== 'inventory') setProductView('UNITS');
-                            setActiveTab(stockTabForStage);
-                          }
-                        }}
-                      />
-                    );
-
                     return (
                       <ProductStockPage
                         group={shownTab === 'inventory_pos' ? 'POS' : 'SB'}
@@ -4666,7 +4648,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         myBranch={selectedBranch}
                         triggerToast={triggerToast}
                         pipelineBar={pipelineBarNode}
-                        kpiCards={kpiCardsNode}
                         renderUnits={renderUnitsNode}
                         users={users}
                         excludedSerials={excludedDeviceSerials}
@@ -4695,16 +4676,12 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         onViewChange={setProductView}
                         onLostChanged={refreshLostCounts}
                         devices={scopedDevices}
-                        hardwareSummary={
-                          shownTab === 'inventory_pos'
-                            ? {
-                                total: pipelineCounts.all,
-                                adminStock: pipelineCounts.hq,
-                                branchReserve: pipelineCounts.reserve,
-                                live: pipelineCounts.config + pipelineCounts.complete,
-                              }
-                            : undefined
-                        }
+                        hardwareSummary={{
+                          total: pipelineCounts.all,
+                          adminStock: pipelineCounts.hq,
+                          branchReserve: pipelineCounts.reserve,
+                          live: pipelineCounts.config + pipelineCounts.complete,
+                        }}
                       />
                     );
                   })()}
