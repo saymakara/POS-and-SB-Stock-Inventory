@@ -522,7 +522,6 @@ const ProductStockPageComponent: React.FC<{
             selectedCode={selectedMaterialCode}
             onSelectedCodeChange={setSelectedMaterialCode}
             onSwitchToUnits={() => React.startTransition(() => setUnitsScope('HARDWARE'))}
-            hardwareSummary={computedHardwareSummary}
             onSummariesChange={handleSummariesChange}
           />
         </div>
@@ -657,11 +656,10 @@ const MaterialStockPanelComponent: React.FC<{
   selectedCode?: MaterialCode | 'ALL';
   onSelectedCodeChange?: (code: MaterialCode | 'ALL') => void;
   onSwitchToUnits?: () => void;
-  hardwareSummary?: HardwareSummaryMetric;
   onSummariesChange?: (summaries: Partial<Record<MaterialCode, MaterialSummaryMetric>>, totalCount: number) => void;
 }> = ({
   group, role, branches, myBranch, triggerToast, onLostChanged, devices = [], users = [], excludedSerials, viewToggle,
-  selectedCode: selectedCodeProp, onSelectedCodeChange, onSwitchToUnits, hardwareSummary, onSummariesChange,
+  selectedCode: selectedCodeProp, onSelectedCodeChange, onSwitchToUnits, onSummariesChange,
 }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
@@ -1586,21 +1584,6 @@ const MaterialStockPanelComponent: React.FC<{
             </motion.button>
           ))}
         </div>
-
-        {/* Executive Controlled Materials Summary Cards (POS only — Sound Box has a single category) */}
-        {group === 'POS' && (
-          <MaterialSummaryCardsStrip
-            codes={codes}
-            summaries={materialSummaries}
-            selectedCode={selectedCode}
-            hardwareSummary={hardwareSummary}
-            isHardwareSelected={false}
-            onSelectHardware={onSwitchToUnits}
-            onSelectCode={(c) => React.startTransition(() => setSelectedCode(selectedCode === c ? 'ALL' : c))}
-          />
-        )}
-
-
 
         {/* Dynamic Table: View 1 (Merchant Deployments) OR View 2 (Multi-Branch Balances) */}
         {activeLedgerView === 'BALANCES' ? (
