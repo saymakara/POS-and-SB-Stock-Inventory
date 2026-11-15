@@ -21,6 +21,8 @@ import { SPRING_TAB_PILL } from '../utils/animationRules';
 import { buildPpDirectoryScope } from '../utils/fieldScope';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { getCachedStaff, loadStaff, onStaffList } from '../services/staffCache';
+import { getCachedAudit } from '../services/auditCache';
+import { getPerfSnapshot, percentile } from '../utils/perfMonitor';
 import type { StaffAccount } from '../services/supabaseService';
 import {
   KpiPeriod,
@@ -67,6 +69,10 @@ import {
   Boxes,
   ChevronRight,
   MapPin,
+  Activity,
+  Users,
+  ShieldCheck,
+  Layers,
 } from 'lucide-react';
 
 /** Battery policy defaults (same values as AppSettings defaults). App can pass the live settings values as props. */
@@ -1120,6 +1126,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const hardwareSummary = useMemo(() => {
     let pos = 0;
     let sb = 0;
+    let posHq = 0;
+    let posReserve = 0;
+    let posConfig = 0;
+    let posInstalled = 0;
+    let sbHq = 0;
+    let sbReserve = 0;
+    let sbConfig = 0;
+    let sbInstalled = 0;
+    let boundDevices = 0;
+    const uniqueMidSet = new Set<string>();
     const localStages: Record<LifecycleStage, number> = {
       HQ_STOCK: 0,
       BRANCH_RESERVE: 0,
@@ -1130,9 +1146,26 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
 
     for (const d of activeDevices) {
-      if (d.type === 'Sound Box') sb++;
-      else pos++;
+      const isSb = d.type === 'Sound Box';
+      if (isSb) {
+        sb++;
+        if (d.stage === 'HQ_STOCK') sbHq++;
+        else if (d.stage === 'BRANCH_RESERVE') sbReserve++;
+        else if (d.stage === 'CONFIGURING') sbConfig++;
+        else if (d.stage === 'COMPLETE') sbInstalled++;
+      } else {
+        pos++;
+        if (d.stage === 'HQ_STOCK') posHq++;
+        else if (d.stage === 'BRANCH_RESERVE') posReserve++;
+        else if (d.stage === 'CONFIGURING') posConfig++;
+        else if (d.stage === 'COMPLETE') posInstalled++;
+      }
       if (d.stage in localStages) localStages[d.stage]++;
+      const merchantKey = (d.mid || d.merchantName || '').trim().toUpperCase();
+      if (merchantKey) {
+        boundDevices++;
+        uniqueMidSet.add(merchantKey);
+      }
     }
 
     const stages = serverStageCounts || localStages;
@@ -1145,6 +1178,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       total,
       pos,
       sb,
+      posHq,
+      posReserve,
+      posConfig,
+      posInstalled,
+      sbHq,
+      sbReserve,
+      sbConfig,
+      sbInstalled,
+      boundDevices,
+      uniqueMerchants: uniqueMidSet.size,
       hq: stages.HQ_STOCK || 0,
       reserve: stages.BRANCH_RESERVE || 0,
       config: stages.CONFIGURING || 0,
@@ -1286,6 +1329,58 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       total: appTotal + reqPend,
     };
   }, [actionQueues, ccCounts, reqStats.pending.length]);
+
+  const systemDirectoryStats = useMemo(() => {
+    let totalDirectoryStaff = 0;
+    if (cachedStaff && cachedStaff.length > 0) {
+      for (const a of cachedStaff) {
+        if (a.active === false) continue;
+        if (!ppDirectoryScope.isBranchInScope(a.branchId, a.location)) continue;
+        if (branchScopedId && a.branchId !== branchScopedId) continue;
+        totalDirectoryStaff++;
+      }
+    } else if (directoryUsers.length > 0) {
+      for (const u of directoryUsers) {
+        if (u.status === 'Suspended') continue;
+        if (!ppDirectoryScope.isBranchInScope(u.branchId, u.location)) continue;
+        if (branchScopedId && u.branchId !== branchScopedId) continue;
+        totalDirectoryStaff++;
+      }
+    }
+    const dirFallback = totalDirectoryStaff || ppDirectoryScope.eligibleEmpIds.size || scopedKpiTotals.activeStaffCount;
+    const ppBranches = branches.filter((b) => {
+      if (!ppDirectoryScope.isBranchInScope(b.code, b.name)) return false;
+      if (branchScopedId && b.code !== branchScopedId) return false;
+      return true;
+    }).length;
+    const branchDenominator = ppBranches || scopedKpiTotals.activeBranchCount || 1;
+    const staffPct = Math.min(100, Math.round((scopedKpiTotals.activeStaffCount / Math.max(1, dirFallback)) * 100));
+    const branchPct = Math.min(100, Math.round((scopedKpiTotals.activeBranchCount / branchDenominator) * 100));
+    return {
+      totalDirectoryStaff: dirFallback,
+      totalBranches: branchDenominator,
+      staffPct,
+      branchPct,
+    };
+  }, [cachedStaff, directoryUsers, branches, branchScopedId, ppDirectoryScope, scopedKpiTotals.activeStaffCount, scopedKpiTotals.activeBranchCount]);
+
+  const systemTelemetry = useMemo(() => {
+    const snap = getPerfSnapshot();
+    const apiValid = snap.api.filter((c) => c.status !== -1);
+    const times = apiValid.map((c) => c.ms);
+    const apiMedianMs = percentile(times, 50);
+    const apiP95Ms = percentile(times, 95);
+    const apiErrors = apiValid.filter((c) => c.status === 0 || c.status >= 400).length;
+    const auditRows = (getCachedAudit(50, 0) || []).slice(0, 3);
+    return {
+      apiCallsCount: apiValid.length,
+      apiMedianMs,
+      apiP95Ms,
+      lcpMs: snap.lcp,
+      errorCount: snap.errors.length + apiErrors,
+      auditRows,
+    };
+  }, [kpiData, syncing, activeDevices.length, requisitions.length]);
 
   // Strictly scoped 5-channel breakdown from Phnom Penh + Active Staff Directory KPI totals
   const channelActivity = useMemo(() => {
@@ -2501,6 +2596,436 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </div>
             </div>
           )}
+        </section>
+      </div>
+
+      {/* ───────────── 5. ROW 3: SYSTEM WORKFLOW QUEUES, FLEET & COVERAGE, PLATFORM TELEMETRY ───────────── */}
+      <div
+        className="grid grid-cols-1 lg:grid-cols-12 gap-5"
+        aria-label="System Operations & Telemetry"
+      >
+        {/* Card 3A: Operational Queues & Pipeline Watchlist */}
+        <section className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
+          <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                  queues.total + queues.pushPend > 0
+                    ? isLight
+                      ? 'bg-amber-500/15 text-amber-600'
+                      : 'bg-amber-500/20 text-amber-300'
+                    : isLight
+                      ? 'bg-emerald-500/15 text-emerald-600'
+                      : 'bg-emerald-500/20 text-emerald-300'
+                }`}
+              >
+                {queues.total + queues.pushPend > 0 ? (
+                  <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                ) : (
+                  <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  System Queues &amp; Alerts
+                </h3>
+                <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Approval backlog &amp; asset recovery
+                </p>
+              </div>
+            </div>
+            <span
+              className={`text-[11px] font-figure font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0 ${
+                queues.total + queues.pushPend > 0
+                  ? isLight
+                    ? 'bg-amber-500/12 text-amber-700'
+                    : 'bg-amber-500/20 text-amber-300'
+                  : isLight
+                    ? 'bg-emerald-500/12 text-emerald-700'
+                    : 'bg-emerald-500/20 text-emerald-300'
+              }`}
+            >
+              {fmtNum(queues.total + queues.pushPend)} active
+            </span>
+          </div>
+
+          <div className={`divide-y flex-1 ${isLight ? 'divide-slate-100/85' : 'divide-slate-800/70'}`}>
+            {[
+              {
+                key: 'pos_app',
+                label: 'POS App Review',
+                sub: 'Field events awaiting check',
+                count: queues.posField,
+                tab: 'mobile_sync',
+                icon: Cpu,
+                iconCls: isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-300',
+              },
+              {
+                key: 'sb_app',
+                label: 'Sound Box Review',
+                sub: 'Audio box tasks awaiting check',
+                count: queues.sbField,
+                tab: 'mobile_sync_sb',
+                icon: Volume2,
+                iconCls: isLight ? 'bg-indigo-500/15 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300',
+              },
+              {
+                key: 'cc_app',
+                label: 'Credit Card Review',
+                sub: ccCounts?.waitingDocs ? `${fmtNum(ccCounts.waitingDocs)} waiting docs` : 'Submitted acquisitions',
+                count: queues.ccPend,
+                tab: 'mobile_sync_cc',
+                icon: CreditCard,
+                iconCls: isLight ? 'bg-amber-500/15 text-amber-600' : 'bg-amber-500/20 text-amber-300',
+              },
+              {
+                key: 'req_open',
+                label: 'Stock Requisitions',
+                sub: `${fmtNum(reqStats.received)} received · ${fmtNum(reqStats.total)} total`,
+                count: queues.reqPend,
+                tab: 'requisitions',
+                icon: ScrollText,
+                iconCls: isLight ? 'bg-violet-500/15 text-violet-600' : 'bg-violet-500/20 text-violet-300',
+              },
+              {
+                key: 'push_cfg',
+                label: 'Push Configuring',
+                sub: `${fmtNum(actionQueues?.pushPosPending ?? 0)} POS · ${fmtNum(actionQueues?.pushSbPending ?? 0)} SB`,
+                count: queues.pushPend,
+                tab: 'push_configuring',
+                icon: Package,
+                iconCls: isLight ? 'bg-teal-500/15 text-teal-600' : 'bg-teal-500/20 text-teal-300',
+              },
+              {
+                key: 'recovery',
+                label: 'Faulty & Lost Assets',
+                sub: `${fmtNum(hardwareSummary.faulty)} faulty · ${fmtNum(hardwareSummary.lost)} lost HW · ${fmtNum(actionQueues?.lostSim ?? 0)} SIM`,
+                count: hardwareSummary.faulty + hardwareSummary.lost + (actionQueues?.lostSim ?? 0),
+                tab: 'inventory',
+                icon: AlertCircle,
+                iconCls: isLight ? 'bg-rose-500/15 text-rose-600' : 'bg-rose-500/20 text-rose-300',
+              },
+            ].map((q) => {
+              const QIcon = q.icon;
+              return (
+                <button
+                  key={q.key}
+                  type="button"
+                  onClick={() => onNavigateTab?.(q.tab)}
+                  className={`w-full text-left px-6 py-2.5 flex items-center justify-between gap-2.5 transition cursor-pointer group ${
+                    isLight ? 'hover:bg-slate-50/80' : 'hover:bg-slate-800/45'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${q.iconCls}`}>
+                      <QIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className={`text-xs font-semibold truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
+                        {q.label}
+                      </div>
+                      <div className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {q.sub}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span
+                      className={`text-[11px] font-figure font-bold px-2 py-0.5 rounded-full tabular-nums ${
+                        q.count > 0
+                          ? isLight
+                            ? 'bg-slate-100 text-slate-900'
+                            : 'bg-slate-800 text-white'
+                          : isLight
+                            ? 'bg-emerald-500/10 text-emerald-700'
+                            : 'bg-emerald-500/15 text-emerald-300'
+                      }`}
+                    >
+                      {q.count > 0 ? fmtNum(q.count) : 'Clear'}
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#004e75] transition" aria-hidden="true" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Card 3B: Device Fleet, Merchants & Network Scope */}
+        <section className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
+          <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                  isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-300'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  Fleet, Merchants &amp; Network
+                </h3>
+                <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  POS vs SB, MIDs &amp; branch coverage
+                </p>
+              </div>
+            </div>
+            {onNavigateTab && (
+              <button
+                type="button"
+                onClick={() => onNavigateTab('merchants')}
+                className={`text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition ${
+                  isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                }`}
+              >
+                Merchants <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+
+          <div className="px-6 pb-5 space-y-3.5 flex-1 flex flex-col justify-between">
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => onNavigateTab?.('inventory_pos')}
+                className={`${kpiCardClass} rounded-[16px] p-3 text-left transition cursor-pointer ${
+                  isLight ? 'hover:bg-slate-100/80' : 'hover:bg-slate-800/70'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>POS Terminals</span>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center ${isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-300'}`}>
+                    <Cpu className="w-3 h-3" aria-hidden="true" />
+                  </span>
+                </div>
+                <div className={`text-lg font-bold font-figure tabular-nums mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {fmtNum(hardwareSummary.pos)}
+                </div>
+                <div className={`text-[10px] leading-snug mt-1 tabular-nums ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {fmtNum(hardwareSummary.posHq)} HQ · {fmtNum(hardwareSummary.posReserve)} Res · {fmtNum(hardwareSummary.posInstalled)} Live
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigateTab?.('inventory_sb')}
+                className={`${kpiCardClass} rounded-[16px] p-3 text-left transition cursor-pointer ${
+                  isLight ? 'hover:bg-slate-100/80' : 'hover:bg-slate-800/70'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className={`text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Sound Boxes</span>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center ${isLight ? 'bg-indigo-500/15 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300'}`}>
+                    <Volume2 className="w-3 h-3" aria-hidden="true" />
+                  </span>
+                </div>
+                <div className={`text-lg font-bold font-figure tabular-nums mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {fmtNum(hardwareSummary.sb)}
+                </div>
+                <div className={`text-[10px] leading-snug mt-1 tabular-nums ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {fmtNum(hardwareSummary.sbHq)} HQ · {fmtNum(hardwareSummary.sbReserve)} Res · {fmtNum(hardwareSummary.sbInstalled)} Live
+                </div>
+              </button>
+            </div>
+
+            <div className={`${kpiCardClass} rounded-[16px] px-3.5 py-2.5 flex items-center justify-between gap-3`}>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-violet-500/15 text-violet-600' : 'bg-violet-500/20 text-violet-300'}`}>
+                  <Store className="w-3.5 h-3.5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <div className={`text-xs font-semibold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Merchant Binding &amp; KHQR Volume
+                  </div>
+                  <div className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {fmtNum(hardwareSummary.boundDevices)} bound devices · {fmtNum(channelActivity.khqrNew)} new / {fmtNum(channelActivity.khqrReplace)} repl QR
+                  </div>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className={`text-base font-bold font-figure tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {fmtNum(hardwareSummary.uniqueMerchants)}
+                </div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">MIDs</div>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 pt-0.5">
+              <div>
+                <div className="flex items-center justify-between text-[11.5px] mb-1">
+                  <span className={`font-semibold inline-flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                    <Users className={`w-3.5 h-3.5 ${isLight ? 'text-sky-600' : 'text-sky-400'}`} aria-hidden="true" />
+                    Staff Activity Participation
+                  </span>
+                  <span className={`font-figure font-semibold tabular-nums ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                    {fmtNum(scopedKpiTotals.activeStaffCount)} / {fmtNum(systemDirectoryStats.totalDirectoryStaff)} ({systemDirectoryStats.staffPct}%)
+                  </span>
+                </div>
+                <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
+                  <div
+                    className="h-full rounded-full bg-[#003857] transition-all duration-300"
+                    style={{ width: `${Math.max(systemDirectoryStats.staffPct, scopedKpiTotals.activeStaffCount > 0 ? 4 : 0)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-[11.5px] mb-1">
+                  <span className={`font-semibold inline-flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                    <Building2 className={`w-3.5 h-3.5 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} aria-hidden="true" />
+                    Phnom Penh Branch Reporting
+                  </span>
+                  <span className={`font-figure font-semibold tabular-nums ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                    {fmtNum(scopedKpiTotals.activeBranchCount)} / {fmtNum(systemDirectoryStats.totalBranches)} ({systemDirectoryStats.branchPct}%)
+                  </span>
+                </div>
+                <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
+                  <div
+                    className="h-full rounded-full bg-[#3b6992] transition-all duration-300"
+                    style={{ width: `${Math.max(systemDirectoryStats.branchPct, scopedKpiTotals.activeBranchCount > 0 ? 4 : 0)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Card 3C: Platform Telemetry & Recent Activity */}
+        <section className={`lg:col-span-4 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
+          <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                  systemTelemetry.errorCount === 0
+                    ? isLight
+                      ? 'bg-emerald-500/15 text-emerald-600'
+                      : 'bg-emerald-500/20 text-emerald-300'
+                    : isLight
+                      ? 'bg-rose-500/15 text-rose-600'
+                      : 'bg-rose-500/20 text-rose-300'
+                }`}
+              >
+                <Activity className="w-3.5 h-3.5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h3 className={`text-[15px] font-bold tracking-[-0.015em] truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  Platform Health &amp; Activity
+                </h3>
+                <p className={`text-[12px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Session speed, kits &amp; live events
+                </p>
+              </div>
+            </div>
+            {onNavigateTab && isAdminLike && (
+              <button
+                type="button"
+                onClick={() => onNavigateTab(role === 'SUPER_ADMIN' ? 'settings' : 'audit_log')}
+                className={`text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition ${
+                  isLight ? 'text-[#004e75] hover:text-[#003857]' : 'text-sky-400 hover:text-sky-300'
+                }`}
+              >
+                {role === 'SUPER_ADMIN' ? 'Health' : 'Audit'} <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+
+          <div className="px-6 pb-5 space-y-3 flex-1 flex flex-col justify-between">
+            <div className="grid grid-cols-3 gap-2">
+              <div className={`${kpiCardClass} rounded-[14px] px-2.5 py-2`}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Backend</div>
+                <div className={`text-xs font-bold mt-0.5 inline-flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  {isSupabaseConfigured ? 'Cloud Live' : 'Local'}
+                </div>
+                <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                  {fmtNum(systemTelemetry.apiCallsCount)} calls
+                </div>
+              </div>
+
+              <div className={`${kpiCardClass} rounded-[14px] px-2.5 py-2`}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">API Speed</div>
+                <div className={`text-xs font-bold font-figure tabular-nums mt-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {systemTelemetry.apiMedianMs !== null ? `${systemTelemetry.apiMedianMs} ms` : 'Cached'}
+                </div>
+                <div className="text-[10px] font-figure text-slate-400 mt-0.5 truncate">
+                  P95 {systemTelemetry.apiP95Ms !== null ? `${systemTelemetry.apiP95Ms} ms` : '—'}
+                </div>
+              </div>
+
+              <div className={`${kpiCardClass} rounded-[14px] px-2.5 py-2`}>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Errors / LCP</div>
+                <div className={`text-xs font-bold font-figure tabular-nums mt-0.5 ${
+                  systemTelemetry.errorCount === 0
+                    ? isLight ? 'text-emerald-700' : 'text-emerald-300'
+                    : isLight ? 'text-rose-600' : 'text-rose-400'
+                }`}>
+                  {systemTelemetry.errorCount} err
+                </div>
+                <div className="text-[10px] font-figure text-slate-400 mt-0.5 truncate">
+                  {systemTelemetry.lcpMs !== null ? `${(systemTelemetry.lcpMs / 1000).toFixed(2)}s LCP` : 'Healthy'}
+                </div>
+              </div>
+            </div>
+
+            <div className={`${kpiCardClass} rounded-[14px] px-3 py-2 flex items-center justify-between gap-2 text-[11px]`}>
+              <span className={`font-medium truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                QR Kits ({materialsSummary.activeTypesCount} SKUs): <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(materialsSummary.kitOnHand)}</strong> stock · <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(materialsSummary.kitAtMerchant)}</strong> merchant
+              </span>
+              <span className={`font-figure font-semibold shrink-0 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                {fmtNum(materialsSummary.kitInTransit)} transit
+              </span>
+            </div>
+
+            <div className={`divide-y ${isLight ? 'divide-slate-100/85' : 'divide-slate-800/70'}`}>
+              {systemTelemetry.auditRows.length > 0 ? (
+                systemTelemetry.auditRows.map((ev) => (
+                  <div key={ev.id} className="py-2 first:pt-0.5 last:pb-0 flex items-center justify-between gap-2.5">
+                    <div className="min-w-0">
+                      <div className={`text-xs font-semibold truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
+                        {ev.title || ev.action || 'System event'}
+                      </div>
+                      <div className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {ev.actorName || ev.actorEmp || 'System'}{ev.branchId ? ` · Code ${ev.branchId}` : ''}{ev.target ? ` · ${ev.target}` : ''}
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-mono shrink-0 px-2 py-0.5 rounded-full ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-slate-800 text-slate-400'}`}>
+                      {ev.createdAt ? ev.createdAt.slice(0, 10) : 'Audit'}
+                    </span>
+                  </div>
+                ))
+              ) : recentDevices.length > 0 ? (
+                recentDevices.slice(0, 3).map((dev) => (
+                  <button
+                    key={dev.serial}
+                    type="button"
+                    onClick={() => onSelectDevice(dev.serial)}
+                    className={`w-full text-left py-2 first:pt-0.5 last:pb-0 flex items-center justify-between gap-2.5 cursor-pointer group ${
+                      isLight ? 'hover:bg-slate-50/70' : 'hover:bg-slate-800/30'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className={`text-xs font-mono font-bold truncate transition ${
+                        isLight ? 'text-slate-900 group-hover:text-[#004e75]' : 'text-white group-hover:text-sky-400'
+                      }`}>
+                        {dev.serial} · {dev.type}
+                      </div>
+                      <div className={`text-[11px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Code {dev.branchId}{dev.merchantName ? ` · ${dev.merchantName}` : ` · ${dev.model}`}
+                      </div>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${STAGE_META[dev.stage]?.badgeClassLight || ''}`}>
+                      {STAGE_META[dev.stage]?.short || dev.stage}
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="py-4 text-center text-xs text-slate-400">
+                  No recent system activity recorded yet.
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       </div>
     </div>
