@@ -274,3 +274,295 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
     </div>
   );
 };
+
+export interface CrossChannelDayPoint {
+  label: string;
+  fullLabel?: string;
+  pos: number;
+  sb: number;
+  khqr: number;
+  mv: number;
+  cc: number;
+  activeStaff: number;
+  activeBranches?: number;
+}
+
+interface CrossChannelVelocityChartProps {
+  items: CrossChannelDayPoint[];
+  height?: number;
+  theme?: ThemeMode;
+  ariaLabel?: string;
+}
+
+const CHANNEL_SERIES = [
+  { key: 'pos' as const, label: 'POS Terminal', color: '#004e75' },
+  { key: 'sb' as const, label: 'Sound Box', color: '#4F518C' },
+  { key: 'khqr' as const, label: 'KHQR', color: '#10b981' },
+  { key: 'mv' as const, label: 'Merchant Visit', color: '#0284c7' },
+  { key: 'cc' as const, label: 'Credit Card', color: '#f59e0b' },
+];
+
+/**
+ * Lightweight Canvas stacked bar + Active Staff dashed trend chart for the Dashboard landing page.
+ * Renders without pulling the heavy Recharts chunk into initial login bundles.
+ */
+export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps> = ({
+  items,
+  height = 250,
+  theme = 'light',
+  ariaLabel,
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const [hover, setHover] = useState<{ idx: number; x: number } | null>(null);
+  const geomRef = useRef<{ padLeft: number; groupW: number; count: number } | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const parent = canvas?.parentElement;
+    if (!parent) return;
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver((entries) => {
+        const w = Math.round(entries[entries.length - 1]?.contentRect.width || 0);
+        if (w > 0) setContainerWidth(w);
+      });
+      observer.observe(parent);
+    } else {
+      if (parent.clientWidth > 0) setContainerWidth(parent.clientWidth);
+      const onResize = () => { if (parent.clientWidth > 0) setContainerWidth(parent.clientWidth); };
+      window.addEventListener('resize', onResize);
+      return () => window.removeEventListener('resize', onResize);
+    }
+
+    return () => observer?.disconnect();
+  }, []);
+
+  const dataKey = useMemo(() => JSON.stringify(items), [items]);
+  const hasData = useMemo(
+    () => items.some((d) => d.pos + d.sb + d.khqr + d.mv + d.cc + d.activeStaff > 0),
+    [items]
+  );
+
+  const summary = useMemo(() => {
+    if (ariaLabel) return ariaLabel;
+    if (!items.length || !hasData) return 'Cross-channel velocity chart. No data for this period.';
+    return `Cross-channel velocity across ${items.length} periods.`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ariaLabel, dataKey, hasData]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const parent = canvas?.parentElement;
+    if (!canvas || !parent) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const width = containerWidth || parent.clientWidth || 560;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    const isLight = theme === 'light';
+    const gridColor = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.08)';
+    const axisColor = isLight ? '#64748b' : '#94a3b8';
+    const rightAxisColor = isLight ? '#004e75' : '#38bdf8';
+    const staffStroke = isLight ? '#004e75' : '#38bdf8';
+    const dotFill = isLight ? '#ffffff' : '#0f172a';
+    const chartFont = '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+
+    const padLeft = 40;
+    const padRight = 36;
+    const padTop = 14;
+    const padBottom = 28;
+    const plotW = Math.max(120, width - padLeft - padRight);
+    const plotH = Math.max(80, height - padTop - padBottom);
+
+    const maxTasks = Math.max(4, ...items.map((d) => d.pos + d.sb + d.khqr + d.mv + d.cc));
+    const maxStaff = Math.max(4, ...items.map((d) => d.activeStaff));
+    const taskScale = niceScale(maxTasks, 4);
+    const staffScale = niceScale(maxStaff, 4);
+
+    // Horizontal grid + Left/Right axes
+    ctx.font = `600 10.5px ${chartFont}`;
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= taskScale.steps; i++) {
+      const ratio = i / taskScale.steps;
+      const y = padTop + plotH - ratio * plotH;
+      ctx.strokeStyle = i === 0 && isLight ? '#e2e8f0' : gridColor;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, y);
+      ctx.lineTo(width - padRight, y);
+      ctx.stroke();
+
+      const lv = Math.round(i * taskScale.step);
+      const ls = lv >= 1000 ? `${(lv / 1000).toFixed(lv % 1000 === 0 ? 0 : 1)}k` : String(lv);
+      ctx.fillStyle = axisColor;
+      ctx.fillText(ls, Math.max(2, padLeft - 6 - ctx.measureText(ls).width), y + 3);
+
+      const rv = Math.round(ratio * staffScale.max);
+      ctx.fillStyle = rightAxisColor;
+      ctx.fillText(String(rv), width - padRight + 6, y + 3);
+    }
+
+    const count = Math.max(1, items.length);
+    const groupW = plotW / count;
+    geomRef.current = { padLeft, groupW, count: items.length };
+    const barW = Math.min(26, Math.max(7, groupW * 0.56));
+    const labelStep = Math.max(1, Math.ceil(items.length / (plotW < 420 ? 6 : 12)));
+
+    // Hover highlight band
+    if (hover && items[hover.idx]) {
+      ctx.fillStyle = isLight ? 'rgba(0, 78, 117, 0.045)' : 'rgba(56, 189, 248, 0.08)';
+      ctx.fillRect(padLeft + hover.idx * groupW, padTop, groupW, plotH);
+    }
+
+    // Stacked bars
+    items.forEach((item, idx) => {
+      const cx = padLeft + idx * groupW + groupW / 2;
+      const bx = cx - barW / 2;
+      let curY = padTop + plotH;
+
+      const activeSegs = CHANNEL_SERIES.filter((s) => item[s.key] > 0);
+      activeSegs.forEach((s, sIdx) => {
+        const val = item[s.key];
+        const segH = Math.max(1.5, (val / taskScale.max) * plotH);
+        const topY = curY - segH;
+        const isTop = sIdx === activeSegs.length - 1;
+        ctx.fillStyle = s.color;
+        roundRectPath(ctx, bx, topY, barW, segH, isTop ? [3, 3, 0, 0] : 0);
+        ctx.fill();
+        if (sIdx > 0) {
+          ctx.fillStyle = isLight ? '#ffffff' : '#0f172a';
+          ctx.fillRect(bx, curY - 1, barW, 1);
+        }
+        curY = topY;
+      });
+
+      if (idx % labelStep === 0 || idx === items.length - 1) {
+        ctx.fillStyle = axisColor;
+        ctx.font = `600 10.5px ${chartFont}`;
+        const tw = ctx.measureText(item.label).width;
+        const lx = Math.min(width - padRight - tw, Math.max(padLeft, cx - tw / 2));
+        ctx.fillText(item.label, lx, height - 8);
+      }
+    });
+
+    // Dashed Active Staff overlay line
+    if (items.length > 0 && items.some((d) => d.activeStaff > 0)) {
+      ctx.save();
+      ctx.strokeStyle = staffStroke;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      items.forEach((item, idx) => {
+        const cx = padLeft + idx * groupW + groupW / 2;
+        const cy = padTop + plotH - (item.activeStaff / staffScale.max) * plotH;
+        if (idx === 0) ctx.moveTo(cx, cy);
+        else ctx.lineTo(cx, cy);
+      });
+      ctx.stroke();
+      ctx.restore();
+
+      items.forEach((item, idx) => {
+        const cx = padLeft + idx * groupW + groupW / 2;
+        const cy = padTop + plotH - (item.activeStaff / staffScale.max) * plotH;
+        const isHov = hover?.idx === idx;
+        ctx.beginPath();
+        ctx.arc(cx, cy, isHov ? 4.5 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = isHov ? staffStroke : dotFill;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = isHov ? dotFill : staffStroke;
+        ctx.stroke();
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey, height, theme, containerWidth, hover]);
+
+  const hoverItem = hover && items[hover.idx] ? items[hover.idx] : null;
+  const hoverTotal = hoverItem
+    ? hoverItem.pos + hoverItem.sb + hoverItem.khqr + hoverItem.mv + hoverItem.cc
+    : 0;
+
+  return (
+    <div className="relative w-full" style={{ height }}>
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label={summary}
+        className="w-full h-full block"
+        onPointerMove={(e) => {
+          const g = geomRef.current;
+          if (!g || !g.count) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          const x = e.clientX - r.left;
+          const idx = Math.floor((x - g.padLeft) / g.groupW);
+          if (idx < 0 || idx >= g.count) {
+            if (hover) setHover(null);
+            return;
+          }
+          if (!hover || hover.idx !== idx) {
+            setHover({ idx, x: g.padLeft + (idx + 0.5) * g.groupW });
+          }
+        }}
+        onPointerLeave={() => setHover(null)}
+      >
+        {summary}
+      </canvas>
+      {hover && hoverItem && hasData && (
+        <div
+          className="absolute top-3 pointer-events-none z-20 rounded-xl border border-slate-200/90 bg-white/95 backdrop-blur-sm shadow-lg px-3 py-2 text-[11px] text-slate-700 whitespace-nowrap min-w-[190px]"
+          style={{
+            left: hover.x,
+            transform: `translateX(${hover.x > (containerWidth || 0) * 0.52 ? 'calc(-100% - 10px)' : '10px'})`,
+          }}
+          role="status"
+        >
+          <div className="flex items-center justify-between gap-4 font-bold text-slate-900 pb-1 mb-1 border-b border-slate-100">
+            <span>{hoverItem.fullLabel || hoverItem.label}</span>
+            <span className="font-figure">{fmt(hoverTotal)} tasks</span>
+          </div>
+          <div className="space-y-0.5">
+            {CHANNEL_SERIES.map((s) =>
+              hoverItem[s.key] > 0 ? (
+                <div key={s.key} className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-sm" style={{ background: s.color }} />
+                    {s.label}
+                  </span>
+                  <strong className="font-figure text-slate-900">{fmt(hoverItem[s.key])}</strong>
+                </div>
+              ) : null
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-3 pt-1 mt-1 border-t border-slate-100 text-[10.5px] text-slate-500">
+            <span>
+              {fmt(hoverItem.activeStaff)} staff
+              {hoverItem.activeBranches ? ` · ${hoverItem.activeBranches} branches` : ''}
+            </span>
+            {hoverItem.activeStaff > 0 && (
+              <span className="font-figure font-semibold text-[#004e75]">
+                {(hoverTotal / hoverItem.activeStaff).toFixed(1)}/staff
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+      {!hasData && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+          <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/90 text-slate-500 border border-slate-200/80">
+            No activity recorded for this period
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};

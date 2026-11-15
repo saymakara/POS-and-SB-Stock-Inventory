@@ -4477,6 +4477,17 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       onNavigateTab={handleSelectTab}
                       batteryLifespanMonths={appSettings.batteryLifespanMonths}
                       batteryWarningMonths={appSettings.batteryWarningMonths}
+                      phoneReviewScope={appSettings.phoneReviewScope || 'PHNOM_PENH'}
+                      actionQueues={{
+                        posFieldPending: isSupabaseConfigured ? pendingByType.pos : outOfSyncWebhooksCount,
+                        sbFieldPending: isSupabaseConfigured ? pendingByType.sb : 0,
+                        ccPending: isSupabaseConfigured ? ccPending : 0,
+                        pushPosPending: unpushedByType.pos,
+                        pushSbPending: unpushedByType.sb,
+                        lostPos: lostCounts.pos,
+                        lostSb: lostCounts.sb,
+                        lostSim: lostCounts.sim,
+                      }}
                       serverTotalDevices={useRawServerSummary ? (serverStageSummary ? serverStageSummary.all : serverDeviceTotal) : ppScopedDevices.length}
                       serverStageCounts={
                         useRawServerSummary && serverStageSummary

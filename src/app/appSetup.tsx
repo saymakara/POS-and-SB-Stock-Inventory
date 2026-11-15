@@ -124,6 +124,7 @@ export const VALID_TABS = new Set([
 ]);
 
 export const HIDE_STAGE_HEADER_TABS = new Set([
+  'dashboard',
   'kpi_performance',
   'mobile_sync',       // (5 Nov 2026) POS / Sound Box review: own header with the phone app figures, like KHQR
   'mobile_sync_sb',
