@@ -115,16 +115,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           icon: Trophy,
         },
         {
-          id: 'merchants',
-          label: 'Merchant Deployment',
-          icon: Store,
-        },
-        {
-          id: 'merchant_history',
-          label: 'Merchant History',
-          icon: RotateCcw,
-        },
-        {
           id: 'mobile_sync',
           label: 'Phone App Review',
           icon: Smartphone,
@@ -143,6 +133,16 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     {
       heading: 'OPERATIONS & GOVERNANCE',
       items: [
+        {
+          id: 'merchants',
+          label: 'Merchant Deployment',
+          icon: Store,
+        },
+        {
+          id: 'merchant_history',
+          label: 'Merchant History',
+          icon: RotateCcw,
+        },
         {
           // (5 Nov 2026) the heading opens all units (both products, as before); below it one page per product
           // (units + its materials) and SIM cards
