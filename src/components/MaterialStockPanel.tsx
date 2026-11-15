@@ -1362,7 +1362,7 @@ const MaterialStockPanelComponent: React.FC<{
           whileHover={{ y: -1 }}
           whileTap={{ scale: 0.97 }}
           type="button"
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition cursor-pointer shadow-2xs"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700/20 transition cursor-pointer shadow-xs"
           onClick={() => {
             setDlgParams({ code: selectedCode !== 'ALL' ? selectedCode : codes[0], branchId: branchFilter || '100' });
             setDlg('IN');

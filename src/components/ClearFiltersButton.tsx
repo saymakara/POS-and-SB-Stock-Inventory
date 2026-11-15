@@ -11,7 +11,7 @@ export const ClearFiltersButton: React.FC<{ active: boolean; onClear: () => void
     title={active ? 'Clear the search and all filters' : 'No filter is applied'}
     className={`btn-tactile inline-flex items-center justify-center gap-1.5 ${compact ? 'px-2 py-1.5' : 'px-3 py-2'} rounded-xl text-xs border shrink-0 whitespace-nowrap ${
       active
-        ? 'bg-[#003857] text-white border-[#003857] hover:bg-[#002a42] shadow-xs cursor-pointer'
+        ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 hover:border-rose-300 font-semibold shadow-2xs cursor-pointer'
         : 'bg-slate-100 text-slate-400 border-slate-200 cursor-default'
     } ${className}`}
   >
