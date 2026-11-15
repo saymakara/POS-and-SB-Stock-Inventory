@@ -226,6 +226,22 @@ table thead th,
   padding-bottom: 8px;
 }
 
+/* Dashboard editorial summary table: override global dark thead cleanly without disturbing inventory tables */
+table.dash-light-table thead,
+table.dash-light-table thead tr,
+table.dash-light-table thead th {
+  background-color: #f8fafc !important;
+  color: #64748b !important;
+  box-shadow: none !important;
+}
+table.dash-light-table thead tr {
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+}
+table.dash-light-table thead th:hover {
+  color: #0f172a !important;
+}
+
 /* Ensure sticky table headers and cells are 100% solid & opaque to prevent see-through when scrolling */
 thead[class*="sticky"],
 thead.sticky,

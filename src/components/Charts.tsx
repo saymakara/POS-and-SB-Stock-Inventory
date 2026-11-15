@@ -396,11 +396,14 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     for (let i = 0; i <= taskScale.steps; i++) {
       const ratio = i / taskScale.steps;
       const y = padTop + plotH - ratio * plotH;
-      ctx.strokeStyle = i === 0 && isLight ? '#e2e8f0' : gridColor;
+      ctx.save();
+      ctx.strokeStyle = i === 0 ? (isLight ? '#cbd5e1' : 'rgba(255,255,255,0.16)') : gridColor;
+      if (i > 0) ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(padLeft, y);
       ctx.lineTo(width - padRight, y);
       ctx.stroke();
+      ctx.restore();
 
       const lv = Math.round(i * taskScale.step);
       const ls = lv >= 1000 ? `${(lv / 1000).toFixed(lv % 1000 === 0 ? 0 : 1)}k` : String(lv);
@@ -415,13 +418,22 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     const count = Math.max(1, items.length);
     const groupW = plotW / count;
     geomRef.current = { padLeft, groupW, count: items.length };
-    const barW = Math.min(26, Math.max(7, groupW * 0.56));
+    const barW = Math.min(28, Math.max(8, groupW * 0.56));
     const labelStep = Math.max(1, Math.ceil(items.length / (plotW < 420 ? 6 : 12)));
 
-    // Hover highlight band
+    // Hover highlight band + crisp vertical guide
     if (hover && items[hover.idx]) {
-      ctx.fillStyle = isLight ? 'rgba(0, 78, 117, 0.045)' : 'rgba(56, 189, 248, 0.08)';
+      const hx = padLeft + hover.idx * groupW + groupW / 2;
+      ctx.fillStyle = isLight ? 'rgba(0, 78, 117, 0.035)' : 'rgba(56, 189, 248, 0.06)';
       ctx.fillRect(padLeft + hover.idx * groupW, padTop, groupW, plotH);
+      ctx.save();
+      ctx.strokeStyle = isLight ? 'rgba(148, 163, 184, 0.55)' : 'rgba(148, 163, 184, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(hx, padTop);
+      ctx.lineTo(hx, padTop + plotH);
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Stacked bars
@@ -437,7 +449,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
         const topY = curY - segH;
         const isTop = sIdx === activeSegs.length - 1;
         ctx.fillStyle = s.color;
-        roundRectPath(ctx, bx, topY, barW, segH, isTop ? [3, 3, 0, 0] : 0);
+        roundRectPath(ctx, bx, topY, barW, segH, isTop ? [4, 4, 0, 0] : 0);
         ctx.fill();
         if (sIdx > 0) {
           ctx.fillStyle = isLight ? '#ffffff' : '#0f172a';

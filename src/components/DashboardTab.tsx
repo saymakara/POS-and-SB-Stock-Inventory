@@ -62,6 +62,7 @@ import {
   RefreshCw,
   AlertCircle,
   Boxes,
+  ChevronRight,
 } from 'lucide-react';
 
 /** Battery policy defaults (same values as AppSettings defaults). App can pass the live settings values as props. */
@@ -533,10 +534,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         ? ccCounts.total
         : Math.max(scopedKpiTotals.ccSubmitted, ccCount);
 
-    const maxVal = Math.max(1, khqrCount, sbCount, posCount, mvCount, ccSubmittedShow);
+    const totalTasks = khqrCount + sbCount + posCount + mvCount + ccCount;
+    const pctOfTotal = (n: number) =>
+      totalTasks > 0 ? Math.max(0, Number(((n / totalTasks) * 100).toFixed(1))) : 0;
 
     return {
-      totalTasks: khqrCount + sbCount + posCount + mvCount + ccCount,
+      totalTasks,
       totalPoints: computed.totalPoints,
       khqrCount,
       khqrNew: raw.khqrInstall || (useServerDirectFallback && qrSummary ? qrSummary.install : 0),
@@ -553,43 +556,43 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           label: 'KHQR Onboarding & Replace',
           tab: 'mobile_sync_khqr',
           icon: QrCode,
-          iconWrap: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+          iconWrap: 'bg-emerald-500/10 text-emerald-700',
           barColor: 'bg-emerald-500',
           primaryValue: khqrCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(raw.khqrInstall)} new · ${fmtNum(raw.khqrReplace)} replace${raw.khqrMaterials > 0 ? ` · ${fmtNum(raw.khqrMaterials)} QR items` : ''}`,
-          pct: Math.max(khqrCount > 0 ? 4 : 0, Math.round((khqrCount / maxVal) * 100)),
+          sharePct: pctOfTotal(khqrCount),
         },
         {
           id: 'sb',
           label: 'Sound Box Field & Stock',
           tab: 'mobile_sync_sb',
           icon: Volume2,
-          iconWrap: 'bg-indigo-50 text-[#4F518C] border-indigo-200/80',
+          iconWrap: 'bg-[#4F518C]/10 text-[#4F518C]',
           barColor: 'bg-[#4F518C]',
           primaryValue: sbCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(hardwareSummary.sb)} units in stock · ${fmtNum(queues.sbField)} awaiting review`,
-          pct: Math.max(sbCount > 0 ? 4 : 0, Math.round((sbCount / maxVal) * 100)),
+          sharePct: pctOfTotal(sbCount),
         },
         {
           id: 'pos',
           label: 'POS Terminal Field & Stock',
           tab: 'mobile_sync',
           icon: Cpu,
-          iconWrap: 'bg-sky-50 text-[#004e75] border-sky-200/80',
+          iconWrap: 'bg-[#004e75]/10 text-[#004e75]',
           barColor: 'bg-[#004e75]',
           primaryValue: posCount,
           primaryUnit: 'tasks',
           meta: `${fmtNum(hardwareSummary.pos)} units in stock · ${fmtNum(queues.posField)} awaiting review`,
-          pct: Math.max(posCount > 0 ? 4 : 0, Math.round((posCount / maxVal) * 100)),
+          sharePct: pctOfTotal(posCount),
         },
         {
           id: 'mv',
           label: 'Merchant Visit',
           tab: 'mobile_sync_visit',
           icon: Store,
-          iconWrap: 'bg-cyan-50 text-sky-700 border-cyan-200/80',
+          iconWrap: 'bg-sky-500/10 text-sky-700',
           barColor: 'bg-sky-500',
           primaryValue: mvCount,
           primaryUnit: 'visits',
@@ -597,19 +600,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             mvSummary && mvSummary.total > 0 && effectiveScope === 'ALL'
               ? `${fmtNum(mvSummary.withGps)} GPS tagged · ${fmtNum(mvSummary.branches)} active branches`
               : 'Merchant check-ins & field onboarding visits',
-          pct: Math.max(mvCount > 0 ? 4 : 0, Math.round((mvCount / maxVal) * 100)),
+          sharePct: pctOfTotal(mvCount),
         },
         {
           id: 'cc',
           label: 'Credit Card Acquisition',
           tab: 'mobile_sync_cc',
           icon: CreditCard,
-          iconWrap: 'bg-amber-50 text-amber-700 border-amber-200/80',
+          iconWrap: 'bg-amber-500/10 text-amber-700',
           barColor: 'bg-amber-500',
           primaryValue: ccCount,
           primaryUnit: 'onboarded',
           meta: `${fmtNum(ccSubmittedShow)} applications · ${fmtNum(queues.ccPend)} pending${ccCounts?.waitingDocs ? ` · ${fmtNum(ccCounts.waitingDocs)} waiting docs` : ''}`,
-          pct: Math.max(ccCount > 0 || ccSubmittedShow > 0 ? 4 : 0, Math.round((Math.max(ccCount, ccSubmittedShow) / maxVal) * 100)),
+          sharePct: pctOfTotal(ccCount),
         },
       ],
     };
@@ -798,24 +801,54 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   const reachTotal =
     channelActivity.khqrCount + channelActivity.mvCount + channelActivity.ccSubmittedShow;
+  const reachSharePct =
+    channelActivity.totalTasks > 0
+      ? Math.min(100, Math.round(((channelActivity.khqrCount + channelActivity.mvCount + channelActivity.ccCount) / channelActivity.totalTasks) * 100))
+      : 0;
+
+  const velocityPeak = useMemo(() => {
+    let peakVal = 0;
+    let peakLabel = '';
+    let sumStaff = 0;
+    let activeDays = 0;
+    for (const pt of velocitySeries) {
+      const tot = pt.pos + pt.sb + pt.khqr + pt.mv + pt.cc;
+      if (tot > peakVal) {
+        peakVal = tot;
+        peakLabel = pt.label;
+      }
+      if (pt.activeStaff > 0) {
+        sumStaff += pt.activeStaff;
+        activeDays++;
+      }
+    }
+    return {
+      peakVal,
+      peakLabel,
+      avgStaff: activeDays > 0 ? Math.round(sumStaff / activeDays) : 0,
+    };
+  }, [velocitySeries]);
 
   return (
     <div className="space-y-5 apple-tab-panel" aria-label="Executive Operations Overview">
       {/* ───────────── 1. HEADER & PERIOD / SCOPE CONTROLS ───────────── */}
-      <div className="surface-card px-5 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-          <div className="w-11 h-11 rounded-xl bg-[#003857] flex items-center justify-center text-white shadow-sm shrink-0">
-            <BarChart3 className="w-5 h-5 text-white" aria-hidden="true" />
+      <div className="surface-card px-6 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-3.5">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-[#003857] flex items-center justify-center text-white shadow-xs shrink-0">
+            <BarChart3 className="w-[18px] h-[18px] text-white" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">
-              {branchScopedId
-                ? `Branch Code ${branchScopedId} Operations Overview`
-                : 'Executive Operations Overview'}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-[17px] font-extrabold tracking-tight text-slate-900">
+                {branchScopedId
+                  ? `Branch Code ${branchScopedId} Operations Overview`
+                  : 'Executive Operations Overview'}
+              </h2>
+            </div>
             <p className="text-xs text-slate-500 mt-0.5 truncate">
-              5 Field Channels, Hardware &amp; SIM Stock, Credit Cards &amp; Requests ·{' '}
               <span className="font-semibold text-slate-700">{branchScopeDisplay}</span>
+              <span className="mx-1.5 text-slate-300">·</span>
+              <span>{fmtNum(scopedKpiTotals.activeStaffCount)} active staff across 5 field channels</span>
             </p>
           </div>
         </div>
@@ -823,7 +856,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         <div className="flex flex-wrap xl:flex-nowrap xl:justify-end items-center gap-2 shrink-0">
           {/* Period Switcher */}
           <div
-            className="inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/80 gap-0.5"
+            className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/70 gap-0.5"
             role="tablist"
             aria-label="Dashboard Time Period"
           >
@@ -836,7 +869,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   role="tab"
                   aria-selected={active}
                   onClick={() => setPeriod(opt.id)}
-                  className={`relative px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                  className={`relative px-2.5 py-1 rounded-[9px] text-xs cursor-pointer transition-colors ${
                     active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900 font-medium'
                   }`}
                 >
@@ -844,7 +877,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     <PillMotion
                       layoutId="dash-period-pill"
                       transition={SPRING_TAB_PILL}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className="absolute inset-0 rounded-[9px] tab-active-blue shadow-2xs pointer-events-none"
                     />
                   )}
                   <span className="relative z-10">{opt.label}</span>
@@ -856,7 +889,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           {/* Scope Toggle (Admin HQ only) */}
           {isAdminLike && !branchScopedId && (
             <div
-              className="inline-flex items-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/80 gap-0.5"
+              className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/70 gap-0.5"
               role="tablist"
               aria-label="Branch Data Scope"
             >
@@ -872,7 +905,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     role="tab"
                     aria-selected={active}
                     onClick={() => setAdminScope(s.id)}
-                    className={`relative px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                    className={`relative px-2.5 py-1 rounded-[9px] text-xs cursor-pointer transition-colors ${
                       active ? 'text-white font-semibold' : 'text-slate-600 hover:text-slate-900 font-medium'
                     }`}
                   >
@@ -880,7 +913,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       <PillMotion
                         layoutId="dash-scope-pill"
                         transition={SPRING_TAB_PILL}
-                        className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                        className="absolute inset-0 rounded-[9px] tab-active-blue shadow-2xs pointer-events-none"
                       />
                     )}
                     <span className="relative z-10">{s.label}</span>
@@ -890,13 +923,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           )}
 
+          <span className="hidden xl:block h-5 w-px bg-slate-200/90 mx-0.5" aria-hidden="true" />
+
           <button
             type="button"
             onClick={() => void loadCrossPortalData(true)}
-            className="btn-press px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
+            className="btn-press px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 cursor-pointer transition"
             title="Refresh live summary counts"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
+            <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
             <span>Sync</span>
           </button>
 
@@ -904,7 +939,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <button
               type="button"
               onClick={onOpenExportModal}
-              className="btn-press px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
+              className="btn-press px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-800 inline-flex items-center gap-1.5 cursor-pointer transition"
               title="Export Reports & Data"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
@@ -916,126 +951,161 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
       {/* ───────────── 2. UNIFIED 4-COLUMN HAIRLINE KPI STRIP (OPTION 1) ───────────── */}
       <section
-        className="surface-card overflow-hidden grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200/80 sm:[&>*:nth-child(n+3)]:border-t sm:[&>*:nth-child(n+3)]:border-slate-200/80 xl:[&>*:nth-child(n+3)]:border-t-0"
+        className="surface-card overflow-hidden grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200/75 sm:[&>*:nth-child(n+3)]:border-t sm:[&>*:nth-child(n+3)]:border-slate-200/75 xl:[&>*:nth-child(n+3)]:border-t-0"
         aria-label="Key portal metrics"
       >
         {/* KPI 1: Field Tasks */}
-        <div className="p-5 flex flex-col justify-between gap-1.5">
-          <div className="flex items-center justify-between gap-2 min-h-[24px]">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+        <div className="px-6 py-5 flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 min-h-[22px]">
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-slate-400 whitespace-nowrap">
               Field Tasks · {activePeriodLabel}
             </span>
-            <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/70 whitespace-nowrap shrink-0">
+            <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap shrink-0">
               {fmtNum(Math.round(channelActivity.totalPoints))} pts
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-figure text-slate-900 tracking-tight">
+          <div className="text-[28px] sm:text-[32px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
             <Odometer value={channelActivity.totalTasks} format duration={320} />
           </div>
           <div className="text-xs text-slate-500">
-            {fmtNum(scopedKpiTotals.activeBranchCount || branches.length)} branches ·{' '}
-            {fmtNum(scopedKpiTotals.activeStaffCount)} active staff
+            <span className="font-medium text-slate-700">{fmtNum(scopedKpiTotals.activeBranchCount || branches.length)}</span> branches
+            <span className="mx-1.5 text-slate-300">·</span>
+            <span className="font-medium text-slate-700">{fmtNum(scopedKpiTotals.activeStaffCount)}</span> active staff
           </div>
         </div>
 
         {/* KPI 2: Pending Approvals */}
-        <div className="p-5 flex flex-col justify-between gap-1.5">
-          <div className="flex items-center justify-between gap-2 min-h-[24px]">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+        <div className="px-6 py-5 flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 min-h-[22px]">
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-slate-400 whitespace-nowrap">
               Pending Approvals
             </span>
             {queues.total > 0 ? (
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 whitespace-nowrap shrink-0">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-800 whitespace-nowrap shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 Action needed
               </span>
             ) : (
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 whitespace-nowrap shrink-0">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 All clear
               </span>
             )}
           </div>
-          <div
-            className={`text-2xl sm:text-3xl font-black font-figure tracking-tight ${
-              queues.total > 0 ? 'text-amber-700' : 'text-slate-900'
-            }`}
-          >
+          <div className="text-[28px] sm:text-[32px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
             <Odometer value={queues.total} format duration={320} />
           </div>
           <div className="text-xs text-slate-500">
-            {fmtNum(queues.appTotal)} App Reviews · {fmtNum(queues.reqPend)} Stock Requests
+            <span className="font-medium text-slate-700">{fmtNum(queues.appTotal)}</span> App Reviews
+            <span className="mx-1.5 text-slate-300">·</span>
+            <span className="font-medium text-slate-700">{fmtNum(queues.reqPend)}</span> Stock Requests
           </div>
         </div>
 
-        {/* KPI 3: Hardware & SIM Pool */}
-        <div className="p-5 flex flex-col justify-between gap-1.5">
-          <div className="flex items-center justify-between gap-2 min-h-[24px]">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
-              Stock &amp; SIM Pool
+        {/* KPI 3: Hardware Pool */}
+        <div className="px-6 py-5 flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 min-h-[22px]">
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-slate-400 whitespace-nowrap">
+              Hardware Pool
             </span>
-            {queues.pushPend > 0 && (
+            {queues.pushPend > 0 ? (
               <button
                 type="button"
                 onClick={() => onNavigateTab?.('push_configuring')}
-                className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-50 text-[#004e75] border border-sky-200/80 hover:bg-sky-100 cursor-pointer transition whitespace-nowrap shrink-0"
+                className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-[#004e75] hover:bg-sky-500/20 cursor-pointer transition whitespace-nowrap shrink-0"
               >
                 {fmtNum(queues.pushPend)} push due
               </button>
+            ) : (
+              <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap shrink-0">
+                {fmtNum(materialsSummary.simTotal)} SIM
+              </span>
             )}
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-figure text-slate-900 tracking-tight">
+          <div className="text-[28px] sm:text-[32px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
             <Odometer value={hardwareSummary.total} format duration={320} />
           </div>
           <div className="text-xs text-slate-500">
-            {fmtNum(hardwareSummary.hq)} HQ · {fmtNum(hardwareSummary.reserve)} Reserve ·{' '}
-            {fmtNum(hardwareSummary.installed)} Live · {fmtNum(materialsSummary.simTotal)} SIM
+            <span className="font-medium text-slate-700">{fmtNum(hardwareSummary.hq)}</span> HQ
+            <span className="mx-1.5 text-slate-300">·</span>
+            <span className="font-medium text-slate-700">{fmtNum(hardwareSummary.reserve)}</span> Reserve
+            <span className="mx-1.5 text-slate-300">·</span>
+            <span className="font-medium text-emerald-700">{fmtNum(hardwareSummary.installed)}</span> Live
           </div>
         </div>
 
-        {/* KPI 4: KHQR, Visits & Credit Cards */}
-        <div className="p-5 flex flex-col justify-between gap-1.5">
-          <div className="flex items-center justify-between gap-2 min-h-[24px]">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
-              Digital &amp; Reach
+        {/* KPI 4: Merchant Outreach */}
+        <div className="px-6 py-5 flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 min-h-[22px]">
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-slate-400 whitespace-nowrap">
+              Merchant Outreach
             </span>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200/80 whitespace-nowrap shrink-0">
-              {activePeriodLabel}
+            <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap shrink-0">
+              {reachSharePct}% of tasks
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-figure text-slate-900 tracking-tight">
+          <div className="text-[28px] sm:text-[32px] font-extrabold font-figure text-slate-900 tracking-[-0.03em] leading-none">
             <Odometer value={reachTotal} format duration={320} />
           </div>
           <div className="text-xs text-slate-500">
-            {fmtNum(channelActivity.khqrCount)} KHQR · {fmtNum(channelActivity.mvCount)} Visits ·{' '}
-            {fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)} Cards
+            <span className="font-medium text-slate-700">{fmtNum(channelActivity.khqrCount)}</span> KHQR
+            <span className="mx-1.5 text-slate-300">·</span>
+            <span className="font-medium text-slate-700">{fmtNum(channelActivity.mvCount)}</span> Visits
+            <span className="mx-1.5 text-slate-300">·</span>
+            <span className="font-medium text-slate-700">{fmtNum(channelActivity.ccCount)}/{fmtNum(channelActivity.ccSubmittedShow)}</span> Cards
           </div>
         </div>
       </section>
 
-      {/* ───────────── 3. MIDDLE SPLIT: 5-CHANNEL HORIZONTAL MINI-BARS + ACTION QUEUE ───────────── */}
+      {/* ───────────── 3. MIDDLE SPLIT: 5-CHANNEL SHARE MATRIX + HAIRLINE ACTION QUEUE ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left 7 Cols: 5-Channel Portal Activity (Horizontal Mini-Bar Flat Rows) */}
+        {/* Left 7 Cols: 5-Channel Portal Activity */}
         <section className="lg:col-span-7 surface-card overflow-hidden flex flex-col">
-          <div className="sb-card-header-light px-5 py-3.5 flex items-center justify-between gap-3">
+          <div className="sb-card-header-light px-6 py-3.5 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900">
                 5-Channel Portal Activity
               </h3>
               <p className="text-xs text-slate-500">
-                Unified breakdown across KHQR, Sound Box, POS Terminal, Merchant Visit &amp; Credit Card · Click to open
+                Share &amp; throughput across KHQR, Sound Box, POS, Merchant Visit &amp; Credit Card
               </p>
             </div>
             {onNavigateTab && (
               <button
                 type="button"
                 onClick={() => onNavigateTab('kpi_performance')}
-                className="text-xs font-bold text-[#004e75] hover:underline inline-flex items-center gap-1 shrink-0 cursor-pointer"
+                className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
               >
                 Full KPI <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             )}
           </div>
 
-          <div className="divide-y divide-slate-100 px-5 py-1 flex-1 flex flex-col justify-center">
+          {/* Unified Channel Share Composition Ribbon */}
+          <div className="px-6 pt-3.5 pb-2 border-b border-slate-100/90">
+            <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1.5">
+              <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-400">
+                Channel Mix
+              </span>
+              <span className="font-figure font-semibold text-slate-600">
+                {fmtNum(channelActivity.totalTasks)} completed
+              </span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden flex gap-px">
+              {channelActivity.rows.map((row) =>
+                row.sharePct > 0 ? (
+                  <div
+                    key={row.id}
+                    className={`h-full transition-all duration-300 first:rounded-l-full last:rounded-r-full ${row.barColor}`}
+                    style={{ width: `${Math.max(1.2, row.sharePct)}%` }}
+                    title={`${row.label}: ${fmtNum(row.primaryValue)} (${row.sharePct}%)`}
+                  />
+                ) : null
+              )}
+            </div>
+          </div>
+
+          <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
             {channelActivity.rows.map((row) => {
               const Icon = row.icon;
               return (
@@ -1043,31 +1113,33 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   key={row.id}
                   type="button"
                   onClick={() => onNavigateTab?.(row.tab)}
-                  className="w-full text-left py-3 group flex items-center gap-3.5 hover:bg-slate-50/80 -mx-2 px-2 rounded-xl transition cursor-pointer"
+                  className="w-full text-left px-6 py-3 group flex items-center justify-between gap-4 hover:bg-slate-50/80 transition cursor-pointer"
                 >
-                  <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${row.iconWrap}`}>
-                    <Icon className="w-4 h-4" aria-hidden="true" />
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${row.iconWrap}`}>
+                      <Icon className="w-4 h-4" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-bold text-slate-900 group-hover:text-[#004e75] transition truncate">
+                          {row.label}
+                        </span>
+                      </div>
+                      <div className="text-[11.5px] text-slate-500 truncate mt-0.5">{row.meta}</div>
+                    </div>
                   </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-xs sm:text-[13px] font-bold text-slate-900 group-hover:text-[#004e75] transition truncate">
-                        {row.label}
-                      </span>
-                      <span className="text-xs font-figure font-extrabold text-slate-900 shrink-0">
-                        {fmtNum(row.primaryValue)}{' '}
-                        <span className="font-medium text-slate-500 text-[11px]">{row.primaryUnit}</span>
-                      </span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-semibold text-slate-500 bg-slate-100/90 px-2 py-0.5 rounded-full">
+                      {row.sharePct}%
+                    </span>
+                    <div className="text-right min-w-[82px]">
+                      <div className="text-[14px] font-figure font-extrabold text-slate-900 leading-tight">
+                        {fmtNum(row.primaryValue)}
+                      </div>
+                      <div className="text-[10.5px] text-slate-400 font-medium">{row.primaryUnit}</div>
                     </div>
-
-                    <div className="mt-1.5 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${row.barColor}`}
-                        style={{ width: `${row.pct}%` }}
-                      />
-                    </div>
-
-                    <div className="mt-1 text-[11px] text-slate-500 truncate">{row.meta}</div>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#004e75] group-hover:translate-x-0.5 transition" aria-hidden="true" />
                   </div>
                 </button>
               );
@@ -1075,9 +1147,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
         </section>
 
-        {/* Right 5 Cols: Action Queue — Needs Review */}
+        {/* Right 5 Cols: Action Queue — Needs Review (Clean Hairline Rows) */}
         <section className="lg:col-span-5 surface-card overflow-hidden flex flex-col justify-between">
-          <div className="sb-card-header-light px-5 py-3.5 flex items-center justify-between gap-2">
+          <div className="sb-card-header-light px-6 py-3.5 flex items-center justify-between gap-2">
             <div>
               <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900">
                 Action Queue — Needs Review
@@ -1087,65 +1159,63 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </p>
             </div>
             <span
-              className={`text-xs font-figure font-bold px-2.5 py-0.5 rounded-full border ${
+              className={`text-[11px] font-figure font-bold px-2.5 py-0.5 rounded-full ${
                 queues.total > 0
-                  ? 'bg-amber-50 text-amber-800 border-amber-200'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  ? 'bg-amber-500/10 text-amber-800'
+                  : 'bg-emerald-500/10 text-emerald-700'
               }`}
             >
               {fmtNum(queues.total)} waiting
             </span>
           </div>
 
-          <div className="p-4 space-y-2.5 flex-1">
+          <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
             {actionQueueRows.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => onNavigateTab?.(item.tab)}
-                className="w-full text-left p-3 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-slate-300 hover:shadow-2xs flex items-center justify-between gap-3 transition cursor-pointer"
+                className="w-full text-left px-6 py-3.5 group hover:bg-slate-50/80 flex items-center justify-between gap-3 transition cursor-pointer"
               >
-                <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${item.dotClass}`} />
                   <div className="min-w-0">
-                    <div className="text-xs sm:text-[13px] font-bold text-slate-900 truncate">
+                    <div className="text-[13px] font-bold text-slate-900 group-hover:text-[#004e75] transition truncate">
                       {item.label}
                     </div>
-                    <div className="text-[11px] text-slate-500 truncate">{item.sub}</div>
+                    <div className="text-[11.5px] text-slate-500 truncate mt-0.5">{item.sub}</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={`font-figure text-xs font-extrabold px-2.5 py-0.5 rounded-full border ${item.badgeClass}`}>
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <span className={`font-figure text-xs font-bold px-2.5 py-0.5 rounded-full border ${item.badgeClass}`}>
                     {fmtNum(item.count)}
                   </span>
-                  <span className="text-xs font-bold text-[#004e75] inline-flex items-center gap-0.5">
-                    Open <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-                  </span>
+                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#004e75] group-hover:translate-x-0.5 transition" aria-hidden="true" />
                 </div>
               </button>
             ))}
           </div>
 
           {/* Secondary Operational Alerts Strip (Push Config + Open Lost) */}
-          <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center justify-between gap-2 text-[11.5px]">
             <button
               type="button"
               onClick={() => onNavigateTab?.('push_configuring')}
-              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#004e75] font-semibold cursor-pointer transition"
+              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#004e75] font-medium cursor-pointer transition"
             >
               <CheckCircle2 className="w-3.5 h-3.5 text-[#004e75]" aria-hidden="true" />
-              <span>Push Configuring Queue:</span>
-              <strong className="font-figure text-slate-900">{fmtNum(queues.pushPend)}</strong>
+              <span>Push Configuring Queue</span>
+              <strong className="font-figure text-slate-900 ml-0.5">{fmtNum(queues.pushPend)}</strong>
             </button>
             <button
               type="button"
               onClick={() => onNavigateTab?.(queues.lostOpen > 0 && (actionQueues?.lostSim || 0) > 0 ? 'sim_cards' : 'inventory')}
-              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-rose-700 font-semibold cursor-pointer transition"
+              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-rose-700 font-medium cursor-pointer transition"
             >
               <AlertCircle className={`w-3.5 h-3.5 ${queues.lostOpen > 0 ? 'text-rose-600' : 'text-slate-400'}`} aria-hidden="true" />
-              <span>Open Lost Reports:</span>
-              <strong className={`font-figure ${queues.lostOpen > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
+              <span>Open Lost Reports</span>
+              <strong className={`font-figure ml-0.5 ${queues.lostOpen > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
                 {fmtNum(queues.lostOpen)}
               </strong>
             </button>
@@ -1218,25 +1288,32 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </div>
 
-          <div className="p-4 pt-3 flex-1 flex flex-col justify-between">
+          <div className="px-6 py-4 flex-1 flex flex-col justify-between">
             {chartMode === 'VELOCITY' && (
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 text-[11px] text-slate-600">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 text-[11px] text-slate-600">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-xs bg-[#004e75] inline-block" />POS</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-xs bg-[#4F518C] inline-block" />Sound Box</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-xs bg-emerald-500 inline-block" />KHQR</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-xs bg-sky-500 inline-block" />Merchant Visit</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-xs bg-amber-500 inline-block" />Credit Card</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#004e75] inline-block" />POS</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#4F518C] inline-block" />Sound Box</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />KHQR</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-sky-500 inline-block" />Merchant Visit</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-amber-500 inline-block" />Credit Card</span>
                 </div>
-                <span className="inline-flex items-center gap-1.5 text-[#004e75] font-semibold">
-                  <span className="w-4 border-t-2 border-dashed border-[#004e75] inline-block" />
-                  Active staff (right axis)
-                </span>
+                <div className="flex items-center gap-3">
+                  {velocityPeak.peakVal > 0 && (
+                    <span className="hidden xl:inline-flex items-center gap-1 text-slate-500 font-medium">
+                      Peak <strong className="font-figure text-slate-800">{fmtNum(velocityPeak.peakVal)}</strong> ({velocityPeak.peakLabel})
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1.5 text-[#004e75] font-semibold">
+                    <span className="w-3.5 border-t-2 border-dashed border-[#004e75] inline-block" />
+                    Active staff
+                  </span>
+                </div>
               </div>
             )}
 
             {chartMode === 'VELOCITY' ? (
-              <CrossChannelVelocityChart items={velocitySeries} height={240} theme={theme} />
+              <CrossChannelVelocityChart items={velocitySeries} height={242} theme={theme} />
             ) : (
               <GroupedBarChart
                 labels={monthlyHardwareChart.labels}
@@ -1246,7 +1323,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 series2Label="Sound Box Installed"
                 series2Data={monthlyHardwareChart.sb}
                 series2Color="#4F518C"
-                height={240}
+                height={242}
                 theme={theme}
               />
             )}
@@ -1255,43 +1332,43 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
         {/* Right 5 Cols: Inventory, SIM, Materials & Battery Health */}
         <section className="lg:col-span-5 surface-card overflow-hidden flex flex-col justify-between">
-          <div className="sb-card-header-light px-5 py-3.5 flex items-center justify-between gap-2">
+          <div className="sb-card-header-light px-6 py-3.5 flex items-center justify-between gap-2">
             <div>
               <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900">
                 Inventory, SIM &amp; Battery Health
               </h3>
               <p className="text-xs text-slate-500">
-                Live stock allocation, materials &amp; {batteryLifespanMonths}-month POS battery SLA
+                Stock allocation, materials &amp; {batteryLifespanMonths}-month POS battery SLA
               </p>
             </div>
             {onNavigateTab && (
               <button
                 type="button"
                 onClick={() => onNavigateTab('inventory')}
-                className="text-xs font-bold text-[#004e75] hover:underline inline-flex items-center gap-1 shrink-0 cursor-pointer"
+                className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
               >
                 Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             )}
           </div>
 
-          <div className="divide-y divide-slate-100 px-5 py-1 flex-1 flex flex-col justify-center">
+          <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
             {/* Row 1: Hardware Pipeline */}
-            <div className="py-3 space-y-2">
+            <div className="px-6 py-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                  <Boxes className="w-3.5 h-3.5 text-[#004e75]" aria-hidden="true" />
+                <span className="font-bold text-slate-900 flex items-center gap-2">
+                  <Boxes className="w-4 h-4 text-[#004e75]" aria-hidden="true" />
                   POS &amp; Sound Box Pool
                 </span>
                 <span className="font-figure font-extrabold text-slate-900">
-                  {fmtNum(hardwareSummary.total)} units
+                  {fmtNum(hardwareSummary.total)} <span className="font-medium text-slate-400">units</span>
                 </span>
               </div>
-              <div className="h-2 rounded-full bg-slate-100 overflow-hidden flex">
+              <div className="h-2 rounded-full bg-slate-100 overflow-hidden flex gap-px">
                 {hardwareSummary.total > 0 && (
                   <>
                     <div
-                      className="h-full bg-[#004e75]"
+                      className="h-full bg-[#004e75] first:rounded-l-full"
                       style={{ width: `${Math.max(2, (hardwareSummary.hq / hardwareSummary.total) * 100)}%` }}
                       title={`HQ Stock: ${fmtNum(hardwareSummary.hq)}`}
                     />
@@ -1302,7 +1379,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     />
                     {hardwareSummary.installed > 0 && (
                       <div
-                        className="h-full bg-emerald-500"
+                        className="h-full bg-emerald-500 last:rounded-r-full"
                         style={{ width: `${Math.max(2, (hardwareSummary.installed / hardwareSummary.total) * 100)}%` }}
                         title={`Installed Live: ${fmtNum(hardwareSummary.installed)}`}
                       />
@@ -1310,11 +1387,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   </>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-                <span>HQ: <strong className="font-figure text-slate-700">{fmtNum(hardwareSummary.hq)}</strong></span>
-                <span>Reserve: <strong className="font-figure text-slate-700">{fmtNum(hardwareSummary.reserve)}</strong></span>
-                <span>Config: <strong className="font-figure text-slate-700">{fmtNum(hardwareSummary.config)}</strong></span>
-                <span>Live: <strong className="font-figure text-emerald-700">{fmtNum(hardwareSummary.installed)}</strong></span>
+              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] text-slate-500">
+                <span className="inline-flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-[#004e75]" />HQ <strong className="font-figure text-slate-700">{fmtNum(hardwareSummary.hq)}</strong></span>
+                <span className="inline-flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-sky-500" />Reserve <strong className="font-figure text-slate-700">{fmtNum(hardwareSummary.reserve)}</strong></span>
+                <span>Config <strong className="font-figure text-slate-700">{fmtNum(hardwareSummary.config)}</strong></span>
+                <span className="inline-flex items-center gap-1"><i className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Live <strong className="font-figure text-emerald-700">{fmtNum(hardwareSummary.installed)}</strong></span>
               </div>
             </div>
 
@@ -1322,64 +1399,67 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <button
               type="button"
               onClick={() => onNavigateTab?.('sim_cards')}
-              className="w-full text-left py-3 hover:bg-slate-50/70 -mx-2 px-2 rounded-xl transition cursor-pointer"
+              className="w-full text-left px-6 py-3.5 hover:bg-slate-50/80 transition cursor-pointer group flex items-center justify-between gap-3"
             >
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                  <Smartphone className="w-3.5 h-3.5 text-teal-600" aria-hidden="true" />
+              <div>
+                <div className="text-xs font-bold text-slate-900 group-hover:text-[#004e75] transition flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-teal-600" aria-hidden="true" />
                   SIM Card Control Hub
-                </span>
-                <span className="font-figure font-extrabold text-slate-900">
-                  {fmtNum(materialsSummary.simTotal)} tracked
-                </span>
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">
+                  {fmtNum(materialsSummary.simOnHand)} in stock · {fmtNum(materialsSummary.simInTransit)} in transit ·{' '}
+                  {fmtNum(materialsSummary.simAtMerchant)} at merchant
+                </div>
               </div>
-              <div className="text-[11px] text-slate-500 mt-1">
-                {fmtNum(materialsSummary.simOnHand)} in stock · {fmtNum(materialsSummary.simInTransit)} in transit ·{' '}
-                {fmtNum(materialsSummary.simAtMerchant)} at merchant
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-figure font-extrabold text-slate-900">
+                  {fmtNum(materialsSummary.simTotal)} <span className="font-medium text-slate-400">tracked</span>
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#004e75] transition" aria-hidden="true" />
               </div>
             </button>
 
             {/* Row 3: Materials & Accessories */}
-            <div className="py-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                  <Package className="w-3.5 h-3.5 text-[#4F518C]" aria-hidden="true" />
+            <div className="px-6 py-3.5 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#4F518C]" aria-hidden="true" />
                   Kit Accessories &amp; Materials
-                </span>
-                <span className="font-figure font-extrabold text-slate-900">
-                  {materialsSummary.activeTypesCount} catalog types
-                </span>
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">
+                  Battery, AC Adaptors, Stands, Docks ·{' '}
+                  <strong className="font-figure text-slate-700">{fmtNum(materialsSummary.kitOnHand)}</strong> on hand ·{' '}
+                  <strong className="font-figure text-slate-700">{fmtNum(materialsSummary.kitInTransit)}</strong> in transit
+                </div>
               </div>
-              <div className="text-[11px] text-slate-500 mt-1">
-                Battery, AC Adaptors, Stands, Docks ·{' '}
-                <strong className="font-figure text-slate-700">{fmtNum(materialsSummary.kitOnHand)}</strong> on hand ·{' '}
-                <strong className="font-figure text-slate-700">{fmtNum(materialsSummary.kitInTransit)}</strong> in transit
-              </div>
+              <span className="text-xs font-figure font-extrabold text-slate-900 shrink-0">
+                {materialsSummary.activeTypesCount} <span className="font-medium text-slate-400">types</span>
+              </span>
             </div>
 
             {/* Row 4: POS Battery SLA */}
-            <div className="py-3 space-y-1.5">
+            <div className="px-6 py-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                  <BatteryCharging className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                <span className="font-bold text-slate-900 flex items-center gap-2">
+                  <BatteryCharging className="w-4 h-4 text-emerald-600" aria-hidden="true" />
                   POS Battery Health ({batteryLifespanMonths}M SLA)
                 </span>
-                <span className="text-[11px] font-mono text-slate-500">
+                <span className="text-[11px] font-mono text-slate-400">
                   {fmtNum(batterySummary.total)} dated
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center pt-0.5">
-                <div className="rounded-lg bg-emerald-50/70 border border-emerald-200/70 px-2 py-1.5">
-                  <div className="text-xs font-black font-figure text-emerald-700">{fmtNum(batterySummary.healthy)}</div>
-                  <div className="text-[10px] font-semibold text-slate-600">Healthy (&lt;{batteryWarningMonths}M)</div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl bg-emerald-500/[0.06] border border-emerald-500/15 px-2 py-2">
+                  <div className="text-[13px] font-extrabold font-figure text-emerald-700">{fmtNum(batterySummary.healthy)}</div>
+                  <div className="text-[10px] font-medium text-slate-500">Healthy (&lt;{batteryWarningMonths}M)</div>
                 </div>
-                <div className="rounded-lg bg-amber-50/70 border border-amber-200/70 px-2 py-1.5">
-                  <div className="text-xs font-black font-figure text-amber-700">{fmtNum(batterySummary.replaceSoon)}</div>
-                  <div className="text-[10px] font-semibold text-slate-600">Due Soon</div>
+                <div className="rounded-xl bg-amber-500/[0.06] border border-amber-500/15 px-2 py-2">
+                  <div className="text-[13px] font-extrabold font-figure text-amber-700">{fmtNum(batterySummary.replaceSoon)}</div>
+                  <div className="text-[10px] font-medium text-slate-500">Due Soon</div>
                 </div>
-                <div className="rounded-lg bg-rose-50/70 border border-rose-200/70 px-2 py-1.5">
-                  <div className="text-xs font-black font-figure text-rose-700">{fmtNum(batterySummary.critical)}</div>
-                  <div className="text-[10px] font-semibold text-slate-600">Replace (≥{batteryLifespanMonths}M)</div>
+                <div className="rounded-xl bg-rose-500/[0.06] border border-rose-500/15 px-2 py-2">
+                  <div className="text-[13px] font-extrabold font-figure text-rose-700">{fmtNum(batterySummary.critical)}</div>
+                  <div className="text-[10px] font-medium text-slate-500">Replace (≥{batteryLifespanMonths}M)</div>
                 </div>
               </div>
             </div>
@@ -1391,8 +1471,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left 7 Cols: Top Active Branches Across All Channels */}
         <section className="lg:col-span-7 surface-card overflow-hidden flex flex-col">
-          <div className="sb-card-header-light px-5 py-3.5 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+          <div className="sb-card-header-light px-6 py-3.5 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
               <Building2 className="w-4 h-4 text-[#003857]" aria-hidden="true" />
               <div>
                 <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900">
@@ -1407,7 +1487,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <button
                 type="button"
                 onClick={() => onNavigateTab('branches')}
-                className="text-xs font-bold text-[#004e75] hover:underline inline-flex items-center gap-1 shrink-0 cursor-pointer"
+                className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
               >
                 All Branches <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
@@ -1415,10 +1495,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
 
           <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="dash-light-table w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-[11px] uppercase">
-                  <th className="py-2.5 pl-5 pr-2 font-bold">No.</th>
+                <tr className="text-[10.5px] tracking-wider uppercase font-bold">
+                  <th className="py-2.5 pl-6 pr-2 w-10">#</th>
                   <SortTh k="name" sort={brSort} onSort={brToggle} className="py-2.5 px-2 font-bold">Branch</SortTh>
                   <SortTh k="khqr" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">KHQR</SortTh>
                   <SortTh k="pos" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">POS</SortTh>
@@ -1426,22 +1506,34 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <SortTh k="mv" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">MV</SortTh>
                   <SortTh k="cc" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">CC</SortTh>
                   <SortTh k="reserve" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">Reserve</SortTh>
-                  <SortTh k="total" sort={brSort} onSort={brToggle} align="right" className="py-2.5 pl-2 pr-5 font-bold">Tasks</SortTh>
+                  <SortTh k="total" sort={brSort} onSort={brToggle} align="right" className="py-2.5 pl-2 pr-6 font-bold">Tasks</SortTh>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sortedBranches.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center text-slate-400">
+                    <td colSpan={9} className="py-10 text-center text-slate-400">
                       No branch activity found for the selected scope.
                     </td>
                   </tr>
                 ) : (
                   sortedBranches.map((b, i) => (
-                    <tr key={b.code} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-2.5 pl-5 pr-2 font-mono text-slate-400">{i + 1}</td>
+                    <tr key={b.code} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-2.5 pl-6 pr-2">
+                        <span
+                          className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10.5px] font-figure font-bold ${
+                            i === 0
+                              ? 'bg-[#003857] text-white'
+                              : i < 3
+                              ? 'bg-slate-200/80 text-slate-700'
+                              : 'text-slate-400'
+                          }`}
+                        >
+                          {i + 1}
+                        </span>
+                      </td>
                       <td className="py-2.5 px-2">
-                        <div className="font-bold text-slate-900 truncate max-w-[175px]">{b.name}</div>
+                        <div className="font-bold text-slate-900 truncate max-w-[180px]">{b.name}</div>
                         <div className="text-[10.5px] font-mono text-slate-400">Code {b.code}</div>
                       </td>
                       <td className="py-2.5 px-2 text-right font-figure text-emerald-700 font-semibold">{fmtNum(b.khqr)}</td>
@@ -1450,7 +1542,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       <td className="py-2.5 px-2 text-right font-figure text-sky-700 font-semibold">{fmtNum(b.mv)}</td>
                       <td className="py-2.5 px-2 text-right font-figure text-amber-700 font-semibold">{fmtNum(b.cc)}</td>
                       <td className="py-2.5 px-2 text-right font-figure text-slate-500">{fmtNum(b.reserve)}</td>
-                      <td className="py-2.5 pl-2 pr-5 text-right font-figure font-extrabold text-slate-900">
+                      <td className="py-2.5 pl-2 pr-6 text-right font-figure font-extrabold text-slate-900">
                         {fmtNum(b.totalTasks)}
                       </td>
                     </tr>
@@ -1463,9 +1555,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
         {/* Right 5 Cols: Latest Stock Requests & Recently Updated Serials */}
         <section className="lg:col-span-5 surface-card overflow-hidden flex flex-col">
-          <div className="sb-card-header-light px-5 py-3.5 flex items-center justify-between gap-2">
+          <div className="sb-card-header-light px-6 py-3 flex items-center justify-between gap-2">
             <div
-              className="inline-flex items-center p-0.5 rounded-lg bg-white border border-slate-200/90 text-xs"
+              className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/70 text-xs"
               role="tablist"
               aria-label="Recent Requests or Serials"
             >
@@ -1474,9 +1566,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 role="tab"
                 aria-selected={activityPanel === 'REQUISITIONS'}
                 onClick={() => setActivityPanel('REQUISITIONS')}
-                className={`px-2.5 py-1 rounded-md font-bold cursor-pointer transition inline-flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 rounded-[9px] font-semibold cursor-pointer transition inline-flex items-center gap-1.5 ${
                   activityPanel === 'REQUISITIONS'
-                    ? 'bg-[#003857] text-white'
+                    ? 'bg-white text-slate-900 shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -1488,9 +1580,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 role="tab"
                 aria-selected={activityPanel === 'SERIALS'}
                 onClick={() => setActivityPanel('SERIALS')}
-                className={`px-2.5 py-1 rounded-md font-bold cursor-pointer transition inline-flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 rounded-[9px] font-semibold cursor-pointer transition inline-flex items-center gap-1.5 ${
                   activityPanel === 'SERIALS'
-                    ? 'bg-[#003857] text-white'
+                    ? 'bg-white text-slate-900 shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -1503,64 +1595,65 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <button
                 type="button"
                 onClick={() => onNavigateTab(activityPanel === 'REQUISITIONS' ? 'requisitions' : 'inventory')}
-                className="text-xs font-bold text-[#004e75] hover:underline inline-flex items-center gap-1 shrink-0 cursor-pointer"
+                className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
               >
                 View All <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             )}
           </div>
 
-          <div className="p-4 space-y-2.5 flex-1">
+          <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
             {activityPanel === 'REQUISITIONS' ? (
               requisitions.length === 0 ? (
-                <div className="py-10 text-center text-xs text-slate-400">
+                <div className="py-12 px-6 text-center text-xs text-slate-400">
                   No stock requisitions submitted yet.
                 </div>
               ) : (
-                requisitions.slice(0, 5).map((req) => (
+                requisitions.slice(0, 7).map((req) => (
                   <button
                     key={req.reqId}
                     type="button"
                     onClick={() => onNavigateTab?.('requisitions')}
-                    className="w-full text-left p-3 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition flex items-start justify-between gap-3 cursor-pointer"
+                    className="w-full text-left px-6 py-3 hover:bg-slate-50/80 transition flex items-center justify-between gap-3 cursor-pointer group"
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                        <span className="font-mono font-extrabold text-slate-900">{req.reqId}</span>
+                        <span className="font-mono font-bold text-slate-900 group-hover:text-[#004e75] transition">{req.reqId}</span>
                         <span className="text-slate-300">·</span>
-                        <span className="font-semibold text-slate-700 truncate">
+                        <span className="font-medium text-slate-600 truncate">
                           {req.branchName} ({req.branchId})
                         </span>
                       </div>
-                      <div className="text-xs font-semibold text-slate-800 mt-0.5">
-                        {req.posQty}x POS · {req.sbQty}x Sound Box
+                      <div className="text-[11.5px] text-slate-500 truncate mt-0.5">
+                        <strong className="font-semibold text-slate-700">{req.posQty}x POS · {req.sbQty}x Sound Box</strong>
+                        {req.reason ? ` — ${req.reason}` : ''}
                       </div>
-                      {req.reason && (
-                        <div className="text-[11px] text-slate-500 truncate mt-0.5">{req.reason}</div>
-                      )}
                     </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 ${
-                        req.status === 'RECEIVED'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                          : req.status === 'REJECTED'
-                          ? 'bg-rose-50 text-rose-700 border-rose-200'
-                          : req.status === 'PENDING_ADMIN'
-                          ? 'bg-amber-50 text-amber-800 border-amber-200'
-                          : 'bg-slate-100 text-slate-700 border-slate-300'
-                      }`}
-                    >
-                      {req.status}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          req.status === 'RECEIVED'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                            : req.status === 'REJECTED'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200/80'
+                            : req.status === 'PENDING_ADMIN'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200/80'
+                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {req.status}
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#004e75] transition" aria-hidden="true" />
+                    </div>
                   </button>
                 ))
               )
             ) : recentDevices.length === 0 ? (
-              <div className="py-10 text-center text-xs text-slate-400">
+              <div className="py-12 px-6 text-center text-xs text-slate-400">
                 No hardware serial updates recorded yet.
               </div>
             ) : (
-              recentDevices.map((dev) => {
+              recentDevices.slice(0, 7).map((dev) => {
                 const meta = STAGE_META[dev.stage];
                 const cycleCount = (dev.history || []).length;
                 return (
@@ -1569,10 +1662,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     type="button"
                     onClick={() => onSelectDevice(dev.serial)}
                     aria-label={`Open serial ${dev.serial}`}
-                    className="w-full text-left p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-slate-300 flex items-center justify-between gap-3 transition cursor-pointer"
+                    className="w-full text-left px-6 py-2.5 hover:bg-slate-50/80 flex items-center justify-between gap-3 transition cursor-pointer group"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-slate-100/80 flex items-center justify-center shrink-0">
                         {dev.type === 'POS Terminal' ? (
                           <Cpu className="w-4 h-4 text-[#004e75]" aria-hidden="true" />
                         ) : (
@@ -1581,11 +1674,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 text-xs">
-                          <span className="font-mono font-bold text-slate-900">{dev.serial}</span>
+                          <span className="font-mono font-bold text-slate-900 group-hover:text-[#004e75] transition">{dev.serial}</span>
                           <span className="text-slate-300">·</span>
-                          <span className="font-mono text-[11px] text-slate-600">Code {dev.branchId}</span>
+                          <span className="font-mono text-[11px] text-slate-500">Code {dev.branchId}</span>
                           <span className="text-slate-300">·</span>
-                          <span className="text-[11px] text-slate-500">{cycleCount} events</span>
+                          <span className="text-[11px] text-slate-400">{cycleCount} events</span>
                         </div>
                         <div className="text-[11px] text-slate-500 truncate mt-0.5">
                           {dev.merchantName
@@ -1594,7 +1687,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         </div>
                       </div>
                     </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded border shrink-0 ${meta?.badgeClassLight || ''}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${meta?.badgeClassLight || ''}`}>
                       {meta?.short || dev.stage}
                     </span>
                   </button>
