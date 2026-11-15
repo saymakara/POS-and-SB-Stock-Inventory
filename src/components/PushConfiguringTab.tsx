@@ -1101,40 +1101,35 @@ return (
           </div>
 
           {/* Filter & CSV Mode Toolbar */}
-          <div className="p-4 bg-slate-50/70 border-b border-slate-200/90 space-y-3">
-            {/* Row 1: Search + Push Status filter */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-              <div className="relative sm:col-span-2 md:col-span-2 lg:col-span-4">
-                <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search Push ID (PUSH-...), serial, MID, TID, staff, date..."
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs font-semibold border bg-white border-slate-200 text-zinc-900 placeholder:text-slate-400 focus:border-zinc-700 outline-none transition shadow-2xs"
-                />
-              </div>
+          <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200/90 space-y-2">
+            {/* Row 1: Compact inline Search + Status + Branch + Clear */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[260px]">
+                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search Push ID, serial, MID, staff..."
+                    className="w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs font-medium border bg-white border-slate-200/90 text-zinc-900 placeholder:text-slate-400 focus:border-slate-400 outline-none transition shadow-2xs"
+                  />
+                </div>
 
-              <div className="relative sm:col-span-1 md:col-span-1 lg:col-span-2">
                 <select
                   value={pushStatusFilter}
                   onChange={(e) => setPushStatusFilter(e.target.value as any)}
-                  className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-slate-400 outline-none cursor-pointer shadow-2xs"
                 >
                   <option value="ALL">All Statuses ({configuringDevices.length})</option>
                   <option value="WAITING">Waiting Push ({waitingDevices.length})</option>
                   <option value="PUSHED">Already Pushed ({alreadyPushedDevices.length})</option>
                 </select>
-              </div>
-            </div>
 
-            {/* Row 2: Branch Filter on left, viewToggle in RED RECTANGLE on right! */}
-            <div className="flex flex-wrap items-center justify-between gap-3 min-h-[42px]">
-              <div className="flex-1 min-w-[220px] max-w-sm">
                 <select
                   value={branchFilter}
                   onChange={(e) => setBranchFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl text-xs font-normal border bg-white border-slate-200 text-zinc-800 focus:border-zinc-700 outline-none cursor-pointer shadow-2xs"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-normal border bg-white border-slate-200/90 text-zinc-800 focus:border-slate-400 outline-none cursor-pointer shadow-2xs max-w-[210px]"
                 >
                   <option value="ALL">All Branch Codes</option>
                   {branches.map((b) => (
@@ -1143,44 +1138,7 @@ return (
                     </option>
                   ))}
                 </select>
-              </div>
-              {viewToggle && (
-                <div className="flex items-center">
-                  {viewToggle}
-                </div>
-              )}
-            </div>
 
-            {/* Row 3: CSV File Selection Modes Strip */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-200/80 min-h-[36px]">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-slate-500 inline-flex items-center gap-1.5">
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
-                  <span>CSV File Selection</span>
-                </span>
-                {renderPushModeToggle(`${SHARED_LAYOUT_IDS.PUSH_MODE_PILL}-embedded`)}
-              </div>
-
-              {/* Clear filters & branch actions */}
-              <div className="flex items-center gap-2">
-                {branchFilter !== 'ALL' && filteredDevices.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleDownloadTeamFile({
-                        staff: `Branch_${branchFilter}_Staff`,
-                        branchId: branchFilter,
-                        branchName: branches.find((b) => b.code === branchFilter)?.name || `Branch ${branchFilter}`,
-                        devices: filteredDevices,
-                      });
-                    }}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                    title="Download configuration file for this branch"
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Open Branch File ({filteredDevices.length})</span>
-                  </button>
-                )}
                 {(search || pushStatusFilter !== 'ALL' || branchFilter !== 'ALL') && (
                   <button
                     type="button"
@@ -1189,12 +1147,47 @@ return (
                       setPushStatusFilter('ALL');
                       setBranchFilter('ALL');
                     }}
-                    className="text-xs font-semibold text-rose-600 hover:text-rose-700 cursor-pointer px-2 py-1"
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 cursor-pointer transition"
                   >
-                    Clear Filters
+                    Clear filters
                   </button>
                 )}
               </div>
+              {viewToggle && (
+                <div className="flex items-center shrink-0">
+                  {viewToggle}
+                </div>
+              )}
+            </div>
+
+            {/* Row 2: CSV File Selection Modes Strip */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/70">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-slate-500 inline-flex items-center gap-1.5">
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
+                  <span>CSV File Selection</span>
+                </span>
+                {renderPushModeToggle(`${SHARED_LAYOUT_IDS.PUSH_MODE_PILL}-embedded`)}
+              </div>
+
+              {branchFilter !== 'ALL' && filteredDevices.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDownloadTeamFile({
+                      staff: `Branch_${branchFilter}_Staff`,
+                      branchId: branchFilter,
+                      branchName: branches.find((b) => b.code === branchFilter)?.name || `Branch ${branchFilter}`,
+                      devices: filteredDevices,
+                    });
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  title="Download configuration file for this branch"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Open Branch File ({filteredDevices.length})</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
