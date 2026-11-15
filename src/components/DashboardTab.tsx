@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useKeptMemo } from '../utils/useKeptMemo';
-import { useSort, SortTh } from '../utils/sort';
+import { useSort, SortTh, type SortState } from '../utils/sort';
 import {
   Device,
   Branch,
@@ -38,6 +38,9 @@ import {
   fetchMaterialBalances,
   fetchSerialsPage,
   fetchSerialStatusCounts,
+  getCachedMaterialBalances,
+  getCachedSerialsPage,
+  getCachedSerialStatusCounts,
   MATERIALS,
   type MaterialBalance,
   type MaterialSerial,
@@ -163,6 +166,555 @@ function sumRawInto(target: KpiRawCounts, src: KpiRawCounts): void {
   addExtraCounts(target, src);
 }
 
+const DONUT_RADIUS = 44;
+const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
+
+interface ChannelSliceItem {
+  id: string;
+  label: string;
+  shortLabel: string;
+  tab: string;
+  hexColor: string;
+  primaryValue: number;
+  meta: string;
+  sharePct: number;
+  dash: number;
+  offset: number;
+}
+
+interface QueueSegItem {
+  id: string;
+  label: string;
+  sub: string;
+  count: number;
+  tab: string;
+  badgeClass: string;
+  dotClass: string;
+  barColor: string;
+  pct: number;
+}
+
+interface BranchPerfRow {
+  code: string;
+  name: string;
+  pos: number;
+  sb: number;
+  khqr: number;
+  mv: number;
+  cc: number;
+  totalTasks: number;
+  reserve: number;
+  installed: number;
+}
+
+interface ChannelMixCardProps {
+  isLight: boolean;
+  cardClass: string;
+  donutSlices: ChannelSliceItem[];
+  leadChannel: ChannelSliceItem | undefined;
+  totalTasks: number;
+  ccSubmittedShow: number;
+  queues: { total: number; pushPend: number; lostOpen: number };
+  lostSimCount: number;
+  queueSegments: QueueSegItem[];
+  onNavigateTab?: (tab: string) => void;
+}
+
+const ChannelMixCard = React.memo<ChannelMixCardProps>(({
+  isLight,
+  cardClass,
+  donutSlices,
+  leadChannel,
+  totalTasks,
+  ccSubmittedShow,
+  queues,
+  lostSimCount,
+  queueSegments,
+  onNavigateTab,
+}) => {
+  const [hoveredChannelId, setHoveredChannelId] = useState<string | null>(null);
+  const focusedChannel = useMemo(
+    () => (hoveredChannelId ? donutSlices.find((s) => s.id === hoveredChannelId) : undefined) || leadChannel,
+    [hoveredChannelId, donutSlices, leadChannel]
+  );
+
+  return (
+    <section className={`lg:col-span-5 ${cardClass} overflow-hidden flex flex-col justify-between`}>
+      <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            Channel Mix &amp; Queue Load
+          </h3>
+          <p className="text-xs text-slate-500 truncate">
+            Contribution donut + approval weight
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-figure font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap">
+            {fmtNum(totalTasks)} tasks
+          </span>
+          {onNavigateTab && (
+            <button
+              type="button"
+              onClick={() => onNavigateTab('kpi_performance')}
+              className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150"
+            >
+              Full KPI <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="px-6 py-3 flex-1 flex flex-col justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-5">
+          <div className="relative w-[130px] h-[130px] shrink-0 flex items-center justify-center">
+            <svg
+              viewBox="0 0 116 116"
+              className="w-full h-full overflow-visible"
+              role="img"
+              aria-label="5-Channel Contribution Donut Chart"
+              data-testid="channel-mix-donut"
+            >
+              <circle
+                cx="58"
+                cy="58"
+                r={DONUT_RADIUS}
+                fill="none"
+                stroke={isLight ? 'rgba(15,23,42,0.055)' : '#1e293b'}
+                strokeWidth="12"
+              />
+              {totalTasks > 0 &&
+                donutSlices.map((slice) => {
+                  if (slice.dash <= 0) return null;
+                  const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
+                  const visibleDash = Math.max(1.5, slice.dash - 1.2);
+                  return (
+                    <circle
+                      key={slice.id}
+                      cx="58"
+                      cy="58"
+                      r={DONUT_RADIUS}
+                      fill="none"
+                      stroke={slice.hexColor}
+                      strokeWidth={isFocused ? 14.5 : 12}
+                      strokeDasharray={`${visibleDash} ${DONUT_CIRC}`}
+                      strokeDashoffset={-slice.offset}
+                      transform="rotate(-90 58 58)"
+                      className="cursor-pointer transition-[stroke-width] duration-150"
+                      onMouseEnter={() => setHoveredChannelId(slice.id)}
+                      onMouseLeave={() => setHoveredChannelId(null)}
+                      onClick={() => onNavigateTab?.(slice.tab)}
+                    >
+                      <title>{`${slice.label}: ${fmtNum(slice.primaryValue)} (${slice.sharePct}%)`}</title>
+                    </circle>
+                  );
+                })}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-3">
+              <span className={`text-[19px] font-bold font-figure leading-none tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
+              </span>
+              <span className="text-[8.5px] font-bold tracking-wider uppercase text-slate-500 mt-1 truncate max-w-[78px]">
+                {focusedChannel ? `${focusedChannel.shortLabel} SHARE` : 'NO TASKS'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex-1 w-full space-y-1">
+            {donutSlices.map((row) => {
+              const isActive = hoveredChannelId === row.id || (!hoveredChannelId && leadChannel?.id === row.id);
+              return (
+                <button
+                  key={row.id}
+                  type="button"
+                  onClick={() => onNavigateTab?.(row.tab)}
+                  onMouseEnter={() => setHoveredChannelId(row.id)}
+                  onMouseLeave={() => setHoveredChannelId(null)}
+                  title={row.meta}
+                  className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl text-left transition-colors duration-150 cursor-pointer ${
+                    isActive
+                      ? isLight
+                        ? 'bg-[#f3f6f9]'
+                        : 'bg-slate-800/70'
+                      : isLight
+                      ? 'hover:bg-slate-50/90'
+                      : 'hover:bg-slate-800/40'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: row.hexColor }}
+                    />
+                    <span className={`text-[12px] font-semibold truncate ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                      {row.shortLabel === 'Visit'
+                        ? 'Merchant Visit'
+                        : row.shortLabel === 'CC'
+                        ? 'Credit Card'
+                        : row.shortLabel === 'POS'
+                        ? 'POS Terminal'
+                        : row.shortLabel}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-2.5 shrink-0">
+                    <span className="text-[10.5px] font-mono text-slate-400">
+                      {row.sharePct}%
+                    </span>
+                    <span className={`text-[12.5px] font-figure font-bold min-w-[44px] text-right ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      {row.id === 'cc' && ccSubmittedShow > 0
+                        ? `${fmtNum(row.primaryValue)} / ${fmtNum(ccSubmittedShow)}`
+                        : fmtNum(row.primaryValue)}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className={`pt-3.5 border-t space-y-2.5 ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className={`font-semibold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+              Queue Load Distribution ({fmtNum(queues.total)} Waiting)
+            </span>
+            <span className="text-[11px] font-semibold text-amber-700 truncate">
+              {queues.total > 0
+                ? queueSegments
+                    .filter((s) => s.count > 0)
+                    .slice(0, 2)
+                    .map((s) => `${s.pct}% ${s.id.toUpperCase()}`)
+                    .join(' · ')
+                : 'All Clear'}
+            </span>
+          </div>
+
+          <div className={`h-2 w-full rounded-full overflow-hidden flex gap-0.5 ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
+            {queues.total > 0 ? (
+              queueSegments.map((seg) =>
+                seg.count > 0 ? (
+                  <div
+                    key={seg.id}
+                    className={`h-full transition-[width] duration-200 first:rounded-l-full last:rounded-r-full ${seg.barColor}`}
+                    style={{ width: `${Math.max(2, seg.pct)}%` }}
+                    title={`${seg.label}: ${fmtNum(seg.count)} (${seg.pct}%)`}
+                  />
+                ) : null
+              )
+            ) : (
+              <div className="h-full w-full bg-emerald-500/20 rounded-full" />
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {queueSegments.map((seg) => (
+              <button
+                key={seg.id}
+                type="button"
+                onClick={() => onNavigateTab?.(seg.tab)}
+                title={`${seg.label} — ${seg.sub}`}
+                className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-opacity duration-150 cursor-pointer hover:opacity-85 ${seg.badgeClass}`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${seg.dotClass}`} />
+                <span>
+                  {seg.id === 'pos'
+                    ? 'POS'
+                    : seg.id === 'sb'
+                    ? 'SB'
+                    : seg.id === 'cc'
+                    ? 'CC'
+                    : 'Stock Req'}
+                </span>
+                <span className="font-figure font-bold">{fmtNum(seg.count)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className={`px-6 py-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-[11.5px] ${isLight ? 'border-slate-100 bg-[#f9fafb]' : 'border-slate-800 bg-slate-900/40'}`}>
+        <button
+          type="button"
+          onClick={() => onNavigateTab?.('push_configuring')}
+          className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#004e75] font-medium cursor-pointer transition-colors duration-150"
+        >
+          <CheckCircle2 className="w-3.5 h-3.5 text-[#004e75]" aria-hidden="true" />
+          <span>Push Configuring Queue</span>
+          <strong className={`font-figure ml-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>{fmtNum(queues.pushPend)}</strong>
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigateTab?.(queues.lostOpen > 0 && lostSimCount > 0 ? 'sim_cards' : 'inventory')}
+          className="inline-flex items-center gap-1.5 text-slate-600 hover:text-rose-700 font-medium cursor-pointer transition-colors duration-150"
+        >
+          <AlertCircle className={`w-3.5 h-3.5 ${queues.lostOpen > 0 ? 'text-rose-600' : 'text-slate-400'}`} aria-hidden="true" />
+          <span>Open Lost Reports</span>
+          <strong className={`font-figure ml-0.5 ${queues.lostOpen > 0 ? 'text-rose-700' : isLight ? 'text-slate-900' : 'text-white'}`}>
+            {fmtNum(queues.lostOpen)}
+          </strong>
+        </button>
+      </div>
+    </section>
+  );
+});
+
+interface TopBranchesCardProps {
+  isLight: boolean;
+  cardClass: string;
+  segWrapClass: string;
+  activePeriodLabel: string;
+  branchViewMode: 'GRAPH' | 'TABLE';
+  setBranchViewMode: (m: 'GRAPH' | 'TABLE') => void;
+  sortedBranches: BranchPerfRow[];
+  maxBranchTasks: number;
+  brSort: SortState | null;
+  brToggle: (k: string) => void;
+  onNavigateTab?: (tab: string) => void;
+}
+
+const TopBranchesCard = React.memo<TopBranchesCardProps>(({
+  isLight,
+  cardClass,
+  segWrapClass,
+  activePeriodLabel,
+  branchViewMode,
+  setBranchViewMode,
+  sortedBranches,
+  maxBranchTasks,
+  brSort,
+  brToggle,
+  onNavigateTab,
+}) => {
+  const [hoveredBranchCode, setHoveredBranchCode] = useState<string | null>(null);
+  const hoveredBranch = useMemo(
+    () => (hoveredBranchCode ? sortedBranches.find((b) => b.code === hoveredBranchCode) || null : null),
+    [hoveredBranchCode, sortedBranches]
+  );
+
+  return (
+    <section className={`lg:col-span-7 ${cardClass} overflow-hidden flex flex-col`}>
+      <div className="px-6 pt-5 pb-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Building2 className={`w-4 h-4 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} aria-hidden="true" />
+          <div className="min-w-0">
+            <h3 className={`text-sm sm:text-[15px] font-bold tracking-tight truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              {branchViewMode === 'GRAPH'
+                ? 'Top Branches — Visual Performance Graph'
+                : 'Top Active Branches (All Channels)'}
+            </h3>
+            <p className="text-xs text-slate-500 truncate">
+              {branchViewMode === 'GRAPH'
+                ? `${activePeriodLabel} stacked cross-channel output · hover or click bar for detail`
+                : `${activePeriodLabel} cross-channel volume alongside current branch hardware reserve`}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className={segWrapClass} role="tablist" aria-label="Branch View Mode">
+            {([
+              { id: 'GRAPH' as const, label: 'Graph View' },
+              { id: 'TABLE' as const, label: 'Table' },
+            ]).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                role="tab"
+                aria-selected={branchViewMode === m.id}
+                onClick={() => setBranchViewMode(m.id)}
+                className={`px-3 py-1 rounded-full font-semibold cursor-pointer transition-colors duration-150 whitespace-nowrap ${
+                  branchViewMode === m.id
+                    ? isLight
+                      ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
+                      : 'bg-slate-800 text-white'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {onNavigateTab && (
+            <button
+              type="button"
+              onClick={() => onNavigateTab('branches')}
+              className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150"
+            >
+              All Branches <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {branchViewMode === 'GRAPH' ? (
+        <div className="flex-1 flex flex-col justify-between px-6 pb-5 pt-1 gap-3">
+          <div className={`flex flex-wrap items-center justify-between gap-2 text-[11px] pb-2.5 border-b ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
+            <div className="flex flex-wrap items-center gap-3 text-slate-500">
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />KHQR</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#004e75] inline-block" />POS</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#4F518C] inline-block" />Sound Box</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-sky-500 inline-block" />Visit</span>
+              <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-amber-500 inline-block" />CC</span>
+            </div>
+            <div className="text-[11px] font-medium text-slate-500 truncate max-w-full">
+              {hoveredBranch ? (
+                <span className="font-figure text-slate-700">
+                  <strong className="text-slate-900">Code {hoveredBranch.code}</strong> ·{' '}
+                  KHQR {fmtNum(hoveredBranch.khqr)} · POS {fmtNum(hoveredBranch.pos)} · SB {fmtNum(hoveredBranch.sb)} ·{' '}
+                  MV {fmtNum(hoveredBranch.mv)} · CC {fmtNum(hoveredBranch.cc)} · Res {fmtNum(hoveredBranch.reserve)}
+                </span>
+              ) : (
+                <span>Top {sortedBranches.length} Phnom Penh branches · scaled to peak branch</span>
+              )}
+            </div>
+          </div>
+
+          {sortedBranches.length === 0 ? (
+            <div className="py-10 text-center text-xs text-slate-400">
+              No branch activity found for the selected scope.
+            </div>
+          ) : (
+            <div className="space-y-2 flex-1 flex flex-col justify-center">
+              {sortedBranches.map((b, i) => {
+                const totalBarPct = b.totalTasks > 0 ? Math.max(1.5, (b.totalTasks / maxBranchTasks) * 100) : 0;
+                const brTot = Math.max(1, b.totalTasks);
+                const segs = [
+                  { key: 'khqr', val: b.khqr, color: 'bg-emerald-500' },
+                  { key: 'pos', val: b.pos, color: 'bg-[#004e75]' },
+                  { key: 'sb', val: b.sb, color: 'bg-[#4F518C]' },
+                  { key: 'mv', val: b.mv, color: 'bg-sky-500' },
+                  { key: 'cc', val: b.cc, color: 'bg-amber-500' },
+                ].filter((s) => s.val > 0);
+                const isHovered = hoveredBranchCode === b.code;
+
+                return (
+                  <button
+                    key={b.code}
+                    type="button"
+                    data-branch-bar={b.code}
+                    onMouseEnter={() => setHoveredBranchCode(b.code)}
+                    onMouseLeave={() => setHoveredBranchCode(null)}
+                    onClick={() => onNavigateTab?.('branches')}
+                    title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} · KHQR ${fmtNum(b.khqr)} · POS ${fmtNum(b.pos)} · SB ${fmtNum(b.sb)} · MV ${fmtNum(b.mv)} · CC ${fmtNum(b.cc)} · Reserve ${fmtNum(b.reserve)}`}
+                    className={`w-full flex items-center gap-3 px-2 py-1 rounded-xl transition-colors duration-150 cursor-pointer group ${
+                      isHovered
+                        ? isLight
+                          ? 'bg-[#f3f6f9]'
+                          : 'bg-slate-800/70'
+                        : isLight
+                        ? 'hover:bg-slate-50/70'
+                        : 'hover:bg-slate-800/40'
+                    }`}
+                  >
+                    <div className="w-[170px] sm:w-[215px] shrink-0 text-left flex items-center gap-2 min-w-0">
+                      <span
+                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-figure font-bold shrink-0 ${
+                          i === 0
+                            ? 'bg-[#003857] text-white'
+                            : i < 3
+                            ? 'bg-slate-200/80 text-slate-700'
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className={`text-[12px] font-semibold group-hover:text-[#004e75] transition-colors truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
+                        {b.name}
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400 shrink-0 hidden sm:inline">
+                        Code {b.code}
+                      </span>
+                    </div>
+
+                    <div className={`flex-1 h-2.5 rounded-full overflow-hidden flex items-center ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}>
+                      {totalBarPct > 0 && (
+                        <div
+                          className="h-full rounded-full overflow-hidden flex gap-px transition-[width] duration-200"
+                          style={{ width: `${totalBarPct}%` }}
+                        >
+                          {segs.map((seg) => (
+                            <div
+                              key={seg.key}
+                              className={`h-full ${seg.color}`}
+                              style={{ width: `${(seg.val / brTot) * 100}%` }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className={`w-[54px] shrink-0 text-right font-figure text-[12.5px] font-bold tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      {fmtNum(b.totalTasks)}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="overflow-x-auto flex-1">
+          <table className="dash-light-table w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="text-[10.5px] tracking-wider uppercase font-bold">
+                <th className="py-2.5 pl-6 pr-2 w-10">#</th>
+                <SortTh k="name" sort={brSort} onSort={brToggle} className="py-2.5 px-2 font-bold">Branch</SortTh>
+                <SortTh k="khqr" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">KHQR</SortTh>
+                <SortTh k="pos" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">POS</SortTh>
+                <SortTh k="sb" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">SB</SortTh>
+                <SortTh k="mv" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">MV</SortTh>
+                <SortTh k="cc" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">CC</SortTh>
+                <SortTh k="reserve" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">Reserve</SortTh>
+                <SortTh k="total" sort={brSort} onSort={brToggle} align="right" className="py-2.5 pl-2 pr-6 font-bold">Tasks</SortTh>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {sortedBranches.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-10 text-center text-slate-400">
+                    No branch activity found for the selected scope.
+                  </td>
+                </tr>
+              ) : (
+                sortedBranches.map((b, i) => (
+                  <tr key={b.code} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-2.5 pl-6 pr-2">
+                      <span
+                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10.5px] font-figure font-bold ${
+                          i === 0
+                            ? 'bg-[#003857] text-white'
+                            : i < 3
+                            ? 'bg-slate-200/80 text-slate-700'
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-2">
+                      <div className="font-bold text-slate-900 truncate max-w-[180px]">{b.name}</div>
+                      <div className="text-[10.5px] font-mono text-slate-400">Code {b.code}</div>
+                    </td>
+                    <td className="py-2.5 px-2 text-right font-figure text-emerald-700 font-semibold">{fmtNum(b.khqr)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-[#004e75] font-semibold">{fmtNum(b.pos)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-[#4F518C] font-semibold">{fmtNum(b.sb)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-sky-700 font-semibold">{fmtNum(b.mv)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-amber-700 font-semibold">{fmtNum(b.cc)}</td>
+                    <td className="py-2.5 px-2 text-right font-figure text-slate-500">{fmtNum(b.reserve)}</td>
+                    <td className="py-2.5 pl-2 pr-6 text-right font-figure font-extrabold text-slate-900">
+                      {fmtNum(b.totalTasks)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+});
+
 export const DashboardTab: React.FC<DashboardTabProps> = ({
   devices,
   allDevices,
@@ -192,8 +744,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [activityPanel, setActivityPanel] = useState<ActivityPanelMode>('REQUISITIONS');
   const [branchViewMode, setBranchViewMode] = useState<'GRAPH' | 'TABLE'>('GRAPH');
   const [assetViewMode, setAssetViewMode] = useState<'ALLOCATION' | 'SERIALS'>('ALLOCATION');
-  const [hoveredChannelId, setHoveredChannelId] = useState<string | null>(null);
-  const [hoveredBranchCode, setHoveredBranchCode] = useState<string | null>(null);
 
   const [cachedStaff, setCachedStaff] = useState<StaffAccount[] | null>(() => getCachedStaff());
   useEffect(() => {
@@ -222,25 +772,38 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [ccCounts, setCcCounts] = useState<CcCounts | null>(
     () => getCachedCcCounts(`${range.from || ''}|${range.to || ''}`) || null
   );
-  const [matBalances, setMatBalances] = useState<MaterialBalance[]>([]);
-  const [simRows, setSimRows] = useState<MaterialSerial[] | null>(null);
-  const [simFallbackCounts, setSimFallbackCounts] = useState<Record<SerialStatus, number> | null>(null);
+  // Instant 0ms cache hydration for materials & SIMs on tab revisit
+  const [matBalances, setMatBalances] = useState<MaterialBalance[]>(
+    () => getCachedMaterialBalances() || []
+  );
+  const [simRows, setSimRows] = useState<MaterialSerial[] | null>(
+    () =>
+      getCachedSerialsPage({
+        code: 'SIM',
+        branchId: branchScopedId || undefined,
+        page: 1,
+        pageSize: 1000,
+      })?.rows || null
+  );
+  const [simFallbackCounts, setSimFallbackCounts] = useState<Record<SerialStatus, number> | null>(
+    () => getCachedSerialStatusCounts('SIM', branchScopedId || undefined) || null
+  );
   const [syncing, setSyncing] = useState(false);
 
-  const loadSeqRef = useRef(0);
+  const periodSeqRef = useRef(0);
+  const assetSeqRef = useRef(0);
 
-  const loadCrossPortalData = useCallback(
+  // Decoupled period metrics loader: period changes never refetch inventory/SIM pools
+  const loadPeriodMetrics = useCallback(
     async (force = false) => {
-      const seq = ++loadSeqRef.current;
+      const seq = ++periodSeqRef.current;
+      const isActive = () => seq === periodSeqRef.current;
       const hitKpi = !force ? getCachedKpiSummary(range.from, range.to) : undefined;
+      const hitCc = !force ? getCachedCcCounts(`${range.from || ''}|${range.to || ''}`) : undefined;
       if (hitKpi) setKpiData(hitKpi);
+      if (hitCc) setCcCounts(hitCc);
       setSyncing(!hitKpi || force);
 
-      const simBranchArg = branchScopedId || undefined;
-      const isActive = () => seq === loadSeqRef.current;
-
-      // Apply each source immediately on resolution so fast cards don't wait on slower queries,
-      // and retry KPI summary once if a cold computation transiently fails.
       const kpiTask = fetchKpiSummary(range.from, range.to, force)
         .catch(() => fetchKpiSummary(range.from, range.to, true))
         .then((val) => {
@@ -249,6 +812,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       const ccTask = fetchCcCounts(range.from, range.to, force ? 0 : 45000).then((val) => {
         if (isActive() && val) setCcCounts(val);
       });
+
+      await Promise.allSettled([kpiTask, ccTask]);
+      if (isActive()) setSyncing(false);
+    },
+    [range.from, range.to]
+  );
+
+  // Period-independent material & SIM fleet loader
+  const loadInventoryAndSims = useCallback(
+    async (force = false) => {
+      const seq = ++assetSeqRef.current;
+      const isActive = () => seq === assetSeqRef.current;
+      const simBranchArg = branchScopedId || undefined;
+
       const matTask = fetchMaterialBalances(force).then((val) => {
         if (isActive()) setMatBalances(val);
       });
@@ -266,15 +843,56 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         }
       );
 
-      await Promise.allSettled([kpiTask, ccTask, matTask, simTask]);
-      if (isActive()) setSyncing(false);
+      await Promise.allSettled([matTask, simTask]);
     },
-    [range.from, range.to, branchScopedId]
+    [branchScopedId]
   );
 
+  const handleSyncAll = useCallback(async () => {
+    setSyncing(true);
+    await Promise.allSettled([loadPeriodMetrics(true), loadInventoryAndSims(true)]);
+    setSyncing(false);
+  }, [loadPeriodMetrics, loadInventoryAndSims]);
+
   useEffect(() => {
-    void loadCrossPortalData(false);
-  }, [loadCrossPortalData]);
+    void loadPeriodMetrics(false);
+  }, [loadPeriodMetrics]);
+
+  useEffect(() => {
+    void loadInventoryAndSims(false);
+  }, [loadInventoryAndSims]);
+
+  // Idle background warm-up of sibling periods so Today/Week switches swap in 0ms
+  useEffect(() => {
+    if (!isSupabaseConfigured || !kpiData || syncing) return;
+    let cancelled = false;
+    const warm = () => {
+      if (cancelled) return;
+      for (const p of ['TODAY', 'WEEK'] as const) {
+        if (p === period) continue;
+        const r = kpiPeriodRange(p);
+        if (!getCachedKpiSummary(r.from, r.to)) {
+          void fetchKpiSummary(r.from, r.to, false).catch(() => {});
+        }
+        if (!getCachedCcCounts(`${r.from || ''}|${r.to || ''}`)) {
+          void fetchCcCounts(r.from, r.to, 45000).catch(() => {});
+        }
+      }
+    };
+    const w = window as any;
+    if (typeof w.requestIdleCallback === 'function') {
+      const id = w.requestIdleCallback(warm, { timeout: 1800 });
+      return () => {
+        cancelled = true;
+        w.cancelIdleCallback?.(id);
+      };
+    }
+    const timer = window.setTimeout(warm, 900);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [kpiData, syncing, period]);
 
   // Rule lookup map for KPI point valuation
   const ruleMap = useMemo(() => {
@@ -836,44 +1454,47 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     ? `Branch Code ${branchScopedId}`
     : `Phnom Penh · ${fmtNum(branches.length)} branches`;
 
-  const actionQueueRows = [
-    {
-      id: 'sb',
-      label: 'Sound Box Field App',
-      sub: 'Installations, swaps & operational support',
-      count: queues.sbField,
-      tab: 'mobile_sync_sb',
-      badgeClass: queues.sbField > 0 ? 'bg-indigo-50 text-[#4F518C] border-indigo-200/80' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      dotClass: 'bg-[#4F518C]',
-    },
-    {
-      id: 'pos',
-      label: 'POS Terminal Field App',
-      sub: 'Installations, battery changes & maintenance',
-      count: queues.posField,
-      tab: 'mobile_sync',
-      badgeClass: queues.posField > 0 ? 'bg-sky-50 text-[#004e75] border-sky-200/80' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      dotClass: 'bg-[#004e75]',
-    },
-    {
-      id: 'cc',
-      label: 'Credit Card Review',
-      sub: ccCounts?.waitingDocs ? `${fmtNum(ccCounts.waitingDocs)} waiting documents at HQ` : 'Pending Card Center & document verification',
-      count: queues.ccPend,
-      tab: 'mobile_sync_cc',
-      badgeClass: queues.ccPend > 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      dotClass: 'bg-amber-500',
-    },
-    {
-      id: 'req',
-      label: 'Branch Stock Requests',
-      sub: `${fmtNum(reqStats.received)} received · ${fmtNum(reqStats.rejected)} rejected`,
-      count: queues.reqPend,
-      tab: 'requisitions',
-      badgeClass: queues.reqPend > 0 ? 'bg-teal-50 text-teal-800 border-teal-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      dotClass: 'bg-teal-600',
-    },
-  ];
+  const actionQueueRows = useMemo(
+    () => [
+      {
+        id: 'sb',
+        label: 'Sound Box Field App',
+        sub: 'Installations, swaps & operational support',
+        count: queues.sbField,
+        tab: 'mobile_sync_sb',
+        badgeClass: queues.sbField > 0 ? 'bg-indigo-50/80 text-[#4F518C] border-indigo-200/70' : 'bg-emerald-50/80 text-emerald-700 border-emerald-200/70',
+        dotClass: 'bg-[#4F518C]',
+      },
+      {
+        id: 'pos',
+        label: 'POS Terminal Field App',
+        sub: 'Installations, battery changes & maintenance',
+        count: queues.posField,
+        tab: 'mobile_sync',
+        badgeClass: queues.posField > 0 ? 'bg-sky-50/80 text-[#004e75] border-sky-200/70' : 'bg-emerald-50/80 text-emerald-700 border-emerald-200/70',
+        dotClass: 'bg-[#004e75]',
+      },
+      {
+        id: 'cc',
+        label: 'Credit Card Review',
+        sub: ccCounts?.waitingDocs ? `${fmtNum(ccCounts.waitingDocs)} waiting documents at HQ` : 'Pending Card Center & document verification',
+        count: queues.ccPend,
+        tab: 'mobile_sync_cc',
+        badgeClass: queues.ccPend > 0 ? 'bg-amber-50/80 text-amber-800 border-amber-200/70' : 'bg-emerald-50/80 text-emerald-700 border-emerald-200/70',
+        dotClass: 'bg-amber-500',
+      },
+      {
+        id: 'req',
+        label: 'Branch Stock Requests',
+        sub: `${fmtNum(reqStats.received)} received · ${fmtNum(reqStats.rejected)} rejected`,
+        count: queues.reqPend,
+        tab: 'requisitions',
+        badgeClass: queues.reqPend > 0 ? 'bg-teal-50/80 text-teal-800 border-teal-200/70' : 'bg-emerald-50/80 text-emerald-700 border-emerald-200/70',
+        dotClass: 'bg-teal-600',
+      },
+    ],
+    [queues.sbField, queues.posField, queues.ccPend, queues.reqPend, ccCounts?.waitingDocs, reqStats.received, reqStats.rejected]
+  );
 
   const reachTotal =
     channelActivity.khqrCount + channelActivity.mvCount + channelActivity.ccSubmittedShow;
@@ -905,16 +1526,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     };
   }, [velocitySeries]);
 
-  // Derived visual data for CEO Option 1 analytics (Donut ring, Queue load, Branch bar scaling, Asset allocation)
-  const DONUT_RADIUS = 44;
-  const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
-  const { donutSlices, leadChannel, focusedChannel } = useMemo(() => {
+  const { donutSlices, leadChannel } = useMemo(() => {
     const total = channelActivity.totalTasks;
     let accOffset = 0;
-    const slices = channelActivity.rows.map((r) => {
+    const slices: ChannelSliceItem[] = channelActivity.rows.map((r) => {
       const dash = total > 0 && r.primaryValue > 0 ? (r.primaryValue / total) * DONUT_CIRC : 0;
-      const slice = {
-        ...r,
+      const slice: ChannelSliceItem = {
+        id: r.id,
+        label: r.label,
+        shortLabel: r.shortLabel,
+        tab: r.tab,
+        hexColor: r.hexColor,
+        primaryValue: r.primaryValue,
+        meta: r.meta,
+        sharePct: r.sharePct,
         dash,
         offset: accOffset,
       };
@@ -923,11 +1548,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     });
     const lead =
       [...slices].sort((a, b) => b.primaryValue - a.primaryValue)[0] || slices[0];
-    const focused = (hoveredChannelId && slices.find((s) => s.id === hoveredChannelId)) || lead;
-    return { donutSlices: slices, leadChannel: lead, focusedChannel: focused };
-  }, [channelActivity.rows, channelActivity.totalTasks, hoveredChannelId, DONUT_CIRC]);
+    return { donutSlices: slices, leadChannel: lead };
+  }, [channelActivity.rows, channelActivity.totalTasks]);
 
-  const queueSegments = useMemo(() => {
+  const queueSegments: QueueSegItem[] = useMemo(() => {
     const segColors: Record<string, string> = {
       pos: 'bg-[#004e75]',
       sb: 'bg-[#4F518C]',
@@ -945,11 +1569,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const maxBranchTasks = useMemo(
     () => Math.max(1, ...sortedBranches.map((b) => b.totalTasks)),
     [sortedBranches]
-  );
-
-  const hoveredBranch = useMemo(
-    () => (hoveredBranchCode ? sortedBranches.find((b) => b.code === hoveredBranchCode) || null : null),
-    [hoveredBranchCode, sortedBranches]
   );
 
   const allocationRows = useMemo(() => {
@@ -1021,35 +1640,41 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   }, [hardwareSummary, materialsSummary, batterySummary, batteryLifespanMonths, batteryWarningMonths]);
 
   const isLight = theme !== 'dark';
+  const iosCardClass = isLight
+    ? 'rounded-[22px] bg-white border border-slate-200/70 shadow-[0_1px_10px_rgba(15,23,42,0.025)] text-slate-900'
+    : 'rounded-[22px] bg-[#161a24] border border-slate-800 text-slate-100';
+  const iosSegWrapClass = isLight
+    ? 'inline-flex items-center p-0.5 rounded-full bg-slate-100/90 border border-slate-200/50 text-[11px] shrink-0'
+    : 'inline-flex items-center p-0.5 rounded-full bg-slate-900/80 border border-slate-700/80 text-[11px] shrink-0';
   const kpiCardClass = isLight
-    ? 'surface-card-light text-[#002f49]'
+    ? 'bg-[#f8f9fb] border border-slate-200/55 text-[#0f172a]'
     : 'bg-[#1e2330] border border-slate-800 text-slate-100';
-  const kpiHeadingClass = isLight ? 'text-[#002f49]' : 'text-white';
+  const kpiHeadingClass = isLight ? 'text-[#0f172a]' : 'text-white';
   const kpiSubtextClass = isLight ? 'text-slate-500' : 'text-slate-400';
-  const kpiFooterBorderClass = isLight ? 'border-slate-200/60' : 'border-slate-800/80';
+  const kpiFooterBorderClass = isLight ? 'border-slate-200/50' : 'border-slate-800/80';
 
   return (
     <div className="space-y-5 apple-tab-panel" aria-label="Executive Operations Overview">
-      {/* ───────────── 1 & 2. HERO BACKDROP HEADER + 4 INSET KPI CARDS ───────────── */}
+      {/* ───────────── 1 & 2. iOS MINIMAL HERO + 4 INSET KPI SQUIRCLES ───────────── */}
       <div
         data-hero-backdrop="dashboard"
-        className={`relative overflow-hidden rounded-3xl p-5 sm:p-7 border shadow-sm ${
+        className={`relative overflow-hidden rounded-3xl p-5 sm:p-6 border ${
           isLight
-            ? 'bg-slate-100 border-slate-200/90 text-slate-900'
+            ? 'bg-white border-slate-200/75 text-slate-900 shadow-[0_1px_10px_rgba(15,23,42,0.025)]'
             : 'bg-[#161a24] border-slate-800 text-slate-100'
         }`}
       >
-        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
-          <div className="space-y-1.5 min-w-0">
-            <h1 className={`text-2xl sm:text-3xl xl:text-[30px] font-extrabold tracking-tight flex items-center gap-3 leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              <BarChart3 className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} aria-hidden="true" />
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <div className="space-y-1 min-w-0">
+            <h1 className={`text-2xl sm:text-[26px] font-bold tracking-tight flex items-center gap-2.5 leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <BarChart3 className={`w-6 h-6 sm:w-7 sm:h-7 shrink-0 ${isLight ? 'text-[#003857]' : 'text-sky-300'}`} aria-hidden="true" />
               <span>
                 {branchScopedId
                   ? `Branch Code ${branchScopedId} Operations Overview`
                   : 'Executive Operations Overview'}
               </span>
             </h1>
-            <p className={`text-sm sm:text-[15px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+            <p className={`text-sm leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
               <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>{branchScopeDisplay}</span>
               <span className="mx-1.5 text-slate-400" aria-hidden="true">·</span>
               <span>{fmtNum(scopedKpiTotals.activeStaffCount)} active staff across 5 field channels</span>
@@ -1057,11 +1682,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
 
           <div className="flex flex-wrap xl:flex-nowrap xl:justify-end items-center gap-2 shrink-0">
-            {/* Period Switcher */}
+            {/* iOS Period Pill Switcher */}
             <div
-              className={`inline-flex items-center p-1 rounded-xl border shadow-2xs gap-0.5 ${
+              className={`inline-flex items-center p-1 rounded-full border gap-0.5 ${
                 isLight
-                  ? 'bg-white border-slate-200/90'
+                  ? 'bg-slate-100/90 border-slate-200/60'
                   : 'bg-slate-900/80 border-slate-700'
               }`}
               role="tablist"
@@ -1076,17 +1701,23 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     role="tab"
                     aria-selected={active}
                     onClick={() => setPeriod(opt.id)}
-                    className={`relative px-2.5 py-1 rounded-[9px] text-xs cursor-pointer transition-colors ${
+                    className={`relative px-3 py-1 rounded-full text-xs cursor-pointer transition-colors duration-150 ${
                       active
-                        ? 'text-white font-semibold'
-                        : `${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
+                        ? isLight
+                          ? 'text-slate-900 font-bold'
+                          : 'text-white font-bold'
+                        : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-300 hover:text-white'} font-medium`
                     }`}
                   >
                     {active && (
                       <PillMotion
                         layoutId="dash-period-pill"
                         transition={SPRING_TAB_PILL}
-                        className="absolute inset-0 rounded-[9px] tab-active-blue shadow-2xs pointer-events-none"
+                        className={`absolute inset-0 rounded-full pointer-events-none ${
+                          isLight
+                            ? 'bg-white shadow-[0_1px_4px_rgba(15,23,42,0.09)]'
+                            : 'bg-slate-800 shadow-2xs'
+                        }`}
                       />
                     )}
                     <span className="relative z-10">{opt.label}</span>
@@ -1098,9 +1729,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             {/* Directory Scope Badge (Admin HQ) */}
             {isAdminLike && !branchScopedId && (
               <span
-                className={`inline-flex items-center gap-1.5 text-xs rounded-xl border px-3 py-1.5 font-semibold whitespace-nowrap shadow-2xs ${
+                className={`inline-flex items-center gap-1.5 text-xs rounded-full border px-3.5 py-1.5 font-semibold whitespace-nowrap ${
                   isLight
-                    ? 'border-slate-200/90 bg-white text-slate-700'
+                    ? 'border-slate-200/70 bg-[#f8f9fb] text-slate-700'
                     : 'border-slate-700 bg-slate-900/80 text-slate-200'
                 }`}
                 title="Scoped to active Phnom Penh staff from the Staff Directory"
@@ -1110,14 +1741,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </span>
             )}
 
-            <span className={`hidden xl:block h-5 w-px mx-0.5 ${isLight ? 'bg-slate-300/80' : 'bg-slate-700'}`} aria-hidden="true" />
-
             <button
               type="button"
-              onClick={() => void loadCrossPortalData(true)}
-              className={`btn-press px-3 py-1.5 rounded-xl text-xs font-semibold border shadow-2xs inline-flex items-center gap-1.5 cursor-pointer transition ${
+              onClick={() => void handleSyncAll()}
+              className={`btn-press px-3.5 py-1.5 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
                 isLight
-                  ? 'border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700'
+                  ? 'border-slate-200/70 bg-[#f8f9fb] hover:bg-slate-100 text-slate-700'
                   : 'border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-200'
               }`}
               title="Refresh live summary counts"
@@ -1130,9 +1759,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <button
                 type="button"
                 onClick={onOpenExportModal}
-                className={`btn-press px-3 py-1.5 rounded-xl text-xs font-semibold border shadow-2xs inline-flex items-center gap-1.5 cursor-pointer transition ${
+                className={`btn-press px-3.5 py-1.5 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
                   isLight
-                    ? 'border-slate-200/90 bg-white hover:bg-slate-50 text-slate-800'
+                    ? 'border-slate-200/70 bg-[#f8f9fb] hover:bg-slate-100 text-slate-800'
                     : 'border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-100'
                 }`}
                 title="Export Reports & Data"
@@ -1144,26 +1773,24 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
         </div>
 
-        {/* 4 Executive Summary Cards inset inside Hero Backdrop */}
+        {/* 4 Inset iOS KPI Squircles */}
         <section
-          className={`relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 mt-5 pt-5 border-t ${
-            isLight ? 'border-slate-200/90' : 'border-slate-800'
-          }`}
+          className="relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 mt-5"
           aria-label="Key portal metrics"
         >
           {/* KPI 1: Field Tasks */}
-          <div className={`${kpiCardClass} rounded-2xl px-3.5 py-4 flex flex-col justify-between shadow-2xs min-w-0`}>
+          <div className={`${kpiCardClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}>
             <div>
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Field Tasks · {activePeriodLabel}
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-[#003857]/12 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-4 h-4" aria-hidden="true" />
+                <div className="w-7 h-7 rounded-full bg-[#003857]/10 text-[#003857] dark:text-[#7cc4ed] flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
                 </div>
               </div>
-              <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 leading-tight ${kpiHeadingClass}`}>
-                <Odometer value={channelActivity.totalTasks} format duration={320} />
+              <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
+                <Odometer value={channelActivity.totalTasks} format duration={220} />
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
@@ -1173,24 +1800,24 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
 
           {/* KPI 2: Pending Approvals */}
-          <div className={`${kpiCardClass} rounded-2xl px-3.5 py-4 flex flex-col justify-between shadow-2xs min-w-0`}>
+          <div className={`${kpiCardClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}>
             <div>
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Pending Approvals
                 </span>
                 {queues.total > 0 ? (
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/12 text-amber-600 flex items-center justify-center shrink-0">
-                    <AlertCircle className="w-4 h-4" aria-hidden="true" />
+                  <div className="w-7 h-7 rounded-full bg-amber-500/12 text-amber-600 flex items-center justify-center shrink-0">
+                    <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
                   </div>
                 ) : (
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/12 text-emerald-600 flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                  <div className="w-7 h-7 rounded-full bg-emerald-500/12 text-emerald-600 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
                   </div>
                 )}
               </div>
-              <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 leading-tight ${kpiHeadingClass}`}>
-                <Odometer value={queues.total} format duration={320} />
+              <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
+                <Odometer value={queues.total} format duration={220} />
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
@@ -1204,18 +1831,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
 
           {/* KPI 3: Hardware Pool */}
-          <div className={`${kpiCardClass} rounded-2xl px-3.5 py-4 flex flex-col justify-between shadow-2xs min-w-0`}>
+          <div className={`${kpiCardClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}>
             <div>
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Hardware Pool
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/12 text-emerald-600 flex items-center justify-center shrink-0">
-                  <Boxes className="w-4 h-4" aria-hidden="true" />
+                <div className="w-7 h-7 rounded-full bg-emerald-500/12 text-emerald-600 flex items-center justify-center shrink-0">
+                  <Boxes className="w-3.5 h-3.5" aria-hidden="true" />
                 </div>
               </div>
-              <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 leading-tight ${kpiHeadingClass}`}>
-                <Odometer value={hardwareSummary.total} format duration={320} />
+              <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
+                <Odometer value={hardwareSummary.total} format duration={220} />
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
@@ -1237,18 +1864,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
 
           {/* KPI 4: Merchant Outreach */}
-          <div className={`${kpiCardClass} rounded-2xl px-3.5 py-4 flex flex-col justify-between shadow-2xs min-w-0`}>
+          <div className={`${kpiCardClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}>
             <div>
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
                   Merchant Outreach
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-sky-500/12 text-[#004e75] dark:text-sky-300 flex items-center justify-center shrink-0">
-                  <Store className="w-4 h-4" aria-hidden="true" />
+                <div className="w-7 h-7 rounded-full bg-sky-500/12 text-[#004e75] dark:text-sky-300 flex items-center justify-center shrink-0">
+                  <Store className="w-3.5 h-3.5" aria-hidden="true" />
                 </div>
               </div>
-              <div className={`text-2xl sm:text-3xl font-extrabold font-figure tabular-nums mt-2 leading-tight ${kpiHeadingClass}`}>
-                <Odometer value={reachTotal} format duration={320} />
+              <div className={`text-2xl sm:text-[28px] font-bold font-figure tabular-nums tracking-tight mt-2 leading-tight ${kpiHeadingClass}`}>
+                <Odometer value={reachTotal} format duration={220} />
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
@@ -1262,17 +1889,31 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       {/* ───────────── 3. ROW 1: CROSS-CHANNEL DAILY VELOCITY + CHANNEL SHARE DONUT & QUEUE LOAD ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left 7 Cols: Cross-Channel Daily Velocity & Active Staff */}
-        <section className="lg:col-span-7 surface-card overflow-hidden flex flex-col">
-          <div className="sb-card-header-light px-6 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2 min-w-0">
-              <TrendingUp className="w-4 h-4 text-[#003857] shrink-0" aria-hidden="true" />
+        <section className={`lg:col-span-7 ${iosCardClass} overflow-hidden flex flex-col`}>
+          <div className="px-6 pt-5 pb-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                  isLight ? 'bg-[#003857]/8 text-[#003857]' : 'bg-sky-500/15 text-sky-400'
+                }`}
+              >
+                <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
+              </div>
               <div className="min-w-0">
-                <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900 truncate">
+                <h3
+                  className={`text-[15px] font-bold tracking-[-0.015em] truncate ${
+                    isLight ? 'text-slate-900' : 'text-white'
+                  }`}
+                >
                   {chartMode === 'VELOCITY'
                     ? 'Cross-Channel Daily Velocity & Active Staff'
                     : 'Monthly Hardware Deployments (POS vs SB)'}
                 </h3>
-                <p className="text-xs text-slate-500 truncate">
+                <p
+                  className={`text-[12px] truncate ${
+                    isLight ? 'text-slate-500' : 'text-slate-400'
+                  }`}
+                >
                   {chartMode === 'VELOCITY'
                     ? 'Daily 5-channel volume trajectory with active staff trendline'
                     : 'Completed merchant installs over selected horizon'}
@@ -1280,16 +1921,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               {chartMode === 'HARDWARE_MONTHLY' && (
-                <div className="inline-flex items-center p-0.5 rounded-lg bg-white border border-slate-200 text-[11px] shrink-0">
+                <div className={`${iosSegWrapClass} text-[11px] shrink-0`}>
                   {(['3M', '6M', '12M'] as TimeHorizon[]).map((h) => (
                     <button
                       key={h}
                       type="button"
                       onClick={() => setTimeHorizon(h)}
-                      className={`px-2 py-1 rounded-md font-semibold cursor-pointer transition whitespace-nowrap ${
-                        timeHorizon === h ? 'bg-[#003857] text-white' : 'text-slate-600 hover:text-slate-900'
+                      className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer transition-all duration-150 whitespace-nowrap ${
+                        timeHorizon === h
+                          ? 'bg-[#003857] text-white shadow-2xs'
+                          : isLight
+                          ? 'text-slate-600 hover:text-slate-900'
+                          : 'text-slate-400 hover:text-white'
                       }`}
                     >
                       {h}
@@ -1299,7 +1944,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               )}
 
               <div
-                className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200/80 text-[11px] shrink-0"
+                className={`${iosSegWrapClass} text-[11px] shrink-0`}
                 role="tablist"
                 aria-label="Chart View Mode"
               >
@@ -1313,8 +1958,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     role="tab"
                     aria-selected={chartMode === m.id}
                     onClick={() => setChartMode(m.id)}
-                    className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition whitespace-nowrap ${
-                      chartMode === m.id ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    className={`px-3 py-1 rounded-full font-semibold cursor-pointer transition-all duration-150 whitespace-nowrap ${
+                      chartMode === m.id
+                        ? isLight
+                          ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
+                          : 'bg-slate-700 text-white shadow-xs'
+                        : isLight
+                        ? 'text-slate-500 hover:text-slate-900'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     {m.label}
@@ -1324,9 +1975,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </div>
 
-          <div className="px-6 py-4 flex-1 flex flex-col justify-between">
+          <div className="px-6 pt-1 pb-5 flex-1 flex flex-col justify-between">
             {chartMode === 'VELOCITY' && (
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 text-[11px] text-slate-600">
+              <div
+                className={`flex flex-wrap items-center justify-between gap-2 pb-2.5 text-[11px] ${
+                  isLight ? 'text-slate-500' : 'text-slate-400'
+                }`}
+              >
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#004e75] inline-block" />POS</span>
                   <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#4F518C] inline-block" />Sound Box</span>
@@ -1336,12 +1991,24 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 </div>
                 <div className="flex items-center gap-3">
                   {velocityPeak.peakVal > 0 && (
-                    <span className="hidden xl:inline-flex items-center gap-1 text-slate-500 font-medium">
-                      Peak <strong className="font-figure text-slate-800">{fmtNum(velocityPeak.peakVal)}</strong> ({velocityPeak.peakLabel})
+                    <span className="hidden xl:inline-flex items-center gap-1 font-medium">
+                      Peak{' '}
+                      <strong className={`font-figure ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                        {fmtNum(velocityPeak.peakVal)}
+                      </strong>{' '}
+                      ({velocityPeak.peakLabel})
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1.5 text-[#004e75] font-semibold">
-                    <span className="w-3.5 border-t-2 border-dashed border-[#004e75] inline-block" />
+                  <span
+                    className={`inline-flex items-center gap-1.5 font-semibold ${
+                      isLight ? 'text-[#004e75]' : 'text-sky-400'
+                    }`}
+                  >
+                    <span
+                      className={`w-3.5 border-t-2 border-dashed inline-block ${
+                        isLight ? 'border-[#004e75]' : 'border-sky-400'
+                      }`}
+                    />
                     Active staff
                   </span>
                 </div>
@@ -1366,456 +2033,61 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
         </section>
 
-        {/* Right 5 Cols: Channel Share Donut & Approval Backlog Graph */}
-        <section className="lg:col-span-5 surface-card overflow-hidden flex flex-col justify-between">
-          <div className="sb-card-header-light px-6 py-3.5 flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900 truncate">
-                Channel Mix &amp; Queue Load
-              </h3>
-              <p className="text-xs text-slate-500 truncate">
-                Contribution donut + approval weight
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-[11px] font-figure font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 whitespace-nowrap">
-                {fmtNum(channelActivity.totalTasks)} tasks
-              </span>
-              {onNavigateTab && (
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('kpi_performance')}
-                  className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
-                >
-                  Full KPI <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="px-6 py-4 flex-1 flex flex-col justify-between gap-4">
-            {/* Top: Donut Ring + Interactive 5-Channel Legend */}
-            <div className="flex flex-col sm:flex-row items-center gap-5">
-              <div className="relative w-[132px] h-[132px] shrink-0 flex items-center justify-center">
-                <svg
-                  viewBox="0 0 116 116"
-                  className="w-full h-full overflow-visible"
-                  role="img"
-                  aria-label="5-Channel Contribution Donut Chart"
-                  data-testid="channel-mix-donut"
-                >
-                  <circle
-                    cx="58"
-                    cy="58"
-                    r={DONUT_RADIUS}
-                    fill="none"
-                    stroke={isLight ? '#f1f5f9' : '#1e293b'}
-                    strokeWidth="14"
-                  />
-                  {channelActivity.totalTasks > 0 &&
-                    donutSlices.map((slice) => {
-                      if (slice.dash <= 0) return null;
-                      const isFocused = focusedChannel?.id === slice.id && hoveredChannelId === slice.id;
-                      const visibleDash = Math.max(1.5, slice.dash - 1.2);
-                      return (
-                        <circle
-                          key={slice.id}
-                          cx="58"
-                          cy="58"
-                          r={DONUT_RADIUS}
-                          fill="none"
-                          stroke={slice.hexColor}
-                          strokeWidth={isFocused ? 16 : 14}
-                          strokeDasharray={`${visibleDash} ${DONUT_CIRC}`}
-                          strokeDashoffset={-slice.offset}
-                          transform="rotate(-90 58 58)"
-                          className="cursor-pointer transition-all duration-200"
-                          onMouseEnter={() => setHoveredChannelId(slice.id)}
-                          onMouseLeave={() => setHoveredChannelId(null)}
-                          onClick={() => onNavigateTab?.(slice.tab)}
-                        >
-                          <title>{`${slice.label}: ${fmtNum(slice.primaryValue)} (${slice.sharePct}%)`}</title>
-                        </circle>
-                      );
-                    })}
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-3">
-                  <span className="text-[19px] font-extrabold font-figure leading-none text-slate-900">
-                    {focusedChannel ? `${focusedChannel.sharePct}%` : '0%'}
-                  </span>
-                  <span className="text-[8.5px] font-bold tracking-wider uppercase text-slate-500 mt-1 truncate max-w-[78px]">
-                    {focusedChannel ? `${focusedChannel.shortLabel} SHARE` : 'NO TASKS'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex-1 w-full space-y-1">
-                {donutSlices.map((row) => {
-                  const isActive = hoveredChannelId === row.id || (!hoveredChannelId && leadChannel?.id === row.id);
-                  return (
-                    <button
-                      key={row.id}
-                      type="button"
-                      onClick={() => onNavigateTab?.(row.tab)}
-                      onMouseEnter={() => setHoveredChannelId(row.id)}
-                      onMouseLeave={() => setHoveredChannelId(null)}
-                      title={row.meta}
-                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-left transition cursor-pointer ${
-                        isActive ? 'bg-slate-100/80' : 'hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2 min-w-0">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: row.hexColor }}
-                        />
-                        <span className="text-[12px] font-semibold text-slate-800 truncate">
-                          {row.shortLabel === 'Visit'
-                            ? 'Merchant Visit'
-                            : row.shortLabel === 'CC'
-                            ? 'Credit Card'
-                            : row.shortLabel === 'POS'
-                            ? 'POS Terminal'
-                            : row.shortLabel}
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10.5px] font-mono text-slate-400">
-                          {row.sharePct}%
-                        </span>
-                        <span className="text-[12.5px] font-figure font-extrabold text-slate-900 min-w-[44px] text-right">
-                          {row.id === 'cc' && channelActivity.ccSubmittedShow > 0
-                            ? `${fmtNum(row.primaryValue)} / ${fmtNum(channelActivity.ccSubmittedShow)}`
-                            : fmtNum(row.primaryValue)}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Bottom: Queue Load Distribution Bar + Clickable Pills */}
-            <div className="pt-3 border-t border-slate-100 space-y-2.5">
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="font-bold text-slate-800">
-                  Queue Load Distribution ({fmtNum(queues.total)} Waiting)
-                </span>
-                <span className="text-[11px] font-semibold text-amber-700 truncate">
-                  {queues.total > 0
-                    ? queueSegments
-                        .filter((s) => s.count > 0)
-                        .slice(0, 2)
-                        .map((s) => `${s.pct}% ${s.id.toUpperCase()}`)
-                        .join(' · ')
-                    : 'All Clear'}
-                </span>
-              </div>
-
-              <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden flex gap-0.5">
-                {queues.total > 0 ? (
-                  queueSegments.map((seg) =>
-                    seg.count > 0 ? (
-                      <div
-                        key={seg.id}
-                        className={`h-full transition-all duration-300 first:rounded-l-full last:rounded-r-full ${seg.barColor}`}
-                        style={{ width: `${Math.max(2, seg.pct)}%` }}
-                        title={`${seg.label}: ${fmtNum(seg.count)} (${seg.pct}%)`}
-                      />
-                    ) : null
-                  )
-                ) : (
-                  <div className="h-full w-full bg-emerald-500/20 rounded-full" />
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                {queueSegments.map((seg) => (
-                  <button
-                    key={seg.id}
-                    type="button"
-                    onClick={() => onNavigateTab?.(seg.tab)}
-                    title={`${seg.label} — ${seg.sub}`}
-                    className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border transition cursor-pointer hover:opacity-85 ${seg.badgeClass}`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${seg.dotClass}`} />
-                    <span>
-                      {seg.id === 'pos'
-                        ? 'POS'
-                        : seg.id === 'sb'
-                        ? 'SB'
-                        : seg.id === 'cc'
-                        ? 'CC'
-                        : 'Stock Req'}
-                    </span>
-                    <span className="font-figure font-extrabold">{fmtNum(seg.count)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Secondary Operational Alerts Strip (Push Config + Open Lost) */}
-          <div className="px-6 py-2.5 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center justify-between gap-2 text-[11.5px]">
-            <button
-              type="button"
-              onClick={() => onNavigateTab?.('push_configuring')}
-              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#004e75] font-medium cursor-pointer transition"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#004e75]" aria-hidden="true" />
-              <span>Push Configuring Queue</span>
-              <strong className="font-figure text-slate-900 ml-0.5">{fmtNum(queues.pushPend)}</strong>
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigateTab?.(queues.lostOpen > 0 && (actionQueues?.lostSim || 0) > 0 ? 'sim_cards' : 'inventory')}
-              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-rose-700 font-medium cursor-pointer transition"
-            >
-              <AlertCircle className={`w-3.5 h-3.5 ${queues.lostOpen > 0 ? 'text-rose-600' : 'text-slate-400'}`} aria-hidden="true" />
-              <span>Open Lost Reports</span>
-              <strong className={`font-figure ml-0.5 ${queues.lostOpen > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
-                {fmtNum(queues.lostOpen)}
-              </strong>
-            </button>
-          </div>
-        </section>
+        {/* Right 5 Cols: Memoized Channel Share Donut & Approval Backlog Graph */}
+        <ChannelMixCard
+          isLight={isLight}
+          cardClass={iosCardClass}
+          donutSlices={donutSlices}
+          leadChannel={leadChannel}
+          totalTasks={channelActivity.totalTasks}
+          ccSubmittedShow={channelActivity.ccSubmittedShow}
+          queues={queues}
+          lostSimCount={actionQueues?.lostSim || 0}
+          queueSegments={queueSegments}
+          onNavigateTab={onNavigateTab}
+        />
       </div>
 
       {/* ───────────── 4. ROW 2: TOP BRANCHES PERFORMANCE GRAPH + HARDWARE & SLA ALLOCATION ANALYTICS ───────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left 7 Cols: Top Branches — Visual Performance Graph (with Table Toggle) */}
-        <section className="lg:col-span-7 surface-card overflow-hidden flex flex-col">
-          <div className="sb-card-header-light px-6 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Building2 className="w-4 h-4 text-[#003857] shrink-0" aria-hidden="true" />
-              <div className="min-w-0">
-                <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900 truncate">
-                  {branchViewMode === 'GRAPH'
-                    ? 'Top Branches — Visual Performance Graph'
-                    : 'Top Active Branches (All Channels)'}
-                </h3>
-                <p className="text-xs text-slate-500 truncate">
-                  {branchViewMode === 'GRAPH'
-                    ? `${activePeriodLabel} stacked cross-channel output · hover or click bar for detail`
-                    : `${activePeriodLabel} cross-channel volume alongside current branch hardware reserve`}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <div
-                className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200/80 text-[11px] shrink-0"
-                role="tablist"
-                aria-label="Branch View Mode"
-              >
-                {([
-                  { id: 'GRAPH' as const, label: 'Graph View' },
-                  { id: 'TABLE' as const, label: 'Table' },
-                ]).map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={branchViewMode === m.id}
-                    onClick={() => setBranchViewMode(m.id)}
-                    className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition whitespace-nowrap ${
-                      branchViewMode === m.id ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-
-              {onNavigateTab && (
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('branches')}
-                  className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
-                >
-                  All Branches <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {branchViewMode === 'GRAPH' ? (
-            <div className="flex-1 flex flex-col justify-between px-6 py-4 gap-3">
-              {/* Compact Legend + Dynamic Hover Breakdown Readout */}
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] pb-2 border-b border-slate-100">
-                <div className="flex flex-wrap items-center gap-3 text-slate-600">
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />KHQR</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#004e75] inline-block" />POS</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[#4F518C] inline-block" />Sound Box</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-sky-500 inline-block" />Visit</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-amber-500 inline-block" />CC</span>
-                </div>
-                <div className="text-[11px] font-medium text-slate-500 truncate max-w-full">
-                  {hoveredBranch ? (
-                    <span className="font-figure text-slate-700">
-                      <strong className="text-slate-900">Code {hoveredBranch.code}</strong> ·{' '}
-                      KHQR {fmtNum(hoveredBranch.khqr)} · POS {fmtNum(hoveredBranch.pos)} · SB {fmtNum(hoveredBranch.sb)} ·{' '}
-                      MV {fmtNum(hoveredBranch.mv)} · CC {fmtNum(hoveredBranch.cc)} · Res {fmtNum(hoveredBranch.reserve)}
-                    </span>
-                  ) : (
-                    <span>Top {sortedBranches.length} Phnom Penh branches · scaled to peak branch</span>
-                  )}
-                </div>
-              </div>
-
-              {sortedBranches.length === 0 ? (
-                <div className="py-10 text-center text-xs text-slate-400">
-                  No branch activity found for the selected scope.
-                </div>
-              ) : (
-                <div className="space-y-2.5 flex-1 flex flex-col justify-center">
-                  {sortedBranches.map((b, i) => {
-                    const totalBarPct = b.totalTasks > 0 ? Math.max(1.5, (b.totalTasks / maxBranchTasks) * 100) : 0;
-                    const brTot = Math.max(1, b.totalTasks);
-                    const segs = [
-                      { key: 'khqr', label: 'KHQR', val: b.khqr, color: 'bg-emerald-500' },
-                      { key: 'pos', label: 'POS', val: b.pos, color: 'bg-[#004e75]' },
-                      { key: 'sb', label: 'SB', val: b.sb, color: 'bg-[#4F518C]' },
-                      { key: 'mv', label: 'MV', val: b.mv, color: 'bg-sky-500' },
-                      { key: 'cc', label: 'CC', val: b.cc, color: 'bg-amber-500' },
-                    ].filter((s) => s.val > 0);
-                    const isHovered = hoveredBranchCode === b.code;
-
-                    return (
-                      <button
-                        key={b.code}
-                        type="button"
-                        data-branch-bar={b.code}
-                        onMouseEnter={() => setHoveredBranchCode(b.code)}
-                        onMouseLeave={() => setHoveredBranchCode(null)}
-                        onClick={() => onNavigateTab?.('branches')}
-                        title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} · KHQR ${fmtNum(b.khqr)} · POS ${fmtNum(b.pos)} · SB ${fmtNum(b.sb)} · MV ${fmtNum(b.mv)} · CC ${fmtNum(b.cc)} · Reserve ${fmtNum(b.reserve)}`}
-                        className={`w-full flex items-center gap-3 px-2 py-1 rounded-lg transition cursor-pointer group ${
-                          isHovered ? 'bg-slate-50' : 'hover:bg-slate-50/70'
-                        }`}
-                      >
-                        <div className="w-[170px] sm:w-[215px] shrink-0 text-left flex items-center gap-2 min-w-0">
-                          <span
-                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-figure font-bold shrink-0 ${
-                              i === 0
-                                ? 'bg-[#003857] text-white'
-                                : i < 3
-                                ? 'bg-slate-200/80 text-slate-700'
-                                : 'text-slate-400'
-                            }`}
-                          >
-                            {i + 1}
-                          </span>
-                          <span className="text-[12px] font-bold text-slate-900 group-hover:text-[#004e75] transition truncate">
-                            {b.name}
-                          </span>
-                          <span className="text-[10px] font-mono text-slate-400 shrink-0 hidden sm:inline">
-                            Code {b.code}
-                          </span>
-                        </div>
-
-                        <div className="flex-1 h-4 rounded-full bg-slate-100/90 overflow-hidden flex items-center">
-                          {totalBarPct > 0 && (
-                            <div
-                              className="h-full rounded-full overflow-hidden flex gap-px transition-all duration-300"
-                              style={{ width: `${totalBarPct}%` }}
-                            >
-                              {segs.map((seg) => (
-                                <div
-                                  key={seg.key}
-                                  className={`h-full ${seg.color}`}
-                                  style={{ width: `${(seg.val / brTot) * 100}%` }}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="w-[54px] shrink-0 text-right font-figure text-[12.5px] font-extrabold text-slate-900 tabular-nums">
-                          {fmtNum(b.totalTasks)}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="overflow-x-auto flex-1">
-              <table className="dash-light-table w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="text-[10.5px] tracking-wider uppercase font-bold">
-                    <th className="py-2.5 pl-6 pr-2 w-10">#</th>
-                    <SortTh k="name" sort={brSort} onSort={brToggle} className="py-2.5 px-2 font-bold">Branch</SortTh>
-                    <SortTh k="khqr" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">KHQR</SortTh>
-                    <SortTh k="pos" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">POS</SortTh>
-                    <SortTh k="sb" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">SB</SortTh>
-                    <SortTh k="mv" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">MV</SortTh>
-                    <SortTh k="cc" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">CC</SortTh>
-                    <SortTh k="reserve" sort={brSort} onSort={brToggle} align="right" className="py-2.5 px-2 font-bold">Reserve</SortTh>
-                    <SortTh k="total" sort={brSort} onSort={brToggle} align="right" className="py-2.5 pl-2 pr-6 font-bold">Tasks</SortTh>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sortedBranches.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="py-10 text-center text-slate-400">
-                        No branch activity found for the selected scope.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedBranches.map((b, i) => (
-                      <tr key={b.code} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-2.5 pl-6 pr-2">
-                          <span
-                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10.5px] font-figure font-bold ${
-                              i === 0
-                                ? 'bg-[#003857] text-white'
-                                : i < 3
-                                ? 'bg-slate-200/80 text-slate-700'
-                                : 'text-slate-400'
-                            }`}
-                          >
-                            {i + 1}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-2">
-                          <div className="font-bold text-slate-900 truncate max-w-[180px]">{b.name}</div>
-                          <div className="text-[10.5px] font-mono text-slate-400">Code {b.code}</div>
-                        </td>
-                        <td className="py-2.5 px-2 text-right font-figure text-emerald-700 font-semibold">{fmtNum(b.khqr)}</td>
-                        <td className="py-2.5 px-2 text-right font-figure text-[#004e75] font-semibold">{fmtNum(b.pos)}</td>
-                        <td className="py-2.5 px-2 text-right font-figure text-[#4F518C] font-semibold">{fmtNum(b.sb)}</td>
-                        <td className="py-2.5 px-2 text-right font-figure text-sky-700 font-semibold">{fmtNum(b.mv)}</td>
-                        <td className="py-2.5 px-2 text-right font-figure text-amber-700 font-semibold">{fmtNum(b.cc)}</td>
-                        <td className="py-2.5 px-2 text-right font-figure text-slate-500">{fmtNum(b.reserve)}</td>
-                        <td className="py-2.5 pl-2 pr-6 text-right font-figure font-extrabold text-slate-900">
-                          {fmtNum(b.totalTasks)}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+        {/* Left 7 Cols: Memoized Top Branches Performance Graph + Table */}
+        <TopBranchesCard
+          isLight={isLight}
+          cardClass={iosCardClass}
+          segWrapClass={iosSegWrapClass}
+          activePeriodLabel={activePeriodLabel}
+          branchViewMode={branchViewMode}
+          setBranchViewMode={setBranchViewMode}
+          sortedBranches={sortedBranches}
+          maxBranchTasks={maxBranchTasks}
+          brSort={brSort}
+          brToggle={brToggle}
+          onNavigateTab={onNavigateTab}
+        />
 
         {/* Right 5 Cols: Hardware & SLA Allocation Analytics (with Stock Requests / Serials Toggle) */}
-        <section className="lg:col-span-5 surface-card overflow-hidden flex flex-col justify-between">
-          <div className="sb-card-header-light px-6 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
+        <section className={`lg:col-span-5 ${iosCardClass} overflow-hidden flex flex-col justify-between`}>
+          <div className="px-6 pt-5 pb-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
             <div className="min-w-0">
-              <h3 className="text-sm sm:text-[15px] font-extrabold text-slate-900 truncate">
+              <h3
+                className={`text-[15px] font-bold tracking-[-0.015em] truncate ${
+                  isLight ? 'text-slate-900' : 'text-white'
+                }`}
+              >
                 Hardware &amp; SLA Allocation
               </h3>
-              <p className="text-xs text-slate-500 truncate">
+              <p
+                className={`text-[12px] truncate ${
+                  isLight ? 'text-slate-500' : 'text-slate-400'
+                }`}
+              >
                 Stock pool, SIM fleet &amp; {batteryLifespanMonths}M battery SLA
               </p>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
               <div
-                className="inline-flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200/80 text-[11px] shrink-0"
+                className={`${iosSegWrapClass} text-[11px] shrink-0`}
                 role="tablist"
                 aria-label="Asset View Mode"
               >
@@ -1829,8 +2101,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     role="tab"
                     aria-selected={assetViewMode === m.id}
                     onClick={() => setAssetViewMode(m.id)}
-                    className={`px-2 py-1 rounded-md font-semibold cursor-pointer transition whitespace-nowrap ${
-                      assetViewMode === m.id ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer transition-all duration-150 whitespace-nowrap ${
+                      assetViewMode === m.id
+                        ? isLight
+                          ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
+                          : 'bg-slate-700 text-white shadow-xs'
+                        : isLight
+                        ? 'text-slate-500 hover:text-slate-900'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     {m.label}
@@ -1848,7 +2126,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         : 'inventory'
                     )
                   }
-                  className="text-xs font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
+                  className={`text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition ${
+                    isLight
+                      ? 'text-[#004e75] hover:text-[#003857]'
+                      : 'text-sky-400 hover:text-sky-300'
+                  }`}
                 >
                   Stock <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
@@ -1858,22 +2140,38 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
           {assetViewMode === 'ALLOCATION' ? (
             <>
-              <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
+              <div
+                className={`divide-y ${
+                  isLight ? 'divide-slate-100/90' : 'divide-slate-800/70'
+                } flex-1 flex flex-col justify-center`}
+              >
                 {allocationRows.map((row) => {
                   const Icon = row.icon;
                   const inner = (
                     <>
                       <div className="flex items-center justify-between gap-2 text-xs">
-                        <span className="font-bold text-slate-900 flex items-center gap-2 min-w-0 truncate">
+                        <span
+                          className={`font-semibold flex items-center gap-2 min-w-0 truncate ${
+                            isLight ? 'text-slate-900' : 'text-slate-100'
+                          }`}
+                        >
                           <Icon className={`w-4 h-4 shrink-0 ${row.iconClass}`} aria-hidden="true" />
                           <span className="truncate">{row.title}</span>
                         </span>
-                        <span className="font-figure font-bold text-[11px] text-[#004e75] whitespace-nowrap shrink-0">
+                        <span
+                          className={`font-figure font-bold text-[11px] whitespace-nowrap shrink-0 ${
+                            isLight ? 'text-[#004e75]' : 'text-sky-400'
+                          }`}
+                        >
                           {row.rightText}
                         </span>
                       </div>
 
-                      <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden flex gap-0.5">
+                      <div
+                        className={`h-2 w-full rounded-full ${
+                          isLight ? 'bg-slate-100' : 'bg-slate-800'
+                        } overflow-hidden flex gap-0.5`}
+                      >
                         {row.segments.length > 0 ? (
                           row.segments.map((seg) =>
                             seg.val > 0 ? (
@@ -1886,11 +2184,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                             ) : null
                           )
                         ) : (
-                          <div className="h-full w-full bg-slate-200/70 rounded-full" />
+                          <div
+                            className={`h-full w-full rounded-full ${
+                              isLight ? 'bg-slate-200/70' : 'bg-slate-700/60'
+                            }`}
+                          />
                         )}
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                      <div
+                        className={`flex flex-wrap items-center justify-between gap-2 text-[11px] ${
+                          isLight ? 'text-slate-500' : 'text-slate-400'
+                        }`}
+                      >
                         <span className="truncate">{row.subtext}</span>
                         {row.segments.length > 0 && (
                           <div className="flex items-center gap-2 shrink-0">
@@ -1911,7 +2217,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       key={row.id}
                       type="button"
                       onClick={() => onNavigateTab?.(row.onClickTab)}
-                      className="w-full text-left px-6 py-4 space-y-2 hover:bg-slate-50/80 transition cursor-pointer group"
+                      className={`w-full text-left px-6 py-4 space-y-2 transition cursor-pointer group ${
+                        isLight ? 'hover:bg-slate-50/75' : 'hover:bg-slate-800/40'
+                      }`}
                     >
                       {inner}
                     </button>
@@ -1924,11 +2232,23 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </div>
 
               {/* Footer Summary Strip */}
-              <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-slate-600">
+              <div
+                className={`px-6 py-3 border-t flex flex-wrap items-center justify-between gap-2 text-[11.5px] ${
+                  isLight
+                    ? 'border-slate-100 bg-[#f9fafb]/80 text-slate-500'
+                    : 'border-slate-800/70 bg-slate-900/50 text-slate-400'
+                }`}
+              >
                 <span>
                   Materials:{' '}
-                  <strong className="font-figure text-slate-900">{fmtNum(materialsSummary.kitOnHand)}</strong> on hand ·{' '}
-                  <strong className="font-figure text-slate-900">{fmtNum(materialsSummary.kitInTransit)}</strong> transit
+                  <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {fmtNum(materialsSummary.kitOnHand)}
+                  </strong>{' '}
+                  on hand ·{' '}
+                  <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {fmtNum(materialsSummary.kitInTransit)}
+                  </strong>{' '}
+                  transit
                 </span>
                 <button
                   type="button"
@@ -1936,10 +2256,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     setAssetViewMode('SERIALS');
                     setActivityPanel('REQUISITIONS');
                   }}
-                  className="font-semibold text-slate-700 hover:text-[#004e75] cursor-pointer transition inline-flex items-center gap-1"
+                  className={`font-semibold cursor-pointer transition inline-flex items-center gap-1 ${
+                    isLight
+                      ? 'text-slate-700 hover:text-[#004e75]'
+                      : 'text-slate-300 hover:text-sky-400'
+                  }`}
                 >
                   <span>Stock Requests:</span>
-                  <strong className="font-figure text-slate-900">
+                  <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     {fmtNum(reqStats.pending.length)}
                   </strong>
                   <span>open</span>
@@ -1948,9 +2272,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </>
           ) : (
             <div className="flex-1 flex flex-col">
-              <div className="px-6 py-2.5 border-b border-slate-100 bg-slate-50/40 flex items-center justify-between gap-2">
+              <div
+                className={`px-6 py-2.5 border-y flex items-center justify-between gap-2 ${
+                  isLight
+                    ? 'border-slate-100 bg-[#f9fafb]/70'
+                    : 'border-slate-800/70 bg-slate-900/40'
+                }`}
+              >
                 <div
-                  className="inline-flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/70 text-xs"
+                  className={`${iosSegWrapClass} text-xs`}
                   role="tablist"
                   aria-label="Recent Requests or Serials"
                 >
@@ -1959,10 +2289,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     role="tab"
                     aria-selected={activityPanel === 'REQUISITIONS'}
                     onClick={() => setActivityPanel('REQUISITIONS')}
-                    className={`px-2.5 py-1 rounded-[9px] font-semibold cursor-pointer transition inline-flex items-center gap-1.5 ${
+                    className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer transition-all duration-150 inline-flex items-center gap-1.5 ${
                       activityPanel === 'REQUISITIONS'
-                        ? 'bg-white text-slate-900 shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? isLight
+                          ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
+                          : 'bg-slate-700 text-white shadow-xs'
+                        : isLight
+                        ? 'text-slate-500 hover:text-slate-900'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     <ScrollText className="w-3.5 h-3.5" aria-hidden="true" />
@@ -1973,10 +2307,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     role="tab"
                     aria-selected={activityPanel === 'SERIALS'}
                     onClick={() => setActivityPanel('SERIALS')}
-                    className={`px-2.5 py-1 rounded-[9px] font-semibold cursor-pointer transition inline-flex items-center gap-1.5 ${
+                    className={`px-2.5 py-1 rounded-full font-semibold cursor-pointer transition-all duration-150 inline-flex items-center gap-1.5 ${
                       activityPanel === 'SERIALS'
-                        ? 'bg-white text-slate-900 shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? isLight
+                          ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
+                          : 'bg-slate-700 text-white shadow-xs'
+                        : isLight
+                        ? 'text-slate-500 hover:text-slate-900'
+                        : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     <Package className="w-3.5 h-3.5" aria-hidden="true" />
@@ -1988,14 +2326,22 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigateTab(activityPanel === 'REQUISITIONS' ? 'requisitions' : 'inventory')}
-                    className="text-[11.5px] font-semibold text-[#004e75] hover:text-[#003857] inline-flex items-center gap-1 shrink-0 cursor-pointer transition"
+                    className={`text-[11.5px] font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer transition ${
+                      isLight
+                        ? 'text-[#004e75] hover:text-[#003857]'
+                        : 'text-sky-400 hover:text-sky-300'
+                    }`}
                   >
                     View All <ArrowUpRight className="w-3 h-3" aria-hidden="true" />
                   </button>
                 )}
               </div>
 
-              <div className="divide-y divide-slate-100 flex-1 flex flex-col justify-center">
+              <div
+                className={`divide-y ${
+                  isLight ? 'divide-slate-100/90' : 'divide-slate-800/70'
+                } flex-1 flex flex-col justify-center`}
+              >
                 {activityPanel === 'REQUISITIONS' ? (
                   requisitions.length === 0 ? (
                     <div className="py-12 px-6 text-center text-xs text-slate-400">
@@ -2007,18 +2353,30 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         key={req.reqId}
                         type="button"
                         onClick={() => onNavigateTab?.('requisitions')}
-                        className="w-full text-left px-6 py-3 hover:bg-slate-50/80 transition flex items-center justify-between gap-3 cursor-pointer group"
+                        className={`w-full text-left px-6 py-3 transition flex items-center justify-between gap-3 cursor-pointer group ${
+                          isLight ? 'hover:bg-slate-50/75' : 'hover:bg-slate-800/40'
+                        }`}
                       >
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                            <span className="font-mono font-bold text-slate-900 group-hover:text-[#004e75] transition">{req.reqId}</span>
-                            <span className="text-slate-300">·</span>
-                            <span className="font-medium text-slate-600 truncate">
+                            <span
+                              className={`font-mono font-bold transition ${
+                                isLight
+                                  ? 'text-slate-900 group-hover:text-[#004e75]'
+                                  : 'text-white group-hover:text-sky-400'
+                              }`}
+                            >
+                              {req.reqId}
+                            </span>
+                            <span className={isLight ? 'text-slate-300' : 'text-slate-600'}>·</span>
+                            <span className={`font-medium truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                               {req.branchName} ({req.branchId})
                             </span>
                           </div>
-                          <div className="text-[11.5px] text-slate-500 truncate mt-0.5">
-                            <strong className="font-semibold text-slate-700">{req.posQty}x POS · {req.sbQty}x Sound Box</strong>
+                          <div className={`text-[11.5px] truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                            <strong className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>
+                              {req.posQty}x POS · {req.sbQty}x Sound Box
+                            </strong>
                             {req.reason ? ` — ${req.reason}` : ''}
                           </div>
                         </div>
@@ -2055,10 +2413,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         type="button"
                         onClick={() => onSelectDevice(dev.serial)}
                         aria-label={`Open serial ${dev.serial}`}
-                        className="w-full text-left px-6 py-2.5 hover:bg-slate-50/80 flex items-center justify-between gap-3 transition cursor-pointer group"
+                        className={`w-full text-left px-6 py-2.5 flex items-center justify-between gap-3 transition cursor-pointer group ${
+                          isLight ? 'hover:bg-slate-50/75' : 'hover:bg-slate-800/40'
+                        }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100/80 flex items-center justify-center shrink-0">
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                              isLight ? 'bg-slate-100/90' : 'bg-slate-800'
+                            }`}
+                          >
                             {dev.type === 'POS Terminal' ? (
                               <Cpu className="w-4 h-4 text-[#004e75]" aria-hidden="true" />
                             ) : (
@@ -2067,13 +2431,23 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 text-xs">
-                              <span className="font-mono font-bold text-slate-900 group-hover:text-[#004e75] transition">{dev.serial}</span>
-                              <span className="text-slate-300">·</span>
-                              <span className="font-mono text-[11px] text-slate-500">Code {dev.branchId}</span>
-                              <span className="text-slate-300">·</span>
+                              <span
+                                className={`font-mono font-bold transition ${
+                                  isLight
+                                    ? 'text-slate-900 group-hover:text-[#004e75]'
+                                    : 'text-white group-hover:text-sky-400'
+                                }`}
+                              >
+                                {dev.serial}
+                              </span>
+                              <span className={isLight ? 'text-slate-300' : 'text-slate-600'}>·</span>
+                              <span className={`font-mono text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                                Code {dev.branchId}
+                              </span>
+                              <span className={isLight ? 'text-slate-300' : 'text-slate-600'}>·</span>
                               <span className="text-[11px] text-slate-400">{cycleCount} events</span>
                             </div>
-                            <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                            <div className={`text-[11px] truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                               {dev.merchantName
                                 ? `${dev.merchantName}${dev.mid ? ` (${dev.mid})` : ''}`
                                 : dev.model}

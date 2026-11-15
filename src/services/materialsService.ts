@@ -119,6 +119,10 @@ if (isSupabaseConfigured) {
   }
 }
 
+export function getCachedMaterialBalances(): MaterialBalance[] | null {
+  return cachedBalances;
+}
+
 export async function fetchMaterialBalances(force = false): Promise<MaterialBalance[]> {
   if (!isSupabaseConfigured) return [];
   if (!force && cachedBalances && isFresh('mat:balances', 120000)) {
@@ -155,11 +159,23 @@ export interface SerialQuery {
   page: number;
   pageSize: number;
 }
-export async function fetchSerialsPage(q: SerialQuery, force = false): Promise<{ rows: MaterialSerial[]; total: number }> {
-  if (!isSupabaseConfigured) return { rows: [], total: 0 };
+function serialPageCacheKey(q: SerialQuery): { codeKey: string; codesList: MaterialCode[]; key: string } {
   const codesList = q.codes && q.codes.length > 0 ? q.codes : (q.code ? [q.code] : []);
   const codeKey = codesList.slice().sort().join(',');
-  const k = `${codeKey}|${q.status || ''}|${q.branchId || ''}|${q.search || ''}|${q.page}|${q.pageSize}`;
+  return {
+    codesList,
+    codeKey,
+    key: `${codeKey}|${q.status || ''}|${q.branchId || ''}|${q.search || ''}|${q.page}|${q.pageSize}`,
+  };
+}
+
+export function getCachedSerialsPage(q: SerialQuery): { rows: MaterialSerial[]; total: number } | undefined {
+  return cachedSerialsPages.get(serialPageCacheKey(q).key);
+}
+
+export async function fetchSerialsPage(q: SerialQuery, force = false): Promise<{ rows: MaterialSerial[]; total: number }> {
+  if (!isSupabaseConfigured) return { rows: [], total: 0 };
+  const { codesList, codeKey, key: k } = serialPageCacheKey(q);
   if (!force && cachedSerialsPages.has(k) && isFresh('mat:page:' + k, 90000)) {
     return cachedSerialsPages.get(k)!;
   }
@@ -203,6 +219,14 @@ export async function fetchSerialsPage(q: SerialQuery, force = false): Promise<{
   inflightSerialPages.set(k, p);
   return p;
 }
+/** Synchronous cache lookup for material serial status counts. */
+export function getCachedSerialStatusCounts(code: MaterialCode | MaterialCode[], branchId?: string): Record<SerialStatus, number> | undefined {
+  const codes = Array.isArray(code) ? code : [code];
+  const k = `${codes.slice().sort().join(',')}|${branchId || ''}`;
+  const hit = cachedStatusCounts.get(k);
+  return hit ? { ...hit } : undefined;
+}
+
 /** How many numbers of this material are in each status (optionally one branch). */
 export async function fetchSerialStatusCounts(code: MaterialCode | MaterialCode[], branchId?: string, force = false): Promise<Record<SerialStatus, number>> {
   const out = EMPTY_SERIAL_COUNTS();

@@ -33,7 +33,7 @@ function roundRectPath(ctx: Ctx2D, x: number, y: number, w: number, h: number, r
   else ctx.rect(x, y, w, h);
 }
 
-export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
+export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
   labels,
   series1Label,
   series1Data,
@@ -49,6 +49,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const [hover, setHover] = useState<{ idx: number; x: number } | null>(null);
   const geomRef = useRef<{ padLeft: number; groupW: number; count: number } | null>(null);
+  const hoverRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -67,7 +68,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
       // here forced an extra layout of the whole page in the middle of drawing it (~100 ms on a slower laptop at sign-in)
       observer = new ResizeObserver((entries) => {
         const w = Math.round(entries[entries.length - 1]?.contentRect.width || 0);
-        if (w > 0) setContainerWidth(w);
+        if (w > 0) setContainerWidth((prev) => (prev === w ? prev : w));
       });
       observer.observe(parent);
     } else {
@@ -78,6 +79,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
     return () => {
       observer?.disconnect();
       window.removeEventListener('resize', updateWidth);
+      if (hoverRafRef.current !== null) cancelAnimationFrame(hoverRafRef.current);
     };
   }, []);
 
@@ -90,6 +92,19 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
     () => series1Data.some((v) => v > 0) || series2Data.some((v) => v > 0),
     [series1Data, series2Data]
   );
+  const chartStats = useMemo(() => {
+    const scale = niceScale(Math.max(4, ...series1Data, ...series2Data));
+    const max1 = Math.max(...series1Data, 0);
+    const max2 = Math.max(...series2Data, 0);
+    return {
+      scale,
+      max1,
+      max2,
+      firstMax1: series1Data.indexOf(max1),
+      firstMax2: series2Data.indexOf(max2),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey]);
   const summary = useMemo(() => {
     if (ariaLabel) return ariaLabel;
     if (labels.length === 0 || !hasData) return `Bar chart: ${series1Label} and ${series2Label}. No data to show.`;
@@ -108,10 +123,14 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
 
     const dpr = window.devicePixelRatio || 1;
     const width = containerWidth || parent.clientWidth || 540;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    const targetW = Math.round(width * dpr);
+    const targetH = Math.round(height * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+    }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -149,7 +168,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
     const padBottom = 38;
     const plotW = Math.max(100, width - padLeft - padRight);
     const plotH = Math.max(80, height - padTop - padBottom);
-    const scale = niceScale(Math.max(4, ...series1Data, ...series2Data));
+    const { scale, firstMax1, firstMax2 } = chartStats;
     const maxVal = scale.max;
     const steps = scale.steps;
 
@@ -174,9 +193,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
     geomRef.current = { padLeft, groupW, count: labels.length };
     // (31 Oct 2026, UI standard) numbers only where they help: the last group and each series' highest bar;
     // every other value is shown on hover / tap.
-    const max1 = Math.max(...series1Data, 0), max2 = Math.max(...series2Data, 0);
     const lastIdx = labels.length - 1;
-    const firstMax1 = series1Data.indexOf(max1), firstMax2 = series2Data.indexOf(max2);
     const barW = Math.min(24, Math.max(8, (groupW - 14) / 2));
 
     labels.forEach((lbl, idx) => {
@@ -245,10 +262,24 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
           const r = e.currentTarget.getBoundingClientRect();
           const x = e.clientX - r.left;
           const idx = Math.floor((x - g.padLeft) / g.groupW);
-          if (idx < 0 || idx >= g.count) { if (hover) setHover(null); return; }
-          if (!hover || hover.idx !== idx) setHover({ idx, x: g.padLeft + (idx + 0.5) * g.groupW });
+          if (hoverRafRef.current !== null) cancelAnimationFrame(hoverRafRef.current);
+          hoverRafRef.current = requestAnimationFrame(() => {
+            hoverRafRef.current = null;
+            if (idx < 0 || idx >= g.count) {
+              setHover((prev) => (prev ? null : prev));
+              return;
+            }
+            const nextX = g.padLeft + (idx + 0.5) * g.groupW;
+            setHover((prev) => (prev && prev.idx === idx ? prev : { idx, x: nextX }));
+          });
         }}
-        onPointerLeave={() => setHover(null)}
+        onPointerLeave={() => {
+          if (hoverRafRef.current !== null) {
+            cancelAnimationFrame(hoverRafRef.current);
+            hoverRafRef.current = null;
+          }
+          setHover(null);
+        }}
       >
         {summary}
       </canvas>
@@ -273,7 +304,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = ({
       )}
     </div>
   );
-};
+});
 
 export interface CrossChannelDayPoint {
   label: string;
@@ -306,7 +337,7 @@ const CHANNEL_SERIES = [
  * Lightweight Canvas stacked bar + Active Staff dashed trend chart for the Dashboard landing page.
  * Renders without pulling the heavy Recharts chunk into initial login bundles.
  */
-export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps> = ({
+export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps> = React.memo(({
   items,
   height = 250,
   theme = 'light',
@@ -316,6 +347,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const [hover, setHover] = useState<{ idx: number; x: number } | null>(null);
   const geomRef = useRef<{ padLeft: number; groupW: number; count: number } | null>(null);
+  const hoverRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -326,7 +358,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver((entries) => {
         const w = Math.round(entries[entries.length - 1]?.contentRect.width || 0);
-        if (w > 0) setContainerWidth(w);
+        if (w > 0) setContainerWidth((prev) => (prev === w ? prev : w));
       });
       observer.observe(parent);
     } else {
@@ -336,7 +368,10 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       return () => window.removeEventListener('resize', onResize);
     }
 
-    return () => observer?.disconnect();
+    return () => {
+      observer?.disconnect();
+      if (hoverRafRef.current !== null) cancelAnimationFrame(hoverRafRef.current);
+    };
   }, []);
 
   const dataKey = useMemo(() => JSON.stringify(items), [items]);
@@ -344,6 +379,15 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     () => items.some((d) => d.pos + d.sb + d.khqr + d.mv + d.cc + d.activeStaff > 0),
     [items]
   );
+  const chartScales = useMemo(() => {
+    const maxTasks = Math.max(4, ...items.map((d) => d.pos + d.sb + d.khqr + d.mv + d.cc));
+    const maxStaff = Math.max(4, ...items.map((d) => d.activeStaff));
+    return {
+      taskScale: niceScale(maxTasks, 4),
+      staffScale: niceScale(maxStaff, 4),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey]);
 
   const summary = useMemo(() => {
     if (ariaLabel) return ariaLabel;
@@ -359,10 +403,14 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
 
     const dpr = window.devicePixelRatio || 1;
     const width = containerWidth || parent.clientWidth || 560;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    const targetW = Math.round(width * dpr);
+    const targetH = Math.round(height * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+    }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -385,10 +433,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     const plotW = Math.max(120, width - padLeft - padRight);
     const plotH = Math.max(80, height - padTop - padBottom);
 
-    const maxTasks = Math.max(4, ...items.map((d) => d.pos + d.sb + d.khqr + d.mv + d.cc));
-    const maxStaff = Math.max(4, ...items.map((d) => d.activeStaff));
-    const taskScale = niceScale(maxTasks, 4);
-    const staffScale = niceScale(maxStaff, 4);
+    const { taskScale, staffScale } = chartScales;
 
     // Horizontal grid + Left/Right axes
     ctx.font = `600 10.5px ${chartFont}`;
@@ -517,15 +562,24 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
           const r = e.currentTarget.getBoundingClientRect();
           const x = e.clientX - r.left;
           const idx = Math.floor((x - g.padLeft) / g.groupW);
-          if (idx < 0 || idx >= g.count) {
-            if (hover) setHover(null);
-            return;
-          }
-          if (!hover || hover.idx !== idx) {
-            setHover({ idx, x: g.padLeft + (idx + 0.5) * g.groupW });
-          }
+          if (hoverRafRef.current !== null) cancelAnimationFrame(hoverRafRef.current);
+          hoverRafRef.current = requestAnimationFrame(() => {
+            hoverRafRef.current = null;
+            if (idx < 0 || idx >= g.count) {
+              setHover((prev) => (prev ? null : prev));
+              return;
+            }
+            const nextX = g.padLeft + (idx + 0.5) * g.groupW;
+            setHover((prev) => (prev && prev.idx === idx ? prev : { idx, x: nextX }));
+          });
         }}
-        onPointerLeave={() => setHover(null)}
+        onPointerLeave={() => {
+          if (hoverRafRef.current !== null) {
+            cancelAnimationFrame(hoverRafRef.current);
+            hoverRafRef.current = null;
+          }
+          setHover(null);
+        }}
       >
         {summary}
       </canvas>
@@ -577,4 +631,4 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
       )}
     </div>
   );
-};
+});
