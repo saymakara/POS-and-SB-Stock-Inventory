@@ -15,7 +15,6 @@ import {
   CrossChannelVelocityChart,
   CrossChannelDayPoint,
   CHANNEL_COLORS,
-  VELOCITY_CALENDAR_COLORS,
   buildAnnularArcPath,
   type VelocityChannelKey,
 } from './Charts';
@@ -3220,14 +3219,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   ? channelActivity.totalTasks
                   : channelTotals[velocityChannel];
               const staffStrokeColor = isLight ? CHANNEL_COLORS.sb : '#a2a5e0';
-              const weekendDaysCount = velocitySeries.filter((d) => d.isWeekend && !d.holidayName).length;
-              const holidayDaysList = velocitySeries.filter((d) => Boolean(d.holidayName));
-              const showCalendarLegend =
-                velocitySeries.length > 1 || weekendDaysCount > 0 || holidayDaysList.length > 0;
-              const holidayLegendTitle =
-                holidayDaysList.length > 0
-                  ? holidayDaysList.map((d) => `${d.fullLabel ? fmtShortDay(d.fullLabel) : d.label}: ${d.holidayName}`).join(' · ')
-                  : 'Cambodia public holidays';
 
               return (
                 <>
@@ -3288,90 +3279,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         Active staff
                       </span>
 
-                      {showCalendarLegend && (
-                        <>
-                          {(velocitySeries.length > 1 || weekendDaysCount > 0) && (
-                            <span
-                              title="Saturday & Sunday weekend bands"
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-medium whitespace-nowrap ${
-                                isLight
-                                  ? 'bg-slate-50/90 border-slate-200/80 text-slate-600'
-                                  : 'bg-slate-800/70 border-slate-700/80 text-slate-300'
-                              }`}
-                            >
-                              <span
-                                className={`w-3 h-3 rounded-[3px] border relative overflow-hidden shrink-0 ${
-                                  isLight
-                                    ? 'bg-slate-200/70 border-slate-300/90'
-                                    : 'bg-slate-700/70 border-slate-500/70'
-                                }`}
-                              >
-                                <span
-                                  className="block w-full h-[2.5px]"
-                                  style={{
-                                    background: isLight
-                                      ? VELOCITY_CALENDAR_COLORS.weekendLight
-                                      : VELOCITY_CALENDAR_COLORS.weekendDark,
-                                  }}
-                                />
-                              </span>
-                              <span>Weekend</span>
-                              {weekendDaysCount > 0 && (
-                                <span
-                                  className={`font-figure font-semibold tabular-nums ${
-                                    isLight ? 'text-slate-700' : 'text-slate-200'
-                                  }`}
-                                >
-                                  {weekendDaysCount}d
-                                </span>
-                              )}
-                            </span>
-                          )}
-
-                          {(velocitySeries.length > 1 || holidayDaysList.length > 0) && (
-                            <span
-                              title={holidayLegendTitle}
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-medium whitespace-nowrap ${
-                                isLight
-                                  ? holidayDaysList.length > 0
-                                    ? 'bg-amber-50/90 border-amber-200/90 text-amber-800'
-                                    : 'bg-slate-50/70 border-slate-200/80 text-slate-500'
-                                  : holidayDaysList.length > 0
-                                  ? 'bg-amber-950/45 border-amber-800/70 text-amber-300'
-                                  : 'bg-slate-800/60 border-slate-700/80 text-slate-400'
-                              }`}
-                            >
-                              <span
-                                className={`w-3 h-3 rounded-[3px] border border-dashed relative overflow-hidden shrink-0 ${
-                                  isLight
-                                    ? 'bg-amber-500/15 border-amber-400/75'
-                                    : 'bg-amber-400/20 border-amber-400/65'
-                                }`}
-                              >
-                                <span
-                                  className="block w-full h-[2.5px]"
-                                  style={{
-                                    background: isLight
-                                      ? VELOCITY_CALENDAR_COLORS.holidayLight
-                                      : VELOCITY_CALENDAR_COLORS.holidayDark,
-                                  }}
-                                />
-                              </span>
-                              <span>Holiday</span>
-                              {holidayDaysList.length > 0 && (
-                                <span
-                                  className={`font-figure font-semibold tabular-nums ${
-                                    isLight ? 'text-amber-900' : 'text-amber-200'
-                                  }`}
-                                >
-                                  {holidayDaysList.length}d
-                                </span>
-                              )}
-                            </span>
-                          )}
-                        </>
-                      )}
-
                       {velocityChannel !== 'ALL' && (
                         <button
                           type="button"
@@ -3384,22 +3291,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         >
                           All Channels ×
                         </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {primaryMeta.peakVal > 0 && (
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${
-                            isLight ? 'bg-slate-100/90 text-slate-600' : 'bg-slate-800 text-slate-300'
-                          }`}
-                        >
-                          Peak{' '}
-                          <strong className={`font-figure ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                            {fmtNum(primaryMeta.peakVal)}
-                          </strong>{' '}
-                          <span className="opacity-75">· {primaryMeta.peakLabel}</span>
-                        </span>
                       )}
                     </div>
                   </div>

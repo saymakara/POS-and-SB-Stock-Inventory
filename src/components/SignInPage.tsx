@@ -165,18 +165,14 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
     setErrorMsg('');
     setIsAuthenticating(true);
-
     // Instant direct single-step authentication into authorized session
-    setTimeout(() => {
-      setIsAuthenticating(false);
-      onSignInSuccess({
-        role: operator.role,
-        operatorLabel: operator.operatorLabel,
-        branchId: operator.branchId,
-        username: operator.username,
-        rememberMe,
-      });
-    }, 250);
+    onSignInSuccess({
+      role: operator.role,
+      operatorLabel: operator.operatorLabel,
+      branchId: operator.branchId,
+      username: operator.username,
+      rememberMe,
+    });
   };
 
   return (
