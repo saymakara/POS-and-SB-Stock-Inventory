@@ -908,7 +908,8 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
   const midBranches = branches.slice(1, 3);
   const compactBranches = branches.slice(3);
 
-  const renderTile = (b: BranchPerfRow, _rankIdx: number, tier: 'hero' | 'mid' | 'compact') => {
+  const renderTile = (b: BranchPerfRow, rankIdx: number, tier: 'hero' | 'mid' | 'compact') => {
+    const rank = rankIdx + 1;
     const isActive = hoveredBranchCode === b.code;
     const sharePct = totalTopTasks > 0 ? ((b.totalTasks / totalTopTasks) * 100).toFixed(1) : '0.0';
     const isHero = tier === 'hero';
@@ -925,7 +926,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
         onFocus={() => setHoveredBranchCode(b.code)}
         onBlur={() => setHoveredBranchCode(null)}
         onClick={() => onNavigateTab?.('branches')}
-        title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} (${sharePct}%) · KHQR ${fmtNum(b.khqr)} · Sound Box ${fmtNum(b.sb)} · POS Terminal ${fmtNum(b.pos)} · Merchant Visit ${fmtNum(b.mv)} · Credit Card ${fmtNum(b.cc)}`}
+        title={`#${rank} ${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} (${sharePct}%) · KHQR ${fmtNum(b.khqr)} · Sound Box ${fmtNum(b.sb)} · POS Terminal ${fmtNum(b.pos)} · Merchant Visit ${fmtNum(b.mv)} · Credit Card ${fmtNum(b.cc)}`}
         className={`w-full h-full text-left rounded-xl border transition-all duration-150 cursor-pointer flex flex-col justify-between gap-1.5 min-w-0 group ${
           isHero ? 'p-4' : isCompact ? 'px-2.5 py-2' : 'px-3 py-2.5'
         } ${
@@ -946,13 +947,29 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
             : undefined
         }
       >
-        <div className="flex items-center justify-between gap-1 min-w-0">
+        <div className="flex items-center justify-between gap-1.5 min-w-0">
           <span
             className={`font-semibold truncate min-w-0 ${
               isHero ? 'text-[12.5px]' : 'text-[10.5px]'
             } ${isLight ? 'text-slate-700' : 'text-slate-200'}`}
           >
             {b.name}
+          </span>
+          <span
+            aria-label={`Rank ${rank}`}
+            className={`inline-flex items-center justify-center rounded-full font-figure font-bold tabular-nums shrink-0 leading-none ${
+              isHero ? 'min-w-[20px] h-[20px] px-1.5 text-[10.5px]' : 'min-w-[18px] h-[18px] px-1 text-[9.5px]'
+            } ${
+              rank === 1 || isActive
+                ? isLight
+                  ? 'bg-[#155484]/12 text-[#155484]'
+                  : 'bg-sky-500/20 text-sky-300'
+                : isLight
+                  ? 'bg-slate-200/70 text-slate-600'
+                  : 'bg-slate-700/70 text-slate-300'
+            }`}
+          >
+            {rank}
           </span>
         </div>
 

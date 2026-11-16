@@ -613,8 +613,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                 return (
                   <tr
                     key={req.reqId}
-                    style={{ animationDelay: `${Math.min(rowIdx, 8) * 15}ms` }}
-                    className="interactive-row row-stagger"
+                    className="interactive-row"
                   >
                     <td className="col-no">
                       {pg.start + rowIdx + 1}

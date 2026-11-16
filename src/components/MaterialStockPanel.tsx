@@ -1784,7 +1784,7 @@ const MaterialStockPanelComponent: React.FC<{
                   const branchName = dev?.branchName || placeName(s.branchId, branches);
 
                   return (
-                    <tr key={`${s.code}-${s.serial}-${idx}`} style={{ animationDelay: `${Math.min(idx, 8) * 12}ms` }} className="row-stagger hover:bg-slate-50/80 transition-colors">
+                    <tr key={`${s.code}-${s.serial}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-4 py-2.5 text-center font-mono text-slate-400 font-normal">
                         {pg.start + idx + 1}
                       </td>

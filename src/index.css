@@ -727,7 +727,7 @@ button:hover:not(:disabled),
 /* Stable, hardware-accelerated CSS transition for page changes (zero jump, zero layout shift) */
 @keyframes pageGlideIn {
   from {
-    opacity: 0.88;
+    opacity: 0.92;
   }
   to {
     opacity: 1;
@@ -735,7 +735,7 @@ button:hover:not(:disabled),
 }
 
 .page-glide-in {
-  animation: pageGlideIn 140ms ease-out backwards;   /* (13 Nov 2026) released when done: no page-sized layer kept */
+  animation: pageGlideIn 110ms ease-out backwards;   /* (13 Nov 2026) released when done: no page-sized layer kept */
 }
 
 /* (23 Oct 2026) rows are no longer animated one by one (that stuttered); a page change glides the whole list (utils/glide.ts) */
@@ -1351,9 +1351,9 @@ select.appearance-none {
    20 WAYS TO MAKE BEAUTIFUL ANIMATIONS - SYSTEM UTILITIES
    ========================================================================== */
 
-/* Lightweight row entrance without forcing GPU layer promotion across 50-100 rows */
+/* Immediate table row reveal without multi-row opacity stagger lag */
 .row-stagger {
-  animation: rowGlideIn 0.14s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: none;
 }
 
 /* Rule 5: Stretch moving knobs 12% */

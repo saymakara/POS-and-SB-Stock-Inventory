@@ -1934,9 +1934,26 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
         syncedDevices.current.set(d.serial, d);
       });
       setDevices((prev) => {
+        if (incoming.length === 0) return prev;
         if (prev.length >= 1000) {
           const incomingBySn = new Map(incoming.map((d) => [d.serial, d]));
-          return prev.map((d) => incomingBySn.get(d.serial) || d);
+          let changed = false;
+          const next = prev.map((d) => {
+            const fresh = incomingBySn.get(d.serial);
+            if (!fresh) return d;
+            if (
+              fresh.updatedAt === d.updatedAt &&
+              fresh.stage === d.stage &&
+              fresh.branchId === d.branchId &&
+              fresh.mid === d.mid &&
+              fresh.merchantName === d.merchantName
+            ) {
+              return d;
+            }
+            changed = true;
+            return fresh;
+          });
+          return changed ? next : prev;
         }
         const incomingBySn = new Map(incoming.map((d) => [d.serial, d]));
         const merged: Device[] = [...incoming];

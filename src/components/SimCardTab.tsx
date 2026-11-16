@@ -533,7 +533,7 @@ const SimCardTabComponent: React.FC<{
                 <th className="text-right font-semibold px-2.5 py-2.5">Action</th>
               </tr>
             </thead>
-            <tbody data-page-content className={`divide-y divide-slate-100 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
+            <tbody key={pg.page} data-page-content className={`page-glide-in divide-y divide-slate-100 transition-opacity ${loading && rows ? 'opacity-60' : ''}`}>
               {rows === null && [0, 1, 2, 3].map((i) => (
                 <tr key={i}>
                   <td colSpan={10} className="px-3.5 py-3.5">
@@ -561,7 +561,7 @@ const SimCardTabComponent: React.FC<{
                 const branchName = dev?.branchName || (s.branchId && s.branchId !== '100' ? placeName(s.branchId, branches) : (s.branchId === '100' ? 'Head Office' : ''));
 
                 return (
-                  <tr key={s.serial} style={{ animationDelay: `${Math.min(i, 8) * 15}ms` }} className="row-stagger hover:bg-slate-50/70 transition-colors">
+                  <tr key={s.serial} className="hover:bg-slate-50/70 transition-colors">
                     <td className="px-2.5 py-2.5 text-center tabular-nums text-slate-500 font-mono">
                       {pg.start + i + 1}
                     </td>

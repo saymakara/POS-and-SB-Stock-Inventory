@@ -21,7 +21,6 @@ import { hasKhmer, isValidMidForType, midRuleError } from '../utils/display';
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
-import { staggerRowStyle } from '../utils/animationRules';
 import {
   RightDrawerFrame,
   SIM_HEADER_CLS,
@@ -255,16 +254,21 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     return c;
   }, [devices, serverStageCounts]);
 
+  // Avoid rebuilding 27k-row lookup maps on every filter/search change when allDevices is present
+  const fallbackPool = allDevices.length > 0 ? null : devices;
   const latestBySerial = useKeptMemo(
     'inv.latestBySerial',
-    () => new Map((allDevices.length > 0 ? allDevices : devices).map((d) => [d.serial, d])),
-    [allDevices, devices]
+    () =>
+      isServerPaginated
+        ? new Map((allDevices.length > 0 ? allDevices : devices).map((d) => [d.serial, d]))
+        : new Map<string, Device>(),
+    [isServerPaginated, allDevices, fallbackPool]
   );
 
   const duplicateMidsMap = useKeptMemo(
     'inv.duplicateMids',
     () => detectDuplicateMids(allDevices.length > 0 ? allDevices : devices),
-    [allDevices, devices]
+    [allDevices, fallbackPool]
   );
 
   const branchNameByCode = useMemo(
@@ -360,12 +364,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
     }
   }, [totalPages, currentPage]);
 
-  // (23 Oct 2026) the next page is drawn in the background (the screen keeps moving), then glides in
-  const shownPage = React.useDeferredValue(currentPage);
   const pagedDevices = useMemo(() => {
-    const start = isServerPaginated && serverPageRows !== null ? 0 : (shownPage - 1) * rowsPerPage;
+    const start = isServerPaginated && serverPageRows !== null ? 0 : (currentPage - 1) * rowsPerPage;
     return visibleDevices.slice(start, start + rowsPerPage);
-  }, [visibleDevices, shownPage, rowsPerPage, isServerPaginated, serverPageRows]);
+  }, [visibleDevices, currentPage, rowsPerPage, isServerPaginated, serverPageRows]);
 
   const lastSelectedIdxRef = useRef<number | null>(null);
 
@@ -962,7 +964,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                     aria-pressed={allVisibleSelected}
                   >
                     <div
-                      className={`w-4.5 h-4.5 rounded-[4px] border-[1.5px] flex items-center justify-center transition-all duration-150 ${
+                      className={`w-4.5 h-4.5 rounded-[4px] border-[1.5px] flex items-center justify-center transition-colors duration-100 ${
                         allVisibleSelected
                           ? 'bg-white border-white text-[#003857] shadow-xs scale-105'
                           : selectedOnPageCount > 0
@@ -991,7 +993,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 <th className="text-right col-actions">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody key={currentPage} className="page-glide-in">
               {pagedDevices.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="py-12 text-center">
@@ -1015,8 +1017,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   return (
                     <tr
                       key={dev.serial}
-                      style={staggerRowStyle(index)}
-                      className={`interactive-row row-stagger ${
+                      className={`interactive-row ${
                         isSyncingThisDevice ? 'optimistic-sync-active' : ''
                       } ${isChecked ? '!bg-sky-50/70' : ''}`}
                     >
@@ -1036,7 +1037,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                           aria-pressed={isChecked}
                         >
                           <div
-                            className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-all duration-150 ${
+                            className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-colors duration-100 ${
                               isChecked
                                 ? 'bg-[#003857] border-[#003857] text-white shadow-xs scale-105'
                                 : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-500 hover:border-[#003857] dark:hover:border-slate-300 shadow-2xs'
@@ -1282,7 +1283,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
             transition={{ type: 'spring', damping: 32, stiffness: 480, mass: 0.6 }}
             role="region"
             aria-label="Selected units"
-            className="sticky bottom-4 z-40 max-h-[45vh] overflow-y-auto rounded-2xl p-3.5 sm:p-4 border shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65)] flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-gradient-to-r from-[#002238]/95 via-[#003857]/95 to-[#004e75]/95 text-white border-white/20 backdrop-blur-md ring-1 ring-white/10 transform-gpu will-change-transform"
+            className="sticky bottom-4 z-40 max-h-[45vh] overflow-y-auto rounded-2xl p-3.5 sm:p-4 border shadow-[0_16px_40px_-8px_rgba(0,34,56,0.65)] flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-gradient-to-r from-[#002238] via-[#003857] to-[#004e75] text-white border-white/20 ring-1 ring-white/10 transform-gpu"
           >
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#003857] font-mono text-xs font-bold shadow-xs shrink-0">
