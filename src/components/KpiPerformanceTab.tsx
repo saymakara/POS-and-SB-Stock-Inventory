@@ -425,10 +425,6 @@ const KpiTargetComparisonDonut = React.memo<KpiTargetComparisonDonutProps>(({
             Target attainment, achievement percentage &amp; expected pace
           </p>
         </div>
-        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[10.5px] font-semibold shrink-0 ${statusBadge.cls}`}>
-          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: statusBadge.dot }} />
-          {statusBadge.label}
-        </span>
       </div>
 
       <div className="px-2 sm:px-3 py-1.5 flex-1 flex items-center justify-center">
@@ -2985,19 +2981,6 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
                       <span>Active staff (right)</span>
                     </span>
                   </div>
-                  <span
-                    className="inline-flex items-center gap-1 text-[10.5px] font-medium text-slate-400"
-                    title="Hover any point for 5-channel breakdown"
-                  >
-                    <span className="inline-flex items-center -space-x-0.5 mr-0.5" aria-hidden>
-                      <span className="w-2 h-2 rounded-full bg-[#1e6091] ring-1 ring-white" />
-                      <span className="w-2 h-2 rounded-full bg-[#4F518C] ring-1 ring-white" />
-                      <span className="w-2 h-2 rounded-full bg-[#184e77] ring-1 ring-white" />
-                      <span className="w-2 h-2 rounded-full bg-[#2d6a4f] ring-1 ring-white" />
-                      <span className="w-2 h-2 rounded-full bg-[#f59e0b] ring-1 ring-white" />
-                    </span>
-                    <span>Hover point for channel split</span>
-                  </span>
                 </div>
 
                 <div className="h-[268px] w-full">
