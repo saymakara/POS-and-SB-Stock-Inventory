@@ -12,7 +12,12 @@ import { useDrawerOpen, setDrawerOpen } from '../utils/drawerStore';
 import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
-import { WHILE_TAP_BUTTON, WHILE_TAP_ICON, SIDEBAR_TRANSITION } from '../utils/animationRules';
+import {
+  WHILE_TAP_BUTTON,
+  WHILE_TAP_ICON,
+  BACKDROP_VARIANTS,
+  SIDEBAR_DRAWER_VARIANTS,
+} from '../utils/animationRules';
 import { usePendingTab } from '../utils/navPending';
 
 import {
@@ -194,7 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       <div className="relative z-10">
         {/* Top Brand Anchor */}
         <div
-          className="w-full h-[4.5rem] px-4 flex items-center justify-between gap-3 text-white border-b border-white/12 bg-white/[0.02]"
+          className="w-full h-[4.5rem] px-[18px] flex items-center justify-between gap-3 text-white border-b border-white/12 bg-white/[0.02]"
         >
           <motion.button
             whileTap={{ scale: 0.96 }}
@@ -219,10 +224,10 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             />
 
             <div
-              className={`leading-tight whitespace-nowrap overflow-hidden transition-all duration-150 ${
+              className={`leading-tight whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
                 isMobileView || !collapsed
-                  ? 'flex-1 min-w-0 opacity-100'
-                  : 'w-0 opacity-0 pointer-events-none'
+                  ? 'flex-1 min-w-0 opacity-100 translate-x-0'
+                  : 'flex-1 min-w-0 opacity-0 -translate-x-1 pointer-events-none'
               }`}
             >
               <div className="text-[13px] font-medium tracking-tight text-white/95 truncate">
@@ -252,10 +257,10 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           {navGroups.map((group) => (
             <div key={group.heading} className="flex flex-col gap-1">
               <div
-                className={`px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 whitespace-nowrap overflow-hidden transition-all duration-150 ${
+                className={`px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
                   isMobileView || !collapsed
-                    ? 'max-h-6 pb-1 opacity-100'
-                    : 'max-h-0 pb-0 opacity-0 pointer-events-none'
+                    ? 'h-5 pb-1 opacity-100 translate-x-0'
+                    : 'h-0 pb-0 opacity-0 -translate-x-1 overflow-hidden pointer-events-none'
                 }`}
               >
                 {group.heading}
@@ -280,7 +285,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       }}
                       onMouseEnter={() => { if (item.id === 'kpi_performance') prefetchKpi(); }}
                       title={!isMobileView && collapsed ? item.label : undefined}
-                      className={`group relative w-full px-3 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
+                      className={`group relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
                         isActive
                           ? 'font-medium text-white bg-white/12 border border-white/15 shadow-xs'
                           : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
@@ -305,8 +310,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                           <Icon className="w-3.5 h-3.5" />
                         </div>
                         <span
-                          className={`truncate whitespace-nowrap transition-opacity duration-150 ${
-                            showLabels ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden pointer-events-none'
+                          className={`truncate whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
+                            showLabels ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1 pointer-events-none'
                           } ${isActive ? 'text-white font-medium' : ''}`}
                         >
                           {item.label}
@@ -316,8 +321,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       {/* Subtle Counter Badge (hidden when count is 0 or completely synced) */}
                       {!showChildren && item.count !== undefined && item.count > 0 && (
                         <span
-                          className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-opacity duration-150 ${
-                            showLabels ? 'opacity-100' : 'opacity-0 w-0 px-0 overflow-hidden pointer-events-none'
+                          className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-[opacity,transform] duration-150 ease-out ${
+                            showLabels ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
                           } ${
                             isActive
                               ? 'bg-white text-zinc-900 font-bold shadow-2xs'
@@ -350,7 +355,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                 if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
                                 if (c.id === 'sim_cards') import('./SimCardTab');
                               }}
-                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-all duration-150 ease-out border ${
+                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out border ${
                                 on
                                   ? 'font-medium text-white bg-white/12 border-white/15 shadow-xs'
                                   : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border-transparent'
@@ -362,7 +367,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                               </span>
                               {c.count !== undefined && c.count > 0 && (
                                 <span
-                                  className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-all duration-150 ${
+                                  className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-colors duration-150 ${
                                     on
                                       ? 'bg-white text-zinc-900 font-bold shadow-2xs'
                                       : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white font-normal'
@@ -395,16 +400,16 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             type="button"
             onClick={onToggleCollapse}
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            className="w-full py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] active:bg-white/[0.20] text-zinc-200 hover:text-white flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer border border-white/12 transition-colors shadow-xs"
+            className="w-full py-2.5 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] active:bg-white/[0.20] text-zinc-200 hover:text-white flex items-center justify-start gap-2.5 text-xs font-semibold cursor-pointer border border-white/12 transition-colors shadow-xs overflow-hidden"
           >
             <ChevronLeft
-              className={`w-4 h-4 text-white shrink-0 transition-transform duration-200 ${
+              className={`w-4 h-4 text-white shrink-0 transition-transform duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 collapsed ? 'rotate-180' : ''
               }`}
             />
             <span
-              className={`whitespace-nowrap overflow-hidden transition-all duration-150 ${
-                collapsed ? 'max-w-0 opacity-0' : 'max-w-[120px] opacity-100'
+              className={`whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
+                collapsed ? 'opacity-0 -translate-x-1 pointer-events-none' : 'opacity-100 translate-x-0'
               }`}
             >
               Collapse Sidebar
@@ -418,33 +423,32 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   return (
     <>
       {/* Desktop Sticky Sidebar (>= md) */}
-      <motion.aside
-        initial={false}
-        animate={{ width: collapsed ? 76 : 244 }}
-        transition={SIDEBAR_TRANSITION}
-        style={{ contain: 'layout style', willChange: 'width' }}
-        className="sb-sidebar-gradient sticky top-0 left-0 h-screen z-40 text-white shrink-0 hidden md:flex flex-col justify-between select-none overflow-y-auto overflow-x-hidden no-scrollbar relative transform-gpu"
+      <aside
+        style={{ contain: 'layout style paint' }}
+        className={`sb-sidebar-gradient sticky top-0 left-0 h-screen z-40 text-white shrink-0 hidden md:flex flex-col justify-between select-none overflow-y-auto overflow-x-hidden no-scrollbar relative transform-gpu will-change-[width] transition-[width] duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          collapsed ? 'w-[72px]' : 'w-[244px]'
+        }`}
       >
         {renderNavContent(false)}
-      </motion.aside>
+      </aside>
 
       {/* Mobile Slide-over Drawer (< md) */}
       <AnimatePresence>
         {mobileOpen && (
           <div className="fixed inset-0 z-50 md:hidden flex">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ ease: [0.32, 0.72, 0, 1], duration: 0.22 }}
+              variants={BACKDROP_VARIANTS}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
               onClick={onCloseMobile}
-              className="fixed inset-0 bg-slate-900/60 will-change-[opacity]"
+              className="fixed inset-0 bg-slate-900/45 will-change-[opacity]"
             />
             <motion.aside
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: 'spring', stiffness: 480, damping: 34, mass: 0.6 }}
+              variants={SIDEBAR_DRAWER_VARIANTS}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
               // (31 Oct 2026) swipe the drawer to the left to close it, like a phone's own side menu
               drag="x"
               dragDirectionLock
@@ -453,7 +457,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               dragMomentum={false}
               onDragEnd={(_e, info) => { if (info.offset.x < -70 || info.velocity.x < -450) onCloseMobile?.(); }}
               className="mobile-drawer sb-sidebar-gradient relative w-72 max-w-[85vw] h-full text-white flex flex-col justify-between select-none overflow-y-auto no-scrollbar z-10 shadow-2xl transform-gpu will-change-transform"
-              style={{ touchAction: 'pan-y' }}
+              style={{ touchAction: 'pan-y', contain: 'layout paint style' }}
             >
               {renderNavContent(true)}
             </motion.aside>

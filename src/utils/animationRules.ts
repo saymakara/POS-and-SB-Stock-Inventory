@@ -325,6 +325,29 @@ export const SIDEBAR_TRANSITION: Transition = {
   ease: [0.22, 1, 0.36, 1],
 };
 
+export const SIDEBAR_DRAWER_VARIANTS: Variants = {
+  hidden: {
+    x: '-100%',
+    opacity: 0.94,
+  },
+  visible: {
+    x: 0,
+    opacity: 1,
+    transition: {
+      duration: 0.22,
+      ease: [0.22, 1, 0.36, 1],
+    },
+  },
+  exit: {
+    x: '-100%',
+    opacity: 0.94,
+    transition: {
+      duration: 0.16,
+      ease: [0.32, 0.72, 0, 1],
+    },
+  },
+};
+
 // ============================================================================
 // 16. OVERLAP OUTGOING AND INCOMING STATES (CROSSFADE TABS & PAGE GLIDES)
 // ============================================================================
