@@ -26,6 +26,17 @@ export default defineConfig(() => {
         '@': path.resolve(import.meta.dirname, '.'),
       },
     },
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom',
+        'react-dom/client',
+        'motion/react',
+        'lucide-react',
+        '@supabase/supabase-js',
+        'recharts',
+      ],
+    },
     build: {
       target: 'esnext',
       cssCodeSplit: true,

@@ -8,6 +8,7 @@ import { clearMvCache } from '../services/mvCache';
 import { clearFresh } from '../utils/freshness';
 import { clearWorkstationLock, notifySessionSignOut } from '../utils/sessionSecurity';
 import { forgetSavedCopies } from '../utils/idbStorage';
+import { markNavigationTransition } from '../utils/perfMonitor';
 
 /**
  * Sign-in with the shared database (21 Oct 2026).
@@ -43,6 +44,7 @@ export function clearLocalCaches(): void {
     CACHE_KEYS.forEach((k) => localStorage.removeItem(k));
     sessionStorage.clear();                                              // (review) also the staff list and screen caches
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem('crm_pos_staff_profile_v1');
   } catch {
     /* storage blocked */
   }
@@ -86,8 +88,10 @@ function storeSession(p: StaffProfile) {
     const last = localStorage.getItem(LAST_USER_KEY);
     if (last && last !== p.user_id) clearLocalCaches();          // another person on this browser: nothing of theirs stays
     localStorage.setItem(LAST_USER_KEY, p.user_id);
+    const serializedProfile = JSON.stringify(p);
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ role: p.role, operatorLabel: `${p.name} (${p.emp_id})`, branchId: p.branch_id, username: p.emp_id }));
-    sessionStorage.setItem('crm_pos_staff_profile_v1', JSON.stringify(p));
+    sessionStorage.setItem('crm_pos_staff_profile_v1', serializedProfile);
+    localStorage.setItem('crm_pos_staff_profile_v1', serializedProfile);
     localStorage.removeItem(SESSION_KEY);
   } catch {
     /* storage blocked: the app still starts from the database */
@@ -99,7 +103,7 @@ type Phase = 'checking' | 'signin' | 'change' | 'ready';
 export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => React.ReactNode }> = ({ children }) => {
   const cachedInitialProfile = React.useMemo<StaffProfile | null>(() => {
     try {
-      const raw = sessionStorage.getItem('crm_pos_staff_profile_v1');
+      const raw = sessionStorage.getItem('crm_pos_staff_profile_v1') || localStorage.getItem('crm_pos_staff_profile_v1');
       if (!raw) return null;
       const parsed = JSON.parse(raw) as StaffProfile;
       return parsed && parsed.active && !parsed.must_change_password ? parsed : null;
@@ -117,7 +121,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const enter = useCallback(async (userId: string) => {
+  const enter = useCallback(async (userId: string, fromSignIn = false) => {
     const p = await loadProfile(userId);
     if (p === 'offline') {
       setError('No connection to the server. Please check the internet and try again.');
@@ -133,6 +137,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
     setProfile(p);
     if (p.must_change_password) { setPhase('change'); return; }
     storeSession(p);
+    markNavigationTransition(fromSignIn);
     setPhase('ready');
   }, []);
 
@@ -164,7 +169,7 @@ export const AuthGate: React.FC<{ children: (profile: StaffProfile | null) => Re
       }
       setPassword('');
       clearWorkstationLock();
-      await enter(data.user.id);
+      await enter(data.user.id, true);
     } catch {
       setError('No connection to the server. Please check the internet and try again.');
     } finally {

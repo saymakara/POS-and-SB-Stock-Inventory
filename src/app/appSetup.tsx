@@ -233,9 +233,9 @@ export const historyRecordFor = (
     notes: o.notes || '',
   };
 };
-/** Shown for a moment while a screen opened for the first time is fetched. */
+/** Shown for a moment while a screen opened for the first time is fetched; reserves viewport height to prevent footer CLS. */
 export const TabLoading = () => (
-  <div className="space-y-3" aria-busy="true" aria-label="Loading">
+  <div className="space-y-3 min-h-[calc(100vh-11rem)]" aria-busy="true" aria-label="Loading">
     <div className="skeleton h-10 rounded-xl w-1/3" />
     <div className="skeleton h-64 rounded-2xl" />
   </div>

@@ -690,11 +690,14 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
 
     const xLabelFontPx = groupW >= 40 ? 10 : groupW >= 20 ? 9.5 : 9;
     ctx.font = `600 ${xLabelFontPx}px ${chartFont}`;
-    const maxLabelW = items.reduce((mx, it) => Math.max(mx, ctx.measureText(it.label).width), 0);
+    const getCleanDateLabel = (raw: string) => raw.replace(/^[A-Za-z]{3,}\s+/, '');
+    const maxLabelW = items.reduce((mx, it) => Math.max(mx, ctx.measureText(getCleanDateLabel(it.label)).width), 0);
     const labelStep =
-      maxLabelW + 5 <= groupW
+      items.length <= 16
         ? 1
-        : Math.max(2, Math.ceil((maxLabelW + 8) / Math.max(1, groupW)));
+        : maxLabelW + 12 <= groupW && groupW >= 28
+        ? 1
+        : Math.max(2, Math.ceil((maxLabelW + 12) / Math.max(1, groupW)));
 
     // Subtle hover focus column wash & vertical dashed crosshair
     if (hover && items[hover.idx]) {
@@ -756,9 +759,10 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
               : '#cbd5e1'
             : axisColor;
         ctx.font = `${hover?.idx === idx || isHol ? '700' : '600'} ${xLabelFontPx}px ${chartFont}`;
-        const tw = ctx.measureText(item.label).width;
+        const displayLabel = getCleanDateLabel(item.label);
+        const tw = ctx.measureText(displayLabel).width;
         const lx = Math.min(width - padRight - tw, Math.max(padLeft, cx - tw / 2));
-        ctx.fillText(item.label, lx, height - 7);
+        ctx.fillText(displayLabel, lx, height - 7);
       }
     });
 

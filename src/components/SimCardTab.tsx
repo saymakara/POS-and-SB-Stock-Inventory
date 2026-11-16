@@ -17,6 +17,7 @@ import {
 import { MaterialsSetupNotice, StatusPill, fmtDay } from './MaterialsUi';
 import { AdjustDialog, LostMaterialsSection, StockInDialog } from './MaterialStockPanel';
 import { ManageSimModal } from './ManageSimModal';
+import { getCachedDeviceBySerialMap } from './RightDrawerShell';
 import { WHILE_TAP_BUTTON, SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import { PillMotion } from './PillMotion';
 import { buildPpDirectoryScope } from '../utils/fieldScope';
@@ -100,14 +101,7 @@ const SimCardTabComponent: React.FC<{
     return true;
   }, [ppScope, excludedSerials]);
 
-  const deviceMap = useMemo(() => {
-    const map = new Map<string, Device>();
-    for (let i = 0; i < devices.length; i++) {
-      const d = devices[i];
-      if (d && d.serial) map.set(d.serial.toUpperCase(), d);
-    }
-    return map;
-  }, [devices]);
+  const deviceMap = useMemo(() => getCachedDeviceBySerialMap(devices), [devices]);
 
   const getHardwareInfo = useCallback((s: MaterialSerial): {
     type: 'POS' | 'SOUND_BOX' | 'UNASSIGNED';
@@ -670,20 +664,18 @@ const SimCardTabComponent: React.FC<{
         <Pager pg={pg} label="SIM cards" />
       </section>
 
-      {/* Manage SIM Modal */}
-      {managingSim && (
-        <ManageSimModal
-          sim={managingSim}
-          isOpen={Boolean(managingSim)}
-          onClose={() => setManagingSim(null)}
-          branches={branches}
-          users={users}
-          devices={devices}
-          role={role}
-          myBranch={myBranch}
-          onSave={handleSaveSim}
-        />
-      )}
+      {/* Manage SIM Modal (kept mounted so deviceBySerialMap stays warm and exit animations run smoothly) */}
+      <ManageSimModal
+        sim={managingSim}
+        isOpen={Boolean(managingSim)}
+        onClose={() => setManagingSim(null)}
+        branches={branches}
+        users={users}
+        devices={devices}
+        role={role}
+        myBranch={myBranch}
+        onSave={handleSaveSim}
+      />
 
       {/* Stock In Dialog */}
       <StockInDialog

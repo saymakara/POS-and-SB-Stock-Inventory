@@ -14,8 +14,7 @@ import { LogoPageTab } from './LogoPageTab';
 import { KpiRulesAdminSection } from './KpiRulesAdminSection';
 import { KpiTeamLeadsSection } from './KpiTeamLeadsSection';
 import { KpiPointRule, KpiTargets, fetchFastKpiSettings, getCachedKpiSettings } from '../services/kpiService';
-// (31 Oct 2026) System Health: loaded only when that section is opened
-const SystemHealthPanel = React.lazy(() => import('./SystemHealthPanel'));
+import SystemHealthPanel from './SystemHealthPanel';
 import {
   getTelegramWebhookConfig,
   saveTelegramWebhookConfig,
@@ -689,11 +688,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </div>
         )}
         {/* SUBTAB: System Health (31 Oct 2026) */}
-        {activeSubTab === 'health' && (
-          <React.Suspense fallback={<div className="text-xs text-slate-500 p-4">Loading System Health…</div>}>
-            <SystemHealthPanel />
-          </React.Suspense>
-        )}
+        {activeSubTab === 'health' && <SystemHealthPanel />}
         {/* SUBTAB: Brand & Logo Studio */}
         {activeSubTab === 'brand_logo' && (
           <div className="space-y-6">

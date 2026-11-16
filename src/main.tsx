@@ -18,6 +18,12 @@ startPerfMonitor();
 startClickGuard();
 startFilterMarks();
 const warmApp = () => { loadApp().catch(() => {}); };
+// Preload App immediately at t=0 if the user already has an active cached staff profile
+try {
+  if (sessionStorage.getItem('crm_pos_staff_profile_v1') || localStorage.getItem('crm_pos_staff_profile_v1')) {
+    warmApp();
+  }
+} catch { /* ignore */ }
 // (07 Nov 2026) the background download starts only once the sign-in field is on screen (it used to race the sign-in
 // screen on slow phones), or after 4 s for someone already signed in (whose app then loads directly anyway).
 const warmSoon = () => {
@@ -71,11 +77,14 @@ createRoot(document.getElementById('root')!).render(
   </ErrorBoundary>
 );
 
-/** Shown only if the dashboard code is still downloading right after sign-in (usually it is already there). */
+/** Shown only if the dashboard code is still downloading right after sign-in; matches App shell geometry to prevent CLS. */
 function AppLoading() {
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50" role="status" aria-label="Loading">
-      <div className="w-9 h-9 rounded-full border-[3px] border-slate-200 border-t-[#003857] animate-spin" />
+    <div className="min-h-[100dvh] flex items-start bg-slate-50" role="status" aria-label="Loading">
+      <div className="hidden md:block w-[248px] shrink-0 min-h-[100dvh] bg-[#112338]" />
+      <div className="flex-1 min-h-[100dvh] flex items-center justify-center">
+        <div className="w-9 h-9 rounded-full border-[3px] border-slate-200 border-t-[#003857] animate-spin" />
+      </div>
     </div>
   );
 }

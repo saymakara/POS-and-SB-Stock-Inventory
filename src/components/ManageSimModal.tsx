@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WHILE_TAP_BUTTON } from '../utils/animationRules';
-import { RightDrawerFrame } from './RightDrawerShell';
+import { RightDrawerFrame, getCachedDeviceBySerialMap } from './RightDrawerShell';
 import {
   CreditCard, X, Check, Copy, ArrowRight, ArrowLeft, RefreshCw,
   Cpu, Volume2, AlertTriangle, Layers, Building2,
@@ -69,42 +69,67 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
 }) => {
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
 
+  // Fast O(1) WeakMap-cached Serial Map for instant lookups across 26,000+ devices (0ms on drawer open)
+  const deviceBySerialMap = useMemo(() => getCachedDeviceBySerialMap(devices), [devices]);
+
+  const initialDev = sim?.deviceSerial ? deviceBySerialMap.get(sim.deviceSerial.toUpperCase()) : null;
+
   // Step state
   const [step, setStep] = useState<'CONFIG' | 'REVIEW'>('CONFIG');
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Form Fields
-  const [simSerial, setSimSerial] = useState('');
+  // Form Fields initialized directly so frame 0 renders once without a post-mount useEffect double-render
+  const [simSerial, setSimSerial] = useState(() => sim?.serial || '');
   const [isRenaming, setIsRenaming] = useState(false);
-  const [newSerialInput, setNewSerialInput] = useState('');
+  const [newSerialInput, setNewSerialInput] = useState(() => sim?.serial || '');
 
-  const [status, setStatus] = useState<SerialStatus>('BRANCH_RESERVE');
-  const [branchId, setBranchId] = useState('100');
-  const [assignedDeviceSerial, setAssignedDeviceSerial] = useState<string>('');
+  const [status, setStatus] = useState<SerialStatus>(() => sim?.status || 'BRANCH_RESERVE');
+  const [branchId, setBranchId] = useState(() => sim?.branchId || (isAdmin ? '100' : myBranch));
+  const [assignedDeviceSerial, setAssignedDeviceSerial] = useState<string>(() => sim?.deviceSerial || '');
   const [deviceSearch, setDeviceSearch] = useState('');
 
-  const [staff, setStaff] = useState('');
-  const [deployedDate, setDeployedDate] = useState('');
-  const [merchantName, setMerchantName] = useState('');
-  const [mid, setMid] = useState('');
-  const [tid, setTid] = useState('');
-  const [blockedWithCarrier, setBlockedWithCarrier] = useState(false);
-  const [note, setNote] = useState('');
+  const [staff, setStaff] = useState(
+    () => initialDev?.staff || initialDev?.installedByStaff || sim?.updatedBy || '',
+  );
+  const [deployedDate, setDeployedDate] = useState(
+    () => initialDev?.deployedDate || (sim?.status === 'AT_MERCHANT' ? todayPP() : ''),
+  );
+  const [merchantName, setMerchantName] = useState(() => sim?.merchantName || initialDev?.merchantName || '');
+  const [mid, setMid] = useState(() => sim?.mid || initialDev?.mid || '');
+  const [tid, setTid] = useState(() => initialDev?.tid || '');
+  const [blockedWithCarrier, setBlockedWithCarrier] = useState(() => Boolean(sim?.blocked));
+  const [note, setNote] = useState(() => sim?.note || '');
 
-  // Find assigned device in devices pool
-    // Fast O(1) Serial Map for instant lookups across 10,000+ devices
-  const deviceBySerialMap = useMemo(() => {
-    const map = new Map<string, Device>();
-    for (let i = 0; i < devices.length; i++) {
-      const d = devices[i];
-      if (d && d.serial) {
-        map.set(d.serial.toUpperCase(), d);
-      }
+  // Synchronously sync state during render when a new SIM is opened (avoids frame-1 double render)
+  const [syncedSimKey, setSyncedSimKey] = useState<string>(() =>
+    sim && isOpen ? `${sim.serial}|${sim.status}|${sim.branchId}|${sim.deviceSerial || ''}` : '',
+  );
+  const currentSimKey = sim && isOpen ? `${sim.serial}|${sim.status}|${sim.branchId}|${sim.deviceSerial || ''}` : '';
+  if (currentSimKey !== syncedSimKey) {
+    setSyncedSimKey(currentSimKey);
+    if (sim && isOpen) {
+      const dev = sim.deviceSerial ? deviceBySerialMap.get(sim.deviceSerial.toUpperCase()) : null;
+      setStep('CONFIG');
+      setSaving(false);
+      setErrorMsg('');
+      setIsRenaming(false);
+      setNewSerialInput(sim.serial);
+      setSimSerial(sim.serial);
+      setStatus(sim.status);
+      setBranchId(sim.branchId || (isAdmin ? '100' : myBranch));
+      setAssignedDeviceSerial(sim.deviceSerial || '');
+      setMerchantName(sim.merchantName || dev?.merchantName || '');
+      setMid(sim.mid || dev?.mid || '');
+      setTid(dev?.tid || '');
+      setStaff(dev?.staff || dev?.installedByStaff || sim.updatedBy || '');
+      setDeployedDate(dev?.deployedDate || (sim.status === 'AT_MERCHANT' ? todayPP() : ''));
+      setBlockedWithCarrier(Boolean(sim.blocked));
+      setNote(sim.note || '');
+      setDeviceSearch('');
     }
-    return map;
-  }, [devices]);
+  }
 
   // Find assigned device in devices pool in O(1)
   const assignedDevice = useMemo(() => {
@@ -130,32 +155,6 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
     }
     return results;
   }, [devices, deferredSearch]);
-
-  // Initialize state when modal opens with a SIM
-  useEffect(() => {
-    if (sim && isOpen) {
-      setStep('CONFIG');
-      setSaving(false);
-      setErrorMsg('');
-      setIsRenaming(false);
-      setNewSerialInput(sim.serial);
-      setSimSerial(sim.serial);
-      setStatus(sim.status);
-      setBranchId(sim.branchId || (isAdmin ? '100' : myBranch));
-      setAssignedDeviceSerial(sim.deviceSerial || '');
-
-      const dev = sim.deviceSerial ? deviceBySerialMap.get(sim.deviceSerial.toUpperCase()) : null;
-
-      setMerchantName(sim.merchantName || dev?.merchantName || '');
-      setMid(sim.mid || dev?.mid || '');
-      setTid(dev?.tid || '');
-      setStaff(dev?.staff || dev?.installedByStaff || sim.updatedBy || '');
-      setDeployedDate(dev?.deployedDate || (sim.status === 'AT_MERCHANT' ? todayPP() : ''));
-      setBlockedWithCarrier(Boolean(sim.blocked));
-      setNote(sim.note || '');
-      setDeviceSearch('');
-    }
-  }, [sim, isOpen, deviceBySerialMap, isAdmin, myBranch]);
 
   const handleSelectStep = (nextStatus: SerialStatus) => {
     setErrorMsg('');

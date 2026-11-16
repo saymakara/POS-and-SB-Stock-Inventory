@@ -70,6 +70,7 @@ import { clearMaterialsCache, fetchOpenLostCounts, adminSimUpdate, cleanMaterial
 import { SendHorizontal, Lock, CheckCircle2, AlertCircle, AlertTriangle, Info, X, Building2, Users } from 'lucide-react';
 import {
   RightDrawerFrame,
+  getCachedDeviceBySerialMap,
   SIM_HEADER_CLS,
   SIM_ICON_BOX_CLS,
   SIM_HEADER_TAG_CLS,
@@ -570,7 +571,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   useEffect(() => {
     if (!isSupabaseConfigured || !serverReady) return;
     let alive = true;
-    const ask = () => import('./services/ccService').then((m) => m.prefetchCc(true)).then((c) => { if (alive && c) setCcPending(c.pendingAll); }).catch(() => {});
+    const ask = () => import('./services/ccService').then((m) => m.fetchCcCounts(null, null, 45000)).then((c) => { if (alive && c) setCcPending(c.pendingAll); }).catch(() => {});
     ask();
     const onVis = () => { if (document.visibilityState === 'visible') ask(); };   // back to the tab: the number is fresh again
     document.addEventListener('visibilitychange', onVis);
@@ -1757,6 +1758,15 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     }
     return { ppScopedDevices: allowed, excludedDeviceSerials: excluded };
   }, [devices, ppDirectoryScope]);
+
+  // Pre-warm the WeakMap device serial cache after initial dashboard entrance settles so Manage drawers open in 0ms
+  useEffect(() => {
+    if (ppScopedDevices.length === 0) return;
+    const t = setTimeout(() => {
+      getCachedDeviceBySerialMap(ppScopedDevices);
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [ppScopedDevices]);
 
   const ppScopedHistory = useMemo(
     () => historicalMerchants.filter((r) => ppDirectoryScope.isHistoryRecordInScope(r)),
@@ -4678,7 +4688,11 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         push={
                           <PushConfiguringTab
                             hideHero
-                            devices={scopedDevices.filter((d) => d.type === (shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'))}
+                            devices={
+                              productView === 'PUSH'
+                                ? scopedDevices.filter((d) => d.type === (shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'))
+                                : []
+                            }
                             lockType={shownTab === 'inventory_pos' ? 'POS Terminal' : 'Sound Box'}
                             branches={phnomPenhBranches}
                             role={role}

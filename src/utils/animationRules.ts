@@ -287,13 +287,14 @@ export const DRAWER_VARIANTS: Variants = {
   visible: {
     x: 0,
     transition: {
-      x: { type: 'spring', stiffness: 520, damping: 42, mass: 0.65, bounce: 0 },
+      duration: 0.18,
+      ease: [0.22, 1, 0.36, 1],
     },
   },
   exit: {
     x: '100%',
     transition: {
-      duration: 0.15,
+      duration: 0.13,
       ease: [0.32, 0.72, 0, 1],
     },
   },

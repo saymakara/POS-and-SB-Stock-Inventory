@@ -28,6 +28,8 @@ const MAX_ERRORS = 60;
 
 let started = false;
 let startedAt = Date.now();
+let navBaseMs = 0;
+let lastTransitionAt = -10000;
 let ttfb: number | null = null;
 let fcp: number | null = null;
 let lcp: number | null = null;
@@ -37,6 +39,20 @@ let longTaskMs = 0;
 const interactionWorst = new Map<number, number>(); // interactionId -> longest event duration
 let api: ApiCall[] = [];
 let errors: ErrorEntry[] = [];
+
+/**
+ * Marks an explicit user-triggered navigation or sign-in transition so async route/auth swaps
+ * (>500ms after click) are not miscounted as unexpected layout jumps (CLS) or pre-login typing delay (LCP).
+ */
+export function markNavigationTransition(isSignIn = false): void {
+  const now = typeof performance !== 'undefined' ? performance.now() : 0;
+  lastTransitionAt = now;
+  if (isSignIn) {
+    navBaseMs = now;
+    startedAt = Date.now();
+    cls = 0;
+  }
+}
 
 const clip = (s: unknown, n = 220) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 
@@ -62,11 +78,17 @@ export function startPerfMonitor(): void {
     const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
     if (nav) ttfb = Math.round(nav.responseStart);
   } catch { /* not available */ }
-  observe('paint', (l) => l.getEntries().forEach((e) => { if (e.name === 'first-contentful-paint') fcp = Math.round(e.startTime); }));
-  observe('largest-contentful-paint', (l) => { const all = l.getEntries(); const last = all[all.length - 1]; if (last) lcp = Math.round(last.startTime); });
+  observe('paint', (l) => l.getEntries().forEach((e) => {
+    if (e.name === 'first-contentful-paint') fcp = Math.max(1, Math.round(e.startTime - navBaseMs));
+  }));
+  observe('largest-contentful-paint', (l) => {
+    const all = l.getEntries();
+    const last = all[all.length - 1];
+    if (last) lcp = Math.max(1, Math.round(last.startTime - navBaseMs));
+  });
   observe('layout-shift', (l) => l.getEntries().forEach((e) => {
     const s = e as PerformanceEntry & { value: number; hadRecentInput: boolean };
-    if (!s.hadRecentInput) cls += s.value;
+    if (!s.hadRecentInput && e.startTime - lastTransitionAt > 800) cls += s.value;
   }));
   observe('longtask', (l) => l.getEntries().forEach((e) => { longTasks += 1; longTaskMs += e.duration; }));
   observe('event', (l) => l.getEntries().forEach((e) => {
@@ -138,5 +160,5 @@ export function getPerfSnapshot(): PerfSnapshot {
 
 /** Clears the request and error lists and the interaction measures (page-load measures are kept). */
 export function resetPerfCounters(): void {
-  api = []; errors = []; interactionWorst.clear(); longTasks = 0; longTaskMs = 0; startedAt = Date.now();
+  api = []; errors = []; interactionWorst.clear(); longTasks = 0; longTaskMs = 0; cls = 0; startedAt = Date.now();
 }

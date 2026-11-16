@@ -135,6 +135,11 @@ function fmtShortDay(ymd: string): string {
   return `${SHORT_MONTHS[mIdx] || parts[1]} ${parts[2]}`;
 }
 
+function fmtDayOfMonth(ymd: string): string {
+  const parts = ymd.split('-');
+  return parts.length === 3 ? parts[2] : ymd;
+}
+
 function fmtLongDay(ymd: string): string {
   const parts = ymd.split('-');
   if (parts.length !== 3) return ymd;
@@ -1150,7 +1155,7 @@ function computeVelocityPrimaryMeta(
     const v = pt[focusChannel];
     if (v > peakVal) {
       peakVal = v;
-      peakLabel = pt.label;
+      peakLabel = pt.fullLabel ? fmtShortDay(pt.fullLabel) : pt.label;
     }
   }
   return {
@@ -1495,10 +1500,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       setSyncing(!hitKpi || force);
 
       const kpiTask = fetchKpiSummary(range.kpiFrom, range.kpiTo, force)
-        .catch(() => fetchKpiSummary(range.kpiFrom, range.kpiTo, true))
         .then((val) => {
           if (isActive() && val) setKpiData(val);
-        });
+        })
+        .catch(() => {});
       const ccTask = fetchCcCounts(range.ccFrom, range.ccTo, force ? 0 : 45000).then((val) => {
         if (isActive() && val) setCcCounts(val);
       });
@@ -1552,11 +1557,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     void loadInventoryAndSims(false);
   }, [loadInventoryAndSims]);
 
-  // Idle background warm-up of Today, All time, and previous month so Date/All/Month switches swap in 0ms
+  // Idle sequential background warm-up of Today, All time, and previous month after initial load settles
   useEffect(() => {
     if (!isSupabaseConfigured || !kpiData || syncing) return;
     let cancelled = false;
-    const warm = () => {
+    const warm = async () => {
       if (cancelled) return;
       const prevMonth = shiftMonthYm(currentMonth, -1);
       const prevEnd = `${prevMonth}-${String(monthDaysCount(prevMonth)).padStart(2, '0')}`;
@@ -1581,23 +1586,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         },
       ];
       for (const c of candidates) {
+        if (cancelled) return;
         if (!getCachedKpiSummary(c.kpiFrom, c.kpiTo)) {
-          void fetchKpiSummary(c.kpiFrom, c.kpiTo, false).catch(() => {});
+          await fetchKpiSummary(c.kpiFrom, c.kpiTo, false).catch(() => {});
         }
+        if (cancelled) return;
         if (!getCachedCcCounts(`${c.ccFrom || ''}|${c.ccTo || ''}`)) {
-          void fetchCcCounts(c.ccFrom, c.ccTo, 45000).catch(() => {});
+          await fetchCcCounts(c.ccFrom, c.ccTo, 45000).catch(() => {});
         }
       }
     };
-    const w = window as any;
-    if (typeof w.requestIdleCallback === 'function') {
-      const id = w.requestIdleCallback(warm, { timeout: 1800 });
-      return () => {
-        cancelled = true;
-        w.cancelIdleCallback?.(id);
-      };
-    }
-    const timer = window.setTimeout(warm, 900);
+    const timer = window.setTimeout(() => {
+      void warm();
+    }, 3500);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
@@ -1753,7 +1754,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             : isWeekendDay(ymd)
           : false;
       return {
-        label: fmtShortDay(ymd),
+        label: fmtDayOfMonth(ymd),
         fullLabel: ymd,
         pos: hit?.pos || 0,
         sb: hit?.sb || 0,
@@ -2363,7 +2364,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       const tot = pt.pos + pt.sb + pt.khqr + pt.mv + pt.cc;
       if (tot > peakVal) {
         peakVal = tot;
-        peakLabel = pt.label;
+        peakLabel = pt.fullLabel ? fmtShortDay(pt.fullLabel) : pt.label;
       }
       if (pt.activeStaff > 0) {
         sumStaff += pt.activeStaff;
@@ -3225,7 +3226,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 velocitySeries.length > 1 || weekendDaysCount > 0 || holidayDaysList.length > 0;
               const holidayLegendTitle =
                 holidayDaysList.length > 0
-                  ? holidayDaysList.map((d) => `${d.label}: ${d.holidayName}`).join(' · ')
+                  ? holidayDaysList.map((d) => `${d.fullLabel ? fmtShortDay(d.fullLabel) : d.label}: ${d.holidayName}`).join(' · ')
                   : 'Cambodia public holidays';
 
               return (

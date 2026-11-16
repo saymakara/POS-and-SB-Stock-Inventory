@@ -726,8 +726,11 @@ async function readDeviceRangeCompact(from: string, to: string | null, limit: nu
   if (compactDeviceReadOk === false) return null;
   const { data, error } = await supabase.rpc('devices_page_compact', { p_from: from, p_to: to, p_limit: limit });
   if (error || !Array.isArray(data) || (data.length && !Array.isArray(data[0]))) {
-    if (compactDeviceReadOk === null) { compactDeviceReadOk = false; return null; }   // not on this database: fall back for good
-    throw error || new Error('devices_page_compact: unexpected answer');
+    if (compactDeviceReadOk === null || /PGRST202|42883|does not exist/i.test(error?.message || '')) {
+      compactDeviceReadOk = false;
+    }
+    // Fall back gracefully to the indexed table range query for this page instead of aborting the whole load
+    return null;
   }
   compactDeviceReadOk = true;
   return (data as unknown[][]).map(compactToRow);
@@ -775,7 +778,7 @@ async function fetchDevicesByRanges(size: number, onFirstPage?: (rows: Device[],
     const pages: any[][] = new Array(bounds.length);
     pages[0] = await readRange('', bounds[1] ?? null);                    // from the start (also units sorted before the first bound)
     onFirstPage?.(pages[0].map(mapRowToDevice), total);
-    const CONCURRENCY = 8;
+    const CONCURRENCY = 4;
     for (let i = 1; i < bounds.length; i += CONCURRENCY) {
       const idx = Array.from({ length: Math.min(CONCURRENCY, bounds.length - i) }, (_, k) => i + k);
       const got = await Promise.all(idx.map((j) => readRange(bounds[j], bounds[j + 1] ?? null)));
@@ -829,7 +832,7 @@ export async function fetchDevicesFromSupabase(
     for (let nextOff = Math.max(0, offset) + safeLimit; nextOff < totalToFetch; nextOff += safeLimit) {
       offsets.push(nextOff);
     }
-    const CONCURRENCY = 8;
+    const CONCURRENCY = 4;
     for (let i = 0; i < offsets.length; i += CONCURRENCY) {
       const chunk = offsets.slice(i, i + CONCURRENCY);
       const pages = await Promise.all(

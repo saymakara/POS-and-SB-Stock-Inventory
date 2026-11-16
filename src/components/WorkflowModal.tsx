@@ -135,34 +135,53 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   onDeletePermanently,
   operatorLabel = '',
 }) => {
-  const [stage, setStage] = useState<LifecycleStage>('HQ_STOCK');
+  const isLight = theme === 'light';
+  const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  // (22 Oct 2026) once a unit is installed, only Admin HQ can change the merchant's details (branch staff add them while installing)
+  const merchantLocked = !isAdminLike;
+  const showFullPhone = canSeeFullContact(role);
+
+  const [stage, setStage] = useState<LifecycleStage>(() => device?.stage || 'HQ_STOCK');
   const [terminateDestination, setTerminateDestination] =
     useState<'BRANCH_RESERVE' | 'HQ_STOCK'>('BRANCH_RESERVE');
-  const [branchId, setBranchId] = useState('100');
-  const [staff, setStaff] = useState('');
-  const [merchantName, setMerchantName] = useState('');
-  const [mid, setMid] = useState('');
-  const [tid, setTid] = useState('');
-  const [deployedDate, setDeployedDate] = useState('');
+  const [branchId, setBranchId] = useState(() => device?.branchId || '100');
+  const [staff, setStaff] = useState(() =>
+    device?.staff ? resolveStaffFromDirectory(device.staff, device.branchId, users) : '',
+  );
+  const [merchantName, setMerchantName] = useState(() => device?.merchantName || '');
+  const [mid, setMid] = useState(() => device?.mid || '');
+  const [tid, setTid] = useState(() => device?.tid || '');
+  const [deployedDate, setDeployedDate] = useState(() => device?.deployedDate || '');
   const [note, setNote] = useState('');
-  const [batteryInstalledDate, setBatteryInstalledDate] = useState('');
-  const [batterySerial, setBatterySerial] = useState('');
+  const [batteryInstalledDate, setBatteryInstalledDate] = useState(
+    () => device?.batteryInstalledDate || device?.stockInDate || '',
+  );
+  const [batterySerial, setBatterySerial] = useState(() => device?.batterySerial || '');
   const [midError, setMidError] = useState('');
-  const [editedSerial, setEditedSerial] = useState('');
+  const [editedSerial, setEditedSerial] = useState(() => device?.serial || '');
   const [editingSerial, setEditingSerial] = useState(false);
   const [renamingSerial, setRenamingSerial] = useState(false);
   const [serialRenameMsg, setSerialRenameMsg] = useState('');
   const [copiedSerial, setCopiedSerial] = useState(false);
   const [showOptionalSetup, setShowOptionalSetup] = useState(false);
 
-  // Dynamic Custom Fields State
-  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  // Dynamic Custom Fields State initialized directly on frame 0
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>(() =>
+    device
+      ? {
+          location: device.location || '',
+          merchantPhone: showFullPhone ? device.merchantPhone || '' : '',
+          address: device.address || '',
+          ...(device.customFields || {}),
+        }
+      : {},
+  );
   // Telegram notification double-click safeguard (1-min confirmation window & 1-min cooldown)
   const [confirmingNotify, setConfirmingNotify] = useState(false);
   const [notifyCooldownExpires, setNotifyCooldownExpires] = useState<number>(0);
   const notifyTimerRef = useRef<NodeJS.Timeout | null>(null);
   const notifyExpiresRef = useRef<number>(0);
-  const [modalTickerNow, setModalTickerNow] = useState<number>(Date.now());
+  const [modalTickerNow, setModalTickerNow] = useState<number>(() => Date.now());
 
   useEffect(() => {
     const isConfirming = confirmingNotify;
@@ -212,7 +231,13 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   // Double-Step Verification State
   const [modalStep, setModalStep] = useState<'EDIT' | 'PREVIEW'>('EDIT');
   // (23 Oct 2026) Return: the merchant's details are removed (kept in Merchant History) and the unit goes back to stock
-  const [returnMode, setReturnMode] = useState(false);
+  const [returnMode, setReturnMode] = useState<boolean>(() => {
+    if (!device) return false;
+    const canRet =
+      (device.stage === 'COMPLETE' || device.stage === 'CONFIGURING') &&
+      Boolean(device.mid || device.merchantName);
+    return preset === 'RETURN' && canRet;
+  });
   const [returnTo, setReturnTo] = useState<'BRANCH_RESERVE' | 'HQ_STOCK'>('BRANCH_RESERVE');
   const [returnReason, setReturnReason] = useState('Merchant Closed Business');
   interface PendingPayload {
@@ -239,22 +264,18 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   }
   const [pendingPayload, setPendingPayload] = useState<PendingPayload | null>(null);
 
-  const isLight = theme === 'light';
-  const isAdminLike = role === 'SUPER_ADMIN' || role === 'ADMIN';
-  // (22 Oct 2026) once a unit is installed, only Admin HQ can change the merchant's details (branch staff add them while installing)
-  const merchantLocked = !isAdminLike;
-  const showFullPhone = canSeeFullContact(role);
-
   const isSoundBox = device?.type === 'Sound Box';
   const activeCustomFields = useMemo(() => {
     const targetDeviceType: 'POS' | 'SOUND_BOX' = isSoundBox ? 'SOUND_BOX' : 'POS';
     return resolveActiveCustomFieldsForDevice(customFields, targetDeviceType);
   }, [customFields, isSoundBox]);
 
-  // Reset the form only when a different unit is opened (or the modal re-opens), not every time the parent
-  // re-renders with a new copy of the same device object — that used to wipe what the operator was typing.
+  // Reset the form synchronously when a different unit is opened (or preset changes) without a frame-1 double render
   const deviceSerial = device?.serial || '';
-  useEffect(() => {
+  const currentSyncKey = `${deviceSerial}|${preset}`;
+  const [syncedDeviceKey, setSyncedDeviceKey] = useState<string>(currentSyncKey);
+  if (currentSyncKey !== syncedDeviceKey) {
+    setSyncedDeviceKey(currentSyncKey);
     if (device) {
       setStage(device.stage);
       setTerminateDestination('BRANCH_RESERVE');
@@ -269,53 +290,51 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
       setEditedSerial(device.serial);
       setEditingSerial(false);
       setSerialRenameMsg('');
-      // Only the unit's own recorded battery data; blank when not recorded (never a made-up serial/date).
       setBatterySerial(device.batterySerial || '');
       setBatteryInstalledDate(device.batteryInstalledDate || device.stockInDate || '');
-
-      // Initialize custom field values from standard device attributes or customFields record.
-      // Branch staff do not get the full merchant phone in the form; they may type a new one to replace it.
-      const initialCustomValues: Record<string, string> = {
+      setCustomFieldValues({
         location: device.location || '',
         merchantPhone: showFullPhone ? device.merchantPhone || '' : '',
         address: device.address || '',
         ...(device.customFields || {}),
-      };
-      setCustomFieldValues(initialCustomValues);
-
+      });
       setModalStep('EDIT');
       setPendingPayload(null);
       setShowOptionalSetup(false);
       setCopiedSerial(false);
-      const canRet = (device.stage === 'COMPLETE' || device.stage === 'CONFIGURING') && Boolean(device.mid || device.merchantName);
+      const canRet =
+        (device.stage === 'COMPLETE' || device.stage === 'CONFIGURING') &&
+        Boolean(device.mid || device.merchantName);
       setReturnMode(preset === 'RETURN' && canRet);
       setReturnTo('BRANCH_RESERVE');
       setReturnReason('Merchant Closed Business');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deviceSerial, preset]);
+  }
 
-  // Auto-populate linked SIM serial from SIM Card inventory when not yet saved on device customFields
+  // Auto-populate linked SIM serial from SIM Card inventory after the drawer slide-in animation completes
   useEffect(() => {
     if (!device || device.customFields?.simNumber) return;
     let cancelled = false;
-    fetchSerialsPage({ code: 'SIM', search: device.serial, page: 1, pageSize: 5 })
-      .then(({ rows }) => {
-        if (cancelled) return;
-        const linkedSim = rows.find(
-          (r) => (r.deviceSerial || '').trim().toUpperCase() === device.serial.trim().toUpperCase()
-        );
-        if (linkedSim?.serial) {
-          setCustomFieldValues((prev) =>
-            prev.simNumber ? prev : { ...prev, simNumber: linkedSim.serial }
+    const timer = setTimeout(() => {
+      fetchSerialsPage({ code: 'SIM', search: device.serial, page: 1, pageSize: 5 })
+        .then(({ rows }) => {
+          if (cancelled) return;
+          const linkedSim = rows.find(
+            (r) => (r.deviceSerial || '').trim().toUpperCase() === device.serial.trim().toUpperCase()
           );
-        }
-      })
-      .catch(() => {
-        // Non-critical lookup; keep user-entered value or blank
-      });
+          if (linkedSim?.serial) {
+            setCustomFieldValues((prev) =>
+              prev.simNumber ? prev : { ...prev, simNumber: linkedSim.serial }
+            );
+          }
+        })
+        .catch(() => {
+          // Non-critical lookup; keep user-entered value or blank
+        });
+    }, 220);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [device?.serial]);
 

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WHILE_TAP_BUTTON } from '../utils/animationRules';
 import {
   RightDrawerFrame,
+  getCachedDeviceBySerialMap,
   SIM_HEADER_CLS,
   SIM_ICON_BOX_CLS,
   SIM_HEADER_TAG_CLS,
@@ -80,30 +81,19 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const [status, setStatus] = useState<SerialStatus>('BRANCH_RESERVE');
-  const [branchId, setBranchId] = useState('100');
-  const [assignedDeviceSerial, setAssignedDeviceSerial] = useState('');
+  const [status, setStatus] = useState<SerialStatus>(() => item?.status || 'BRANCH_RESERVE');
+  const [branchId, setBranchId] = useState(() => item?.branchId || myBranch || '100');
+  const [assignedDeviceSerial, setAssignedDeviceSerial] = useState(() => item?.deviceSerial || '');
   const [deviceSearch, setDeviceSearch] = useState('');
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(() => item?.note || '');
 
-  const meta = item ? materialByCode.get(item.code) : undefined;
-  const targetDeviceType = meta?.deviceType === 'SB' ? 'Sound Box' : meta?.deviceType === 'POS' ? 'POS Terminal' : null;
-
-  const deviceBySerialMap = useMemo(() => {
-    const map = new Map<string, Device>();
-    for (let i = 0; i < devices.length; i++) {
-      const d = devices[i];
-      map.set(d.serial.toUpperCase(), d);
-    }
-    return map;
-  }, [devices]);
-
-  const assignedDevice = useMemo(
-    () => (assignedDeviceSerial ? deviceBySerialMap.get(assignedDeviceSerial.toUpperCase()) : undefined),
-    [deviceBySerialMap, assignedDeviceSerial],
+  const [syncedItemKey, setSyncedItemKey] = useState<string>(() =>
+    item && isOpen ? `${item.code}|${item.serial}|${item.status}|${item.branchId}` : '',
   );
-
-  useEffect(() => {
+  const currentItemKey =
+    item && isOpen ? `${item.code}|${item.serial}|${item.status}|${item.branchId}` : '';
+  if (currentItemKey !== syncedItemKey) {
+    setSyncedItemKey(currentItemKey);
     if (item && isOpen) {
       setStep('CONFIG');
       setErrorMsg('');
@@ -113,7 +103,17 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
       setDeviceSearch('');
       setNote(item.note || '');
     }
-  }, [item, isOpen, myBranch]);
+  }
+
+  const meta = item ? materialByCode.get(item.code) : undefined;
+  const targetDeviceType = meta?.deviceType === 'SB' ? 'Sound Box' : meta?.deviceType === 'POS' ? 'POS Terminal' : null;
+
+  const deviceBySerialMap = useMemo(() => getCachedDeviceBySerialMap(devices), [devices]);
+
+  const assignedDevice = useMemo(
+    () => (assignedDeviceSerial ? deviceBySerialMap.get(assignedDeviceSerial.toUpperCase()) : undefined),
+    [deviceBySerialMap, assignedDeviceSerial],
+  );
 
   const deferredSearch = useDeferredValue(deviceSearch);
   const matchedDevices = useMemo(() => {
