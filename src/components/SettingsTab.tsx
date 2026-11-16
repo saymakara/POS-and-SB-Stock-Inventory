@@ -1920,7 +1920,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           id="modal-field-required"
                           checked={modalFieldRequired}
                           onChange={(e) => setModalFieldRequired(e.target.checked)}
-                          className="w-4 h-4 accent-[#003857] cursor-pointer"
+                          className="w-4 h-4 accent-[#155484] cursor-pointer"
                         />
                         <label
                           htmlFor="modal-field-required"
@@ -2812,7 +2812,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <button
                       type="button"
                       onClick={() => setRgChatId(tgConfigChatId)}
-                      className="text-[11px] text-[#003857] hover:underline cursor-pointer"
+                      className="text-[11px] text-[#155484] hover:underline cursor-pointer"
                     >
                       Use default ID ({tgConfigChatId})
                     </button>
@@ -2871,7 +2871,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               setRgBranchCodes((prev) => prev.filter((c) => c !== b.code));
                             }
                           }}
-                          className="w-4 h-4 accent-[#003857] rounded cursor-pointer"
+                          className="w-4 h-4 accent-[#155484] rounded cursor-pointer"
                         />
                         <span className="truncate">
                           Code <strong>{b.code}</strong> — {b.name}

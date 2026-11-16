@@ -266,7 +266,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
             {/* Installation Date */}
             <div>
               <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#003857]" />
+                <Calendar className="w-3.5 h-3.5 text-[#155484]" />
                 <span>Battery Change / Installation Date *</span>
               </label>
               <input
@@ -295,7 +295,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
                     onClick={() => setReason(r)}
                     className={`p-2 rounded-xl border text-left text-[11px] font-semibold transition cursor-pointer ${
                       reason === r
-                        ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
+                        ? 'bg-[#155484] text-white border-[#155484] shadow-xs'
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                     }`}
                   >

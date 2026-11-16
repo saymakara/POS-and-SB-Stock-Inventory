@@ -797,7 +797,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                   </div>
                   <label className="flex flex-col gap-1">
                     <span className="text-slate-500 font-semibold">Reason (required)</span>
-                    <textarea rows={3} maxLength={500} value={rejectText} onChange={(e) => setRejectText(e.target.value)} className="khmer rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none focus:border-[#003857]" />
+                    <textarea rows={3} maxLength={500} value={rejectText} onChange={(e) => setRejectText(e.target.value)} className="khmer rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none focus:border-[#155484]" />
                   </label>
                 </div>
                 <div className={SIM_FOOTER_CLS}>
@@ -955,7 +955,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                         type="button"
                         onClick={rerunAutoMatch}
                         title="Fill each line with the oldest available Head Office unit of that type (FIFO)"
-                        className="px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 cursor-pointer bg-[#003857] hover:bg-[#002a42] text-white transition shadow-xs text-xs"
+                        className="px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 cursor-pointer bg-[#155484] hover:bg-[#114670] text-white transition shadow-xs text-xs"
                       >
                         <Wand2 className="w-3.5 h-3.5" />
                         <span>Auto-Match from HO Stock</span>
@@ -981,7 +981,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     />
                     <div className="flex items-center justify-between gap-2">
                       <span className={`text-[11px] ${subtextClass}`}>Serials fill the free lines by type. Units not in Head Office stock are reported, not added.</span>
-                      <button type="button" disabled={!serialText.trim()} onClick={() => applySerialList(serialText)} className="px-3 py-1.5 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-40 cursor-pointer">Match serials</button>
+                      <button type="button" disabled={!serialText.trim()} onClick={() => applySerialList(serialText)} className="px-3 py-1.5 rounded-lg bg-[#155484] hover:bg-[#114670] text-white disabled:opacity-40 cursor-pointer">Match serials</button>
                     </div>
                     {serialReport.length > 0 && (
                       <ul role="status" className="text-[11px] space-y-0.5">
@@ -1057,7 +1057,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                                 }
                                 className={`w-full rounded-lg px-3 py-2 text-xs border ${
                                   isLight
-                                    ? 'bg-white border-slate-300 text-[#002f49] focus:border-[#003857]'
+                                    ? 'bg-white border-slate-300 text-[#002f49] focus:border-[#155484]'
                                     : 'bg-[#001a2c] border-[#003b5c] text-white focus:border-sky-400'
                                 }`}
                               />
@@ -1078,7 +1078,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                                     }
                                     className={`w-full rounded-lg px-3 py-2 text-xs font-mono font-normal border ${
                                       isLight
-                                        ? 'bg-white border-slate-300 text-[#002f49] focus:border-[#003857]'
+                                        ? 'bg-white border-slate-300 text-[#002f49] focus:border-[#155484]'
                                         : 'bg-[#001a2c] border-[#003b5c] text-white focus:border-sky-400'
                                     }`}
                                   >
@@ -1114,7 +1114,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                                 }
                                 className={`w-full rounded-lg px-3 py-2 text-xs font-mono font-bold border ${
                                   isLight
-                                    ? 'bg-white border-slate-300 text-slate-900 focus:border-[#003857]'
+                                    ? 'bg-white border-slate-300 text-slate-900 focus:border-[#155484]'
                                     : 'bg-black/20 border-white/10 text-white focus:border-sky-400'
                                 }`}
                               />
@@ -1157,7 +1157,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs cursor-pointer flex items-center gap-2 transition"
+                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-xs cursor-pointer flex items-center gap-2 transition"
                     >
                       <span>Review Dispatch (Step 2 Preview)</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -1252,7 +1252,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     <button
                       type="button"
                       onClick={handleFinalDispatch}
-                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs cursor-pointer flex items-center gap-2 transition"
+                      className="px-5 py-2 rounded-lg text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-xs cursor-pointer flex items-center gap-2 transition"
                     >
                       <Truck className="w-3.5 h-3.5" />
                       <span>Confirm &amp; Dispatch to Branch Code {arrangingReq.branchId}</span>

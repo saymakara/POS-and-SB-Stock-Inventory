@@ -1624,7 +1624,7 @@ return (
                             );
                             setReplaceModalDevice(null);
                           }}
-                          className="px-4 py-1.5 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer disabled:opacity-40"
+                          className="px-4 py-1.5 rounded-xl text-xs font-extrabold bg-[#155484] hover:bg-[#114670] text-white shadow-xs transition cursor-pointer disabled:opacity-40"
                         >
                           Confirm Device Replacement &amp; Update Front Table
                         </button>
@@ -1760,7 +1760,7 @@ return (
                               setSelectedMid(null);
                               onOpenWorkflow(dev.serial);
                             }}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#003857] hover:bg-[#002a42] text-white transition-all active:scale-95 shrink-0 cursor-pointer shadow-xs"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#155484] hover:bg-[#114670] text-white transition-all active:scale-95 shrink-0 cursor-pointer shadow-xs"
                           >
                             Update Lifecycle
                           </button>
@@ -1948,7 +1948,7 @@ return (
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-md bg-[#003857]/10 dark:bg-sky-500/20 text-[#003857] dark:text-sky-300 flex items-center justify-center shrink-0">
+                      <div className="w-5 h-5 rounded-md bg-[#155484]/10 dark:bg-sky-500/20 text-[#155484] dark:text-sky-300 flex items-center justify-center shrink-0">
                         <RotateCcw className="w-3 h-3" />
                       </div>
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
@@ -1986,7 +1986,7 @@ return (
                       onClick={() => setTerminateDestination('BRANCH_RESERVE')}
                       className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition cursor-pointer ${
                         terminateDestination === 'BRANCH_RESERVE'
-                          ? 'bg-[#003857] text-white border-[#003857] ring-2 ring-[#003857]/20 shadow-xs'
+                          ? 'bg-[#155484] text-white border-[#155484] ring-2 ring-[#155484]/20 shadow-xs'
                           : isLight
                           ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                           : 'bg-[#18191e] hover:bg-[#252730] text-slate-300 border-slate-700'
@@ -2010,7 +2010,7 @@ return (
                       onClick={() => setTerminateDestination('HQ_STOCK')}
                       className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition cursor-pointer ${
                         terminateDestination === 'HQ_STOCK'
-                          ? 'bg-[#003857] text-white border-[#003857] ring-2 ring-[#003857]/20 shadow-xs'
+                          ? 'bg-[#155484] text-white border-[#155484] ring-2 ring-[#155484]/20 shadow-xs'
                           : isLight
                           ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                           : 'bg-[#18191e] hover:bg-[#252730] text-slate-300 border-slate-700'

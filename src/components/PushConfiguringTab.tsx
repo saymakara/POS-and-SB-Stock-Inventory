@@ -2224,7 +2224,7 @@ return (
                       {/* Operator Badge */}
                       <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-[#003857]/10 dark:bg-sky-500/15 flex items-center justify-center text-[#003857] dark:text-sky-300 shrink-0 font-bold">
+                          <div className="w-8 h-8 rounded-xl bg-[#155484]/10 dark:bg-sky-500/15 flex items-center justify-center text-[#155484] dark:text-sky-300 shrink-0 font-bold">
                             <User className="w-4 h-4" />
                           </div>
                           <div>
@@ -2281,7 +2281,7 @@ return (
                               pusherPasswordError
                                 ? 'border-rose-500 focus:border-rose-500 bg-rose-50/40 text-rose-900 dark:text-rose-200'
                                 : isLight
-                                ? 'bg-white hover:bg-slate-50/50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
+                                ? 'bg-white hover:bg-slate-50/50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#155484]/10 focus:border-[#155484]'
                                 : 'bg-[#121620] hover:bg-[#181d2a] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400'
                             }`}
                           />

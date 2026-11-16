@@ -1490,10 +1490,10 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     <PillMotion
                       layoutId="batch-import-method-pill"
                       transition={SPRING_TAB_PILL}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className="absolute inset-0 rounded-lg bg-[#155484] shadow-2xs pointer-events-none"
                     />
                   )}
-                  <FileSpreadsheet className={`w-3.5 h-3.5 relative z-10 ${method === 'tableCsv' ? 'text-white' : 'text-[#003857] dark:text-sky-400'}`} />
+                  <FileSpreadsheet className={`w-3.5 h-3.5 relative z-10 ${method === 'tableCsv' ? 'text-white' : 'text-[#155484] dark:text-sky-400'}`} />
                   <span className="relative z-10">Method A: Table CSV Import</span>
                 </button>
                 <button
@@ -1511,7 +1511,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     <PillMotion
                       layoutId="batch-import-method-pill"
                       transition={SPRING_TAB_PILL}
-                      className="absolute inset-0 rounded-lg tab-active-blue shadow-2xs pointer-events-none"
+                      className="absolute inset-0 rounded-lg bg-[#155484] shadow-2xs pointer-events-none"
                     />
                   )}
                   <Layers className={`w-3.5 h-3.5 relative z-10 ${method === 'paste' ? 'text-white' : 'text-indigo-500'}`} />
@@ -1584,7 +1584,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
               >
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-[#003857]/10 dark:bg-sky-400/10 text-[#003857] dark:text-sky-300">
+                    <span className="p-1.5 rounded-lg bg-[#155484]/10 dark:bg-sky-400/10 text-[#155484] dark:text-sky-300">
                       <Building2 className="w-3.5 h-3.5" />
                     </span>
                     <div>
@@ -1688,7 +1688,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     onClick={() => fileInputRef.current?.click()}
                     className={`relative overflow-hidden p-4 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-3.5 select-none ${
                       isDragging
-                        ? 'border-[#003857] dark:border-sky-400 bg-sky-50 dark:bg-sky-950/40 ring-4 ring-sky-500/20 scale-[1.01]'
+                        ? 'border-[#155484] dark:border-sky-400 bg-sky-50 dark:bg-sky-950/40 ring-4 ring-sky-500/20 scale-[1.01]'
                         : isLight
                         ? 'border-slate-300/80 bg-slate-50/60 hover:bg-slate-100/70 hover:border-slate-400'
                         : 'border-slate-700/80 bg-slate-900/40 hover:bg-slate-900/70 hover:border-slate-600'
@@ -1696,14 +1696,14 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   >
                     {/* Active Drag Overlay */}
                     {isDragging && (
-                      <div className="absolute inset-0 z-20 flex items-center justify-center gap-3 bg-[#003857]/90 dark:bg-[#002a42]/95 text-white backdrop-blur-xs font-bold text-sm pointer-events-none animate-in fade-in duration-150">
+                      <div className="absolute inset-0 z-20 flex items-center justify-center gap-3 bg-[#155484]/90 dark:bg-[#114670]/95 text-white backdrop-blur-xs font-bold text-sm pointer-events-none animate-in fade-in duration-150">
                         <Upload className="w-6 h-6 animate-bounce text-sky-300" />
                         <span>Drop your CSV or TXT file here to upload</span>
                       </div>
                     )}
 
                     <div className={`flex items-center gap-3 w-full sm:w-auto ${isDragging ? 'pointer-events-none' : ''}`}>
-                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#1e5b88] to-[#003857] text-white shadow-xs shrink-0">
+                      <div className="p-2.5 rounded-xl bg-[#155484] text-white shadow-xs shrink-0">
                         <Upload className="w-5 h-5" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -1742,7 +1742,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           e.stopPropagation();
                           fileInputRef.current?.click();
                         }}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#155484] hover:bg-[#114670] text-white shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
                       >
                         <Upload className="w-3.5 h-3.5" />
                         <span>Browse File</span>
@@ -1818,7 +1818,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                                 onClick={() => handleSelectStage(cKey)}
                                 className={`px-2.5 py-1 rounded-lg font-semibold text-[11px] transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                                   isSelected
-                                    ? 'bg-[#003857] text-white shadow-2xs'
+                                    ? 'bg-[#155484] text-white shadow-2xs'
                                     : isLight
                                     ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                                     : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
@@ -1853,7 +1853,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleDownloadTemplate(currentInspectCycle)}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[#003857] dark:text-sky-400 hover:border-slate-400 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[#155484] dark:text-sky-400 hover:border-slate-400 transition flex items-center gap-1 cursor-pointer shadow-2xs"
                           >
                             <FileSpreadsheet className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                             <span>Download {currentInspectSchema.tag} CSV</span>
@@ -2144,7 +2144,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 onDragLeave={method === 'tableCsv' ? handleDragLeave : undefined}
                 onDrop={method === 'tableCsv' ? handleDrop : undefined}
                 className={`border rounded-2xl overflow-hidden shadow-2xs transition-all ${
-                  isDragging && method === 'tableCsv' ? 'ring-2 ring-[#003857] border-[#003857]' : ''
+                  isDragging && method === 'tableCsv' ? 'ring-2 ring-[#155484] border-[#155484]' : ''
                 } ${
                   isLight ? 'border-slate-200/90' : 'border-slate-800'
                 }`}
@@ -2157,7 +2157,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                   }`}
                 >
                   <div className="font-bold flex items-center gap-2 flex-wrap">
-                    <span className="p-1 rounded-lg bg-[#003857]/10 dark:bg-sky-400/10 text-[#003857] dark:text-sky-300">
+                    <span className="p-1 rounded-lg bg-[#155484]/10 dark:bg-sky-400/10 text-[#155484] dark:text-sky-300">
                       <FileSpreadsheet className="w-3.5 h-3.5" />
                     </span>
                     <span className="text-slate-800 dark:text-slate-200 font-bold">
@@ -2210,11 +2210,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                             <PillMotion
                               layoutId="batch-stage-filter-pill"
                               aria-hidden
-                              className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                              className="absolute inset-0 rounded-lg bg-[#155484] border border-white/10 shadow-xs z-0 pointer-events-none"
                               transition={SPRING_TAB_PILL}
                             />
                           )}
-                          <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${stageFilter === 'ALL' ? 'bg-white' : 'bg-[#003857]'}`} aria-hidden />
+                          <span className={`w-1.5 h-1.5 rounded-full relative z-10 shrink-0 ${stageFilter === 'ALL' ? 'bg-white' : 'bg-[#155484]'}`} aria-hidden />
                           <span className="relative z-10">All ({activeStagedBatch.length})</span>
                         </button>
                         {(['HQ_STOCK', 'BRANCH_RESERVE', 'CONFIGURING', 'COMPLETE'] as IntakeCycle[]).map((cKey) => {
@@ -2244,7 +2244,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                                 <PillMotion
                                   layoutId="batch-stage-filter-pill"
                                   aria-hidden
-                                  className="absolute inset-0 rounded-lg tab-active-blue border border-white/10 shadow-xs z-0 pointer-events-none"
+                                  className="absolute inset-0 rounded-lg bg-[#155484] border border-white/10 shadow-xs z-0 pointer-events-none"
                                   transition={SPRING_TAB_PILL}
                                 />
                               )}
@@ -2356,7 +2356,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                           >
                             {item.model}
                           </td>
-                          <td className="py-1.5 px-3 font-mono font-semibold text-[#003857] dark:text-sky-300 whitespace-nowrap">
+                          <td className="py-1.5 px-3 font-mono font-semibold text-[#155484] dark:text-sky-300 whitespace-nowrap">
                             {item.batterySerial || '—'}
                           </td>
                           <td
@@ -2543,7 +2543,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     if (validItems.length > 0 && !isUploadHalted) setBatchStep('PREVIEW');
                   }}
                   disabled={validItems.length === 0 || isUploadHalted}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#003857] hover:bg-[#002a42] text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-xs cursor-pointer flex items-center gap-2"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#155484] hover:bg-[#114670] text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-xs cursor-pointer flex items-center gap-2"
                 >
                   <span>Review Intake Batch (Step 2 Preview)</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -2780,7 +2780,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 type="button"
                 onClick={() => void handleCommit()}
                 disabled={validItems.length === 0 || isUploadHalted || isCommittingBatches}
-                className="px-6 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white transition shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white transition shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <span>

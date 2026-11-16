@@ -331,7 +331,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                 <div className={SIM_CARD_CLS}>
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      <Building2 className="w-4 h-4 text-[#003857] dark:text-sky-400" />
+                      <Building2 className="w-4 h-4 text-[#155484] dark:text-sky-400" />
                       <span>1. Choose Material Step</span>
                     </div>
                     <span className="text-[10.5px] text-slate-500">Follows paired device &amp; MID</span>
@@ -356,7 +356,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                           }}
                           className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
                             active
-                              ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
+                              ? 'bg-[#155484] text-white border-[#155484] shadow-xs'
                               : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border-slate-200'
                           }`}
                         >
@@ -407,7 +407,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                           value={branchId}
                           disabled={!isAdmin}
                           onChange={(e) => setBranchId(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-800 outline-none focus:border-[#003857]"
+                          className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-800 outline-none focus:border-[#155484]"
                         >
                           <option value="100">100 · Head Office</option>
                           {branches
@@ -469,7 +469,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                                 type="button"
                                 onClick={() => handleSelectDevice(d.serial)}
                                 className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 text-xs transition cursor-pointer ${
-                                  selected ? 'bg-sky-50 text-[#003857] font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                                  selected ? 'bg-sky-50 text-[#155484] font-semibold' : 'hover:bg-slate-50 text-slate-700'
                                 }`}
                               >
                                 <div className="min-w-0">
@@ -480,7 +480,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                                     {d.merchantName || 'Unassigned Merchant'} {d.mid ? `· MID: ${d.mid}` : ''} · {d.branchName || placeName(d.branchId, branches)}
                                   </div>
                                 </div>
-                                <span className="text-[11px] font-bold text-[#003857] shrink-0">
+                                <span className="text-[11px] font-bold text-[#155484] shrink-0">
                                   {selected ? 'Selected' : 'Select'}
                                 </span>
                               </button>

@@ -1047,7 +1047,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <div className={SIM_CARD_CLS}>
                 <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Layers className="w-4 h-4 text-[#003857] dark:text-sky-400 shrink-0" />
+                    <Layers className="w-4 h-4 text-[#155484] dark:text-sky-400 shrink-0" />
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 truncate">
                       1. Choose Hardware Step
                     </h4>
@@ -1067,7 +1067,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       }}
                       className={`appearance-none rounded-lg pl-2.5 pr-6 py-1 text-[11px] font-semibold border outline-none cursor-pointer transition ${
                         isLight
-                          ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 focus:border-[#003857]'
+                          ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 focus:border-[#155484]'
                           : 'bg-slate-900 border-slate-700 text-slate-200 focus:border-sky-500'
                       }`}
                     >
@@ -1110,7 +1110,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         }}
                         className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
                           active
-                            ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
+                            ? 'bg-[#155484] text-white border-[#155484] shadow-xs'
                             : isLight
                               ? 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border-slate-200'
                               : 'bg-slate-900/60 hover:bg-slate-800 text-slate-200 border-slate-700'
@@ -1197,7 +1197,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         disabled={!isAdminLike}
                         className={`w-full appearance-none pl-3 pr-8 py-2 rounded-xl border text-xs font-medium cursor-pointer outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                           isLight
-                            ? 'bg-white border-slate-200 text-slate-800 focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10'
+                            ? 'bg-white border-slate-200 text-slate-800 focus:border-[#155484] focus:ring-2 focus:ring-[#155484]/10'
                             : 'bg-slate-900 border-slate-700 text-slate-100 focus:border-sky-500'
                         }`}
                       >
@@ -1213,7 +1213,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 )}
 
                 {!returnMode && stage === 'HQ_STOCK' && (
-                  <div className="px-3 py-2 rounded-xl bg-blue-50/70 dark:bg-sky-950/30 border border-blue-200/80 dark:border-sky-800 text-[11px] text-[#003857] dark:text-sky-200 flex items-center gap-2">
+                  <div className="px-3 py-2 rounded-xl bg-blue-50/70 dark:bg-sky-950/30 border border-blue-200/80 dark:border-sky-800 text-[11px] text-[#155484] dark:text-sky-200 flex items-center gap-2">
                     <Building2 className="w-3.5 h-3.5 shrink-0" />
                     <span>
                       <strong>Available In Stock (Head Office 100)</strong> — Unassigned and ready to be dispatched to any branch.
@@ -1335,7 +1335,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setShowOptionalSetup(true)}
-                          className="text-[11px] font-semibold text-[#003857] dark:text-sky-300 hover:underline cursor-pointer shrink-0"
+                          className="text-[11px] font-semibold text-[#155484] dark:text-sky-300 hover:underline cursor-pointer shrink-0"
                         >
                           + Merchant / Kit Details
                         </button>
@@ -1363,7 +1363,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             onChange={(e) => setStaff(e.target.value)}
                             className={`w-full appearance-none pl-3 pr-8 py-2 rounded-xl border text-xs font-medium cursor-pointer outline-none transition-all ${
                               isLight
-                                ? 'bg-white border-slate-200 text-slate-800 focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10'
+                                ? 'bg-white border-slate-200 text-slate-800 focus:border-[#155484] focus:ring-2 focus:ring-[#155484]/10'
                                 : 'bg-slate-900 border-slate-700 text-slate-100 focus:border-sky-500'
                             }`}
                           >
@@ -1417,7 +1417,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             <button
                               type="button"
                               onClick={() => onChangeBattery(device)}
-                              className="px-2 py-0.5 rounded-md bg-[#003857] hover:bg-[#002b43] text-white text-[10.5px] font-semibold cursor-pointer shrink-0"
+                              className="px-2 py-0.5 rounded-md bg-[#155484] hover:bg-[#114670] text-white text-[10.5px] font-semibold cursor-pointer shrink-0"
                             >
                               Replace Battery
                             </button>
@@ -1440,7 +1440,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           <button
                             type="button"
                             onClick={() => setShowOptionalSetup(true)}
-                            className="text-[11px] font-semibold text-[#003857] dark:text-sky-300 hover:underline cursor-pointer"
+                            className="text-[11px] font-semibold text-[#155484] dark:text-sky-300 hover:underline cursor-pointer"
                           >
                             Edit Details
                           </button>
@@ -1448,7 +1448,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             <button
                               type="button"
                               onClick={() => onChangeBattery(device)}
-                              className="px-2 py-1 rounded-lg bg-[#003857] hover:bg-[#002b43] text-white text-[10.5px] font-semibold cursor-pointer"
+                              className="px-2 py-1 rounded-lg bg-[#155484] hover:bg-[#114670] text-white text-[10.5px] font-semibold cursor-pointer"
                             >
                               Replace Battery
                             </button>
@@ -1851,7 +1851,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             {/* 3. Operational Remarks Card */}
             <div className={SIM_CARD_CLS}>
               <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
-                <FileText className="w-4 h-4 text-[#003857] dark:text-sky-400 shrink-0" />
+                <FileText className="w-4 h-4 text-[#155484] dark:text-sky-400 shrink-0" />
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                   {returnMode || isCompactStockMode ? (stage === 'BRANCH_RESERVE' || hasPosBattery ? '3. Operational Remarks' : '2. Operational Remarks') : '6. Operational Remarks'}
                 </h4>
@@ -1867,7 +1867,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   placeholder="Add context or remarks regarding this unit update..."
                   className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                     isLight
-                      ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10'
+                      ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#155484] focus:ring-2 focus:ring-[#155484]/10'
                       : 'bg-slate-900 border-slate-700 text-white focus:border-sky-500'
                   }`}
                 />

@@ -698,7 +698,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     } space-y-3.5`}
                   >
                     <div className="flex items-center gap-2 pb-2.5 border-b border-slate-200 dark:border-white/10">
-                      <div className="w-7 h-7 rounded-lg bg-[#003857]/10 dark:bg-sky-500/20 text-[#003857] dark:text-sky-300 flex items-center justify-center shrink-0">
+                      <div className="w-7 h-7 rounded-lg bg-[#155484]/10 dark:bg-sky-500/20 text-[#155484] dark:text-sky-300 flex items-center justify-center shrink-0">
                         <Store className="w-4 h-4" />
                       </div>
                       <div>
@@ -715,7 +715,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         Merchant Name
                       </span>
                       <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
-                        <Store className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
+                        <Store className="w-3.5 h-3.5 text-[#155484] dark:text-sky-400 shrink-0" />
                         <span>{dash(selectedRecord.merchantName)}</span>
                       </div>
                     </div>
@@ -921,7 +921,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         }`}
                       >
                         <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
-                          <Building2 className="w-3 h-3 text-[#003857] dark:text-sky-400" /> Branch Office
+                          <Building2 className="w-3 h-3 text-[#155484] dark:text-sky-400" /> Branch Office
                         </span>
                         <span
                           className="font-semibold text-[11px] text-slate-800 dark:text-slate-200 truncate"
@@ -940,9 +940,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-[#003857] dark:text-sky-400" /> In Service Duration
+                          <Clock className="w-3 h-3 text-[#155484] dark:text-sky-400" /> In Service Duration
                         </span>
-                        <span className="font-bold text-xs text-[#003857] dark:text-sky-300">
+                        <span className="font-bold text-xs text-[#155484] dark:text-sky-300">
                           {serviceLength(selectedRecord.installedDate, selectedRecord.returnedDate)}
                         </span>
                       </div>
