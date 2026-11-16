@@ -1,7 +1,23 @@
 import React, { useState, useMemo, useDeferredValue } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WHILE_TAP_BUTTON } from '../utils/animationRules';
-import { RightDrawerFrame, getCachedDeviceBySerialMap } from './RightDrawerShell';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_HEADER_TAG_CLS,
+  SIM_HEADER_SUBTAG_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_SUBHEADER_CLS,
+  SIM_BODY_CLS,
+  SIM_CARD_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+  simStepPillCls,
+  simStepNumCls,
+  getCachedDeviceBySerialMap,
+} from './RightDrawerShell';
 import {
   CreditCard, X, Check, Copy, ArrowRight, ArrowLeft, RefreshCw,
   Cpu, Volume2, AlertTriangle, Layers, Building2,
@@ -307,10 +323,10 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
         ariaLabel={`Manage SIM Card ${simSerial}`}
       >
           {/* 1. NAVY HEADER BAR */}
-          <div className="bg-[#155484] rounded-tl-lg text-white px-5 py-3.5 shrink-0 shadow-sm border-b border-white/10">
+          <div className={SIM_HEADER_CLS}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-xl bg-white/10 text-[#5cc8ff] shrink-0 border border-white/10 shadow-xs">
+                <div className={SIM_ICON_BOX_CLS}>
                   <CreditCard className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
@@ -343,14 +359,14 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/12 text-sky-100 border border-white/10">
+                    <span className={SIM_HEADER_TAG_CLS}>
                       SIM Card
                     </span>
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/12 text-slate-100 border border-white/10">
+                    <span className={SIM_HEADER_SUBTAG_CLS}>
                       {SIM_STEP_LABEL[status] || SERIAL_STATUS_LABEL[status]}
                     </span>
                   </div>
-                  <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                  <p className="text-[11.5px] text-slate-200/85 truncate mt-0.5">
                     Custody: {branchNameDisplay} · {assignedDevice ? `${assignedDevice.type} (${assignedDevice.serial})` : 'Unassigned Pool'}
                   </p>
                 </div>
@@ -359,7 +375,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-white/15 text-slate-200 hover:text-white transition cursor-pointer shrink-0"
+                className={SIM_CLOSE_BTN_CLS}
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
@@ -399,35 +415,23 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
           </div>
 
           {/* 2. SUBHEADER STEPPER & QUICK LIFECYCLE BAR */}
-          <div className="px-5 py-2 bg-white dark:bg-slate-800/80 border-b border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap shrink-0">
+          <div className={SIM_SUBHEADER_CLS}>
             <div className="flex items-center gap-1.5 text-xs">
               <button
                 type="button"
                 onClick={() => setStep('CONFIG')}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition cursor-pointer ${
-                  step === 'CONFIG'
-                    ? 'bg-[#155484] text-white shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
+                className={simStepPillCls(step === 'CONFIG')}
               >
-                <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                  step === 'CONFIG' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>1</span>
+                <span className={simStepNumCls(step === 'CONFIG')}>1</span>
                 <span>Configure</span>
               </button>
               <ArrowRight className="w-3 h-3 text-slate-300" />
               <button
                 type="button"
                 onClick={() => setStep('REVIEW')}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition cursor-pointer ${
-                  step === 'REVIEW'
-                    ? 'bg-[#155484] text-white shadow-2xs'
-                    : 'text-slate-400 hover:text-slate-700'
-                }`}
+                className={simStepPillCls(step === 'REVIEW')}
               >
-                <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                  step === 'REVIEW' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
-                }`}>2</span>
+                <span className={simStepNumCls(step === 'REVIEW')}>2</span>
                 <span>Impact Review</span>
               </button>
             </div>
@@ -473,11 +477,11 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
           )}
 
           {/* 4. MODAL CONTENT BODY */}
-          <div className="flex-1 overflow-y-auto bg-slate-50/60 dark:bg-slate-900/60 p-4 sm:p-5 space-y-3.5">
+          <div className={SIM_BODY_CLS}>
             {step === 'CONFIG' ? (
               <form id="sim-manage-form" onSubmit={handleProceedToReview} className="space-y-3.5">
                 {/* 1. 3-STEP SIM CONTROL */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
+                <div className={SIM_CARD_CLS}>
                   <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-[#155484] dark:text-sky-400" />
@@ -872,14 +876,14 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
           </div>
 
           {/* 5. MODAL FOOTER ACTIONS */}
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+          <div className={SIM_FOOTER_CLS}>
             {step === 'CONFIG' ? (
               <>
                 <motion.button
                   whileTap={WHILE_TAP_BUTTON}
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+                  className={SIM_BTN_CANCEL_CLS}
                 >
                   Cancel
                 </motion.button>
@@ -887,7 +891,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                   whileTap={WHILE_TAP_BUTTON}
                   type="submit"
                   form="sim-manage-form"
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                  className={SIM_BTN_PRIMARY_CLS}
                 >
                   <span>Review Impact</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -900,7 +904,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                   type="button"
                   onClick={() => setStep('CONFIG')}
                   disabled={saving}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer flex items-center gap-1.5"
+                  className={`${SIM_BTN_CANCEL_CLS} flex items-center gap-1.5`}
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back to Edit</span>
