@@ -57,7 +57,6 @@ import {
 import {
   BarChart3,
   TrendingUp,
-  CheckCircle2,
   ArrowUpRight,
   Cpu,
   Volume2,
@@ -70,7 +69,6 @@ import {
   ScrollText,
   Package,
   RefreshCw,
-  AlertCircle,
   Boxes,
   ChevronRight,
   ChevronLeft,
@@ -2461,14 +2459,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       sparkDays = Array.from(byDayMap.values());
     }
 
-    const reqByDay = new Map<string, number>();
-    for (const r of requisitions) {
-      const ymd = (r.date || '').slice(0, 10);
-      if (ymd) reqByDay.set(ymd, (reqByDay.get(ymd) || 0) + 1);
-    }
-
     const tasksVals = sparkDays.map((p) => p.pos + p.sb + p.khqr + p.mv + p.cc);
-    const approvalVals = sparkDays.map((p) => p.pos + p.sb + p.cc + (p.fullLabel ? reqByDay.get(p.fullLabel) || 0 : 0));
+    const deploymentVals = sparkDays.map((p) => p.pos + p.sb);
     const reachVals = sparkDays.map((p) => p.khqr + p.mv + p.cc);
 
     // Hardware Pool: 6-month cumulative stocked fleet growth (single O(N) pass, falls back to 6M hardware installs)
@@ -2515,11 +2507,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
     return {
       tasks: analyzeSparkTrend(tasksVals, { isLight, unitLabel: 'field tasks' }),
-      approvals: analyzeSparkTrend(approvalVals, { invertSentiment: true, isLight, unitLabel: 'queue intake' }),
+      deployments: analyzeSparkTrend(deploymentVals, { isLight, unitLabel: 'hardware ops' }),
       hardware: analyzeSparkTrend(hwVals, { isLight, unitLabel: '6M fleet' }),
       outreach: analyzeSparkTrend(reachVals, { isLight, unitLabel: 'merchant outreach' }),
     };
-  }, [velocitySeries, kpiData?.dailyStaff, range.toYmd, today, ppDirectoryScope, branchScopedId, requisitions, activeDevices, hardwareSummary.total, isLight]);
+  }, [velocitySeries, kpiData?.dailyStaff, range.toYmd, today, ppDirectoryScope, branchScopedId, activeDevices, hardwareSummary.total, isLight]);
 
   const effDateFrom = range.fromYmd || today;
   const effDateTo = range.toYmd || effDateFrom;
@@ -3031,54 +3023,50 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </div>
 
-          {/* KPI 2: Pending Approvals */}
+          {/* KPI 2: Hardware Deployments */}
           <div className={`${kpiCardClass} rounded-[18px] px-4 py-3.5 flex flex-col justify-between min-w-0`}>
             <div>
               <div className="flex items-center justify-between gap-2">
                 <span data-kpi-title className={`text-xs font-semibold ${kpiSubtextClass}`}>
-                  Pending Approvals
+                  Hardware Deployments
                 </span>
-                {queues.total > 0 ? (
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-amber-500/15 text-amber-600' : 'bg-amber-500/20 text-amber-300'}`}>
-                    <AlertCircle className="w-4 h-4" aria-hidden="true" />
-                  </div>
-                ) : (
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-emerald-500/15 text-emerald-600' : 'bg-emerald-500/20 text-emerald-300'}`}>
-                    <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                  </div>
-                )}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'bg-indigo-500/15 text-indigo-600' : 'bg-indigo-500/20 text-indigo-300'}`}>
+                  <Cpu className="w-4 h-4" aria-hidden="true" />
+                </div>
               </div>
               <div className="mt-2 flex items-end justify-between gap-2">
                 <div className="min-w-0">
                   <div className={`text-2xl sm:text-[27px] font-bold font-figure tabular-nums tracking-tight leading-none ${kpiHeadingClass}`}>
-                    <Odometer value={queues.total} format duration={220} />
+                    <Odometer value={hardwareSummary.installed} format duration={220} />
                   </div>
                   <span
-                    data-kpi-delta="approvals"
+                    data-kpi-delta="deployments"
                     className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-[2px] rounded-full text-[10px] font-figure font-bold leading-none"
                     style={{
-                      color: kpiSparklines.approvals.colorHex,
-                      backgroundColor: `${kpiSparklines.approvals.colorHex}18`,
+                      color: kpiSparklines.deployments.colorHex,
+                      backgroundColor: `${kpiSparklines.deployments.colorHex}18`,
                     }}
                   >
-                    {kpiSparklines.approvals.direction === 'up' ? '▲' : kpiSparklines.approvals.direction === 'down' ? '▼' : '●'}{' '}
-                    {kpiSparklines.approvals.badgeText}
+                    {kpiSparklines.deployments.direction === 'up' ? '▲' : kpiSparklines.deployments.direction === 'down' ? '▼' : '●'}{' '}
+                    {kpiSparklines.deployments.badgeText}
                   </span>
                 </div>
                 <KpiMiniSparkline
-                  metricId="approvals"
-                  summary={kpiSparklines.approvals}
+                  metricId="deployments"
+                  summary={kpiSparklines.deployments}
                   cardBgHex={isLight ? '#f8f9fb' : '#1e2330'}
                 />
               </div>
             </div>
             <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] ${kpiSubtextClass} mt-2.5 pt-2 border-t ${kpiFooterBorderClass}`}>
-              <span>{fmtNum(queues.appTotal)} App · {fmtNum(queues.reqPend)} Stock Req</span>
-              {queues.total > 0 ? (
-                <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-[#8a6a3b]' : 'text-[#d4b078]'}`}>Action needed</span>
-              ) : (
-                <span className={`font-semibold whitespace-nowrap ${isLight ? 'text-[#4a7369]' : 'text-slate-300'}`}>All clear</span>
-              )}
+              <span>{fmtNum(hardwareSummary.posInstalled)} POS · {fmtNum(hardwareSummary.sbInstalled)} SB</span>
+              <button
+                type="button"
+                onClick={() => onNavigateTab?.('merchants')}
+                className={`font-semibold hover:underline cursor-pointer whitespace-nowrap ${isLight ? 'text-[#003857]' : 'text-slate-200'}`}
+              >
+                {fmtNum(hardwareSummary.uniqueMerchants)} merchants
+              </button>
             </div>
           </div>
 
