@@ -436,6 +436,7 @@ interface BranchPerfRow {
   totalTasks: number;
   reserve: number;
   installed: number;
+  dailyTasks: number[];
 }
 
 interface ChannelMixCardProps {
@@ -887,6 +888,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
   maxBranchTasks: _maxBranchTasks,
   onNavigateTab,
 }) => {
+  const reactId = useId();
   const [hoveredBranchCode, setHoveredBranchCode] = useState<string | null>(null);
   const totalTopTasks = useMemo(
     () => branches.reduce((sum, b) => sum + b.totalTasks, 0),
@@ -906,11 +908,22 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
   const midBranches = branches.slice(1, 3);
   const compactBranches = branches.slice(3);
 
-  const renderTile = (b: BranchPerfRow, rankIdx: number, tier: 'hero' | 'mid' | 'compact') => {
+  const renderTile = (b: BranchPerfRow, _rankIdx: number, tier: 'hero' | 'mid' | 'compact') => {
     const isActive = hoveredBranchCode === b.code;
     const sharePct = totalTopTasks > 0 ? ((b.totalTasks / totalTopTasks) * 100).toFixed(1) : '0.0';
     const isHero = tier === 'hero';
     const isCompact = tier === 'compact';
+    const branchColor = isLight ? '#1e6091' : '#38bdf8';
+    const sparkW = isHero ? 74 : isCompact ? 46 : 58;
+    const sparkH = isHero ? 30 : isCompact ? 18 : 22;
+    const sparkVals =
+      b.dailyTasks.length >= 2
+        ? b.dailyTasks
+        : b.dailyTasks.length === 1
+          ? [b.dailyTasks[0], b.dailyTasks[0]]
+          : [0, 0];
+    const paths = buildSmoothSparkPaths(sparkVals, sparkW, sparkH);
+    const gradId = `branch-spark-${reactId.replace(/:/g, '')}-${b.code}`;
 
     return (
       <button
@@ -923,118 +936,88 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
         onBlur={() => setHoveredBranchCode(null)}
         onClick={() => onNavigateTab?.('branches')}
         title={`${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} (${sharePct}%) · KHQR ${fmtNum(b.khqr)} · Sound Box ${fmtNum(b.sb)} · POS Terminal ${fmtNum(b.pos)} · Merchant Visit ${fmtNum(b.mv)} · Credit Card ${fmtNum(b.cc)} · Reserve ${fmtNum(b.reserve)}`}
-        className={`w-full h-full text-left rounded-2xl border flex flex-col justify-between transition-all duration-150 cursor-pointer group ${
-          isHero ? 'p-4' : isCompact ? 'px-2.5 py-2' : 'p-3'
+        className={`w-full h-full text-left rounded-xl border transition-all duration-150 cursor-pointer flex flex-col justify-between gap-1.5 min-w-0 group ${
+          isHero ? 'p-4' : isCompact ? 'px-2.5 py-2' : 'px-3 py-2.5'
         } ${
           isActive
             ? isLight
-              ? 'border-[#1e6091] bg-gradient-to-br from-[#eff6ff]/95 to-white shadow-[0_8px_22px_rgba(30,96,145,0.10)] ring-1 ring-[#1e6091]/25'
-              : 'border-sky-400/75 bg-gradient-to-br from-sky-950/60 to-slate-900 shadow-[0_8px_22px_rgba(2,132,199,0.18)] ring-1 ring-sky-400/20'
+              ? 'shadow-xs'
+              : 'shadow-sm'
             : isLight
-            ? 'border-slate-300/90 bg-slate-50/90 shadow-[0_1px_2px_rgba(15,23,42,0.03)] hover:border-[#1e6091]/55 hover:bg-slate-100/85'
-            : 'border-slate-700/85 bg-slate-900/65 hover:border-sky-500/45 hover:bg-slate-800/75'
+              ? 'bg-slate-50/75 hover:bg-slate-50 border-slate-200/70 hover:border-slate-300/80'
+              : 'bg-slate-800/45 hover:bg-slate-800/75 border-slate-700/60 hover:border-slate-600'
         }`}
+        style={
+          isActive
+            ? {
+                borderColor: branchColor,
+                backgroundColor: isLight ? `${branchColor}12` : `${branchColor}24`,
+              }
+            : undefined
+        }
       >
-        <div className="flex items-center justify-between gap-1.5 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <span
-              className={`inline-flex items-center justify-center rounded-full text-[10px] font-figure font-bold shrink-0 transition-colors ${
-                isHero ? 'w-5 h-5' : 'w-[18px] h-[18px]'
-              } ${
-                isActive
-                  ? isLight
-                    ? 'bg-[#1e6091] text-white'
-                    : 'bg-sky-500 text-slate-950'
-                  : rankIdx < 3
-                  ? isLight
-                    ? 'bg-slate-200/90 text-slate-700'
-                    : 'bg-slate-700 text-slate-200'
-                  : isLight
-                  ? 'bg-slate-200/70 text-slate-600'
-                  : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {rankIdx + 1}
-            </span>
-            <span
-              className={`font-bold tracking-[-0.01em] truncate transition-colors ${
-                isHero ? 'text-[13px]' : isCompact ? 'text-[11.5px]' : 'text-[12px]'
-              } ${
-                isActive
-                  ? isLight
-                    ? 'text-[#004e75]'
-                    : 'text-sky-200'
-                  : isLight
-                  ? 'text-slate-900 group-hover:text-[#1e6091]'
-                  : 'text-slate-100 group-hover:text-sky-300'
-              }`}
-            >
-              {b.name}
-            </span>
-          </div>
-
-          {isHero && (
-            <span
-              className={`text-[10px] font-figure font-bold px-1.5 py-0.5 rounded-full shrink-0 tabular-nums ${
-                isActive
-                  ? isLight
-                    ? 'bg-[#1e6091]/12 text-[#1e6091]'
-                    : 'bg-sky-400/20 text-sky-300'
-                  : isLight
-                  ? 'bg-white/90 border border-slate-200/80 text-slate-600'
-                  : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {sharePct}%
-            </span>
-          )}
+        <div className="flex items-center justify-between gap-1 min-w-0">
+          <span
+            className={`inline-flex items-center gap-1.5 font-semibold min-w-0 ${
+              isHero ? 'text-[12.5px]' : 'text-[10.5px]'
+            } ${isLight ? 'text-slate-700' : 'text-slate-200'}`}
+          >
+            <i
+              className="w-2 h-2 rounded-full inline-block shrink-0"
+              style={{ backgroundColor: branchColor }}
+            />
+            <span className="truncate">{b.name}</span>
+          </span>
         </div>
 
-        <div className={`flex items-baseline justify-between gap-1.5 ${isHero ? 'my-3' : isCompact ? 'my-1' : 'my-2'}`}>
-          <div className="flex items-baseline gap-1.5 min-w-0">
+        <div className="flex items-end justify-between gap-1.5 min-w-0">
+          <div className="min-w-0 flex items-baseline gap-1.5 whitespace-nowrap">
             <span
-              className={`font-figure font-extrabold tracking-[-0.03em] tabular-nums leading-none ${
-                isHero ? 'text-[28px] sm:text-[32px]' : isCompact ? 'text-[16.5px]' : 'text-[20px]'
+              className={`font-bold font-figure leading-none tabular-nums ${
+                isHero ? 'text-[22px] sm:text-[24px]' : isCompact ? 'text-[15px]' : 'text-[16.5px]'
               } ${isLight ? 'text-slate-900' : 'text-white'}`}
             >
               {fmtNum(b.totalTasks)}
             </span>
-            {isHero ? (
-              <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                tasks
-              </span>
-            ) : (
-              <span
-                className={`text-[10px] font-figure font-semibold tabular-nums ${
-                  isActive
-                    ? isLight
-                      ? 'text-[#1e6091]'
-                      : 'text-sky-300'
-                    : isLight
-                    ? 'text-slate-500'
-                    : 'text-slate-400'
-                }`}
-              >
-                {sharePct}%
-              </span>
-            )}
+            <span
+              className={`font-figure font-semibold tabular-nums leading-none ${
+                isHero ? 'text-[11px]' : isCompact ? 'text-[10px]' : 'text-[10.5px]'
+              } ${isLight ? 'text-slate-500' : 'text-slate-400'}`}
+              style={isActive ? { color: isLight ? branchColor : undefined } : undefined}
+            >
+              {sharePct}%
+            </span>
           </div>
-          <span className="text-[10px] font-mono text-slate-400 shrink-0">Code {b.code}</span>
-        </div>
 
-        {isHero && (
-          <div className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10.5px] pt-1 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-            <span>
-              KHQR <strong className="font-figure">{fmtNum(b.khqr)}</strong>
-            </span>
-            <span>
-              POS Terminal <strong className="font-figure">{fmtNum(b.pos)}</strong>
-            </span>
-            <span>
-              Sound Box <strong className="font-figure">{fmtNum(b.sb)}</strong>
-            </span>
-          </div>
-        )}
+          <svg
+            width={isHero ? 74 : isCompact ? 42 : 54}
+            height={isHero ? 30 : isCompact ? 18 : 22}
+            viewBox={`0 0 ${sparkW} ${sparkH}`}
+            className="shrink-0 overflow-visible"
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={branchColor} stopOpacity="0.24" />
+                <stop offset="100%" stopColor={branchColor} stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            {paths.areaPath && (
+              <path d={paths.areaPath} fill={`url(#${gradId})`} stroke="none" />
+            )}
+            {paths.linePath && (
+              <path
+                d={paths.linePath}
+                fill="none"
+                stroke={branchColor}
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
+            <circle cx={paths.lastX} cy={paths.lastY} r="2" fill={branchColor} />
+          </svg>
+        </div>
       </button>
     );
   };
@@ -2367,10 +2350,52 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
     }
 
+    const activeDays = velocitySeries
+      .filter((p) => !p.isFuture && Boolean(p.fullLabel))
+      .map((p) => p.fullLabel!);
+    const sparkDayKeys =
+      activeDays.length > 1
+        ? activeDays
+        : Array.from({ length: 14 }, (_, idx) =>
+            addDaysYmd(range.toYmd && range.toYmd < today ? range.toYmd : today, idx - 13)
+          );
+    const sparkDayIndex = new Map<string, number>(sparkDayKeys.map((d, idx) => [d, idx]));
+    const dailyStaffSrc =
+      (kpiData?.dailyStaff?.length ? kpiData.dailyStaff : undefined) ??
+      getCachedKpiSummary(kpiPeriodRange('MONTH').from, kpiPeriodRange('MONTH').to)?.dailyStaff ??
+      getCachedKpiSummary(null, null)?.dailyStaff ??
+      [];
+    const dailyByBranch = new Map<string, number[]>();
+    for (const ds of dailyStaffSrc) {
+      if (!ds.day) continue;
+      const dayIdx = sparkDayIndex.get(ds.day);
+      if (dayIdx === undefined) continue;
+      const dir = ppDirectoryScope.resolveKpiStaff(ds.staffId, ds.staffName, ds.branchId, ds.branchName);
+      if (!dir) continue;
+      const code = dir.branchId || 'UNASSIGNED';
+      if (code === 'UNASSIGNED') continue;
+      if (branchScopedId && code !== branchScopedId) continue;
+      let arr = dailyByBranch.get(code);
+      if (!arr) {
+        arr = new Array(sparkDayKeys.length).fill(0);
+        dailyByBranch.set(code, arr);
+      }
+      arr[dayIdx] +=
+        (Number(ds.posTasks) || 0) +
+        (Number(ds.sbTasks) || 0) +
+        (Number(ds.khqrTasks) || 0) +
+        (Number(ds.mvTasks) || 0) +
+        (Number(ds.ccTasks) || 0);
+    }
+
     return Array.from(agg.values())
       .sort((a, b) => b.totalTasks - a.totalTasks || b.installed - a.installed || b.reserve - a.reserve)
-      .slice(0, 10);
-  }, [kpiData, branches, allDevices, devices, isAdminLike, ppDirectoryScope, ruleMap, branchScopedId]);
+      .slice(0, 10)
+      .map((row) => ({
+        ...row,
+        dailyTasks: dailyByBranch.get(row.code) || [row.totalTasks, row.totalTasks],
+      }));
+  }, [kpiData, branches, allDevices, devices, isAdminLike, ppDirectoryScope, ruleMap, branchScopedId, velocitySeries, range.toYmd, today]);
 
   // Recent updated serials (fast O(N) top-6 single-pass scan preserved)
   const recentDevices = useKeptMemo('dash.recent', () => {
