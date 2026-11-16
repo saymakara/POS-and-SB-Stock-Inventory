@@ -5159,7 +5159,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight truncate">
+                      <h3 className="text-base font-black text-white leading-tight truncate">
                         {editingBranch
                           ? `Edit Branch Code ${editingBranch.code}`
                           : 'Add New Branch Code'}
@@ -5168,7 +5168,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                         {editingBranch ? 'Update Branch' : 'New Branch'}
                       </span>
                     </div>
-                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                    <p className="text-[11px] font-medium text-white/75 mt-0.5 truncate">
                       Configure branch custody code, official name &amp; assigned staff roster
                     </p>
                   </div>
@@ -5267,14 +5267,14 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight truncate">
+                      <h3 className="text-base font-black text-white leading-tight truncate">
                         {editingUser ? 'Update IAM Account & Role' : 'Create IAM Account'}
                       </h3>
                       <span className={SIM_HEADER_TAG_CLS}>
                         {editingUser ? editingUser.empId : 'New Account'}
                       </span>
                     </div>
-                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                    <p className="text-[11px] font-medium text-white/75 mt-0.5 truncate">
                       Manage workstation role permissions, branch assignment &amp; credentials
                     </p>
                   </div>

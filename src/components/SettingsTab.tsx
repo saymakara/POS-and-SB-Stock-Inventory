@@ -1738,13 +1738,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={SIM_ICON_BOX_CLS}>
-                          <Settings className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
+                          <Settings className="w-4 h-4 text-[#5cc8ff]" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
+                          <h3 className="text-base font-bold text-white truncate">
                             {editingFieldId ? 'Edit Attribute Field' : 'Add New Custom Field'}
                           </h3>
-                          <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                          <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
                             Configure dynamic attributes for hardware inventory and merchant onboarding
                           </p>
                         </div>
@@ -1920,7 +1920,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                           id="modal-field-required"
                           checked={modalFieldRequired}
                           onChange={(e) => setModalFieldRequired(e.target.checked)}
-                          className="w-4 h-4 accent-[#0284c7] cursor-pointer"
+                          className="w-4 h-4 accent-[#003857] cursor-pointer"
                         />
                         <label
                           htmlFor="modal-field-required"
@@ -2767,13 +2767,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={SIM_ICON_BOX_CLS}>
-                    <Users className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
+                    <Users className="w-4 h-4 text-[#5cc8ff]" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
+                    <h3 className="text-base font-bold text-white truncate">
                       {editingRegionalGroup ? 'Edit Regional Telegram Group' : 'Add Regional Telegram Group'}
                     </h3>
-                    <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                    <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
                       Route Telegram push alerts for assigned branch codes
                     </p>
                   </div>
@@ -2812,7 +2812,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <button
                       type="button"
                       onClick={() => setRgChatId(tgConfigChatId)}
-                      className="text-[11px] text-[#0284c7] hover:underline cursor-pointer"
+                      className="text-[11px] text-[#003857] hover:underline cursor-pointer"
                     >
                       Use default ID ({tgConfigChatId})
                     </button>
@@ -2871,7 +2871,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                               setRgBranchCodes((prev) => prev.filter((c) => c !== b.code));
                             }
                           }}
-                          className="w-4 h-4 accent-[#0284c7] rounded cursor-pointer"
+                          className="w-4 h-4 accent-[#003857] rounded cursor-pointer"
                         />
                         <span className="truncate">
                           Code <strong>{b.code}</strong> — {b.name}

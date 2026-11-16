@@ -163,13 +163,13 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className={SIM_ICON_BOX_CLS}>
-                <SendHorizontal className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
+                <SendHorizontal className="w-4 h-4 text-[#5cc8ff]" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                <h3 className="text-base font-bold text-white tracking-tight truncate">
                   Request Branch Reserve Stock
                 </h3>
-                <p className="text-[11.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
                   Request POS Terminal &amp; Sound Box units from Head Office
                 </p>
               </div>
@@ -214,7 +214,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
           </div>
 
           <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#0284c7]" />
+            <ShieldCheck className="w-3.5 h-3.5 text-[#1e5b88]" />
             <span>Double-Step Safeguard</span>
           </div>
         </div>
@@ -227,10 +227,10 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
               <div className="flex flex-col gap-1.5">
                 <label className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
                   <span className="flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-[#0284c7] dark:text-sky-400" />
+                    <Building2 className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
                     <span>Requesting Branch *</span>
                   </span>
-                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-sky-50 text-[#0369a1] dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800">
+                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-300 border border-[#1e5b88]/20">
                     Code 101–801
                   </span>
                 </label>
@@ -248,7 +248,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   </div>
                 ) : (
                 <div className="relative flex items-center">
-                  <div className="absolute left-3 w-6 h-6 rounded-lg bg-sky-50 text-[#0284c7] dark:bg-sky-950/50 dark:text-sky-400 flex items-center justify-center pointer-events-none">
+                  <div className="absolute left-3 w-6 h-6 rounded-lg bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-400 flex items-center justify-center pointer-events-none">
                     <Building2 className="w-3.5 h-3.5" />
                   </div>
                   <select
@@ -257,7 +257,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     onChange={(e) => setSelectedBranchId(e.target.value)}
                     className={`w-full appearance-none rounded-xl pl-11 pr-10 py-2.5 text-xs font-normal border transition cursor-pointer shadow-2xs ${
                       isLight
-                        ? 'bg-slate-50/70 hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0284c7]/20 focus:border-[#0284c7]'
+                        ? 'bg-slate-50/70 hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#1e5b88]/20 focus:border-[#1e5b88]'
                         : 'bg-[#181c26] hover:bg-[#1f2432] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                     }`}
                   >
@@ -287,10 +287,10 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
               <div className="flex flex-col gap-1.5">
                 <label className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
                   <span className="flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-[#0284c7] dark:text-sky-400" />
+                    <User className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
                     <span>Branch Staff Officer *</span>
                   </span>
-                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-sky-50 text-[#0369a1] dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800">
+                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-300 border border-[#1e5b88]/20">
                     {isAdmin
                       ? `${staffList.length} staff officer${staffList.length === 1 ? '' : 's'} assigned`
                       : 'Signed-in officer'}
@@ -308,7 +308,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   </div>
                 ) : (
                 <div className="relative flex items-center">
-                  <div className="absolute left-3 w-6 h-6 rounded-lg bg-sky-50 text-[#0284c7] dark:bg-sky-950/50 dark:text-sky-400 flex items-center justify-center pointer-events-none">
+                  <div className="absolute left-3 w-6 h-6 rounded-lg bg-[#1e5b88]/10 text-[#1e5b88] dark:text-sky-400 flex items-center justify-center pointer-events-none">
                     <User className="w-3.5 h-3.5" />
                   </div>
                   <select
@@ -317,7 +317,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     onChange={(e) => setSelectedStaff(e.target.value)}
                     className={`w-full appearance-none rounded-xl pl-11 pr-10 py-2.5 text-xs font-normal border transition cursor-pointer shadow-2xs ${
                       isLight
-                        ? 'bg-slate-50/70 hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0284c7]/20 focus:border-[#0284c7]'
+                        ? 'bg-slate-50/70 hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#1e5b88]/20 focus:border-[#1e5b88]'
                         : 'bg-[#181c26] hover:bg-[#1f2432] border-slate-700/80 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500'
                     }`}
                   >
@@ -347,14 +347,14 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Boxes className="w-3.5 h-3.5 text-[#0284c7] dark:text-sky-400" />
+                    <Boxes className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
                     <span>Requested Hardware Units *</span>
                   </label>
                   <span
                     className={`text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-lg border transition-all ${
                       totalQty > 0
                         ? isLight
-                          ? 'bg-sky-50 border-sky-200/80 text-[#0369a1] shadow-2xs'
+                          ? 'bg-[#1e5b88]/10 border-[#1e5b88]/25 text-[#1e5b88] shadow-2xs'
                           : 'bg-sky-950/40 border-sky-800/60 text-sky-300 shadow-2xs'
                         : isLight
                         ? 'bg-slate-100 border-slate-200 text-slate-400'
@@ -408,7 +408,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                             )
                           )
                         }
-                        className="w-12 text-center text-xs font-bold font-mono py-1 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#0284c7]"
+                        className="w-12 text-center text-xs font-bold font-mono py-1 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#1e5b88]"
                       />
 
                       <motion.button
@@ -416,7 +416,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         type="button"
                         onClick={() => setPosQty((prev) => Math.min(50, prev + 1))}
                         disabled={posQty >= 50}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center border border-[#0284c7]/20 bg-[#0284c7] hover:bg-[#0369a1] text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-xs"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center border border-white/20 bg-gradient-to-r from-[#1e5b88] to-[#246da1] hover:from-[#1b4f72] hover:to-[#1e5b88] text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-xs"
                         title="Increase POS Quantity"
                         aria-label="Increase POS Quantity"
                       >
@@ -467,7 +467,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                             )
                           )
                         }
-                        className="w-12 text-center text-xs font-bold font-mono py-1 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#0284c7]"
+                        className="w-12 text-center text-xs font-bold font-mono py-1 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#1e5b88]"
                       />
 
                       <motion.button
@@ -475,7 +475,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         type="button"
                         onClick={() => setSbQty((prev) => Math.min(50, prev + 1))}
                         disabled={sbQty >= 50}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center border border-[#0284c7]/20 bg-[#0284c7] hover:bg-[#0369a1] text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-xs"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center border border-white/20 bg-gradient-to-r from-[#1e5b88] to-[#246da1] hover:from-[#1b4f72] hover:to-[#1e5b88] text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-xs"
                         title="Increase Sound Box Quantity"
                         aria-label="Increase Sound Box Quantity"
                       >
@@ -519,7 +519,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
               <div className="flex flex-col gap-1.5">
                 <label className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
                   <span className="flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-[#0284c7] dark:text-sky-400" />
+                    <FileText className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
                     <span>Request Note / Purpose</span>
                   </span>
                   <span className="text-[10px] text-slate-400 font-medium">
@@ -533,7 +533,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   placeholder="Specify the purpose for requesting reserve hardware units..."
                   className={`w-full rounded-xl px-3.5 py-2.5 text-xs border focus:outline-none transition resize-none shadow-2xs ${
                     isLight
-                      ? 'bg-slate-50/70 hover:bg-slate-50 border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-1 focus:ring-[#0284c7] focus:border-[#0284c7]'
+                      ? 'bg-slate-50/70 hover:bg-slate-50 border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-1 focus:ring-[#1e5b88] focus:border-[#1e5b88]'
                       : 'bg-[#181c26] hover:bg-[#1f2432] border-slate-700/80 text-white placeholder:text-slate-500 focus:ring-1 focus:ring-sky-500 focus:border-sky-500'
                   }`}
                 />
@@ -549,7 +549,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                         onClick={() => setReason(qr)}
                         className={`text-[11px] px-2.5 py-1 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
                           isSelected
-                            ? 'bg-[#0284c7] border-[#0284c7] text-white font-bold shadow-xs'
+                            ? 'bg-gradient-to-r from-[#1e5b88] to-[#246da1] border-[#1e5b88] text-white font-bold shadow-xs'
                             : isLight
                             ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200/90'
                             : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-slate-400'
@@ -566,7 +566,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
               </div>
               {/* Pinned Action Footer Bar */}
               <div className={SIM_FOOTER_CLS}>
-                <div className="flex flex-col gap-0.5 text-[11px] font-mono font-bold text-[#0369a1] dark:text-sky-300">
+                <div className="flex flex-col gap-0.5 text-[11px] font-mono font-bold text-[#1e5b88] dark:text-sky-300">
                   <span>Staging {posQty} POS &amp; {sbQty} Sound Box{matTotal ? ` + ${matTotal} material(s)` : ''}</span>
                   {formError && (
                     <span role="alert" className="font-sans text-[11px] text-rose-600 dark:text-rose-400">
@@ -608,7 +608,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     : 'bg-gradient-to-r from-sky-950/30 to-indigo-950/20 border-sky-800/60 text-sky-100'
                 }`}
               >
-                <ShieldCheck className="w-5 h-5 text-[#0284c7] dark:text-sky-400 shrink-0 mt-0.5" />
+                <ShieldCheck className="w-5 h-5 text-[#1e5b88] dark:text-sky-400 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <span className="font-extrabold text-xs block">
                     Step 2 of 2: Requisition Pre-Dispatch Verification
@@ -639,7 +639,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 <div className="p-3 flex items-center justify-between">
                   <span className="text-slate-500 font-medium">POS Terminal Units:</span>
                   <div className="text-right">
-                    <span className="font-mono font-bold text-[#0284c7] dark:text-sky-400">
+                    <span className="font-mono font-bold text-[#1e5b88] dark:text-sky-400">
                       {posQty} unit(s)
                     </span>
                     {posQty > 0 && <span className="block text-[10.5px] text-slate-500 font-normal">Includes {posQty} bundled battery &amp; adaptor</span>}
@@ -665,7 +665,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                 )}
                 <div className="p-3 flex items-center justify-between bg-slate-100/60 dark:bg-black/20 font-bold">
                   <span>Total Units to Dispatch:</span>
-                  <span className="font-mono text-sm text-[#0369a1] dark:text-sky-300">
+                  <span className="font-mono text-sm text-[#1e5b88] dark:text-sky-300">
                     {totalQty} Units
                   </span>
                 </div>

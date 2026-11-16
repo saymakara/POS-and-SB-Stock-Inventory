@@ -1030,18 +1030,18 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={SIM_ICON_BOX_CLS}>
-                          <Building2 className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
+                          <Building2 className="w-4 h-4 text-[#5cc8ff]" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                            <h3 className="text-base font-bold text-white tracking-tight truncate">
                               {inspectedBranch.name}
                             </h3>
                             <span className={SIM_HEADER_TAG_CLS}>
                               Branch Code {inspectedBranch.code}
                             </span>
                           </div>
-                          <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                          <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
                             Branch inventory hub · {isAdminLike ? 'Inspect stock, staff & edit branch details' : 'Assigned staff & live hardware allocation'}
                           </p>
                         </div>
@@ -1064,8 +1064,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                             }}
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition inline-flex items-center gap-1 cursor-pointer ${
                               editOpen
-                                ? 'bg-[#0284c7] text-white border-[#0284c7]'
-                                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 dark:bg-white/12 dark:hover:bg-white/20 dark:text-white dark:border-white/20'
+                                ? 'bg-white text-[#155484] border-white'
+                                : 'bg-white/12 hover:bg-white/20 text-white border-white/20'
                             }`}
                           >
                             <Edit3 className="w-3 h-3" />
@@ -1137,11 +1137,11 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           }
                         }}
                         className={`p-4 rounded-2xl border space-y-3 ${
-                          isLight ? 'bg-sky-50/50 border-[#0284c7]/25 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
+                          isLight ? 'bg-sky-50/50 border-[#155484]/25 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-[#0284c7] dark:text-sky-300 flex items-center gap-1.5">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-[#155484] dark:text-sky-300 flex items-center gap-1.5">
                             <Edit3 className="w-3.5 h-3.5" />
                             <span>Edit Branch Code {inspectedBranch.code}</span>
                           </h4>
@@ -1157,7 +1157,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                               required
                               value={editName}
                               onChange={(e) => setEditName(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl text-xs border bg-white border-slate-200 text-slate-900 outline-none focus:border-[#0284c7]"
+                              className="w-full px-3 py-2 rounded-xl text-xs border bg-white border-slate-200 text-slate-900 outline-none focus:border-[#155484]"
                             />
                           </div>
                           <div>
@@ -1169,7 +1169,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                               value={editStaff}
                               onChange={(e) => setEditStaff(e.target.value)}
                               placeholder="e.g. SOK Dara (27811), NI Oudomroth (10811)"
-                              className="w-full px-3 py-2 rounded-xl text-xs border bg-white border-slate-200 text-slate-900 outline-none focus:border-[#0284c7]"
+                              className="w-full px-3 py-2 rounded-xl text-xs border bg-white border-slate-200 text-slate-900 outline-none focus:border-[#155484]"
                             />
                           </div>
                         </div>
@@ -1184,7 +1184,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                           <button
                             type="submit"
                             disabled={editSaving || !editName.trim()}
-                            className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#0284c7] hover:bg-[#0369a1] text-white cursor-pointer disabled:opacity-50 transition shadow-2xs"
+                            className="px-4 py-1.5 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#114670] text-white cursor-pointer disabled:opacity-50 transition shadow-2xs"
                           >
                             {editSaving ? 'Saving…' : 'Save Changes'}
                           </button>
@@ -1199,7 +1199,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                       }`}>
                         <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 dark:border-white/[0.06]">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-sky-50 text-[#0284c7] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-lg bg-[#155484]/10 text-[#155484] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
                               <Users className="w-3.5 h-3.5" />
                             </div>
                             <div>
@@ -1247,7 +1247,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                       }`}>
                         <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 dark:border-white/[0.06]">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-sky-50 text-[#0284c7] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-lg bg-[#155484]/10 text-[#155484] dark:bg-sky-400/10 dark:text-sky-400 flex items-center justify-center shrink-0">
                               <Package className="w-3.5 h-3.5" />
                             </div>
                             <div>
@@ -1266,7 +1266,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                               setInspectedBranchCode(null);
                               onSelectBranchFilter(inspectedBranch.code);
                             }}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#0284c7] hover:bg-[#0369a1] text-white shadow-2xs transition flex items-center gap-1 cursor-pointer shrink-0"
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#155484] hover:bg-[#114670] text-white shadow-2xs transition flex items-center gap-1 cursor-pointer shrink-0"
                             title="Filter stock inventory ledger to this branch"
                           >
                             <span>Open in Ledger</span>

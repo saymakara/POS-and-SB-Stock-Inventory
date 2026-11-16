@@ -69,16 +69,16 @@ export const CopyableRecordId: React.FC<CopyableRecordIdProps> = ({
         onClick={handleCopy}
         className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-[11px] font-medium border transition cursor-pointer select-none active:scale-95 ${
           copied
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-300'
-            : 'bg-sky-50 hover:bg-sky-100 border-sky-200/90 text-[#0369a1] dark:bg-sky-950/60 dark:hover:bg-sky-900/60 dark:border-sky-800 dark:text-sky-300'
+            ? 'bg-emerald-500/30 border-emerald-300/40 text-emerald-200'
+            : 'bg-white/15 hover:bg-white/25 border-white/20 text-white'
         } ${className}`}
         title={title || (copied ? `Copied: ${id}` : `Click to copy ${id}`)}
       >
         <span>{id}</span>
         {copied ? (
-          <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden />
+          <Check className="w-3 h-3 text-emerald-300 shrink-0" aria-hidden />
         ) : (
-          <Copy className="w-3 h-3 text-[#0284c7]/75 dark:text-sky-400 shrink-0" aria-hidden />
+          <Copy className="w-3 h-3 text-white/70 shrink-0" aria-hidden />
         )}
       </button>
     );

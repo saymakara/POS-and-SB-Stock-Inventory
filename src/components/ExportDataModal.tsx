@@ -350,13 +350,13 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className={SIM_ICON_BOX_CLS}>
-                <Download className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
+                <Download className="w-4 h-4 text-[#5cc8ff]" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                <h3 className="text-base font-bold text-white tracking-tight truncate">
                   Export Reports &amp; Data
                 </h3>
-                <p className="text-[11.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
                   {canExport
                     ? (canExportJson
                     ? 'Download CSV spreadsheets (open in Excel) or a JSON system snapshot'
@@ -391,7 +391,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="mt-1 px-4 py-2 rounded-xl text-xs font-bold bg-[#0284c7] hover:bg-[#0369a1] text-white cursor-pointer"
+              className="mt-1 px-4 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002b43] text-white cursor-pointer"
             >
               Close
             </button>

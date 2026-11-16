@@ -2147,13 +2147,13 @@ return (
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={SIM_ICON_BOX_CLS}>
-                          <Lock className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
+                          <Lock className="w-4 h-4 text-[#5cc8ff]" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                          <h3 className="text-base font-bold text-white tracking-tight truncate">
                             Confirm Telegram Broadcast
                           </h3>
-                          <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                          <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
                             Authorize deployment alert to branch technician groups
                           </p>
                         </div>
@@ -2224,7 +2224,7 @@ return (
                       {/* Operator Badge */}
                       <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-500/15 flex items-center justify-center text-[#0284c7] dark:text-sky-300 shrink-0 font-bold">
+                          <div className="w-8 h-8 rounded-xl bg-[#003857]/10 dark:bg-sky-500/15 flex items-center justify-center text-[#003857] dark:text-sky-300 shrink-0 font-bold">
                             <User className="w-4 h-4" />
                           </div>
                           <div>
@@ -2281,7 +2281,7 @@ return (
                               pusherPasswordError
                                 ? 'border-rose-500 focus:border-rose-500 bg-rose-50/40 text-rose-900 dark:text-rose-200'
                                 : isLight
-                                ? 'bg-white hover:bg-slate-50/50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#0284c7]/10 focus:border-[#0284c7]'
+                                ? 'bg-white hover:bg-slate-50/50 border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#003857]/10 focus:border-[#003857]'
                                 : 'bg-[#121620] hover:bg-[#181d2a] border-slate-700 text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400'
                             }`}
                           />

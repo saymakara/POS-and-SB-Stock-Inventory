@@ -126,13 +126,13 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className={SIM_ICON_BOX_CLS}>
-                <BatteryCharging className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <BatteryCharging className="w-4 h-4 text-emerald-300" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-white truncate">
+                <h3 className="text-base font-bold tracking-tight text-white truncate">
                   Replace Battery from Old to New
                 </h3>
-                <p className="text-[11.5px] text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">
+                <p className="text-[11.5px] text-slate-300 font-mono truncate mt-0.5">
                   {device.serial} · {device.model} · Branch Code {device.branchId}
                 </p>
               </div>
@@ -175,7 +175,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
           </div>
 
           <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#0284c7]" />
+            <ShieldCheck className="w-3.5 h-3.5 text-[#1e5b88]" />
             <span>Double-Step Safeguard</span>
           </div>
         </div>
@@ -266,7 +266,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
             {/* Installation Date */}
             <div>
               <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#0284c7]" />
+                <Calendar className="w-3.5 h-3.5 text-[#003857]" />
                 <span>Battery Change / Installation Date *</span>
               </label>
               <input
@@ -275,7 +275,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
                 max={todayPP()}
                 onChange={(e) => setInstalledDate(e.target.value)}
                 required
-                className="w-full px-3 py-2.5 rounded-xl font-mono text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-slate-900 focus:border-[#0284c7]"
+                className="w-full px-3 py-2.5 rounded-xl font-mono text-xs font-bold border outline-none bg-slate-50 border-slate-200 text-[#002f49]"
               />
               <p className="text-slate-400 text-[10px] mt-1">
                 Resets the POS Terminal battery 24-month replacement lifecycle to start fresh from this date.
@@ -295,7 +295,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
                     onClick={() => setReason(r)}
                     className={`p-2 rounded-xl border text-left text-[11px] font-semibold transition cursor-pointer ${
                       reason === r
-                        ? 'bg-[#0284c7] text-white border-[#0284c7] shadow-xs'
+                        ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                     }`}
                   >
@@ -382,7 +382,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               {/* After */}
               <div className="p-3.5 rounded-2xl border bg-sky-50/60 border-sky-300 space-y-2.5">
                 <div className="flex items-center justify-between pb-1.5 border-b border-sky-200">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#0284c7] flex items-center gap-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#1e5b88] flex items-center gap-1">
                     <Sparkles className="w-3 h-3 text-sky-500" />
                     <span>New Replacement</span>
                   </span>
@@ -391,19 +391,19 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-[#0284c7] font-semibold block uppercase">Serial</span>
-                  <span className="font-mono font-bold text-xs text-slate-900">{newBatterySerial.trim()}</span>
+                  <span className="text-[10px] text-[#1e5b88] font-semibold block uppercase">Serial</span>
+                  <span className="font-mono font-bold text-xs text-[#002f49]">{newBatterySerial.trim()}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-[#0284c7] font-semibold block uppercase">Fresh Lifespan</span>
+                  <span className="text-[10px] text-[#1e5b88] font-semibold block uppercase">Fresh Lifespan</span>
                   <span className="font-bold text-xs text-emerald-700">0 / 24 months (100% Fresh)</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-[#0284c7] font-semibold block uppercase">New Install Date</span>
-                  <span className="font-mono text-[11px] text-slate-900">{installedDate}</span>
+                  <span className="text-[10px] text-[#1e5b88] font-semibold block uppercase">New Install Date</span>
+                  <span className="font-mono text-[11px] text-[#002f49]">{installedDate}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-[#0284c7] font-semibold block uppercase">New 24M Expiry</span>
+                  <span className="text-[10px] text-[#1e5b88] font-semibold block uppercase">New 24M Expiry</span>
                   <span className="font-mono text-[11px] text-emerald-700 font-bold">{calculateNewDueDate(installedDate)}</span>
                 </div>
               </div>

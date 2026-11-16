@@ -66,22 +66,22 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className={SIM_ICON_BOX_CLS}>
-                <Search className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
+                <Search className="w-4 h-4 text-[#5cc8ff]" />
               </div>
               <div className="min-w-0">
-                <div className="text-base font-bold text-slate-900 dark:text-white truncate">Everything about &ldquo;{query.trim()}&rdquo;</div>
-                <div className="text-[11.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Stock Inventory, Merchant History, Stock Requests, Merchant App &amp; Audit</div>
+                <div className="text-base font-bold text-white truncate">Everything about &ldquo;{query.trim()}&rdquo;</div>
+                <div className="text-[11.5px] text-slate-300 truncate mt-0.5">Stock Inventory, Merchant History, Stock Requests, Merchant App &amp; Audit</div>
               </div>
             </div>
             <button type="button" onClick={onClose} className={SIM_CLOSE_BTN_CLS} aria-label="Close"><X className="w-4 h-4" /></button>
           </div>
         </div>
         <div className={SIM_BODY_CLS}>
-          <Section icon={<Cpu className="w-3.5 h-3.5 text-[#0284c7]" />} title="Stock Inventory (current status)" count={units.length}>
+          <Section icon={<Cpu className="w-3.5 h-3.5 text-[#003857]" />} title="Stock Inventory (current status)" count={units.length}>
             {units.map((u) => (
               <div key={u.serial} className="rounded-lg border border-slate-100 p-2.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" className="font-mono text-[#0284c7] hover:underline cursor-pointer" onClick={() => { onClose(); onOpenDevice(u.serial); }}>{u.serial}</button>
+                  <button type="button" className="font-mono text-[#003857] hover:underline cursor-pointer" onClick={() => { onClose(); onOpenDevice(u.serial); }}>{u.serial}</button>
                   <span className="px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 text-[10px]">{STAGE_META[u.stage]?.short || u.stage}</span>
                   <span className="text-slate-500">{u.type} · {u.model}</span>
                 </div>
