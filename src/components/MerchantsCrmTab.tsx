@@ -1415,7 +1415,7 @@ return (
                           setSelectedMid(null);
                           handleOpenBindModal(target);
                         }}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/12 hover:bg-white/20 text-white border border-white/15 inline-flex items-center gap-1 transition cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/15 hover:bg-white/25 text-white inline-flex items-center gap-1 transition cursor-pointer"
                         title="Bind an additional POS Terminal or Sound Box to this merchant store"
                       >
                         <Plus className="w-3 h-3" />

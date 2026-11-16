@@ -70,7 +70,7 @@ export const CopyableRecordId: React.FC<CopyableRecordIdProps> = ({
         className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-[11px] font-medium border transition cursor-pointer select-none active:scale-95 ${
           copied
             ? 'bg-emerald-500/30 border-emerald-300/40 text-emerald-200'
-            : 'bg-white/15 hover:bg-white/25 border-white/20 text-white'
+            : 'bg-white/15 hover:bg-white/25 text-white border-transparent'
         } ${className}`}
         title={title || (copied ? `Copied: ${id}` : `Click to copy ${id}`)}
       >

@@ -1064,8 +1064,8 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                             }}
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition inline-flex items-center gap-1 cursor-pointer ${
                               editOpen
-                                ? 'bg-white text-[#155484] border-white'
-                                : 'bg-white/12 hover:bg-white/20 text-white border-white/20'
+                                ? 'bg-white text-[#155484] border-transparent'
+                                : 'bg-white/12 hover:bg-white/20 text-white border-transparent'
                             }`}
                           >
                             <Edit3 className="w-3 h-3" />

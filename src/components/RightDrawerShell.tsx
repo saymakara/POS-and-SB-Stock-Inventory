@@ -10,17 +10,17 @@ import { BACKDROP_VARIANTS, DRAWER_VARIANTS } from '../utils/animationRules';
 
 export const SIM_BACKDROP_CLS = 'fixed inset-0 bg-slate-900/45 will-change-[opacity]';
 export const SIM_DRAWER_BASE_CLS =
-  'relative z-10 w-full h-full shadow-[0_24px_60px_-15px_rgba(15,23,42,0.28)] border border-slate-200/90 dark:border-slate-700/80 flex flex-col my-0 sm:rounded-2xl overflow-hidden transform-gpu will-change-transform origin-right';
+  'relative z-10 w-full h-full shadow-[0_24px_60px_-15px_rgba(15,23,42,0.32)] flex flex-col my-0 sm:rounded-2xl overflow-hidden transform-gpu will-change-transform origin-right';
 export const SIM_DRAWER_WIDTH_STD = 'sm:max-w-[560px] md:max-w-[580px]';
 export const SIM_DRAWER_WIDTH_WIDE = 'sm:max-w-2xl md:max-w-4xl lg:max-w-5xl';
 export const SIM_HEADER_CLS =
-  'bg-gradient-to-r from-[#134e7b] to-[#196096] sm:rounded-t-2xl text-white px-5 py-4 shrink-0 border-b border-white/15';
+  'bg-gradient-to-r from-[#134e7b] to-[#196096] sm:rounded-t-2xl text-white px-5 py-4 shrink-0';
 export const SIM_ICON_BOX_CLS =
-  'p-2.5 rounded-xl bg-white/12 text-[#7dd3fc] shrink-0 border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] flex items-center justify-center';
+  'p-2.5 rounded-xl bg-white/12 text-[#7dd3fc] shrink-0 flex items-center justify-center';
 export const SIM_HEADER_TAG_CLS =
-  'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/15 text-sky-50 border border-white/15 whitespace-nowrap';
+  'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/15 text-sky-50 whitespace-nowrap';
 export const SIM_HEADER_SUBTAG_CLS =
-  'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/15 text-slate-100 border border-white/15 whitespace-nowrap';
+  'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/15 text-slate-100 whitespace-nowrap';
 export const SIM_CLOSE_BTN_CLS =
   'p-1.5 rounded-xl hover:bg-white/15 text-slate-200 hover:text-white transition-colors cursor-pointer shrink-0';
 export const SIM_SUBHEADER_CLS =
