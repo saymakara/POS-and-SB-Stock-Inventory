@@ -1438,20 +1438,20 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={SIM_ICON_BOX_CLS}>
                       {pendingBulkAction.type === 'ASSIGN' ? (
-                        <Building2 className="w-4 h-4 text-[#5cc8ff]" />
+                        <Building2 className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
                       ) : pendingBulkAction.type === 'RETURN_ADMIN' ? (
-                        <RotateCcw className="w-4 h-4 text-[#5cc8ff]" />
+                        <RotateCcw className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
                       ) : pendingBulkAction.type === 'REMOVE' || pendingBulkAction.type === 'DELETE' ? (
-                        <Trash2 className="w-4 h-4 text-rose-300" />
+                        <Trash2 className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                       ) : (
-                        <ArchiveRestore className="w-4 h-4 text-[#5cc8ff]" />
+                        <ArchiveRestore className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
                       )}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-base font-bold tracking-tight text-white truncate">
+                      <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-white truncate">
                         {pendingBulkAction.title}
                       </h3>
-                      <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
+                      <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                         Step 2 of 2: Impact Review &amp; Batch Confirmation
                       </p>
                     </div>
@@ -1482,7 +1482,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#1e5b88]" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#0284c7]" />
                   <span>Double-Step Active</span>
                 </div>
               </div>

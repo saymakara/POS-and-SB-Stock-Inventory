@@ -622,19 +622,19 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={SIM_ICON_BOX_CLS}>
-                      <Store className="w-4 h-4 text-[#5cc8ff]" />
+                      <Store className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <h3 className="text-base font-bold text-white tracking-tight truncate">
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
                           {dash(selectedRecord.merchantName)}
                         </h3>
                         <CopyableRecordId id={selectedRecord.recordId} variant="pill" onCopied={(id) => onToast?.(`Copied Record ID: ${id}`)} />
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-500/30 text-rose-100 border border-rose-300/30">
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800">
                           Decommissioned
                         </span>
                       </div>
-                      <p className="text-[11.5px] text-slate-300 font-mono mt-0.5 truncate">
+                      <p className="text-[11.5px] text-slate-500 dark:text-slate-400 font-mono mt-0.5 truncate">
                         15D MID: {selectedRecord.mid} · Branch Code {selectedRecord.branchId} ({selectedRecord.branchName})
                       </p>
                     </div>
@@ -698,7 +698,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     } space-y-3.5`}
                   >
                     <div className="flex items-center gap-2 pb-2.5 border-b border-slate-200 dark:border-white/10">
-                      <div className="w-7 h-7 rounded-lg bg-[#003857]/10 dark:bg-sky-500/20 text-[#003857] dark:text-sky-300 flex items-center justify-center shrink-0">
+                      <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-500/20 text-[#0284c7] dark:text-sky-300 flex items-center justify-center shrink-0">
                         <Store className="w-4 h-4" />
                       </div>
                       <div>
@@ -715,7 +715,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         Merchant Name
                       </span>
                       <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
-                        <Store className="w-3.5 h-3.5 text-[#003857] dark:text-sky-400 shrink-0" />
+                        <Store className="w-3.5 h-3.5 text-[#0284c7] dark:text-sky-400 shrink-0" />
                         <span>{dash(selectedRecord.merchantName)}</span>
                       </div>
                     </div>
@@ -921,7 +921,7 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                         }`}
                       >
                         <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
-                          <Building2 className="w-3 h-3 text-[#003857] dark:text-sky-400" /> Branch Office
+                          <Building2 className="w-3 h-3 text-[#0284c7] dark:text-sky-400" /> Branch Office
                         </span>
                         <span
                           className="font-semibold text-[11px] text-slate-800 dark:text-slate-200 truncate"
@@ -940,9 +940,9 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-[#003857] dark:text-sky-400" /> In Service Duration
+                          <Clock className="w-3 h-3 text-[#0284c7] dark:text-sky-400" /> In Service Duration
                         </span>
-                        <span className="font-bold text-xs text-[#003857] dark:text-sky-300">
+                        <span className="font-bold text-xs text-[#0284c7] dark:text-sky-300">
                           {serviceLength(selectedRecord.installedDate, selectedRecord.returnedDate)}
                         </span>
                       </div>

@@ -1,7 +1,19 @@
 import React, { useState, useMemo, useDeferredValue } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WHILE_TAP_BUTTON } from '../utils/animationRules';
-import { RightDrawerFrame, getCachedDeviceBySerialMap } from './RightDrawerShell';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_HEADER_TAG_CLS,
+  SIM_HEADER_SUBTAG_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_SUBHEADER_CLS,
+  SIM_BTN_PRIMARY_CLS,
+  simStepPillCls,
+  simStepNumCls,
+  getCachedDeviceBySerialMap,
+} from './RightDrawerShell';
 import {
   CreditCard, X, Check, Copy, ArrowRight, ArrowLeft, RefreshCw,
   Cpu, Volume2, AlertTriangle, Layers, Building2,
@@ -307,24 +319,24 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
         ariaLabel={`Manage SIM Card ${simSerial}`}
       >
           {/* 1. NAVY HEADER BAR */}
-          <div className="bg-[#155484] rounded-tl-lg text-white px-5 py-3.5 shrink-0 shadow-sm border-b border-white/10">
+          <div className={SIM_HEADER_CLS}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-xl bg-white/10 text-[#5cc8ff] shrink-0 border border-white/10 shadow-xs">
+                <div className={SIM_ICON_BOX_CLS}>
                   <CreditCard className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-mono text-base font-bold tracking-tight text-white truncate">
+                    <span className="font-mono text-base font-bold tracking-tight text-slate-900 dark:text-white truncate">
                       {simSerial}
                     </span>
                     <button
                       type="button"
                       onClick={handleCopySerial}
-                      className="p-1 rounded-md hover:bg-white/15 text-slate-300 hover:text-white transition cursor-pointer"
+                      className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
                       title="Copy SIM Number"
                     >
-                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                     {isAdmin && (
                       <button
@@ -335,22 +347,22 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         }}
                         className={`p-1 rounded-md transition cursor-pointer ${
                           isRenaming
-                            ? 'bg-sky-400/25 text-sky-200'
-                            : 'hover:bg-white/15 text-slate-300 hover:text-white'
+                            ? 'bg-sky-100 text-[#0284c7] dark:bg-sky-900/50 dark:text-sky-300'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white'
                         }`}
                         title="Correct SIM Serial Number"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/12 text-sky-100 border border-white/10">
+                    <span className={SIM_HEADER_TAG_CLS}>
                       SIM Card
                     </span>
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/12 text-slate-100 border border-white/10">
+                    <span className={SIM_HEADER_SUBTAG_CLS}>
                       {SIM_STEP_LABEL[status] || SERIAL_STATUS_LABEL[status]}
                     </span>
                   </div>
-                  <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                  <p className="text-[11.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                     Custody: {branchNameDisplay} · {assignedDevice ? `${assignedDevice.type} (${assignedDevice.serial})` : 'Unassigned Pool'}
                   </p>
                 </div>
@@ -359,7 +371,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-white/15 text-slate-200 hover:text-white transition cursor-pointer shrink-0"
+                className={SIM_CLOSE_BTN_CLS}
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
@@ -368,19 +380,19 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
 
             {/* Inline SIM Serial Number Correction (Toggled from Header Pencil Icon) */}
             {isAdmin && isRenaming && (
-              <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center gap-2">
-                <span className="text-[11px] font-medium text-sky-200 shrink-0">Correct SIM:</span>
+              <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2">
+                <span className="text-[11px] font-medium text-[#0284c7] dark:text-sky-300 shrink-0">Correct SIM:</span>
                 <input
                   type="text"
                   value={newSerialInput}
                   onChange={(e) => setNewSerialInput(e.target.value)}
                   placeholder="Corrected SIM Number"
-                  className="flex-1 min-w-0 px-2.5 py-1 rounded-lg bg-white/10 border border-white/20 text-xs font-mono font-bold text-white placeholder:text-slate-400 outline-none focus:border-sky-300"
+                  className="flex-1 min-w-0 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-[#0284c7]"
                 />
                 <button
                   type="button"
                   onClick={handleApplyRename}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-sky-500 hover:bg-sky-400 text-slate-950 transition cursor-pointer shrink-0"
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#0284c7] hover:bg-[#0369a1] text-white transition cursor-pointer shrink-0"
                 >
                   Apply
                 </button>
@@ -390,7 +402,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                     setIsRenaming(false);
                     setNewSerialInput(simSerial);
                   }}
-                  className="px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-white/10 transition cursor-pointer shrink-0"
+                  className="px-2 py-1 rounded-lg text-[11px] font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition cursor-pointer shrink-0"
                 >
                   Cancel
                 </button>
@@ -399,35 +411,23 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
           </div>
 
           {/* 2. SUBHEADER STEPPER & QUICK LIFECYCLE BAR */}
-          <div className="px-5 py-2 bg-white dark:bg-slate-800/80 border-b border-slate-200/90 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap shrink-0">
+          <div className={SIM_SUBHEADER_CLS}>
             <div className="flex items-center gap-1.5 text-xs">
               <button
                 type="button"
                 onClick={() => setStep('CONFIG')}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition cursor-pointer ${
-                  step === 'CONFIG'
-                    ? 'bg-[#003857] text-white shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
+                className={simStepPillCls(step === 'CONFIG')}
               >
-                <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                  step === 'CONFIG' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>1</span>
+                <span className={simStepNumCls(step === 'CONFIG')}>1</span>
                 <span>Configure</span>
               </button>
               <ArrowRight className="w-3 h-3 text-slate-300" />
               <button
                 type="button"
                 onClick={() => setStep('REVIEW')}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition cursor-pointer ${
-                  step === 'REVIEW'
-                    ? 'bg-[#003857] text-white shadow-2xs'
-                    : 'text-slate-400 hover:text-slate-700'
-                }`}
+                className={simStepPillCls(step === 'REVIEW')}
               >
-                <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                  step === 'REVIEW' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
-                }`}>2</span>
+                <span className={simStepNumCls(step === 'REVIEW')}>2</span>
                 <span>Impact Review</span>
               </button>
             </div>
@@ -480,7 +480,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-3">
                   <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-[#003857] dark:text-sky-400" />
+                      <Building2 className="w-4 h-4 text-[#0284c7] dark:text-sky-400" />
                       <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                         1. Choose SIM Step
                       </h3>
@@ -501,7 +501,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                           onClick={() => handleSelectStep(item.value)}
                           className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
                             active
-                              ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
+                              ? 'bg-[#0284c7] text-white border-[#0284c7] shadow-xs'
                               : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border-slate-200'
                           }`}
                         >
@@ -558,7 +558,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                           value={branchId}
                           onChange={(e) => setBranchId(e.target.value)}
                           disabled={!isAdmin && branchId !== myBranch}
-                          className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all disabled:bg-slate-100 disabled:text-slate-400"
+                          className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-[#0284c7]/10 transition-all disabled:bg-slate-100 disabled:text-slate-400"
                         >
                           <option value="100">100 · Head Office</option>
                           {branches
@@ -575,7 +575,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                   )}
 
                   {status === 'HQ_STOCK' && (
-                    <div className="px-3 py-2 rounded-xl bg-blue-50/70 border border-blue-200/80 text-[11px] text-[#003857] flex items-center gap-2">
+                    <div className="px-3 py-2 rounded-xl bg-sky-50/80 border border-sky-200/80 text-[11px] text-[#0369a1] flex items-center gap-2">
                       <Building2 className="w-3.5 h-3.5 shrink-0" />
                       <span>
                         <strong>Available In Stock (Head Office 100)</strong> — Unassigned and ready to be dispatched to any branch.
@@ -614,7 +614,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         onChange={(e) => setDeviceSearch(e.target.value)}
                         aria-label="Search device by Serial or MID"
                         placeholder="Search by Serial Number or MID..."
-                        className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900 text-xs font-mono outline-none focus:bg-white focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
+                        className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900 text-xs font-mono outline-none focus:bg-white focus:border-[#0284c7] focus:ring-2 focus:ring-[#0284c7]/10 transition-all"
                       />
                       {deviceSearch && (
                         <button
@@ -647,7 +647,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                                   setDeviceSearch('');
                                 }}
                                 className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 transition cursor-pointer ${
-                                  selected ? 'bg-sky-50 text-[#003857]' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                                  selected ? 'bg-sky-50 text-[#0369a1]' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
                                 }`}
                               >
                                 <div className="min-w-0">
@@ -761,7 +761,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         onChange={(e) => setBlockedWithCarrier(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="relative w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#003857]"></div>
+                      <div className="relative w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0284c7]"></div>
                     </label>
                   </div>
 
@@ -786,7 +786,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
                       placeholder="Add context or remarks regarding this SIM card update..."
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10 transition-all"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-[#0284c7]/10 transition-all"
                     />
                   </div>
                 </div>
@@ -822,7 +822,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                         <tr>
                           <td className="py-2.5 font-medium text-slate-500">SIM Number</td>
                           <td className="py-2.5 font-mono text-slate-700 dark:text-slate-300">{sim.serial}</td>
-                          <td className="py-2.5 font-mono font-bold text-[#003857] dark:text-sky-300">{simSerial}</td>
+                          <td className="py-2.5 font-mono font-bold text-[#0369a1] dark:text-sky-300">{simSerial}</td>
                         </tr>
                         <tr>
                           <td className="py-2.5 font-medium text-slate-500">Status Stage</td>
@@ -887,7 +887,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
                   whileTap={WHILE_TAP_BUTTON}
                   type="submit"
                   form="sim-manage-form"
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002b43] text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                  className={SIM_BTN_PRIMARY_CLS}
                 >
                   <span>Review Impact</span>
                   <ArrowRight className="w-3.5 h-3.5" />

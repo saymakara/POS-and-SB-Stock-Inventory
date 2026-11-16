@@ -772,24 +772,24 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             <div className="flex items-center gap-3 min-w-0">
               <div className={SIM_ICON_BOX_CLS}>
                 {device.type === 'POS Terminal' ? (
-                  <Cpu className="w-4 h-4 text-[#5cc8ff]" />
+                  <Cpu className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
                 ) : (
-                  <Volume2 className="w-4 h-4 text-[#a2a5e0]" />
+                  <Volume2 className="w-4 h-4 text-indigo-600 dark:text-[#a2a5e0]" />
                 )}
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="font-mono text-base font-bold text-white tracking-tight truncate">
+                  <span className="font-mono text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
                     {device.serial}
                   </span>
                   <button
                     type="button"
                     onClick={handleCopySerial}
-                    className="p-1 rounded-md hover:bg-white/15 text-slate-300 hover:text-white transition cursor-pointer"
+                    className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/15 text-slate-400 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white transition cursor-pointer"
                     title="Copy Hardware Serial"
                     aria-label="Copy hardware serial"
                   >
-                    {copiedSerial ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedSerial ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                   {isAdminLike && onRenameSerial && (
                     <button
@@ -801,8 +801,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       }}
                       className={`p-1 rounded-md transition cursor-pointer ${
                         editingSerial
-                          ? 'bg-sky-400/25 text-sky-200'
-                          : 'hover:bg-white/15 text-slate-300 hover:text-white'
+                          ? 'bg-sky-100 text-[#0284c7] dark:bg-sky-400/25 dark:text-sky-200'
+                          : 'hover:bg-slate-100 dark:hover:bg-white/15 text-slate-400 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white'
                       }`}
                       title="Correct hardware serial number"
                       aria-label="Correct hardware serial number"
@@ -817,7 +817,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     {STAGE_META[device.stage].label}
                   </span>
                 </div>
-                <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                <p className="text-[11.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                   Custody: {currentBranchLabel} · {device.merchantName ? device.merchantName : 'Unassigned Pool'}
                 </p>
               </div>
@@ -835,8 +835,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
           </div>
 
           {isAdminLike && onRenameSerial && editingSerial && (
-            <div className="flex flex-wrap items-center gap-2 mt-3 pt-2.5 border-t border-white/15">
-              <span className="text-[11px] text-sky-200 font-medium">Serial Correction:</span>
+            <div className="flex flex-wrap items-center gap-2 mt-3 pt-2.5 border-t border-slate-200 dark:border-white/15">
+              <span className="text-[11px] text-[#0284c7] dark:text-sky-200 font-medium">Serial Correction:</span>
               <input
                 type="text"
                 value={editedSerial}
@@ -845,7 +845,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   setSerialRenameMsg('');
                 }}
                 aria-label="Edit hardware serial number"
-                className="w-44 rounded-lg px-2.5 py-1 text-xs font-mono font-bold bg-white/10 border border-white/20 text-white placeholder:text-slate-400 focus:outline-none focus:border-sky-300"
+                className="w-44 rounded-lg px-2.5 py-1 text-xs font-mono font-bold bg-slate-50 dark:bg-white/10 border border-slate-300 dark:border-white/20 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#0284c7]"
               />
               <button
                 type="button"
@@ -867,7 +867,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     setRenamingSerial(false);
                   }
                 }}
-                className="px-2.5 py-1 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 text-[11px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-2.5 py-1 rounded-lg bg-[#0284c7] hover:bg-[#0369a1] text-white text-[11px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {renamingSerial ? 'Updating…' : 'Apply'}
               </button>
@@ -878,12 +878,12 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   setEditedSerial(device.serial);
                   setSerialRenameMsg('');
                 }}
-                className="px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-white/10 transition cursor-pointer"
+                className="px-2 py-1 rounded-lg text-[11px] font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10 transition cursor-pointer"
               >
                 Cancel
               </button>
               {serialRenameMsg && (
-                <span className={`text-[11px] font-semibold ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                <span className={`text-[11px] font-semibold ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'}`}>
                   {serialRenameMsg}
                 </span>
               )}
@@ -1047,7 +1047,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <div className={SIM_CARD_CLS}>
                 <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Layers className="w-4 h-4 text-[#003857] dark:text-sky-400 shrink-0" />
+                    <Layers className="w-4 h-4 text-[#0284c7] dark:text-sky-400 shrink-0" />
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 truncate">
                       1. Choose Hardware Step
                     </h4>
@@ -1067,7 +1067,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       }}
                       className={`appearance-none rounded-lg pl-2.5 pr-6 py-1 text-[11px] font-semibold border outline-none cursor-pointer transition ${
                         isLight
-                          ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 focus:border-[#003857]'
+                          ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 focus:border-[#0284c7]'
                           : 'bg-slate-900 border-slate-700 text-slate-200 focus:border-sky-500'
                       }`}
                     >
@@ -1110,7 +1110,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         }}
                         className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
                           active
-                            ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
+                            ? 'bg-[#0284c7] text-white border-[#0284c7] shadow-xs'
                             : isLight
                               ? 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border-slate-200'
                               : 'bg-slate-900/60 hover:bg-slate-800 text-slate-200 border-slate-700'
@@ -1197,7 +1197,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         disabled={!isAdminLike}
                         className={`w-full appearance-none pl-3 pr-8 py-2 rounded-xl border text-xs font-medium cursor-pointer outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                           isLight
-                            ? 'bg-white border-slate-200 text-slate-800 focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10'
+                            ? 'bg-white border-slate-200 text-slate-800 focus:border-[#0284c7] focus:ring-2 focus:ring-[#0284c7]/10'
                             : 'bg-slate-900 border-slate-700 text-slate-100 focus:border-sky-500'
                         }`}
                       >
@@ -1213,7 +1213,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 )}
 
                 {!returnMode && stage === 'HQ_STOCK' && (
-                  <div className="px-3 py-2 rounded-xl bg-blue-50/70 dark:bg-sky-950/30 border border-blue-200/80 dark:border-sky-800 text-[11px] text-[#003857] dark:text-sky-200 flex items-center gap-2">
+                  <div className="px-3 py-2 rounded-xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800 text-[11px] text-[#0369a1] dark:text-sky-200 flex items-center gap-2">
                     <Building2 className="w-3.5 h-3.5 shrink-0" />
                     <span>
                       <strong>Available In Stock (Head Office 100)</strong> — Unassigned and ready to be dispatched to any branch.
@@ -1232,12 +1232,12 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <button type="button" onClick={() => setReturnTo('BRANCH_RESERVE')} aria-pressed={returnTo === 'BRANCH_RESERVE'}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#155484] text-white border-[#155484] shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'BRANCH_RESERVE' ? 'bg-[#0284c7] text-white border-[#0284c7] shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
                         <Building2 className="w-3 h-3" /><span>Branch Code {branchId && branchId !== '100' ? branchId : device.branchId} reserve</span>
                       </button>
                       {isAdminLike ? (
                         <button type="button" onClick={() => setReturnTo('HQ_STOCK')} aria-pressed={returnTo === 'HQ_STOCK'}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'HQ_STOCK' ? 'bg-[#155484] text-white border-[#155484] shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 cursor-pointer ${returnTo === 'HQ_STOCK' ? 'bg-[#0284c7] text-white border-[#0284c7] shadow-xs' : isLight ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300' : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'}`}>
                           <RotateCcw className="w-3 h-3" /><span>Admin HQ stock (Code 100)</span>
                         </button>
                       ) : (
@@ -1268,7 +1268,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         onClick={() => setTerminateDestination('BRANCH_RESERVE')}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
                           terminateDestination === 'BRANCH_RESERVE'
-                            ? 'bg-[#155484] text-white border-[#155484] shadow-xs'
+                            ? 'bg-[#0284c7] text-white border-[#0284c7] shadow-xs'
                             : isLight
                             ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                             : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
@@ -1283,7 +1283,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           onClick={() => setTerminateDestination('HQ_STOCK')}
                           className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition cursor-pointer ${
                             terminateDestination === 'HQ_STOCK'
-                              ? 'bg-[#155484] text-white border-[#155484] shadow-xs'
+                              ? 'bg-[#0284c7] text-white border-[#0284c7] shadow-xs'
                               : isLight
                               ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
                               : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
@@ -1335,7 +1335,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setShowOptionalSetup(true)}
-                          className="text-[11px] font-semibold text-[#003857] dark:text-sky-300 hover:underline cursor-pointer shrink-0"
+                          className="text-[11px] font-semibold text-[#0284c7] dark:text-sky-300 hover:underline cursor-pointer shrink-0"
                         >
                           + Merchant / Kit Details
                         </button>
@@ -1363,7 +1363,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             onChange={(e) => setStaff(e.target.value)}
                             className={`w-full appearance-none pl-3 pr-8 py-2 rounded-xl border text-xs font-medium cursor-pointer outline-none transition-all ${
                               isLight
-                                ? 'bg-white border-slate-200 text-slate-800 focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10'
+                                ? 'bg-white border-slate-200 text-slate-800 focus:border-[#0284c7] focus:ring-2 focus:ring-[#0284c7]/10'
                                 : 'bg-slate-900 border-slate-700 text-slate-100 focus:border-sky-500'
                             }`}
                           >
@@ -1417,7 +1417,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             <button
                               type="button"
                               onClick={() => onChangeBattery(device)}
-                              className="px-2 py-0.5 rounded-md bg-[#003857] hover:bg-[#002b43] text-white text-[10.5px] font-semibold cursor-pointer shrink-0"
+                              className="px-2 py-0.5 rounded-md bg-[#0284c7] hover:bg-[#0369a1] text-white text-[10.5px] font-semibold cursor-pointer shrink-0"
                             >
                               Replace Battery
                             </button>
@@ -1440,7 +1440,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           <button
                             type="button"
                             onClick={() => setShowOptionalSetup(true)}
-                            className="text-[11px] font-semibold text-[#003857] dark:text-sky-300 hover:underline cursor-pointer"
+                            className="text-[11px] font-semibold text-[#0284c7] dark:text-sky-300 hover:underline cursor-pointer"
                           >
                             Edit Details
                           </button>
@@ -1448,7 +1448,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                             <button
                               type="button"
                               onClick={() => onChangeBattery(device)}
-                              className="px-2 py-1 rounded-lg bg-[#003857] hover:bg-[#002b43] text-white text-[10.5px] font-semibold cursor-pointer"
+                              className="px-2 py-1 rounded-lg bg-[#0284c7] hover:bg-[#0369a1] text-white text-[10.5px] font-semibold cursor-pointer"
                             >
                               Replace Battery
                             </button>
@@ -1505,7 +1505,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           onChange={(e) => setStaff(e.target.value)}
                           className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
                             isLight
-                              ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#155484]'
+                              ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#0284c7]'
                               : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                           }`}
                         >
@@ -1545,7 +1545,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         onChange={(e) => setDeployedDate(e.target.value)}
                         className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#155484]'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#0284c7]'
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                         }`}
                       />
@@ -1596,7 +1596,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         placeholder="e.g. Lucky Mart / Heng Heng Coffee"
                         className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:border-[#155484]'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:border-[#0284c7]'
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-500'
                         }`}
                       />
@@ -1630,7 +1630,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                           midError
                             ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/50'
                             : isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#155484]'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#0284c7]'
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                         }`}
                       />
@@ -1702,7 +1702,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                                 }
                                 className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
                                   isLight
-                                    ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#155484]'
+                                    ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#0284c7]'
                                     : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                                 }`}
                               >
@@ -1729,7 +1729,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                               required={field.required && !(field.id === 'merchantPhone' && device.merchantPhone)}
                               className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                                 isLight
-                                  ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:border-[#155484]'
+                                  ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:border-[#0284c7]'
                                   : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white placeholder:text-slate-500 focus:border-sky-500'
                               }`}
                             />
@@ -1791,7 +1791,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         <button
                           type="button"
                           onClick={() => onChangeBattery(device)}
-                          className="px-2.5 py-1 rounded-lg bg-[#155484] hover:bg-[#114670] text-white text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer shadow-2xs"
+                          className="px-2.5 py-1 rounded-lg bg-[#0284c7] hover:bg-[#0369a1] text-white text-[11px] font-semibold flex items-center gap-1 transition cursor-pointer shadow-2xs"
                           title="Open 2-step verification wizard to replace battery from old to new"
                         >
                           <BatteryCharging className="w-3 h-3" />
@@ -1815,7 +1815,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         aria-label="Battery serial number"
                         className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#155484]'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#0284c7]'
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                         }`}
                       />
@@ -1838,7 +1838,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         onChange={(e) => setBatteryInstalledDate(e.target.value)}
                         className={`w-full rounded-xl px-3 py-2 text-xs font-mono font-medium border focus:outline-none transition ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#155484]'
+                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#0284c7]'
                             : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
                         }`}
                       />
@@ -1851,7 +1851,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             {/* 3. Operational Remarks Card */}
             <div className={SIM_CARD_CLS}>
               <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
-                <FileText className="w-4 h-4 text-[#003857] dark:text-sky-400 shrink-0" />
+                <FileText className="w-4 h-4 text-[#0284c7] dark:text-sky-400 shrink-0" />
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                   {returnMode || isCompactStockMode ? (stage === 'BRANCH_RESERVE' || hasPosBattery ? '3. Operational Remarks' : '2. Operational Remarks') : '6. Operational Remarks'}
                 </h4>
@@ -1867,7 +1867,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   placeholder="Add context or remarks regarding this unit update..."
                   className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
                     isLight
-                      ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10'
+                      ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#0284c7] focus:ring-2 focus:ring-[#0284c7]/10'
                       : 'bg-slate-900 border-slate-700 text-white focus:border-sky-500'
                   }`}
                 />
@@ -2115,7 +2115,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between pb-1.5 border-b border-sky-200/80 dark:border-sky-800/80">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#1e5b88] dark:text-sky-300 flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#0284c7] dark:text-sky-300 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-sky-500" />
                     <span>Proposed Update (After / Preview)</span>
                   </span>
@@ -2126,7 +2126,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
                 <div className="space-y-2.5 text-xs">
                   <div>
-                    <span className="text-[10px] text-[#1e5b88] dark:text-sky-300 font-bold block uppercase tracking-wider">
+                    <span className="text-[10px] text-[#0284c7] dark:text-sky-300 font-bold block uppercase tracking-wider">
                       Lifecycle Stage
                     </span>
                     <div className="mt-1 font-bold flex items-center gap-2">
@@ -2134,7 +2134,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                         className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
                         style={{ backgroundColor: STAGE_META[pendingPayload.stage].color }}
                       />
-                      <span className={pendingPayload.stage !== device.stage ? 'text-[#1e5b88] dark:text-sky-300 font-bold' : ''}>
+                      <span className={pendingPayload.stage !== device.stage ? 'text-[#0284c7] dark:text-sky-300 font-bold' : ''}>
                         {STAGE_META[pendingPayload.stage].label}
                       </span>
                       {pendingPayload.stage !== device.stage && (
@@ -2146,10 +2146,10 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   </div>
 
                   <div>
-                    <span className="text-[10px] text-[#1e5b88] dark:text-sky-300 font-bold block uppercase tracking-wider">
+                    <span className="text-[10px] text-[#0284c7] dark:text-sky-300 font-bold block uppercase tracking-wider">
                       Assigned Branch Custody
                     </span>
-                    <div className={`mt-1 font-bold ${pendingPayload.branchId !== device.branchId ? 'text-[#1e5b88] dark:text-sky-300' : ''}`}>
+                    <div className={`mt-1 font-bold ${pendingPayload.branchId !== device.branchId ? 'text-[#0284c7] dark:text-sky-300' : ''}`}>
                       Branch Code {pendingPayload.branchId} — {pendingPayload.branchName}
                       {pendingPayload.branchId !== device.branchId && (
                         <span className="text-[10px] font-bold ml-1.5 px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200">
@@ -2160,7 +2160,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   </div>
 
                   <div>
-                    <span className="text-[10px] text-[#1e5b88] dark:text-sky-300 font-bold block uppercase tracking-wider">
+                    <span className="text-[10px] text-[#0284c7] dark:text-sky-300 font-bold block uppercase tracking-wider">
                       Assigned Staff
                     </span>
                     <div className="mt-1 font-medium">
@@ -2169,14 +2169,14 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   </div>
 
                   <div>
-                    <span className="text-[10px] text-[#1e5b88] dark:text-sky-300 font-bold block uppercase tracking-wider">
+                    <span className="text-[10px] text-[#0284c7] dark:text-sky-300 font-bold block uppercase tracking-wider">
                       Merchant Deployment
                     </span>
                     <div className="mt-1">
                       {pendingPayload.merchantName ? (
                         <>
                           <div className="font-bold text-sky-950 dark:text-white">{pendingPayload.merchantName}</div>
-                          <div className="text-[11px] font-mono text-[#1e5b88] dark:text-sky-300 mt-0.5">
+                          <div className="text-[11px] font-mono text-[#0284c7] dark:text-sky-300 mt-0.5">
                             MID: {pendingPayload.mid || '-'} · TID: {pendingPayload.tid || '-'}
                           </div>
                         </>
@@ -2188,7 +2188,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
                   {activeCustomFields.length > 0 && (
                     <div className="pt-2 border-t border-sky-200/60 dark:border-sky-800/60 space-y-1.5">
-                      <span className="text-[10px] text-[#1e5b88] dark:text-sky-300 font-bold block uppercase tracking-wider">
+                      <span className="text-[10px] text-[#0284c7] dark:text-sky-300 font-bold block uppercase tracking-wider">
                         Configured Attributes
                       </span>
                       <div className="space-y-1">
@@ -2221,7 +2221,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                               <span
                                 className={`truncate text-right flex items-center justify-end gap-1.5 ${
                                   isChanged
-                                    ? 'text-[#1e5b88] dark:text-sky-300 font-bold'
+                                    ? 'text-[#0284c7] dark:text-sky-300 font-bold'
                                     : 'font-semibold text-slate-800 dark:text-slate-200'
                                 }`}
                               >
@@ -2244,7 +2244,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                   )}
 
                   <div>
-                    <span className="text-[10px] text-[#1e5b88] dark:text-sky-300 font-bold block uppercase tracking-wider">
+                    <span className="text-[10px] text-[#0284c7] dark:text-sky-300 font-bold block uppercase tracking-wider">
                       Battery Serial &amp; Age
                     </span>
                     <div className="mt-1 font-mono text-[11px] text-slate-800 dark:text-slate-100">

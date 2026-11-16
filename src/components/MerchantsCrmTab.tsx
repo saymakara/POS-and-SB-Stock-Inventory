@@ -1390,18 +1390,18 @@ return (
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={SIM_ICON_BOX_CLS}>
-                      <Store className="w-4 h-4 text-[#5cc8ff]" />
+                      <Store className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="text-base font-bold tracking-tight text-white truncate" title={selectedMerchantProfile.merchantName}>
+                        <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-white truncate" title={selectedMerchantProfile.merchantName}>
                           {dash(selectedMerchantProfile.merchantName)}
                         </h3>
                         <span className={SIM_HEADER_TAG_CLS}>
                           Merchant 360
                         </span>
                       </div>
-                      <p className="font-mono text-[11.5px] text-slate-300 mt-0.5 truncate">
+                      <p className="font-mono text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                         MID: {selectedMerchantProfile.mid} · Code {selectedMerchantProfile.branchId}
                       </p>
                     </div>
@@ -1415,7 +1415,7 @@ return (
                           setSelectedMid(null);
                           handleOpenBindModal(target);
                         }}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/12 hover:bg-white/20 text-white border border-white/15 inline-flex items-center gap-1 transition cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-sky-50 hover:bg-sky-100 text-[#0369a1] border border-sky-200/80 dark:bg-white/12 dark:hover:bg-white/20 dark:text-white dark:border-white/15 inline-flex items-center gap-1 transition cursor-pointer"
                         title="Bind an additional POS Terminal or Sound Box to this merchant store"
                       >
                         <Plus className="w-3 h-3" />
@@ -1624,7 +1624,7 @@ return (
                             );
                             setReplaceModalDevice(null);
                           }}
-                          className="px-4 py-1.5 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs transition cursor-pointer disabled:opacity-40"
+                          className="px-4 py-1.5 rounded-xl text-xs font-extrabold bg-[#0284c7] hover:bg-[#0369a1] text-white shadow-xs transition cursor-pointer disabled:opacity-40"
                         >
                           Confirm Device Replacement &amp; Update Front Table
                         </button>
@@ -1760,7 +1760,7 @@ return (
                               setSelectedMid(null);
                               onOpenWorkflow(dev.serial);
                             }}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#003857] hover:bg-[#002a42] text-white transition-all active:scale-95 shrink-0 cursor-pointer shadow-xs"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#0284c7] hover:bg-[#0369a1] text-white transition-all active:scale-95 shrink-0 cursor-pointer shadow-xs"
                           >
                             Update Lifecycle
                           </button>
@@ -1794,11 +1794,11 @@ return (
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={SIM_ICON_BOX_CLS}>
-                        <Plus className="w-4 h-4 text-[#5cc8ff]" />
+                        <Plus className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="text-base font-bold text-white truncate">Bind Hardware Serial to Merchant</h3>
-                        <p className="text-[11.5px] text-slate-300 font-mono truncate mt-0.5">
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">Bind Hardware Serial to Merchant</h3>
+                        <p className="text-[11.5px] text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">
                           {bindModalMerchant.mid} — {dash(bindModalMerchant.merchantName)}
                         </p>
                       </div>
@@ -1913,13 +1913,13 @@ return (
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={SIM_ICON_BOX_CLS}>
-                      <RotateCcw className="w-4 h-4 text-[#5cc8ff]" />
+                      <RotateCcw className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-base font-bold text-white truncate">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
                         Return Hardware from Merchant
                       </h3>
-                      <p className="text-[11.5px] text-slate-300 font-mono truncate mt-0.5">
+                      <p className="text-[11.5px] text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">
                         {terminateModalMerchant.mid} — {dash(terminateModalMerchant.merchantName)}
                       </p>
                     </div>
@@ -1948,7 +1948,7 @@ return (
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-md bg-[#003857]/10 dark:bg-sky-500/20 text-[#003857] dark:text-sky-300 flex items-center justify-center shrink-0">
+                      <div className="w-5 h-5 rounded-md bg-sky-50 dark:bg-sky-500/20 text-[#0284c7] dark:text-sky-300 flex items-center justify-center shrink-0">
                         <RotateCcw className="w-3 h-3" />
                       </div>
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
@@ -1986,7 +1986,7 @@ return (
                       onClick={() => setTerminateDestination('BRANCH_RESERVE')}
                       className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition cursor-pointer ${
                         terminateDestination === 'BRANCH_RESERVE'
-                          ? 'bg-[#003857] text-white border-[#003857] ring-2 ring-[#003857]/20 shadow-xs'
+                          ? 'bg-[#0284c7] text-white border-[#0284c7] ring-2 ring-[#0284c7]/20 shadow-xs'
                           : isLight
                           ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                           : 'bg-[#18191e] hover:bg-[#252730] text-slate-300 border-slate-700'
@@ -2010,7 +2010,7 @@ return (
                       onClick={() => setTerminateDestination('HQ_STOCK')}
                       className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition cursor-pointer ${
                         terminateDestination === 'HQ_STOCK'
-                          ? 'bg-[#003857] text-white border-[#003857] ring-2 ring-[#003857]/20 shadow-xs'
+                          ? 'bg-[#0284c7] text-white border-[#0284c7] ring-2 ring-[#0284c7]/20 shadow-xs'
                           : isLight
                           ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                           : 'bg-[#18191e] hover:bg-[#252730] text-slate-300 border-slate-700'
@@ -2174,11 +2174,11 @@ return (
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={SIM_ICON_BOX_CLS}>
-                      <Store className="w-4 h-4 text-[#5cc8ff]" />
+                      <Store className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-base font-bold text-white truncate">Assign Hardware to Merchant (Support &amp; Setup)</h3>
-                      <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">Assign Hardware to Merchant (Support &amp; Setup)</h3>
+                      <p className="text-[11.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                         Link an existing Merchant MID &amp; TID to a reserve POS Terminal or Sound Box
                       </p>
                     </div>

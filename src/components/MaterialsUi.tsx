@@ -66,8 +66,8 @@ export const MaterialDialog: React.FC<{
           <div className={SIM_HEADER_CLS}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 id={id} className="text-base font-bold text-white tracking-tight">{title}</h2>
-                {sub && <p className="text-[11.5px] text-slate-300 mt-0.5">{sub}</p>}
+                <h2 id={id} className="text-base font-bold text-slate-900 dark:text-white tracking-tight">{title}</h2>
+                {sub && <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">{sub}</p>}
               </div>
               <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className={`${SIM_CLOSE_BTN_CLS} disabled:opacity-40`}><X className="w-4 h-4" /></button>
             </div>

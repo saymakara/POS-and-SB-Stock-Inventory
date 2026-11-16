@@ -228,18 +228,18 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className={SIM_ICON_BOX_CLS}>
-                  <MaterialIcon className="w-4 h-4 text-[#5cc8ff]" />
+                  <MaterialIcon className="w-4 h-4 text-[#0284c7] dark:text-[#5cc8ff]" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-mono text-base font-bold tracking-tight text-white truncate">{item.serial}</span>
+                    <span className="font-mono text-base font-bold tracking-tight text-slate-900 dark:text-white truncate">{item.serial}</span>
                     <button
                       type="button"
                       onClick={handleCopy}
-                      className="p-1 rounded-md hover:bg-white/15 text-slate-300 hover:text-white transition cursor-pointer"
+                      className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/15 text-slate-400 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white transition cursor-pointer"
                       title="Copy identifier"
                     >
-                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                     <span className={SIM_HEADER_TAG_CLS}>
                       {materialName(item.code)}
@@ -248,7 +248,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                       {MATERIAL_STEP_LABEL[status]}
                     </span>
                   </div>
-                  <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                  <p className="text-[11.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                     Custody: {branchLabel} · {assignedDevice ? `${assignedDevice.type} (${assignedDevice.serial})` : 'Unassigned Pool'}
                   </p>
                 </div>
@@ -331,7 +331,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                 <div className={SIM_CARD_CLS}>
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      <Building2 className="w-4 h-4 text-[#003857] dark:text-sky-400" />
+                      <Building2 className="w-4 h-4 text-[#0284c7] dark:text-sky-400" />
                       <span>1. Choose Material Step</span>
                     </div>
                     <span className="text-[10.5px] text-slate-500">Follows paired device &amp; MID</span>
@@ -356,7 +356,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                           }}
                           className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
                             active
-                              ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
+                              ? 'bg-[#0284c7] text-white border-[#0284c7] shadow-xs'
                               : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border-slate-200'
                           }`}
                         >
@@ -407,7 +407,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                           value={branchId}
                           disabled={!isAdmin}
                           onChange={(e) => setBranchId(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-800 outline-none focus:border-[#003857]"
+                          className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-800 outline-none focus:border-[#0284c7]"
                         >
                           <option value="100">100 · Head Office</option>
                           {branches
@@ -426,7 +426,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                   <div className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-2.5 shadow-2xs">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-800">
-                        <Smartphone className="w-4 h-4 text-[#155484]" />
+                        <Smartphone className="w-4 h-4 text-[#0284c7]" />
                         <span>2. Bundle with Device (Serial & MID)</span>
                       </div>
                     </div>
@@ -440,7 +440,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                         placeholder="Search by Serial Number or MID..."
                         aria-label="Search device by Serial or MID"
                         disabled={!isAdmin}
-                        className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-[#155484] outline-none transition"
+                        className="w-full pl-9 pr-8 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-[#0284c7] outline-none transition"
                       />
                       {deviceSearch && (
                         <button
@@ -469,7 +469,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                                 type="button"
                                 onClick={() => handleSelectDevice(d.serial)}
                                 className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 text-xs transition cursor-pointer ${
-                                  selected ? 'bg-sky-50 text-[#003857] font-semibold' : 'hover:bg-slate-50 text-slate-700'
+                                  selected ? 'bg-sky-50 text-[#0369a1] font-semibold' : 'hover:bg-slate-50 text-slate-700'
                                 }`}
                               >
                                 <div className="min-w-0">
@@ -480,7 +480,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                                     {d.merchantName || 'Unassigned Merchant'} {d.mid ? `· MID: ${d.mid}` : ''} · {d.branchName || placeName(d.branchId, branches)}
                                   </div>
                                 </div>
-                                <span className="text-[11px] font-bold text-[#003857] shrink-0">
+                                <span className="text-[11px] font-bold text-[#0284c7] shrink-0">
                                   {selected ? 'Selected' : 'Select'}
                                 </span>
                               </button>
@@ -536,7 +536,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                       onChange={(e) => setNote(e.target.value)}
                       placeholder="Optional note or reason for change..."
                       disabled={!isAdmin}
-                      className="w-full px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-[#155484] outline-none"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-[#0284c7] outline-none"
                     />
                   </div>
                 </>
@@ -551,7 +551,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                     </div>
                     <div className="px-3.5 py-2.5 flex justify-between gap-3">
                       <span className="text-slate-500">New Lifecycle Step</span>
-                      <span className="font-bold text-[#155484]">{MATERIAL_STEP_LABEL[status]}</span>
+                      <span className="font-bold text-[#0369a1]">{MATERIAL_STEP_LABEL[status]}</span>
                     </div>
                     <div className="px-3.5 py-2.5 flex justify-between gap-3">
                       <span className="text-slate-500">Branch Custody</span>
