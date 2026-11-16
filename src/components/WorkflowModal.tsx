@@ -917,123 +917,6 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               <span>Impact Review</span>
             </button>
           </div>
-
-          {modalStep === 'EDIT' && hasQuickActions && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {canReturnToReserve && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPendingPayload(
-                      quickMove(
-                        'BRANCH_RESERVE',
-                        'RETURN_BRANCH_RESERVE',
-                        'Return Unit from Merchant to Branch Reserve',
-                        device.branchId,
-                        device.staff || '',
-                        `Returned from merchant ${device.merchantName || ''} back to Branch Reserve`.replace('  ', ' ')
-                      )
-                    );
-                    setModalStep('PREVIEW');
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer inline-flex items-center gap-1 ${
-                    isLight
-                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200/80'
-                      : 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300'
-                  }`}
-                  title="Return unit from merchant to Branch Reserve"
-                >
-                  <Building2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                  <span>Return to Branch Reserve</span>
-                </button>
-              )}
-
-                {canReturnToHq && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isAdminLike && onReturnToAdminStock) {
-                        setPendingPayload(
-                          quickMove(
-                            'HQ_STOCK',
-                            'RETURN_ADMIN_STOCK',
-                            'Return Unit to Head Office Admin Stock (Code 100)',
-                            '100',
-                            operatorLabel.trim(),
-                            'Returned back to Admin HQ Stock (Branch Code 100)'
-                          )
-                        );
-                        setModalStep('PREVIEW');
-                      } else if (onRequestReturnToAdminStock) {
-                        onRequestReturnToAdminStock(
-                          device.serial,
-                          note.trim() || `Branch requested return of ${device.serial} to Admin Stock`
-                        );
-                        onClose();
-                      }
-                    }}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold border transition cursor-pointer ${
-                      isLight
-                        ? 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800'
-                        : 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300'
-                    }`}
-                    title={
-                      isAdminLike
-                        ? 'Return unit back to Head Office Admin Stock'
-                        : 'Submit a return request to Admin HQ for approval'
-                    }
-                  >
-                    <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                    <span>
-                      {isAdminLike
-                        ? 'Return to Admin Stock'
-                        : 'Request Return to Admin Stock'}
-                    </span>
-                  </button>
-                )}
-
-                {isAdminLike && stage === 'CONFIGURING' && onNotifyConfigReady && (
-                  notifyCooldownSecs > 0 ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-not-allowed"
-                      title={`Telegram alert sent! 1-minute cooldown active (${notifyCooldownSecs}s remaining)`}
-                    >
-                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                      <span>Pushed · {notifyCooldownSecs}s</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleNotifyWith2Clicks}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold border transition cursor-pointer ${
-                        confirmingNotify
-                          ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-600 animate-pulse'
-                          : 'bg-sky-50 hover:bg-sky-100 text-sky-800 border-sky-200'
-                      }`}
-                      title={
-                        confirmingNotify
-                          ? `Click 2nd time to confirm Telegram notification (${notifyConfirmSecs}s window)`
-                          : 'Notify Staff & Alert Telegram (Open Device for App Push) — click twice to confirm'
-                      }
-                    >
-                      {confirmingNotify ? (
-                        <>
-                          <AlertCircle className="w-3 h-3 text-amber-100" />
-                          <span>Confirm Push ({notifyConfirmSecs}s)</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-3 h-3 text-sky-700" />
-                          <span>Notify Staff (Telegram)</span>
-                        </>
-                      )}
-                    </button>
-                  )
-                )}
-              </div>
-            )}
           </div>
 
           {modalStep === 'EDIT' ? (
@@ -1875,6 +1758,128 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             </div>
 
             </div>
+
+            {hasQuickActions && (
+              <div className="px-5 py-2.5 bg-white dark:bg-slate-900/95 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap shrink-0">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  Quick Actions
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {canReturnToReserve && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingPayload(
+                          quickMove(
+                            'BRANCH_RESERVE',
+                            'RETURN_BRANCH_RESERVE',
+                            'Return Unit from Merchant to Branch Reserve',
+                            device.branchId,
+                            device.staff || '',
+                            `Returned from merchant ${device.merchantName || ''} back to Branch Reserve`.replace('  ', ' ')
+                          )
+                        );
+                        setModalStep('PREVIEW');
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer inline-flex items-center gap-1 ${
+                        isLight
+                          ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200/80'
+                          : 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300'
+                      }`}
+                      title="Return unit from merchant to Branch Reserve"
+                    >
+                      <Building2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                      <span>Return to Branch Reserve</span>
+                    </button>
+                  )}
+
+                  {canReturnToHq && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isAdminLike && onReturnToAdminStock) {
+                          setPendingPayload(
+                            quickMove(
+                              'HQ_STOCK',
+                              'RETURN_ADMIN_STOCK',
+                              'Return Unit to Head Office Admin Stock (Code 100)',
+                              '100',
+                              operatorLabel.trim(),
+                              'Returned back to Admin HQ Stock (Branch Code 100)'
+                            )
+                          );
+                          setModalStep('PREVIEW');
+                        } else if (onRequestReturnToAdminStock) {
+                          onRequestReturnToAdminStock(
+                            device.serial,
+                            note.trim() || `Branch requested return of ${device.serial} to Admin Stock`
+                          );
+                          onClose();
+                        }
+                      }}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold border transition cursor-pointer ${
+                        isLight
+                          ? 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800'
+                          : 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300'
+                      }`}
+                      title={
+                        isAdminLike
+                          ? 'Return unit back to Head Office Admin Stock'
+                          : 'Submit a return request to Admin HQ for approval'
+                      }
+                    >
+                      <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>
+                        {isAdminLike
+                          ? 'Return to Admin Stock'
+                          : 'Request Return to Admin Stock'}
+                      </span>
+                    </button>
+                  )}
+
+                  {isAdminLike && stage === 'CONFIGURING' && onNotifyConfigReady && (
+                    notifyCooldownSecs > 0 ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-not-allowed"
+                        title={`Telegram alert sent! 1-minute cooldown active (${notifyCooldownSecs}s remaining)`}
+                      >
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                        <span>Pushed · {notifyCooldownSecs}s</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleNotifyWith2Clicks}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold border transition cursor-pointer ${
+                          confirmingNotify
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-600 animate-pulse'
+                            : 'bg-sky-50 hover:bg-sky-100 text-sky-800 border-sky-200'
+                        }`}
+                        title={
+                          confirmingNotify
+                            ? `Click 2nd time to confirm Telegram notification (${notifyConfirmSecs}s window)`
+                            : 'Notify Staff & Alert Telegram (Open Device for App Push) — click twice to confirm'
+                        }
+                      >
+                        {confirmingNotify ? (
+                          <>
+                            <AlertCircle className="w-3 h-3 text-amber-100" />
+                            <span>Confirm Push ({notifyConfirmSecs}s)</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-3 h-3 text-sky-700" />
+                            <span>Notify Staff (Telegram)</span>
+                          </>
+                        )}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* SIM-Style Pinned Action Footer Bar */}
             <div className={SIM_FOOTER_CLS}>

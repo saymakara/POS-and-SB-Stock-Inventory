@@ -14,7 +14,7 @@ export const SIM_DRAWER_BASE_CLS =
 export const SIM_DRAWER_WIDTH_STD = 'sm:max-w-[560px] md:max-w-[580px]';
 export const SIM_DRAWER_WIDTH_WIDE = 'sm:max-w-2xl md:max-w-4xl lg:max-w-5xl';
 export const SIM_HEADER_CLS =
-  'bg-gradient-to-r from-[#134e7b] to-[#196096] sm:rounded-t-2xl text-white px-5 py-4 shrink-0';
+  'bg-[#155484] sm:rounded-t-2xl text-white px-5 py-4 shrink-0';
 export const SIM_ICON_BOX_CLS =
   'p-2.5 rounded-xl bg-white/12 text-[#7dd3fc] shrink-0 flex items-center justify-center';
 export const SIM_HEADER_TAG_CLS =
