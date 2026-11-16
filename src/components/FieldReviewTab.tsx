@@ -67,6 +67,7 @@ const KIND_CARD_META: Record<
   SB_MAINT: { icon: Wrench, iconCls: 'bg-violet-50 text-violet-600 border-violet-200/80' },
   SB_RETURN: { icon: RotateCcw, iconCls: 'bg-rose-50 text-rose-600 border-rose-200/80' },
 };
+import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 const formatKindSummarySub = (stat?: { total: number; pending: number; approved: number; rejected: number }) => {
   if (!stat || stat.total === 0) return 'No records yet';
   const parts: string[] = [];
@@ -1881,11 +1882,11 @@ const ReviewRow = memo(function ReviewRow({
         {isOpen && (
           <motion.div
             key="detail"
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8, transition: { duration: 0.14 } }}
-            transition={SPRING}
-            className="px-5 pb-4 pt-3 grid gap-x-10 gap-y-4 md:grid-cols-2 border-t border-slate-200 bg-slate-50/90"
+            variants={ACCORDION_EXPAND_VARIANTS}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="px-5 pb-4 pt-3 grid gap-x-10 gap-y-4 md:grid-cols-2 border-t border-slate-200 bg-slate-50/90 will-change-[transform,opacity]"
           >
             {onEdit && (e.status === 'PENDING' || e.status === 'APPROVED' || e.status === 'REJECTED') && (
               <div className="md:col-span-2 flex justify-end -mb-2">

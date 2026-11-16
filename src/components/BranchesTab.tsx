@@ -760,7 +760,7 @@ export const BranchesTab: React.FC<BranchesTabProps> = ({
                         {isExpanded && (
                           <tr className="bg-slate-50/90 border-y border-sky-200/60">
                             <td colSpan={11} className="py-4 px-6">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-[detailsFadeIn_150ms_ease-out_both]">
                                 {/* Staff Officers Column */}
                                 <div className="surface-card p-3.5 rounded-xl border border-slate-200 shadow-2xs">
                                   <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100">

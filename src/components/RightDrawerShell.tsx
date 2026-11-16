@@ -108,6 +108,7 @@ export const RightDrawerFrame: React.FC<RightDrawerFrameProps> = ({
   return (
     <div
       className={`fixed inset-0 ${zClass} overflow-hidden flex justify-end`}
+      style={{ animation: 'none' }}
       role={role}
       aria-modal={ariaModal}
       aria-label={ariaLabel}

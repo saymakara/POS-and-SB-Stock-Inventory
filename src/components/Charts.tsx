@@ -63,12 +63,21 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
     };
 
     let observer: ResizeObserver | null = null;
+    let resizeTimer = 0;
+    let first = true;
     if (typeof ResizeObserver !== 'undefined') {
       // (13 Nov 2026, speed) the observer reports the first size itself, after the browser's own layout: reading clientWidth
       // here forced an extra layout of the whole page in the middle of drawing it (~100 ms on a slower laptop at sign-in)
       observer = new ResizeObserver((entries) => {
         const w = Math.round(entries[entries.length - 1]?.contentRect.width || 0);
-        if (w > 0) setContainerWidth((prev) => (prev === w ? prev : w));
+        if (w <= 0) return;
+        if (first) {
+          first = false;
+          setContainerWidth((prev) => (prev === w ? prev : w));
+          return;
+        }
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(() => setContainerWidth((prev) => (prev === w ? prev : w)), 180);
       });
       observer.observe(parent);
     } else {
@@ -78,6 +87,7 @@ export const GroupedBarChart: React.FC<GroupedBarChartProps> = React.memo(({
 
     return () => {
       observer?.disconnect();
+      window.clearTimeout(resizeTimer);
       window.removeEventListener('resize', updateWidth);
       if (hoverRafRef.current !== null) cancelAnimationFrame(hoverRafRef.current);
     };
@@ -448,10 +458,19 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
     if (!parent) return;
 
     let observer: ResizeObserver | null = null;
+    let resizeTimer = 0;
+    let first = true;
     if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver((entries) => {
         const w = Math.round(entries[entries.length - 1]?.contentRect.width || 0);
-        if (w > 0) setContainerWidth((prev) => (prev === w ? prev : w));
+        if (w <= 0) return;
+        if (first) {
+          first = false;
+          setContainerWidth((prev) => (prev === w ? prev : w));
+          return;
+        }
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(() => setContainerWidth((prev) => (prev === w ? prev : w)), 180);
       });
       observer.observe(parent);
     } else {
@@ -463,6 +482,7 @@ export const CrossChannelVelocityChart: React.FC<CrossChannelVelocityChartProps>
 
     return () => {
       observer?.disconnect();
+      window.clearTimeout(resizeTimer);
       if (hoverRafRef.current !== null) cancelAnimationFrame(hoverRafRef.current);
     };
   }, []);

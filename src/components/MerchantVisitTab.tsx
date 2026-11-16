@@ -17,6 +17,7 @@ import { DeleteRecordsDialog, NoCell, SelectBox, useRecordSelection } from './De
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { Period, periodRange } from '../services/khqrCache';
 import { CopyableRecordId } from './CopyableRecordId';
+import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 
 /**
  * Phone App Review → Merchant Visit (4 Nov 2026).
@@ -29,7 +30,6 @@ import { CopyableRecordId } from './CopyableRecordId';
 const PERIOD_LABEL: Record<Period, string> = {
   ALL: 'All time', TODAY: 'Today', '7D': 'Last 7 days', MONTH: 'This month', LAST: 'Last month', BOTH: 'Last 2 months',
 };
-const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID = 'grid items-center gap-x-3 grid-cols-[68px_150px_minmax(150px,1fr)_minmax(200px,1.4fr)_minmax(160px,1fr)_minmax(140px,1fr)_20px]';
 const isMissingTable = (msg: string) => /mv_visits|mv_visit_summary|PGRST20[25]|does not exist|schema cache/i.test(msg);
 const fmt = (iso: string | null) => (iso ? stampPP(new Date(iso)) : '—');
@@ -387,11 +387,18 @@ const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onChec
           <span className="block text-[11px] text-slate-500 truncate">{v.branchText || v.branchId || '—'}</span>
         </span>
         <span className="truncate" title={place}>{place || '—'}</span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
+        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} aria-hidden />
       </div>
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div key="d" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={SPRING} className="overflow-hidden">
+          <motion.div
+            key="d"
+            variants={ACCORDION_EXPAND_VARIANTS}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="will-change-[transform,opacity]"
+          >
             <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[13px] text-slate-700">
               {onEdit && (
                 <div className="md:col-span-2 flex justify-end -mb-2">

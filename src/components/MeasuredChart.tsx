@@ -13,19 +13,26 @@ export function MeasuredChart({ height, stagger = 0, children }: { height: numbe
     const el = ref.current;
     if (!el || typeof ResizeObserver === 'undefined') { if (el) setWidth(el.clientWidth); return; }
     let raf = 0;
+    let resizeTimer = 0;
     let first = true;
     const ro = new ResizeObserver((entries) => {
       const w = Math.floor(entries[entries.length - 1]?.contentRect.width || 0);
       if (w <= 0) return;
       const apply = () => startTransition(() => setWidth((prev) => (prev === w ? prev : w)));
-      if (!first || stagger <= 0) { apply(); return; }
+      if (!first) {
+        // After first paint, wait briefly so continuous sidebar collapse/expand animations don't trigger 15+ full SVG chart redraws
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(apply, 200);
+        return;
+      }
       first = false;
+      if (stagger <= 0) { apply(); return; }
       let left = stagger * 2;
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(function tick() { if (--left > 0) raf = requestAnimationFrame(tick); else apply(); });
     });
     ro.observe(el);
-    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); window.clearTimeout(resizeTimer); };
   }, [stagger]);
   return (
     <div ref={ref} style={{ width: '100%', height }}>

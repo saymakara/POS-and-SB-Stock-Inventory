@@ -12,7 +12,7 @@ import { useDrawerOpen, setDrawerOpen } from '../utils/drawerStore';
 import { OnlineOperatorPresence } from '../services/supabaseService';
 import { STAGE_META } from '../data/initialData';
 import { motion, AnimatePresence } from 'motion/react';
-import { WHILE_TAP_BUTTON, WHILE_TAP_ICON } from '../utils/animationRules';
+import { WHILE_TAP_BUTTON, WHILE_TAP_ICON, SIDEBAR_TRANSITION } from '../utils/animationRules';
 import { usePendingTab } from '../utils/navPending';
 
 import {
@@ -27,7 +27,6 @@ import {
   Store,
   Smartphone,
   ChevronLeft,
-  ChevronRight,
   Menu,
   UserCircle2,
   History,
@@ -195,9 +194,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       <div className="relative z-10">
         {/* Top Brand Anchor */}
         <div
-          className={`w-full h-[4.5rem] px-4 flex items-center ${
-            !isMobileView && collapsed ? 'justify-center' : 'justify-between'
-          } gap-3 text-white border-b border-white/12 bg-white/[0.02]`}
+          className="w-full h-[4.5rem] px-4 flex items-center justify-between gap-3 text-white border-b border-white/12 bg-white/[0.02]"
         >
           <motion.button
             whileTap={{ scale: 0.96 }}
@@ -211,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               }
               if (isMobileView) onCloseMobile?.();
             }}
-            className="flex items-center gap-3 cursor-pointer text-left min-w-0"
+            className="flex items-center gap-3 cursor-pointer text-left min-w-0 w-full"
             title={role === 'SUPER_ADMIN' ? 'Brand & Logo Studio (Settings)' : 'Dashboard'}
           >
             <AppBrandLogo
@@ -221,16 +218,20 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               showGlow
             />
 
-            {(isMobileView || !collapsed) && (
-              <div className="leading-tight truncate flex-1">
-                <div className="text-[13px] font-medium tracking-tight text-white/95 truncate">
-                  {appSettings?.customLogoTitle || 'In-Store Management Portal'}
-                </div>
-                <div className="text-[11px] font-normal text-zinc-400 tracking-tight mt-0.5 truncate">
-                  {appSettings?.customLogoSubtitle || 'Branch Operations Portal'}
-                </div>
+            <div
+              className={`leading-tight whitespace-nowrap overflow-hidden transition-all duration-150 ${
+                isMobileView || !collapsed
+                  ? 'flex-1 min-w-0 opacity-100'
+                  : 'w-0 opacity-0 pointer-events-none'
+              }`}
+            >
+              <div className="text-[13px] font-medium tracking-tight text-white/95 truncate">
+                {appSettings?.customLogoTitle || 'In-Store Management Portal'}
               </div>
-            )}
+              <div className="text-[11px] font-normal text-zinc-400 tracking-tight mt-0.5 truncate">
+                {appSettings?.customLogoSubtitle || 'Branch Operations Portal'}
+              </div>
+            </div>
           </motion.button>
 
           {isMobileView && (
@@ -250,17 +251,22 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           <nav className="py-4 px-3 flex flex-col gap-4">
           {navGroups.map((group) => (
             <div key={group.heading} className="flex flex-col gap-1">
-              {(isMobileView || !collapsed) && (
-                <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
-                  {group.heading}
-                </div>
-              )}
+              <div
+                className={`px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 whitespace-nowrap overflow-hidden transition-all duration-150 ${
+                  isMobileView || !collapsed
+                    ? 'max-h-6 pb-1 opacity-100'
+                    : 'max-h-0 pb-0 opacity-0 pointer-events-none'
+                }`}
+              >
+                {group.heading}
+              </div>
               <div className="flex flex-col gap-1 relative">
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const childActive = !!item.children?.some((c) => c.id === navTab) ;
                   const showChildren = !!item.children && (isMobileView || !collapsed);
                   const isActive = showChildren ? false : (navTab === item.id || childActive);
+                  const showLabels = isMobileView || !collapsed;
 
                   return (
                     <React.Fragment key={item.id}>
@@ -274,11 +280,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       }}
                       onMouseEnter={() => { if (item.id === 'kpi_performance') prefetchKpi(); }}
                       title={!isMobileView && collapsed ? item.label : undefined}
-                      className={`group relative w-full ${
-                        !isMobileView && collapsed
-                          ? 'px-0 justify-center py-2'
-                          : 'px-3 justify-between py-2'
-                      } rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-all duration-150 ease-out z-10 ${
+                      className={`group relative w-full px-3 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
                         isActive
                           ? 'font-medium text-white bg-white/12 border border-white/15 shadow-xs'
                           : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
@@ -294,7 +296,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
                       <div className="relative flex items-center gap-2.5 min-w-0">
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all duration-150 ${
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
                             isActive
                               ? 'bg-white/20 text-white shadow-xs border border-white/20'
                               : 'bg-white/[0.05] text-zinc-400 group-hover:text-zinc-100 group-hover:bg-white/[0.08] group-hover:border-white/10 border border-transparent'
@@ -302,17 +304,21 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         >
                           <Icon className="w-3.5 h-3.5" />
                         </div>
-                        {(isMobileView || !collapsed) && (
-                          <span className={`truncate ${isActive ? 'text-white font-medium' : ''}`}>
-                            {item.label}
-                          </span>
-                        )}
+                        <span
+                          className={`truncate whitespace-nowrap transition-opacity duration-150 ${
+                            showLabels ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden pointer-events-none'
+                          } ${isActive ? 'text-white font-medium' : ''}`}
+                        >
+                          {item.label}
+                        </span>
                       </div>
 
                       {/* Subtle Counter Badge (hidden when count is 0 or completely synced) */}
-                      {(isMobileView || !collapsed) && !showChildren && item.count !== undefined && item.count > 0 && (
+                      {!showChildren && item.count !== undefined && item.count > 0 && (
                         <span
-                          className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-all duration-150 ${
+                          className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-opacity duration-150 ${
+                            showLabels ? 'opacity-100' : 'opacity-0 w-0 px-0 overflow-hidden pointer-events-none'
+                          } ${
                             isActive
                               ? 'bg-white text-zinc-900 font-bold shadow-2xs'
                               : item.highlight
@@ -325,7 +331,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       )}
                     </motion.button>
                     {showChildren && (
-                      <div className="relative ml-[22px] pl-2.5 flex flex-col gap-0.5 border-l border-white/12" role="group" aria-label={`${item.label} sections`}>
+                      <div className="relative ml-[22px] pl-2.5 flex flex-col gap-0.5 border-l border-white/12 whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
                         {item.children!.map((c) => {
                           const CI = c.icon;
                           const on = navTab === c.id;
@@ -381,26 +387,28 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
       </div>
 
-      {/* Bottom Collapse Control (Desktop Only) with Tactile Apple Spring Feedback */}
+      {/* Bottom Collapse Control (Desktop Only) */}
       {!isMobileView && (
         <div className="relative z-10 p-3 border-t border-white/10 bg-black/10">
           <motion.button
-            whileTap={{ scale: 0.94 }}
-            whileHover={{ scale: 1.01 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+            whileTap={{ scale: 0.96 }}
             type="button"
             onClick={onToggleCollapse}
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            className="w-full py-2.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] active:bg-white/[0.18] text-zinc-300 hover:text-white flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer border border-white/10 transition-colors shadow-xs backdrop-blur-md"
+            className="w-full py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] active:bg-white/[0.20] text-zinc-200 hover:text-white flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer border border-white/12 transition-colors shadow-xs"
           >
-            {collapsed ? (
-              <ChevronRight className="w-4 h-4 text-white" />
-            ) : (
-              <>
-                <ChevronLeft className="w-4 h-4 text-white" />
-                <span>Collapse Sidebar</span>
-              </>
-            )}
+            <ChevronLeft
+              className={`w-4 h-4 text-white shrink-0 transition-transform duration-200 ${
+                collapsed ? 'rotate-180' : ''
+              }`}
+            />
+            <span
+              className={`whitespace-nowrap overflow-hidden transition-all duration-150 ${
+                collapsed ? 'max-w-0 opacity-0' : 'max-w-[120px] opacity-100'
+              }`}
+            >
+              Collapse Sidebar
+            </span>
           </motion.button>
         </div>
       )}
@@ -413,7 +421,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       <motion.aside
         initial={false}
         animate={{ width: collapsed ? 76 : 244 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 32, mass: 0.55 }}
+        transition={SIDEBAR_TRANSITION}
         style={{ contain: 'layout style', willChange: 'width' }}
         className="sb-sidebar-gradient sticky top-0 left-0 h-screen z-40 text-white shrink-0 hidden md:flex flex-col justify-between select-none overflow-y-auto overflow-x-hidden no-scrollbar relative transform-gpu"
       >
@@ -428,9 +436,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ ease: [0.32, 0.72, 0, 1], duration: 0.26 }}
+              transition={{ ease: [0.32, 0.72, 0, 1], duration: 0.22 }}
               onClick={onCloseMobile}
-              className="fixed inset-0 bg-black/65 backdrop-blur-xs will-change-gpu"
+              className="fixed inset-0 bg-slate-900/60 will-change-[opacity]"
             />
             <motion.aside
               initial={{ x: -280 }}
@@ -661,7 +669,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
 
   return (
     <>
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md text-zinc-900 border-b border-zinc-200/90 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all duration-200">
+    <header className="sticky top-0 z-40 bg-white/[0.98] text-zinc-900 border-b border-zinc-200/90 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-colors duration-200">
       <div className="h-[4.5rem] px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-3">
         {/* Left: Sidebar Toggle & Global Quick Search Bar */}
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1 max-w-xl">
@@ -896,7 +904,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Branch Assignment Display (Branch Role Only) */}
           {role === 'BRANCH' && (
-            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-white/80 border-zinc-200 text-zinc-900 backdrop-blur-md shrink-0">
+            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-white/95 border-zinc-200 text-zinc-900 shrink-0">
               <Building2 className="w-3.5 h-3.5 text-zinc-700 shrink-0" />
               <span className="text-xs font-bold text-zinc-800">
                 {currentBranch ? `Branch Code ${currentBranch.id} - ${formatBranchName(currentBranch.name)}` : `Branch Code ${activeBranchId}`}
@@ -911,7 +919,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
               type="button"
               onClick={() => setNotifOpen((o) => !o)}
               title="Alerts: Branch Staff Stock Requests"
-              className={`p-2 rounded-xl cursor-pointer relative border backdrop-blur-md transition ${
+              className={`p-2 rounded-xl cursor-pointer relative border transition-colors ${
                 notifOpen
                   ? 'tab-active-blue text-white border-[#004e75]'
                   : unreadCount > 0
@@ -1083,7 +1091,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             type="button"
             onClick={onOpenExportModal}
             title="Export Reports & Audit Log"
-            className="p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/80 hover:bg-slate-200 text-zinc-700 border-zinc-200 backdrop-blur-md"
+            className="p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/90 hover:bg-slate-200 text-zinc-700 border-zinc-200 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
           </motion.button>
@@ -1093,7 +1101,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             type="button"
             onClick={onLockSession}
             title="Lock Operator Session"
-            className="p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/80 hover:bg-slate-200 text-zinc-700 border-zinc-200 backdrop-blur-md"
+            className="p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/90 hover:bg-slate-200 text-zinc-700 border-zinc-200 transition-colors"
           >
             <Lock className="w-3.5 h-3.5" />
           </motion.button>
@@ -1122,7 +1130,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
             type="button"
             onClick={onSignOut}
             title="Sign Out to Login Page"
-            className="p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/80 hover:bg-slate-200 text-zinc-700 border-zinc-200 backdrop-blur-md"
+            className="p-2 rounded-xl cursor-pointer shrink-0 border bg-slate-100/90 hover:bg-slate-200 text-zinc-700 border-zinc-200 transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" />
           </motion.button>
@@ -1131,7 +1139,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
 
     </header>
     {/* (31 Oct 2026, native-like) bottom tab bar on phones (replaces the dark sliding tab strip under the header) */}
-    <nav className="mobile-tabbar md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-5" aria-label="Main pages">
+    <nav className="mobile-tabbar md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/[0.98] border-t border-slate-200 grid grid-cols-5" aria-label="Main pages">
       {bottomTabs.map((t) => (
         <motion.button
           whileTap={WHILE_TAP_BUTTON}

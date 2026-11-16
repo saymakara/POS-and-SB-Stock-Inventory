@@ -21,6 +21,7 @@ import {
 import { CopyableRecordId } from './CopyableRecordId';
 import { DeleteRecordsDialog, NoCell, SelectBox, SelectionBar, useRecordSelection } from './DeleteRecordsDialog';
 import { PillMotion } from './PillMotion';
+import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 
 /**
  * Phone App Review → KHQR (28 Oct 2026).
@@ -887,12 +888,19 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck, onE
           <span className="block text-[11px] text-slate-500 truncate">{e.branchText || e.branchId || '—'}</span>
         </span>
         <span className="truncate" title={place}>{place || '—'}</span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
+        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} aria-hidden />
       </div>
 
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div key="d" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={SPRING} className="overflow-hidden">
+          <motion.div
+            key="d"
+            variants={ACCORDION_EXPAND_VARIANTS}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="will-change-[transform,opacity]"
+          >
             <div className="px-5 pb-4 pt-1 grid gap-4 md:grid-cols-2 text-[13px] text-slate-700">
               {onEdit && (
                 <div className="md:col-span-2 flex justify-end -mb-2">

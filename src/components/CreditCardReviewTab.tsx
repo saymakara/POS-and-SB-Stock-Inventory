@@ -15,6 +15,7 @@ import { DeleteRecordsDialog, NoCell, SelectBox, useRecordSelection } from './De
 import { CopyableRecordId } from './CopyableRecordId';
 import { PhoneRecordEditDialog, EditField } from './PhoneRecordEditDialog';
 import { PillMotion } from './PillMotion';
+import { ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 
@@ -590,11 +591,11 @@ const CcRow = memo(function CcRow({ e, no, open, onToggle, canReview, onReviewed
       {open && (
         <motion.div
           key="cc-details"
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8, transition: { duration: 0.14 } }}
-          transition={SPRING}
-          className="px-4 pb-4 pt-1 bg-slate-50/60 border-t border-slate-100"
+          variants={ACCORDION_EXPAND_VARIANTS}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          className="px-4 pb-4 pt-1 bg-slate-50/60 border-t border-slate-100 will-change-[transform,opacity]"
         >
           {onEdit && (
             <div className="flex justify-end pt-2 -mb-1">

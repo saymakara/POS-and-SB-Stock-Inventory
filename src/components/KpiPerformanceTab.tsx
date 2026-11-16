@@ -27,7 +27,7 @@ import {
 } from '../services/kpiService';
 import { getCambodiaHoliday, getMonthWorkDaysSummary } from '../utils/cambodiaHolidays';
 import { todayPP } from '../utils/time';
-import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS, ACCORDION_EXPAND_VARIANTS } from '../utils/animationRules';
 import { PillMotion } from './PillMotion';
 import { AfterPaint } from './AfterPaint';
 import { MeasuredChart } from './MeasuredChart';
@@ -3227,11 +3227,11 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
             <AnimatePresence initial={false}>
               {showSubCategories && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
+                  variants={ACCORDION_EXPAND_VARIANTS}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="will-change-[transform,opacity]"
                 >
                   <div className="mt-4 rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
                     {/* Header Toolbar */}

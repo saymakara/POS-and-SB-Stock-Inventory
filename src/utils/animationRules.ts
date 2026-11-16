@@ -299,6 +299,25 @@ export const DRAWER_VARIANTS: Variants = {
   },
 };
 
+export const ACCORDION_EXPAND_VARIANTS: Variants = {
+  initial: { opacity: 0, y: -6 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] },
+  },
+  exit: {
+    opacity: 0,
+    y: -4,
+    transition: { duration: 0.1, ease: [0.4, 0, 1, 1] },
+  },
+};
+
+export const SIDEBAR_TRANSITION: Transition = {
+  duration: 0.19,
+  ease: [0.22, 1, 0.36, 1],
+};
+
 // ============================================================================
 // 16. OVERLAP OUTGOING AND INCOMING STATES (CROSSFADE TABS & PAGE GLIDES)
 // ============================================================================
