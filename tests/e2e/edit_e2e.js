@@ -72,7 +72,7 @@ async function signIn(b, emp, pw) {
 }
 const side = (p) => p.locator('aside, nav');
 const openPage = async (p, label) => {
-  if (!(await side(p).getByText(label, { exact: true }).first().isVisible().catch(() => false))) { await side(p).getByText('Phone App Review', { exact: true }).first().click().catch(() => {}); await sleep(500); }
+  if (!(await side(p).getByText(label, { exact: true }).first().isVisible().catch(() => false))) { await side(p).getByText('Merchant App Review', { exact: true }).first().click().catch(() => {}); await sleep(500); }
   await side(p).getByText(label, { exact: true }).first().click(); await sleep(1800);
 };
 const dialog = (p) => p.locator('[role="dialog"]').filter({ hasText: 'Reason for the change' });
@@ -146,7 +146,7 @@ const field = (p, label) => dialog(p).locator('label').filter({ has: p.locator(`
   // ---- branch user: no Edit
   ({ ctx, p, errs } = await signIn(b, '33105', 'Branch123'));
   const n0 = calls.length;
-  if (await side(p).getByText('Phone App Review', { exact: true }).first().isVisible().catch(() => false)) {
+  if (await side(p).getByText('Merchant App Review', { exact: true }).first().isVisible().catch(() => false)) {
     await openPage(p, 'Merchant Visit');
     await p.locator('main').getByText('Shop A').first().click().catch(() => {}); await sleep(700);
   }

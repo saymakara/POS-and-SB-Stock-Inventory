@@ -1620,6 +1620,9 @@ export async function fetchBranchRegions(): Promise<Record<string, string>> {
   }
 }
 
+const FIELD_EVENT_COLUMNS =
+  'id,source_record_id,unit_no,revision,kind,device_type,serial,old_serial,old_battery,new_battery,mid,tid,terminal_name,outlet_name,branch_text,branch_id,staff_id,staff_name,recorded_at,latitude,longitude,remarks,payload,issues,status,reviewed_by_name,reviewed_at,review_note,applied,received_at';
+
 /** Waiting records fetched with strict server-side limit() and range(offset, offset + limit - 1). */
 export async function fetchPendingFieldEvents(limit = 1000, offset = 0): Promise<FieldEvent[] | null> {
   const safeLimit = Math.max(1, Math.min(limit, 1000));
@@ -1627,7 +1630,7 @@ export async function fetchPendingFieldEvents(limit = 1000, offset = 0): Promise
   try {
     const { data, error } = await supabase
       .from('field_events')
-      .select('*')
+      .select(FIELD_EVENT_COLUMNS)
       .eq('status', 'PENDING')
       .order('received_at', { ascending: false })
       .order('id', { ascending: false })
@@ -1643,16 +1646,73 @@ export async function fetchPendingFieldEvents(limit = 1000, offset = 0): Promise
 
 /**
  * Fetches every PENDING record across 1,000-row pages so >1,000 waiting items are never truncated.
- * Calls `onFirstPage` immediately when more than 1,000 rows exist so the screen renders without waiting for later pages.
+ * Calls `onFirstPage` immediately once page 1 arrives, then fetches any remaining pages in parallel.
  */
 export async function fetchAllPendingFieldEvents(onFirstPage?: (rows: FieldEvent[]) => void): Promise<FieldEvent[] | null> {
   const out: FieldEvent[] = [];
   const seenIds = new Set<number>();
   try {
-    for (let offset = 0; offset < 100000; offset += 1000) {
+    const first = await supabase
+      .from('field_events')
+      .select(FIELD_EVENT_COLUMNS, { count: 'exact' })
+      .eq('status', 'PENDING')
+      .order('received_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(1000)
+      .range(0, 999);
+    if (first.error) throw first.error;
+    const firstRows = first.data || [];
+    const firstPage: FieldEvent[] = [];
+    for (const r of firstRows) {
+      const mapped = mapFieldEvent(r);
+      if (!seenIds.has(mapped.id)) {
+        seenIds.add(mapped.id);
+        out.push(mapped);
+        firstPage.push(mapped);
+      }
+    }
+    if (firstPage.length > 0 && firstRows.length === 1000) {
+      onFirstPage?.(firstPage);
+    }
+    if (firstRows.length < 1000) return out;
+
+    const total = typeof first.count === 'number' ? first.count : null;
+    if (total !== null && total > 1000) {
+      const offsets: number[] = [];
+      for (let off = 1000; off < Math.min(total, 100000); off += 1000) offsets.push(off);
+      const CONCURRENCY = 4;
+      for (let i = 0; i < offsets.length; i += CONCURRENCY) {
+        const chunk = offsets.slice(i, i + CONCURRENCY);
+        const pages = await Promise.all(
+          chunk.map((off) =>
+            supabase
+              .from('field_events')
+              .select(FIELD_EVENT_COLUMNS)
+              .eq('status', 'PENDING')
+              .order('received_at', { ascending: false })
+              .order('id', { ascending: false })
+              .limit(1000)
+              .range(off, off + 999)
+          )
+        );
+        for (const res of pages) {
+          if (res.error) throw res.error;
+          for (const r of res.data || []) {
+            const mapped = mapFieldEvent(r);
+            if (!seenIds.has(mapped.id)) {
+              seenIds.add(mapped.id);
+              out.push(mapped);
+            }
+          }
+        }
+      }
+      return out;
+    }
+
+    for (let offset = 1000; offset < 100000; offset += 1000) {
       const { data, error } = await supabase
         .from('field_events')
-        .select('*')
+        .select(FIELD_EVENT_COLUMNS)
         .eq('status', 'PENDING')
         .order('received_at', { ascending: false })
         .order('id', { ascending: false })
@@ -1661,18 +1721,13 @@ export async function fetchAllPendingFieldEvents(onFirstPage?: (rows: FieldEvent
       if (error) throw error;
       const rows = data || [];
       let added = 0;
-      const pageEvents: FieldEvent[] = [];
       for (const r of rows) {
         const mapped = mapFieldEvent(r);
         if (!seenIds.has(mapped.id)) {
           seenIds.add(mapped.id);
           out.push(mapped);
-          pageEvents.push(mapped);
           added++;
         }
-      }
-      if (offset === 0 && rows.length === 1000 && pageEvents.length > 0) {
-        onFirstPage?.(pageEvents);
       }
       if (added === 0 || rows.length !== 1000) break;
     }
@@ -1683,11 +1738,11 @@ export async function fetchAllPendingFieldEvents(onFirstPage?: (rows: FieldEvent
   }
 }
 
-/** (31 Oct 2026) CSV export: every phone app record (all statuses, kept without time limit), newest first, 1,000 per request. */
+/** (31 Oct 2026) CSV export: every merchant app record (all statuses, kept without time limit), newest first, 1,000 per request. */
 export async function fetchAllFieldEvents(status: 'ALL' | FieldEventStatus = 'ALL'): Promise<FieldEvent[]> {
   const out: FieldEvent[] = [];
   for (let offset = 0; offset < 500000; offset += 1000) {
-    let q: any = supabase.from('field_events').select('*');
+    let q: any = supabase.from('field_events').select(FIELD_EVENT_COLUMNS);
     if (status !== 'ALL') q = q.eq('status', status);
     const { data, error } = await q.order('received_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + 999);
     if (error) throw new Error(error.message);
@@ -1697,7 +1752,7 @@ export async function fetchAllFieldEvents(status: 'ALL' | FieldEventStatus = 'AL
   return out;
 }
 
-/** Fetch phone app field records within a YYYY-MM-DD Phnom Penh (+07:00) date window so historical dates beyond the initial 1,000 reviewed cap load on demand. */
+/** Fetch merchant app field records within a YYYY-MM-DD Phnom Penh (+07:00) date window so historical dates beyond the initial 1,000 reviewed cap load on demand. */
 export async function fetchFieldEventsByDateRange(
   fromYmd?: string,
   toYmd?: string,
@@ -1709,7 +1764,7 @@ export async function fetchFieldEventsByDateRange(
   const toIso = toYmd ? `${toYmd}T23:59:59.999+07:00` : '';
   try {
     for (let offset = 0; offset < 50000; offset += 1000) {
-      let q: any = supabase.from('field_events').select('*');
+      let q: any = supabase.from('field_events').select(FIELD_EVENT_COLUMNS);
       if (status !== 'ALL') q = q.eq('status', status);
       if (fromIso) q = q.gte('received_at', fromIso);
       if (toIso) q = q.lte('received_at', toIso);
@@ -1744,7 +1799,7 @@ export async function fetchReviewedFieldEvents(limit = 1000, offset = 0): Promis
   try {
     const { data, error } = await supabase
       .from('field_events')
-      .select('*')
+      .select(FIELD_EVENT_COLUMNS)
       .neq('status', 'PENDING')
       .order('received_at', { ascending: false })
       .order('id', { ascending: false })
@@ -1772,10 +1827,11 @@ export async function countPendingFieldEvents(): Promise<number | null> {
   }
 }
 
+let pendingGroupsRpcSupported: boolean | null = null;
+
 /**
- * Waiting records per device type (badges of the Phone App Review sub-menus).
- * Applies the active scope ('PHNOM_PENH' vs 'ALL') with lightweight column projection so boot/realtime counts
- * always match the Phone App Review screen even when >1,000 pending items exist.
+ * Waiting records per device type (badges of the Merchant App Review sub-menus).
+ * Uses grouped server RPC (~3ms, ~300 rows) with paginated fallback for older/mocked backends.
  */
 export async function countPendingFieldEventsByType(
   scope: FieldScope = 'ALL',
@@ -1794,6 +1850,25 @@ export async function countPendingFieldEventsByType(
     }
 
     const regionsPromise = fetchBranchRegions();
+    if (pendingGroupsRpcSupported !== false) {
+      const { data: grpData, error: grpErr } = await supabase.rpc('pending_field_event_groups');
+      if (!grpErr && Array.isArray(grpData)) {
+        pendingGroupsRpcSupported = true;
+        const targets = (grpData as Array<Record<string, any>>).map((r) => ({
+          deviceType: r.device_type === 'Sound Box' ? 'Sound Box' : 'POS Terminal',
+          branchId: r.branch_id ?? null,
+          branchText: r.branch_text ?? '',
+          staffId: r.staff_id ?? null,
+          count: Number(r.n) || 0,
+        }));
+        const regions = await regionsPromise;
+        return countPendingFieldEventsScoped(targets, scope, branches, regions);
+      }
+      if (/PGRST202|42883|does not exist|not in the stand-in/i.test(grpErr?.message || '')) {
+        pendingGroupsRpcSupported = false;
+      }
+    }
+
     const seenIds = new Set<number>();
     const targets: Array<{ deviceType: string; branchId: string | null; branchText: string; staffId: string | null }> = [];
     for (let offset = 0; offset < 100000; offset += 1000) {

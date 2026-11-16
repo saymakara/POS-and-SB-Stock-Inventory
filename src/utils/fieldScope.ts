@@ -25,6 +25,7 @@ export interface FieldScopeTarget {
   staffId?: string | null;
   deviceType?: string | null;
   status?: string | null;
+  count?: number;
 }
 
 /** POS Terminal unless the record explicitly says Sound Box. */
@@ -104,8 +105,9 @@ export function countPendingFieldEventsScoped(
   for (const e of list) {
     if (e.status && e.status !== 'PENDING') continue;
     if (!isFieldEventInScope(e, scope, ppBranchCodes, ppStaffEmpIds, regions)) continue;
-    if (normalizeFieldDeviceType(e.deviceType) === 'Sound Box') sb++;
-    else pos++;
+    const weight = e.count === undefined ? 1 : Number(e.count) || 0;
+    if (normalizeFieldDeviceType(e.deviceType) === 'Sound Box') sb += weight;
+    else pos += weight;
   }
   return { pos, sb };
 }

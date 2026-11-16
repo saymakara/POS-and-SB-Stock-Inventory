@@ -161,7 +161,7 @@ async function api(route) {
   }, 8000);
   const body = await p.textContent('body');
   ok(body.includes(N_DEV.toLocaleString('en-US')) || body.includes(String(N_DEV)), 'dashboard shows the full unit count ' + N_DEV);
-  const tabs = ['Stock Inventory', 'Merchant Deployment', 'Merchant History', 'Stock Requests', 'Branch Codes', 'Phone App Review', 'Audit Trail', 'Staff Directory', 'Dashboard'];
+  const tabs = ['Stock Inventory', 'Merchant Deployment', 'Merchant History', 'Stock Requests', 'Branch Codes', 'Merchant App Review', 'Audit Trail', 'Staff Directory', 'Dashboard'];
   for (const t of tabs) {
     const el = p.getByText(t, { exact: true }).first();
     if (!(await el.count())) { ok(false, 'tab not found: ' + t); continue; }
@@ -181,13 +181,13 @@ async function api(route) {
     ok(/WP119999/.test(first || ''), 'descending sort puts WP119999 first: ' + (first || '').slice(0, 60));
     await sortBtn.click(); await sleep(300);
   } else ok(false, 'serial sort button not found');
-  // Phone App Review with 1000 waiting
-  await p.getByText('Phone App Review', { exact: true }).first().click(); await sleep(1500);
+  // Merchant App Review with 1000 waiting
+  await p.getByText('Merchant App Review', { exact: true }).first().click(); await sleep(1500);
   const pr = await p.textContent('body');
   const m = pr.match(/Waiting \((\d+)\)/);
-  // (29 Oct 2026) "Phone App Review" opens its POS sub-menu (since 28 Oct): the count is the Phnom Penh waiting POS records
+  // (29 Oct 2026) "Merchant App Review" opens its POS sub-menu (since 28 Oct): the count is the Phnom Penh waiting POS records
   const expectPos = state.events.filter((e) => e.status === 'PENDING' && e.device_type !== 'Sound Box' && e.branch_id !== '401').length;
-  ok(m && Number(m[1]) === expectPos, `Phone App Review (POS) counts the Phnom Penh waiting POS records only (${expectPos}): ` + (m && m[1]));
+  ok(m && Number(m[1]) === expectPos, `Merchant App Review (POS) counts the Phnom Penh waiting POS records only (${expectPos}): ` + (m && m[1]));
   const sb = p.locator('button[aria-sort]').filter({ hasText: 'Serial Number' }).first();
   await timed('sort 980 phone records by serial', async () => { await sb.click(); await sleep(300); }, 1500);
   await timed('select all 980 waiting records', async () => { await p.locator('button[aria-label="Select all waiting"]').click(); await sleep(300); }, 1500);
@@ -211,7 +211,7 @@ async function api(route) {
     console.log(`SMOOTH ${label}: ${g.length} frames, stutters ${drop}, worst frame ${worst} ms, p95 ${p95} ms`);
     return { drop, worst };
   };
-  for (const t of ['Stock Inventory', 'Merchant Deployment', 'Stock Requests', 'Phone App Review', 'Dashboard']) {
+  for (const t of ['Stock Inventory', 'Merchant Deployment', 'Stock Requests', 'Merchant App Review', 'Dashboard']) {
     await frames('open ' + t, async () => { await p.getByText(t, { exact: true }).first().click(); });
   }
   await p.getByText('Stock Inventory', { exact: true }).first().click(); await sleep(800);

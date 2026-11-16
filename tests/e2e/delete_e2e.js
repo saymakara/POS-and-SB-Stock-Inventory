@@ -72,7 +72,7 @@ async function signIn(b, emp, pw) {
 }
 const side = (p) => p.locator('aside, nav');
 const openPage = async (p, label) => {
-  if (!(await side(p).getByText(label, { exact: true }).first().isVisible().catch(() => false))) { await side(p).getByText('Phone App Review', { exact: true }).first().click().catch(() => {}); await sleep(500); }
+  if (!(await side(p).getByText(label, { exact: true }).first().isVisible().catch(() => false))) { await side(p).getByText('Merchant App Review', { exact: true }).first().click().catch(() => {}); await sleep(500); }
   await side(p).getByText(label, { exact: true }).first().click(); await sleep(1800);
 };
 async function confirmDelete(p, reason) {
@@ -184,7 +184,7 @@ async function confirmDelete(p, reason) {
     const topen = async (label) => {
       if (!(await tside.getByText(label, { exact: true }).first().isVisible().catch(() => false))) {
         const menu = tp.getByRole('button', { name: /menu|sidebar/i }).first(); if (await menu.count()) { await menu.tap().catch(() => {}); await sleep(500); }
-        await tside.getByText('Phone App Review', { exact: true }).first().tap().catch(() => {}); await sleep(500);
+        await tside.getByText('Merchant App Review', { exact: true }).first().tap().catch(() => {}); await sleep(500);
       }
       await tside.getByText(label, { exact: true }).first().tap(); await sleep(1800);
     };

@@ -349,16 +349,16 @@ export const FieldReviewTab: React.FC<Props> = ({
 
   useEffect(() => { if (events) setCachedFieldEvents(events, pendingReady); }, [events, pendingReady]);   // the next opening starts from the latest list
 
-  // Cache records so tab switches and page refreshes paint instantly (never truncating PENDING records)
+  // Cache recent snapshot so tab switches and refreshes paint quickly without freezing main thread on huge JSON writes
   useEffect(() => {
     if (!events || events.length === 0 || !pendingReady) return;
     const t = window.setTimeout(() => {
       try {
         const pendingOnly = events.filter((e) => e.status === 'PENDING');
-        const reviewedCap = events.filter((e) => e.status !== 'PENDING').slice(0, 500);
+        const reviewedCap = events.filter((e) => e.status !== 'PENDING').slice(0, 100);
         sessionStorage.setItem(
           CACHE_KEY,
-          JSON.stringify({ complete: true, events: [...pendingOnly, ...reviewedCap] })
+          JSON.stringify({ complete: pendingOnly.length <= 200, events: [...pendingOnly.slice(0, 200), ...reviewedCap] })
         );
       } catch {
         /* storage full or blocked: fine */
@@ -419,8 +419,8 @@ export const FieldReviewTab: React.FC<Props> = ({
   }, []);
 
   useEffect(() => {
-    // Only reuse cached records if all PENDING pages finished within the last minute
-    if (!(getCachedFieldEvents() && isFieldCacheComplete() && isFresh('field', 60000))) load();
+    // Only reuse cached records if all PENDING pages finished within the last 2 minutes (realtime keeps them current)
+    if (!(getCachedFieldEvents() && isFieldCacheComplete() && isFresh('field', 120000))) load();
     // (29 Oct 2026, speed review) live changes are collected and applied together once per frame: a burst of phone records
     // (or a bulk approval) is one screen update, not one per record
     const queued = new Map<number, FieldEvent>();
@@ -686,8 +686,8 @@ export const FieldReviewTab: React.FC<Props> = ({
     }
     return result.sort(
       (a, b) =>
-        b.receivedAt.localeCompare(a.receivedAt) ||
-        b.sourceRecordId.localeCompare(a.sourceRecordId) ||
+        (b.receivedAt > a.receivedAt ? 1 : b.receivedAt < a.receivedAt ? -1 : 0) ||
+        (b.sourceRecordId > a.sourceRecordId ? 1 : b.sourceRecordId < a.sourceRecordId ? -1 : 0) ||
         a.unitNo - b.unitNo
     );
   }, [dateScoped, filter, typeFilter, recordTypeFilter, deferredQuery]);
@@ -728,7 +728,7 @@ export const FieldReviewTab: React.FC<Props> = ({
       .filter((e) => !q || [e.serial, e.oldSerial, e.sourceRecordId, e.mid, e.tid, e.outletName, e.terminalName, e.staffName, e.staffId, e.branchText]
         .some((v) => String(v || '').toLowerCase().includes(q)));
     if (!list.length) return 0;
-    downloadCsv(`Phone_App_Review_${typeFilter === 'Sound Box' ? 'Sound_Box' : typeFilter === 'POS Terminal' ? 'POS_Terminal' : 'All'}`,
+    downloadCsv(`Merchant_App_Review_${typeFilter === 'Sound Box' ? 'Sound_Box' : typeFilter === 'POS Terminal' ? 'POS_Terminal' : 'All'}`,
       ['Record ID', 'Device No', 'Revision', 'Date Sent', 'Recorded At', 'Device Type', 'Record Type', 'Serial', 'Old Serial', 'Old Battery', 'New Battery',
         'MID', 'TID', 'Terminal Name', 'Outlet Name', 'Staff ID', 'Staff Name', 'Branch', 'Branch Code', 'Latitude', 'Longitude', 'Warnings',
         'Status', 'Reviewed By', 'Reviewed At', 'Review Note', 'Remarks'],
@@ -985,7 +985,7 @@ export const FieldReviewTab: React.FC<Props> = ({
               type="button"
               onClick={load}
               aria-label="Refresh"
-              title="Refresh Phone App Review records"
+              title="Refresh Merchant App Review records"
               className="group relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl active:scale-[0.98] transition-all font-semibold text-xs sm:text-sm border shadow-2xs cursor-pointer bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90"
             >
               <RefreshCw className="w-3.5 h-3.5 text-slate-600 group-hover:rotate-180 transition-transform duration-300" />

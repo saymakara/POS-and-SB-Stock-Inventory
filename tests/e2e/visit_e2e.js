@@ -63,8 +63,8 @@ async function api(route) {
   await p.fill('#empId', '8986'); await p.fill('#pw', 'Secret123'); await p.click('button[type=submit]');
   await p.waitForFunction(() => /Dashboard/.test(document.body.innerText), null, { timeout: 30000 }); await sleep(1500);
   const side = p.locator('aside, nav');
-  await side.getByText('Phone App Review', { exact: true }).first().click().catch(() => {}); await sleep(600);
-  ok(await side.getByText('Merchant Visit', { exact: true }).count() > 0, 'sidebar: "Merchant Visit" under Phone App Review');
+  await side.getByText('Merchant App Review', { exact: true }).first().click().catch(() => {}); await sleep(600);
+  ok(await side.getByText('Merchant Visit', { exact: true }).count() > 0, 'sidebar: "Merchant Visit" under Merchant App Review');
   await side.getByText('Merchant Visit', { exact: true }).first().click(); await sleep(2000);
   const main = async () => p.textContent('main');
   let t = await main();

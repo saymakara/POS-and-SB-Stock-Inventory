@@ -320,8 +320,26 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
 }
 
 // ───────────── In-memory & Session cache (0ms instant tab opening & instant switching) ─────────────
+interface KpiSeriesBundle {
+  dateKey: string;
+  fetchedAt: number;
+  daily: KpiTimeBucketRaw[];
+  weekly: KpiTimeBucketRaw[];
+  monthly: KpiTimeBucketRaw[];
+  quarterly: KpiTimeBucketRaw[];
+  monthlyStaff: KpiMonthlyStaffRaw[];
+  dailyBranch: KpiDailyBranchRaw[];
+  dailyStaff: KpiDailyStaffRaw[];
+}
+
 const summaryCache = new Map<string, KpiDashboardData>();
-const SESSION_CACHE_PREFIX = 'kpi_summary_cache_v3_';
+const SESSION_CACHE_PREFIX = 'kpi_summary_slice_v4_';
+const SESSION_SERIES_PREFIX = 'kpi_series_cache_v4_';
+let latestSeries: KpiSeriesBundle | null = null;
+let staffSliceRpcSupported: boolean | null = null;
+let pendingStorageTimer: number | null = null;
+const pendingSlicesToPersist = new Map<string, { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[] }>();
+let pendingSeriesToPersist = false;
 let owner: string | null | undefined;
 
 export interface KpiSettingsData {
@@ -412,11 +430,15 @@ export function getCachedKpiSettings(): KpiSettingsData {
 
 export function clearKpiCache(): void {
   cachedSettings = null;
+  latestSeries = null;
   summaryCache.clear();
+  kpiBorn.clear();
+  pendingSlicesToPersist.clear();
+  pendingSeriesToPersist = false;
   try {
     for (let i = sessionStorage.length - 1; i >= 0; i--) {
       const key = sessionStorage.key(i);
-      if (key && key.startsWith(SESSION_CACHE_PREFIX)) {
+      if (key && (key.startsWith(SESSION_CACHE_PREFIX) || key.startsWith(SESSION_SERIES_PREFIX) || key.startsWith('kpi_summary_cache_v3_'))) {
         sessionStorage.removeItem(key);
       }
     }
@@ -433,6 +455,41 @@ if (isSupabaseConfigured) {
   } catch { /* ignore */ }
 }
 
+function getSeriesBundle(): KpiSeriesBundle | null {
+  const today = todayPP();
+  if (latestSeries && latestSeries.dateKey === today) return latestSeries;
+  try {
+    const raw = sessionStorage.getItem(SESSION_SERIES_PREFIX + today);
+    if (raw) {
+      const parsed = JSON.parse(raw) as KpiSeriesBundle;
+      if (parsed && parsed.dateKey === today) {
+        latestSeries = parsed;
+        return parsed;
+      }
+    }
+  } catch { /* ignore storage errors */ }
+  return null;
+}
+
+function flushKpiStorageWrites(): void {
+  pendingStorageTimer = null;
+  try {
+    if (pendingSeriesToPersist && latestSeries) {
+      pendingSeriesToPersist = false;
+      sessionStorage.setItem(SESSION_SERIES_PREFIX + latestSeries.dateKey, JSON.stringify(latestSeries));
+    }
+    pendingSlicesToPersist.forEach((slice, key) => {
+      sessionStorage.setItem(SESSION_CACHE_PREFIX + key, JSON.stringify(slice));
+    });
+    pendingSlicesToPersist.clear();
+  } catch { /* ignore quota errors */ }
+}
+
+function scheduleKpiStorageFlush(): void {
+  if (pendingStorageTimer !== null) return;
+  pendingStorageTimer = window.setTimeout(flushKpiStorageWrites, 0);
+}
+
 export const kpiCacheKey = (from: string | null, to: string | null) => `${from || ''}|${to || ''}`;
 
 export const getCachedKpiSummary = (from: string | null, to: string | null): KpiDashboardData | undefined => {
@@ -440,11 +497,24 @@ export const getCachedKpiSummary = (from: string | null, to: string | null): Kpi
   const mem = summaryCache.get(key);
   if (mem) return mem;
   try {
-    const raw = sessionStorage.getItem(SESSION_CACHE_PREFIX + key);
-    if (raw) {
-      const parsed = JSON.parse(raw) as KpiDashboardData;
-      summaryCache.set(key, parsed);
-      return parsed;
+    const rawSlice = sessionStorage.getItem(SESSION_CACHE_PREFIX + key);
+    if (rawSlice) {
+      const slice = JSON.parse(rawSlice) as { rules: KpiPointRule[]; targets: KpiTargets; staff: KpiStaffRaw[] };
+      const series = getSeriesBundle();
+      const merged: KpiDashboardData = {
+        rules: slice.rules || [],
+        targets: slice.targets || mapTargets(null),
+        staff: slice.staff || [],
+        daily: series?.daily || [],
+        weekly: series?.weekly || [],
+        monthly: series?.monthly || [],
+        quarterly: series?.quarterly || [],
+        monthlyStaff: series?.monthlyStaff || [],
+        dailyBranch: series?.dailyBranch || [],
+        dailyStaff: series?.dailyStaff || [],
+      };
+      summaryCache.set(key, merged);
+      return merged;
     }
   } catch { /* ignore storage errors */ }
   return undefined;
@@ -453,9 +523,23 @@ export const getCachedKpiSummary = (from: string | null, to: string | null): Kpi
 export const setCachedKpiSummary = (from: string | null, to: string | null, d: KpiDashboardData): void => {
   const key = kpiCacheKey(from, to);
   summaryCache.set(key, d);
-  try {
-    sessionStorage.setItem(SESSION_CACHE_PREFIX + key, JSON.stringify(d));
-  } catch { /* ignore quota errors */ }
+  const hasSeries = (d.daily && d.daily.length > 0) || (d.monthly && d.monthly.length > 0) || (d.dailyStaff && d.dailyStaff.length > 0);
+  if (hasSeries) {
+    latestSeries = {
+      dateKey: todayPP(),
+      fetchedAt: Date.now(),
+      daily: d.daily || [],
+      weekly: d.weekly || [],
+      monthly: d.monthly || [],
+      quarterly: d.quarterly || [],
+      monthlyStaff: d.monthlyStaff || [],
+      dailyBranch: d.dailyBranch || [],
+      dailyStaff: d.dailyStaff || [],
+    };
+    pendingSeriesToPersist = true;
+  }
+  pendingSlicesToPersist.set(key, { rules: d.rules, targets: d.targets, staff: d.staff });
+  scheduleKpiStorageFlush();
 };
 
 export function patchCachedKpiRule(rule: KpiPointRule): void {
@@ -621,20 +705,41 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
   }
   const key = `${from || ''}|${to || ''}`;
   const hit = !force ? getCachedKpiSummary(from, to) : undefined;
-  if (hit && Date.now() - (kpiBorn.get(key) || 0) < 45000) return hit;
+  if (hit && Date.now() - (kpiBorn.get(key) || 0) < 90000) return hit;
   const running = !force ? kpiInflight.get(key) : undefined;
   if (running) return running;
 
   const p = (async () => {
-    const { data, error } = await supabase.rpc('kpi_dashboard_summary', { p_from: from, p_to: to });
-    if (error) throw new Error(error.message);
+    const seriesBundle = !force ? getSeriesBundle() : null;
+    const canSlice =
+      Boolean(seriesBundle) &&
+      staffSliceRpcSupported !== false &&
+      Date.now() - (seriesBundle?.fetchedAt || 0) < 180000 &&
+      ((seriesBundle?.daily.length || 0) > 0 || (seriesBundle?.monthly.length || 0) > 0);
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d: any = data || {};
-    const out: KpiDashboardData = {
-      rules: Array.isArray(d.rules) ? d.rules.map(mapRule) : [],
-      targets: mapTargets(d.targets),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      staff: Array.isArray(d.staff) ? d.staff.map((r: any) => ({
+    let d: any = null;
+    let usedSlice = false;
+    if (canSlice) {
+      const sliceRes = await supabase.rpc('kpi_dashboard_staff_slice', { p_from: from, p_to: to });
+      if (!sliceRes.error && sliceRes.data && typeof sliceRes.data === 'object') {
+        staffSliceRpcSupported = true;
+        d = sliceRes.data;
+        usedSlice = true;
+      } else if (/PGRST202|42883|does not exist|not in the stand-in/i.test(sliceRes.error?.message || '')) {
+        staffSliceRpcSupported = false;
+      }
+    }
+
+    if (!d) {
+      const fullRes = await supabase.rpc('kpi_dashboard_summary', { p_from: from, p_to: to });
+      if (fullRes.error) throw new Error(fullRes.error.message);
+      d = fullRes.data || {};
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mapStaffList = (list: any[]) =>
+      list.map((r: any) => ({
         ...mapRawCounts(r),
         staffId: String(r.staff_id || ''),
         staffName: String(r.staff_name || r.staff_id || ''),
@@ -647,71 +752,89 @@ export async function fetchKpiSummary(from: string | null, to: string | null, fo
         khqrFailed: Number(r.khqr_failed) || 0,
         ccSubmitted: Number(r.cc_submitted) || 0,
         ccRejected: Number(r.cc_rejected) || 0,
-      })) : [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      daily: Array.isArray(d.daily) ? d.daily.map((r: any) => ({
-        ...mapRawCounts(r),
-        period: String(r.period || ''),
-        activeBranches: Number(r.active_branches) || 0,
-        activeStaff: Number(r.active_staff) || 0,
-      })) : [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      weekly: Array.isArray(d.weekly) ? d.weekly.map((r: any) => ({
-        ...mapRawCounts(r),
-        period: String(r.period || ''),
-        activeBranches: Number(r.active_branches) || 0,
-        activeStaff: Number(r.active_staff) || 0,
-      })) : [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      monthly: Array.isArray(d.monthly) ? d.monthly.map((r: any) => ({
-        ...mapRawCounts(r),
-        period: String(r.period || ''),
-        activeBranches: Number(r.active_branches) || 0,
-        activeStaff: Number(r.active_staff) || 0,
-      })) : [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      quarterly: Array.isArray(d.quarterly) ? d.quarterly.map((r: any) => ({
-        ...mapRawCounts(r),
-        period: String(r.period || ''),
-        activeBranches: Number(r.active_branches) || 0,
-        activeStaff: Number(r.active_staff) || 0,
-      })) : [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      monthlyStaff: Array.isArray(d.monthly_staff) ? d.monthly_staff.map((r: any) => ({
-        ...mapRawCounts(r),
-        month: String(r.month || ''),
-        staffId: String(r.staff_id || ''),
-        staffName: String(r.staff_name || r.staff_id || ''),
-        branchId: String(r.branch_id || 'UNASSIGNED'),
-        branchName: String(r.branch_name || 'Unassigned'),
-      })) : [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dailyBranch: Array.isArray(d.daily_branch) ? d.daily_branch.map((r: any) => ({
-        day: String(r.day || ''),
-        branchId: String(r.branch_id || 'UNASSIGNED'),
-        activeStaff: Number(r.active_staff) || 0,
-        totalTasks: Number(r.total_tasks) || 0,
-        posTasks: Number(r.pos_tasks) || 0,
-        sbTasks: Number(r.sb_tasks) || 0,
-        khqrTasks: Number(r.khqr_tasks) || 0,
-        ccTasks: Number(r.cc_tasks) || 0,
-        mvTasks: Number(r.mv_tasks) || 0,
-      })) : [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dailyStaff: Array.isArray(d.daily_staff) ? d.daily_staff.map((r: any) => ({
-        day: String(r.day || ''),
-        staffId: String(r.staff_id || ''),
-        staffName: String(r.staff_name || r.staff_id || ''),
-        branchId: String(r.branch_id || 'UNASSIGNED'),
-        branchName: String(r.branch_name || 'Unassigned'),
-        totalTasks: Number(r.total_tasks) || 0,
-        posTasks: Number(r.pos_tasks) || 0,
-        sbTasks: Number(r.sb_tasks) || 0,
-        khqrTasks: Number(r.khqr_tasks) || 0,
-        ccTasks: Number(r.cc_tasks) || 0,
-        mvTasks: Number(r.mv_tasks) || 0,
-      })) : [],
-    };
+      }));
+
+    const out: KpiDashboardData = usedSlice && seriesBundle
+      ? {
+          rules: Array.isArray(d.rules) ? d.rules.map(mapRule) : [],
+          targets: mapTargets(d.targets),
+          staff: Array.isArray(d.staff) ? mapStaffList(d.staff) : [],
+          daily: seriesBundle.daily,
+          weekly: seriesBundle.weekly,
+          monthly: seriesBundle.monthly,
+          quarterly: seriesBundle.quarterly,
+          monthlyStaff: seriesBundle.monthlyStaff,
+          dailyBranch: seriesBundle.dailyBranch,
+          dailyStaff: seriesBundle.dailyStaff,
+        }
+      : {
+          rules: Array.isArray(d.rules) ? d.rules.map(mapRule) : [],
+          targets: mapTargets(d.targets),
+          staff: Array.isArray(d.staff) ? mapStaffList(d.staff) : [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          daily: Array.isArray(d.daily) ? d.daily.map((r: any) => ({
+            ...mapRawCounts(r),
+            period: String(r.period || ''),
+            activeBranches: Number(r.active_branches) || 0,
+            activeStaff: Number(r.active_staff) || 0,
+          })) : [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          weekly: Array.isArray(d.weekly) ? d.weekly.map((r: any) => ({
+            ...mapRawCounts(r),
+            period: String(r.period || ''),
+            activeBranches: Number(r.active_branches) || 0,
+            activeStaff: Number(r.active_staff) || 0,
+          })) : [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          monthly: Array.isArray(d.monthly) ? d.monthly.map((r: any) => ({
+            ...mapRawCounts(r),
+            period: String(r.period || ''),
+            activeBranches: Number(r.active_branches) || 0,
+            activeStaff: Number(r.active_staff) || 0,
+          })) : [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          quarterly: Array.isArray(d.quarterly) ? d.quarterly.map((r: any) => ({
+            ...mapRawCounts(r),
+            period: String(r.period || ''),
+            activeBranches: Number(r.active_branches) || 0,
+            activeStaff: Number(r.active_staff) || 0,
+          })) : [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          monthlyStaff: Array.isArray(d.monthly_staff) ? d.monthly_staff.map((r: any) => ({
+            ...mapRawCounts(r),
+            month: String(r.month || ''),
+            staffId: String(r.staff_id || ''),
+            staffName: String(r.staff_name || r.staff_id || ''),
+            branchId: String(r.branch_id || 'UNASSIGNED'),
+            branchName: String(r.branch_name || 'Unassigned'),
+          })) : [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          dailyBranch: Array.isArray(d.daily_branch) ? d.daily_branch.map((r: any) => ({
+            day: String(r.day || ''),
+            branchId: String(r.branch_id || 'UNASSIGNED'),
+            activeStaff: Number(r.active_staff) || 0,
+            totalTasks: Number(r.total_tasks) || 0,
+            posTasks: Number(r.pos_tasks) || 0,
+            sbTasks: Number(r.sb_tasks) || 0,
+            khqrTasks: Number(r.khqr_tasks) || 0,
+            ccTasks: Number(r.cc_tasks) || 0,
+            mvTasks: Number(r.mv_tasks) || 0,
+          })) : [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          dailyStaff: Array.isArray(d.daily_staff) ? d.daily_staff.map((r: any) => ({
+            day: String(r.day || ''),
+            staffId: String(r.staff_id || ''),
+            staffName: String(r.staff_name || r.staff_id || ''),
+            branchId: String(r.branch_id || 'UNASSIGNED'),
+            branchName: String(r.branch_name || 'Unassigned'),
+            totalTasks: Number(r.total_tasks) || 0,
+            posTasks: Number(r.pos_tasks) || 0,
+            sbTasks: Number(r.sb_tasks) || 0,
+            khqrTasks: Number(r.khqr_tasks) || 0,
+            ccTasks: Number(r.cc_tasks) || 0,
+            mvTasks: Number(r.mv_tasks) || 0,
+          })) : [],
+        };
     setCachedKpiSummary(from, to, out);
     kpiBorn.set(key, Date.now());
     return out;

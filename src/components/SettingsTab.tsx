@@ -2150,7 +2150,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-                    Phone App Review: Staff Shown
+                    Merchant App Review: Staff Shown
                   </label>
                   <select
                     value={formState.phoneReviewScope || 'ALL'}

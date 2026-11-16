@@ -170,7 +170,7 @@ async function api(route) {
   await hs.fill('WP0002'); await sleep(500);
   await p.getByText('Show everything about', { exact: false }).first().click(); await sleep(1200);
   const tr = await bodyTxt();
-  ok(/Everything about/.test(tr) && /Stock Inventory \(current status\)/.test(tr) && /Lucky Mart/.test(tr) && /Phone App Review records/.test(tr), 'search by serial shows the unit, history, requests and phone records together');
+  ok(/Everything about/.test(tr) && /Stock Inventory \(current status\)/.test(tr) && /Lucky Mart/.test(tr) && /Merchant App Review records/.test(tr), 'search by serial shows the unit, history, requests and phone records together');
   await p.keyboard.press('Escape'); await sleep(300);
   // pop-ups stay in the middle of the screen
   await p.getByText('Merchant Deployment', { exact: true }).first().click(); await sleep(1500);
@@ -221,12 +221,12 @@ async function api(route) {
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/requests2.png' });
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/requests.png' });
   // review queue
-  await p.click('text=Phone App Review'); await sleep(1500);
+  await p.click('text=Merchant App Review'); await sleep(1500);
   const txt = await p.textContent('body');
-  ok(/Phone App Review/.test(txt) && /WP0001/.test(txt) && /WP0002/.test(txt) && /Waiting \(3\)/.test(txt), 'Phone App Review lists the 3 waiting records (one row per MID)');
+  ok(/Merchant App Review/.test(txt) && /WP0001/.test(txt) && /WP0002/.test(txt) && /Waiting \(3\)/.test(txt), 'Merchant App Review lists the 3 waiting records (one row per MID)');
   const card = (sn) => p.locator('div.border-b', { hasText: sn }).last();
-  // (28 Oct 2026) the device type is chosen in the menu: Phone App Review → POS Terminal / Sound Box / KHQR
-  ok((/Phone App Review\s*·\s*POS Terminal/.test(txt) || /POS Terminal/.test(txt)) && await p.locator('aside').first().getByRole('group', { name: 'Phone App Review sections' }).getByRole('button', { name: /^Sound Box/ }).isVisible() && await p.locator('aside').first().getByRole('button', { name: /^KHQR/ }).isVisible(), 'sub-menus: POS Terminal / Sound Box / KHQR');
+  // (28 Oct 2026) the device type is chosen in the menu: Merchant App Review → POS Terminal / Sound Box / KHQR
+  ok((/Merchant App Review\s*·\s*POS Terminal/.test(txt) || /POS Terminal/.test(txt)) && await p.locator('aside').first().getByRole('group', { name: 'Merchant App Review sections' }).getByRole('button', { name: /^Sound Box/ }).isVisible() && await p.locator('aside').first().getByRole('button', { name: /^KHQR/ }).isVisible(), 'sub-menus: POS Terminal / Sound Box / KHQR');
   ok(!/Open the location|Remarks/.test(txt), 'no location link and no remarks in the review cards');
   if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/review.png' });
   { const order = await p.locator('section[aria-label="Records"] button[aria-expanded]').allTextContents(); ok(/WP0002/.test(order[0] || '') && /WP0001/.test(order[1] || '') && /WP0003/.test(order[2] || ''), 'Phone App Review: newest first (by date and time sent), devices of one entry together ' + JSON.stringify(order)); }
@@ -273,8 +273,8 @@ async function api(route) {
   await p.fill('#npw', 'Branch2026x'); await p.fill('#npw2', 'Branch2026x'); await p.click('text=Save password and continue'); await sleep(3000);
   const ss2 = await p.evaluate(() => JSON.parse(sessionStorage.getItem('crm_pos_auth_session_v20') || '{}'));
   ok(state.newPw === 'Branch2026x' && ss2.role === 'BRANCH' && ss2.branchId === '105', 'new password saved; branch staff enters as BRANCH 105 ' + JSON.stringify(ss2));
-  await p.click('text=Phone App Review'); await sleep(1500);
-  ok((await p.getByRole('button', { name: 'Approve', exact: true }).count()) === 0 && /Phone App Review/.test(await p.textContent('body')), 'branch staff: review list read-only');
+  await p.click('text=Merchant App Review'); await sleep(1500);
+  ok((await p.getByRole('button', { name: 'Approve', exact: true }).count()) === 0 && /Merchant App Review/.test(await p.textContent('body')), 'branch staff: review list read-only');
   await p.getByText('Stock Requests', { exact: true }).first().click(); await sleep(1200);
   ok((await p.getByRole('button', { name: 'Dispatch', exact: true }).count()) === 0, 'branch staff: no dispatch actions');
   await p.getByText('Stock Inventory', { exact: true }).first().click(); await sleep(1200);

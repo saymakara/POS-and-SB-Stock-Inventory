@@ -162,8 +162,8 @@ const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_T
     ok(true, `SIM Card Type Filter -> ${hw} tapped`);
   }
 
-  console.log('--- 7. Phone App Review Sub-Menus ---');
-  const reviewGroup = aside.getByRole('group', { name: 'Phone App Review sections' });
+  console.log('--- 7. Merchant App Review Sub-Menus ---');
+  const reviewGroup = aside.getByRole('group', { name: 'Merchant App Review sections' });
   if (await reviewGroup.count() > 0) {
     for (const rSub of ['POS Terminal', 'Sound Box', 'KHQR', 'Merchant Visit', 'Credit Card']) {
       const rBtn = reviewGroup.getByRole('button', { name: new RegExp('^' + rSub) });
@@ -172,7 +172,7 @@ const IGNORE = /WebSocket connection to .*realtime|Failed to load resource|ERR_T
         await rBtn.click();
         await sleep(350);
         const rLat = Math.round(performance.now() - tR);
-        ok(rLat < 600, `Phone App Review -> ${rSub}: ${rLat} ms`);
+        ok(rLat < 600, `Merchant App Review -> ${rSub}: ${rLat} ms`);
       }
     }
   }

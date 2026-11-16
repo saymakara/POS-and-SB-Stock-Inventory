@@ -2471,18 +2471,39 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     const approvalVals = sparkDays.map((p) => p.pos + p.sb + p.cc + (p.fullLabel ? reqByDay.get(p.fullLabel) || 0 : 0));
     const reachVals = sparkDays.map((p) => p.khqr + p.mv + p.cc);
 
-    // Hardware Pool: 6-month cumulative stocked fleet growth (falls back to 6M hardware installs if stockInDate is uniform)
+    // Hardware Pool: 6-month cumulative stocked fleet growth (single O(N) pass, falls back to 6M hardware installs)
     const months6 = lastMonthsPP(6);
-    const hwCumulative = months6.map((m) =>
-      activeDevices.filter((d) => {
-        const ym = (d.stockInDate || d.deployedDate || '').slice(0, 7);
-        return ym ? ym <= m.key : true;
-      }).length
-    );
+    const mLen = months6.length;
+    const mKeys = months6.map((m) => m.key);
+    const mIdxByKey = new Map<string, number>();
+    for (let m = 0; m < mLen; m++) mIdxByKey.set(mKeys[m], m);
+    const cumStarts = new Array<number>(mLen).fill(0);
+    const hwMonthlyInstalls = new Array<number>(mLen).fill(0);
+    for (let i = 0; i < activeDevices.length; i++) {
+      const d = activeDevices[i];
+      const stockYm = (d.stockInDate || d.deployedDate || '').slice(0, 7);
+      if (!stockYm) {
+        if (mLen > 0) cumStarts[0]++;
+      } else {
+        for (let m = 0; m < mLen; m++) {
+          if (stockYm <= mKeys[m]) {
+            cumStarts[m]++;
+            break;
+          }
+        }
+      }
+      if (d.stage === 'COMPLETE' && d.deployedDate) {
+        const depIdx = mIdxByKey.get(d.deployedDate.slice(0, 7));
+        if (depIdx !== undefined) hwMonthlyInstalls[depIdx]++;
+      }
+    }
+    const hwCumulative = new Array<number>(mLen).fill(0);
+    let runningCum = 0;
+    for (let m = 0; m < mLen; m++) {
+      runningCum += cumStarts[m];
+      hwCumulative[m] = runningCum;
+    }
     const hwCumFlat = hwCumulative.every((v) => v === hwCumulative[0]);
-    const hwMonthlyInstalls = months6.map((m) =>
-      activeDevices.filter((d) => d.stage === 'COMPLETE' && (d.deployedDate || '').slice(0, 7) === m.key).length
-    );
     const hwVals =
       activeDevices.length === 0
         ? [hardwareSummary.total, hardwareSummary.total]

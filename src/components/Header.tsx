@@ -115,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
         },
         {
           id: 'mobile_sync',
-          label: 'Phone App Review',
+          label: 'Merchant App Review',
           icon: Smartphone,
           count: webhookCount > 0 ? webhookCount : undefined,
           highlight: webhookCount > 0,

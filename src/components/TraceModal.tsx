@@ -70,7 +70,7 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
               </div>
               <div className="min-w-0">
                 <div className="text-base font-bold text-white truncate">Everything about &ldquo;{query.trim()}&rdquo;</div>
-                <div className="text-[11.5px] text-slate-300 truncate mt-0.5">Stock Inventory, Merchant History, Stock Requests, Phone App &amp; Audit</div>
+                <div className="text-[11.5px] text-slate-300 truncate mt-0.5">Stock Inventory, Merchant History, Stock Requests, Merchant App &amp; Audit</div>
               </div>
             </div>
             <button type="button" onClick={onClose} className={SIM_CLOSE_BTN_CLS} aria-label="Close"><X className="w-4 h-4" /></button>
@@ -112,7 +112,7 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
               </div>
             ))}
           </Section>
-          <Section icon={<Smartphone className="w-3.5 h-3.5 text-slate-600" />} title="Phone App Review records" count={server?.events.length ?? 0}>
+          <Section icon={<Smartphone className="w-3.5 h-3.5 text-slate-600" />} title="Merchant App Review records" count={server?.events.length ?? 0}>
             {server === null ? <span className="text-slate-400">Loading…</span> : server.events.map((e) => (
               <div key={e.id} className="rounded-lg border border-slate-100 p-2.5 khmer">
                 <div className="flex items-center justify-between gap-2"><div>{e.kind} · <span className="font-mono">{e.serial}</span> · {e.status}</div>{e.sourceRecordId && <CopyableRecordId id={e.sourceRecordId} />}</div>
@@ -131,7 +131,7 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
               ))}
             </Section>
           )}
-          {server && !server.ok && <p className="text-[11px] text-amber-700">The server could not be reached for Phone App records and the audit trail. The rest is shown from this screen.</p>}
+          {server && !server.ok && <p className="text-[11px] text-amber-700">The server could not be reached for Merchant App records and the audit trail. The rest is shown from this screen.</p>}
         </div>
       </RightDrawerFrame>
     </AnimatePresence>,
