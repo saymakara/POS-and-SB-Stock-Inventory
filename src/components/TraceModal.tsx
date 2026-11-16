@@ -1,10 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence } from 'motion/react';
 import { X, Search, Cpu, History, ClipboardList, Smartphone, ShieldCheck } from 'lucide-react';
 import { Device, HistoricalMerchantRecord, Requisition } from '../types';
 import { STAGE_META } from '../data/initialData';
 import { traceOnServer, FieldEvent, ServerAuditEntry } from '../services/supabaseService';
 import { CopyableRecordId } from './CopyableRecordId';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_BODY_CLS,
+} from './RightDrawerShell';
 
 interface Props {
   query: string;
@@ -27,13 +35,6 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
     traceOnServer(query).then((r) => { if (live) setServer(r); }).catch(() => { if (live) setServer({ events: [], audit: [], ok: false }); });
     return () => { live = false; };
   }, [query]);
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', k);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev; };
-  }, [onClose]);
 
   const units = useMemo(() => devices.filter((d) =>
     d.serial.toLowerCase().includes(q) || (d.mid || '').toLowerCase().includes(q) || (d.tid || '').toLowerCase().includes(q) ||
@@ -59,17 +60,23 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex justify-end overflow-hidden bg-slate-950/55 will-change-[opacity]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} role="dialog" aria-modal="true" aria-label="Search results">
-      <div className="w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl bg-slate-50 flex flex-col my-0 overflow-hidden rounded-l-lg">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 bg-white rounded-tl-lg">
-          <Search className="w-4 h-4 text-slate-500" />
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-800">Everything about &ldquo;{query.trim()}&rdquo;</div>
-            <div className="text-[11px] text-slate-500">Stock Inventory, Merchant History, Stock Requests, Phone App records and the audit trail</div>
+    <AnimatePresence>
+      <RightDrawerFrame onClose={onClose} zClass="z-[90]" ariaLabel="Search results">
+        <div className={SIM_HEADER_CLS}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={SIM_ICON_BOX_CLS}>
+                <Search className="w-4 h-4 text-[#5cc8ff]" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-base font-bold text-white truncate">Everything about &ldquo;{query.trim()}&rdquo;</div>
+                <div className="text-[11.5px] text-slate-300 truncate mt-0.5">Stock Inventory, Merchant History, Stock Requests, Phone App &amp; Audit</div>
+              </div>
+            </div>
+            <button type="button" onClick={onClose} className={SIM_CLOSE_BTN_CLS} aria-label="Close"><X className="w-4 h-4" /></button>
           </div>
-          <button type="button" onClick={onClose} className="ml-auto p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer" aria-label="Close"><X className="w-4 h-4" /></button>
         </div>
-        <div className="overflow-y-auto overscroll-contain p-4 space-y-3">
+        <div className={SIM_BODY_CLS}>
           <Section icon={<Cpu className="w-3.5 h-3.5 text-[#003857]" />} title="Stock Inventory (current status)" count={units.length}>
             {units.map((u) => (
               <div key={u.serial} className="rounded-lg border border-slate-100 p-2.5">
@@ -126,8 +133,8 @@ export const TraceModal: React.FC<Props> = ({ query, devices, history, requisiti
           )}
           {server && !server.ok && <p className="text-[11px] text-amber-700">The server could not be reached for Phone App records and the audit trail. The rest is shown from this screen.</p>}
         </div>
-      </div>
-    </div>,
+      </RightDrawerFrame>
+    </AnimatePresence>,
     document.body,
   );
 };

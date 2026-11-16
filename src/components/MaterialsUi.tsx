@@ -1,8 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence } from 'motion/react';
 import { Loader2, X } from 'lucide-react';
 import type { SerialStatus } from '../services/materialsService';
 import { SERIAL_STATUS_LABEL } from '../services/materialsService';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_BODY_CLS,
+  SIM_FOOTER_CLS,
+} from './RightDrawerShell';
 
 /** (5 Nov 2026) Shared pieces of the material pages, in the portal's own style. */
 
@@ -40,29 +48,35 @@ export const MaterialDialog: React.FC<{
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose(); };
-    window.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
     const t = setTimeout(() => box.current?.querySelector<HTMLElement>('input, select, textarea')?.focus(), 60);
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; clearTimeout(t); };
-  }, [open, busy, onClose]);
-  if (!open) return null;
+    return () => { clearTimeout(t); };
+  }, [open]);
   const id = 'matdlg-' + title.replace(/\W+/g, '-').toLowerCase();
   return createPortal(
-    <div className="fixed inset-0 z-[95] flex justify-end overflow-hidden bg-slate-950/55" role="dialog" aria-modal="true" aria-labelledby={id}
-      onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}>
-      <div ref={box} className={`drawer-glide transform-gpu w-full ${wide ? 'sm:max-w-xl md:max-w-2xl' : 'sm:max-w-[560px] md:max-w-[580px]'} h-full flex flex-col bg-white shadow-2xl rounded-l-lg overflow-hidden `}>
-        <div className="navy-header-bar rounded-tl-lg flex items-start justify-between gap-3 px-5 py-4 border-b border-white/15 text-white shrink-0">
-          <div className="min-w-0">
-            <h2 id={id} className="text-base font-bold text-white">{title}</h2>
-            {sub && <p className="text-xs text-white/80 mt-0.5">{sub}</p>}
+    <AnimatePresence>
+      {open && (
+        <RightDrawerFrame
+          onClose={onClose}
+          zClass="z-[95]"
+          wide={wide}
+          busy={busy}
+          ariaLabelledBy={id}
+          panelRef={box}
+        >
+          <div className={SIM_HEADER_CLS}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 id={id} className="text-base font-bold text-white tracking-tight">{title}</h2>
+                {sub && <p className="text-[11.5px] text-slate-300 mt-0.5">{sub}</p>}
+              </div>
+              <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className={`${SIM_CLOSE_BTN_CLS} disabled:opacity-40`}><X className="w-4 h-4" /></button>
+            </div>
           </div>
-          <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer disabled:opacity-40"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="flex-1 px-5 py-4 overflow-y-auto min-h-0 flex flex-col gap-3.5 custom-scrollbar">{children}</div>
-        {footer && <div className="shrink-0 px-5 py-3.5 border-t border-slate-200 bg-slate-50/95 flex flex-wrap justify-end gap-2">{footer}</div>}
-      </div>
-    </div>,
+          <div className={SIM_BODY_CLS}>{children}</div>
+          {footer && <div className={`${SIM_FOOTER_CLS} flex-wrap justify-end`}>{footer}</div>}
+        </RightDrawerFrame>
+      )}
+    </AnimatePresence>,
     document.body,
   );
 };

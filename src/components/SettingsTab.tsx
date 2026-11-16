@@ -28,9 +28,19 @@ import {
   saveTelegramBotUsername,
   clearTelegramConnection,
 } from '../utils/errorLogger';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
 import { PillMotion } from './PillMotion';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_BODY_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+} from './RightDrawerShell';
 import {
   Settings,
   BatteryCharging,
@@ -1724,33 +1734,39 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             {/* Add / Edit Field Modal */}
             <AnimatePresence>
               {isFieldModalOpen && (
-                <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setIsFieldModalOpen(false); }}>
-                  <motion.div
-                    initial={{ x: '100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '100%' }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                    className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 bg-white flex flex-col my-0 overflow-hidden text-slate-900 rounded-l-lg"
-                  >
-                    <div className="px-6 py-4 bg-[#155484] rounded-tl-lg border-b border-white/10 flex items-center justify-between text-white">
-                      <div>
-                        <h3 className="text-sm font-extrabold">
-                          {editingFieldId ? 'Edit Attribute Field' : 'Add New Custom Field'}
-                        </h3>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Configure dynamic attributes for hardware inventory and merchant onboarding
-                        </p>
+                <RightDrawerFrame
+                  onClose={() => setIsFieldModalOpen(false)}
+                  zClass="z-50"
+                  ariaLabel={editingFieldId ? 'Edit Attribute Field' : 'Add New Custom Field'}
+                >
+                  <div className={SIM_HEADER_CLS}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={SIM_ICON_BOX_CLS}>
+                          <Settings className="w-4 h-4 text-[#5cc8ff]" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-base font-bold text-white truncate">
+                            {editingFieldId ? 'Edit Attribute Field' : 'Add New Custom Field'}
+                          </h3>
+                          <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
+                            Configure dynamic attributes for hardware inventory and merchant onboarding
+                          </p>
+                        </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => setIsFieldModalOpen(false)}
-                        className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                        aria-label="Close"
+                        className={SIM_CLOSE_BTN_CLS}
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
+                  </div>
 
-                    <form onSubmit={handleSaveFieldModal} className="p-6 space-y-4 text-xs">
+                  <form onSubmit={handleSaveFieldModal} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
+                    <div className={SIM_BODY_CLS}>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block font-bold text-slate-700 mb-1">
@@ -1919,24 +1935,25 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                         </label>
                       </div>
 
-                      <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
-                        <button
-                          type="button"
-                          onClick={() => setIsFieldModalOpen(false)}
-                          className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-5 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-sm transition cursor-pointer"
-                        >
-                          {editingFieldId ? 'Save Changes' : 'Activate Custom Field'}
-                        </button>
                       </div>
-                    </form>
-                  </motion.div>
-                </div>
+
+                    <div className={SIM_FOOTER_CLS}>
+                      <button
+                        type="button"
+                        onClick={() => setIsFieldModalOpen(false)}
+                        className={SIM_BTN_CANCEL_CLS}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className={SIM_BTN_PRIMARY_CLS}
+                      >
+                        {editingFieldId ? 'Save Changes' : 'Activate Custom Field'}
+                      </button>
+                    </div>
+                  </form>
+                </RightDrawerFrame>
               )}
             </AnimatePresence>
           </div>
@@ -2744,26 +2761,40 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </div>
 
       {/* Modal to Add / Edit Regional Group */}
-      {isRegionalModalOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setIsRegionalModalOpen(false); }}>
-          <div className="relative w-full sm:max-w-[500px] h-full shadow-2xl p-6 bg-white text-slate-900 space-y-4 flex flex-col overflow-y-auto rounded-l-lg">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2 text-[#003857]">
-                <Users className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-sm font-extrabold text-zinc-900">
-                  {editingRegionalGroup ? 'Edit Regional Telegram Group' : 'Add Regional Telegram Group'}
-                </h3>
+      <AnimatePresence>
+        {isRegionalModalOpen && (
+          <RightDrawerFrame
+            onClose={() => setIsRegionalModalOpen(false)}
+            zClass="z-50"
+            ariaLabel={editingRegionalGroup ? 'Edit Regional Telegram Group' : 'Add Regional Telegram Group'}
+          >
+            <div className={SIM_HEADER_CLS}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={SIM_ICON_BOX_CLS}>
+                    <Users className="w-4 h-4 text-[#5cc8ff]" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-bold text-white truncate">
+                      {editingRegionalGroup ? 'Edit Regional Telegram Group' : 'Add Regional Telegram Group'}
+                    </h3>
+                    <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
+                      Route Telegram push alerts for assigned branch codes
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsRegionalModalOpen(false)}
+                  aria-label="Close"
+                  className={SIM_CLOSE_BTN_CLS}
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsRegionalModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
 
-            <div className="space-y-3.5">
+            <div className={SIM_BODY_CLS}>
               <div>
                 <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
                   Regional Team Name *
@@ -2857,11 +2888,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <div className={SIM_FOOTER_CLS}>
               <button
                 type="button"
                 onClick={() => setIsRegionalModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                className={SIM_BTN_CANCEL_CLS}
               >
                 Cancel
               </button>
@@ -2885,14 +2916,14 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   setIsRegionalModalOpen(false);
                   if (onToast) onToast(`Saved Regional Telegram Group: "${newGroup.name}"`);
                 }}
-                className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold cursor-pointer disabled:opacity-40 shadow-xs"
+                className={SIM_BTN_PRIMARY_CLS}
               >
                 {editingRegionalGroup ? 'Update Regional Group' : 'Add Regional Group'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </RightDrawerFrame>
+        )}
+      </AnimatePresence>
 
       {/* Delete Telegram Connection Confirmation Dialog */}
       {isDeleteConnectionModalOpen && (

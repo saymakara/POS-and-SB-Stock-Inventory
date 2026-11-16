@@ -22,7 +22,19 @@ import {
   Lock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DRAWER_VARIANTS, BACKDROP_VARIANTS } from '../utils/animationRules';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_SUBHEADER_CLS,
+  SIM_BODY_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+  simStepPillCls,
+  simStepNumCls,
+} from './RightDrawerShell';
 
 interface RequestStockModalProps {
   isOpen: boolean;
@@ -140,113 +152,77 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-        {/* Backdrop */}
-        <motion.div
-          variants={BACKDROP_VARIANTS}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          onClick={onClose}
-          className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
-        />
-
-        {/* Modal Box */}
-        <motion.div
-          variants={DRAWER_VARIANTS}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg ${
-            isLight
-              ? 'bg-white text-slate-800'
-              : 'bg-[#11141e] text-slate-100'
-          }`}
-        >
-          {/* Header */}
-          <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white border-b border-white/20 shrink-0">
+      <RightDrawerFrame
+        onClose={onClose}
+        zClass="z-50"
+        isLight={isLight}
+        ariaLabel="Request Branch Reserve Stock"
+      >
+        {/* SIM-Style Header */}
+        <div className={SIM_HEADER_CLS}>
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-white">
-                <SendHorizontal className="w-5 h-5 text-white" />
+              <div className={SIM_ICON_BOX_CLS}>
+                <SendHorizontal className="w-4 h-4 text-[#5cc8ff]" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base font-extrabold text-white tracking-tight truncate flex items-center gap-2">
-                  <span>Request Branch Reserve Stock</span>
+                <h3 className="text-base font-bold text-white tracking-tight truncate">
+                  Request Branch Reserve Stock
                 </h3>
-                <p className="text-xs text-sky-100/90 font-mono truncate mt-0.5">
+                <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
                   Request POS Terminal &amp; Sound Box units from Head Office
                 </p>
               </div>
             </div>
-            <motion.button
-              whileTap={{ scale: 0.94 }}
+            <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0 ml-2"
+              className={SIM_CLOSE_BTN_CLS}
               title="Close Modal"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
-            </motion.button>
+            </button>
+          </div>
+        </div>
+
+        {/* Stepper Progress Bar matching SIM Card */}
+        <div className={SIM_SUBHEADER_CLS}>
+          <div className="flex items-center gap-1.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setModalStep('FORM')}
+              className={simStepPillCls(modalStep === 'FORM', true)}
+            >
+              <span className={simStepNumCls(modalStep === 'FORM')}>1</span>
+              <span>Configure Request</span>
+            </button>
+
+            <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!formError) setModalStep('PREVIEW');
+              }}
+              disabled={!!formError}
+              className={simStepPillCls(modalStep === 'PREVIEW', !formError)}
+            >
+              <span className={simStepNumCls(modalStep === 'PREVIEW')}>2</span>
+              <span>Pre-Dispatch Review</span>
+            </button>
           </div>
 
-          {/* Stepper Progress Bar (Signature Institutional Sub-header) */}
-          <div
-            className={`px-6 py-2.5 border-b flex items-center justify-between text-xs ${
-              isLight
-                ? 'bg-slate-50 border-slate-200 text-slate-700'
-                : 'bg-[#151922] border-slate-800 text-slate-300'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setModalStep('FORM')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-                  modalStep === 'FORM'
-                    ? 'bg-[#003857] text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-                }`}
-              >
-                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
-                  1
-                </span>
-                <span>Configure Request</span>
-              </button>
-
-              <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!formError) setModalStep('PREVIEW');
-                }}
-                disabled={!!formError}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
-                  modalStep === 'PREVIEW'
-                    ? 'bg-[#003857] text-white shadow-xs'
-                    : !formError
-                    ? 'text-slate-600 hover:text-slate-900 dark:hover:text-white cursor-pointer'
-                    : 'text-slate-400 opacity-60 cursor-not-allowed'
-                }`}
-              >
-                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
-                  2
-                </span>
-                <span>Pre-Dispatch Review</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#1e5b88] dark:text-sky-400" />
-              <span>Double-Step Safeguard</span>
-            </div>
+          <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#1e5b88]" />
+            <span>Double-Step Safeguard</span>
           </div>
+        </div>
 
-          {/* Form / Preview Conditional View */}
-          {modalStep === 'FORM' ? (
-            <form onSubmit={handleProceedToPreview} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className="flex-1 p-5 sm:p-6 flex flex-col gap-4 text-xs overflow-y-auto min-h-0 custom-scrollbar">
+        {/* Form / Preview Conditional View */}
+        {modalStep === 'FORM' ? (
+          <form onSubmit={handleProceedToPreview} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className={SIM_BODY_CLS}>
               {/* Field 1: Requesting Branch */}
               <div className="flex flex-col gap-1.5">
                 <label className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -589,10 +565,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
 
               </div>
               {/* Pinned Action Footer Bar */}
-              <div
-                className={`shrink-0 px-5 py-3.5 border-t flex items-center justify-between gap-3 ${
-                  isLight ? 'bg-slate-50/95 border-slate-200' : 'bg-[#151922]/95 border-slate-800'
-                }`}>
+              <div className={SIM_FOOTER_CLS}>
                 <div className="flex flex-col gap-0.5 text-[11px] font-mono font-bold text-[#1e5b88] dark:text-sky-300">
                   <span>Staging {posQty} POS &amp; {sbQty} Sound Box{matTotal ? ` + ${matTotal} material(s)` : ''}</span>
                   {formError && (
@@ -607,11 +580,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     whileTap={{ scale: 0.94 }}
                     type="button"
                     onClick={onClose}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition cursor-pointer shadow-2xs ${
-                      isLight
-                        ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200/90'
-                        : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
-                    }`}
+                    className={SIM_BTN_CANCEL_CLS}
                   >
                     Cancel
                   </motion.button>
@@ -620,9 +589,9 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                     whileTap={{ scale: 0.94 }}
                     type="submit"
                     disabled={!!formError}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs flex items-center gap-2 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    className={SIM_BTN_PRIMARY_CLS}
                   >
-                    <span>Review Request (Step 2 Preview)</span>
+                    <span>Review Request</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </motion.button>
                 </div>
@@ -631,7 +600,7 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
           ) : (
             /* Step 2: Preview & Double-Check Step */
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div className="flex-1 p-5 sm:p-6 flex flex-col gap-4 text-xs overflow-y-auto min-h-0 custom-scrollbar">
+              <div className={SIM_BODY_CLS}>
               <div
                 className={`p-4 rounded-xl border flex items-start gap-3.5 shadow-2xs ${
                   isLight
@@ -710,19 +679,12 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
 
               </div>
               {/* Pinned Action Footer Bar */}
-              <div
-                className={`shrink-0 px-5 py-3.5 border-t flex items-center justify-between gap-2.5 ${
-                  isLight ? 'bg-slate-50/95 border-slate-200' : 'bg-[#151922]/95 border-slate-800'
-                }`}>
+              <div className={SIM_FOOTER_CLS}>
                 <motion.button
                   whileTap={{ scale: 0.94 }}
                   type="button"
                   onClick={() => setModalStep('FORM')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold border flex items-center gap-1.5 transition cursor-pointer shadow-2xs ${
-                    isLight
-                      ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200/90'
-                      : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
-                  }`}
+                  className={`${SIM_BTN_CANCEL_CLS} inline-flex items-center gap-1.5`}
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back to Edit</span>
@@ -733,16 +695,15 @@ export const RequestStockModal: React.FC<RequestStockModalProps> = ({
                   type="button"
                   onClick={handleFinalConfirm}
                   disabled={!!formError}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-[#1e5b88] to-[#246da1] hover:from-[#1b4f72] hover:to-[#1e5b88] border border-white/20 text-white shadow-md flex items-center gap-2 cursor-pointer transition"
+                  className={SIM_BTN_PRIMARY_CLS}
                 >
-                  <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
                   <span>Confirm &amp; Transmit Request</span>
                 </motion.button>
               </div>
               </div>
           )}
-        </motion.div>
-      </div>
+      </RightDrawerFrame>
     </AnimatePresence>
   );
 };

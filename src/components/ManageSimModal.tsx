@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DRAWER_VARIANTS, BACKDROP_VARIANTS, WHILE_TAP_BUTTON } from '../utils/animationRules';
+import { WHILE_TAP_BUTTON } from '../utils/animationRules';
+import { RightDrawerFrame } from './RightDrawerShell';
 import {
   CreditCard, X, Check, Copy, ArrowRight, ArrowLeft, RefreshCw,
   Cpu, Volume2, AlertTriangle, Layers, Building2,
@@ -300,25 +301,12 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
-        {/* Backdrop dismiss */}
-        <motion.div
-          variants={BACKDROP_VARIANTS}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          className="fixed inset-0 bg-slate-900/55 will-change-[opacity]"
-          onClick={onClose}
-          aria-hidden
-        />
-
-        <motion.div
-          variants={DRAWER_VARIANTS}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          className="relative w-full sm:max-w-[560px] md:max-w-[580px] bg-white dark:bg-slate-900 shadow-2xl z-10 flex flex-col h-full rounded-l-lg overflow-hidden transform-gpu will-change-transform"
-        >
+      <RightDrawerFrame
+        onClose={onClose}
+        zClass="z-50"
+        busy={saving}
+        ariaLabel={`Manage SIM Card ${simSerial}`}
+      >
           {/* 1. NAVY HEADER BAR */}
           <div className="bg-[#155484] rounded-tl-lg text-white px-5 py-3.5 shrink-0 shadow-sm border-b border-white/10">
             <div className="flex items-center justify-between gap-3">
@@ -940,8 +928,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
               </>
             )}
           </div>
-        </motion.div>
-      </div>
+      </RightDrawerFrame>
     </AnimatePresence>
   );
 };

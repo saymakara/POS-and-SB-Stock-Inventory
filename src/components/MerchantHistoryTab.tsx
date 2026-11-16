@@ -11,7 +11,16 @@ import {
   ThemeMode,
   Device,
 } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_BODY_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+} from './RightDrawerShell';
 import {
   Store,
   Calendar,
@@ -602,58 +611,46 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
           <>
             <AnimatePresence>
               {selectedRecord && (
-                <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setSelectedRecord(null)}
-                    className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
-                  />
-                  <motion.div
-                    initial={{ x: '100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '100%' }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
-                    className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg ${
-                      isLight
-                        ? 'bg-white text-slate-800'
-                        : 'bg-[#12151e] text-slate-100'
-                    }`}
-                  >
-              {/* Prestigious Navy Header Bar */}
-              <div className="navy-header-bar rounded-tl-lg px-6 py-4.5 shrink-0 text-white flex items-center justify-between border-b border-white/10">
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-white shrink-0 shadow-xs">
-                    <Store className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-bold text-white tracking-tight truncate">
-                        {dash(selectedRecord.merchantName)}
-                      </h3>
-                      <CopyableRecordId id={selectedRecord.recordId} variant="pill" onCopied={(id) => onToast?.(`Copied Record ID: ${id}`)} />
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-500/30 text-rose-100 border border-rose-300/30">
-                        Decommissioned
-                      </span>
-                    </div>
-                    <p className="text-xs text-white/80 font-mono mt-1 truncate">
-                      15D MID: {selectedRecord.mid} · Branch Code {selectedRecord.branchId} ({selectedRecord.branchName})
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRecord(null)}
-                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
-                  title="Close modal"
-                  aria-label="Close record details"
+                <RightDrawerFrame
+                  onClose={() => setSelectedRecord(null)}
+                  zClass="z-50"
+                  isLight={isLight}
+                  ariaLabel={`Merchant history ${selectedRecord.recordId}`}
                 >
-                  <X className="w-4 h-4" />
-                </button>
+              {/* SIM-Style Header Bar */}
+              <div className={SIM_HEADER_CLS}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={SIM_ICON_BOX_CLS}>
+                      <Store className="w-4 h-4 text-[#5cc8ff]" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <h3 className="text-base font-bold text-white tracking-tight truncate">
+                          {dash(selectedRecord.merchantName)}
+                        </h3>
+                        <CopyableRecordId id={selectedRecord.recordId} variant="pill" onCopied={(id) => onToast?.(`Copied Record ID: ${id}`)} />
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-500/30 text-rose-100 border border-rose-300/30">
+                          Decommissioned
+                        </span>
+                      </div>
+                      <p className="text-[11.5px] text-slate-300 font-mono mt-0.5 truncate">
+                        15D MID: {selectedRecord.mid} · Branch Code {selectedRecord.branchId} ({selectedRecord.branchName})
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRecord(null)}
+                    className={SIM_CLOSE_BTN_CLS}
+                    title="Close modal"
+                    aria-label="Close record details"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-
-              <div className="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1">
+              <div className={`${SIM_BODY_CLS} text-xs`}>
                 {/* Status banner */}
                 <div
                   className={`p-4 rounded-2xl border flex items-center justify-between gap-3 ${
@@ -1102,26 +1099,21 @@ export const MerchantHistoryTab: React.FC<MerchantHistoryTabProps> = ({
                     </div>
                   );
                 })()}
-
-                {/* Footer Close */}
-                <div className="flex items-center justify-end pt-3 border-t border-slate-200 dark:border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRecord(null)}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
-                      isLight
-                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
-                        : 'bg-white/10 hover:bg-white/15 text-white border border-white/15'
-                    }`}
-                  >
-                    Close
-                  </button>
-                </div>
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+
+              {/* Footer Close */}
+              <div className={`${SIM_FOOTER_CLS} justify-end`}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRecord(null)}
+                  className={SIM_BTN_CANCEL_CLS}
+                >
+                  Close
+                </button>
+              </div>
+                </RightDrawerFrame>
+              )}
+            </AnimatePresence>
           </>,
           document.body
         )}

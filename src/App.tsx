@@ -67,7 +67,19 @@ import {
 import { useKeptMemo } from './utils/useKeptMemo';
 import { clearInventoryCache } from './services/inventoryCache';
 import { clearMaterialsCache, fetchOpenLostCounts, adminSimUpdate, cleanMaterialError } from './services/materialsService';
-import { SendHorizontal, Lock, CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { SendHorizontal, Lock, CheckCircle2, AlertCircle, AlertTriangle, Info, X, Building2, Users } from 'lucide-react';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_HEADER_TAG_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_BODY_CLS,
+  SIM_CARD_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+} from './components/RightDrawerShell';
 import { isSupabaseConfigured } from './lib/supabase';
 import { fetchDevicesFromSupabase, fetchDevicesChangedSince, countDevicesOnServer, fetchConfiguringDevicesFromSupabase, hydrateDevicePushFromHistory, saveDevicePushStatusToSupabase, fetchDevicesPageFromSupabase, fetchDeviceStageCountsFromSupabase, type DeviceStageSummary, type DeviceQueryParams, fetchRequisitionsFromSupabase, subscribeToRealtimeChanges, saveDevicesStrict, saveRequisitionStrict, deleteDevicesOnServer, confirmReceiptOnServer, writeAuditLog, fetchHistoricalMerchantsFromSupabase, insertHistoricalMerchantToSupabase, deleteAllHistoricalMerchantsOnServer, countPendingFieldEventsByType, subscribeToFieldEvents, dispatchRequisitionOnServer, dispatchRequestWithMaterialsOnServer, rejectRequisitionOnServer, receiveReturnOnServer, fetchBranchesFromSupabase, saveBranchOnServer, StaffAccount, renameDeviceSerialOnServer, subscribeToOnlinePresence, OnlineOperatorPresence } from './services/supabaseService';
 import { signOutEverywhere, clearLocalCaches } from './components/AuthGate';
@@ -5118,193 +5130,277 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
           </Suspense>
         )}
 
-      {/* Branch Code Create/Edit Modal */}
-      {isNewBranchModalOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) setIsNewBranchModalOpen(false); }}>
-          <div className="w-full sm:max-w-[500px] h-full p-6 shadow-2xl bg-white text-slate-900 flex flex-col justify-between overflow-y-auto rounded-l-lg">
-            <h3 className="text-base font-black mb-4 text-[#002f49]">
-              {editingBranch
-                ? `Edit Branch Code ${editingBranch.code}`
-                : 'Add New Branch Code'}
-            </h3>
-            <form onSubmit={handleSaveBranch} className="space-y-3.5">
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                  Branch Code
-                </label>
-                <input
-                  type="text"
-                  required
-                  disabled={Boolean(editingBranch)}
-                  value={branchCodeInput}
-                  onChange={(e) => setBranchCodeInput(e.target.value)}
-                  placeholder="e.g. 505"
-                  className="w-full px-3 py-2 rounded-xl text-xs font-mono border disabled:opacity-60 bg-slate-50 border-slate-200 text-slate-900"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                  Branch Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={branchNameInput}
-                  onChange={(e) => setBranchNameInput(e.target.value)}
-                  placeholder="Branch Name"
-                  className="w-full px-3 py-2 rounded-xl text-xs border bg-slate-50 border-slate-200 text-slate-900"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                  Assigned Staff (Comma Separated)
-                </label>
-                <input
-                  type="text"
-                  value={branchStaffInput}
-                  onChange={(e) => setBranchStaffInput(e.target.value)}
-                  placeholder="e.g. SOK Dara (27811), NI Oudomroth (10811)"
-                  className="w-full px-3 py-2 rounded-xl text-xs border bg-slate-50 border-slate-200 text-slate-900"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
+      {/* Branch Code Create/Edit Drawer */}
+      <AnimatePresence>
+        {isNewBranchModalOpen && (
+          <RightDrawerFrame
+            onClose={() => setIsNewBranchModalOpen(false)}
+            ariaLabel={editingBranch ? `Edit Branch Code ${editingBranch.code}` : 'Add New Branch Code'}
+          >
+            <div className={SIM_HEADER_CLS}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={SIM_ICON_BOX_CLS}>
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-black text-white leading-tight truncate">
+                        {editingBranch
+                          ? `Edit Branch Code ${editingBranch.code}`
+                          : 'Add New Branch Code'}
+                      </h3>
+                      <span className={SIM_HEADER_TAG_CLS}>
+                        {editingBranch ? 'Update Branch' : 'New Branch'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-medium text-white/75 mt-0.5 truncate">
+                      Configure branch custody code, official name &amp; assigned staff roster
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsNewBranchModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 text-slate-700 cursor-pointer hover:bg-slate-50"
+                  className={SIM_CLOSE_BTN_CLS}
+                  aria-label="Close drawer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveBranch} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className={`${SIM_BODY_CLS} space-y-4`}>
+                <div className={`${SIM_CARD_CLS} space-y-3.5`}>
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                    Branch Identity &amp; Staff Assignment
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                      Branch Code
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      disabled={Boolean(editingBranch)}
+                      value={branchCodeInput}
+                      onChange={(e) => setBranchCodeInput(e.target.value)}
+                      placeholder="e.g. 505"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-mono border disabled:opacity-60 bg-slate-50 border-slate-200 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                      Branch Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={branchNameInput}
+                      onChange={(e) => setBranchNameInput(e.target.value)}
+                      placeholder="Branch Name"
+                      className="w-full px-3 py-2 rounded-xl text-xs border bg-slate-50 border-slate-200 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                      Assigned Staff (Comma Separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={branchStaffInput}
+                      onChange={(e) => setBranchStaffInput(e.target.value)}
+                      placeholder="e.g. SOK Dara (27811), NI Oudomroth (10811)"
+                      className="w-full px-3 py-2 rounded-xl text-xs border bg-slate-50 border-slate-200 text-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className={SIM_FOOTER_CLS}>
+                <button
+                  type="button"
+                  onClick={() => setIsNewBranchModalOpen(false)}
+                  className={SIM_BTN_CANCEL_CLS}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#155484] hover:bg-[#114670] text-white text-xs font-extrabold cursor-pointer transition shadow-xs"
+                  className={SIM_BTN_PRIMARY_CLS}
                 >
                   Save Branch Code
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </RightDrawerFrame>
+        )}
+      </AnimatePresence>
 
-      {/* User Account Modal */}
-      {isUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/60 backdrop-blur-xs" onClick={(e) => { if (e.target === e.currentTarget) { setIsUserModalOpen(false); setEditingUser(null); } }}>
-          <div className="w-full sm:max-w-[500px] h-full p-6 shadow-2xl bg-white text-slate-900 flex flex-col justify-between overflow-y-auto rounded-l-lg">
-            <h3 className="text-base font-black mb-4 text-slate-900">
-              {editingUser ? 'Update IAM Account & Role' : 'Create IAM Account'}
-            </h3>
-            <form onSubmit={handleSaveUser} className="space-y-3.5">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Employee ID
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={userEmpIdInput}
-                    onChange={(e) => setUserEmpIdInput(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-mono border bg-slate-50 border-slate-200 text-slate-900"
-                  />
+      {/* User Account Drawer */}
+      <AnimatePresence>
+        {isUserModalOpen && (
+          <RightDrawerFrame
+            onClose={() => { setIsUserModalOpen(false); setEditingUser(null); }}
+            ariaLabel={editingUser ? 'Update IAM Account & Role' : 'Create IAM Account'}
+          >
+            <div className={SIM_HEADER_CLS}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={SIM_ICON_BOX_CLS}>
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-black text-white leading-tight truncate">
+                        {editingUser ? 'Update IAM Account & Role' : 'Create IAM Account'}
+                      </h3>
+                      <span className={SIM_HEADER_TAG_CLS}>
+                        {editingUser ? editingUser.empId : 'New Account'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-medium text-white/75 mt-0.5 truncate">
+                      Manage workstation role permissions, branch assignment &amp; credentials
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    System Role
-                  </label>
-                  <select
-                    value={userRoleInput}
-                    onChange={(e) =>
-                      setUserRoleInput(e.target.value as UserRole)
-                    }
-                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-slate-50 border-slate-200 text-slate-900"
-                  >
-                    <option value="SUPER_ADMIN">SUPER ADMIN</option>
-                    <option value="ADMIN">ADMIN HQ</option>
-                    <option value="BRANCH">BRANCH STAFF</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={userNameInput}
-                  onChange={(e) => setUserNameInput(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl text-xs border bg-slate-50 border-slate-200 text-slate-900"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Branch Code &amp; Name
-                  </label>
-                  <select
-                    value={userBranchInput}
-                    onChange={(e) => setUserBranchInput(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-slate-50 border-slate-200 text-slate-900"
-                  >
-                    {branches.map((b) => (
-                      <option key={b.code} value={b.code}>
-                        Branch Code {b.code} — {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={userStatusInput}
-                    onChange={(e) =>
-                      setUserStatusInput(e.target.value as UserStatus)
-                    }
-                    className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-slate-50 border-slate-200 text-slate-900"
-                  >
-                    <option value="Operating">Operating</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Suspended">Suspended</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                  Workstation Password {editingUser ? '(Leave blank to retain current)' : ''}
-                </label>
-                <input
-                  type="text"
-                  value={userPasswordInput}
-                  onChange={(e) => setUserPasswordInput(e.target.value)}
-                  placeholder={editingUser ? 'Enter new password or leave blank' : 'Defaults to Staff ID if left blank'}
-                  className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold border bg-slate-50 border-slate-200 text-slate-900"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Defaults to the same Staff ID if left blank. Can be customized by Super Admin.
-                </p>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsUserModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 text-slate-700 cursor-pointer"
+                  onClick={() => { setIsUserModalOpen(false); setEditingUser(null); }}
+                  className={SIM_CLOSE_BTN_CLS}
+                  aria-label="Close drawer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveUser} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className={`${SIM_BODY_CLS} space-y-4`}>
+                <div className={`${SIM_CARD_CLS} space-y-3.5`}>
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                    1. Identity &amp; Role Assignment
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                        Employee ID
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={userEmpIdInput}
+                        onChange={(e) => setUserEmpIdInput(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl text-xs font-mono border bg-slate-50 border-slate-200 text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                        System Role
+                      </label>
+                      <select
+                        value={userRoleInput}
+                        onChange={(e) =>
+                          setUserRoleInput(e.target.value as UserRole)
+                        }
+                        className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-slate-50 border-slate-200 text-slate-900"
+                      >
+                        <option value="SUPER_ADMIN">SUPER ADMIN</option>
+                        <option value="ADMIN">ADMIN HQ</option>
+                        <option value="BRANCH">BRANCH STAFF</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={userNameInput}
+                      onChange={(e) => setUserNameInput(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl text-xs border bg-slate-50 border-slate-200 text-slate-900"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                        Branch Code &amp; Name
+                      </label>
+                      <select
+                        value={userBranchInput}
+                        onChange={(e) => setUserBranchInput(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-slate-50 border-slate-200 text-slate-900"
+                      >
+                        {branches.map((b) => (
+                          <option key={b.code} value={b.code}>
+                            Branch Code {b.code} — {b.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                        Status
+                      </label>
+                      <select
+                        value={userStatusInput}
+                        onChange={(e) =>
+                          setUserStatusInput(e.target.value as UserStatus)
+                        }
+                        className="w-full px-3 py-2 rounded-xl text-xs font-normal border bg-slate-50 border-slate-200 text-slate-900"
+                      >
+                        <option value="Operating">Operating</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Suspended">Suspended</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`${SIM_CARD_CLS} space-y-2`}>
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                    2. Workstation Security
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                      Workstation Password {editingUser ? '(Leave blank to retain current)' : ''}
+                    </label>
+                    <input
+                      type="text"
+                      value={userPasswordInput}
+                      onChange={(e) => setUserPasswordInput(e.target.value)}
+                      placeholder={editingUser ? 'Enter new password or leave blank' : 'Defaults to Staff ID if left blank'}
+                      className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold border bg-slate-50 border-slate-200 text-slate-900"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Defaults to the same Staff ID if left blank. Can be customized by Super Admin.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={SIM_FOOTER_CLS}>
+                <button
+                  type="button"
+                  onClick={() => { setIsUserModalOpen(false); setEditingUser(null); }}
+                  className={SIM_BTN_CANCEL_CLS}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-extrabold cursor-pointer transition shadow-xs"
+                  className={SIM_BTN_PRIMARY_CLS}
                 >
                   Save Account
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </RightDrawerFrame>
+        )}
+      </AnimatePresence>
     </div>
 
       {/* Operator Session Lock Modal rendered outside blurred container to guarantee pointer events */}

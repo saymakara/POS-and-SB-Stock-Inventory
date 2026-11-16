@@ -5,8 +5,14 @@ import { csvFile } from '../utils/csv';
 import { todayPP, stampPP } from '../utils/time';
 import { phoneFor } from '../utils/privacy';
 import { formatBranchName } from '../utils/format';
-import { motion } from 'motion/react';
-import { DRAWER_VARIANTS } from '../utils/animationRules';
+import { AnimatePresence } from 'motion/react';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_BODY_CLS,
+} from './RightDrawerShell';
 import {
   Download,
   X,
@@ -332,45 +338,42 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   }`;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/55 will-change-[opacity]" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <motion.div
-        variants={DRAWER_VARIANTS}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg ${
-          isLight
-            ? 'bg-white text-zinc-900'
-            : 'bg-[#18191e] text-slate-100'
-        }`}
+    <AnimatePresence>
+      <RightDrawerFrame
+        onClose={onClose}
+        zClass="z-50"
+        isLight={isLight}
+        ariaLabel="Export Reports and Data"
       >
-        {/* Header */}
-        <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center shrink-0 justify-between text-white">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-white/10 text-[#7cc4ed] border border-white/15 flex items-center justify-center">
-              <Download className="w-4 h-4" />
+        {/* SIM-Card Style Header */}
+        <div className={SIM_HEADER_CLS}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={SIM_ICON_BOX_CLS}>
+                <Download className="w-4 h-4 text-[#5cc8ff]" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-white tracking-tight truncate">
+                  Export Reports &amp; Data
+                </h3>
+                <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                  {canExport
+                    ? (canExportJson
+                    ? 'Download CSV spreadsheets (open in Excel) or a JSON system snapshot'
+                    : 'Download CSV spreadsheets (open in Excel)')
+                    : 'Data export is limited to Head Office administrators'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-white">
-                Export Reports &amp; Data
-              </h3>
-              <p className="text-xs text-slate-300">
-                {canExport
-                  ? (canExportJson
-                  ? 'Download CSV spreadsheets (open in Excel) or a JSON system snapshot'
-                  : 'Download CSV spreadsheets (open in Excel)')
-                  : 'Data export is limited to Head Office administrators'}
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close export dialog"
+              className={SIM_CLOSE_BTN_CLS}
+            >
+              <X className="w-4 h-4" aria-hidden="true" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close export dialog"
-            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10"
-          >
-            <X className="w-5 h-5" aria-hidden="true" />
-          </button>
         </div>
 
         {!canExport ? (
@@ -388,14 +391,14 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="mt-1 px-3.5 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer"
+              className="mt-1 px-4 py-2 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002b43] text-white cursor-pointer"
             >
               Close
             </button>
           </div>
         ) : (
         /* Content list of exportable data */
-        <div className="flex-1 p-5 flex flex-col gap-2.5 overflow-y-auto min-h-0 custom-scrollbar">
+        <div className={SIM_BODY_CLS}>
           {/* 1. Master Inventory CSV */}
           <div className={itemClass}>
             <div className="flex items-center gap-3">
@@ -549,7 +552,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
           </div>
         </div>
         )}
-      </motion.div>
-    </div>
+      </RightDrawerFrame>
+    </AnimatePresence>
   );
 };

@@ -11,7 +11,17 @@ import { hasKhmer } from '../utils/display';
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
 import { todayPP, stampSecPP, clockPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
-import { DRAWER_VARIANTS, BACKDROP_VARIANTS, SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_BODY_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+} from './RightDrawerShell';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   Minus,
@@ -2121,63 +2131,51 @@ return (
         createPortal(
           <AnimatePresence>
             {isPushAllModalOpen && (
-              <div className="fixed inset-0 z-[9999] flex justify-end overflow-hidden">
-                {/* Backdrop with true background blur covering entire viewport */}
-                <motion.div
-                  variants={BACKDROP_VARIANTS}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  onClick={() => {
-                    setIsPushAllModalOpen(false);
-                    setPusherPassword('');
-                    setPusherPasswordError('');
-                  }}
-                  className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
-                />
-
-                {/* Clean, Modern Slide-over Drawer */}
-                <motion.div
-                  variants={DRAWER_VARIANTS}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
-                    isLight ? 'bg-white text-slate-900' : 'bg-[#12151e] text-slate-100'
-                  }`}
-                >
-                  {/* Clean Signature Navy Header Bar */}
-                  <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center shrink-0 justify-between text-white border-b border-white/10 shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 shadow-xs text-sky-300">
-                        <Lock className="w-4.5 h-4.5" />
+              <RightDrawerFrame
+                onClose={() => {
+                  setIsPushAllModalOpen(false);
+                  setPusherPassword('');
+                  setPusherPasswordError('');
+                }}
+                zClass="z-[9999]"
+                isLight={isLight}
+                busy={isVerifyingPusher}
+                ariaLabel="Confirm Telegram Broadcast"
+              >
+                  {/* SIM-Card Style Header Bar */}
+                  <div className={SIM_HEADER_CLS}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={SIM_ICON_BOX_CLS}>
+                          <Lock className="w-4 h-4 text-[#5cc8ff]" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-base font-bold text-white tracking-tight truncate">
+                            Confirm Telegram Broadcast
+                          </h3>
+                          <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
+                            Authorize deployment alert to branch technician groups
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
-                          <span>Confirm Telegram Broadcast</span>
-                        </h3>
-                        <p className="text-xs text-slate-200/90 font-medium mt-0.5">
-                          Authorize deployment alert to branch technician groups
-                        </p>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsPushAllModalOpen(false);
+                          setPusherPassword('');
+                          setPusherPasswordError('');
+                        }}
+                        aria-label="Close"
+                        className={SIM_CLOSE_BTN_CLS}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsPushAllModalOpen(false);
-                        setPusherPassword('');
-                        setPusherPasswordError('');
-                      }}
-                      aria-label="Close"
-                      className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0 ml-2"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
                   </div>
 
                   {/* Form & Modal Body */}
-                  <form onSubmit={handleConfirmPushAllWithPassword} className="flex flex-col flex-1 overflow-hidden">
-                    <div className="p-6 overflow-y-auto max-h-[70vh] space-y-4 text-xs">
+                  <form onSubmit={handleConfirmPushAllWithPassword} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                    <div className={`${SIM_BODY_CLS} text-xs`}>
                       {/* Metric Summary Grid */}
                       <div className="grid grid-cols-3 gap-2.5">
                         <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex flex-col">
@@ -2307,11 +2305,7 @@ return (
                     </div>
 
                     {/* Footer Actions Strip */}
-                    <div
-                      className={`px-6 py-3.5 flex items-center justify-between text-xs border-t shrink-0 ${
-                        isLight ? 'bg-slate-50 border-slate-200/90' : 'bg-[#0f121a] border-slate-800'
-                      }`}
-                    >
+                    <div className={SIM_FOOTER_CLS}>
                       <button
                         type="button"
                         onClick={() => {
@@ -2319,18 +2313,14 @@ return (
                           setPusherPassword('');
                           setPusherPasswordError('');
                         }}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-                          isLight
-                            ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-2xs'
-                            : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700 shadow-2xs'
-                        }`}
+                        className={SIM_BTN_CANCEL_CLS}
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={isVerifyingPusher || !pusherPassword.trim()}
-                        className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10"
+                        className={SIM_BTN_PRIMARY_CLS}
                       >
                         {isVerifyingPusher ? (
                           <>
@@ -2339,15 +2329,14 @@ return (
                           </>
                         ) : (
                           <>
-                            <ShieldCheck className="w-4 h-4 text-sky-400" />
+                            <ShieldCheck className="w-3.5 h-3.5 text-sky-300" />
                             <span>Authorize &amp; Push All ({configuringDevices.length})</span>
                           </>
                         )}
                       </button>
                     </div>
                   </form>
-                </motion.div>
-              </div>
+              </RightDrawerFrame>
             )}
           </AnimatePresence>,
           document.body

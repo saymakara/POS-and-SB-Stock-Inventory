@@ -25,8 +25,18 @@ import {
   Ban,
   User as UserIcon,
 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { SPRING_TAB_PILL, BACKDROP_VARIANTS, DRAWER_VARIANTS } from '../utils/animationRules';
+import { motion, AnimatePresence } from 'motion/react';
+import { SPRING_TAB_PILL } from '../utils/animationRules';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_HEADER_TAG_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_SUBHEADER_CLS,
+  simStepPillCls,
+  simStepNumCls,
+} from './RightDrawerShell';
 import { normalizeMid, isValidMidForType, midRuleError } from '../utils/display';
 import { parseCsv, detectDelimiter, csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
@@ -1374,85 +1384,66 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     return { total: items.length, inHqStock: inHq, newSerials: news, busy };
   }, [sbPasteText, activeStagedBatch]);
 
-  const modalBoxClass = isLight
-    ? 'bg-white text-slate-800'
-    : 'bg-[#11141e] text-slate-100';
-
   const inputClass = isLight
     ? 'bg-white border-slate-300 text-slate-900'
     : 'bg-[#181c26] border-slate-700 text-white';
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-      <motion.div
-        variants={BACKDROP_VARIANTS}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        onClick={onClose}
-        className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
-      />
-      <motion.div
-        variants={DRAWER_VARIANTS}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        className={`${modalBoxClass} relative z-10 w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-transform rounded-l-lg`}
-      >
-        {/* Header (Signature Navy Bar) */}
-        <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center shrink-0 justify-between text-white border-b border-white/10">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-white/10 text-sky-300">
-                <FilePlus className="w-4 h-4" />
-              </span>
-              <h3 className="text-base font-bold text-white tracking-tight">
-                Batch Hardware Stock Intake
-              </h3>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/10 text-cyan-300 border border-white/15">
-                {method === 'tableCsv' ? 'Table CSV Import' : 'By Hardware Type'}
-              </span>
+    <AnimatePresence>
+      {isOpen && (
+        <RightDrawerFrame
+          onClose={onClose}
+          zClass="z-50"
+          wide
+          isLight={isLight}
+          busy={isCommittingBatches}
+          ariaLabel="Batch Hardware Stock Intake"
+        >
+        {/* Header matching SIM Card Style */}
+        <div className={SIM_HEADER_CLS}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={SIM_ICON_BOX_CLS}>
+                <FilePlus className="w-4 h-4 text-[#5cc8ff]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-bold text-white tracking-tight truncate">
+                    Batch Hardware Stock Intake
+                  </h3>
+                  <span className={SIM_HEADER_TAG_CLS}>
+                    {method === 'tableCsv' ? 'Table CSV Import' : 'By Hardware Type'}
+                  </span>
+                </div>
+                <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
+                  Strict client-side pre-validation &amp; batched 100-row database inserts
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-slate-300 mt-1 pl-8">
-              Strict client-side pre-validation &amp; batched 100-row database inserts
-            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className={SIM_CLOSE_BTN_CLS}
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="text-slate-300 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
-        {/* Stepper Progress Bar */}
-        <div
-          className={`px-6 py-2.5 border-b flex items-center justify-between text-xs ${
-            isLight
-              ? 'bg-slate-50 border-slate-200 text-slate-700'
-              : 'bg-[#151922] border-slate-800 text-slate-300'
-          }`}
-        >
-          <div className="flex items-center gap-2">
+        {/* Stepper Progress Bar matching SIM Card */}
+        <div className={SIM_SUBHEADER_CLS}>
+          <div className="flex items-center gap-1.5 text-xs">
             <button
               type="button"
               onClick={() => setBatchStep('INPUT')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all active:scale-95 cursor-pointer ${
-                batchStep === 'INPUT'
-                  ? 'bg-[#003857] text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}>
-              <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
-                1
-              </span>
+              className={simStepPillCls(batchStep === 'INPUT', true)}
+            >
+              <span className={simStepNumCls(batchStep === 'INPUT')}>1</span>
               <span>Stage &amp; Pre-Validate Serials</span>
             </button>
 
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+            <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
 
             <button
               type="button"
@@ -1460,16 +1451,9 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 if (validItems.length > 0 && !isUploadHalted) setBatchStep('PREVIEW');
               }}
               disabled={validItems.length === 0 || isUploadHalted}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all active:scale-95 ${
-                batchStep === 'PREVIEW'
-                  ? 'bg-[#003857] text-white shadow-xs'
-                  : validItems.length > 0 && !isUploadHalted
-                  ? 'text-slate-600 hover:text-slate-900 cursor-pointer'
-                  : 'text-slate-400 opacity-60 cursor-not-allowed'
-              }`}>
-              <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
-                2
-              </span>
+              className={simStepPillCls(batchStep === 'PREVIEW', validItems.length > 0 && !isUploadHalted)}
+            >
+              <span className={simStepNumCls(batchStep === 'PREVIEW')}>2</span>
               <span>Intake Verification &amp; Batch Write (100/Batch)</span>
             </button>
           </div>
@@ -2808,7 +2792,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
             </div>
           </div>
         )}
-      </motion.div>
-    </div>
+        </RightDrawerFrame>
+      )}
+    </AnimatePresence>
   );
 };

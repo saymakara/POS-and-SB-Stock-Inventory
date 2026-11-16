@@ -21,7 +21,20 @@ import { hasKhmer, isValidMidForType, midRuleError } from '../utils/display';
 const dash = (v: string | null | undefined) => (String(v || '').trim() ? String(v) : '—');
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
-import { DRAWER_VARIANTS, BACKDROP_VARIANTS, staggerRowStyle } from '../utils/animationRules';
+import { staggerRowStyle } from '../utils/animationRules';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_SUBHEADER_CLS,
+  SIM_BODY_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+  simStepPillCls,
+  simStepNumCls,
+} from './RightDrawerShell';
 import {
   Check,
   Minus,
@@ -1413,68 +1426,57 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
       {/* DOUBLE-STEP BULK ACTION CONFIRMATION & IMPACT PREVIEW MODAL */}
       <AnimatePresence>
         {pendingBulkAction && (
-          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-            {/* Backdrop */}
-            <motion.div
-              variants={BACKDROP_VARIANTS}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              onClick={() => setPendingBulkAction(null)}
-              className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
-            />
-
-            {/* Slide-over Drawer Window */}
-            <motion.div
-              variants={DRAWER_VARIANTS}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden bg-white text-slate-800 rounded-l-lg"
-            >
-              {/* Navy Header */}
-              <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-white shadow-xs">
-                    {pendingBulkAction.type === 'ASSIGN' ? (
-                      <Building2 className="w-4.5 h-4.5" />
-                    ) : pendingBulkAction.type === 'RETURN_ADMIN' ? (
-                      <RotateCcw className="w-4.5 h-4.5" />
-                    ) : pendingBulkAction.type === 'REMOVE' || pendingBulkAction.type === 'DELETE' ? (
-                      <Trash2 className="w-4.5 h-4.5" />
-                    ) : (
-                      <ArchiveRestore className="w-4.5 h-4.5" />
-                    )}
+          <RightDrawerFrame
+            onClose={() => setPendingBulkAction(null)}
+            zClass="z-50"
+            isLight={isLight}
+            ariaLabel={pendingBulkAction.title}
+          >
+              {/* SIM-Style Header */}
+              <div className={SIM_HEADER_CLS}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={SIM_ICON_BOX_CLS}>
+                      {pendingBulkAction.type === 'ASSIGN' ? (
+                        <Building2 className="w-4 h-4 text-[#5cc8ff]" />
+                      ) : pendingBulkAction.type === 'RETURN_ADMIN' ? (
+                        <RotateCcw className="w-4 h-4 text-[#5cc8ff]" />
+                      ) : pendingBulkAction.type === 'REMOVE' || pendingBulkAction.type === 'DELETE' ? (
+                        <Trash2 className="w-4 h-4 text-rose-300" />
+                      ) : (
+                        <ArchiveRestore className="w-4 h-4 text-[#5cc8ff]" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold tracking-tight text-white truncate">
+                        {pendingBulkAction.title}
+                      </h3>
+                      <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
+                        Step 2 of 2: Impact Review &amp; Batch Confirmation
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold tracking-tight text-white">
-                      {pendingBulkAction.title}
-                    </h3>
-                    <p className="text-[11px] text-white/75 mt-0.5">
-                      Step 2 of 2: Impact Review &amp; Batch Confirmation
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPendingBulkAction(null)}
+                    aria-label="Close"
+                    className={SIM_CLOSE_BTN_CLS}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPendingBulkAction(null)}
-                  aria-label="Close"
-                  className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
               </div>
 
-              {/* Stepper Progress Indicator */}
-              <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-slate-500 font-bold">
-                    <span className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-700">1</span>
+              {/* Stepper Progress Indicator matching SIM Card */}
+              <div className={SIM_SUBHEADER_CLS}>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className={simStepPillCls(false, false)}>
+                    <span className={simStepNumCls(false)}>1</span>
                     <span>{pendingBulkAction.serials.length} Units Selected</span>
                   </span>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#004953] text-white font-bold shadow-2xs">
-                    <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">2</span>
+                  <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
+                  <span className={simStepPillCls(true, true)}>
+                    <span className={simStepNumCls(true)}>2</span>
                     <span>Review &amp; Execute</span>
                   </span>
                 </div>
@@ -1486,7 +1488,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               </div>
 
               {/* Body */}
-              <div className="p-6 space-y-4 text-xs">
+              <div className={`${SIM_BODY_CLS} text-xs`}>
                 {/* Impact Banner */}
                 <div className="p-3.5 rounded-xl border bg-amber-50/80 border-amber-200/80 text-amber-900 flex items-start gap-3">
                   <AlertTriangle className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
@@ -1548,25 +1550,24 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+              <div className={SIM_FOOTER_CLS}>
                 <button
                   type="button"
                   onClick={() => setPendingBulkAction(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold border bg-white hover:bg-slate-100 text-slate-700 border-slate-300 transition cursor-pointer"
+                  className={SIM_BTN_CANCEL_CLS}
                 >
                   Cancel / Go Back
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmBulkAction}
-                  className="px-5 py-2 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-2"
+                  className={SIM_BTN_PRIMARY_CLS}
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
                   <span>Confirm &amp; Execute ({pendingBulkAction.serials.length} Units)</span>
                 </button>
               </div>
-            </motion.div>
-          </div>
+          </RightDrawerFrame>
         )}
       </AnimatePresence>
     </div>

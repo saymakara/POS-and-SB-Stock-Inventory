@@ -1,6 +1,22 @@
 import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DRAWER_VARIANTS, BACKDROP_VARIANTS, WHILE_TAP_BUTTON } from '../utils/animationRules';
+import { WHILE_TAP_BUTTON } from '../utils/animationRules';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_HEADER_TAG_CLS,
+  SIM_HEADER_SUBTAG_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_SUBHEADER_CLS,
+  SIM_BODY_CLS,
+  SIM_CARD_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+  simStepPillCls,
+  simStepNumCls,
+} from './RightDrawerShell';
 import {
   Boxes, Battery, Plug, Smartphone, Dock, X, Check, Copy, ArrowRight, ArrowLeft,
   RefreshCw, Cpu, Volume2, AlertTriangle, Layers, Building2, AlertCircle, Search
@@ -201,51 +217,38 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && item && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <motion.div
-            variants={BACKDROP_VARIANTS}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            onClick={onClose}
-            className="fixed inset-0 bg-slate-900/55 will-change-[opacity]"
-          />
-
-          <motion.aside
-            variants={DRAWER_VARIANTS}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Manage ${materialName(item.code)} ${item.serial}`}
-            className="relative z-10 w-full sm:max-w-[460px] md:max-w-[480px] bg-white dark:bg-slate-900 h-full rounded-l-2xl shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden transform-gpu will-change-transform"
-          >
-            {/* Corporate Blue Header */}
-            <div className="bg-[#155484] rounded-tl-2xl text-white px-4 py-3.5 flex items-start justify-between gap-3 shrink-0">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
-                  <MaterialIcon className="w-5 h-5 text-white" />
+        <RightDrawerFrame
+          onClose={onClose}
+          zClass="z-50"
+          busy={saving}
+          ariaLabel={`Manage ${materialName(item.code)} ${item.serial}`}
+        >
+          {/* Corporate Blue Header matching SIM Card */}
+          <div className={SIM_HEADER_CLS}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={SIM_ICON_BOX_CLS}>
+                  <MaterialIcon className="w-4 h-4 text-[#5cc8ff]" />
                 </div>
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono font-bold text-base tracking-tight truncate">{item.serial}</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-mono text-base font-bold tracking-tight text-white truncate">{item.serial}</span>
                     <button
                       type="button"
                       onClick={handleCopy}
-                      className="p-1 rounded-md hover:bg-white/15 text-white/80 hover:text-white transition cursor-pointer"
+                      className="p-1 rounded-md hover:bg-white/15 text-slate-300 hover:text-white transition cursor-pointer"
                       title="Copy identifier"
                     >
-                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
-                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-white/15 border border-white/20">
+                    <span className={SIM_HEADER_TAG_CLS}>
                       {materialName(item.code)}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-sky-400/20 text-sky-100 border border-sky-300/30">
+                    <span className={SIM_HEADER_SUBTAG_CLS}>
                       {MATERIAL_STEP_LABEL[status]}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-200 mt-1 truncate">
+                  <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
                     Custody: {branchLabel} · {assignedDevice ? `${assignedDevice.type} (${assignedDevice.serial})` : 'Unassigned Pool'}
                   </p>
                 </div>
@@ -254,109 +257,122 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0"
+                className={SIM_CLOSE_BTN_CLS}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
+          </div>
 
-            {/* Stepper Header */}
-            <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 text-xs shrink-0">
-              <div className="flex items-center gap-2 font-semibold">
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${step === 'CONFIG' ? 'bg-[#155484] text-white' : 'bg-emerald-50 text-emerald-700'}`}>
-                  <span>1</span> Configure
-                </span>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${step === 'REVIEW' ? 'bg-[#155484] text-white' : 'bg-slate-200/70 text-slate-600'}`}>
-                  <span>2</span> Impact Review
-                </span>
-              </div>
+          {/* Subheader Stepper & Quick Lifecycle Bar matching SIM Card */}
+          <div className={SIM_SUBHEADER_CLS}>
+            <div className="flex items-center gap-1.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setStep('CONFIG')}
+                className={simStepPillCls(step === 'CONFIG', true)}
+              >
+                <span className={simStepNumCls(step === 'CONFIG')}>1</span>
+                <span>Configure</span>
+              </button>
+              <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
+              <button
+                type="button"
+                onClick={validateAndProceed}
+                className={simStepPillCls(step === 'REVIEW', true)}
+              >
+                <span className={simStepNumCls(step === 'REVIEW')}>2</span>
+                <span>Impact Review</span>
+              </button>
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/40">
-              {errorMsg && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
+            {step === 'CONFIG' && isAdmin && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => applyQuickAction('RETURN_HQ')}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 transition cursor-pointer inline-flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3 text-amber-600" />
+                  <span>Return to HQ Stock</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyQuickAction('MOVE_RESERVE')}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 transition cursor-pointer inline-flex items-center gap-1"
+                >
+                  <Layers className="w-3 h-3 text-emerald-600" />
+                  <span>Move to Reserve</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyQuickAction('MARK_LOST')}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 transition cursor-pointer inline-flex items-center gap-1"
+                >
+                  <AlertTriangle className="w-3 h-3 text-rose-600" />
+                  <span>Mark Lost</span>
+                </button>
+              </div>
+            )}
+          </div>
 
-              {step === 'CONFIG' ? (
-                <>
-                  {/* Quick Lifecycle Shortcuts */}
-                  {isAdmin && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => applyQuickAction('RETURN_HQ')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition cursor-pointer"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" /> Return to HQ Stock
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyQuickAction('MOVE_RESERVE')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
-                      >
-                        <Layers className="w-3.5 h-3.5" /> Move to Reserve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyQuickAction('MARK_LOST')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition cursor-pointer"
-                      >
-                        <AlertTriangle className="w-3.5 h-3.5" /> Mark Lost
-                      </button>
-                    </div>
-                  )}
+          {errorMsg && (
+            <div className="mx-5 mt-3.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2 shrink-0">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+              <span className="flex-1">{errorMsg}</span>
+            </div>
+          )}
 
-                  {/* 1. Choose Material Step */}
-                  <div className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-2.5 shadow-2xs">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-800">
-                        <Building2 className="w-4 h-4 text-[#155484]" />
-                        <span>1. Choose Material Step</span>
-                      </div>
-                      <span className="text-[11px] text-slate-500">Follows paired device & MID</span>
+          {/* Body */}
+          <div className={SIM_BODY_CLS}>
+            {step === 'CONFIG' ? (
+              <>
+                {/* 1. Choose Material Step */}
+                <div className={SIM_CARD_CLS}>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      <Building2 className="w-4 h-4 text-[#003857] dark:text-sky-400" />
+                      <span>1. Choose Material Step</span>
                     </div>
+                    <span className="text-[10.5px] text-slate-500">Follows paired device &amp; MID</span>
+                  </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {MATERIAL_PRIMARY_STEPS.map((s) => {
-                        const active = status === s.value;
-                        return (
-                          <button
-                            key={s.value}
-                            type="button"
-                            disabled={!isAdmin}
-                            onClick={() => {
-                              setStatus(s.value);
-                              if (s.value === 'HQ_STOCK') {
-                                setBranchId('100');
-                                setAssignedDeviceSerial('');
-                              } else if (s.value === 'BRANCH_RESERVE') {
-                                setAssignedDeviceSerial('');
-                              }
-                            }}
-                            className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
-                              active
-                                ? 'bg-[#155484] text-white border-[#155484] shadow-xs'
-                                : 'bg-slate-50/70 hover:bg-slate-100/80 text-slate-800 border-slate-200'
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <span className={`w-4 h-4 rounded-full text-[10px] font-bold inline-flex items-center justify-center ${
-                                active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                              }`}>{s.step}</span>
-                              <span className="text-xs font-bold">{s.title}</span>
-                            </div>
-                            <div className={`text-[11px] mt-1 ${active ? 'text-slate-200' : 'text-slate-500'}`}>
-                              {s.subtitle}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {MATERIAL_PRIMARY_STEPS.map((s) => {
+                      const active = status === s.value;
+                      return (
+                        <button
+                          key={s.value}
+                          type="button"
+                          disabled={!isAdmin}
+                          onClick={() => {
+                            setStatus(s.value);
+                            if (s.value === 'HQ_STOCK') {
+                              setBranchId('100');
+                              setAssignedDeviceSerial('');
+                            } else if (s.value === 'BRANCH_RESERVE') {
+                              setAssignedDeviceSerial('');
+                            }
+                          }}
+                          className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
+                            active
+                              ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
+                              : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className={`w-4 h-4 rounded-full text-[10px] font-bold inline-flex items-center justify-center ${
+                              active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                            }`}>{s.step}</span>
+                            <span className="text-[11.5px] font-bold leading-tight">{s.title}</span>
+                          </div>
+                          <div className={`text-[10.5px] leading-tight ${active ? 'text-sky-100' : 'text-slate-500'}`}>
+                            {s.subtitle}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
                       <span className="text-[11px] text-slate-500">Other status:</span>
@@ -558,14 +574,14 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
               )}
             </div>
 
-            {/* Footer */}
-            <div className="px-4 py-3 bg-white border-t border-slate-200 rounded-bl-2xl flex items-center justify-between gap-3 shrink-0">
+            {/* Footer matching SIM Card */}
+            <div className={SIM_FOOTER_CLS}>
               {step === 'CONFIG' ? (
                 <>
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                    className={SIM_BTN_CANCEL_CLS}
                   >
                     Cancel
                   </button>
@@ -574,7 +590,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                       whileTap={WHILE_TAP_BUTTON}
                       type="button"
                       onClick={validateAndProceed}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#155484] hover:bg-[#11456d] text-white transition cursor-pointer shadow-xs"
+                      className={SIM_BTN_PRIMARY_CLS}
                     >
                       <span>Review Impact</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -587,7 +603,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                     type="button"
                     onClick={() => setStep('CONFIG')}
                     disabled={saving}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                    className={`${SIM_BTN_CANCEL_CLS} inline-flex items-center gap-1.5`}
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     <span>Back</span>
@@ -597,7 +613,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                     type="button"
                     disabled={saving}
                     onClick={handleSave}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white transition cursor-pointer shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white transition cursor-pointer shadow-xs"
                   >
                     <Check className="w-3.5 h-3.5" />
                     <span>{saving ? 'Saving...' : 'Confirm & Save'}</span>
@@ -605,8 +621,7 @@ const ManageMaterialModalComponent: React.FC<ManageMaterialModalProps> = ({
                 </>
               )}
             </div>
-          </motion.aside>
-        </div>
+        </RightDrawerFrame>
       )}
     </AnimatePresence>
   );

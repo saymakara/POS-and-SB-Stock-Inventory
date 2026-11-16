@@ -246,11 +246,11 @@ export const BACKDROP_VARIANTS: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.14, ease: [0.22, 1, 0.36, 1] },
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.16, ease: [0.32, 0.72, 0, 1] },
+    transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] },
   },
 };
 
@@ -287,13 +287,13 @@ export const DRAWER_VARIANTS: Variants = {
   visible: {
     x: 0,
     transition: {
-      x: { type: 'spring', stiffness: 440, damping: 40, mass: 0.72, bounce: 0 },
+      x: { type: 'spring', stiffness: 520, damping: 42, mass: 0.65, bounce: 0 },
     },
   },
   exit: {
     x: '100%',
     transition: {
-      duration: 0.2,
+      duration: 0.15,
       ease: [0.32, 0.72, 0, 1],
     },
   },

@@ -931,7 +931,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
               ? 'border-[#1e6091] bg-gradient-to-br from-[#eff6ff]/95 to-white shadow-[0_8px_22px_rgba(30,96,145,0.10)] ring-1 ring-[#1e6091]/25'
               : 'border-sky-400/75 bg-gradient-to-br from-sky-950/60 to-slate-900 shadow-[0_8px_22px_rgba(2,132,199,0.18)] ring-1 ring-sky-400/20'
             : isLight
-            ? 'border-slate-300/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] hover:border-[#1e6091]/55 hover:bg-slate-50/60'
+            ? 'border-slate-300/90 bg-slate-50/90 shadow-[0_1px_2px_rgba(15,23,42,0.03)] hover:border-[#1e6091]/55 hover:bg-slate-100/85'
             : 'border-slate-700/85 bg-slate-900/65 hover:border-sky-500/45 hover:bg-slate-800/75'
         }`}
       >
@@ -947,10 +947,10 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                     : 'bg-sky-500 text-slate-950'
                   : rankIdx < 3
                   ? isLight
-                    ? 'bg-slate-200/85 text-slate-700'
+                    ? 'bg-slate-200/90 text-slate-700'
                     : 'bg-slate-700 text-slate-200'
                   : isLight
-                  ? 'bg-slate-100 text-slate-500'
+                  ? 'bg-slate-200/70 text-slate-600'
                   : 'bg-slate-800 text-slate-400'
               }`}
             >
@@ -981,7 +981,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                     ? 'bg-[#1e6091]/12 text-[#1e6091]'
                     : 'bg-sky-400/20 text-sky-300'
                   : isLight
-                  ? 'bg-slate-100 text-slate-600'
+                  ? 'bg-white/90 border border-slate-200/80 text-slate-600'
                   : 'bg-slate-800 text-slate-400'
               }`}
             >

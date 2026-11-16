@@ -20,7 +20,23 @@ import { phoneFor, canSeeFullContact } from '../utils/privacy';
 import { isValidMidForType, midRuleError } from '../utils/display';
 import { ALLOWED_NEXT, canMove, moveError, onMove } from '../utils/stages';
 import { motion, AnimatePresence } from 'motion/react';
-import { DRAWER_VARIANTS, BACKDROP_VARIANTS, WHILE_TAP_BUTTON } from '../utils/animationRules';
+import { WHILE_TAP_BUTTON } from '../utils/animationRules';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_HEADER_TAG_CLS,
+  SIM_HEADER_SUBTAG_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_SUBHEADER_CLS,
+  SIM_BODY_CLS,
+  SIM_CARD_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+  simStepPillCls,
+  simStepNumCls,
+} from './RightDrawerShell';
 import {
   Layers,
   UserCheck,
@@ -43,7 +59,16 @@ import {
   AlertCircle,
   Send,
   Pencil,
+  Copy,
+  Check,
 } from 'lucide-react';
+
+const HARDWARE_PRIMARY_STEPS: Record<string, { step: string; title: string; subtitle: string }> = {
+  HQ_STOCK: { step: '1', title: 'HQ Stock', subtitle: 'Head Office (100)' },
+  BRANCH_RESERVE: { step: '2', title: 'Branch Reserve', subtitle: 'Ready on shelf' },
+  CONFIGURING: { step: '3', title: 'Push Config', subtitle: 'Field activation' },
+  COMPLETE: { step: '4', title: 'Deployed Live', subtitle: 'Active merchant' },
+};
 
 interface WorkflowModalProps {
   device: Device | null;
@@ -127,6 +152,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const [editingSerial, setEditingSerial] = useState(false);
   const [renamingSerial, setRenamingSerial] = useState(false);
   const [serialRenameMsg, setSerialRenameMsg] = useState('');
+  const [copiedSerial, setCopiedSerial] = useState(false);
+  const [showOptionalSetup, setShowOptionalSetup] = useState(false);
 
   // Dynamic Custom Fields State
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
@@ -258,6 +285,8 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
 
       setModalStep('EDIT');
       setPendingPayload(null);
+      setShowOptionalSetup(false);
+      setCopiedSerial(false);
       const canRet = (device.stage === 'COMPLETE' || device.stage === 'CONFIGURING') && Boolean(device.mid || device.merchantName);
       setReturnMode(preset === 'RETURN' && canRet);
       setReturnTo('BRANCH_RESERVE');
@@ -688,222 +717,217 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
     (isAdminLike ? !!onReturnToAdminStock : !!onRequestReturnToAdminStock);
   const hasQuickActions = canReturnToReserve || canReturnToHq || (isAdminLike && stage === 'CONFIGURING' && !!onNotifyConfigReady);
 
+  const handleCopySerial = () => {
+    navigator.clipboard?.writeText(device.serial);
+    setCopiedSerial(true);
+    setTimeout(() => setCopiedSerial(false), 1800);
+  };
+
+  const currentBranchLabel = (() => {
+    if (device.branchId === '100') return '100 · Head Office';
+    const b = branches.find((br) => br.code === device.branchId);
+    return b ? `${b.code} · ${b.name}` : `Branch ${device.branchId}`;
+  })();
+
+  const primaryStages = stageOptions.filter((s) => s !== 'FAULTY' && s !== 'LOST');
+  const otherStages = stageOptions.filter((s) => s === 'FAULTY' || s === 'LOST');
+  const hasPosBattery =
+    device.type === 'POS Terminal' ||
+    (Boolean(device.batterySerial) &&
+      device.batterySerial?.trim() !== '' &&
+      device.batterySerial?.trim().toUpperCase() !== 'N/A');
+  const isDeployFlow = !returnMode && (stage === 'CONFIGURING' || stage === 'COMPLETE');
+  const isCompactStockMode = !returnMode && !isDeployFlow && !showOptionalSetup;
+
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-        {/* Backdrop */}
-        <motion.div
-          variants={BACKDROP_VARIANTS}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          onClick={onClose}
-          className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
-        />
-
-        {/* Slide-over Drawer Window */}
-        <motion.div
-          variants={DRAWER_VARIANTS}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg transform-gpu will-change-transform ${
-            isLight
-              ? 'bg-white text-slate-800'
-              : 'bg-[#12151e] text-slate-100'
-          }`}
-        >
-          {/* Header */}
-          <div className="navy-header-bar rounded-tl-lg px-5 py-3.5 flex flex-col gap-2 text-white border-b border-white/10 shrink-0">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 shadow-xs text-white">
-                  {device.type === 'POS Terminal' ? (
-                    <Cpu className="w-4 h-4 text-[#5cc8ff]" />
-                  ) : (
-                    <Volume2 className="w-4 h-4 text-[#a2a5e0]" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-mono text-base font-bold text-white tracking-tight truncate">
-                      {device.serial}
-                    </span>
-                    {isAdminLike && onRenameSerial && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingSerial((v) => !v);
-                          setEditedSerial(device.serial);
-                          setSerialRenameMsg('');
-                        }}
-                        className="p-1 rounded-md text-white/70 hover:text-white hover:bg-white/15 transition cursor-pointer"
-                        title="Correct hardware serial number"
-                        aria-label="Correct hardware serial number"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-white/15 text-white border border-white/15">
-                      {device.type}
-                    </span>
-                    <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-white/90">
-                      Branch {device.branchId}
-                    </span>
-                  </div>
-                  <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
-                    {STAGE_META[device.stage].label}
-                    {device.merchantName ? ` · ${device.merchantName}` : ''}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-1.5 rounded-xl text-white/75 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0"
-                title="Close Modal"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {isAdminLike && onRenameSerial && editingSerial && (
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/15">
-                <span className="text-[11px] text-sky-200 font-medium">Serial Correction:</span>
-                <input
-                  type="text"
-                  value={editedSerial}
-                  onChange={(e) => {
-                    setEditedSerial(e.target.value.toUpperCase());
-                    setSerialRenameMsg('');
-                  }}
-                  aria-label="Edit hardware serial number"
-                  className="w-44 rounded-lg px-2.5 py-1 text-xs font-mono font-bold bg-white text-slate-900 border border-white/30 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  disabled={renamingSerial || !editedSerial.trim() || editedSerial.trim().toUpperCase() === device.serial.toUpperCase()}
-                  onClick={async () => {
-                    const nextSn = editedSerial.trim().toUpperCase();
-                    if (!nextSn || nextSn === device.serial.toUpperCase()) return;
-                    setRenamingSerial(true);
-                    setSerialRenameMsg('');
-                    try {
-                      const err = await onRenameSerial(device.serial, nextSn);
-                      if (err) {
-                        setSerialRenameMsg(err);
-                      } else {
-                        setSerialRenameMsg('Serial updated!');
-                        setEditingSerial(false);
-                      }
-                    } finally {
-                      setRenamingSerial(false);
-                    }
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {renamingSerial ? 'Updating…' : 'Update Serial'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingSerial(false);
-                    setEditedSerial(device.serial);
-                    setSerialRenameMsg('');
-                  }}
-                  className="px-2 py-1 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                {serialRenameMsg && (
-                  <span className={`text-[11px] font-semibold ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-300' : 'text-rose-300'}`}>
-                    {serialRenameMsg}
-                  </span>
+      <RightDrawerFrame
+        onClose={onClose}
+        zClass="z-50"
+        isLight={isLight}
+        ariaLabel={`Manage ${device.type} ${device.serial}`}
+      >
+        {/* 1. SIM-CARD STYLE HEADER BAR */}
+        <div className={SIM_HEADER_CLS}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={SIM_ICON_BOX_CLS}>
+                {device.type === 'POS Terminal' ? (
+                  <Cpu className="w-4 h-4 text-[#5cc8ff]" />
+                ) : (
+                  <Volume2 className="w-4 h-4 text-[#a2a5e0]" />
                 )}
               </div>
-            )}
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-mono text-base font-bold text-white tracking-tight truncate">
+                    {device.serial}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopySerial}
+                    className="p-1 rounded-md hover:bg-white/15 text-slate-300 hover:text-white transition cursor-pointer"
+                    title="Copy Hardware Serial"
+                    aria-label="Copy hardware serial"
+                  >
+                    {copiedSerial ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                  {isAdminLike && onRenameSerial && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingSerial((v) => !v);
+                        setEditedSerial(device.serial);
+                        setSerialRenameMsg('');
+                      }}
+                      className={`p-1 rounded-md transition cursor-pointer ${
+                        editingSerial
+                          ? 'bg-sky-400/25 text-sky-200'
+                          : 'hover:bg-white/15 text-slate-300 hover:text-white'
+                      }`}
+                      title="Correct hardware serial number"
+                      aria-label="Correct hardware serial number"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <span className={SIM_HEADER_TAG_CLS}>
+                    {device.type}
+                  </span>
+                  <span className={SIM_HEADER_SUBTAG_CLS}>
+                    {STAGE_META[device.stage].label}
+                  </span>
+                </div>
+                <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                  Custody: {currentBranchLabel} · {device.merchantName ? device.merchantName : 'Unassigned Pool'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className={SIM_CLOSE_BTN_CLS}
+              title="Close Drawer"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Unified Stepper & Quick Lifecycle Bar */}
-          <div
-            className={`px-5 py-2 border-b flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 ${
-              isLight
-                ? 'bg-white border-slate-200/90 text-slate-700'
-                : 'bg-[#151922] border-slate-800 text-slate-300'
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
+          {isAdminLike && onRenameSerial && editingSerial && (
+            <div className="flex flex-wrap items-center gap-2 mt-3 pt-2.5 border-t border-white/15">
+              <span className="text-[11px] text-sky-200 font-medium">Serial Correction:</span>
+              <input
+                type="text"
+                value={editedSerial}
+                onChange={(e) => {
+                  setEditedSerial(e.target.value.toUpperCase());
+                  setSerialRenameMsg('');
+                }}
+                aria-label="Edit hardware serial number"
+                className="w-44 rounded-lg px-2.5 py-1 text-xs font-mono font-bold bg-white/10 border border-white/20 text-white placeholder:text-slate-400 focus:outline-none focus:border-sky-300"
+              />
               <button
                 type="button"
-                onClick={() => setModalStep('EDIT')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold transition cursor-pointer text-xs ${
-                  modalStep === 'EDIT'
-                    ? 'bg-[#155484] text-white shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-                }`}
+                disabled={renamingSerial || !editedSerial.trim() || editedSerial.trim().toUpperCase() === device.serial.toUpperCase()}
+                onClick={async () => {
+                  const nextSn = editedSerial.trim().toUpperCase();
+                  if (!nextSn || nextSn === device.serial.toUpperCase()) return;
+                  setRenamingSerial(true);
+                  setSerialRenameMsg('');
+                  try {
+                    const err = await onRenameSerial(device.serial, nextSn);
+                    if (err) {
+                      setSerialRenameMsg(err);
+                    } else {
+                      setSerialRenameMsg('Serial updated!');
+                      setEditingSerial(false);
+                    }
+                  } finally {
+                    setRenamingSerial(false);
+                  }
+                }}
+                className="px-2.5 py-1 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 text-[11px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <span className="w-3.5 h-3.5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">
-                  1
-                </span>
-                <span>Configure</span>
+                {renamingSerial ? 'Updating…' : 'Apply'}
               </button>
-
-              <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
-
               <button
                 type="button"
                 onClick={() => {
-                  if (pendingPayload) setModalStep('PREVIEW');
+                  setEditingSerial(false);
+                  setEditedSerial(device.serial);
+                  setSerialRenameMsg('');
                 }}
-                disabled={!pendingPayload}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold transition text-xs ${
-                  modalStep === 'PREVIEW'
-                    ? 'bg-[#155484] text-white shadow-2xs'
-                    : pendingPayload
-                    ? 'text-slate-600 hover:text-slate-900 dark:hover:text-white cursor-pointer'
-                    : 'text-slate-400 opacity-60 cursor-not-allowed'
-                }`}
+                className="px-2 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:bg-white/10 transition cursor-pointer"
               >
-                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                  modalStep === 'PREVIEW' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  2
-                </span>
-                <span>Impact Review</span>
+                Cancel
               </button>
+              {serialRenameMsg && (
+                <span className={`text-[11px] font-semibold ${serialRenameMsg === 'Serial updated!' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                  {serialRenameMsg}
+                </span>
+              )}
             </div>
+          )}
+        </div>
 
-            {modalStep === 'EDIT' && hasQuickActions && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {canReturnToReserve && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingPayload(
-                        quickMove(
-                          'BRANCH_RESERVE',
-                          'RETURN_BRANCH_RESERVE',
-                          'Return Unit from Merchant to Branch Reserve',
-                          device.branchId,
-                          device.staff || '',
-                          `Returned from merchant ${device.merchantName || ''} back to Branch Reserve`.replace('  ', ' ')
-                        )
-                      );
-                      setModalStep('PREVIEW');
-                    }}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold border transition cursor-pointer ${
-                      isLight
-                        ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
-                        : 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300'
-                    }`}
-                    title="Return unit from merchant to Branch Reserve"
-                  >
-                    <Building2 className="w-3 h-3" />
-                    <span>Return to Branch Reserve</span>
-                  </button>
-                )}
+        {/* 2. SUBHEADER STEPPER & QUICK LIFECYCLE PILLS */}
+        <div className={SIM_SUBHEADER_CLS}>
+          <div className="flex items-center gap-1.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setModalStep('EDIT')}
+              className={simStepPillCls(modalStep === 'EDIT', true)}
+            >
+              <span className={simStepNumCls(modalStep === 'EDIT')}>1</span>
+              <span>Configure</span>
+            </button>
+
+            <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
+
+            <button
+              type="button"
+              onClick={() => {
+                if (pendingPayload) setModalStep('PREVIEW');
+              }}
+              disabled={!pendingPayload}
+              className={simStepPillCls(modalStep === 'PREVIEW', Boolean(pendingPayload))}
+            >
+              <span className={simStepNumCls(modalStep === 'PREVIEW')}>2</span>
+              <span>Impact Review</span>
+            </button>
+          </div>
+
+          {modalStep === 'EDIT' && hasQuickActions && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {canReturnToReserve && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingPayload(
+                      quickMove(
+                        'BRANCH_RESERVE',
+                        'RETURN_BRANCH_RESERVE',
+                        'Return Unit from Merchant to Branch Reserve',
+                        device.branchId,
+                        device.staff || '',
+                        `Returned from merchant ${device.merchantName || ''} back to Branch Reserve`.replace('  ', ' ')
+                      )
+                    );
+                    setModalStep('PREVIEW');
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer inline-flex items-center gap-1 ${
+                    isLight
+                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200/80'
+                      : 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300'
+                  }`}
+                  title="Return unit from merchant to Branch Reserve"
+                >
+                  <Building2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                  <span>Return to Branch Reserve</span>
+                </button>
+              )}
 
                 {canReturnToHq && (
                   <button
@@ -997,86 +1021,169 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             <>
               {/* Form Body */}
               <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <div className={`flex-1 p-4 sm:p-5 flex flex-col gap-3.5 overflow-y-auto min-h-0 custom-scrollbar ${
-                  isLight ? 'bg-slate-50/60' : ''
-                }`}>
+                <div className={SIM_BODY_CLS}>
             {/* Sections 1 & 2: Lifecycle Custody & Field Staff */}
             <div className="flex flex-col gap-3.5">
-              {/* Section 1: Lifecycle & Branch Assignment */}
-              <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-colors ${
-                isLight ? 'bg-white border-slate-200/90 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
-              }`}>
-                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-white/[0.06]">
-                  <Layers className="w-4 h-4 text-[#155484] dark:text-sky-400 shrink-0" />
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                    1. Lifecycle &amp; Branch Custody
-                  </h4>
+              {/* Section 1: Clickable SIM-Style Hardware Step Card */}
+              <div className={SIM_CARD_CLS}>
+                <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Layers className="w-4 h-4 text-[#003857] dark:text-sky-400 shrink-0" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 truncate">
+                      1. Choose Hardware Step
+                    </h4>
+                  </div>
+                  <div className="relative shrink-0">
+                    <select
+                      value={returnMode ? '__RETURN__' : stage}
+                      aria-label="Lifecycle stage"
+                      onChange={(e) => {
+                        if (e.target.value === '__RETURN__') {
+                          setReturnMode(true);
+                          setMidError('');
+                          return;
+                        }
+                        setReturnMode(false);
+                        handleStageChange(e.target.value as LifecycleStage);
+                      }}
+                      className={`appearance-none rounded-lg pl-2.5 pr-6 py-1 text-[11px] font-semibold border outline-none cursor-pointer transition ${
+                        isLight
+                          ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 focus:border-[#003857]'
+                          : 'bg-slate-900 border-slate-700 text-slate-200 focus:border-sky-500'
+                      }`}
+                    >
+                      {stageOptions.map((s) => (
+                        <option key={s} value={s}>
+                          {STAGE_META[s].label}
+                          {s === device.stage ? ' (current)' : ''}
+                        </option>
+                      ))}
+                      {canReturn && (
+                        <option value="__RETURN__">
+                          Return (remove merchant, back to stock)
+                        </option>
+                      )}
+                    </select>
+                    <ChevronDown className="w-3 h-3 text-slate-400 pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
-                  {/* Lifecycle Status Stage */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Lifecycle Status Stage <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={returnMode ? '__RETURN__' : stage}
-                        aria-label="Lifecycle stage"
-                        onChange={(e) => {
-                          if (e.target.value === '__RETURN__') { setReturnMode(true); setMidError(''); return; }
+                {/* Primary Clickable Lifecycle Step Cards */}
+                <div
+                  className={`grid grid-cols-2 ${
+                    primaryStages.length >= 4 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'
+                  } gap-2`}
+                >
+                  {primaryStages.map((s, idx) => {
+                    const active = !returnMode && stage === s;
+                    const meta = HARDWARE_PRIMARY_STEPS[s] || {
+                      step: String(idx + 1),
+                      title: STAGE_META[s].short || STAGE_META[s].label,
+                      subtitle: STAGE_META[s].label,
+                    };
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
                           setReturnMode(false);
-                          handleStageChange(e.target.value as LifecycleStage);
+                          handleStageChange(s);
                         }}
-                        className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 ${
-                          isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#155484]'
-                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
+                        className={`text-left p-2.5 rounded-xl border transition cursor-pointer ${
+                          active
+                            ? 'bg-[#003857] text-white border-[#003857] shadow-xs'
+                            : isLight
+                              ? 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border-slate-200'
+                              : 'bg-slate-900/60 hover:bg-slate-800 text-slate-200 border-slate-700'
                         }`}
                       >
-                        {stageOptions.map((s) => (
-                          <option
-                            key={s}
-                            value={s}
-                            className={isLight ? 'bg-white text-slate-900 font-normal' : 'bg-slate-900 text-white font-normal'}
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span
+                            className={`w-4 h-4 rounded-full text-[10px] font-bold inline-flex items-center justify-center shrink-0 ${
+                              active ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                            }`}
                           >
-                            {STAGE_META[s].label}
-                            {s === device.stage ? ' (current)' : ''}
-                          </option>
-                        ))}
-                        {canReturn && (
-                          <option value="__RETURN__" className={isLight ? 'bg-white text-slate-900 font-normal' : 'bg-slate-900 text-white font-normal'}>
-                            Return (remove merchant, back to stock)
-                          </option>
-                        )}
-                      </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+                            {meta.step}
+                          </span>
+                          <span className="text-[11.5px] font-bold leading-tight truncate">{meta.title}</span>
+                        </div>
+                        <p className={`text-[10.5px] leading-tight truncate ${active ? 'text-sky-100' : 'text-slate-500'}`}>
+                          {meta.subtitle}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Secondary Exception & Return Pills */}
+                {(otherStages.length > 0 || canReturn) && (
+                  <div className="flex items-center justify-between gap-2 flex-wrap pt-0.5">
+                    <span className="text-[10.5px] font-medium text-slate-400">Other status:</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {otherStages.map((s) => {
+                        const active = !returnMode && stage === s;
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => {
+                              setReturnMode(false);
+                              handleStageChange(s);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
+                              active
+                                ? 'bg-slate-800 text-white border-slate-800'
+                                : isLight
+                                  ? 'bg-white hover:bg-slate-50 text-slate-500 border-slate-200'
+                                  : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
+                            }`}
+                          >
+                            {s === 'FAULTY' ? 'Faulty' : 'Lost / Missing'}
+                          </button>
+                        );
+                      })}
+                      {canReturn && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReturnMode(true);
+                            setMidError('');
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
+                            returnMode
+                              ? 'bg-amber-700 text-white border-amber-700'
+                              : isLight
+                                ? 'bg-amber-50/70 hover:bg-amber-100 text-amber-800 border-amber-200'
+                                : 'bg-amber-950/30 hover:bg-amber-900/40 text-amber-300 border-amber-700/60'
+                          }`}
+                        >
+                          Return to Stock
+                        </button>
+                      )}
                     </div>
                   </div>
+                )}
 
-                  {/* Assigned Branch Code */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Assigned Branch <span className="text-rose-500">*</span>
+                {/* Branch Custody Selector OR HQ Info Box */}
+                {!returnMode && stage !== 'HQ_STOCK' && (
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Branch Custody <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative">
                       <select
                         value={branchId}
                         onChange={(e) => handleBranchChange(e.target.value)}
                         aria-label="Assigned branch code"
-                        disabled={!isAdminLike || stage === 'HQ_STOCK'}
-                        className={`w-full appearance-none rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition cursor-pointer pr-8 disabled:opacity-60 disabled:cursor-not-allowed ${
+                        disabled={!isAdminLike}
+                        className={`w-full appearance-none pl-3 pr-8 py-2 rounded-xl border text-xs font-medium cursor-pointer outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                           isLight
-                            ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 focus:border-[#155484]'
-                            : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
+                            ? 'bg-white border-slate-200 text-slate-800 focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10'
+                            : 'bg-slate-900 border-slate-700 text-slate-100 focus:border-sky-500'
                         }`}
                       >
                         {branches.map((b) => (
-                          <option
-                            key={b.code}
-                            value={b.code}
-                            className={isLight ? 'bg-white text-slate-900 font-normal' : 'bg-slate-900 text-white font-normal'}
-                          >
+                          <option key={b.code} value={b.code}>
                             {b.code} · {b.name}
                           </option>
                         ))}
@@ -1084,7 +1191,16 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                       <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
                     </div>
                   </div>
-                </div>
+                )}
+
+                {!returnMode && stage === 'HQ_STOCK' && (
+                  <div className="px-3 py-2 rounded-xl bg-blue-50/70 dark:bg-sky-950/30 border border-blue-200/80 dark:border-sky-800 text-[11px] text-[#003857] dark:text-sky-200 flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      <strong>Available In Stock (Head Office 100)</strong> — Unassigned and ready to be dispatched to any branch.
+                    </span>
+                  </div>
+                )}
 
                 {returnMode && (
                   <div className={`p-3 mt-2 rounded-xl border flex flex-col gap-2 ${isLight ? 'bg-amber-50/70 border-amber-200 text-slate-800' : 'bg-amber-950/20 border-amber-800/60 text-slate-100'}`}>
@@ -1185,27 +1301,176 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 )}
               </div>
 
-              {/* Section 2: Staff Officer & Deployment Schedule */}
-              {!returnMode && (
-                <div className={`p-4 rounded-2xl border flex flex-col justify-between transition-colors ${
-                  isLight ? 'bg-white border-slate-200/90 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
-                }`}>
-                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-white/[0.06]">
+              {/* Compact Card 2 on Stock Stages (matches SIM Card uncluttered height & spacing) */}
+              {!returnMode && isCompactStockMode && (
+                <>
+                  {stage === 'BRANCH_RESERVE' && (
+                    <div className={SIM_CARD_CLS}>
+                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <UserCheck className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 truncate">
+                            2. Custodian &amp; Hardware Setup
+                          </h4>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowOptionalSetup(true)}
+                          className="text-[11px] font-semibold text-[#003857] dark:text-sky-300 hover:underline cursor-pointer shrink-0"
+                        >
+                          + Merchant / Kit Details
+                        </button>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Assigned Branch Staff Officer
+                          </label>
+                          {staff && (
+                            <button
+                              type="button"
+                              onClick={() => setStaff('')}
+                              className="text-[11px] text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <select
+                            value={staff}
+                            aria-label="Assigned branch staff officer"
+                            onChange={(e) => setStaff(e.target.value)}
+                            className={`w-full appearance-none pl-3 pr-8 py-2 rounded-xl border text-xs font-medium cursor-pointer outline-none transition-all ${
+                              isLight
+                                ? 'bg-white border-slate-200 text-slate-800 focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10'
+                                : 'bg-slate-900 border-slate-700 text-slate-100 focus:border-sky-500'
+                            }`}
+                          >
+                            <option value="">-- Unassigned --</option>
+                            {staff && !availableStaff.includes(staff) && (
+                              <option value={staff}>{staff} (Assigned)</option>
+                            )}
+                            {allStaffOptions.map((st) => (
+                              <option key={`${st.name}__${st.empId || ''}__${st.branchId}`} value={st.name}>
+                                {st.label}{st.telegram ? ` (@${st.telegram.replace(/^@/, '')})` : ''}
+                              </option>
+                            ))}
+                            {allStaffOptions.length === 0 && (
+                              <option disabled value="">
+                                No staff assigned to Branch {branchId}
+                              </option>
+                            )}
+                          </select>
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+                        </div>
+                      </div>
+
+                      {hasPosBattery && (
+                        <div className={`px-3 py-2 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-[11px] ${
+                          previewBatteryInfo.state === 'EXPIRED'
+                            ? 'bg-rose-50/70 border-rose-200 text-rose-900'
+                            : previewBatteryInfo.state === 'DUE_SOON'
+                              ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+                              : isLight
+                                ? 'bg-slate-50/80 border-slate-200 text-slate-700'
+                                : 'bg-slate-900/70 border-slate-700 text-slate-200'
+                        }`}>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <BatteryCharging className={`w-3.5 h-3.5 shrink-0 ${
+                              previewBatteryInfo.state === 'EXPIRED'
+                                ? 'text-rose-600'
+                                : previewBatteryInfo.state === 'DUE_SOON'
+                                  ? 'text-amber-600'
+                                  : 'text-emerald-600'
+                            }`} />
+                            <span className="truncate">
+                              Battery <strong className="font-mono">{batterySerial || 'Unrecorded'}</strong> ·{' '}
+                              {previewBatteryInfo.state === 'EXPIRED'
+                                ? 'Expired'
+                                : previewBatteryInfo.state === 'DUE_SOON'
+                                  ? 'Due Soon'
+                                  : 'Healthy'} (Exp {previewBatteryInfo.dueDate})
+                            </span>
+                          </div>
+                          {onChangeBattery && (
+                            <button
+                              type="button"
+                              onClick={() => onChangeBattery(device)}
+                              className="px-2 py-0.5 rounded-md bg-[#003857] hover:bg-[#002b43] text-white text-[10.5px] font-semibold cursor-pointer shrink-0"
+                            >
+                              Replace Battery
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {stage !== 'BRANCH_RESERVE' && hasPosBattery && (
+                    <div className={SIM_CARD_CLS}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0 text-xs">
+                          <BatteryCharging className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                            POS Battery: <span className="font-mono">{batterySerial || 'Not recorded'}</span> (Exp {previewBatteryInfo.dueDate})
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setShowOptionalSetup(true)}
+                            className="text-[11px] font-semibold text-[#003857] dark:text-sky-300 hover:underline cursor-pointer"
+                          >
+                            Edit Details
+                          </button>
+                          {onChangeBattery && (
+                            <button
+                              type="button"
+                              onClick={() => onChangeBattery(device)}
+                              className="px-2 py-1 rounded-lg bg-[#003857] hover:bg-[#002b43] text-white text-[10.5px] font-semibold cursor-pointer"
+                            >
+                              Replace Battery
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Section 2: Staff Officer & Deployment Schedule (Auto-open on Deploy or Optional Expand) */}
+              {!returnMode && !isCompactStockMode && (
+                <div className={SIM_CARD_CLS}>
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700/60">
                     <div className="flex items-center gap-2">
-                      <UserCheck className="w-4 h-4 text-violet-600 dark:text-violet-400 shrink-0" />
+                      <UserCheck className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
                       <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                         2. Field Staff &amp; Deployment Schedule
                       </h4>
                     </div>
-                    {staff && (
-                      <button
-                        type="button"
-                        onClick={() => setStaff('')}
-                        className="text-[11px] text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
-                      >
-                        Clear
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2.5">
+                      {!isDeployFlow && showOptionalSetup && (
+                        <button
+                          type="button"
+                          onClick={() => setShowOptionalSetup(false)}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+                        >
+                          Compact view
+                        </button>
+                      )}
+                      {staff && (
+                        <button
+                          type="button"
+                          onClick={() => setStaff('')}
+                          className="text-[11px] text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
@@ -1272,7 +1537,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             </div>
 
             {/* (23 Oct 2026) Return: the merchant, officer and battery fields are not needed */}
-            {!returnMode && (<>
+            {!returnMode && !isCompactStockMode && (<>
               {/* Section 3: Merchant & Terminal Setup */}
               <div className={`p-4 rounded-2xl border transition-colors ${
                 isLight ? 'bg-white border-slate-200/90 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
@@ -1564,66 +1829,66 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
               )}
             </>)}
 
-            {/* Clean Remark */}
-            <div className={`p-3.5 rounded-2xl border flex flex-col gap-1.5 transition-colors ${
-              isLight ? 'bg-white border-slate-200/90 shadow-2xs' : 'bg-[#161a24] border-slate-700/70'
-            }`}>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Remark <span className="text-[11px] font-normal text-slate-400">(Optional)</span>
-              </label>
-              <input
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Add any note or operational remark..."
-                className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
-                  isLight
-                    ? 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:border-[#155484]'
-                    : 'bg-[#121620] hover:bg-[#1a202e] border-slate-700 text-white focus:border-sky-500'
-                }`}
-              />
+            {/* 3. Operational Remarks Card */}
+            <div className={SIM_CARD_CLS}>
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                <FileText className="w-4 h-4 text-[#003857] dark:text-sky-400 shrink-0" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  {returnMode || isCompactStockMode ? (stage === 'BRANCH_RESERVE' || hasPosBattery ? '3. Operational Remarks' : '2. Operational Remarks') : '6. Operational Remarks'}
+                </h4>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Operational Remarks / Audit Note <span className="text-[11px] font-normal text-slate-400">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Add context or remarks regarding this unit update..."
+                  className={`w-full rounded-xl px-3 py-2 text-xs font-medium border focus:outline-none transition ${
+                    isLight
+                      ? 'bg-white hover:bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#003857] focus:ring-2 focus:ring-[#003857]/10'
+                      : 'bg-slate-900 border-slate-700 text-white focus:border-sky-500'
+                  }`}
+                />
+              </div>
             </div>
 
             </div>
 
-            {/* Pinned Action Footer Bar */}
-            <div
-              className={`shrink-0 px-4 py-3 sm:px-5 sm:py-3.5 border-t flex items-center justify-between gap-3 ${
-                isLight ? 'bg-slate-50/95 border-slate-200' : 'bg-[#151922]/95 border-slate-800'
-              }`}
-            >
-              {(role === 'SUPER_ADMIN' || role === 'ADMIN') && onDeletePermanently && device && (
-                <button
+            {/* SIM-Style Pinned Action Footer Bar */}
+            <div className={SIM_FOOTER_CLS}>
+              <div className="flex items-center gap-2">
+                {(role === 'SUPER_ADMIN' || role === 'ADMIN') && onDeletePermanently && device && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Delete ${device.serial} permanently from the whole system?\n\nThis removes the unit and its history. It cannot be undone.`)) {
+                        onDeletePermanently(device.serial);
+                        onClose();
+                      }
+                    }}
+                    className="btn-press px-3 py-1.5 rounded-xl text-xs font-semibold border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 cursor-pointer"
+                  >
+                    Delete Permanently
+                  </button>
+                )}
+                <motion.button
+                  whileTap={WHILE_TAP_BUTTON}
                   type="button"
-                  onClick={() => {
-                    if (window.confirm(`Delete ${device.serial} permanently from the whole system?\n\nThis removes the unit and its history. It cannot be undone.`)) {
-                      onDeletePermanently(device.serial);
-                      onClose();
-                    }
-                  }}
-                  className="btn-press mr-auto px-3 py-1.5 rounded-lg text-xs font-semibold border border-rose-300 text-rose-700 bg-white hover:bg-rose-50 cursor-pointer"
+                  onClick={onClose}
+                  className={SIM_BTN_CANCEL_CLS}
                 >
-                  Delete Permanently
-                </button>
-              )}
-              <motion.button
-                whileTap={WHILE_TAP_BUTTON}
-                type="button"
-                onClick={onClose}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                  isLight
-                    ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
-                    : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
-                }`}
-              >
-                Cancel
-              </motion.button>
+                  Cancel
+                </motion.button>
+              </div>
               <motion.button
                 whileTap={WHILE_TAP_BUTTON}
                 type="submit"
-                className="px-4 py-1.5 rounded-lg bg-[#155484] hover:bg-[#114670] text-white text-xs font-semibold tracking-wide shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                className={SIM_BTN_PRIMARY_CLS}
               >
-                <span>Review Changes (Step 2 Preview)</span>
+                <span>Review Changes</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </motion.button>
             </div>
@@ -1633,7 +1898,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         /* STEP 2: IMPACT PREVIEW & BEFORE/AFTER DIFF CONFIRMATION */
         pendingPayload && (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className="flex-1 p-4 sm:p-5 flex flex-col gap-3 overflow-y-auto min-h-0 custom-scrollbar">
+            <div className={SIM_BODY_CLS}>
             {/* Impact Notice Alert Banner */}
             <div
               className={`p-3 rounded-xl border flex items-start gap-2.5 ${
@@ -2001,20 +2266,12 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             </div>
 
             {/* Pinned Action Footer Bar */}
-            <div
-              className={`shrink-0 px-4 py-3 sm:px-5 sm:py-3.5 border-t flex items-center justify-between gap-3 ${
-                isLight ? 'bg-slate-50/95 border-slate-200' : 'bg-[#151922]/95 border-slate-800'
-              }`}
-            >
+            <div className={SIM_FOOTER_CLS}>
               <motion.button
                 whileTap={WHILE_TAP_BUTTON}
                 type="button"
                 onClick={() => setModalStep('EDIT')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center gap-1.5 ${
-                  isLight
-                    ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
-                    : 'bg-[#181c26] hover:bg-[#202534] text-slate-300 border-slate-700'
-                }`}
+                className={`${SIM_BTN_CANCEL_CLS} inline-flex items-center gap-1.5`}
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back to Edit</span>
@@ -2024,17 +2281,16 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                 whileTap={WHILE_TAP_BUTTON}
                 type="button"
                 onClick={handleFinalCommit}
-                className="px-5 py-2 rounded-xl bg-[#155484] hover:bg-[#114670] text-white text-xs font-semibold tracking-wide shadow-md transition cursor-pointer flex items-center gap-2"
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition cursor-pointer inline-flex items-center gap-1.5"
               >
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Confirm &amp; Commit Changes</span>
               </motion.button>
             </div>
           </div>
         )
       )}
-    </motion.div>
-  </div>
-</AnimatePresence>
-);
+      </RightDrawerFrame>
+    </AnimatePresence>
+  );
 };

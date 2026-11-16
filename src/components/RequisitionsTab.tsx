@@ -8,7 +8,19 @@ import { Requisition, Device, ArrangedDeviceItem, UserRole, ThemeMode } from '..
 import { csvFile } from '../utils/csv';
 import { todayPP } from '../utils/time';
 import { motion, AnimatePresence } from 'motion/react';
-import { DRAWER_VARIANTS, BACKDROP_VARIANTS } from '../utils/animationRules';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_SUBHEADER_CLS,
+  SIM_BODY_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+  simStepPillCls,
+  simStepNumCls,
+} from './RightDrawerShell';
 import {
   SendHorizontal,
   RotateCcw,
@@ -761,41 +773,40 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {rejectingReq && (
-              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/55 will-change-[opacity]" onMouseDown={(e) => { if (e.target === e.currentTarget) setRejectingReq(null); }}>
-                <motion.div
-                  variants={DRAWER_VARIANTS}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 bg-white text-slate-900 flex flex-col my-0 overflow-hidden rounded-l-lg" role="dialog" aria-modal="true" aria-label="Reject request"
-                >
-                  <div className="navy-header-bar rounded-tl-lg px-5 py-3.5 flex items-center justify-between text-white shrink-0">
-                    <div>
-                      <div className="text-sm font-semibold">Reject {rejectingReq.type === 'STOCK_RETURN' ? 'stock return' : 'stock request'}</div>
-                      <div className="text-xs text-white/75 font-mono">{rejectingReq.reqId} · Code {rejectingReq.branchId}</div>
+              <RightDrawerFrame
+                onClose={() => setRejectingReq(null)}
+                zClass="z-50"
+                isLight={isLight}
+                ariaLabel="Reject request"
+              >
+                <div className={SIM_HEADER_CLS}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-base font-bold text-white truncate">Reject {rejectingReq.type === 'STOCK_RETURN' ? 'Stock Return' : 'Stock Request'}</div>
+                      <div className="text-[11.5px] text-slate-300 font-mono mt-0.5 truncate">{rejectingReq.reqId} · Code {rejectingReq.branchId}</div>
                     </div>
-                    <button type="button" onClick={() => setRejectingReq(null)} aria-label="Close" className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"><X className="w-4 h-4" /></button>
+                    <button type="button" onClick={() => setRejectingReq(null)} aria-label="Close" className={SIM_CLOSE_BTN_CLS}><X className="w-4 h-4" /></button>
                   </div>
-                  <div className="flex-1 p-5 flex flex-col gap-3 text-xs overflow-y-auto min-h-0 custom-scrollbar">
-                    <div className="text-slate-600">The branch will see this reason. A rejected request cannot be dispatched.</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['No stock available at Head Office', 'Quantity is more than the branch needs', 'Request is not clear, please submit again', 'Not approved by management'].map((t) => (
-                        <button key={t} type="button" onClick={() => setRejectText(t)} className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 cursor-pointer">{t}</button>
-                      ))}
-                    </div>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-slate-500">Reason (required)</span>
-                      <textarea rows={3} maxLength={500} value={rejectText} onChange={(e) => setRejectText(e.target.value)} className="khmer rounded-lg border border-slate-300 px-3 py-2" />
-                    </label>
+                </div>
+                <div className={`${SIM_BODY_CLS} text-xs`}>
+                  <div className="text-slate-600 dark:text-slate-300">The branch will see this reason. A rejected request cannot be dispatched.</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['No stock available at Head Office', 'Quantity is more than the branch needs', 'Request is not clear, please submit again', 'Not approved by management'].map((t) => (
+                      <button key={t} type="button" onClick={() => setRejectText(t)} className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 cursor-pointer">{t}</button>
+                    ))}
                   </div>
-                  <div className="shrink-0 px-5 py-3.5 border-t border-slate-200 bg-slate-50/95 flex justify-end gap-2">
-                    <button type="button" onClick={() => setRejectingReq(null)} className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer">Cancel</button>
-                    <button type="button" disabled={rejectText.trim().length < 3}
-                      onClick={() => { onRejectRequisition?.(rejectingReq.reqId, rejectText.trim()); setRejectingReq(null); }}
-                      className="px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-800 disabled:opacity-45 text-white cursor-pointer">Reject request</button>
-                  </div>
-                </motion.div>
-              </div>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-slate-500 font-semibold">Reason (required)</span>
+                    <textarea rows={3} maxLength={500} value={rejectText} onChange={(e) => setRejectText(e.target.value)} className="khmer rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none focus:border-[#003857]" />
+                  </label>
+                </div>
+                <div className={SIM_FOOTER_CLS}>
+                  <button type="button" onClick={() => setRejectingReq(null)} className={SIM_BTN_CANCEL_CLS}>Cancel</button>
+                  <button type="button" disabled={rejectText.trim().length < 3}
+                    onClick={() => { onRejectRequisition?.(rejectingReq.reqId, rejectText.trim()); setRejectingReq(null); }}
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-rose-700 hover:bg-rose-800 disabled:opacity-45 text-white cursor-pointer transition">Reject request</button>
+                </div>
+              </RightDrawerFrame>
             )}
           </AnimatePresence>,
           document.body
@@ -806,46 +817,45 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {editingReq && (
-              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/55 will-change-[opacity]" onClick={(e) => { if (e.target === e.currentTarget) setEditingReq(null); }}>
-                <motion.div
-                  variants={DRAWER_VARIANTS}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="relative w-full sm:max-w-[500px] h-full shadow-2xl z-10 bg-white text-slate-900 flex flex-col my-0 overflow-hidden rounded-l-lg"
-                >
-                  <div className="navy-header-bar rounded-tl-lg px-5 py-3.5 flex items-center justify-between text-white shrink-0">
-                    <div>
-                      <div className="text-sm font-semibold">Edit stock request</div>
-                      <div className="text-xs text-white/75 font-mono">{editingReq.reqId} · Code {editingReq.branchId}</div>
+              <RightDrawerFrame
+                onClose={() => setEditingReq(null)}
+                zClass="z-50"
+                isLight={isLight}
+                ariaLabel="Edit stock request"
+              >
+                <div className={SIM_HEADER_CLS}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-base font-bold text-white truncate">Edit Stock Request</div>
+                      <div className="text-[11.5px] text-slate-300 font-mono mt-0.5 truncate">{editingReq.reqId} · Code {editingReq.branchId}</div>
                     </div>
-                    <button type="button" onClick={() => setEditingReq(null)} aria-label="Close" className="p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"><X className="w-4 h-4" /></button>
+                    <button type="button" onClick={() => setEditingReq(null)} aria-label="Close" className={SIM_CLOSE_BTN_CLS}><X className="w-4 h-4" /></button>
                   </div>
-                  <div className="flex-1 p-5 flex flex-col gap-3 text-xs overflow-y-auto min-h-0 custom-scrollbar">
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="flex flex-col gap-1">
-                        <span className="text-slate-500">POS Terminal quantity</span>
-                        <input type="number" min={0} inputMode="numeric" value={editPos} onChange={(e) => setEditPos(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2" />
-                      </label>
-                      <label className="flex flex-col gap-1">
-                        <span className="text-slate-500">Sound Box quantity</span>
-                        <input type="number" min={0} inputMode="numeric" value={editSb} onChange={(e) => setEditSb(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2" />
-                      </label>
-                    </div>
+                </div>
+                <div className={`${SIM_BODY_CLS} text-xs`}>
+                  <div className="grid grid-cols-2 gap-3">
                     <label className="flex flex-col gap-1">
-                      <span className="text-slate-500">Reason</span>
-                      <textarea rows={3} value={editReason} onChange={(e) => setEditReason(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2" />
+                      <span className="text-slate-500 font-semibold">POS Terminal quantity</span>
+                      <input type="number" min={0} inputMode="numeric" value={editPos} onChange={(e) => setEditPos(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2" />
                     </label>
-                    {(Math.floor(Number(editPos) || 0) + Math.floor(Number(editSb) || 0)) === 0 && (
-                      <div role="alert" className="text-rose-700">Enter at least one POS Terminal or Sound Box.</div>
-                    )}
+                    <label className="flex flex-col gap-1">
+                      <span className="text-slate-500 font-semibold">Sound Box quantity</span>
+                      <input type="number" min={0} inputMode="numeric" value={editSb} onChange={(e) => setEditSb(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2" />
+                    </label>
                   </div>
-                  <div className="shrink-0 px-5 py-3.5 border-t border-slate-200 bg-slate-50/95 flex justify-end gap-2">
-                    <button type="button" onClick={() => setEditingReq(null)} className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer">Cancel</button>
-                    <button type="button" onClick={saveEdit} className="px-4 py-2 rounded-lg bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer">Save changes</button>
-                  </div>
-                </motion.div>
-              </div>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-slate-500 font-semibold">Reason</span>
+                    <textarea rows={3} value={editReason} onChange={(e) => setEditReason(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2" />
+                  </label>
+                  {(Math.floor(Number(editPos) || 0) + Math.floor(Number(editSb) || 0)) === 0 && (
+                    <div role="alert" className="text-rose-700 font-semibold">Enter at least one POS Terminal or Sound Box.</div>
+                  )}
+                </div>
+                <div className={SIM_FOOTER_CLS}>
+                  <button type="button" onClick={() => setEditingReq(null)} className={SIM_BTN_CANCEL_CLS}>Cancel</button>
+                  <button type="button" onClick={saveEdit} className={SIM_BTN_PRIMARY_CLS}>Save changes</button>
+                </div>
+              </RightDrawerFrame>
             )}
           </AnimatePresence>,
           document.body
@@ -856,65 +866,52 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {arrangingReq && isAdmin && (
-              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden bg-slate-950/55 will-change-[opacity]">
-                <motion.div
-                  variants={DRAWER_VARIANTS}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className={`w-full sm:max-w-2xl md:max-w-4xl lg:max-w-5xl h-full shadow-2xl overflow-hidden flex flex-col my-0 transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
-                    isLight
-                      ? 'bg-white text-slate-900'
-                      : 'bg-[#121622] text-slate-100'
-                  }`}
-                >
-              <div className="navy-header-bar rounded-tl-lg px-6 py-4.5 flex items-center justify-between text-white border-b border-white/10 shrink-0">
-                <div>
-                  <h3 className="text-base font-bold flex items-center gap-2">
-                    <BatteryCharging className="w-5 h-5 text-sky-400" />
-                    <span>
-                      Arrange Hardware &amp; Battery Serials for Branch
-                    </span>
-                  </h3>
-                  <p className="text-xs text-slate-300 mt-0.5">
-                    Requisition {arrangingReq.reqId} · Assign to Code {arrangingReq.branchId} ({arrangingReq.branchName}) · {arrangingReq.posQty} POS &amp; {arrangingReq.sbQty} Sound Box
-                  </p>
+              <RightDrawerFrame
+                onClose={() => setArrangingReq(null)}
+                zClass="z-50"
+                wide
+                isLight={isLight}
+                ariaLabel={`Arrange hardware for ${arrangingReq.reqId}`}
+              >
+              <div className={SIM_HEADER_CLS}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={SIM_ICON_BOX_CLS}>
+                      <BatteryCharging className="w-4 h-4 text-[#5cc8ff]" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-white truncate">
+                        Arrange Hardware &amp; Battery Serials for Branch
+                      </h3>
+                      <p className="text-[11.5px] text-slate-300 mt-0.5 truncate">
+                        Requisition {arrangingReq.reqId} · Assign to Code {arrangingReq.branchId} ({arrangingReq.branchName}) · {arrangingReq.posQty} POS &amp; {arrangingReq.sbQty} Sound Box
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setArrangingReq(null)}
+                    aria-label="Close"
+                    className={SIM_CLOSE_BTN_CLS}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setArrangingReq(null)}
-                  aria-label="Close"
-                  className="p-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
 
-              {/* Stepper Progress Bar */}
-              <div
-                className={`px-6 py-3 border-b flex items-center justify-between text-xs ${
-                  isLight
-                    ? 'bg-slate-50/90 border-slate-200 text-slate-700'
-                    : 'bg-[#151922] border-slate-800 text-slate-300'
-                }`}
-              >
-                <div className="flex items-center gap-2">
+              {/* Stepper Progress Bar matching SIM Card */}
+              <div className={SIM_SUBHEADER_CLS}>
+                <div className="flex items-center gap-1.5 text-xs">
                   <button
                     type="button"
                     onClick={() => setArrangeStep('ARRANGE')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-                      arrangeStep === 'ARRANGE'
-                        ? 'bg-[#003857] text-white shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={simStepPillCls(arrangeStep === 'ARRANGE', true)}
                   >
-                    <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
-                      1
-                    </span>
+                    <span className={simStepNumCls(arrangeStep === 'ARRANGE')}>1</span>
                     <span>Arrange Serials</span>
                   </button>
 
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                  <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
 
                   <button
                     type="button"
@@ -923,15 +920,9 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                       setDispatchErrors(errs);
                       if (!errs.length) setArrangeStep('PREVIEW');
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
-                      arrangeStep === 'PREVIEW'
-                        ? 'bg-[#003857] text-white shadow-xs'
-                        : 'text-slate-400 opacity-70'
-                    }`}
+                    className={simStepPillCls(arrangeStep === 'PREVIEW', true)}
                   >
-                    <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
-                      2
-                    </span>
+                    <span className={simStepNumCls(arrangeStep === 'PREVIEW')}>2</span>
                     <span>Dispatch Impact Preview</span>
                   </button>
                 </div>
@@ -1269,8 +1260,7 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                   </div>
                 </div>
               )}
-                </motion.div>
-              </div>
+              </RightDrawerFrame>
             )}
           </AnimatePresence>,
           document.body
@@ -1281,55 +1271,45 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
         createPortal(
           <AnimatePresence>
             {selectedRequisition && (
-              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-                <motion.div
-                  variants={BACKDROP_VARIANTS}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  onClick={() => setSelectedRequisition(null)}
-                  className="fixed inset-0 bg-slate-950/55 will-change-[opacity]"
-                />
-                <motion.div
-                  variants={DRAWER_VARIANTS}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[620px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden rounded-l-lg ${
-                    isLight ? 'bg-white text-slate-800' : 'bg-[#12151e] text-slate-100'
-                  }`}
-                >
-                  {/* Prestigious Navy Header Bar */}
-                  <div className="navy-header-bar rounded-tl-lg px-6 py-4 text-white flex items-center justify-between border-b border-white/10 shrink-0">
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-white shrink-0 shadow-xs">
-                        <ScrollText className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-base font-bold text-white tracking-tight truncate">
-                            {selectedRequisition.type === 'STOCK_RETURN' ? 'Stock Return' : 'Stock Request'}
-                          </h3>
-                          <CopyableRecordId id={selectedRequisition.reqId} variant="pill" />
+              <RightDrawerFrame
+                onClose={() => setSelectedRequisition(null)}
+                zClass="z-50"
+                isLight={isLight}
+                ariaLabel={`Requisition ${selectedRequisition.reqId}`}
+              >
+                  {/* SIM-Style Header Bar */}
+                  <div className={SIM_HEADER_CLS}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={SIM_ICON_BOX_CLS}>
+                          <ScrollText className="w-4 h-4 text-[#5cc8ff]" />
                         </div>
-                        <p className="text-xs text-white/80 font-mono mt-0.5 truncate">
-                          {selectedRequisition.staff || 'Branch Staff'} · Branch Code {selectedRequisition.branchId} ({selectedRequisition.branchName})
-                        </p>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <h3 className="text-base font-bold text-white tracking-tight truncate">
+                              {selectedRequisition.type === 'STOCK_RETURN' ? 'Stock Return' : 'Stock Request'}
+                            </h3>
+                            <CopyableRecordId id={selectedRequisition.reqId} variant="pill" />
+                          </div>
+                          <p className="text-[11.5px] text-slate-300 font-mono mt-0.5 truncate">
+                            {selectedRequisition.staff || 'Branch Staff'} · Branch Code {selectedRequisition.branchId} ({selectedRequisition.branchName})
+                          </p>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRequisition(null)}
+                        className={SIM_CLOSE_BTN_CLS}
+                        title="Close modal"
+                        aria-label="Close"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRequisition(null)}
-                      className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
-                      title="Close modal"
-                      aria-label="Close"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
                   </div>
 
                   {/* Body Content */}
-                  <div className="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1">
+                  <div className={`${SIM_BODY_CLS} text-xs`}>
                     {/* Summary Cards Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
@@ -1381,15 +1361,15 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                           {(selectedRequisition.posQty || 0) + (selectedRequisition.sbQty || 0)} Units · {Object.values(selectedRequisition.materials || {}).reduce((s, n) => s + Number(n), 0)} Materials
                         </span>
                       </div>
-                      <div className="rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden bg-white dark:bg-slate-800/60 shadow-2xs">
+                      <div className="rounded-xl border border-slate-200 dark:border-white/10 overflow-x-auto bg-white dark:bg-slate-800/60 shadow-2xs">
                         <table className="w-full text-left text-xs">
-                          <thead className="glass-table-thead text-[11px] uppercase text-white font-extrabold">
+                          <thead className="glass-table-thead text-[10.5px] uppercase text-white font-extrabold">
                             <tr>
-                              <th className="py-2 px-3 w-10 text-center">No.</th>
-                              <th className="py-2 px-3">Item Description</th>
-                              <th className="py-2 px-3">Category</th>
-                              <th className="py-2 px-3 text-right">Requested Qty</th>
-                              <th className="py-2 px-3">Fulfillment / Sent Status</th>
+                              <th className="py-2 px-2.5 w-9 text-center">No.</th>
+                              <th className="py-2 px-2.5">Item</th>
+                              <th className="py-2 px-2.5">Category</th>
+                              <th className="py-2 px-2.5 text-right whitespace-nowrap">Qty</th>
+                              <th className="py-2 px-2.5 whitespace-nowrap">Fulfillment</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 dark:divide-white/5">
@@ -1639,13 +1619,12 @@ const RequisitionsTabComponent: React.FC<RequisitionsTabProps> = ({
                     <button
                       type="button"
                       onClick={() => setSelectedRequisition(null)}
-                      className="px-4 py-2 rounded-lg text-xs font-bold bg-[#003857] hover:bg-[#002a42] text-white cursor-pointer transition shadow-2xs ml-auto"
+                      className={`${SIM_BTN_PRIMARY_CLS} ml-auto`}
                     >
                       Close Details
                     </button>
                   </div>
-                </motion.div>
-              </div>
+              </RightDrawerFrame>
             )}
           </AnimatePresence>,
           document.body

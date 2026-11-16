@@ -6,8 +6,19 @@ import { useSort, SortTh } from '../utils/sort';
 import { createPortal } from 'react-dom';
 import { Device, Branch, UserRole, ThemeMode, MerchantProfile } from '../types';
 import { STAGE_META } from '../data/initialData';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { SPRING_TAB_PILL, SHARED_LAYOUT_IDS } from '../utils/animationRules';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_HEADER_TAG_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_BODY_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+} from './RightDrawerShell';
 import {
   Store,
   Search,
@@ -1369,82 +1380,77 @@ return (
         createPortal(
           <AnimatePresence>
             {selectedMerchantProfile && (
-              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, transition: { duration: 0.24, ease: 'easeOut' } }}
-                  exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
-                  onClick={() => setSelectedMid(null)}
-                  className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
-                />
-                <motion.div
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
-                  exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
-                  className={`relative w-full sm:max-w-[580px] md:max-w-[640px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-transform rounded-l-lg ${
-                    isLight
-                      ? 'bg-white text-slate-800'
-                      : 'bg-[#12151e] text-slate-100'
-                  }`}
-                >
-              <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white shrink-0 border-b border-white/10">
-                <div className="min-w-0 pr-4">
-                  <div className="flex items-center gap-2 text-xs flex-wrap">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/10 text-cyan-300 border border-white/15">
-                      Merchant 360 Profile
-                    </span>
-                    <span className="font-mono text-xs text-slate-300 font-medium">
-                      MID: {selectedMerchantProfile.mid}
-                    </span>
+              <RightDrawerFrame
+                onClose={() => setSelectedMid(null)}
+                zClass="z-50"
+                isLight={isLight}
+                ariaLabel={`Merchant 360 ${dash(selectedMerchantProfile.merchantName)}`}
+              >
+              <div className={SIM_HEADER_CLS}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={SIM_ICON_BOX_CLS}>
+                      <Store className="w-4 h-4 text-[#5cc8ff]" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="text-base font-bold tracking-tight text-white truncate" title={selectedMerchantProfile.merchantName}>
+                          {dash(selectedMerchantProfile.merchantName)}
+                        </h3>
+                        <span className={SIM_HEADER_TAG_CLS}>
+                          Merchant 360
+                        </span>
+                      </div>
+                      <p className="font-mono text-[11.5px] text-slate-300 mt-0.5 truncate">
+                        MID: {selectedMerchantProfile.mid} · Code {selectedMerchantProfile.branchId}
+                      </p>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold tracking-tight text-white mt-1 truncate" title={selectedMerchantProfile.merchantName}>
-                    {dash(selectedMerchantProfile.merchantName)}
-                  </h3>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {role !== 'BRANCH' && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {role !== 'BRANCH' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = selectedMerchantProfile;
+                          setSelectedMid(null);
+                          handleOpenBindModal(target);
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/12 hover:bg-white/20 text-white border border-white/15 inline-flex items-center gap-1 transition cursor-pointer"
+                        title="Bind an additional POS Terminal or Sound Box to this merchant store"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Bind Unit</span>
+                      </button>
+                    )}
+                    {onTerminateMerchant && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const m = selectedMerchantProfile;
+                          setSelectedMid(null);
+                          handleOpenTerminateModal(m);
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 inline-flex items-center gap-1 transition cursor-pointer"
+                        title="Return assigned hardware units back to branch reserve or HQ stock"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Return</span>
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => {
-                        const target = selectedMerchantProfile;
-                        setSelectedMid(null);
-                        handleOpenBindModal(target);
-                      }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs"
-                      title="Bind an additional POS Terminal or Sound Box to this merchant store"
+                      onClick={() => setSelectedMid(null)}
+                      aria-label="Close merchant profile"
+                      title="Close"
+                      className={SIM_CLOSE_BTN_CLS}
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Bind Additional Unit</span>
+                      <X className="w-4 h-4" />
                     </button>
-                  )}
-                  {onTerminateMerchant && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const m = selectedMerchantProfile;
-                        setSelectedMid(null);
-                        handleOpenTerminateModal(m);
-                      }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs"
-                      title="Return assigned hardware units back to branch reserve or HQ stock"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Return Hardware</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMid(null)}
-                    aria-label="Close merchant profile"
-                    title="Close"
-                    className="p-1.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-all active:scale-95 cursor-pointer ml-1"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-6 flex-1 flex flex-col gap-5 overflow-y-auto custom-scrollbar">
+              <div className={SIM_BODY_CLS}>
                 {/* Merchant Metadata Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div
@@ -1767,8 +1773,7 @@ return (
                 {/* (5 Nov 2026) What the merchant holds with each unit: SIM, battery, adaptor, stand, dock */}
                 <MerchantKitCard devices={selectedMerchantProfile.devices} role={role} />
               </div>
-            </motion.div>
-          </div>
+              </RightDrawerFrame>
         )}
           </AnimatePresence>,
           document.body
@@ -1779,44 +1784,39 @@ return (
         createPortal(
           <AnimatePresence>
             {bindModalMerchant && (
-              <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, transition: { duration: 0.24, ease: 'easeOut' } }}
-                  exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
-                  onClick={() => setBindModalMerchant(null)}
-                  className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
-                />
-                <motion.form
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
-                  exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
-                  onSubmit={handleConfirmBindDevice}
-                  className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
-                    isLight
-                      ? 'bg-white border-slate-200 text-slate-800'
-                      : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
-                  }`}
-                >
-                  <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white">
-                    <div>
-                      <h3 className="text-sm font-bold">Bind Hardware Serial to Merchant</h3>
-                      <p className="text-[11px] text-cyan-300 font-mono">
-                        {bindModalMerchant.mid} — {dash(bindModalMerchant.merchantName)}
-                      </p>
+              <RightDrawerFrame
+                onClose={() => setBindModalMerchant(null)}
+                zClass="z-50"
+                isLight={isLight}
+                ariaLabel={`Bind Hardware Serial to ${dash(bindModalMerchant.merchantName)}`}
+              >
+                <div className={SIM_HEADER_CLS}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={SIM_ICON_BOX_CLS}>
+                        <Plus className="w-4 h-4 text-[#5cc8ff]" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-base font-bold text-white truncate">Bind Hardware Serial to Merchant</h3>
+                        <p className="text-[11.5px] text-slate-300 font-mono truncate mt-0.5">
+                          {bindModalMerchant.mid} — {dash(bindModalMerchant.merchantName)}
+                        </p>
+                      </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setBindModalMerchant(null)}
                       aria-label="Close bind dialog"
                       title="Close"
-                      className="p-1 rounded-full text-slate-300 hover:text-white"
+                      className={SIM_CLOSE_BTN_CLS}
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
+                </div>
 
-                  <div className="p-6 flex flex-col gap-4 text-xs">
+                <form onSubmit={handleConfirmBindDevice} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                  <div className={`${SIM_BODY_CLS} text-xs`}>
                     <div>
                       <label htmlFor="crm-bind-serial" className="block font-semibold mb-1.5">
                         Select Reserve Serial (POS or Sound Box)
@@ -1871,27 +1871,27 @@ return (
                       )}
                     </div>
 
-                    <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200/90 dark:border-slate-800">
-                      <button
-                        type="button"
-                        onClick={() => setBindModalMerchant(null)}
-                        className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 cursor-pointer transition shadow-2xs flex items-center gap-1.5"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        <span>Cancel</span>
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={!selectedReserveSerial || !singleBindValidation.valid}
-                        className="px-5 py-2 rounded-xl text-xs font-bold bg-[#004953] hover:bg-[#003b43] text-white border border-emerald-500/30 shadow-sm disabled:opacity-40 cursor-pointer flex items-center gap-1.5 transition"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Bind Serial to MID</span>
-                      </button>
-                    </div>
                   </div>
-                </motion.form>
-              </div>
+
+                  <div className={SIM_FOOTER_CLS}>
+                    <button
+                      type="button"
+                      onClick={() => setBindModalMerchant(null)}
+                      className={SIM_BTN_CANCEL_CLS}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!selectedReserveSerial || !singleBindValidation.valid}
+                      className={SIM_BTN_PRIMARY_CLS}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Bind Serial to MID</span>
+                    </button>
+                  </div>
+                </form>
+              </RightDrawerFrame>
             )}
           </AnimatePresence>,
           document.body
@@ -1903,51 +1903,41 @@ return (
           <>
             <AnimatePresence>
         {terminateModalMerchant && (
-          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { duration: 0.24, ease: 'easeOut' } }}
-              exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
-              onClick={() => setTerminateModalMerchant(null)}
-              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
-            />
-            <motion.form
-              initial={{ x: '100%' }}
-              animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
-              exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
-              onSubmit={handleConfirmTerminate}
-              className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
-                isLight
-                  ? 'bg-white border-slate-200 text-slate-800'
-                  : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
-              }`}
-            >
-              <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-white/10 text-cyan-300 border border-white/20 flex items-center justify-center shrink-0">
-                    <RotateCcw className="w-4 h-4" />
+          <RightDrawerFrame
+            onClose={() => setTerminateModalMerchant(null)}
+            zClass="z-50"
+            isLight={isLight}
+            ariaLabel="Return Hardware from Merchant"
+          >
+              <div className={SIM_HEADER_CLS}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={SIM_ICON_BOX_CLS}>
+                      <RotateCcw className="w-4 h-4 text-[#5cc8ff]" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-white truncate">
+                        Return Hardware from Merchant
+                      </h3>
+                      <p className="text-[11.5px] text-slate-300 font-mono truncate mt-0.5">
+                        {terminateModalMerchant.mid} — {dash(terminateModalMerchant.merchantName)}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white">
-                      Return Hardware from Merchant
-                    </h3>
-                    <p className="text-[11px] text-cyan-300 font-mono">
-                      {terminateModalMerchant.mid} — {dash(terminateModalMerchant.merchantName)}
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTerminateModalMerchant(null)}
+                    aria-label="Close return dialog"
+                    title="Close"
+                    className={SIM_CLOSE_BTN_CLS}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setTerminateModalMerchant(null)}
-                  aria-label="Close return dialog"
-                  title="Close"
-                  className="p-1 rounded-full text-slate-300 hover:text-white cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
               </div>
 
-              <div className="p-6 flex flex-col gap-4 text-xs">
+              <form onSubmit={handleConfirmTerminate} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className={`${SIM_BODY_CLS} text-xs`}>
                 {/* Hardware Attached Notice (System Style) */}
                 <div
                   className={`p-3.5 rounded-2xl border ${
@@ -2148,71 +2138,65 @@ return (
                     className={`w-full rounded-xl px-3 py-2 border ${inputClass}`}
                   />
                 </div>
+                </div>
 
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200/90 dark:border-slate-800">
+                <div className={SIM_FOOTER_CLS}>
                   <button
                     type="button"
                     onClick={() => setTerminateModalMerchant(null)}
-                    className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 cursor-pointer transition shadow-2xs flex items-center gap-1.5"
+                    className={SIM_BTN_CANCEL_CLS}
                   >
-                    <X className="w-3.5 h-3.5" />
-                    <span>Cancel</span>
+                    Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#003857] hover:bg-[#002a42] text-white shadow-xs flex items-center gap-1.5 cursor-pointer transition"
+                    className={SIM_BTN_PRIMARY_CLS}
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Confirm Hardware Return</span>
                   </button>
                 </div>
-              </div>
-            </motion.form>
-          </div>
+              </form>
+          </RightDrawerFrame>
         )}
       </AnimatePresence>
 
       {/* Assign Hardware to Merchant Modal (with Real-Time MID/TID Validator) */}
       <AnimatePresence>
         {newMerchantModalOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { duration: 0.24, ease: 'easeOut' } }}
-              exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } }}
-              onClick={() => setNewMerchantModalOpen(false)}
-              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
-            />
-            <motion.form
-              initial={{ x: '100%' }}
-              animate={{ x: 0, transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
-              exit={{ x: '100%', transition: { duration: 0.24, ease: [0.7, 0, 0.84, 0] } }}
-              onSubmit={handleCreateNewMerchant}
-              className={`relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden transform-gpu will-change-gpu gpu-modal-container rounded-l-lg ${
-                isLight
-                  ? 'bg-white border-slate-200 text-slate-800'
-                  : 'bg-[#0c1a2e] border-[#1d3b66] text-slate-100'
-              }`}
-            >
-              <div className="navy-header-bar rounded-tl-lg px-6 py-4 flex items-center justify-between text-white">
-                <div>
-                  <h3 className="text-sm font-bold">Assign Hardware to Merchant (Support &amp; Setup)</h3>
-                  <p className="text-[11px] text-slate-300">
-                    Link an existing Merchant MID &amp; TID to a reserve POS Terminal or Sound Box
-                  </p>
+          <RightDrawerFrame
+            onClose={() => setNewMerchantModalOpen(false)}
+            zClass="z-50"
+            isLight={isLight}
+            ariaLabel="Assign Hardware to Merchant"
+          >
+              <div className={SIM_HEADER_CLS}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={SIM_ICON_BOX_CLS}>
+                      <Store className="w-4 h-4 text-[#5cc8ff]" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-white truncate">Assign Hardware to Merchant (Support &amp; Setup)</h3>
+                      <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                        Link an existing Merchant MID &amp; TID to a reserve POS Terminal or Sound Box
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNewMerchantModalOpen(false)}
+                    aria-label="Close assign hardware dialog"
+                    title="Close"
+                    className={SIM_CLOSE_BTN_CLS}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setNewMerchantModalOpen(false)}
-                  aria-label="Close assign hardware dialog"
-                  title="Close"
-                  className="p-1 rounded-full text-slate-300 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
               </div>
 
-              <div className="p-6 flex flex-col gap-3.5 text-xs">
+              <form onSubmit={handleCreateNewMerchant} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className={`${SIM_BODY_CLS} text-xs`}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="crm-new-name" className="block font-semibold mb-1">Merchant Business Name *</label>
@@ -2318,27 +2302,27 @@ return (
                   />
                 </div>
 
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200/90 dark:border-slate-800">
+                </div>
+
+                <div className={SIM_FOOTER_CLS}>
                   <button
                     type="button"
                     onClick={() => setNewMerchantModalOpen(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 cursor-pointer transition shadow-2xs flex items-center gap-1.5"
+                    className={SIM_BTN_CANCEL_CLS}
                   >
-                    <X className="w-3.5 h-3.5" />
-                    <span>Cancel</span>
+                    Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={!singleNewMerchantValidation.valid}
-                    className="px-5 py-2 rounded-xl text-xs font-bold bg-[#004953] hover:bg-[#003b43] text-white border border-emerald-500/30 shadow-sm disabled:opacity-40 cursor-pointer flex items-center gap-1.5 transition"
+                    className={SIM_BTN_PRIMARY_CLS}
                   >
                     <Check className="w-3.5 h-3.5" />
                     <span>Save &amp; Assign Hardware</span>
                   </button>
                 </div>
-              </div>
-            </motion.form>
-          </div>
+              </form>
+          </RightDrawerFrame>
         )}
             </AnimatePresence>
           </>,

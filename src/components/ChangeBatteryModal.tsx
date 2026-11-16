@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Device, getBatteryLifecycleStatus, ThemeMode } from '../types';
-import { motion } from 'motion/react';
-import { DRAWER_VARIANTS } from '../utils/animationRules';
+import { AnimatePresence } from 'motion/react';
+import {
+  RightDrawerFrame,
+  SIM_HEADER_CLS,
+  SIM_ICON_BOX_CLS,
+  SIM_CLOSE_BTN_CLS,
+  SIM_SUBHEADER_CLS,
+  SIM_BODY_CLS,
+  SIM_FOOTER_CLS,
+  SIM_BTN_CANCEL_CLS,
+  SIM_BTN_PRIMARY_CLS,
+  simStepPillCls,
+  simStepNumCls,
+} from './RightDrawerShell';
 import { todayPP } from '../utils/time';
 import {
   BatteryCharging,
@@ -103,73 +115,61 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex justify-end overflow-hidden bg-slate-950/55 will-change-[opacity]" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <motion.div
-        variants={DRAWER_VARIANTS}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        className="relative w-full sm:max-w-[560px] md:max-w-[580px] h-full shadow-2xl z-10 flex flex-col my-0 overflow-hidden bg-white text-[#002f49] rounded-l-lg"
+    <AnimatePresence>
+      <RightDrawerFrame
+        onClose={onClose}
+        zClass="z-[60]"
+        ariaLabel={`Replace battery for ${device.serial}`}
       >
-        {/* Navy Header */}
-        <div className="px-6 py-4.5 bg-[#002f49] rounded-tl-lg text-white flex items-center shrink-0 justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-emerald-300 shadow-xs">
-              <BatteryCharging className="w-5 h-5" />
+        {/* SIM-Card Style Header */}
+        <div className={SIM_HEADER_CLS}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={SIM_ICON_BOX_CLS}>
+                <BatteryCharging className="w-4 h-4 text-emerald-300" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold tracking-tight text-white truncate">
+                  Replace Battery from Old to New
+                </h3>
+                <p className="text-[11.5px] text-slate-300 font-mono truncate mt-0.5">
+                  {device.serial} · {device.model} · Branch Code {device.branchId}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
-                <span>Replace Battery from Old to New</span>
-              </h3>
-              <p className="text-xs text-slate-300 font-mono mt-0.5">
-                {device.serial} · {device.model} · Branch Code {device.branchId}
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className={SIM_CLOSE_BTN_CLS}
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
 
-        {/* Stepper Progress Bar */}
-        <div className="px-6 py-2.5 bg-slate-50 border-b shrink-0 border-slate-200 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
+        {/* Subheader Stepper Bar */}
+        <div className={SIM_SUBHEADER_CLS}>
+          <div className="flex items-center gap-1.5 text-xs">
             <button
               type="button"
               onClick={() => setStep('FORM')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-                step === 'FORM'
-                  ? 'bg-[#003857] text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
+              className={simStepPillCls(step === 'FORM', true)}
             >
-              <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
-                1
-              </span>
+              <span className={simStepNumCls(step === 'FORM')}>1</span>
               <span>Battery Details (Old → New)</span>
             </button>
 
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+            <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
 
             <button
               type="button"
               onClick={() => {
                 if (newBatterySerial.trim()) setStep('PREVIEW');
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition ${
-                step === 'PREVIEW'
-                  ? 'bg-[#003857] text-white shadow-xs'
-                  : 'text-slate-400 opacity-70'
-              }`}
+              className={simStepPillCls(step === 'PREVIEW', Boolean(newBatterySerial.trim()))}
             >
-              <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-black">
-                2
-              </span>
+              <span className={simStepNumCls(step === 'PREVIEW')}>2</span>
               <span>Review &amp; Reset 24M</span>
             </button>
           </div>
@@ -181,7 +181,8 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
         </div>
 
         {step === 'FORM' ? (
-          <form onSubmit={handleAdvanceToPreview} className="p-6 space-y-4 text-xs">
+          <form onSubmit={handleAdvanceToPreview} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className={`${SIM_BODY_CLS} space-y-4 text-xs`}>
             {/* Current Battery Status Card */}
             <div
               className={`p-4 rounded-2xl border ${
@@ -311,18 +312,20 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               />
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            </div>
+
+            {/* Sticky Footer */}
+            <div className={SIM_FOOTER_CLS}>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold border bg-slate-100 border-slate-200 text-slate-700 transition cursor-pointer"
+                className={SIM_BTN_CANCEL_CLS}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-xs flex items-center gap-2 transition cursor-pointer"
+                className={`${SIM_BTN_PRIMARY_CLS} flex items-center gap-2`}
               >
                 <span>Review Replacement: Old → New</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -332,7 +335,7 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
         ) : (
           /* STEP 2: PREVIEW & VERIFICATION */
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className="flex-1 p-6 space-y-4 text-xs overflow-y-auto min-h-0 custom-scrollbar">
+            <div className={`${SIM_BODY_CLS} space-y-4 text-xs`}>
             {/* Impact Notice Alert Banner */}
             <div className="p-3.5 rounded-2xl border bg-amber-50 border-amber-200 text-amber-900 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -418,11 +421,11 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
 
             </div>
             {/* Actions */}
-            <div className="shrink-0 px-6 py-3.5 border-t border-slate-200 bg-slate-50/95 flex items-center justify-between">
+            <div className={SIM_FOOTER_CLS}>
               <button
                 type="button"
                 onClick={() => setStep('FORM')}
-                className="px-4 py-2.5 rounded-xl text-xs font-semibold border bg-white hover:bg-slate-100 text-slate-700 border-slate-300 transition cursor-pointer flex items-center gap-1.5"
+                className={`${SIM_BTN_CANCEL_CLS} inline-flex items-center gap-1.5`}
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back to Edit</span>
@@ -431,15 +434,15 @@ export const ChangeBatteryModal: React.FC<ChangeBatteryModalProps> = ({
               <button
                 type="button"
                 onClick={handleFinalConfirm}
-                className="px-5 py-2.5 rounded-xl bg-[#003857] hover:bg-[#002a42] text-white text-xs font-bold shadow-md flex items-center gap-2 transition cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer"
               >
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Confirm &amp; Install New Battery</span>
               </button>
-                </div>
+            </div>
           </div>
         )}
-      </motion.div>
-    </div>
+      </RightDrawerFrame>
+    </AnimatePresence>
   );
 };
