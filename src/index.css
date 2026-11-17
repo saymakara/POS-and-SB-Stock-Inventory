@@ -678,7 +678,8 @@ button:hover:not(:disabled),
 .data-table tbody tr { contain: layout style; }
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .data-table tbody tr:hover td { background: #f4f8fb; }
-.data-table tbody tr:active td { background: #e9f2f9; }
+.data-table tbody tr[role="button"] { cursor: pointer; }
+.data-table tbody tr[role="button"]:active td { background: #e9f2f9; }
 .data-table .cell-main { font-size: 13px; font-weight: 400; color: #0f172a; line-height: 1.45; }
 /* (22 Oct 2026) plain, regular-weight text in tables (no bold), for easy reading */
 .data-table tbody td,
@@ -863,8 +864,8 @@ table thead th.col-no { width: 52px; text-align: center; }
   transition-timing-function: var(--ease-standard) !important;
 }
 
-/* Instant press feedback for rows and navigation items */
-.interactive-row,
+/* Instant press feedback ONLY for genuinely clickable rows and navigation items */
+.interactive-row[role="button"],
 .data-table tbody tr[role="button"],
 [role="tab"],
 [role="menuitem"],
@@ -875,7 +876,7 @@ nav a,
               background-color var(--duration-fast) var(--ease-standard),
               color var(--duration-fast) var(--ease-standard);
 }
-.interactive-row:active,
+.interactive-row[role="button"]:active,
 .data-table tbody tr[role="button"]:active {
   transform: scale(0.995);
   transition-duration: var(--duration-instant);

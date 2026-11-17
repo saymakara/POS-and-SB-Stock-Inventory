@@ -310,13 +310,13 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
     }
   };
 
-  if (!isOpen || !sim) return null;
-
   const branchNameDisplay = placeName(branchId, branches);
 
   return (
     <AnimatePresence>
+      {isOpen && sim ? (
       <RightDrawerFrame
+        key="sim-drawer"
         onClose={onClose}
         zClass="z-50"
         busy={saving}
@@ -932,6 +932,7 @@ const ManageSimModalComponent: React.FC<ManageSimModalProps> = ({
             )}
           </div>
       </RightDrawerFrame>
+      ) : null}
     </AnimatePresence>
   );
 };

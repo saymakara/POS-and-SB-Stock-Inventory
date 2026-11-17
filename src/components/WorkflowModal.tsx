@@ -72,6 +72,7 @@ const HARDWARE_PRIMARY_STEPS: Record<string, { step: string; title: string; subt
 
 interface WorkflowModalProps {
   device: Device | null;
+  isOpen?: boolean;
   branches: Branch[];
   users?: AppUser[];
   role: UserRole;
@@ -115,7 +116,11 @@ interface WorkflowModalProps {
   preset?: '' | 'RETURN';
 }
 
-export const WorkflowModal: React.FC<WorkflowModalProps> = ({
+type WorkflowDrawerContentProps = Omit<WorkflowModalProps, 'isOpen' | 'device'> & {
+  device: Device;
+};
+
+const WorkflowDrawerContent: React.FC<WorkflowDrawerContentProps> = ({
   device,
   branches,
   users = [],
@@ -331,7 +336,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         .catch(() => {
           // Non-critical lookup; keep user-entered value or blank
         });
-    }, 220);
+    }, 260);
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -759,7 +764,6 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
   const isCompactStockMode = !returnMode && !isDeployFlow && !showOptionalSetup;
 
   return (
-    <AnimatePresence>
       <RightDrawerFrame
         onClose={onClose}
         zClass="z-50"
@@ -772,9 +776,9 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
             <div className="flex items-center gap-3 min-w-0">
               <div className={SIM_ICON_BOX_CLS}>
                 {device.type === 'POS Terminal' ? (
-                  <Cpu className="w-4 h-4 text-[#5cc8ff]" />
+                  <Cpu className="w-4 h-4" />
                 ) : (
-                  <Volume2 className="w-4 h-4 text-[#a2a5e0]" />
+                  <Volume2 className="w-4 h-4" />
                 )}
               </div>
               <div className="min-w-0">
@@ -817,7 +821,7 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
                     {STAGE_META[device.stage].label}
                   </span>
                 </div>
-                <p className="text-[11.5px] text-slate-300 truncate mt-0.5">
+                <p className="text-[11.5px] text-slate-200/85 truncate mt-0.5">
                   Custody: {currentBranchLabel} · {device.merchantName ? device.merchantName : 'Unassigned Pool'}
                 </p>
               </div>
@@ -2315,6 +2319,15 @@ export const WorkflowModal: React.FC<WorkflowModalProps> = ({
         )
       )}
       </RightDrawerFrame>
-    </AnimatePresence>
   );
 };
+
+const WorkflowModalComponent: React.FC<WorkflowModalProps> = ({ isOpen = true, device, ...rest }) => (
+  <AnimatePresence>
+    {isOpen && device ? (
+      <WorkflowDrawerContent key="workflow-drawer" device={device} {...rest} />
+    ) : null}
+  </AnimatePresence>
+);
+
+export const WorkflowModal = React.memo(WorkflowModalComponent);

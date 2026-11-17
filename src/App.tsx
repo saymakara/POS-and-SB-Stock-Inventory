@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useMemo, useEffect, useCallback, useDeferredValue, startTransition } from 'react';
+import React, { Suspense, useState, useMemo, useEffect, useCallback, useDeferredValue, startTransition, useRef } from 'react';
 import { setPendingTab } from './utils/navPending';
 import { setDrawerOpen, getDrawerOpen, closeDrawer } from './utils/drawerStore';
 import {
@@ -101,10 +101,11 @@ import {
   saveFullSnapshotToIdb,
 } from './utils/idbStorage';
 // (07 Nov 2026, refactor) shell setup (lazy pages, storage keys, tab lists, session helpers): src/app/appSetup.tsx
+import { WorkflowModal } from './components/WorkflowModal';
 import {
   isNetworkFailure, prefetchTabs, BranchesTab, IamUsersTab, MerchantsCrmTab, MerchantHistoryTab, RequisitionsTab,
   MobileSyncTab, LogoPageTab, AuditLogTab, SettingsTab, FieldReviewTab, KhqrReviewTab, CreditCardReviewTab,
-  SimCardTab, MerchantVisitTab, KpiPerformanceTab, StaffAccountsTab, PushConfiguringTab, TraceModal, WorkflowModal,
+  SimCardTab, MerchantVisitTab, KpiPerformanceTab, StaffAccountsTab, PushConfiguringTab, TraceModal,
   ChangeBatteryModal, ExportDataModal, BatchUploadModal, RequestStockModal, DELTA_SYNC_ENABLED, KEY_DEVICES_FULL_AT,
   DELTA_FULL_RELOAD_AFTER_MS, DELTA_OVERLAP_MS, DELTA_MAX_ROWS, markCacheHydrated, cacheHydrated, DeviceLoad, markStockLoaded, stockLoaded,
   STORAGE_KEY_DEVICES, STORAGE_KEY_REQS, STORAGE_KEY_BRANCHES, STORAGE_KEY_USERS, STORAGE_KEY_LOGS,
@@ -1328,6 +1329,8 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
 
   // Modals
   const [editingDeviceSerial, setEditingDeviceSerial] = useState<string | null>(null);
+  const editingDeviceSerialRef = useRef<string | null>(null);
+  editingDeviceSerialRef.current = editingDeviceSerial;
   const [batteryModalDevice, setBatteryModalDevice] = useState<Device | null>(null);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isReqModalOpen, setIsReqModalOpen] = useState(false);
@@ -1962,7 +1965,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           const isUnsavedLocalEdit = !serverCopies.current.has(existing);
           const isCriticalWorkflow =
             existing.stage === 'CONFIGURING' ||
-            existing.serial === editingDeviceSerial;
+            existing.serial === editingDeviceSerialRef.current;
           if (isUnsavedLocalEdit || isCriticalWorkflow || merged.length < 400) {
             merged.push(existing);
           } else {
@@ -1973,7 +1976,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
       });
       return { rows: incoming, total: res.total };
     },
-    [editingDeviceSerial]
+    []
   );
 
   // When searching from the global header bar on a >100-row dataset outside InventoryTab, fetch matching page from server
@@ -5098,39 +5101,36 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
 
         {/* Session Lock Modal moved outside blurred container */}
 
-        {/* Workflow & Serial Cycle History Modal */}
-        {editingDevice && (
-          <Suspense fallback={null}>
-            <WorkflowModal
-              device={editingDevice}
-              branches={phnomPenhBranches}
-              users={ppActiveUsers}
-              role={role}
-              theme={theme}
-              onClose={() => { setEditingDeviceSerial(null); setWorkflowPreset(''); }}
-              preset={workflowPreset}
-              onSave={(sn, u) => { setWorkflowPreset(''); handleSaveWorkflow(sn, u); }}
-              onDeletePermanently={(sn) => handleDeletePermanently([sn])}
-              onReturnToAdminStock={(sn, reason) =>
-                handleReturnToAdminStock([sn], reason)
-              }
-              onRequestReturnToAdminStock={(sn, reason) =>
-                handleRequestReturnToAdminStock([sn], reason)
-              }
-              onReturnToBranchReserve={(sn, branchId, reason) =>
-                handleReturnToBranchReserve([sn], branchId, reason)
-              }
-              onRemoveFromDashboard={(sn, reason) =>
-                handleRemoveFromDashboard([sn], reason)
-              }
-              onChangeBattery={(dev) => setBatteryModalDevice(dev)}
-              customFields={appSettings.customFields}
-              onRenameSerial={handleRenameSerial}
-              onNotifyConfigReady={handleNotifyConfigReady}
-              operatorLabel={operatorLabel}
-            />
-          </Suspense>
-        )}
+        {/* Workflow & Serial Cycle History Modal (eagerly mounted so open + close transitions glide identically to ManageSimModal) */}
+        <WorkflowModal
+          device={editingDevice}
+          isOpen={Boolean(editingDevice)}
+          branches={phnomPenhBranches}
+          users={ppActiveUsers}
+          role={role}
+          theme={theme}
+          onClose={() => { setEditingDeviceSerial(null); setWorkflowPreset(''); }}
+          preset={workflowPreset}
+          onSave={(sn, u) => { setWorkflowPreset(''); handleSaveWorkflow(sn, u); }}
+          onDeletePermanently={(sn) => handleDeletePermanently([sn])}
+          onReturnToAdminStock={(sn, reason) =>
+            handleReturnToAdminStock([sn], reason)
+          }
+          onRequestReturnToAdminStock={(sn, reason) =>
+            handleRequestReturnToAdminStock([sn], reason)
+          }
+          onReturnToBranchReserve={(sn, branchId, reason) =>
+            handleReturnToBranchReserve([sn], branchId, reason)
+          }
+          onRemoveFromDashboard={(sn, reason) =>
+            handleRemoveFromDashboard([sn], reason)
+          }
+          onChangeBattery={(dev) => setBatteryModalDevice(dev)}
+          customFields={appSettings.customFields}
+          onRenameSerial={handleRenameSerial}
+          onNotifyConfigReady={handleNotifyConfigReady}
+          operatorLabel={operatorLabel}
+        />
 
         {/* POS Terminal Change Battery Modal (24-Month Lifespan Replacement) */}
         {batteryModalDevice && (

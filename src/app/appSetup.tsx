@@ -59,7 +59,6 @@ export const KpiPerformanceTab = lazyTab(() => import('../components/KpiPerforma
 export const StaffAccountsTab = lazyTab(() => import('../components/StaffAccountsTab').then((m) => ({ default: m.StaffAccountsTab })));
 export const PushConfiguringTab = lazyTab(() => import('../components/PushConfiguringTab').then((m) => ({ default: m.PushConfiguringTab })));
 export const TraceModal = lazyTab(() => import('../components/TraceModal').then((m) => ({ default: m.TraceModal })));
-export const WorkflowModal = lazyTab(() => import('../components/WorkflowModal').then((m) => ({ default: m.WorkflowModal })));
 export const ChangeBatteryModal = lazyTab(() => import('../components/ChangeBatteryModal').then((m) => ({ default: m.ChangeBatteryModal })));
 export const ExportDataModal = lazyTab(() => import('../components/ExportDataModal').then((m) => ({ default: m.ExportDataModal })));
 export const BatchUploadModal = lazyTab(() => import('../components/BatchUploadModal').then((m) => ({ default: m.BatchUploadModal })));

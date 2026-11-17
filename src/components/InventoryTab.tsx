@@ -1017,9 +1017,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = ({
                   return (
                     <tr
                       key={dev.serial}
-                      className={`interactive-row ${
+                      className={`${
                         isSyncingThisDevice ? 'optimistic-sync-active' : ''
-                      } ${isChecked ? '!bg-sky-50/70' : ''}`}
+                      } ${isChecked ? '!bg-sky-50/70' : ''}`.trim()}
                     >
                       <td
                         className="w-12 text-center p-0 cursor-pointer select-none"
