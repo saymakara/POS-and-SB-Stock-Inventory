@@ -39,7 +39,7 @@ const PERIOD_LABEL: Record<Period, string> = {
 };
 const SPRING = { type: 'spring', stiffness: 500, damping: 32, mass: 0.55 } as const;
 const GRID =
-  'grid items-center gap-x-3 grid-cols-[68px_150px_128px_minmax(200px,1.4fr)_56px_minmax(160px,1fr)_minmax(150px,1fr)_20px]';
+  'grid items-center gap-x-3 grid-cols-[68px_150px_124px_minmax(170px,1.25fr)_168px_52px_minmax(150px,1fr)_minmax(140px,1fr)_20px]';
 const LGRID = 'grid items-center gap-x-3 grid-cols-[68px_150px_minmax(130px,1fr)_minmax(100px,0.8fr)_108px_128px_minmax(140px,1fr)_32px_164px]';
 const SMGRID = 'grid items-center gap-x-3 grid-cols-[68px_96px_150px_minmax(160px,1fr)_70px_minmax(220px,1.6fr)_70px_minmax(140px,1fr)_120px_20px]';
 const HGRID = 'grid items-center gap-x-3 grid-cols-[minmax(150px,1.2fr)_90px_120px_120px_110px_110px_110px_110px]';
@@ -506,7 +506,7 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
         }} />
       {/* Entries */}
       <section className="fr-table-frame bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-x-auto overflow-y-hidden" aria-label="KHQR entries">
-        <div className="min-w-[1080px]">
+        <div className="min-w-[1160px]">
           <div className={`${GRID} glass-table-thead navy-header-bar bg-[#003857] text-white border-b border-slate-300 text-[11px] font-medium uppercase tracking-wider px-3.5 py-2`} role="row">
             {(() => {
               const headerItems = isSuper && (rows || []).length > 0 ? (rows || []).map((x) => ({ id: x.id, rec: x.recordId })) : [];
@@ -524,7 +524,8 @@ export const KhqrReviewTab: React.FC<Props> = ({ role, branches, triggerToast })
             })()}
             <span>Date Sent</span>
             <span>Activity</span>
-            <span>Merchant / MID</span>
+            <span>Merchant Name</span>
+            <span>MID</span>
             <span className="text-center">QR</span>
             <span>Staff / Branch</span>
             <span>Location</span>
@@ -796,7 +797,9 @@ const SharedMidTable: React.FC<{ rows: QrSharedMid[] | null; periodLabel: string
                     );
                   })()}
                   <span className="tabular-nums">{r.day}</span>
-                  <span className="font-mono tabular-nums text-slate-900">{r.mid}</span>
+                  <span className="min-w-0 font-mono tabular-nums flex items-center">
+                    <CopyableRecordId id={r.mid} title={r.mid ? `Click to copy MID ${r.mid}` : undefined} className="text-[12.5px] text-slate-900 tabular-nums" />
+                  </span>
                   <span className="truncate">{r.merchantName || '—'}</span>
                   <span className="text-center tabular-nums font-semibold text-violet-700">{r.staffCount}</span>
                   <span className="truncate" title={names.join(', ')}>{names.join(', ')}</span>
@@ -878,9 +881,11 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck, onE
           <CopyableRecordId id={e.recordId} />
         </span>
         <span className="truncate">{QR_ACTIVITY_LABEL[e.activity]}</span>
-        <span className="leading-tight min-w-0">
-          <span className="block truncate text-slate-900" title={e.merchantNameKh ? `${e.merchantName} · ${e.merchantNameKh}` : e.merchantName}>{e.merchantName || e.merchantNameKh}</span>
-          <span className="block text-[11px] text-slate-500 font-mono tabular-nums">{e.mid}</span>
+        <span className="block truncate text-slate-900" title={e.merchantNameKh ? `${e.merchantName} · ${e.merchantNameKh}` : e.merchantName}>
+          {e.merchantName || e.merchantNameKh || '—'}
+        </span>
+        <span className="min-w-0 font-mono tabular-nums flex items-center">
+          <CopyableRecordId id={e.mid} title={e.mid ? `Click to copy MID ${e.mid}` : undefined} className="text-[12.5px] text-slate-800 tabular-nums" />
         </span>
         <span className="text-center tabular-nums font-medium" title={`${e.qrCount} QR material(s) scanned`}>{e.qrCount}</span>
         <span className="leading-tight min-w-0">
@@ -913,7 +918,7 @@ const QrRow = memo(function QrRow({ e, no, open, onToggle, checked, onCheck, onE
               <div className="space-y-1.5">
                 <Detail k="Record ID" v={<CopyableRecordId id={e.recordId} variant="badge" />} />
                 <Detail k="Merchant" v={<>{e.merchantName}{e.merchantNameKh && <span className="block text-slate-500">{e.merchantNameKh}</span>}</>} />
-                <Detail k="MID" v={<span className="font-mono tabular-nums">{e.mid}</span>} />
+                <Detail k="MID" v={<CopyableRecordId id={e.mid} variant="badge" title={e.mid ? `Click to copy MID ${e.mid}` : undefined} />} />
                 <Detail k="QR materials" v={`${e.qrCount} scanned, all with the same MID`} />
                 <Detail k="Remark" v={e.remark || '—'} />
               </div>
