@@ -4188,6 +4188,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
         onCloseMobile={closeDrawer}
         theme={theme}
         appSettings={appSettings}
+        userName={operatorLabel}
       />
 
       {/* Live Alert Notification Card (Branch Staff Request / Admin Assignment) */}
