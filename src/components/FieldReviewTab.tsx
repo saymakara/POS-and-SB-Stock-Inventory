@@ -199,15 +199,31 @@ const howOf = (v: unknown): How => {
   const t = String(v ?? '').trim().toUpperCase();
   return t === 'SCAN' || t === 'SCANNED' ? 'SCAN' : t === 'TYPED' || t === 'TYPE' || t === 'MANUAL' ? 'TYPED' : '';
 };
-const entryOf = (e: FieldEvent): { serial: How; mid: How; oldSerial: How } => {
+/** POS visit forms (Operational Support / In-Active / Return): the phone app scans the MID only and fills the
+ *  serial, TID and terminal name from it, so it never sends serial_input. A scanned MID means the unit was scanned. */
+const MID_LOOKUP_KINDS = new Set(['POS_MAINT', 'POS_INACTIVE', 'POS_RETURN']);
+const entryOf = (e: FieldEvent): { serial: How; mid: How; oldSerial: How; serialFromMid: boolean } => {
   const u = (e.payload && (e.payload.unit || e.payload)) || {};
+  const serialReported = howOf(u.serial_input || u.serialInput || u.scan_type || u.scanType || e.payload?.serial_input);
+  const mid = howOf(u.mid_input || u.midInput || e.payload?.mid_input);
+  const serialFromMid = !serialReported && MID_LOOKUP_KINDS.has(e.kind) && mid !== '';
   return {
-    serial: howOf(u.serial_input || u.serialInput || u.scan_type || u.scanType || e.payload?.serial_input),
-    mid: howOf(u.mid_input || u.midInput || e.payload?.mid_input),
+    serial: serialFromMid ? mid : serialReported,
+    mid,
     oldSerial: howOf(u.old_serial_input || u.oldSerialInput || e.payload?.old_serial_input),
+    serialFromMid,
   };
 };
 const howText = (h: How) => (h === 'SCAN' ? 'Scanned' : h === 'TYPED' ? 'Typed by hand' : 'Not reported');
+/** Hover text for a serial / MID: says exactly what the phone reported (never claims "typed" when nothing was sent). */
+const howTitle = (label: string, value: string, h: How, fromMid = false) =>
+  fromMid
+    ? `${label} ${value} (filled from the ${h === 'SCAN' ? 'scanned' : 'typed'} MID)`
+    : h === 'SCAN'
+      ? `${label} ${value} (Scanned via barcode scanner)`
+      : h === 'TYPED'
+        ? `${label} ${value} (Typed manually)`
+        : `${label} ${value} (entry method not reported by the phone app)`;
 
 const InputMethodBadge: React.FC<{
   method: How;
@@ -1774,11 +1790,7 @@ const ReviewRow = memo(function ReviewRow({
               onClick={() => onToggle(e.id)}
               aria-expanded={isOpen}
               className="text-left font-mono truncate cursor-pointer hover:underline inline-flex items-center gap-1.5 group shrink-0"
-              title={
-                entry.serial === 'SCAN'
-                  ? `Serial ${e.serial} (Scanned via barcode scanner)`
-                  : `Serial ${e.serial} (Typed manually)`
-              }
+              title={howTitle('Serial', e.serial, entry.serial, entry.serialFromMid)}
             >
               <ChevronDown
                 className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform duration-300 ${
@@ -1796,7 +1808,7 @@ const ReviewRow = memo(function ReviewRow({
                 {e.serial}
               </span>
             </button>
-            <InputMethodBadge method={entry.serial} titlePrefix="Serial" />
+            <InputMethodBadge method={entry.serial} titlePrefix={entry.serialFromMid ? 'Serial (filled from MID)' : 'Serial'} />
           </div>
 
           {e.oldSerial && (
@@ -1807,7 +1819,7 @@ const ReviewRow = memo(function ReviewRow({
                     ? 'text-emerald-600 dark:text-emerald-400 font-medium'
                     : 'text-slate-500 dark:text-slate-400'
                 }`}
-                title={`Replaces old unit ${e.oldSerial} (${entry.oldSerial === 'SCAN' ? 'Scanned' : 'Typed manually'})`}
+                title={`Replaces old unit ${e.oldSerial} (${howText(entry.oldSerial)})`}
               >
                 <span className="text-slate-400 font-bold">←</span>
                 <span className="truncate">{e.oldSerial}</span>
@@ -1829,11 +1841,7 @@ const ReviewRow = memo(function ReviewRow({
                   ? 'text-emerald-600 dark:text-emerald-400 font-medium'
                   : 'text-slate-500 dark:text-slate-400 font-normal'
               }`}
-              title={
-                entry.mid === 'SCAN'
-                  ? `MID ${e.mid} (Scanned via barcode scanner)`
-                  : `MID ${e.mid} (Typed manually)`
-              }
+              title={howTitle('MID', e.mid, entry.mid)}
             >
               <span className="truncate">{e.mid}</span>
               <InputMethodBadge method={entry.mid} titlePrefix="MID" size="xs" />
@@ -1904,7 +1912,7 @@ const ReviewRow = memo(function ReviewRow({
                 </span>
               </Line>
               <Line k="Staff">{e.staffName ? `${e.staffName}${e.staffId ? ` (${e.staffId})` : ''}` : ''}</Line>
-              <Line k="Entered by">{`Serial: ${howText(entry.serial)} · MID: ${howText(entry.mid)}`}</Line>
+              <Line k="Entered by">{`Serial: ${entry.serialFromMid ? `Filled from ${entry.mid === 'SCAN' ? 'scanned' : 'typed'} MID` : howText(entry.serial)} · MID: ${howText(entry.mid)}`}</Line>
               <Line k="MID · TID" mono>
                 {[e.mid, e.tid].filter(Boolean).join(' · ')}
               </Line>
