@@ -397,6 +397,9 @@ export const DEFAULT_KPI_RULES: KpiPointRule[] = [
   { code: 'MV_REVIEW_GIANT_QR', category: 'Merchant Visit', subCategory: 'Review Giant QR', description: 'Merchant Visit app: Review Giant QR', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 144, updatedBy: null, updatedAt: null },
   { code: 'MV_ABA_GASOLINE_LOGO', category: 'Merchant Visit', subCategory: 'ABA Gasoline Logo', description: 'Merchant Visit app: ABA Gasoline Logo', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 145, updatedBy: null, updatedAt: null },
   { code: 'MV_PAYWAY_INSPECTION', category: 'Merchant Visit', subCategory: 'Payway Inspection', description: 'Merchant Visit app: Payway Inspection', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 146, updatedBy: null, updatedAt: null },
+  { code: 'MV_QR_REFRESHMENT', category: 'Merchant Visit', subCategory: 'QR Refreshment', description: 'Merchant Visit app: QR Refreshment', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 147, updatedBy: null, updatedAt: null },
+  { code: 'MV_BOOTH_EVENT', category: 'Merchant Visit', subCategory: 'Booth Event', description: 'Merchant Visit app: Booth Event', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 148, updatedBy: null, updatedAt: null },
+  { code: 'MV_STANDBY_VIP_MERCHANT', category: 'Merchant Visit', subCategory: 'Standby VIP Merchant', description: 'Merchant Visit app: Standby VIP Merchant', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 149, updatedBy: null, updatedAt: null },
 ];
 
 export const DEFAULT_KPI_TARGETS: KpiTargets = {

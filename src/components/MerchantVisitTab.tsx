@@ -344,10 +344,12 @@ const Kpi: React.FC<{ icon: React.ElementType; label: string; value: number | un
 );
 
 /* (7 Nov 2026) Edit: every answer of the visit, in the form's order (the Merchant Visit app's Sheet columns). */
-const VISIT_ORDER = ['Activity Type', 'Tag', 'Merchant Name', 'MID or Acc Number', 'Phone Number', 'Business Type', 'Location', 'Khan', 'Latitude', 'Longitude', 'Address', 'Product Types', 'Remarks'];
+const VISIT_ORDER = ['Activity Type', 'Tag', 'Booth Owner', 'Booth Owner Other', 'Booth Tag', 'Booth Name', 'Booth Date', 'Booth Hours', 'Distance From Branch',
+  'VIP Location', 'VIP Location Other', 'VIP Hours', 'Standby Type',   // (18 Nov 2026) Booth Event / Standby VIP Merchant answers
+  'Merchant Name', 'MID or Acc Number', 'Phone Number', 'Business Type', 'Location', 'Khan', 'Latitude', 'Longitude', 'Address', 'Product Types', 'Remarks'];
 const VISIT_ACTIVITIES = ['Account Opening', 'QR Merchant Onboarding', 'Declined – Cash Only (No QR)', 'KHQR Issue', 'ABA Mobile Support', "Other Bank's Promo",
   'ABA QR in Good Condition', 'Key Merchant Visit', 'PaySound / Alert Telegram', 'On-site ATM Location', 'Bring Document to Merchant',
-  'Market Coverage', 'Review Giant QR', 'ABA Gasoline Logo', 'Payway Inspection'];
+  'Market Coverage', 'Review Giant QR', 'ABA Gasoline Logo', 'Payway Inspection', 'QR Refreshment', 'Booth Event', 'Standby VIP Merchant'];
 export function visitEditFields(v: MvVisit): EditField[] {
   const a: Record<string, string> = { ...v.answers };
   if (!('Remarks' in a)) a.Remarks = v.remarks || '';
