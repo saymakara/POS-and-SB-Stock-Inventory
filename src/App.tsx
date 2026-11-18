@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useMemo, useEffect, useCallback, useDeferredValue, startTransition, useRef } from 'react';
+import React, { Suspense, useState, useMemo, useEffect, useCallback, useDeferredValue, startTransition } from 'react';
 import { setPendingTab } from './utils/navPending';
 import { setDrawerOpen, getDrawerOpen, closeDrawer } from './utils/drawerStore';
 import {
@@ -102,6 +102,7 @@ import {
 } from './utils/idbStorage';
 // (07 Nov 2026, refactor) shell setup (lazy pages, storage keys, tab lists, session helpers): src/app/appSetup.tsx
 import { WorkflowModal } from './components/WorkflowModal';
+import { workflowDrawer, useWorkflowDrawer } from './components/workflowDrawerStore';
 import {
   isNetworkFailure, prefetchTabs, BranchesTab, IamUsersTab, MerchantsCrmTab, MerchantHistoryTab, RequisitionsTab,
   MobileSyncTab, LogoPageTab, AuditLogTab, SettingsTab, FieldReviewTab, KhqrReviewTab, CreditCardReviewTab,
@@ -299,7 +300,6 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
     return createInitialRequisitions();
   });
   const [traceQuery, setTraceQuery] = useState('');
-  const [workflowPreset, setWorkflowPreset] = useState<'' | 'RETURN'>('');
   const [auditLogs, setAuditLogs] = useState<string[]>(() => {
     try {
       if (isSupabaseConfigured) return [];                             // (review) the server keeps the audit log
@@ -1328,9 +1328,9 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Modals
-  const [editingDeviceSerial, setEditingDeviceSerial] = useState<string | null>(null);
-  const editingDeviceSerialRef = useRef<string | null>(null);
-  editingDeviceSerialRef.current = editingDeviceSerial;
+  // (18 Nov 2026) The unit open in the Manage drawer lives in workflowDrawer (not App state): a Manage click no longer
+  // re-renders the whole portal, so the POS Terminal / Sound Box drawer opens as fast as the SIM Card one.
+  const setEditingDeviceSerial = workflowDrawer.open;
   const [batteryModalDevice, setBatteryModalDevice] = useState<Device | null>(null);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isReqModalOpen, setIsReqModalOpen] = useState(false);
@@ -1965,7 +1965,7 @@ export function App({ profile }: { profile?: AppProfile | null } = {}) {
           const isUnsavedLocalEdit = !serverCopies.current.has(existing);
           const isCriticalWorkflow =
             existing.stage === 'CONFIGURING' ||
-            existing.serial === editingDeviceSerialRef.current;
+            existing.serial === workflowDrawer.get().serial;
           if (isUnsavedLocalEdit || isCriticalWorkflow || merged.length < 400) {
             merged.push(existing);
           } else {
@@ -2126,10 +2126,6 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
     return map;
   }, [devices]);
 
-  const editingDevice = useMemo(
-    () => (editingDeviceSerial ? deviceBySerialMap.get(editingDeviceSerial) || null : null),
-    [deviceBySerialMap, editingDeviceSerial]
-  );
 
   // Optimistic UI Background Cloud Sync System (Instant Perception, 60fps)
   const [syncingSerials, setSyncingSerials] = useState<Set<string>>(new Set());
@@ -4623,7 +4619,7 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
                       stockScopeControl={ctx?.stockScopeControl}
                       materialSummaryStrip={ctx?.materialSummaryStrip}
                       heroControlsContainer={ctx?.heroControlsContainer}
-                      onReturnDevice={(sn) => { setWorkflowPreset('RETURN'); setEditingDeviceSerial(sn); }}
+                      onReturnDevice={(sn) => workflowDrawer.open(sn, 'RETURN')}
                       devices={filteredInventory}
                       allDevices={scopedDevices}
                       branches={phnomPenhBranches}
@@ -5102,16 +5098,13 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
         {/* Session Lock Modal moved outside blurred container */}
 
         {/* Workflow & Serial Cycle History Modal (eagerly mounted so open + close transitions glide identically to ManageSimModal) */}
-        <WorkflowModal
-          device={editingDevice}
-          isOpen={Boolean(editingDevice)}
+        <WorkflowDrawerHost
+          deviceBySerialMap={deviceBySerialMap}
           branches={phnomPenhBranches}
           users={ppActiveUsers}
           role={role}
           theme={theme}
-          onClose={() => { setEditingDeviceSerial(null); setWorkflowPreset(''); }}
-          preset={workflowPreset}
-          onSave={(sn, u) => { setWorkflowPreset(''); handleSaveWorkflow(sn, u); }}
+          onSave={(sn, u) => { workflowDrawer.clearPreset(); handleSaveWorkflow(sn, u); }}
           onDeletePermanently={(sn) => handleDeletePermanently([sn])}
           onReturnToAdminStock={(sn, reason) =>
             handleReturnToAdminStock([sn], reason)
@@ -5466,5 +5459,13 @@ function getDeviceSearchBlob(d: Device, isAdmin: boolean): string {
     </>
   );
 }
+
+/** (18 Nov 2026) The Manage drawer of a POS Terminal / Sound Box: only this re-renders when a unit is opened or closed. */
+type WorkflowHostProps = Omit<React.ComponentProps<typeof WorkflowModal>, 'device' | 'isOpen' | 'onClose' | 'preset'> & { deviceBySerialMap: Map<string, Device> };
+const WorkflowDrawerHost: React.FC<WorkflowHostProps> = ({ deviceBySerialMap, ...rest }) => {
+  const { serial, preset } = useWorkflowDrawer();
+  const device = serial ? deviceBySerialMap.get(serial) || null : null;
+  return <WorkflowModal {...rest} device={device} isOpen={Boolean(device)} preset={preset} onClose={workflowDrawer.close} />;
+};
 
 export default App;
