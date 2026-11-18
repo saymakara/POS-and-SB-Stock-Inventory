@@ -55,12 +55,6 @@ import {
 import { formatBranchName, fmtNum } from '../utils/format';
 import { prefetchKpi } from '../services/kpiService';
 
-/** (18 Nov 2026) the sidebar footer: the signed-in person's initials and role */
-const SIDEBAR_ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin', BRANCH: 'Branch' };
-const sidebarInitials = (name?: string) => {
-  const w = String(name || '').replace(/\(.*?\)/g, ' ').trim().split(/\s+/).filter(Boolean);
-  return ((w[0] || '?')[0] + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase();
-};
 /** (28 Oct 2026) the sub-menus of Phone App Review */
 /** (5 Nov 2026) the Stock Inventory pages (the phone's "Stock" button stays lit on all of them) */
 const STOCK_TABS = ['inventory', 'inventory_pos', 'inventory_sb', 'sim_cards', 'push_configuring'];
@@ -80,7 +74,6 @@ interface SidebarProps {
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
   appSettings?: AppSettings;
-  userName?: string;                                                  // (18 Nov 2026) shown at the bottom
 }
 
 export const Sidebar: React.FC<SidebarProps> = React.memo(({
@@ -95,7 +88,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   mobileOpen: mobileOpenProp,
   onCloseMobile,
   appSettings,
-  userName,
 }) => {
   const storeOpen = useDrawerOpen();
   const mobileOpen = mobileOpenProp ?? storeOpen;
@@ -110,8 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       icon: React.ElementType;
       count?: number;
       highlight?: boolean;
-      action?: boolean;                                                // (18 Nov 2026) the count needs someone to act: accent badge
-      children?: Array<{ id: string; label: string; icon: React.ElementType; count?: number }>;
+      children?: Array<{ id: string; label: string; icon: React.ElementType; iconColor?: string; count?: number }>;
     }>;
   }> = [
     {
@@ -134,11 +125,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           count: webhookCount > 0 ? webhookCount : undefined,
           highlight: webhookCount > 0,
           children: [
-            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, count: reviewCounts?.pos },
-            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, count: reviewCounts?.sb },
-            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode },
-            { id: 'mobile_sync_visit', label: 'Merchant Visit', icon: ClipboardList },
-            { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, count: reviewCounts?.cc || undefined },
+            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.pos },
+            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-[#a2a5e0]', count: reviewCounts?.sb },
+            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode, iconColor: 'text-[#74b9ff]' },
+            { id: 'mobile_sync_visit', label: 'Merchant Visit', icon: ClipboardList, iconColor: 'text-[#52b788]' },
+            { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, iconColor: 'text-amber-400', count: reviewCounts?.cc || undefined },
           ],
         },
       ],
@@ -164,9 +155,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           icon: Boxes,
           children: [
             // the number: units waiting to be pushed (Push Configuring tab); open lost items show on the Material tab
-            { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, count: reviewCounts?.pushPos || undefined },
-            { id: 'inventory_sb', label: 'Sound Box', icon: Volume2, count: reviewCounts?.pushSb || undefined },
-            { id: 'sim_cards', label: 'SIM Card', icon: CardSim, count: reviewCounts?.lostSim || undefined },
+            { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.pushPos || undefined },
+            { id: 'inventory_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-[#a2a5e0]', count: reviewCounts?.pushSb || undefined },
+            { id: 'sim_cards', label: 'SIM Card', icon: CardSim, iconColor: 'text-emerald-300', count: reviewCounts?.lostSim || undefined },
           ],
         },
         {
@@ -174,7 +165,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           label: 'Stock Requests',
           icon: ScrollText,
           count: pendingReqs,
-          action: true,
         },
         {
           id: 'branches',
@@ -209,7 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       <div className="relative z-10">
         {/* Top Brand Anchor */}
         <div
-          className="w-full h-[4.5rem] px-[18px] flex items-center justify-between gap-3 text-white border-b border-white/[0.06]"
+          className="w-full h-[4.5rem] px-[18px] flex items-center justify-between gap-3 text-white border-b border-white/12 bg-white/[0.02]"
         >
           <motion.button
             whileTap={{ scale: 0.96 }}
@@ -263,11 +253,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
         </div>
 
         {/* Modern High-Performance Grouped Navigation */}
-          <nav className="py-4 px-3 flex flex-col gap-5">
+          <nav className="py-4 px-3 flex flex-col gap-4">
           {navGroups.map((group) => (
             <div key={group.heading} className="flex flex-col gap-1">
               <div
-                className={`px-3 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#5E7187] whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
+                className={`px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
                   isMobileView || !collapsed
                     ? 'h-5 pb-1 opacity-100 translate-x-0'
                     : 'h-0 pb-0 opacity-0 -translate-x-1 overflow-hidden pointer-events-none'
@@ -275,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               >
                 {group.heading}
               </div>
-              <div className="flex flex-col gap-0.5 relative">
+              <div className="flex flex-col gap-1 relative">
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const childActive = !!item.children?.some((c) => c.id === navTab) ;
@@ -295,27 +285,30 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       }}
                       onMouseEnter={() => { if (item.id === 'kpi_performance') prefetchKpi(); }}
                       title={!isMobileView && collapsed ? item.label : undefined}
-                      className={`group relative w-full px-3 justify-between h-[38px] rounded-lg flex items-center gap-3 text-left text-[13.5px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
+                      className={`group relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
                         isActive
-                          ? 'font-medium text-white bg-[rgba(56,189,248,0.12)]'
-                          : 'font-normal text-[#9FB0C3] hover:text-white hover:bg-white/[0.05]'
+                          ? 'font-medium text-white bg-white/12 border border-white/15 shadow-xs'
+                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
                       }`}
                     >
                       {/* the left line grows in place (no sliding) */}
                       {isActive && (
                         <span
                           aria-hidden
-                          className="nav-bar-in absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#38BDF8] pointer-events-none"
+                          className="nav-bar-in absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90 shadow-2xs pointer-events-none"
                         />
                       )}
 
-                      <div className="relative flex items-center gap-3 min-w-0">
-                        <Icon
-                          strokeWidth={1.75}
-                          className={`w-[18px] h-[18px] shrink-0 transition-colors duration-150 ${
-                            isActive ? 'text-[#38BDF8]' : 'text-[#7D8FA4] group-hover:text-white'
+                      <div className="relative flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
+                            isActive
+                              ? 'bg-white/20 text-white shadow-xs border border-white/20'
+                              : 'bg-white/[0.05] text-zinc-400 group-hover:text-zinc-100 group-hover:bg-white/[0.08] group-hover:border-white/10 border border-transparent'
                           }`}
-                        />
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                        </div>
                         <span
                           className={`truncate whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
                             showLabels ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1 pointer-events-none'
@@ -328,14 +321,14 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       {/* Subtle Counter Badge (hidden when count is 0 or completely synced) */}
                       {!showChildren && item.count !== undefined && item.count > 0 && (
                         <span
-                          className={`font-figure text-[11px] tabular-nums shrink-0 transition-[opacity,transform] duration-150 ease-out ${
+                          className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-[opacity,transform] duration-150 ease-out ${
                             showLabels ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
                           } ${
-                            item.action
-                              ? 'min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-[#38BDF8] text-[#0B1A2B] font-semibold'
-                              : isActive
-                              ? 'text-white/80 font-medium'
-                              : 'text-[#6F8399] group-hover:text-[#9FB0C3]'
+                            isActive
+                              ? 'bg-white text-zinc-900 font-bold shadow-2xs'
+                              : item.highlight
+                              ? 'bg-white/15 text-white border border-white/20 font-medium'
+                              : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white'
                           }`}
                         >
                           {fmtNum(item.count)}
@@ -343,7 +336,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       )}
                     </motion.button>
                     {showChildren && (
-                      <div className="relative ml-[20px] pl-2.5 my-0.5 flex flex-col gap-0.5 border-l border-white/[0.08] whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
+                      <div className="relative ml-[22px] pl-2.5 flex flex-col gap-0.5 border-l border-white/12 whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
                         {item.children!.map((c) => {
                           const CI = c.icon;
                           const on = navTab === c.id;
@@ -362,20 +355,22 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                 if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
                                 if (c.id === 'sim_cards') import('./SimCardTab');
                               }}
-                              className={`group relative w-full px-2.5 h-[34px] rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out ${
+                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out border ${
                                 on
-                                  ? 'font-medium text-white bg-[rgba(56,189,248,0.12)]'
-                                  : 'font-normal text-[#9FB0C3] hover:text-white hover:bg-white/[0.05]'
+                                  ? 'font-medium text-white bg-white/12 border-white/15 shadow-xs'
+                                  : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border-transparent'
                               }`}
                             >
                               <span className="flex items-center gap-2 min-w-0">
-                                <CI strokeWidth={1.75} className={`w-4 h-4 shrink-0 transition-colors ${on ? 'text-[#38BDF8]' : 'text-[#7D8FA4] group-hover:text-white'}`} />
-                                <span className={`truncate ${on ? 'text-white font-medium' : 'font-normal'}`}>{c.label}</span>
+                                <CI className={`w-3.5 h-3.5 shrink-0 transition-colors ${c.iconColor || (on ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-100')}`} />
+                                <span className={`truncate ${on ? 'text-white font-medium' : 'text-zinc-300 group-hover:text-white font-normal'}`}>{c.label}</span>
                               </span>
                               {c.count !== undefined && c.count > 0 && (
                                 <span
-                                  className={`font-figure text-[11px] tabular-nums shrink-0 transition-colors duration-150 ${
-                                    on ? 'text-white/80 font-medium' : 'text-[#6F8399] group-hover:text-[#9FB0C3] font-normal'
+                                  className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-colors duration-150 ${
+                                    on
+                                      ? 'bg-white text-zinc-900 font-bold shadow-2xs'
+                                      : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white font-normal'
                                   }`}
                                   title="Records waiting for review"
                                 >
@@ -397,34 +392,31 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
       </div>
 
-      {/* (18 Nov 2026) Bottom: the signed-in person, and a small collapse button (desktop) */}
-      <div className={`relative z-10 border-t border-white/[0.06] ${!isMobileView && collapsed ? 'p-3 flex justify-center' : 'px-3 py-3 flex items-center gap-2.5'}`}>
-        {(isMobileView || !collapsed) && (
-          <div className="flex items-center gap-2.5 min-w-0 flex-1 px-1">
-            <span aria-hidden className="w-8 h-8 rounded-full bg-[rgba(56,189,248,0.14)] text-[#38BDF8] text-[11px] font-semibold flex items-center justify-center shrink-0">
-              {sidebarInitials(userName)}
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block text-[13px] font-medium text-white truncate">{userName || 'Signed in'}</span>
-              <span className="block text-[11px] text-[#6F8399] truncate">{SIDEBAR_ROLE_LABEL[role] || role}</span>
-            </span>
-          </div>
-        )}
-        {!isMobileView && (
+      {/* Bottom Collapse Control (Desktop Only) */}
+      {!isMobileView && (
+        <div className="relative z-10 p-3 border-t border-white/10 bg-black/10">
           <motion.button
-            whileTap={{ scale: 0.92 }}
+            whileTap={{ scale: 0.96 }}
             type="button"
             onClick={onToggleCollapse}
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            aria-label={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-[#7D8FA4] hover:text-white hover:bg-white/[0.06] cursor-pointer transition-colors"
+            className="w-full py-2.5 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] active:bg-white/[0.20] text-zinc-200 hover:text-white flex items-center justify-start gap-2.5 text-xs font-semibold cursor-pointer border border-white/12 transition-colors shadow-xs overflow-hidden"
           >
             <ChevronLeft
-              className={`w-4 h-4 transition-transform duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${collapsed ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 text-white shrink-0 transition-transform duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                collapsed ? 'rotate-180' : ''
+              }`}
             />
+            <span
+              className={`whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
+                collapsed ? 'opacity-0 -translate-x-1 pointer-events-none' : 'opacity-100 translate-x-0'
+              }`}
+            >
+              Collapse Sidebar
+            </span>
           </motion.button>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 

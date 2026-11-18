@@ -177,14 +177,13 @@
   background-color: #f3f4f6;
 }
 
-/* (18 Nov 2026) Sidebar "Midnight Navy": one solid deep navy, one accent (sky) for the page in use */
+/* Signature Deep Navy Blue Sidebar (Cloned from Push Configuring Hub)
+   (18 Nov 2026) one solid navy, no gradient (the owner's choice; the rest of the sidebar as before) */
 .sb-sidebar-gradient {
-  --sb-bg: #0B1A2B;
-  --sb-accent: #38BDF8;
-  background-color: var(--sb-bg);
+  background-color: #003857;
   background-image: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 4px 0 24px -4px rgba(0, 34, 56, 0.65);
 }
 
 /* Crisp Corporate Blue Bar & Table Header (lighter blue, not too navy) */
