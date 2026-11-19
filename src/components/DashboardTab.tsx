@@ -905,6 +905,7 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
   }, [inspectedBranch, totalTopTasks]);
 
   const leadBranch = branches[0] || null;
+  const leadTasks = Math.max(1, leadBranch?.totalTasks || 0);
   const midBranches = branches.slice(1, 3);
   const compactBranches = branches.slice(3);
 
@@ -912,9 +913,32 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
     const rank = rankIdx + 1;
     const isActive = hoveredBranchCode === b.code;
     const sharePct = totalTopTasks > 0 ? ((b.totalTasks / totalTopTasks) * 100).toFixed(1) : '0.0';
+    const relWidth = b.totalTasks > 0 ? Math.max(8, Math.round((b.totalTasks / leadTasks) * 100)) : 0;
     const isHero = tier === 'hero';
+    const isMid = tier === 'mid';
     const isCompact = tier === 'compact';
-    const branchColor = isLight ? '#1e6091' : '#38bdf8';
+    const branchColor = isLight ? '#155484' : '#38bdf8';
+
+    // Proportional channel segments for #1 Hero tile
+    const totalCh = Math.max(1, b.totalTasks);
+    const khqrPct = (b.khqr / totalCh) * 100;
+    const posPct = (b.pos / totalCh) * 100;
+    const sbPct = (b.sb / totalCh) * 100;
+    const otherPct = Math.max(0, 100 - khqrPct - posPct - sbPct);
+
+    const tileSurfaceCls = isHero
+      ? isLight
+        ? 'bg-gradient-to-br from-[#155484]/[0.08] via-[#0ea5e9]/[0.025] to-white border-[#155484]/25 hover:border-[#155484]/55 shadow-[0_2px_10px_-4px_rgba(21,84,132,0.16)] hover:shadow-[0_10px_24px_-8px_rgba(21,84,132,0.28)]'
+        : 'bg-gradient-to-br from-sky-500/18 via-sky-500/5 to-slate-800/70 border-sky-400/35 hover:border-sky-400/65 shadow-sm'
+      : isMid
+        ? isLight
+          ? rank === 2
+            ? 'bg-gradient-to-br from-[#155484]/[0.05] via-white to-white border-[#155484]/20 hover:border-[#155484]/45 shadow-[0_1px_6px_-3px_rgba(21,84,132,0.12)] hover:shadow-[0_8px_20px_-8px_rgba(21,84,132,0.22)]'
+            : 'bg-gradient-to-br from-sky-500/[0.045] via-white to-white border-sky-700/15 hover:border-[#155484]/40 shadow-[0_1px_6px_-3px_rgba(14,165,233,0.12)] hover:shadow-[0_8px_20px_-8px_rgba(21,84,132,0.2)]'
+          : 'bg-gradient-to-br from-sky-500/10 to-slate-800/60 border-sky-500/25 hover:border-sky-400/50'
+        : isLight
+          ? 'bg-slate-50/75 hover:bg-white border-slate-200/75 hover:border-[#155484]/35 hover:shadow-[0_6px_16px_-6px_rgba(21,84,132,0.16)]'
+          : 'bg-slate-800/45 hover:bg-slate-800/80 border-slate-700/60 hover:border-sky-400/40';
 
     return (
       <button
@@ -927,70 +951,152 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
         onBlur={() => setHoveredBranchCode(null)}
         onClick={() => onNavigateTab?.('branches')}
         title={`#${rank} ${b.name} (Code ${b.code}) — Total: ${fmtNum(b.totalTasks)} (${sharePct}%) · KHQR ${fmtNum(b.khqr)} · Sound Box ${fmtNum(b.sb)} · POS Terminal ${fmtNum(b.pos)} · Merchant Visit ${fmtNum(b.mv)} · Credit Card ${fmtNum(b.cc)}`}
-        className={`w-full h-full text-left rounded-xl border transition-all duration-150 cursor-pointer flex flex-col justify-between gap-1.5 min-w-0 group ${
-          isHero ? 'p-4' : isCompact ? 'px-2.5 py-2' : 'px-3 py-2.5'
-        } ${
-          isActive
-            ? isLight
-              ? 'shadow-xs'
-              : 'shadow-sm'
-            : isLight
-              ? 'bg-slate-50/75 hover:bg-slate-50 border-slate-200/70 hover:border-slate-300/80'
-              : 'bg-slate-800/45 hover:bg-slate-800/75 border-slate-700/60 hover:border-slate-600'
-        }`}
+        className={`w-full h-full text-left rounded-xl border transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out hover:-translate-y-[1.5px] active:scale-[0.99] cursor-pointer flex flex-col justify-between gap-2 min-w-0 group ${
+          isHero ? 'p-4' : isCompact ? 'px-2.5 py-2' : 'px-3.5 py-2.5'
+        } ${tileSurfaceCls}`}
         style={
           isActive
             ? {
                 borderColor: branchColor,
-                backgroundColor: isLight ? `${branchColor}12` : `${branchColor}24`,
+                backgroundColor: isLight ? `${branchColor}0d` : `${branchColor}24`,
               }
             : undefined
         }
       >
-        <div className="flex items-center justify-between gap-1.5 min-w-0">
-          <span
-            className={`font-semibold truncate min-w-0 ${
-              isHero ? 'text-[12.5px]' : 'text-[10.5px]'
-            } ${isLight ? 'text-slate-700' : 'text-slate-200'}`}
-          >
-            {b.name}
-          </span>
+        <div className="flex items-start justify-between gap-1.5 min-w-0">
+          <div className="min-w-0">
+            <span
+              className={`block truncate min-w-0 ${
+                isHero
+                  ? 'text-[13px] font-bold tracking-tight'
+                  : isMid
+                    ? 'text-[11.5px] font-bold tracking-tight'
+                    : 'text-[10.5px] font-semibold'
+              } ${isLight ? 'text-slate-800' : 'text-slate-100'}`}
+            >
+              {b.name}
+            </span>
+            {(isHero || isMid) && (
+              <span className="block text-[10px] font-mono text-slate-400 dark:text-slate-400 truncate mt-0.5">
+                Code {b.code}{isHero ? ' · #1 Leader' : ''}
+              </span>
+            )}
+          </div>
           <span
             aria-label={`Rank ${rank}`}
-            className={`inline-flex items-center justify-center rounded-full font-figure font-bold tabular-nums shrink-0 leading-none ${
-              isHero ? 'min-w-[20px] h-[20px] px-1.5 text-[10.5px]' : 'min-w-[18px] h-[18px] px-1 text-[9.5px]'
-            } ${
-              rank === 1 || isActive
-                ? isLight
-                  ? 'bg-[#155484]/12 text-[#155484]'
-                  : 'bg-sky-500/20 text-sky-300'
-                : isLight
-                  ? 'bg-slate-200/70 text-slate-600'
-                  : 'bg-slate-700/70 text-slate-300'
+            className={`inline-flex items-center justify-center rounded-full font-figure font-bold tabular-nums shrink-0 leading-none transition-colors ${
+              isHero
+                ? 'min-w-[22px] h-[22px] px-1.5 text-[11px] bg-[#155484] text-white shadow-xs'
+                : isMid
+                  ? `min-w-[20px] h-[20px] px-1.5 text-[10px] ${
+                      isLight
+                        ? 'bg-[#155484]/12 text-[#155484] group-hover:bg-[#155484] group-hover:text-white'
+                        : 'bg-sky-500/20 text-sky-300 group-hover:bg-sky-500 group-hover:text-slate-950'
+                    }`
+                  : `min-w-[18px] h-[18px] px-1 text-[9.5px] ${
+                      isActive
+                        ? isLight
+                          ? 'bg-[#155484]/14 text-[#155484]'
+                          : 'bg-sky-500/20 text-sky-300'
+                        : isLight
+                          ? 'bg-slate-200/75 text-slate-600 group-hover:bg-[#155484]/12 group-hover:text-[#155484]'
+                          : 'bg-slate-700/70 text-slate-300 group-hover:bg-sky-500/20 group-hover:text-sky-300'
+                    }`
             }`}
           >
             {rank}
           </span>
         </div>
 
-        <div className="flex items-end justify-between gap-1.5 min-w-0">
-          <div className="min-w-0 flex items-baseline gap-1.5 whitespace-nowrap">
-            <span
-              className={`font-bold font-figure leading-none tabular-nums ${
-                isHero ? 'text-[22px] sm:text-[24px]' : isCompact ? 'text-[15px]' : 'text-[16.5px]'
-              } ${isLight ? 'text-slate-900' : 'text-white'}`}
-            >
-              {fmtNum(b.totalTasks)}
-            </span>
-            <span
-              className={`font-figure font-semibold tabular-nums leading-none ${
-                isHero ? 'text-[11px]' : isCompact ? 'text-[10px]' : 'text-[10.5px]'
-              } ${isLight ? 'text-slate-500' : 'text-slate-400'}`}
-              style={isActive ? { color: isLight ? branchColor : undefined } : undefined}
-            >
-              {sharePct}%
-            </span>
+        {/* #1 Hero middle channel breakdown — fills vertical space with real operational signal */}
+        {isHero && (
+          <div className={`space-y-1.5 py-2 my-0.5 border-y ${isLight ? 'border-[#155484]/10' : 'border-white/10'}`}>
+            {[
+              { label: 'KHQR', val: b.khqr, color: '#155484' },
+              { label: 'POS Terminal', val: b.pos, color: '#0ea5e9' },
+              { label: 'Sound Box', val: b.sb, color: '#6366f1' },
+            ].map((ch) => (
+              <div key={ch.label} className="flex items-center justify-between gap-2 text-[11px]">
+                <span className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-300 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: ch.color }} />
+                  <span className="truncate">{ch.label}</span>
+                </span>
+                <span className={`font-figure font-semibold tabular-nums shrink-0 ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
+                  {fmtNum(ch.val)}
+                </span>
+              </div>
+            ))}
           </div>
+        )}
+
+        <div className="space-y-1.5 min-w-0">
+          <div className="flex items-end justify-between gap-1.5 min-w-0">
+            <div className="min-w-0 flex items-baseline gap-1.5 whitespace-nowrap">
+              <span
+                className={`font-bold font-figure leading-none tabular-nums ${
+                  isHero ? 'text-[23px] sm:text-[25px]' : isCompact ? 'text-[15px]' : 'text-[17.5px]'
+                } ${isLight ? 'text-slate-900' : 'text-white'}`}
+              >
+                {fmtNum(b.totalTasks)}
+              </span>
+              <span
+                className={`font-figure font-semibold tabular-nums leading-none ${
+                  isHero
+                    ? `text-[11.5px] ${isLight ? 'text-[#155484]' : 'text-sky-300'}`
+                    : isCompact
+                      ? `text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`
+                      : `text-[10.5px] ${isLight ? 'text-[#155484]/85' : 'text-sky-300/90'}`
+                }`}
+                style={isActive ? { color: isLight ? branchColor : undefined } : undefined}
+              >
+                {sharePct}%
+              </span>
+            </div>
+
+            {isMid && (b.pos > 0 || b.sb > 0) && (
+              <span className="text-[10px] font-figure text-slate-400 dark:text-slate-400 tabular-nums whitespace-nowrap shrink-0">
+                POS {fmtNum(b.pos)} · SB {fmtNum(b.sb)}
+              </span>
+            )}
+          </div>
+
+          {/* Proportional share / channel bar */}
+          {isHero ? (
+            <div className={`w-full h-1.5 rounded-full overflow-hidden flex gap-[1px] ${isLight ? 'bg-[#155484]/10' : 'bg-slate-700/70'}`}>
+              {b.totalTasks > 0 && (
+                <>
+                  <div className="h-full transition-[width] duration-300" style={{ width: `${khqrPct}%`, backgroundColor: '#155484' }} />
+                  <div className="h-full transition-[width] duration-300" style={{ width: `${posPct}%`, backgroundColor: '#0ea5e9' }} />
+                  <div className="h-full transition-[width] duration-300" style={{ width: `${sbPct}%`, backgroundColor: '#6366f1' }} />
+                  {otherPct > 0 && (
+                    <div className="h-full transition-[width] duration-300" style={{ width: `${otherPct}%`, backgroundColor: '#10b981' }} />
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <div
+              className={`w-full rounded-full overflow-hidden ${
+                isMid ? 'h-1.5' : 'h-[3px]'
+              } ${isLight ? 'bg-slate-200/75' : 'bg-slate-700/70'}`}
+            >
+              <div
+                className={`h-full rounded-full transition-[width,opacity] duration-300 ${
+                  isMid ? 'opacity-90 group-hover:opacity-100' : 'opacity-55 group-hover:opacity-95'
+                }`}
+                style={{
+                  width: `${relWidth}%`,
+                  background: isMid
+                    ? isLight
+                      ? 'linear-gradient(90deg, #155484 0%, #0ea5e9 100%)'
+                      : 'linear-gradient(90deg, #38bdf8 0%, #818cf8 100%)'
+                    : isLight
+                      ? '#155484'
+                      : '#38bdf8',
+                }}
+              />
+            </div>
+          )}
         </div>
       </button>
     );
@@ -1108,19 +1214,24 @@ const TopBranchesCard = React.memo<TopBranchesCardProps>(({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-figure">
-                  <span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#155484] shrink-0" aria-hidden="true" />
                     KHQR <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.khqr)}</strong>
                   </span>
-                  <span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#6366f1] shrink-0" aria-hidden="true" />
                     Sound Box <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.sb)}</strong>
                   </span>
-                  <span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0ea5e9] shrink-0" aria-hidden="true" />
                     POS Terminal <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.pos)}</strong>
                   </span>
-                  <span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] shrink-0" aria-hidden="true" />
                     Merchant Visit <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.mv)}</strong>
                   </span>
-                  <span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] shrink-0" aria-hidden="true" />
                     Credit Card <strong className={isLight ? 'text-slate-900' : 'text-white'}>{fmtNum(inspectedBranch.cc)}</strong>
                   </span>
                 </div>
