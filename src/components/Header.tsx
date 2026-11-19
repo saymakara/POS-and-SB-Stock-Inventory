@@ -100,8 +100,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       id: string;
       label: string;
       icon: React.ElementType;
-      iconColor?: string;
-      iconBg?: string;
       count?: number;
       highlight?: boolean;
       children?: Array<{ id: string; label: string; icon: React.ElementType; iconColor?: string; count?: number }>;
@@ -127,11 +125,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           count: webhookCount > 0 ? webhookCount : undefined,
           highlight: webhookCount > 0,
           children: [
-            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, iconColor: 'text-sky-600', count: reviewCounts?.pos },
-            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-indigo-600', count: reviewCounts?.sb },
-            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode, iconColor: 'text-[#155484]' },
-            { id: 'mobile_sync_visit', label: 'Merchant Visit', icon: ClipboardList, iconColor: 'text-emerald-600' },
-            { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, iconColor: 'text-amber-600', count: reviewCounts?.cc || undefined },
+            { id: 'mobile_sync', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.pos },
+            { id: 'mobile_sync_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-[#a2a5e0]', count: reviewCounts?.sb },
+            { id: 'mobile_sync_khqr', label: 'KHQR', icon: QrCode, iconColor: 'text-[#74b9ff]' },
+            { id: 'mobile_sync_visit', label: 'Merchant Visit', icon: ClipboardList, iconColor: 'text-[#52b788]' },
+            { id: 'mobile_sync_cc', label: 'Credit Card', icon: CreditCard, iconColor: 'text-amber-400', count: reviewCounts?.cc || undefined },
           ],
         },
       ],
@@ -157,9 +155,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           icon: Boxes,
           children: [
             // the number: units waiting to be pushed (Push Configuring tab); open lost items show on the Material tab
-            { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, iconColor: 'text-sky-600', count: reviewCounts?.pushPos || undefined },
-            { id: 'inventory_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-indigo-600', count: reviewCounts?.pushSb || undefined },
-            { id: 'sim_cards', label: 'SIM Card', icon: CardSim, iconColor: 'text-emerald-600', count: reviewCounts?.lostSim || undefined },
+            { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, iconColor: 'text-[#5cc8ff]', count: reviewCounts?.pushPos || undefined },
+            { id: 'inventory_sb', label: 'Sound Box', icon: Volume2, iconColor: 'text-[#a2a5e0]', count: reviewCounts?.pushSb || undefined },
+            { id: 'sim_cards', label: 'SIM Card', icon: CardSim, iconColor: 'text-emerald-300', count: reviewCounts?.lostSim || undefined },
           ],
         },
         {
@@ -201,7 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       <div className="relative z-10">
         {/* Top Brand Anchor */}
         <div
-          className="w-full h-[4.5rem] px-[18px] flex items-center justify-between gap-3 text-slate-900 border-b border-slate-200/80"
+          className="w-full h-[4.5rem] px-[18px] flex items-center justify-between gap-3 text-white border-b border-white/12 bg-white/[0.02]"
         >
           <motion.button
             whileTap={{ scale: 0.96 }}
@@ -222,7 +220,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               logoUrl={appSettings?.customLogoUrl}
               presetId={appSettings?.logoPresetId}
               size="md"
-              showGlow={false}
+              showGlow
             />
 
             <div
@@ -232,10 +230,10 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                   : 'flex-1 min-w-0 opacity-0 -translate-x-1 pointer-events-none'
               }`}
             >
-              <div className="text-[13px] font-semibold tracking-tight text-slate-900 truncate">
+              <div className="text-[13px] font-medium tracking-tight text-white/95 truncate">
                 {appSettings?.customLogoTitle || 'In-Store Management Portal'}
               </div>
-              <div className="text-[11px] font-normal text-slate-500 tracking-tight mt-0.5 truncate">
+              <div className="text-[11px] font-normal text-zinc-400 tracking-tight mt-0.5 truncate">
                 {appSettings?.customLogoSubtitle || 'Branch Operations Portal'}
               </div>
             </div>
@@ -246,7 +244,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               whileTap={{ scale: 0.92 }}
               type="button"
               onClick={onCloseMobile}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200/70 cursor-pointer"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
               title="Close Navigation"
             >
               <X className="w-5 h-5" />
@@ -254,12 +252,12 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           )}
         </div>
 
-        {/* Clean Linear Grouped Navigation with Semantic Channel Colors */}
+        {/* Modern High-Performance Grouped Navigation */}
           <nav className="py-4 px-3 flex flex-col gap-4">
           {navGroups.map((group) => (
-            <div key={group.heading} className="flex flex-col gap-0.5">
+            <div key={group.heading} className="flex flex-col gap-1">
               <div
-                className={`px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
+                className={`px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
                   isMobileView || !collapsed
                     ? 'h-5 pb-1 opacity-100 translate-x-0'
                     : 'h-0 pb-0 opacity-0 -translate-x-1 overflow-hidden pointer-events-none'
@@ -267,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               >
                 {group.heading}
               </div>
-              <div className="flex flex-col gap-0.5 relative">
+              <div className="flex flex-col gap-1 relative">
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const childActive = !!item.children?.some((c) => c.id === navTab) ;
@@ -287,50 +285,50 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       }}
                       onMouseEnter={() => { if (item.id === 'kpi_performance') prefetchKpi(); }}
                       title={!isMobileView && collapsed ? item.label : undefined}
-                      className={`group relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-2.5 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
+                      className={`group relative w-full px-2.5 justify-between py-2 rounded-xl flex items-center gap-3 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out z-10 ${
                         isActive
-                          ? 'font-semibold text-[#0f2942] bg-white border border-slate-200/95 shadow-[0_1px_3px_rgba(15,23,42,0.06)]'
-                          : 'font-medium text-slate-600 hover:text-slate-950 hover:bg-white/75 border border-transparent hover:border-slate-200/60'
+                          ? 'font-medium text-white bg-white/12 border border-white/15 shadow-xs'
+                          : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
                       }`}
                     >
-                      {/* crisp corporate-blue active edge bar */}
+                      {/* the left line grows in place (no sliding) */}
                       {isActive && (
                         <span
                           aria-hidden
-                          className="nav-bar-in absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#155484] pointer-events-none"
+                          className="nav-bar-in absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-white/90 shadow-2xs pointer-events-none"
                         />
                       )}
 
                       <div className="relative flex items-center gap-2.5 min-w-0">
                         <div
-                          className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
                             isActive
-                              ? 'text-zinc-950'
-                              : 'text-zinc-800 group-hover:text-zinc-950'
+                              ? 'bg-white/20 text-white shadow-xs border border-white/20'
+                              : 'bg-white/[0.05] text-zinc-400 group-hover:text-zinc-100 group-hover:bg-white/[0.08] group-hover:border-white/10 border border-transparent'
                           }`}
                         >
-                          <Icon className="w-[15px] h-[15px]" />
+                          <Icon className="w-3.5 h-3.5" />
                         </div>
                         <span
                           className={`truncate whitespace-nowrap transition-[opacity,transform] duration-150 ease-out ${
                             showLabels ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1 pointer-events-none'
-                          } ${isActive ? 'text-[#0f2942] font-semibold' : ''}`}
+                          } ${isActive ? 'text-white font-medium' : ''}`}
                         >
                           {item.label}
                         </span>
                       </div>
 
-                      {/* Subtle Counter Badge */}
+                      {/* Subtle Counter Badge (hidden when count is 0 or completely synced) */}
                       {!showChildren && item.count !== undefined && item.count > 0 && (
                         <span
-                          className={`font-figure text-[10px] px-1.5 py-0.5 rounded-md tabular-nums shrink-0 transition-[opacity,transform] duration-150 ease-out ${
+                          className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-[opacity,transform] duration-150 ease-out ${
                             showLabels ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
                           } ${
                             isActive
-                              ? 'bg-[#155484] text-white font-semibold'
+                              ? 'bg-white text-zinc-900 font-bold shadow-2xs'
                               : item.highlight
-                              ? 'bg-sky-50 text-[#155484] border border-sky-200/90 font-semibold'
-                              : 'bg-white text-slate-700 border border-slate-200/90 font-medium group-hover:border-slate-300 group-hover:text-slate-900'
+                              ? 'bg-white/15 text-white border border-white/20 font-medium'
+                              : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white'
                           }`}
                         >
                           {fmtNum(item.count)}
@@ -338,7 +336,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       )}
                     </motion.button>
                     {showChildren && (
-                      <div className="relative ml-[21px] pl-2.5 my-0.5 flex flex-col gap-0.5 border-l border-slate-200/95 whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
+                      <div className="relative ml-[22px] pl-2.5 flex flex-col gap-0.5 border-l border-white/12 whitespace-nowrap overflow-hidden" role="group" aria-label={`${item.label} sections`}>
                         {item.children!.map((c) => {
                           const CI = c.icon;
                           const on = navTab === c.id;
@@ -357,28 +355,22 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                                 if (c.id === 'mobile_sync_cc') import('../services/ccService').then((m) => m.prefetchCc());
                                 if (c.id === 'sim_cards') import('./SimCardTab');
                               }}
-                              className={`group relative w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[12.5px] cursor-pointer transition-colors duration-150 ease-out border ${
+                              className={`group w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 text-left text-[13px] cursor-pointer transition-colors duration-150 ease-out border ${
                                 on
-                                  ? 'font-semibold text-[#0f2942] bg-white border-slate-200/95 shadow-[0_1px_3px_rgba(15,23,42,0.06)]'
-                                  : 'font-normal text-slate-600 hover:text-slate-950 hover:bg-white/75 border-transparent hover:border-slate-200/60'
+                                  ? 'font-medium text-white bg-white/12 border-white/15 shadow-xs'
+                                  : 'font-normal text-zinc-300 hover:text-white hover:bg-white/[0.06] hover:border-white/10 border-transparent'
                               }`}
                             >
-                              {on && (
-                                <span
-                                  aria-hidden
-                                  className="nav-bar-in absolute left-0 top-1.5 bottom-1.5 w-[2.5px] rounded-r-full bg-[#155484] pointer-events-none"
-                                />
-                              )}
                               <span className="flex items-center gap-2 min-w-0">
-                                <CI className={`w-3.5 h-3.5 shrink-0 transition-opacity ${c.iconColor || 'text-slate-500'} ${on ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`} />
-                                <span className={`truncate ${on ? 'text-[#0f2942] font-semibold' : 'text-slate-600 group-hover:text-slate-950 font-normal'}`}>{c.label}</span>
+                                <CI className={`w-3.5 h-3.5 shrink-0 transition-colors ${c.iconColor || (on ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-100')}`} />
+                                <span className={`truncate ${on ? 'text-white font-medium' : 'text-zinc-300 group-hover:text-white font-normal'}`}>{c.label}</span>
                               </span>
                               {c.count !== undefined && c.count > 0 && (
                                 <span
-                                  className={`font-figure text-[10px] px-1.5 py-0.5 rounded-md tabular-nums shrink-0 transition-colors duration-150 ${
+                                  className={`font-figure text-[10px] px-2 py-0.5 rounded-full tabular-nums shrink-0 transition-colors duration-150 ${
                                     on
-                                      ? 'bg-[#155484] text-white font-semibold'
-                                      : 'bg-white text-slate-700 border border-slate-200/90 group-hover:border-slate-300 group-hover:text-slate-950 font-medium'
+                                      ? 'bg-white text-zinc-900 font-bold shadow-2xs'
+                                      : 'bg-white/[0.06] text-zinc-300 border border-white/[0.06] group-hover:border-white/15 group-hover:text-white font-normal'
                                   }`}
                                   title="Records waiting for review"
                                 >
@@ -402,16 +394,16 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 
       {/* Bottom Collapse Control (Desktop Only) */}
       {!isMobileView && (
-        <div className="relative z-10 p-3 border-t border-slate-200/80 bg-[#f6f7f9]">
+        <div className="relative z-10 p-3 border-t border-white/10 bg-black/10">
           <motion.button
             whileTap={{ scale: 0.96 }}
             type="button"
             onClick={onToggleCollapse}
             title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            className="w-full py-2 px-3.5 rounded-xl bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 hover:text-[#0f2942] flex items-center justify-start gap-2.5 text-xs font-medium cursor-pointer border border-slate-200/95 transition-colors shadow-[0_1px_2px_rgba(15,23,42,0.03)] overflow-hidden"
+            className="w-full py-2.5 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] active:bg-white/[0.20] text-zinc-200 hover:text-white flex items-center justify-start gap-2.5 text-xs font-semibold cursor-pointer border border-white/12 transition-colors shadow-xs overflow-hidden"
           >
             <ChevronLeft
-              className={`w-4 h-4 text-[#155484] shrink-0 transition-transform duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              className={`w-4 h-4 text-white shrink-0 transition-transform duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 collapsed ? 'rotate-180' : ''
               }`}
             />
@@ -433,7 +425,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
       {/* Desktop Sticky Sidebar (>= md) */}
       <aside
         style={{ contain: 'layout style paint' }}
-        className={`sb-sidebar-gradient sticky top-0 left-0 h-screen z-40 text-zinc-900 shrink-0 hidden md:flex flex-col justify-between select-none overflow-y-auto overflow-x-hidden no-scrollbar relative transform-gpu will-change-[width] transition-[width] duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        className={`sb-sidebar-gradient sticky top-0 left-0 h-screen z-40 text-white shrink-0 hidden md:flex flex-col justify-between select-none overflow-y-auto overflow-x-hidden no-scrollbar relative transform-gpu will-change-[width] transition-[width] duration-[190ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
           collapsed ? 'w-[72px]' : 'w-[244px]'
         }`}
       >
@@ -464,7 +456,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
               dragElastic={{ left: 0.12, right: 0 }}
               dragMomentum={false}
               onDragEnd={(_e, info) => { if (info.offset.x < -70 || info.velocity.x < -450) onCloseMobile?.(); }}
-              className="mobile-drawer sb-sidebar-gradient relative w-72 max-w-[85vw] h-full text-zinc-900 flex flex-col justify-between select-none overflow-y-auto no-scrollbar z-10 shadow-2xl transform-gpu will-change-transform"
+              className="mobile-drawer sb-sidebar-gradient relative w-72 max-w-[85vw] h-full text-white flex flex-col justify-between select-none overflow-y-auto no-scrollbar z-10 shadow-2xl transform-gpu will-change-transform"
               style={{ touchAction: 'pan-y', contain: 'layout paint style' }}
             >
               {renderNavContent(true)}

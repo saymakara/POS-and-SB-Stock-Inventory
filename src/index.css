@@ -135,7 +135,7 @@
     -moz-osx-font-smoothing: auto;
     text-rendering: auto;
     letter-spacing: 0;
-    background-color: #f6f7f9;
+    background-color: #f3f4f6;
     color: #0f172a;
     scroll-behavior: smooth;
     -webkit-tap-highlight-color: transparent;
@@ -173,22 +173,26 @@
   }
 }
 
-/* Unified Clean Linear Light Canvas — consistent with sidebar rail */
+/* Clean Ambient Light Grey Canvas */
 .fintech-ambient-light {
-  background-color: #f6f7f9;
-  background-image: none;
+  background-color: #f3f4f6;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(0, 0, 0, 0.025) 0px, transparent 50%),
+    radial-gradient(at 95% 10%, rgba(0, 0, 0, 0.02) 0px, transparent 45%),
+    linear-gradient(180deg, #f8f9fa 0%, #edf0f2 100%);
 }
 
 .fintech-ambient-dark {
-  background-color: #f6f7f9;
+  background-color: #f3f4f6;
 }
 
-/* Style 3: Linear Monochrome Sidebar — harmonized #f6f7f9 rail with crisp hairline border */
+/* Signature Deep Navy Blue Sidebar (Cloned from Push Configuring Hub)
+   (18 Nov 2026) one solid navy, no gradient (the owner's choice; the rest of the sidebar as before) */
 .sb-sidebar-gradient {
-  background-color: #f6f7f9;
+  background-color: #002F4A;   /* a little darker than #003857 (18 Nov 2026) */
   background-image: none;
-  border-right: 1px solid #e5e8ee;
-  box-shadow: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 4px 0 24px -4px rgba(0, 34, 56, 0.65);
 }
 
 /* Crisp Corporate Blue Bar & Table Header (lighter blue, not too navy) */
@@ -548,15 +552,15 @@ button:hover:not(:disabled),
   color: #3f3f46 !important; /* Promoted from #71717a to zinc-700 */
 }
 
-/* Crisp neutral monochrome ink inside Linear Monochrome sidebar */
+/* Maintain bright crisp light text inside signature navy blue sidebar */
 .sb-sidebar-gradient .text-zinc-400,
 .sb-sidebar-gradient .text-slate-400 {
-  color: #71717a !important;
+  color: #a5d2eb !important;
 }
 
 .sb-sidebar-gradient .text-zinc-500,
 .sb-sidebar-gradient .text-slate-500 {
-  color: #52525b !important;
+  color: #bae6fd !important;
 }
 
 .will-change-gpu {
