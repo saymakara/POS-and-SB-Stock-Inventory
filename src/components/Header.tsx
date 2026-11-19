@@ -114,22 +114,16 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'dashboard',
           label: 'Dashboard',
           icon: LayoutDashboard,
-          iconColor: 'text-[#155484]',
-          iconBg: 'bg-[#155484]/10',
         },
         {
           id: 'kpi_performance',
           label: 'KPI Performance',
           icon: Trophy,
-          iconColor: 'text-amber-600',
-          iconBg: 'bg-amber-50',
         },
         {
           id: 'mobile_sync',
           label: 'Merchant App Review',
           icon: Smartphone,
-          iconColor: 'text-sky-600',
-          iconBg: 'bg-sky-50',
           count: webhookCount > 0 ? webhookCount : undefined,
           highlight: webhookCount > 0,
           children: [
@@ -149,15 +143,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'merchants',
           label: 'Merchant Deployment',
           icon: Store,
-          iconColor: 'text-teal-600',
-          iconBg: 'bg-teal-50',
         },
         {
           id: 'merchant_history',
           label: 'Merchant History',
           icon: RotateCcw,
-          iconColor: 'text-indigo-600',
-          iconBg: 'bg-indigo-50',
         },
         {
           // (5 Nov 2026) the heading opens all units (both products, as before); below it one page per product
@@ -165,8 +155,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'inventory',
           label: 'Stock Inventory',
           icon: Boxes,
-          iconColor: 'text-[#155484]',
-          iconBg: 'bg-[#155484]/10',
           children: [
             // the number: units waiting to be pushed (Push Configuring tab); open lost items show on the Material tab
             { id: 'inventory_pos', label: 'POS Terminal', icon: Cpu, iconColor: 'text-sky-600', count: reviewCounts?.pushPos || undefined },
@@ -178,30 +166,22 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           id: 'requisitions',
           label: 'Stock Requests',
           icon: ScrollText,
-          iconColor: 'text-orange-600',
-          iconBg: 'bg-orange-50',
           count: pendingReqs,
         },
         {
           id: 'branches',
           label: 'Branch Codes',
           icon: Building2,
-          iconColor: 'text-blue-600',
-          iconBg: 'bg-blue-50',
         },
         {
           id: 'users',
           label: 'Staff Directory',
           icon: UserCog,
-          iconColor: 'text-violet-600',
-          iconBg: 'bg-violet-50',
         },
         {
           id: 'audit_log',
           label: 'Audit Trail',
           icon: History,
-          iconColor: 'text-slate-600',
-          iconBg: 'bg-slate-100',
         },
         ...(role === 'SUPER_ADMIN'
           ? [
@@ -209,8 +189,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                 id: 'settings',
                 label: 'Settings',
                 icon: Settings,
-                iconColor: 'text-slate-600',
-                iconBg: 'bg-slate-100',
               },
             ]
           : []),
@@ -327,8 +305,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         <div
                           className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-150 ${
                             isActive
-                              ? `${item.iconBg || 'bg-[#155484]/10'} ${item.iconColor || 'text-[#155484]'}`
-                              : `${item.iconColor || 'text-slate-500'} opacity-85 group-hover:opacity-100`
+                              ? 'text-zinc-950'
+                              : 'text-zinc-800 group-hover:text-zinc-950'
                           }`}
                         >
                           <Icon className="w-[15px] h-[15px]" />
