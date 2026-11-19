@@ -186,13 +186,12 @@
   background-color: #f3f4f6;
 }
 
-/* Signature Deep Navy Blue Sidebar (Cloned from Push Configuring Hub)
-   (18 Nov 2026) one solid navy, no gradient (the owner's choice; the rest of the sidebar as before) */
+/* Style 4: Graphite Obsidian Sidebar — satin neutral obsidian with clean monochrome contrast */
 .sb-sidebar-gradient {
-  background-color: #002F4A;   /* a little darker than #003857 (18 Nov 2026) */
+  background-color: #11151C;
   background-image: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 4px 0 24px -4px rgba(0, 34, 56, 0.65);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
 /* Crisp Corporate Blue Bar & Table Header (lighter blue, not too navy) */
@@ -552,15 +551,15 @@ button:hover:not(:disabled),
   color: #3f3f46 !important; /* Promoted from #71717a to zinc-700 */
 }
 
-/* Maintain bright crisp light text inside signature navy blue sidebar */
+/* Maintain crisp neutral slate contrast inside Graphite Obsidian sidebar */
 .sb-sidebar-gradient .text-zinc-400,
 .sb-sidebar-gradient .text-slate-400 {
-  color: #a5d2eb !important;
+  color: #8f98a6 !important;
 }
 
 .sb-sidebar-gradient .text-zinc-500,
 .sb-sidebar-gradient .text-slate-500 {
-  color: #bae6fd !important;
+  color: #b0b8c5 !important;
 }
 
 .will-change-gpu {
