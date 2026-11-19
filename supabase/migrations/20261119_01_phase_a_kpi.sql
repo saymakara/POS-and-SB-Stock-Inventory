@@ -14,9 +14,10 @@
 --    Only one expression changes in the two KPI counting functions: app.kpi_mv_code(m.activity) becomes
 --    app.kpi_visit_code(m.activity, m.answers) - the same code for every other activity.
 -- 3. My KPI in the app: public.mv_kpi_me(p) - one staff member's today, last 7 days (one per day) and this month, from the
---    portal's own KPI summary (cached; the same figures as the KPI page). Service key only (the Merchant Visit server).
+--    portal's own KPI summary (cached; the same figures as the KPI page; past days kept until midnight). Service key only
+--    (the Merchant Visit server).
 --
--- No table, column, row of data or policy is changed. Safe to run twice.
+-- No table, column, row of data or policy is changed (only the KPI summary cache is emptied). Safe to run twice.
 -- ============================================================================================================================
 
 -- 2a. the KPI code of a visit: Booth Event / Standby VIP Merchant by their Full / Half Day
@@ -25,9 +26,9 @@ returns text
 language sql immutable set search_path = '' as $$
   select case
     when p_activity = 'Booth Event' then
-      case when lower(coalesce(p_answers->>'Booth Duration', '')) like 'half%' then 'MV_BOOTH_EVENT_HALF_DAY' else 'MV_BOOTH_EVENT_FULL_DAY' end
+      case when lower(btrim(coalesce(p_answers->>'Booth Duration', ''))) like 'half%' then 'MV_BOOTH_EVENT_HALF_DAY' else 'MV_BOOTH_EVENT_FULL_DAY' end
     when p_activity = 'Standby VIP Merchant' then
-      case when lower(coalesce(p_answers->>'Standby Type', '')) like 'half%' then 'MV_STANDBY_VIP_HALF_DAY' else 'MV_STANDBY_VIP_FULL_DAY' end
+      case when lower(btrim(coalesce(p_answers->>'Standby Type', ''))) like 'half%' then 'MV_STANDBY_VIP_HALF_DAY' else 'MV_STANDBY_VIP_FULL_DAY' end
     else app.kpi_mv_code(p_activity)
   end;
 $$;
@@ -64,7 +65,11 @@ on conflict (code) do nothing;
 update public.kpi_point_rules set active = false, updated_by = 'system', updated_at = now()
  where code in ('MV_BOOTH_EVENT', 'MV_STANDBY_VIP_MERCHANT') and active;
 
--- 3. My KPI (Merchant Visit app): one staff member - today, the last 7 days, this month
+-- 3. My KPI (Merchant Visit app): one staff member - today, the last 7 days, this month.
+--    Today and the month come from the portal's KPI summary (its own cache: the same figures as the KPI page).
+--    The 6 past days are kept until midnight (all staff of that day, one row a day): a past day is worked out once a day,
+--    not again after each new entry. Measured 19 Nov: 18 ms with the summaries kept; about 2.5 s if all 8 had to be
+--    worked out again, which this avoids (at most today + month: about 0.3 s + 1.2 s, at most once every 3 minutes).
 create or replace function public.mv_kpi_me(p jsonb)
 returns jsonb
 language plpgsql security definer set search_path to '' as $function$
@@ -72,15 +77,26 @@ declare
   v_sid text := left(btrim(coalesce(p->>'staff_id', '')), 40);
   v_today date := (now() at time zone 'Asia/Phnom_Penh')::date;
   v_m0 date := date_trunc('month', (now() at time zone 'Asia/Phnom_Penh'))::date;
-  v_month jsonb; v_s jsonb; v_days jsonb := '[]'::jsonb; d date;
+  v_month jsonb; v_staff jsonb; v_days jsonb := '[]'::jsonb; d date; v_k text;
   v_zero jsonb := '{}'::jsonb;
 begin
   if v_sid = '' then raise exception 'INPUT: staff_id is required.' using errcode = '22023'; end if;
   v_month := public.kpi_dashboard_summary(v_m0, v_today);
+  delete from app.kpi_summary_cache where k like 'MV_KPI_PAST|%' and k not like '%|' || v_today::text;   -- yesterday's
   for d in select generate_series(v_today - 6, v_today, interval '1 day')::date loop
-    v_s := case when d = v_today and v_m0 = v_today then v_month else public.kpi_dashboard_summary(d, d) end;
+    if d = v_today then
+      v_staff := case when v_m0 = v_today then v_month->'staff' else public.kpi_dashboard_summary(d, d)->'staff' end;
+    else
+      v_k := 'MV_KPI_PAST|' || d::text || '|' || v_today::text;
+      select c.result into v_staff from app.kpi_summary_cache c where c.k = v_k;
+      if v_staff is null then
+        v_staff := coalesce(public.kpi_dashboard_summary(d, d)->'staff', '[]'::jsonb);
+        insert into app.kpi_summary_cache as c (k, ver, built_at, result) values (v_k, 0, now(), v_staff)
+        on conflict (k) do update set built_at = excluded.built_at, result = excluded.result;
+      end if;
+    end if;
     v_days := v_days || jsonb_build_array(jsonb_build_object('day', d,
-      'row', coalesce((select x from jsonb_array_elements(coalesce(v_s->'staff', '[]'::jsonb)) x where x->>'staff_id' = v_sid limit 1), v_zero)));
+      'row', coalesce((select x from jsonb_array_elements(coalesce(v_staff, '[]'::jsonb)) x where x->>'staff_id' = v_sid limit 1), v_zero)));
   end loop;
   return jsonb_build_object(
     'day', v_today, 'month_start', v_m0,
