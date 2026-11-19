@@ -1962,6 +1962,7 @@ export const KpiPerformanceTab: React.FC<Props> = ({ role, userBranchId, branche
       { code: 'KHQR_INSTALL', category: 'KHQR', label: ruleMap.get('KHQR_INSTALL')?.subCategory || 'KHQR New Installation', count: r.khqrInstall, unitPts: rulePts(ruleMap, 'KHQR_INSTALL'), points: r.khqrInstall * rulePts(ruleMap, 'KHQR_INSTALL'), unit: 'merchants' },
       { code: 'KHQR_REPLACE', category: 'KHQR', label: ruleMap.get('KHQR_REPLACE')?.subCategory || 'KHQR Replacement', count: r.khqrReplace, unitPts: rulePts(ruleMap, 'KHQR_REPLACE'), points: r.khqrReplace * rulePts(ruleMap, 'KHQR_REPLACE'), unit: 'merchants' },
       { code: 'KHQR_MATERIAL', category: 'KHQR', label: ruleMap.get('KHQR_MATERIAL')?.subCategory || 'QR Material Scanned (Bonus)', count: r.khqrMaterials, unitPts: rulePts(ruleMap, 'KHQR_MATERIAL'), points: r.khqrMaterials * rulePts(ruleMap, 'KHQR_MATERIAL'), unit: 'QR items' },
+      { code: 'KHQR_PRINT_LAMINATE', category: 'KHQR', label: ruleMap.get('KHQR_PRINT_LAMINATE')?.subCategory || 'KHQR Print & Laminate', count: r.khqrInstall + r.khqrReplace, unitPts: rulePts(ruleMap, 'KHQR_PRINT_LAMINATE'), points: (r.khqrInstall + r.khqrReplace) * rulePts(ruleMap, 'KHQR_PRINT_LAMINATE'), unit: 'submissions' },
       { code: 'KHQR_ONBOARD_FAIL', category: 'KHQR', label: ruleMap.get('KHQR_ONBOARD_FAIL')?.subCategory || 'KHQR Onboarding Failed', count: Number(r.extra?.['KHQR_ONBOARD_FAIL']) || 0, unitPts: rulePts(ruleMap, 'KHQR_ONBOARD_FAIL'), points: (Number(r.extra?.['KHQR_ONBOARD_FAIL']) || 0) * rulePts(ruleMap, 'KHQR_ONBOARD_FAIL'), unit: 'attempts' },
       { code: 'CC_PRIMARY', category: 'Credit Card', label: ruleMap.get('CC_PRIMARY')?.subCategory || 'Primary Credit Card Onboarded', count: r.ccPrimary, unitPts: rulePts(ruleMap, 'CC_PRIMARY'), points: r.ccPrimary * rulePts(ruleMap, 'CC_PRIMARY'), unit: 'cards' },
       { code: 'CC_SUPP', category: 'Credit Card', label: ruleMap.get('CC_SUPP')?.subCategory || 'Supplementary Card Onboarded', count: r.ccSupp, unitPts: rulePts(ruleMap, 'CC_SUPP'), points: r.ccSupp * rulePts(ruleMap, 'CC_SUPP'), unit: 'supp. cards' },
@@ -5638,6 +5639,7 @@ const SubCategoryMiniGrid: React.FC<{ raw: KpiRawCounts; ruleMap: Map<string, Kp
     { label: 'KHQR Install', n: raw.khqrInstall, pts: raw.khqrInstall * rulePts(ruleMap, 'KHQR_INSTALL') },
     { label: 'KHQR Replace', n: raw.khqrReplace, pts: raw.khqrReplace * rulePts(ruleMap, 'KHQR_REPLACE') },
     { label: 'QR Materials', n: raw.khqrMaterials, pts: raw.khqrMaterials * rulePts(ruleMap, 'KHQR_MATERIAL') },
+    { label: 'KHQR Print & Laminate', n: raw.khqrInstall + raw.khqrReplace, pts: (raw.khqrInstall + raw.khqrReplace) * rulePts(ruleMap, 'KHQR_PRINT_LAMINATE') },
     { label: 'CC Primary', n: raw.ccPrimary, pts: raw.ccPrimary * rulePts(ruleMap, 'CC_PRIMARY') },
     { label: 'CC Supp.', n: raw.ccSupp, pts: raw.ccSupp * rulePts(ruleMap, 'CC_SUPP') },
   ];
