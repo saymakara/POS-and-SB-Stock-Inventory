@@ -374,18 +374,19 @@ const Kpi: React.FC<{ icon: React.ElementType; label: string; value: number | un
 );
 
 /* (7 Nov 2026) Edit: every answer of the visit, in the form's order (the Merchant Visit app's Sheet columns). */
-const VISIT_ORDER = ['Activity Type', 'Tag', 'Booth Owner', 'Booth Owner Other', 'Booth Tag', 'Booth Name', 'Booth Date', 'Booth Hours', 'Distance From Branch',
+const VISIT_ORDER = ['Activity Type', 'Tag', 'Booth Owner', 'Booth Owner Other', 'Booth Tag', 'Booth Name', 'Booth Date', 'Booth Hours', 'Booth Duration', 'Distance From Branch',
   'VIP Location', 'VIP Location Other', 'VIP Hours', 'Standby Type',   // (18 Nov 2026) Booth Event / Standby VIP Merchant answers
   'Merchant Name', 'MID or Acc Number', 'Phone Number', 'Business Type', 'Location', 'Khan', 'Latitude', 'Longitude', 'Address', 'Product Types', 'Remarks'];
 const VISIT_ACTIVITIES = ['Account Opening', 'QR Merchant Onboarding', 'Declined – Cash Only (No QR)', 'KHQR Issue', 'ABA Mobile Support', "Other Bank's Promo",
   'ABA QR in Good Condition', 'Key Merchant Visit', 'PaySound / Alert Telegram', 'On-site ATM Location', 'Bring Document to Merchant',
   'Market Coverage', 'Review Giant QR', 'ABA Gasoline Logo', 'Payway Inspection', 'QR Refreshment', 'Booth Event', 'Standby VIP Merchant'];
+const DAY_TYPES = ['Full Day', 'Half Day'];   // (19 Nov 2026) Booth Event / Standby VIP: counted on the KPI as Full Day / Half Day
 export function visitEditFields(v: MvVisit): EditField[] {
   const a: Record<string, string> = { ...v.answers };
   if (!('Remarks' in a)) a.Remarks = v.remarks || '';
   const keys = Object.keys(a).sort((x, y) => { const i = VISIT_ORDER.indexOf(x), j = VISIT_ORDER.indexOf(y); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
   return keys.map((k) => ({ key: 'answers.' + k, label: k, value: a[k], multiline: /^(remarks|address)$/i.test(k),
-    options: k === 'Activity Type' ? VISIT_ACTIVITIES : undefined }));
+    options: k === 'Activity Type' ? VISIT_ACTIVITIES : k === 'Booth Duration' || k === 'Standby Type' ? DAY_TYPES : undefined }));
 }
 
 const VisitRow = memo(function VisitRow({ v, no, open, onToggle, checked, onCheck, onEdit }: {

@@ -230,7 +230,9 @@ export function computeKpiPoints(c: KpiRawCounts, ruleMap: Map<string, KpiPointR
   const khqrPoints =
     c.khqrInstall * rulePts(ruleMap, 'KHQR_INSTALL') +
     c.khqrReplace * rulePts(ruleMap, 'KHQR_REPLACE') +
-    c.khqrMaterials * rulePts(ruleMap, 'KHQR_MATERIAL');
+    c.khqrMaterials * rulePts(ruleMap, 'KHQR_MATERIAL') +
+    // (19 Nov 2026) KHQR Print & Laminate: per submission (New Installation or QR Replacement), the installer - points only
+    (c.khqrInstall + c.khqrReplace) * rulePts(ruleMap, 'KHQR_PRINT_LAMINATE');
 
   const ccTasks = c.ccPrimary + c.ccSupp;
   const ccPoints =
@@ -377,6 +379,7 @@ export const DEFAULT_KPI_RULES: KpiPointRule[] = [
   { code: 'KHQR_INSTALL', category: 'KHQR', subCategory: 'KHQR New Installation', description: 'Merchant onboarded with new ABA KHQR kit', points: 1, unit: 'per merchant', active: true, isSystem: true, sortOrder: 80, updatedBy: null, updatedAt: null },
   { code: 'KHQR_REPLACE', category: 'KHQR', subCategory: 'KHQR Replacement', description: 'Damaged or old KHQR stand replaced', points: 1, unit: 'per merchant', active: true, isSystem: true, sortOrder: 90, updatedBy: null, updatedAt: null },
   { code: 'KHQR_MATERIAL', category: 'KHQR', subCategory: 'QR Material Scanned (Bonus)', description: 'Additional collateral or decals scanned during setup', points: 0, unit: 'per QR item', active: true, isSystem: true, sortOrder: 100, updatedBy: null, updatedAt: null },
+  { code: 'KHQR_PRINT_LAMINATE', category: 'KHQR', subCategory: 'KHQR Print & Laminate', description: 'KHQR Installation (New Installation or QR Replacement): printing and laminating the QR materials - per submission, the installer', points: 0, unit: 'per submission', active: true, isSystem: true, sortOrder: 23, updatedBy: null, updatedAt: null },
   { code: 'KHQR_ONBOARD_FAIL', category: 'KHQR', subCategory: 'KHQR Onboarding Failed', description: 'Merchant KHQR onboarding attempt failed or rejected', points: 0, unit: 'per attempt', active: true, isSystem: true, sortOrder: 105, updatedBy: null, updatedAt: null },
   { code: 'CC_PRIMARY', category: 'Credit Card', subCategory: 'Primary Credit Card Onboarded', description: 'Approved primary credit card application', points: 15, unit: 'per card', active: true, isSystem: true, sortOrder: 110, updatedBy: null, updatedAt: null },
   { code: 'CC_SUPP', category: 'Credit Card', subCategory: 'Supplementary Card Onboarded', description: 'Approved supplementary credit card application', points: 5, unit: 'per supp. card', active: true, isSystem: true, sortOrder: 120, updatedBy: null, updatedAt: null },
@@ -398,8 +401,12 @@ export const DEFAULT_KPI_RULES: KpiPointRule[] = [
   { code: 'MV_ABA_GASOLINE_LOGO', category: 'Merchant Visit', subCategory: 'ABA Gasoline Logo', description: 'Merchant Visit app: ABA Gasoline Logo', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 145, updatedBy: null, updatedAt: null },
   { code: 'MV_PAYWAY_INSPECTION', category: 'Merchant Visit', subCategory: 'Payway Inspection', description: 'Merchant Visit app: Payway Inspection', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 146, updatedBy: null, updatedAt: null },
   { code: 'MV_QR_REFRESHMENT', category: 'Merchant Visit', subCategory: 'QR Refreshment', description: 'Merchant Visit app: QR Refreshment', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 147, updatedBy: null, updatedAt: null },
-  { code: 'MV_BOOTH_EVENT', category: 'Merchant Visit', subCategory: 'Booth Event', description: 'Merchant Visit app: Booth Event', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 148, updatedBy: null, updatedAt: null },
-  { code: 'MV_STANDBY_VIP_MERCHANT', category: 'Merchant Visit', subCategory: 'Standby VIP Merchant', description: 'Merchant Visit app: Standby VIP Merchant', points: 0, unit: 'per visit', active: true, isSystem: true, sortOrder: 149, updatedBy: null, updatedAt: null },
+  { code: 'MV_BOOTH_EVENT', category: 'Merchant Visit', subCategory: 'Booth Event', description: 'Merchant Visit app: Booth Event', points: 0, unit: 'per visit', active: false, isSystem: true, sortOrder: 148, updatedBy: null, updatedAt: null },
+  { code: 'MV_STANDBY_VIP_MERCHANT', category: 'Merchant Visit', subCategory: 'Standby VIP Merchant', description: 'Merchant Visit app: Standby VIP Merchant', points: 0, unit: 'per visit', active: false, isSystem: true, sortOrder: 149, updatedBy: null, updatedAt: null },
+  { code: 'MV_BOOTH_EVENT_FULL_DAY', category: 'Merchant Visit', subCategory: 'Booth Event - Full Day', description: 'Merchant Visit app: Booth Event, full day', points: 0, unit: 'per booth', active: true, isSystem: true, sortOrder: 148, updatedBy: null, updatedAt: null },
+  { code: 'MV_BOOTH_EVENT_HALF_DAY', category: 'Merchant Visit', subCategory: 'Booth Event - Half Day', description: 'Merchant Visit app: Booth Event, half day', points: 0, unit: 'per booth', active: true, isSystem: true, sortOrder: 149, updatedBy: null, updatedAt: null },
+  { code: 'MV_STANDBY_VIP_FULL_DAY', category: 'Merchant Visit', subCategory: 'Standby VIP - Full Day', description: 'Merchant Visit app: Standby VIP Merchant, full day', points: 0, unit: 'per standby', active: true, isSystem: true, sortOrder: 150, updatedBy: null, updatedAt: null },
+  { code: 'MV_STANDBY_VIP_HALF_DAY', category: 'Merchant Visit', subCategory: 'Standby VIP - Half Day', description: 'Merchant Visit app: Standby VIP Merchant, half day', points: 0, unit: 'per standby', active: true, isSystem: true, sortOrder: 151, updatedBy: null, updatedAt: null },
 ];
 
 export const DEFAULT_KPI_TARGETS: KpiTargets = {
